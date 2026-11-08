@@ -42,7 +42,7 @@ git rev-parse HEAD
 
 ## 工作室开发流程
 
-GitHub Actions 的首次配置准备、两次 Play Mode 与干净提交验收见 [Unity / ORK P0 CI](docs/unity-p0-ci.md)。当前 CI 为未运行草稿，P0 仍待 Unity 实证。
+GitHub Actions 的首次配置准备、两次 Play Mode 与干净提交验收见 [Unity / ORK P0 CI](docs/unity-p0-ci.md)。CI 候选已推送，运行状态尚未确认，P0 仍待 Unity 实证。
 
 后续开发默认在普通 ChatGPT 聊天中使用 GitHub 插件，从 [对话入口](CHATGPT.md) 读取实时任务并提交。Codex 通过 `AGENTS.md`，Claude Code 通过 `/dev-story` 和 `/story-done` 使用同一套规则。
 

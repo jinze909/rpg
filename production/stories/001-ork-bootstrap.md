@@ -22,6 +22,6 @@ Open the project's startup scene and confirm that ORK 3.22.0 with Makinom 2.21.0
 
 ## Scope
 
-CI 实现草稿见 [Unity / ORK P0 CI](../../docs/unity-p0-ci.md)。尚未运行；首次准备配置的成功结果不能替代干净提交验收。
+CI 实现候选见 [Unity / ORK P0 CI](../../docs/unity-p0-ci.md)。候选已推送，尚未取得运行结果；首次准备配置的成功结果不能替代干净提交验收。
 
 Use `Assets/Game/Scenes/Bootstrap.unity` as the entry point. Preserve the project's ORK settings and scene metadata. After bootstrap passes, define the next playable prototype from the newly selected game direction.

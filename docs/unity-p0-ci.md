@@ -1,6 +1,6 @@
 # Unity / ORK P0 的 GitHub Actions 验收
 
-当前为**已授权发布、待运行验证的 CI 候选**，基于 `21ce4693323552858430f10db69b5ba40d3c1f2f`。本地尚无 Unity Editor；GitHub API 在当前云工作区被网络策略拒绝，因此未读取远端 secrets 名称、触发 Actions 或取得运行结果。没有把静态检查记作编译或 Play Mode 通过。
+CI 候选已推送，提交为 [`3c9502a`](https://github.com/jinze909/rpg/commit/3c9502ad6b86a6c905ee8c5e6bdbc8600ff4347f)，**待取得运行验证结果**，基于 `21ce4693323552858430f10db69b5ba40d3c1f2f`。本地尚无 Unity Editor；GitHub API 在当前云工作区被网络策略拒绝，因此未读取远端 secrets 名称或取得运行结果；已通过推送提交工作流启动请求，实际排队状态未确认。没有把静态检查记作编译或 Play Mode 通过。
 
 ## 验收内容
 

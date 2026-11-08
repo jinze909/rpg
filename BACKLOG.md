@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | N0 | 建立“归来”[详细主线](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)与[地区故事](docs/narrative/REGIONAL_STORIES.md) v0.1，供编剧与任务分解。 | 文档审查通过；未实现、未试玩 |
 | D0 | 深度讨论并写成[一页玩法基线](docs/gameplay/BASELINE.md)，区分已定、暂定与待验证，供后续任务读取。 | 文档审查通过；未实现、未试玩 |
-| P0 | 验证 Unity 工程和 ORK 启动，建立可追溯的编译与构建证据。当前为 [001 · ORK 启动验证](production/stories/001-ork-bootstrap.md)。 | 待验证；[Actions 草稿](docs/unity-p0-ci.md)已准备，未运行 |
+| P0 | 验证 Unity 工程和 ORK 启动，建立可追溯的编译与构建证据。当前为 [001 · ORK 启动验证](production/stories/001-ork-bootstrap.md)。 | 待验证；[Actions 候选](docs/unity-p0-ci.md)已推送，运行状态因 API 网络拒绝未确认 |
 | P0-b | 建立脚本化冒烟、同 SHA 验证和基础帧时间、P95、GC 趋势采样。 | 待开发 |
 | G1 | 标题、菜单和 HUD 使用 UGUI，验证键鼠与手柄焦点及分辨率适配。世界渲染走 SpriteRenderer / Tilemap，并检查排序层。 | 待开发 |
 | N1 | 将序章写成场景稿，并写完一条独立地区线及M08—M11的连续人物场；检查具体行动、对白与因果。 | 待编剧 |
