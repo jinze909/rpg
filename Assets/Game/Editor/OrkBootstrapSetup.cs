@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 
 namespace Rpg.Editor
 {
-    internal static class OrkBootstrapSetup
+    public static class OrkBootstrapSetup
     {
         private const string ScenePath = "Assets/Game/Scenes/Bootstrap.unity";
         private const string ProjectPath = "Assets/Gaming Is Love/_Data/Project.asset";
@@ -23,52 +23,112 @@ namespace Rpg.Editor
                 return;
             }
 
-            var assembly = AppDomain.CurrentDomain.GetAssemblies()
-                .SingleOrDefault(candidate => candidate.GetName().Name == "ORKFramework3");
-            var starterType = assembly?.GetType(StarterName);
-            var project = AssetDatabase.LoadAssetAtPath<ScriptableObject>(ProjectPath);
-            if (starterType == null || project == null)
+            try
             {
-                Debug.LogError("Install ORK, then open its editor and save the project settings.");
-                return;
-            }
-
-            var projectField = starterType.GetField("project");
-            if (projectField == null || !projectField.FieldType.IsInstanceOfType(project))
-            {
-                Debug.LogError($"The installed ORK starter cannot use {ProjectPath}.");
-                return;
-            }
-
-            var existing = scene.GetRootGameObjects()
-                .SelectMany(root => root.GetComponentsInChildren(starterType, true))
-                .ToArray();
-            if (existing.Length > 0)
-            {
-                if (existing.Length == 1 && project.Equals(projectField.GetValue(existing[0])))
+                var starterType = FindStarterType();
+                var project = LoadSavedProject(starterType);
+                var starters = FindStarters(scene, starterType);
+                if (starters.Length != 0)
                 {
-                    Debug.Log("Bootstrap already uses the ORK project asset.");
+                    ValidateStarter(starters, project);
+                    Debug.Log("Bootstrap already uses the saved ORK project asset.");
                     return;
                 }
 
-                Debug.LogError("Bootstrap already contains an ORK starter with different wiring. Inspect it before continuing.");
-                return;
-            }
+                Undo.IncrementCurrentGroup();
+                int undoGroup = Undo.GetCurrentGroup();
+                Undo.SetCurrentGroupName("Wire ORK Bootstrap");
+                try
+                {
+                    var starterObject = new GameObject("ORK Game Starter");
+                    Undo.RegisterCreatedObjectUndo(starterObject, "Wire ORK Bootstrap");
+                    var starter = Undo.AddComponent(starterObject, starterType);
+                    var settings = new SerializedObject(starter);
+                    settings.FindProperty("project").objectReferenceValue = project;
+                    settings.ApplyModifiedProperties();
+                    ValidateStarter(FindStarters(scene, starterType), project);
 
-            var starterObject = new GameObject("ORK Game Starter");
-            Undo.RegisterCreatedObjectUndo(starterObject, "Wire ORK Bootstrap");
-            var starter = Undo.AddComponent(starterObject, starterType);
-            var serializedStarter = new SerializedObject(starter);
-            serializedStarter.FindProperty("project").objectReferenceValue = project;
-            serializedStarter.ApplyModifiedProperties();
+                    if (!EditorSceneManager.SaveScene(scene))
+                    {
+                        throw new InvalidOperationException($"Could not save {ScenePath}.");
+                    }
 
-            if (EditorSceneManager.SaveScene(scene))
-            {
+                    Undo.CollapseUndoOperations(undoGroup);
+                }
+                catch
+                {
+                    Undo.RevertAllDownToGroup(undoGroup);
+                    throw;
+                }
+
                 Debug.Log("Saved the ORK starter. Configure a player and start schematic before enabling Start Game.");
             }
-            else
+            catch (InvalidOperationException error)
             {
-                Debug.LogError("The ORK starter was added but the scene could not be saved.");
+                Debug.LogError(error.Message);
+            }
+        }
+
+        // Invoked by Unity with -batchmode -quit -executeMethod.
+        public static void ValidateBatch()
+        {
+            var firstScene = EditorBuildSettings.scenes.FirstOrDefault(scene => scene.enabled);
+            if (firstScene == null || firstScene.path != ScenePath)
+            {
+                throw new InvalidOperationException($"{ScenePath} must be the first enabled build scene.");
+            }
+
+            var starterType = FindStarterType();
+            var project = LoadSavedProject(starterType);
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            ValidateStarter(FindStarters(scene, starterType), project);
+            Debug.Log("RPG_BOOTSTRAP_VALIDATED");
+        }
+
+        private static Type FindStarterType()
+        {
+            var starterType = TypeCache.GetTypesDerivedFrom<MonoBehaviour>()
+                .SingleOrDefault(type => type.FullName == StarterName && type.Assembly.GetName().Name == "ORKFramework3");
+            return starterType ?? throw new InvalidOperationException("Install the pinned ORK package and let Unity compile.");
+        }
+
+        private static ScriptableObject LoadSavedProject(Type starterType)
+        {
+            var project = AssetDatabase.LoadAssetAtPath<ScriptableObject>(ProjectPath);
+            var projectType = starterType.GetField("project")?.FieldType;
+            if (project == null || projectType == null || !projectType.IsInstanceOfType(project))
+            {
+                throw new InvalidOperationException($"Save the framework settings in the ORK editor to create {ProjectPath}.");
+            }
+
+            var isEmpty = projectType.GetProperty("IsEmpty")?.GetValue(project);
+            if (!(isEmpty is bool empty) || empty)
+            {
+                throw new InvalidOperationException($"Save non-empty framework settings in the ORK editor before using {ProjectPath}.");
+            }
+
+            return project;
+        }
+
+        private static Component[] FindStarters(Scene scene, Type starterType)
+        {
+            return scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren(starterType, true))
+                .ToArray();
+        }
+
+        private static void ValidateStarter(Component[] starters, ScriptableObject project)
+        {
+            if (starters.Length != 1 || !(starters[0] is Behaviour starter) || !starter.enabled || !starter.gameObject.activeInHierarchy)
+            {
+                throw new InvalidOperationException("Bootstrap must contain exactly one active, enabled ORK Game Starter.");
+            }
+
+            var settings = new SerializedObject(starter);
+            if (settings.FindProperty("useAssetBundle").boolValue ||
+                settings.FindProperty("project").objectReferenceValue != project)
+            {
+                throw new InvalidOperationException($"The ORK Game Starter must use the saved project asset at {ProjectPath}.");
             }
         }
     }

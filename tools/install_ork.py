@@ -1,6 +1,7 @@
 """Install the pinned ORK Unity package into this checkout."""
 
 import argparse
+import gzip
 import hashlib
 from pathlib import Path, PurePosixPath
 import tarfile
@@ -22,30 +23,31 @@ def read_package(package):
             raise ValueError(f"Package SHA-256 mismatch: {digest.hexdigest()}")
 
         stream.seek(0)
-        files = {}
-        with tarfile.open(fileobj=stream, mode="r:gz") as archive:
-            for member in archive.getmembers():
-                if not member.isfile() or not member.name.endswith("/pathname"):
+        entries = {}
+        with gzip.GzipFile(fileobj=stream) as payload, tarfile.open(fileobj=payload, mode="r|") as archive:
+            for member in archive:
+                entry, _, kind = member.name.rpartition("/")
+                if not member.isfile() or kind not in {"pathname", "asset.meta", "asset"}:
                     continue
-                entry = member.name.rsplit("/", 1)[0]
-                raw_path = archive.extractfile(member).read().decode("utf-8").splitlines()[0]
-                path = PurePosixPath(raw_path)
-                if (
-                    path.is_absolute()
-                    or ".." in path.parts
-                    or "\\" in raw_path
-                    or not any(path == root or root in path.parents for root in VENDOR_ROOTS)
-                ):
-                    raise ValueError(f"Unexpected asset path: {raw_path!r}")
+                entries.setdefault(entry, {})[kind] = archive.extractfile(member).read()
 
-                files[PurePosixPath(f"{path}.meta")] = archive.extractfile(
-                    f"{entry}/asset.meta"
-                ).read()
-                try:
-                    asset = archive.getmember(f"{entry}/asset")
-                except KeyError:  # Directory entries only have metadata.
-                    continue
-                files[path] = archive.extractfile(asset).read()
+    files = {}
+    for entry in entries.values():
+        if "pathname" not in entry:
+            continue
+        raw_path = entry["pathname"].decode("utf-8").splitlines()[0]
+        path = PurePosixPath(raw_path)
+        if (
+            path.is_absolute()
+            or ".." in path.parts
+            or "\\" in raw_path
+            or not any(path == root or root in path.parents for root in VENDOR_ROOTS)
+        ):
+            raise ValueError(f"Unexpected asset path: {raw_path!r}")
+
+        files[PurePosixPath(f"{path}.meta")] = entry["asset.meta"]
+        if "asset" in entry:
+            files[path] = entry["asset"]
     return files
 
 

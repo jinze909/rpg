@@ -17,6 +17,7 @@ Open the project's startup scene and confirm that ORK 3.22.0 with Makinom 2.21.0
 | --- | --- |
 | Unity imports the project and compiles without project errors. | Not run. Editor unavailable in the initialization environment. |
 | Running Tools > RPG > Wire ORK Bootstrap adds exactly one ORK Game Starter with the saved Project asset. Repeating the command leaves the scene with one starter. | Not run. |
+| Running the [batch validation](../../README.md#批处理启动验收) on the candidate commit returns exit code 0 and logs `RPG_BOOTSTRAP_VALIDATED`. | Not run. |
 | Entering Play Mode in Bootstrap loads the ORK project without Console errors. | Not run. |
 
 ## Scope
