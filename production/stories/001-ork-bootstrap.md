@@ -8,17 +8,17 @@ Open the project's startup scene and confirm that ORK 3.22.0 with Makinom 2.21.0
 
 ## Prerequisites
 
-- Unity 2022.3.53f1 with an active license.
+- Unity 6000.6.8f1 with an active license.
 - The pinned ORK package installed using the [repository setup](../../README.md#本地启动).
 
 ## Acceptance
 
 | Check | Evidence |
 | --- | --- |
-| Unity imports the project and compiles without project errors. | Not run. Editor unavailable in the initialization environment. |
+| Unity 6.6 resolves UGUI 2.0 with TextMesh Pro, imports the project and compiles without project errors. Record the generated package lock. | Not run. Editor unavailable in the initialization environment. |
 | Running Tools > RPG > Wire ORK Bootstrap adds exactly one ORK Game Starter with the saved Project asset. Repeating the command leaves the scene with one starter. | Not run. |
 | Running the [batch validation](../../README.md#批处理启动验收) on the candidate commit returns exit code 0 and logs `RPG_BOOTSTRAP_VALIDATED`. | Not run. |
-| Entering Play Mode in Bootstrap loads the ORK project without Console errors. | Not run. |
+| With Reload Domain and Scene set, enter and exit Play Mode twice. Both runs load the ORK project without Console errors. | Not run. |
 
 ## Scope
 

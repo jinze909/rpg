@@ -21,7 +21,7 @@
 | 专家 | qa-tester | 编写和运行脚本化冒烟与通关测试，复现并最小化缺陷。 | P0-b、P2 |
 | 专家 | devops-engineer | 负责 Actions、Unity 许可证与 secret、artifact、green/* 标签的最小权限。 | P0 |
 | 专家 | performance-analyst | 解读帧时间、P95 与 GC 指标，用于看趋势，最终性能结论另行验收。 | P0-b |
-| 专家 | unity-specialist | 对 Unity 2022.3 API、序列化、GUID、asmdef 和导入设置作权威判断。 | 引擎相关疑问 |
+| 专家 | unity-specialist | 对 Unity 6.6 API、序列化、GUID、asmdef 和导入设置作权威判断。 | 引擎相关疑问 |
 
 ## 协作
 

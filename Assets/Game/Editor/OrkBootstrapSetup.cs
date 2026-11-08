@@ -25,6 +25,7 @@ namespace Rpg.Editor
 
             try
             {
+                RequireFullPlayModeReload();
                 var starterType = FindStarterType();
                 var project = LoadSavedProject(starterType);
                 var starters = FindStarters(scene, starterType);
@@ -72,6 +73,8 @@ namespace Rpg.Editor
         // Invoked by Unity with -batchmode -quit -executeMethod.
         public static void ValidateBatch()
         {
+            RequireFullPlayModeReload();
+
             var firstScene = EditorBuildSettings.scenes.FirstOrDefault(scene => scene.enabled);
             if (firstScene == null || firstScene.path != ScenePath)
             {
@@ -83,6 +86,17 @@ namespace Rpg.Editor
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             ValidateStarter(FindStarters(scene, starterType), project);
             Debug.Log("RPG_BOOTSTRAP_VALIDATED");
+        }
+
+        private static void RequireFullPlayModeReload()
+        {
+            const EnterPlayModeOptions disabledReloads =
+                EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload;
+            if ((EditorSettings.enterPlayModeOptions & disabledReloads) != 0)
+            {
+                throw new InvalidOperationException(
+                    "For the ORK 3 bootstrap, set Edit > Project Settings > Editor > When entering play mode to Reload Domain and Scene.");
+            }
         }
 
         private static Type FindStarterType()

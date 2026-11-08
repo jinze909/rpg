@@ -11,7 +11,7 @@ Producer 按实际依赖和阻塞选下一项，每轮收敛到一个可验收�
 
 ## 冻结范围
 
-- 目标是 Unity 2022.3 的 2D 单机切片。主角为唯一金发主角，首个可玩角色使用 Vanguard。切片地点与 Boss 分别为 Thornwood 和 Briar Beast。
+- 目标是 Unity 6.6 的 2D 单机切片。主角为唯一金发主角，首个可玩角色使用 Vanguard。切片地点与 Boss 分别为 Thornwood 和 Briar Beast。
 - G1 的 UI 固定使用 UGUI。世界渲染采用 SpriteRenderer / Tilemap。框架职责见 [AGENTS](AGENTS.md)。
 - 占位素材标注 `PLACEHOLDER`。需美术复核时标注 `ART_REVIEW_REQUIRED`，由 art-director 判断。沿用 256 单元规范的素材由 technical-artist 核对脚底锚点 (128,240) 与 128 PPU。
 - 影响冻结项的设计或迁移提案由对应总监记录影响和建议，经用户决定后再写入本清单。
