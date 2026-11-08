@@ -27,8 +27,10 @@ product priority. The user authorized the current [Return narrative baseline](..
 with [characters](../narrative/CHARACTERS.md) and [regional stories](../narrative/REGIONAL_STORIES.md).
 It follows a returning former captive, a midpoint rescue of Shen Li (沈砾), and
 substantial shared adventures afterward. It is a writing/design draft, not
-implemented content or evidence of player enjoyment. Combat format, protagonist
-appearance, camera and art specifications remain open. Previously withdrawn
+implemented content or evidence of player enjoyment. The [gameplay baseline](../gameplay/BASELINE.md)
+sets regional exploration and short party-based turn combat as the direction;
+movement versus fixed positions and other prototype controls remain unvalidated.
+Protagonist customization, final camera and art specifications remain open. Previously withdrawn
 settings must not be reinstated from older commits. ORK owns combatants,
 combat, inventory, equipment, quests and saves; Makinom owns interactions and
 story schematics; Unity owns rendering, physics, input and animation. Gameplay
