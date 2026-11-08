@@ -1,0 +1,99 @@
+name: Unity ORK P0
+
+on:
+  push:
+    branches: [codex/dev]
+    paths:
+      - 'Assets/**'
+      - 'Packages/**'
+      - 'ProjectSettings/**'
+      - 'production/ci/**'
+      - 'tools/collect_unity_p0.py'
+      - '.github/workflows/unity-p0.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'prepare creates a reviewable candidate; verify requires saved configuration'
+        type: choice
+        options: [verify, prepare]
+        default: verify
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unity-ork-p0
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Select explicit preparation or verification phase
+        id: phase
+        env:
+          REQUESTED_MODE: ${{ inputs.mode }}
+          LICENSE_METHOD: ${{ vars.UNITY_LICENSE_METHOD || 'personal' }}
+        shell: bash
+        run: |
+          mode="${REQUESTED_MODE:-$(cat production/ci/p0-mode.txt)}"
+          case "$mode" in prepare|verify) ;; *) echo 'Invalid P0 mode'; exit 1 ;; esac
+          case "$LICENSE_METHOD" in personal|serial|file|floating) ;; *) echo 'Invalid UNITY_LICENSE_METHOD'; exit 1 ;; esac
+          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+          printf 'owner=%s:%s\n' "$(id -u)" "$(id -g)" >> "$GITHUB_OUTPUT"
+          printf '## Unity / ORK P0: %s\n' "$mode" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$mode" == prepare ]]; then
+            echo 'This run prepares uncommitted candidate files. It cannot mark the source SHA as P0 passed.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            test -f 'Assets/Gaming Is Love/_Data/Project.asset'
+            test -f ProjectSettings/EditorSettings.asset
+            test -f Packages/packages-lock.json
+          fi
+          python3 tools/verify_ork.py
+
+      - name: Import, compile, play twice, and run the independent batch check
+        id: unity
+        uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4
+        env:
+          # Set UNITY_LICENSE_METHOD repository variable to personal, serial, file, or floating.
+          # Bind only the selected method. Secret values belong in GitHub Actions settings.
+          UNITY_EMAIL: ${{ (vars.UNITY_LICENSE_METHOD == '' || vars.UNITY_LICENSE_METHOD == 'personal' || vars.UNITY_LICENSE_METHOD == 'serial') && secrets.UNITY_EMAIL || '' }}
+          UNITY_PASSWORD: ${{ (vars.UNITY_LICENSE_METHOD == '' || vars.UNITY_LICENSE_METHOD == 'personal' || vars.UNITY_LICENSE_METHOD == 'serial') && secrets.UNITY_PASSWORD || '' }}
+          UNITY_SERIAL: ${{ vars.UNITY_LICENSE_METHOD == 'serial' && secrets.UNITY_SERIAL || '' }}
+          UNITY_LICENSE: ${{ vars.UNITY_LICENSE_METHOD == 'file' && secrets.UNITY_LICENSE || '' }}
+          ENGINE_LAUNCH_WRAPPER: bash /github/workspace/production/ci/unity-with-p0-batch.sh
+        with:
+          cliVersion: v0.1.72
+          unityVersion: 6000.6.8f1
+          customImage: unityci/editor@sha256:61efa80c3a17cf384da97465536f938f854dc9c5b5f3a8d9ee0173550b35c584
+          projectPath: .
+          testMode: editmode
+          coverageEnabled: false
+          githubToken: ''
+          artifactsPath: artifacts/p0
+          chownFilesTo: ${{ steps.phase.outputs.owner }}
+          unityLicensingServer: ${{ vars.UNITY_LICENSE_METHOD == 'floating' && secrets.UNITY_LICENSING_SERVER || '' }}
+          customParameters: >-
+            -testFilter Rpg.Tests.Editor.P0BootstrapTests
+            ${{ steps.phase.outputs.mode == 'prepare' && '-rpgPrepareDefaults' || '' }}
+
+      - name: Collect exact evidence and reject incomplete or dirty verification
+        if: always() && steps.phase.outputs.mode != ''
+        env:
+          P0_MODE: ${{ steps.phase.outputs.mode }}
+          P0_UNITY_ACTION_OUTCOME: ${{ steps.unity.outcome }}
+        run: python3 tools/collect_unity_p0.py "$P0_MODE"
+
+      - name: Preserve logs, test XML, package lock, and candidate files
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unity-ork-p0-${{ steps.phase.outputs.mode }}-${{ github.sha }}
+          path: artifacts/p0/
+          if-no-files-found: error
+          retention-days: 14

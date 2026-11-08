@@ -1,0 +1,14 @@
+{
+  "name": "Rpg.Bootstrap.EditorTests",
+  "references": ["UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "includePlatforms": ["Editor"],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "Makinom2.dll",
+    "Makinom2Editor.dll",
+    "ORKFramework3.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

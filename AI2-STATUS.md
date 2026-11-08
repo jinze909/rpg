@@ -18,4 +18,8 @@
 
 ## 每轮更新
 
+- 本轮技术P0继续：基于 `21ce4693323552858430f10db69b5ba40d3c1f2f` 准备 [Actions CI 草稿](docs/unity-p0-ci.md)，固定 Unity、GameCI 与测试框架，覆盖重复接线、两次完整 Play 周期和独立批处理进程。首次 `prepare` 仅生成可审查候选；提交生成配置后才可 `verify` 干净 SHA。
+- 本地仍无 Unity Editor，当前云网络拒绝 `api.github.com`，Actions 运行记录与仓库授权配置未读到；用户已授权发布，本轮将候选提交到 `codex/dev`，由 push 事件请求首次 prepare。运行结果尚未取得。P0 保持待验证，不能把原包校验或静态审查当成运行通过。
+- 下一步：追加放行 GitHub API，查询本次 push 对应的 Actions 运行并取得 prepare artifact，审查真实生成文件后提交并完成同 SHA 验证。
+
 Producer 在此更新当前故事、最近交付、证据 SHA 及链接、未完成的检查和一个明确的下一步。项目长期背景见 [基线记录](production/session-state/active.md)。

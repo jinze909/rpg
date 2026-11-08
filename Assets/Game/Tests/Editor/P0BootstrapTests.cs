@@ -1,0 +1,156 @@
+using System;
+using System.Collections;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using GamingIsLove.Makinom;
+using GamingIsLove.Makinom.Editor;
+using GamingIsLove.ORKFramework;
+using NUnit.Framework;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace Rpg.Tests.Editor
+{
+    public class P0BootstrapTests
+    {
+        private const string ScenePath = "Assets/Game/Scenes/Bootstrap.unity";
+        private const string ProjectPath = "Assets/Gaming Is Love/_Data/Project.asset";
+
+        // Keep preparation out of SetUp/OneTimeSetUp: UTF reruns them after domain reload.
+        [Test, Order(0)]
+        public void SavedConfigurationAndWiringAreValid()
+        {
+            Assert.That(Application.unityVersion, Is.EqualTo("6000.6.8f1"));
+            if (Environment.GetCommandLineArgs().Contains("-rpgPrepareDefaults"))
+            {
+                EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.None;
+                if (AssetDatabase.LoadAssetAtPath<MakinomProjectAsset>(ProjectPath) == null)
+                {
+                    CreateDefaultProject();
+                }
+                EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            }
+            else
+            {
+                Assert.That(File.Exists("ProjectSettings/EditorSettings.asset"), Is.True,
+                    "Save full Play Mode reload settings before validation.");
+                // Validate BEFORE wiring: verification must not repair missing configuration.
+                ValidateConfiguration();
+            }
+
+            Assert.That(EditorApplication.ExecuteMenuItem("Tools/RPG/Wire ORK Bootstrap"), Is.True);
+            Assert.That(EditorApplication.ExecuteMenuItem("Tools/RPG/Wire ORK Bootstrap"), Is.True);
+            ValidateConfiguration();
+            Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
+        }
+
+        // UTF restores iterator position across reload, not ordinary local variables.
+        // Use separate tests rather than a loop spanning two EnterPlayMode instructions.
+        [UnityTest, Order(10)]
+        public IEnumerator FirstPlayInitializesFramework()
+        {
+            ValidateConfiguration();
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return AssertFrameworkInitialization();
+            Debug.Log("RPG_BOOTSTRAP_PLAY_VALIDATED:first");
+            yield return new ExitPlayMode();
+            Assert.That(EditorApplication.isPlaying, Is.False);
+        }
+
+        [UnityTest, Order(20)]
+        public IEnumerator SecondPlayInitializesFramework()
+        {
+            ValidateConfiguration();
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return AssertFrameworkInitialization();
+            Debug.Log("RPG_BOOTSTRAP_PLAY_VALIDATED:second");
+            yield return new ExitPlayMode();
+            Assert.That(EditorApplication.isPlaying, Is.False);
+        }
+
+        [UnityTearDown]
+        public IEnumerator LeavePlayModeAfterFailure()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                yield return new ExitPlayMode();
+            }
+        }
+
+        private static IEnumerator AssertFrameworkInitialization()
+        {
+            double deadline = EditorApplication.timeSinceStartup + 30;
+            while ((!Maki.Initialized || !ORK.Initialized) && EditorApplication.timeSinceStartup < deadline)
+            {
+                yield return null;
+            }
+
+            Assert.That(Maki.Initialized, Is.True, "Makinom did not finish loading settings.");
+            Assert.That(ORK.Initialized, Is.True, "ORK did not initialize.");
+            // Reacquire references after the reload rather than retaining editor objects.
+            var project = AssetDatabase.LoadAssetAtPath<MakinomProjectAsset>(ProjectPath);
+            Assert.That(project, Is.Not.Null);
+            Assert.That(Maki.Data.ProjectAsset, Is.SameAs(project));
+            Assert.That(Maki.Game.Running, Is.False,
+                "P0 only initializes the framework; player/start-game configuration comes later.");
+            int frame = Time.frameCount;
+            yield return null;
+            yield return null;
+            Assert.That(Time.frameCount, Is.GreaterThan(frame), "Play Mode frames did not advance.");
+            // UTF fails on unexpected Error/Exception/Assert logs; do not clear or ignore them.
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        private static void ValidateConfiguration()
+        {
+            // Tests are in an asmdef; the existing tool is in Assembly-CSharp-Editor.
+            var type = Type.GetType("Rpg.Editor.OrkBootstrapSetup, Assembly-CSharp-Editor", true);
+            try
+            {
+                type.GetMethod("ValidateBatch", BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
+            }
+            catch (TargetInvocationException error) when (error.InnerException != null)
+            {
+                throw error.InnerException;
+            }
+        }
+
+        private static void CreateDefaultProject()
+        {
+            Assert.That(EditorApplication.isPlayingOrWillChangePlaymode, Is.False);
+            Assert.That(Resources.FindObjectsOfTypeAll<MakinomEditorWindow>(), Is.Empty,
+                "Close the framework editor before preparing defaults.");
+            // Do not rebuild a partially configured project over existing game data.
+            const string dataPath = "Assets/Gaming Is Love/_Data";
+            if (Directory.Exists(dataPath))
+            {
+                Assert.That(Directory.GetFiles(dataPath, "*.asset", SearchOption.AllDirectories)
+                    .Where(path => Path.GetFileName(path) != "EditorData.asset"), Is.Empty,
+                    "Existing framework data needs manual review; refusing to replace it.");
+            }
+
+            var project = MakinomAssetHelper.LoadProjectAsset();
+            Assert.That(AssetDatabase.GetAssetPath(project), Is.EqualTo(ProjectPath));
+            Maki.Initialize(project);
+            EditorDataHandler.DataHandlerLoaded();
+            var window = ScriptableObject.CreateInstance<MakinomEditorWindow>();
+            try
+            {
+                // The Instance getter opens a window. Only use its public setter here.
+                MakinomEditorWindow.Instance = window;
+                window.InitSections();
+                new ProjectSaveHandler(window).SaveData();
+                Assert.That(project.IsEmpty, Is.False);
+                Assert.That(Maki.Data.ProjectAsset, Is.SameAs(project));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(window);
+            }
+            AssetDatabase.SaveAssets();
+        }
+    }
+}
