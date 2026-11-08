@@ -22,7 +22,10 @@ The project root is `/workspace/rpg`; use the existing isolated checkout.
 
 ## Architecture and entry point
 
-`BACKLOG.md` defines a single-player top-down 2D RPG. ORK owns combatants,
+`BACKLOG.md` sets the goal of a polished, enjoyable 2D RPG. Previous game-design
+constraints have been withdrawn by the user. Theme, protagonist, locations,
+enemies, combat format, perspective and art specifications are undecided;
+do not reinstate them from older commits. ORK owns combatants,
 combat, inventory, equipment, quests and saves; Makinom owns interactions and
 story schematics; Unity owns rendering, physics, input and animation. Gameplay
 systems have not yet been implemented.

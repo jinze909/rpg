@@ -1,6 +1,6 @@
 # RPG
 
-Unity 2D 俯视角单机动作 RPG。ORK Framework 3.22.0 和 Makinom 2.21.0 管理 RPG 逻辑，项目采用 Claude Code Game Studios 的制作、实现和验收流程。
+Unity 2D RPG 工程。游戏题材、主角与具体玩法方向待重新设计。ORK Framework 3.22.0 和 Makinom 2.21.0 管理 RPG 逻辑，项目采用 Claude Code Game Studios 的制作、实现和验收流程。
 
 ## 本地启动
 

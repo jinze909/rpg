@@ -5,18 +5,18 @@
 | 层级 | 角色 | 在本项目的职责 | 何时使用 |
 | --- | --- | --- | --- |
 | 总监 | producer | 选任务与顺序，守冻结范围，解读 CI，维护 AI2-STATUS 与 BACKLOG，协调跨域改动。 | 每轮开头与结尾 |
-| 总监 | creative-director | 守住唯一金发主角与切片愿景，判定冻结范围，仲裁设计冲突。 | 外观、体验、范围决策 |
+| 总监 | creative-director | 负责游戏愿景与体验一致性，判定冻结范围，仲裁设计冲突。 | 外观、体验、范围决策 |
 | 总监 | technical-director | 负责架构与风险、UGUI 和渲染迁移路线、破坏性升级的收益与代价，仲裁技术冲突。 | 迁移、破坏性升级、构建和 CI |
 | 负责人 | lead-programmer | 制定代码评审标准，守模块边界，执行提交前终审。 | 每个提交前 |
 | 负责人 | qa-lead | 按任务类型确定证据，拒绝缺少同 SHA 证据的完成声明，管理冒烟与通关测试。 | 每个任务验收 |
-| 负责人 | game-designer | 设计 Vanguard 手感与 Briar Beast 遭遇，使用数据驱动参数。 | 战斗、Boss |
+| 负责人 | game-designer | 按当前游戏方向设计核心玩法、角色操作与遭遇，使用数据驱动参数。 | 玩法、角色、遭遇 |
 | 负责人 | art-director | 守视觉一致性，检查 PLACEHOLDER 标注，判定 ART_REVIEW_REQUIRED。 | 画面与素材 |
-| 专家 | gameplay-programmer | 实现 Vanguard 战斗、Boss 状态机与胜利结算。 | 战斗与结算代码 |
+| 专家 | gameplay-programmer | 按当前设计实现角色行为、玩法规则与结算。 | 玩法与结算代码 |
 | 专家 | ai-programmer | 实现敌人与 Boss AI、导航和卡死恢复。 | AI、寻路 |
 | 专家 | ui-programmer | 实现 UGUI 菜单与 HUD、焦点导航、分辨率适配。把上游 UI Toolkit 建议改编成 UGUI，未经授权不得更改 G1。 | G1 |
 | 专家 | engine-programmer | 执行 SpriteRenderer / Tilemap 世界渲染迁移，负责排序层和渲染性能。 | G1 世界渲染 |
-| 专家 | technical-artist | 负责图集、Animator 和排序。对沿用 256 单元规范的素材核对脚底锚点 (128,240) 与 128 PPU，并与 art-director 协作。 | 画面与动画 |
-| 专家 | level-designer | 设计 Thornwood 路线、触发点、遭遇与 Boss 场地。 | P2 |
+| 专家 | technical-artist | 负责图集、Animator 和排序，依据当前美术规格核对锚点与像素密度，并与 art-director 协作。 | 画面与动画 |
+| 专家 | level-designer | 按当前游戏方向设计关卡路线、触发点、遭遇与场地。 | 关卡与原型 |
 | 专家 | ux-designer | 设计标题、菜单、HUD 流程，检查键鼠与手柄焦点及信息层级。 | UGUI 界面 |
 | 专家 | qa-tester | 编写和运行脚本化冒烟与通关测试，复现并最小化缺陷。 | P0-b、P2 |
 | 专家 | devops-engineer | 负责 Actions、Unity 许可证与 secret、artifact、green/* 标签的最小权限。 | P0 |

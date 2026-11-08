@@ -22,4 +22,4 @@ Open the project's startup scene and confirm that ORK 3.22.0 with Makinom 2.21.0
 
 ## Scope
 
-Use `Assets/Game/Scenes/Bootstrap.unity` as the entry point. Preserve the project's ORK settings and scene metadata. Player spawning, movement, and a Makinom interaction are the next story after bootstrap passes.
+Use `Assets/Game/Scenes/Bootstrap.unity` as the entry point. Preserve the project's ORK settings and scene metadata. After bootstrap passes, define the next playable prototype from the newly selected game direction.
