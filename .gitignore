@@ -1,0 +1,29 @@
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+/.vs/
+/.idea/
+*.csproj
+*.sln
+*.user
+*.unitypackage
+__pycache__/
+
+# Locally installed ORK/Makinom. Game-authored _Data remains trackable.
+/Assets/Gaming Is Love.meta
+/Assets/Gaming Is Love/Makinom 2/
+/Assets/Gaming Is Love/Makinom 2.meta
+/Assets/Gaming Is Love/_Backups/
+/Assets/Gaming Is Love/_Backups.meta
+/Assets/Gaming Is Love/_Downloads/
+/Assets/Gaming Is Love/_Downloads.meta
+/Assets/Gaming Is Love/_Data/EditorData.asset
+/Assets/Gaming Is Love/_Data/EditorData.asset.meta
+/Assets/Gizmos.meta
+/Assets/Gizmos/GamingIsLove/
+/Assets/Gizmos/GamingIsLove.meta
