@@ -1,5 +1,7 @@
 # Active development session
 
+Current story: [001 · Validate the ORK bootstrap](../stories/001-ork-bootstrap.md).
+
 ## Baseline
 
 - Unity 2022.3.53f1, built-in rendering, 2D orthographic startup scene at `Assets/Game/Scenes/Bootstrap.unity`.
@@ -13,4 +15,4 @@
 
 ## Next acceptance check
 
-Open Bootstrap in Unity with the licensed framework installed. Save the framework settings, run the wiring command, and enter Play Mode. Confirm that the ORK starter loads the project without Console errors. Then add an ORK-controlled player and verify one Makinom interaction in the same scene.
+Open Bootstrap in Unity with the licensed framework installed and run the current story’s acceptance checks. Record Editor import, repeated starter wiring, and Play Mode results in the story before moving on to the player and interaction.

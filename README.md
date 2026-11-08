@@ -17,4 +17,8 @@ Unity 2D 俯视角单机动作 RPG。ORK Framework 3.22.0 和 Makinom 2.21.0 管
 
 开发分支为 `codex/dev`。当前状态见 [接力记录](production/session-state/active.md)。
 
-开发流程参考 [Claude Code Game Studios](https://github.com/Donchitos/Claude-Code-Game-Studios/tree/05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418)，其许可见 [第三方声明](docs/CLAUDE_CODE_GAME_STUDIOS_LICENSE.txt)。
+## 工作室开发流程
+
+Claude Code 可在仓库根目录运行 `/dev-story` 开发当前条目，再用 `/story-done` 按验收证据结案。Codex 从 `AGENTS.md` 进入同一套流程。制作人定义范围，Unity 工程师实现，QA 核对证据。
+
+[工作室流程](production/workflow.md) · [当前验收条目](production/stories/001-ork-bootstrap.md) · [上游许可](docs/CLAUDE_CODE_GAME_STUDIOS_LICENSE.txt)
