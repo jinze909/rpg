@@ -19,6 +19,6 @@ Unity 2D 俯视角单机动作 RPG。ORK Framework 3.22.0 和 Makinom 2.21.0 管
 
 ## 工作室开发流程
 
-Claude Code 可在仓库根目录运行 `/dev-story` 开发当前条目，再用 `/story-done` 按验收证据结案。Codex 从 `AGENTS.md` 进入同一套流程。制作人定义范围，Unity 工程师实现，QA 核对证据。
+后续开发默认在普通 ChatGPT 聊天中使用 GitHub 插件，从 [对话入口](CHATGPT.md) 读取实时任务并提交。Codex 通过 `AGENTS.md`，Claude Code 通过 `/dev-story` 和 `/story-done` 使用同一套规则。
 
-[工作室流程](production/workflow.md) · [当前验收条目](production/stories/001-ork-bootstrap.md) · [上游许可](docs/CLAUDE_CODE_GAME_STUDIOS_LICENSE.txt)
+[18 个角色](production/team.md) · [当前状态](AI2-STATUS.md) · [冻结范围与任务](BACKLOG.md) · [工作室流程](production/workflow.md) · [上游许可](docs/CLAUDE_CODE_GAME_STUDIOS_LICENSE.txt)

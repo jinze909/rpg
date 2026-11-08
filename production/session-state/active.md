@@ -1,6 +1,6 @@
 # Active development session
 
-Current story: [001 · Validate the ORK bootstrap](../stories/001-ork-bootstrap.md).
+Current story and next acceptance check are maintained in [AI2-STATUS.md](../../AI2-STATUS.md).
 
 ## Baseline
 
@@ -12,7 +12,3 @@ Current story: [001 · Validate the ORK bootstrap](../stories/001-ork-bootstrap.
 
 - Verified locally that the pinned archive extracts all 136 files byte for byte. A second install made zero changes. A changed archive and a conflicting local asset were rejected. Static scene links and the build scene GUID were verified.
 - Editor import, compilation, starter wiring, Play Mode and player builds await a Unity 2022.3.53f1 environment.
-
-## Next acceptance check
-
-Open Bootstrap in Unity with the licensed framework installed and run the current story’s acceptance checks. Record Editor import, repeated starter wiring, and Play Mode results in the story before moving on to the player and interaction.
