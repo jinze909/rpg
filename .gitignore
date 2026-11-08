@@ -15,16 +15,11 @@
 *.unitypackage
 __pycache__/
 
-# Locally installed ORK/Makinom. Game-authored _Data remains trackable.
-/Assets/Gaming Is Love.meta
-/Assets/Gaming Is Love/Makinom 2/
-/Assets/Gaming Is Love/Makinom 2.meta
+# ORK/Makinom vendor assets are tracked for this private project.
+# Ignore generated backups, downloads and local editor data only.
 /Assets/Gaming Is Love/_Backups/
 /Assets/Gaming Is Love/_Backups.meta
 /Assets/Gaming Is Love/_Downloads/
 /Assets/Gaming Is Love/_Downloads.meta
 /Assets/Gaming Is Love/_Data/EditorData.asset
 /Assets/Gaming Is Love/_Data/EditorData.asset.meta
-/Assets/Gizmos.meta
-/Assets/Gizmos/GamingIsLove/
-/Assets/Gizmos/GamingIsLove.meta

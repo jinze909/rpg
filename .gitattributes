@@ -1,0 +1,5 @@
+# Preserve the original vendor bytes, including CRLF, on all platforms.
+"/Assets/Gaming Is Love.meta" -text
+"/Assets/Gaming Is Love/**" -text
+/Assets/Gizmos.meta -text
+/Assets/Gizmos/** -text

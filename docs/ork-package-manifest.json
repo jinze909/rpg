@@ -1,0 +1,686 @@
+{
+  "unitypackage_sha256": "ba2879da647514dac8087531c69c58612aac42270fa4c8fce56d37ea3124eb35",
+  "asset_entries": 73,
+  "files": [
+    {
+      "path": "Assets/Gaming Is Love.meta",
+      "size_bytes": 172,
+      "sha256": "9114d0119171a81b7258f09c8b5801d92d213634b98c034cfae58b3be52a5bb3"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2.meta",
+      "size_bytes": 172,
+      "sha256": "cad43c5eae72efaedc43908c7ffcdbf598a9be43026b14b2d5483e45bcde190b"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL.meta",
+      "size_bytes": 172,
+      "sha256": "93cffc03d8e9558a7cf1973bb2d9c5982bbfbcae06fbecc5c6904163f52b15a0"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor.meta",
+      "size_bytes": 172,
+      "sha256": "99f63800ad382a1910bd4a02a688393a3a97dfea04f7b2f92c524520bd512451"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/Makinom2Editor.UnityUI.dll",
+      "size_bytes": 83968,
+      "sha256": "b66e051d81ed287301fccd9955f43742c038b5385ce406369f6e102d4f2d0d12"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/Makinom2Editor.UnityUI.dll.meta",
+      "size_bytes": 645,
+      "sha256": "66e291dfdb250b078f1be365c015dcd1ec25bfe373ff1f8da7533c732d834e4a"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/Makinom2Editor.dll",
+      "size_bytes": 843264,
+      "sha256": "23d4de628b6355bd85377fce51fc0cb89eccead7885185ab8afd19fab486f8fe"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/Makinom2Editor.dll.meta",
+      "size_bytes": 645,
+      "sha256": "ea23f6e5b75d882d0195f9ab7b3eaa00d840609eb6f031b600741d3aaf492313"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/ORKFramework3Editor.UnityUI.dll",
+      "size_bytes": 96768,
+      "sha256": "67454832e9400d064ac85303093eaf273911bfbd835e623e45106d578a6cd127"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/ORKFramework3Editor.UnityUI.dll.meta",
+      "size_bytes": 645,
+      "sha256": "13033766bf807596bdf03b0d1e09a8909f7148c63f0623f10d7945cc47cc3e9c"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/ORKFramework3Editor.dll",
+      "size_bytes": 330240,
+      "sha256": "13fb668cefd676c900a6ea8a264a07a8e40d6d0360008b860c45f0f0625400a3"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Editor/ORKFramework3Editor.dll.meta",
+      "size_bytes": 645,
+      "sha256": "b7c8876b90635bc707ca588151fc89055aafec3ead9f0a726cdd1bf50d8fbdf9"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Makinom2.UnityUI.dll",
+      "size_bytes": 329728,
+      "sha256": "326542a0be99b19fbef5393ff2839893efef87e93d287db4645d5ad5397a42f3"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Makinom2.UnityUI.dll.meta",
+      "size_bytes": 645,
+      "sha256": "efb8bc664601ea6e339b33d85bd32629829a00cdc68b3458dc78f3d151a592fd"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Makinom2.dll",
+      "size_bytes": 2396160,
+      "sha256": "8012fbc7aa6958ee3865ebed4e6857738916010db24ee4b7d07ae9ca3724d8bb"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/Makinom2.dll.meta",
+      "size_bytes": 853,
+      "sha256": "23bf906bbc7344612a1e70e6f3cc3df088cc1a5b9ef7811bc62b8c917ce04046"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/ORKFramework3.UnityUI.dll",
+      "size_bytes": 142336,
+      "sha256": "a89a32b8f89c3433ee0956f406486152c7c093c0605d48ee7d55dfc74a8e4f39"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/ORKFramework3.UnityUI.dll.meta",
+      "size_bytes": 645,
+      "sha256": "d218bf1b987df5f5a56ca9aba32993af6a53e79ca367daa396faaaf3f7bef82f"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/ORKFramework3.dll",
+      "size_bytes": 6283264,
+      "sha256": "5fc3d74a4f31e40f4d0d18e5fe0f69b0249bce7da6f1ca0e8c57e3b107aa9d53"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/DLL/ORKFramework3.dll.meta",
+      "size_bytes": 705,
+      "sha256": "1b3eb289538276ed1b0bbdbeffa709e18fd7a3bc46da9c6074d946e8e7a34009"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/MAKINOM_CHANGELOG.txt",
+      "size_bytes": 120224,
+      "sha256": "9a52621e714d1ced7c61628827e50bc6743f947c5af7f8b0a086f8294b2b66d0"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/MAKINOM_CHANGELOG.txt.meta",
+      "size_bytes": 158,
+      "sha256": "7e09fee24e50881a13c78de4caa268e5ac8c7861144dbc999ab7eaf8d6610282"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/MAKINOM_README.txt",
+      "size_bytes": 8296,
+      "sha256": "658ac91934af7a3767e8a31272c139a77ad2dc0d080334c735da5683094bc1de"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/MAKINOM_README.txt.meta",
+      "size_bytes": 158,
+      "sha256": "d55a5d513f1f5b645b58b705eef0ddf89979d2765898f6737413948c9178d271"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/Makinom_Source_Code.zip",
+      "size_bytes": 14337351,
+      "sha256": "507d9b701c479d8f4e3bea1e1bd2b514fcd6144d08ad6d30b367d20fa9868759"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/Makinom_Source_Code.zip.meta",
+      "size_bytes": 155,
+      "sha256": "1b75e46d17095881888fe7a6f58431ba0e6055e49386dfa54f487ebd83e8f01b"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/ORK_CHANGELOG.txt",
+      "size_bytes": 329852,
+      "sha256": "bfcc377d035647ad7b578aa8d90e653b5f642a592c3ca2593a4018402500da3c"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/ORK_CHANGELOG.txt.meta",
+      "size_bytes": 158,
+      "sha256": "af7b6eb0cea45ae68508c89cbeb4d1845f4a34ea96ae6591e7ade9600a2b17e5"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/ORK_README.txt",
+      "size_bytes": 9801,
+      "sha256": "286796c91c52d42286ca7be3c9513bb7a1d75af38371093c09c4c4bba8cc6463"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/ORK_README.txt.meta",
+      "size_bytes": 158,
+      "sha256": "df690e6a6883e8163a68c54f7b52abe57e395713302989f16d9b44eb2d39d2a3"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/ORK_Source_Code.zip",
+      "size_bytes": 18210792,
+      "sha256": "32d91a063af316d7c9c95dd10bfd17f840980e80ea434583086b758e3d4cff12"
+    },
+    {
+      "path": "Assets/Gaming Is Love/Makinom 2/ORK_Source_Code.zip.meta",
+      "size_bytes": 155,
+      "sha256": "4f10a2254a7370d749e1b0d1fc8b6ef4840015089f1e32a80856e2e0fc6aeda6"
+    },
+    {
+      "path": "Assets/Gizmos.meta",
+      "size_bytes": 172,
+      "sha256": "97b49eb7bde88e85f8f15be32c1991c57ddfbea86b1d72ac803f14ad6af18e80"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove.meta",
+      "size_bytes": 172,
+      "sha256": "ee91706a80486ca256066ac62a51ac9efd26658926768dc4796fac44f878d9dd"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom.meta",
+      "size_bytes": 172,
+      "sha256": "182be31f1c9ed9b1c484a8cb4ee655677cc67a71bbb231eb3cd3d8ebcad84fa1"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components.meta",
+      "size_bytes": 172,
+      "sha256": "d00159530746cc6c2413fb714088921079fc8fd156ccd173954e0296fdaea855"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/AnimationMachineComponent Icon.png",
+      "size_bytes": 7138,
+      "sha256": "ec6deef0a8fee8dad216b84f2ff4c848b84faacb932065ecb4185f7adc197d3c"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/AnimationMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "5022152530dae559279c4bba877336d5dbed6a71e6860abbb106dcd7fe403e8c"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/ApplicationMachineComponent Icon.png",
+      "size_bytes": 4810,
+      "sha256": "d76d042e5da68a33485f882937285a164dfb390588e8ca03596773b283271da9"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/ApplicationMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "5e884ffc0fc7fded810d195812659e9ed9d9d25b73ca05e06bc7c947e26b971c"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/AutoMachineComponent Icon.png",
+      "size_bytes": 6239,
+      "sha256": "916f17337c03d774640ac17213e9dffd962e0ac6085274b4a61b0376e38c307e"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/AutoMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "d6259be1a98c3b28e6428576d9bb39286dd08043f869905cdb752c71b6d2f64b"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/CameraEvent Icon.png",
+      "size_bytes": 5633,
+      "sha256": "e6fa86c0edfa3515e994602c396cb8674819d559d5c6119a491cee0d538d9094"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/CameraEvent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "97cc20a44882423770580c47bcb1e00948560febe238da165791941fb8eb33f3"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/CollisionMachineComponent Icon.png",
+      "size_bytes": 6064,
+      "sha256": "675984ccf2cb82b203e97b6b5f69162e298bab90f9a87637bd01b5e25d3be32b"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/CollisionMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "3ebb7374e1003c124b590ba8a75ad96ea03433955df8c379b9564045b9872b7f"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/GameStarter Icon.png",
+      "size_bytes": 7302,
+      "sha256": "8c9b6ca25b44aca663b0f8884e1500e4110efd8bc91f744c40ba6a36b1507c4e"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/GameStarter Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "7050193b5e5f1d8b92a3bde8d9cf8f0425ff37c58bb5f9d74f51dd33d743f7db"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/InteractionController Icon.png",
+      "size_bytes": 6309,
+      "sha256": "df2d87c06f44710f886d9b61907752ba55df5dce2bbd1c222404bfe82f839a30"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/InteractionController Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "887eee04c39cb829637359f0f4ab822d12e0f076e3bc2fa6ae789e8fe9cfc6ab"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/InteractionMachineComponent Icon.png",
+      "size_bytes": 7020,
+      "sha256": "51d1a089d6a78a3199e4187a093e85f81d5b7dc502fa84d5a464438e1cc7bfff"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/InteractionMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "4b1821ab56a3654db83d0ff2e975a12ef524507b77125fa2cc15a4311902a07b"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/MusicPlayer Icon.png",
+      "size_bytes": 6444,
+      "sha256": "e2d042419224988384da13ec2432eccd910b1f9188b1dda5e26e440665243869"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/MusicPlayer Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "60fbdba79596db236da52840b57551b8945c579244c45ce14daa44678d516f22"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/ObjectVariablesComponent Icon.png",
+      "size_bytes": 7695,
+      "sha256": "ec4f6a7e10289eff944e37f0118c605d3f85f976e539b7f5417984a7f3926216"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/ObjectVariablesComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "3344fa847e4f6675e6fe0ace768c940a57b865515cc384fb06203e6051bde978"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/PlaceOnGround Icon.png",
+      "size_bytes": 5430,
+      "sha256": "f1a87b27ffd55da605eb879433d1038602fa1d295cb2913f560530f8c7c54fec"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/PlaceOnGround Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "06d6e0e3a6273cf67fad94ff65e6719be348dbd4584ed9f8502f54a273154a06"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/PoolComponent Icon.png",
+      "size_bytes": 5804,
+      "sha256": "6ee500569c5d0e3e176a5dcdcd9176f4063fd3955a2bd40be7d29dabfd7dabb6"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/PoolComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "06b5ff8b01a3fabbb3ae7c2ee3d9ffb722f00ebb17fedd19ef72b779f7342098"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/RenderMachineComponent Icon.png",
+      "size_bytes": 6575,
+      "sha256": "10484fc885658b1418b5110d522f950c4d115bd3abf7ae728a2f3c1f19ecc076"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/RenderMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "15ce7965928531c692c9cd95b8ffbd29a2d3f6dad153e419c1c25afabe3e5960"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SavePointComponent Icon.png",
+      "size_bytes": 5014,
+      "sha256": "e9495cd8907a8f81245f27fd087cd5fca6d7171ad88a9daddd7a748d5bc86794"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SavePointComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "5b333cddf6bc8a84ff132a7de5ea1ebd9426c456d60644098a21223f0ad6cc76"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SceneChanger Icon.png",
+      "size_bytes": 5319,
+      "sha256": "ea010d33656b21526560c350ad93e276d9bbce15f1a8127a62b799cbb7935fab"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SceneChanger Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "850f8b7b77c69be20cc5cd81327a3cbdddc2a6876b730f6a1e64cf69eddaf6b9"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SceneObjectComponent Icon.png",
+      "size_bytes": 7183,
+      "sha256": "d5a47ad4a486fb729f913ae112a8246dafd293f24dc00cc58e78c9cc8e6b743d"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SceneObjectComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "0e5f5cc9191f291f9a4697d4bd5a8fe06e8b4d32622cfbd674d06dfac8b01572"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SoundAssignmentComponent Icon.png",
+      "size_bytes": 5511,
+      "sha256": "d0469311cda61430a1412a3d8d446cb11b3582d9eb9745dc28e9f8c654d606fa"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SoundAssignmentComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "76a8121a9a41da8ec0ec30b7ce768904f26036556c19ee6a2ab003d6888e5fd1"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SoundChannelComponent Icon.png",
+      "size_bytes": 6578,
+      "sha256": "510a243517713c34a4af1a23336b364f0dda74815b934e3a747e8d76ccf8ee04"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SoundChannelComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "a066f1b7fff9dbd62c827679d1a2fe3c063084035164d571c8138f6e7f60fe8b"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SpawnPoint Icon.png",
+      "size_bytes": 6725,
+      "sha256": "1392e7324140059b7a1f5c9375ccf7d10b136b2413fc30983965678fc130fbcb"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/SpawnPoint Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "99f4ac45ad542ff90df3851102ac8f1736e1a71160c1927f763f6c25f903fcef"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TaggedMachineComponent Icon.png",
+      "size_bytes": 5155,
+      "sha256": "9dc4bd150a5071720b028db2344ccfc88c6c538d67b62f9544e27a62885e0904"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TaggedMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "9a1bf29baf89c996d3858c9dcebf47fac83541297597cf3591b2308886bfd064"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TemplateMachineComponent Icon.png",
+      "size_bytes": 4810,
+      "sha256": "69209880721cc044cf1dc34f5c31072c7096b1505fc632b3b7b3709ce0c4022e"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TemplateMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "2719ce692bcc77c93b44bc16f94f41943d9b2ede24ef945eda3d8de097478a11"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TickMachineComponent Icon.png",
+      "size_bytes": 6774,
+      "sha256": "2d8b837ec0a96957f9f84852a38d32e1df9941b3d01f375cff7d29c7f5663802"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TickMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "fdf9f622c46210f80b9562881db555fe27a4c4c5168a03b9a6e663c5949b957e"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TriggerMachineComponent Icon.png",
+      "size_bytes": 8169,
+      "sha256": "b50e648ae1917aa2b8682845af5b0b79c29f6c9fe12d9050de32db7e35ff5543"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/TriggerMachineComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "c72640b7bcb9ac083e4fcddb488265f74f3278921bf254bfca30a60644237ac2"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/VariableChangerComponent Icon.png",
+      "size_bytes": 8439,
+      "sha256": "9786ab3ec8421db8afe963a37bfbf9c84cc7ff377e53efb15fb5f3dac2e16e96"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/VariableChangerComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "751e02812fa83ff28a096da95e69f1f75e71a9825cbc43e627c20b394959f96d"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/WaypointPathComponent Icon.png",
+      "size_bytes": 7356,
+      "sha256": "6e76f667d5fa30a8bf08c7c4bf3bf9c9f4aa88fe3dce3f46671ded017df934a9"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/Components/WaypointPathComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "764c0663b69624c3ebce816ba0c5b9d93cf062ddd2c5216f39295a28c40b900c"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/MakinomEditorAsset Icon.png",
+      "size_bytes": 6048,
+      "sha256": "4e168a43c65833a3cb4d28fe9fc959f1d74df2fd52237198f5339a5f139459a1"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/MakinomEditorAsset Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "95cbfcfefdcfd0b144745a41bca555997a156bad90c0c86fb5987459f65de5d8"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/MakinomProjectAsset Icon.png",
+      "size_bytes": 5878,
+      "sha256": "8f60f78cd31dcdf260153f563423c265e5759574f5eb485030a883103cd0402f"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/MakinomProjectAsset Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "69f76bce61d5d900d5cec7d542c18507f5cd9d78d0f423d01d88ad5974c20d22"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/MakinomSchematicAsset Icon.png",
+      "size_bytes": 4454,
+      "sha256": "31fe138c3815ebfdf34d00e17d972279ca092bc55f8797aa35014d88cac552c3"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/Makinom/MakinomSchematicAsset Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "b12dbcd4eb83b8df186d39883baf3fc787423f62bb53bd7c80d49c69d16b9cfb"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework.meta",
+      "size_bytes": 172,
+      "sha256": "cdda72a648116affc09ce48c3aa6b346146fe72d64e67ffc3bd5dc301d837c30"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components.meta",
+      "size_bytes": 172,
+      "sha256": "d10ff4864b1e1770503476e0789d237eac26bfc6a8bb2c2c18e9f1b6e522358b"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/AddCombatant Icon.png",
+      "size_bytes": 6150,
+      "sha256": "bb1fc362489aa15ed71eb2c9dcc62da87bdd60cf32f2d7863bc653259d31e760"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/AddCombatant Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "e838cd41074497b06410e30f3dfa027d28d565eb5ac4f013fa4bc30fc00163bb"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/AreaComponent Icon.png",
+      "size_bytes": 4855,
+      "sha256": "7308b10607b2ee0133a78ce927ab075dfae24db272f3ae453d29b937b70d52d0"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/AreaComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "1649cc6514b66f1a889291dc106f73a0a8e11821ae0e3256c3ce04d968dcd896"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/BattleComponent Icon.png",
+      "size_bytes": 7489,
+      "sha256": "a0ff2344568605fe46f394f11a0eff809ac45d22f07a72960b175a99ebc2fcaa"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/BattleComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "90f6eb2a81125b5b8bbfea9eef7a6ea8db5f6d09074db9fb33e0010faf31995a"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/BattleGridComponent Icon.png",
+      "size_bytes": 8164,
+      "sha256": "10dd975df0785b31e92d8e739ed2d1b2d0260409367dd5bcb0260ac3c3d3cd2d"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/BattleGridComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "c4e61c593c8d57a2a33cbcbbdeb7c0a33859cd82a43f78596b40ef14bd9f67fd"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/BlockCombatantSpawn Icon.png",
+      "size_bytes": 8601,
+      "sha256": "aaa001c71a58402e538aae487e817a4d2b0ade228befa05050e99fdf3b2d6d2a"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/BlockCombatantSpawn Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "ffe770fa8e2f2654715d828012ab4bff4f7d5d0b16ff56d2a137113c6b519591"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/CameraBorder Icon.png",
+      "size_bytes": 5457,
+      "sha256": "2d3e019491ba3b0779972cb3e96bf7772cbf327c8965d9cd5bb5518920dd395d"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/CameraBorder Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "d64e12d32ed831e187918d6efa76cf61f23a8a1f0a9cf41f7e08234d9c7a4eff"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/CombatantSpawner Icon.png",
+      "size_bytes": 7914,
+      "sha256": "2f8253f5c1424ee247a90f973b596518d1c724fec84b81e34550d71f175f1ef2"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/CombatantSpawner Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "73b5ad5a95ca189a973e9a2d57824993c6fdfec499a9ec6f92f7ce70bb9c7458"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/DamageDealer Icon.png",
+      "size_bytes": 6743,
+      "sha256": "4c3a1c9bde3a23c9f92bcdab9e30d96315cd1b9c453b301b04ed7dd2c172945f"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/DamageDealer Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "3adf2731977c50b5d0d21aee7cf67c37abe88a502a36359f374a6128aac03f07"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/DamageZone Icon.png",
+      "size_bytes": 6811,
+      "sha256": "69a61d84b693121a26c1d89ed11d212c5c9e99ab3bb873d8c35507b4ccd522b4"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/DamageZone Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "3321cbb2369dccc0e6dff80a24c04c24b9c081566698a2cedf176ec897e5020f"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/EquipmentViewer Icon.png",
+      "size_bytes": 7628,
+      "sha256": "505903bfdf9cf25ec318d4527db7ee702052108f33f0ff8833df4f785c9e899d"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/EquipmentViewer Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "708a5be4c364519b5b3a4e9980f8258b7b82618a3f37262c01fc380e93ffde88"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/ItemCollector Icon.png",
+      "size_bytes": 5308,
+      "sha256": "02548f10360c114232a4795fab7ec0e6f2a919dbf7be7b1435808075605b2b64"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/ItemCollector Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "d7a55b50c62dad47c3f6b92900d010c377cbd0069d33b55faaa6fad7a97ffe69"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/LevelZone Icon.png",
+      "size_bytes": 5381,
+      "sha256": "f84de3ccc4bbb1fc768fe41b725c19b2faafe67c54f92ac17c199b2ed9175899"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/LevelZone Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "c1258df676ae0b884efb11474e1623e9b1c504833922986dc89dd32878ca30fa"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/MoveAIArea Icon.png",
+      "size_bytes": 10289,
+      "sha256": "0ef3a86169fa9ebef70f2027541b0705fc074e4d57ac18f62b3238a0eca97f23"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/MoveAIArea Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "674d4211e7979f26c8c3252d21c66406b6b633a7e83b99ad3d581230d1e01041"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/MoveAIHidingAreaComponent Icon.png",
+      "size_bytes": 9690,
+      "sha256": "f07ba5c8060cd3293b7d2353d0ecbc5857c2a13ec362660b2154f5a12e59ee8e"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/MoveAIHidingAreaComponent Icon.png.meta",
+      "size_bytes": 2382,
+      "sha256": "bb3fc21c454fc66ec6836d359e998bd94df1200f3417ffd4af90c1a70c8ef052"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/MoveAIRangeComponent Icon.png",
+      "size_bytes": 10284,
+      "sha256": "f2bac5fb3f7c77bde4b205319c7626b802625cd3f66b6a70fdad312c33a5d06a"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/MoveAIRangeComponent Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "dc435e4285a58cce0fe748b24eb353f30e26f4b8bd0565995df35e6a2b111307"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/NoRandomPatrol Icon.png",
+      "size_bytes": 9821,
+      "sha256": "cc1a3bc17b76376437f70d4c5d5c6f4e50e86b19248101cee5e5beeb589c102a"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/NoRandomPatrol Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "3e1acc652add54dc70c2c6553b6df7a533e004302c18c176cd99f6de9563354b"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/ORKGameStarter Icon.png",
+      "size_bytes": 7181,
+      "sha256": "e88a6d5d34798e89b13f998b90c77562ab3760e10c22c64b81619a9d954d2766"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/ORKGameStarter Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "897ea452814f84998d87fc4845f6fc9367afc4fd2fa383b98c6460438df0b5f9"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/PointOfInterest Icon.png",
+      "size_bytes": 6077,
+      "sha256": "03d2b7e1ce8aa65c3141bcd027dd5ebe59e14afb5c9f919c7df8bee79b9cdd01"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/PointOfInterest Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "8580bd6f6432d1dfde8c271d19d3740fb89537b4e9904dbb5e45179c765a365e"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/RandomBattleArea Icon.png",
+      "size_bytes": 9118,
+      "sha256": "aebbbc14726c435b468b2a1e15220a6568a5d9ae944c9da8e0b0c45f91e14063"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/RandomBattleArea Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "37252e9cf94682e7a0769b32695e6fb0eae5ab3e641c54dc4e98222ad88f9685"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/RealTimeBattleArea Icon.png",
+      "size_bytes": 7779,
+      "sha256": "01ac05dcba244b798f785b6b4bb1c5af2473cb2b6157eb480b8e7e5abe8b55b8"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/RealTimeBattleArea Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "3fff880f33f5e69c1dbf390a98e494ff24061e49efeb031016293249346caa2d"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/ShopInteraction Icon.png",
+      "size_bytes": 5316,
+      "sha256": "6f85734de747e4afc5dfff5780cf33aa648138f6d73215e8b71ac87992d74a1b"
+    },
+    {
+      "path": "Assets/Gizmos/GamingIsLove/ORKFramework/Components/ShopInteraction Icon.png.meta",
+      "size_bytes": 2822,
+      "sha256": "b1132d1748408a7c59da155c02a830f6c6da054ec6efc32c0ba806d079343d61"
+    }
+  ]
+}

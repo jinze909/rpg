@@ -5,13 +5,13 @@ Unity 2D 俯视角单机动作 RPG。ORK Framework 3.22.0 和 Makinom 2.21.0 管
 ## 本地启动
 
 1. 用 Unity Hub 安装 **Unity 6000.6.8f1**。克隆本仓库，先切换到 `codex/dev`。
-2. 在 Unity 尚未打开项目时，在仓库根目录用 Python 3 安装有授权的 ORK 包。Windows 上可将 `python` 换为 `py -3`。
+2. 此私有仓库已完整纳入 ORK 3.22.0 / Makinom 2.21.0 的插件、Gizmos、说明、源码压缩包及原始 `.meta`，克隆后无需再次导入原包。在仓库根目录用 Python 3 校验资源。Windows 上可将 `python` 换为 `py -3`。
 
    ```sh
-   python tools/install_ork.py "/path/to/RPG Editor ORK Framework 3 2025 v3.22.0(8).unitypackage"
+   python tools/verify_ork.py
    ```
 
-   安装会校验包的 SHA-256，完整写入包内的插件、Gizmos、说明、源码压缩包及原始 `.meta`。重复执行会复用相同文件，遇到不同内容则停止。
+   校验清单见 `docs/ork-package-manifest.json`。如需用原包恢复缺失文件，仍可运行 `python tools/install_ork.py "/path/to/package.unitypackage"`；安装器校验固定 SHA-256，复用相同文件并拒绝覆盖不同内容。源码 ZIP 保持原样，不要将其中源码与 DLL 同时放入 Unity 编译路径。整合证据见 [ORK 包整合记录](docs/ork-integration.md)。
 3. 在 Unity 打开工程后，到 `Edit > Project Settings > Editor > When entering play mode` 选择 `Reload Domain and Scene`，并把 Unity 保存的 `ProjectSettings/EditorSettings.asset` 纳入首次验收提交。
 4. 打开 `Assets/Game/Scenes/Bootstrap.unity`。从 `Window > Gaming Is Love > ORK Framework` 打开框架编辑器。仅在尚无项目配置时首次保存设置。项目数据位于 `Assets/Gaming Is Love/_Data/Project.asset`。
 5. 运行 `Tools > RPG > Wire ORK Bootstrap`，然后连续进入并退出 Play Mode 两次，每次检查 Console 和 ORK 初始化。开发者可提交自己的场景及框架配置数据。第一阶段验证启动与框架初始化，角色生成和交互见接力记录。
