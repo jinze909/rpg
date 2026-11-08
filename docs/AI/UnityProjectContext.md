@@ -22,10 +22,14 @@ The project root is `/workspace/rpg`; use the existing isolated checkout.
 
 ## Architecture and entry point
 
-`BACKLOG.md` sets the goal of a polished, enjoyable 2D RPG. Previous game-design
-constraints have been withdrawn by the user. Theme, protagonist, locations,
-enemies, combat format, perspective and art specifications are undecided;
-do not reinstate them from older commits. ORK owns combatants,
+`BACKLOG.md` sets the goal of a polished, enjoyable 2D RPG, with fun as the highest
+product priority. The user authorized the current [Return narrative baseline](../narrative/STORY_OUTLINE.md),
+with [characters](../narrative/CHARACTERS.md) and [regional stories](../narrative/REGIONAL_STORIES.md).
+It follows a returning former captive, a midpoint rescue of Shen Li (沈砾), and
+substantial shared adventures afterward. It is a writing/design draft, not
+implemented content or evidence of player enjoyment. Combat format, protagonist
+appearance, camera and art specifications remain open. Previously withdrawn
+settings must not be reinstated from older commits. ORK owns combatants,
 combat, inventory, equipment, quests and saves; Makinom owns interactions and
 story schematics; Unity owns rendering, physics, input and animation. Gameplay
 systems have not yet been implemented.
@@ -84,5 +88,7 @@ Implementation/configuration evidence: `tools/install_ork.py`, `.gitignore`,
 All remaining tracked role, workflow and license files were also read.
 
 Producer, implementation, lead review and QA responsibilities may be performed
-sequentially in one session. No subagents were used. Keep unverified acceptance
-items Pending and do not treat historical validation as current-run evidence.
+sequentially in one session. The original technical inspection used no subagents;
+later narrative drafting used separate character/regional authors and a continuity
+reviewer. Keep unverified acceptance items Pending and do not treat historical
+validation or narrative document checks as current gameplay evidence.
