@@ -1,5 +1,6 @@
 # RPG development
 
+- Product priority: **fun comes first**. Every story, content, system and production decision must serve an engaging player experience. Scope, word count, feature count and technical completion do not establish that an experience is fun. State what players actually do, discover or care about; validate uncertain assumptions through play and revise or remove elements that weaken the experience. Narrative depth and content scale remain goals on this foundation.
 - Work in `jinze909/rpg`. Resolve the live `codex/dev` HEAD and read [AI2-STATUS](AI2-STATUS.md), [BACKLOG](BACKLOG.md), and [the team roster](production/team.md) at that revision before editing.
 - Follow [the studio workflow](production/workflow.md). Producer selects and hands off the work, relevant specialists implement it, lead-programmer reviews the final diff, and qa-lead verifies the acceptance evidence. These responsibilities apply in a single conversation as well as in a multi-agent session.
 - ORK 3 owns combatants, combat, inventory, equipment, quests and saves. Makinom owns interactions and story schematics. Unity owns 2D rendering, physics, input and animation. Keep each gameplay state in one place. G1 uses UGUI and SpriteRenderer / Tilemap.
