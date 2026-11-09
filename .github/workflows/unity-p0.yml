@@ -2,7 +2,7 @@ name: Unity ORK P0
 
 on:
   push:
-    branches: [codex/dev]
+    branches: [codex/dev, codex/pending/ork-bootstrap]
     paths:
       - 'Assets/**'
       - 'Packages/**'
@@ -58,7 +58,6 @@ jobs:
 
       - name: Import, compile, play twice, and run the independent batch check
         id: unity
-        uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4
         env:
           # Set UNITY_LICENSE_METHOD repository variable to personal, serial, file, or floating.
           # Bind only the selected method. Secret values belong in GitHub Actions settings.
@@ -66,21 +65,28 @@ jobs:
           UNITY_PASSWORD: ${{ (vars.UNITY_LICENSE_METHOD == '' || vars.UNITY_LICENSE_METHOD == 'personal' || vars.UNITY_LICENSE_METHOD == 'serial') && secrets.UNITY_PASSWORD || '' }}
           UNITY_SERIAL: ${{ vars.UNITY_LICENSE_METHOD == 'serial' && secrets.UNITY_SERIAL || '' }}
           UNITY_LICENSE: ${{ vars.UNITY_LICENSE_METHOD == 'file' && secrets.UNITY_LICENSE || '' }}
+          UNITY_LICENSING_SERVER: ${{ vars.UNITY_LICENSE_METHOD == 'floating' && secrets.UNITY_LICENSING_SERVER || '' }}
           ENGINE_LAUNCH_WRAPPER: bash /github/workspace/production/ci/unity-with-p0-batch.sh
-        with:
-          cliVersion: v0.1.72
-          unityVersion: 6000.6.8f1
-          customImage: unityci/editor@sha256:61efa80c3a17cf384da97465536f938f854dc9c5b5f3a8d9ee0173550b35c584
-          projectPath: .
-          testMode: editmode
-          coverageEnabled: false
-          githubToken: ''
-          artifactsPath: artifacts/p0
-          chownFilesTo: ${{ steps.phase.outputs.owner }}
-          unityLicensingServer: ${{ vars.UNITY_LICENSE_METHOD == 'floating' && secrets.UNITY_LICENSING_SERVER || '' }}
-          customParameters: >-
-            -testFilter Rpg.Tests.Editor.P0BootstrapTests
-            ${{ steps.phase.outputs.mode == 'prepare' && '-rpgPrepareDefaults' || '' }}
+          P0_MODE: ${{ steps.phase.outputs.mode }}
+          P0_OWNER: ${{ steps.phase.outputs.owner }}
+        shell: bash
+        run: |
+          cli_dir="$(mktemp -d "$RUNNER_TEMP/game-ci.XXXXXX")"
+          curl --fail --silent --show-error --location --retry 2 \
+            https://github.com/game-ci/cli/releases/download/v0.1.72/game-ci-linux-x64.tar.gz \
+            --output "$cli_dir/game-ci.tar.gz"
+          echo "1de550a620ee92e05e920b6db7d431621440b60b2577f04b4a997dc92a58cb0a  $cli_dir/game-ci.tar.gz" | sha256sum --check
+          tar -xzf "$cli_dir/game-ci.tar.gz" -C "$cli_dir"
+
+          test_parameters='-testFilter Rpg.Tests.Editor.P0BootstrapTests'
+          if [[ "$P0_MODE" == prepare ]]; then
+            test_parameters+=' -rpgPrepareDefaults'
+          fi
+          # The Action emits --no-coverageEnabled, rejected by this CLI's parser.
+          "$cli_dir/game-ci" test --docker --dockerShmSize=1025m --engine=unity . \
+            --testPlatforms=editmode --engineVersion=6000.6.8f1 --coverageEnabled=false \
+            --customImage=unityci/editor@sha256:61efa80c3a17cf384da97465536f938f854dc9c5b5f3a8d9ee0173550b35c584 \
+            --customParameters="$test_parameters" --artifactsPath=artifacts/p0 --chownFilesTo="$P0_OWNER"
 
       - name: Collect exact evidence and reject incomplete or dirty verification
         if: always() && steps.phase.outputs.mode != ''
