@@ -1,3 +1,4 @@
+using GamingIsLove.Makinom;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -16,7 +17,11 @@ namespace Rpg.Soundwell
         private Text titleText;
         private Text actionText;
         private Text footerText;
+        private Text outcomeText;
         private float layoutAspect = -1f;
+        private int shownOutcome = -1;
+
+        public int LastReturnOutcome => shownOutcome;
 
         private void Awake()
         {
@@ -58,6 +63,8 @@ namespace Rpg.Soundwell
 
             footerText = SoundwellView.AddLabel(canvas.transform, "CLICK / ENTER / PAD A TO BEGIN", 15,
                 new Color(0.65f, 0.78f, 0.83f), new Vector2(0f, -65f), new Vector2(440f, 28f));
+            outcomeText = SoundwellView.AddLabel(canvas.transform, "", 17,
+                new Color(0.58f, 0.88f, 0.76f), new Vector2(0f, -126f), new Vector2(600f, 64f));
             titleText.resizeTextForBestFit = true;
             titleText.resizeTextMinSize = 18;
             titleText.resizeTextMaxSize = 32;
@@ -83,6 +90,7 @@ namespace Rpg.Soundwell
             // without inventing a parallel focus/navigation implementation.
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(entryButton.gameObject);
+            RefreshReturnOutcome();
         }
 
         // Responsive scene-local UGUI layout; no new scene or parallel input stack.
@@ -101,10 +109,16 @@ namespace Rpg.Soundwell
             footerText.rectTransform.sizeDelta = new Vector2(compact ? 320f : 440f, 30f);
             footerText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -80f : -65f);
             footerText.fontSize = compact ? 13 : 15;
+            outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, 64f);
+            outcomeText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -142f : -126f);
+            outcomeText.fontSize = compact ? 15 : 17;
         }
 
         private void Update()
         {
+            // ORK may initialize after this scene's Awake/Start. Recheck the
+            // same Makinom source without creating a parallel summary flag.
+            RefreshReturnOutcome();
             float aspect = (float)Screen.width / Mathf.Max(Screen.height, 1);
             if (!Mathf.Approximately(aspect, layoutAspect))
                 LayoutForViewportAspect(aspect);
@@ -112,6 +126,23 @@ namespace Rpg.Soundwell
             if (SoundwellControlFrame.EnterRequested(
                 Input.GetKeyDown(KeyCode.F2), Input.GetKeyDown(KeyCode.JoystickButton0)))
                 OpenTrial();
+        }
+
+        public void RefreshReturnOutcome()
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return;
+
+            int result = variables.GetInt(SoundwellTrial.EntryOutcomeKey);
+            if (result == shownOutcome)
+                return;
+
+            shownOutcome = result;
+            outcomeText.text = result == 2
+                ? "SURVEYOR SAFE / FALSE TRAIL MARKER REMOVED"
+                : result == 1 ? "SURVEYOR SAFE / ROUTE MARKER STILL NEEDS CORRECTION"
+                : "";
         }
 
         public AsyncOperation OpenTrial()

@@ -761,16 +761,35 @@ namespace Rpg.Soundwell
                 "The actual sign must disappear only after the surveyor reaches it.");
             Capture(trial, "11-route-marker-corrected");
 
-            // A retry after victory must reset both NPC position and Makinom
-            // rescue flags, not leave a previous win on an otherwise fresh run.
-            Press(trial, retry: true);
-            yield return null;
-            Require(!trial.SurveyorEscorting && !trial.RescueComplete &&
-                !trial.FalseMarkerCleared && falseTrailMarker.enabled &&
-                !trial.PlankSecured && !trial.GateOpen &&
-                Vector2.Distance((Vector2)surveyor.transform.position,
-                    SoundwellTrial.SurveyorPosition) < 0.01f,
-                "Retry must restore the survivor and clear the entire escort outcome.");
+            // Returning after a real rescue must visibly carry its outcome
+            // into Bootstrap. This is not a save or an invented ORK reward.
+            var finishedReturn = trial.ReturnToBootstrap();
+            Require(finishedReturn != null && ReferenceEquals(finishedReturn,
+                trial.ReturnToBootstrap()), "Completed return must be idempotent.");
+            yield return finishedReturn;
+            Require(SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
+                "Completed rescue must return to the actual entry scene.");
+            var victoryEntrance = FindRootComponent<SoundwellEntrance>();
+            Require(victoryEntrance != null, "Completed return must show the actual entry UI.");
+            for (var wait = Until(() => victoryEntrance.LastReturnOutcome == 2,
+                "entry HUD receives the completed rescue and corrected route"); wait.MoveNext();)
+                yield return null;
+            Require(ShowsPrompt(victoryEntrance, "SURVEYOR SAFE") &&
+                ShowsPrompt(victoryEntrance, "FALSE TRAIL MARKER REMOVED"),
+                "Returning from a completed rescue must present both real results to the player.");
+
+            yield return victoryEntrance.OpenTrial();
+            var trialAfterVictory = FindRootComponent<SoundwellTrial>();
+            Require(trialAfterVictory != null && !ReferenceEquals(trialAfterVictory, trial),
+                "The next attempt must create a new trial after victory.");
+            for (var wait = Until(() => trialAfterVictory.IsReady,
+                "initialise the replay after a successful return"); wait.MoveNext();)
+                yield return null;
+            Require(!trialAfterVictory.SurveyorEscorting &&
+                !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
+                !trialAfterVictory.PlankSecured && !trialAfterVictory.GateOpen &&
+                trialAfterVictory.PlayerPosition == retreat,
+                "Replay after victory must start fresh without copying the previous rescue.");
 
             yield return SceneManager.LoadSceneAsync(SceneName);
             var fresh = FindRootComponent<SoundwellTrial>();
@@ -818,6 +837,10 @@ namespace Rpg.Soundwell
             var returnedEntrance = FindRootComponent<SoundwellEntrance>();
             Require(returnedEntrance != null && ShowsPrompt(returnedEntrance, "[F2 / Pad A] Enter the trial"),
                 "The entry screen must be usable after returning from the trial.");
+            yield return null;
+            Require(returnedEntrance.LastReturnOutcome == 0 &&
+                !ShowsPrompt(returnedEntrance, "SURVEYOR SAFE"),
+                "A later incomplete return must not show the previous completed rescue.");
             var submitButton = returnedEntrance.GetComponentInChildren<Button>();
             Require(submitButton != null && submitButton.interactable,
                 "Returning must create a fresh actionable UGUI entry.");

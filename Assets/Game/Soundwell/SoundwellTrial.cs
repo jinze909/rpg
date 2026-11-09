@@ -18,6 +18,8 @@ namespace Rpg.Soundwell
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
         private const string RopeObservedKey = "rpg.soundwell.signal-trial.rope-observed";
         private const string ClawsObservedKey = "rpg.soundwell.signal-trial.claws-observed";
+        // Scene-to-scene handoff only: ORK still owns quests, rewards, and saves.
+        public const string EntryOutcomeKey = "rpg.soundwell.signal-trial.last-return-outcome";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -233,6 +235,10 @@ namespace Rpg.Soundwell
                 return bootstrapLoad;
 
             SetActionMenuOpen(false);
+            // Preserve the actual last exit result for the Bootstrap UI.
+            // A fresh incomplete retreat overwrites an earlier victory.
+            if (variables != null)
+                variables.Set(EntryOutcomeKey, FalseMarkerCleared ? 2 : RescueComplete ? 1 : 0);
             bootstrapLoad = SceneManager.LoadSceneAsync(SoundwellEntrance.BootstrapSceneName);
             movement = Vector2.zero;
             if (IsReady)
