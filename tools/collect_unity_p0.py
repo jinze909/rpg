@@ -34,6 +34,67 @@ def git(*args):
     return subprocess.check_output(["git", *args])
 
 
+
+def format_performance_summary(performance):
+    """Summarize only complete, plausible Editor Play Mode measurements."""
+    if not isinstance(performance, dict):
+        return ""
+
+    samples = performance.get("frame_samples")
+    if type(samples) is not int or samples < 30:
+        return ""
+
+    timings = {}
+    for key in ("frame_time_ms_p50", "frame_time_ms_p95", "frame_time_ms_max"):
+        value = performance.get(key)
+        if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+            return ""
+        timings[key] = value
+    if not (timings["frame_time_ms_p50"] <= timings["frame_time_ms_p95"] <= timings["frame_time_ms_max"]):
+        return ""
+
+    collections = {}
+    for key in ("gc_gen0_collections_delta", "gc_gen1_collections_delta", "gc_gen2_collections_delta"):
+        value = performance.get(key)
+        if type(value) is not int or value < 0:
+            return ""
+        collections[key] = value
+
+    heap = {}
+    for key in ("managed_heap_start_bytes", "managed_heap_peak_bytes", "managed_heap_end_bytes"):
+        value = performance.get(key)
+        if type(value) is not int or value < 0:
+            return ""
+        heap[key] = value
+    if heap["managed_heap_peak_bytes"] < max(heap["managed_heap_start_bytes"], heap["managed_heap_end_bytes"]):
+        return ""
+
+    environment = performance.get("environment", "Unity Editor Play Mode")
+    if not isinstance(environment, str):
+        return ""
+    environment = " ".join(environment.split())[:160] or "Unity Editor Play Mode"
+
+    def mib(key):
+        return heap[key] / (1024.0 * 1024.0)
+
+    return (
+        "\n### Soundwell Play Mode performance sample (trend only)\n"
+        f"- Environment: {environment}\n"
+        f"- Frames sampled: {samples}\n"
+        f"- Frame time: P50 {timings['frame_time_ms_p50']:.2f} ms; "
+        f"P95 {timings['frame_time_ms_p95']:.2f} ms; "
+        f"max {timings['frame_time_ms_max']:.2f} ms\n"
+        f"- GC collection deltas: Gen0 +{collections['gc_gen0_collections_delta']}; "
+        f"Gen1 +{collections['gc_gen1_collections_delta']}; "
+        f"Gen2 +{collections['gc_gen2_collections_delta']}\n"
+        f"- Managed heap: start {mib('managed_heap_start_bytes'):.2f} MiB; "
+        f"peak {mib('managed_heap_peak_bytes'):.2f} MiB; "
+        f"end {mib('managed_heap_end_bytes'):.2f} MiB\n"
+        "- Compare only like-for-like Unity/editor runner samples; this is not a "
+        "player-hardware benchmark or a pass/fail performance target.\n"
+    )
+
+
 def collect(mode):
     root = Path(__file__).resolve().parents[1]
     os.chdir(root)
@@ -183,6 +244,8 @@ def collect(mode):
     }
     (evidence / "validation.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     summary = f"P0 evidence: {status} ({sha})\n" + "".join(f"- {error}\n" for error in errors)
+    if performance is not None:
+        summary += format_performance_summary(performance)
     print(summary, end="")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
