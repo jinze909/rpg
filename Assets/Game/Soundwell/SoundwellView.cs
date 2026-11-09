@@ -1,4 +1,4 @@
-using System;
+using Action = System.Action;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
