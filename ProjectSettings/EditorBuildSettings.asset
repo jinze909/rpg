@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Game/Scenes/Bootstrap.unity
     guid: 02f7a48d1e4b45e7921eac6a0b767fc8
+  - enabled: 1
+    path: Assets/Game/Scenes/SoundwellTrial.unity
+    guid: 3a716ed6f79849e4badb6834f3f593ac
   m_configObjects: {}

@@ -2,7 +2,7 @@ name: Unity ORK P0
 
 on:
   push:
-    branches: [codex/dev, codex/pending/ork-bootstrap]
+    branches: [codex/dev, codex/pending/ork-bootstrap, codex/pending/soundwell-signal]
     paths:
       - 'Assets/**'
       - 'Packages/**'

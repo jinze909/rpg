@@ -53,14 +53,23 @@ def collect(mode):
     if mode == "verify" and paths:
         errors.append("Verification changed source files: " + ", ".join(paths))
 
+    expected_tests = set(EXPECTED_TESTS)
+    soundwell = mode == "verify" and (root / "Assets/Game/Scenes/SoundwellTrial.unity").is_file()
+    if soundwell:
+        expected_tests.add("Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry")
+        for filename in ("01-ringing.png", "02-wrapped-searching.png", "03-retreat-reset.png"):
+            frame = evidence / "soundwell" / filename
+            if not frame.is_file() or frame.stat().st_size < 1024:
+                errors.append(f"Missing Soundwell frame: {filename}")
+
     try:
         result = ET.parse(evidence / "editmode-results.xml").getroot()
         cases = list(result.iter("test-case"))
         names = [case.get("fullname") for case in cases]
-        if len(names) != len(EXPECTED_TESTS) or set(names) != EXPECTED_TESTS:
-            errors.append("Expected exactly the three P0 tests; empty/partial test runs are invalid.")
+        if len(names) != len(expected_tests) or set(names) != expected_tests:
+            errors.append("Expected exactly the configured Unity tests; empty/partial test runs are invalid.")
         if result.get("result") != "Passed" or any(case.get("result") != "Passed" for case in cases):
-            errors.append("All P0 tests must pass; skipped/inconclusive tests are invalid.")
+            errors.append("All configured Unity tests must pass; skipped/inconclusive tests are invalid.")
     except (OSError, ET.ParseError) as error:
         errors.append(f"Missing or invalid test XML: {error}")
 
@@ -70,8 +79,11 @@ def collect(mode):
                 errors.append(f"{filename} is not zero.")
         except OSError:
             errors.append(f"Missing {filename}.")
+    editmode_markers = ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second")
+    if soundwell:
+        editmode_markers += ("RPG_SOUNDWELL_SIGNAL_VALIDATED",)
     for filename, markers in {
-        "editmode.log": ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second"),
+        "editmode.log": editmode_markers,
         "batch.log": ("RPG_BOOTSTRAP_VALIDATED",),
     }.items():
         try:

@@ -92,6 +92,9 @@ jobs:
           if [[ "$P0_MODE" == prepare ]]; then
             test_parameters+=' -rpgPrepareDefaults'
           fi
+          if [[ "$P0_MODE" == verify && -f Assets/Game/Scenes/SoundwellTrial.unity ]]; then
+            test_parameters=${test_parameters/Rpg.Tests.Editor.P0BootstrapTests/Rpg.Tests.Editor}
+          fi
           # The Action emits --no-coverageEnabled, rejected by this CLI's parser.
           "$cli_dir/game-ci" test --docker --dockerShmSize=1025m --engine=unity . \
             --testPlatforms=editmode --engineVersion=6000.6.8f1 --coverageEnabled=false \
