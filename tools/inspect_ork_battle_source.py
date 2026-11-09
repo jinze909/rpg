@@ -60,6 +60,34 @@ def inspect_battle_system_selection():
                 print(f"{line_number + 1:5}: {source[line_number]}")
 
 
+
+def inspect_ork_battle_types():
+    """Print the exact battle runtime and asset type declarations used by ORK."""
+    declarations = (
+        "class BattleSystem:",
+        "class BattleSystemAsset:",
+        "class TurnBasedBattleSystem:",
+        "class AssetSelection",
+    )
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for declaration in declarations:
+            matches = []
+            for name in archive.namelist():
+                if not name.endswith(".cs"):
+                    continue
+                source = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+                for index, line in enumerate(source):
+                    if declaration in line:
+                        matches.append((name, source, index))
+            for name, source, index in matches[:2]:
+                start = max(0, index - 8)
+                end = min(len(source), index + 150)
+                print(f"\\n--- {name}: {declaration} (lines {start + 1}-{end}) ---")
+                for line_number in range(start, end):
+                    print(f"{line_number + 1:5}: {source[line_number]}")
+
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
+    inspect_ork_battle_types()

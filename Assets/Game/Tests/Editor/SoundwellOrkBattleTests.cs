@@ -77,15 +77,32 @@ namespace Rpg.Tests.Editor
             Assert.That(beast, Is.Not.Null, "ORK Add Combatant must create the enemy combatant.");
             Assert.That(beast.GameObject, Is.SameAs(beastObject));
 
-            // AddCombatant assigns each spawned combatant's group the saved
-            // battle system from its battle-arena settings. Preserve that
-            // framework-owned configuration when assembling the encounter groups.
+            // ORK 3.22 resolves BattleSystemSelection to BattleSystemAsset.Settings,
+            // whose runtime wrapper is the base BattleSystem type. Verify the actual
+            // selected asset and settings identity instead of guessing a derived CLR type.
+            const string turnBasedAssetPath =
+                "Assets/Gaming Is Love/_Data/Battle System/0 - Turn Based.asset";
+            BattleSystemAsset turnBasedAsset =
+                AssetDatabase.LoadAssetAtPath<BattleSystemAsset>(turnBasedAssetPath);
+            Assert.That(turnBasedAsset, Is.Not.Null,
+                "The saved Turn Based battle-system asset must exist.");
+            Assert.That(ORK.BattleSettings.defaultBattleSystem, Is.Not.Null,
+                "ORK must expose its saved default battle-system selection.");
+            Assert.That(ORK.BattleSettings.defaultBattleSystem.StoredAsset, Is.SameAs(turnBasedAsset),
+                "ORK's global default must select the saved Turn Based asset.");
+            BattleSystem savedTurnBasedSettings =
+                ORK.BattleSettings.defaultBattleSystem.GetBattleSystem();
+            Assert.That(savedTurnBasedSettings, Is.SameAs(turnBasedAsset.Settings),
+                "ORK must resolve the selected asset's settings object.");
+
+            // AddCombatant assigns each spawned combatant's group the framework-resolved
+            // default settings. Preserve that same authoritative object in the encounter.
             var playerBattleSystem = party[0].Group.BattleSystem;
             var enemyBattleSystem = beast.Group.BattleSystem;
-            Assert.That(playerBattleSystem, Is.Not.Null,
-                "The player AddCombatant setup must resolve the saved Turn Based battle system.");
-            Assert.That(enemyBattleSystem, Is.Not.Null,
-                "The enemy AddCombatant setup must resolve the saved Turn Based battle system.");
+            Assert.That(playerBattleSystem, Is.SameAs(savedTurnBasedSettings),
+                "The player AddCombatant setup must retain the selected Turn Based settings.");
+            Assert.That(enemyBattleSystem, Is.SameAs(savedTurnBasedSettings),
+                "The enemy AddCombatant setup must retain the selected Turn Based settings.");
             playerGroup.BattleSystem = playerBattleSystem;
             enemyGroup.BattleSystem = enemyBattleSystem;
 
@@ -140,11 +157,11 @@ namespace Rpg.Tests.Editor
             Assert.That(playerGroup.GetBattle().Count, Is.EqualTo(3));
             Assert.That(enemyGroup.GetBattle().Count, Is.EqualTo(1));
             Assert.That(playerGroup.BattleSystem, Is.Not.Null);
-            Assert.That(playerGroup.BattleSystem.GetType().Name, Does.Contain("TurnBased"),
-                "The player group must retain ORK's saved Turn Based system.");
+            Assert.That(playerGroup.BattleSystem, Is.SameAs(turnBasedAsset.Settings),
+                "The player group must retain the selected Turn Based settings object.");
             Assert.That(enemyGroup.BattleSystem, Is.Not.Null);
-            Assert.That(enemyGroup.BattleSystem.GetType().Name, Does.Contain("TurnBased"),
-                "The enemy group must retain ORK's saved Turn Based system.");
+            Assert.That(enemyGroup.BattleSystem, Is.SameAs(turnBasedAsset.Settings),
+                "The enemy group must retain the selected Turn Based settings object.");
 
             Debug.Log("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             LogAssert.NoUnexpectedReceived();
