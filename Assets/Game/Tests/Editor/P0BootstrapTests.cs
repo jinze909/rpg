@@ -46,7 +46,10 @@ namespace Rpg.Tests.Editor
             }
 
             Assert.That(EditorApplication.ExecuteMenuItem("Tools/RPG/Wire ORK Bootstrap"), Is.True);
+            byte[] wiredScene = File.ReadAllBytes(ScenePath);
             Assert.That(EditorApplication.ExecuteMenuItem("Tools/RPG/Wire ORK Bootstrap"), Is.True);
+            Assert.That(File.ReadAllBytes(ScenePath), Is.EqualTo(wiredScene),
+                "Running the command again must not rewrite the saved scene.");
             ValidateConfiguration();
             Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
         }

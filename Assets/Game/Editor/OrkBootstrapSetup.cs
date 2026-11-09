@@ -17,9 +17,9 @@ namespace Rpg.Editor
         private static void WireBootstrap()
         {
             var scene = SceneManager.GetActiveScene();
-            if (scene.path != ScenePath || scene.isDirty || EditorApplication.isPlayingOrWillChangePlaymode)
+            if (scene.path != ScenePath || EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                Debug.LogError($"Open and save {ScenePath} in Edit Mode before wiring ORK.");
+                Debug.LogError($"Open {ScenePath} in Edit Mode before wiring ORK.");
                 return;
             }
 
@@ -34,6 +34,12 @@ namespace Rpg.Editor
                     ValidateStarter(starters, project);
                     Debug.Log("Bootstrap already uses the saved ORK project asset.");
                     return;
+                }
+
+                // Validation above is read-only. Protect unsaved edits only before writing the scene.
+                if (scene.isDirty)
+                {
+                    throw new InvalidOperationException($"Save {ScenePath} before adding the ORK Game Starter.");
                 }
 
                 Undo.IncrementCurrentGroup();

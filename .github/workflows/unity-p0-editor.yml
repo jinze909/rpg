@@ -110,7 +110,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: unity-ork-p0-${{ steps.phase.outputs.mode }}-${{ inputs.revision }}
+          name: unity-ork-p0-${{ steps.phase.outputs.mode }}-${{ inputs.revision }}-attempt-${{ github.run_attempt }}
           path: artifacts/p0/
           if-no-files-found: error
           retention-days: 14

@@ -41,7 +41,11 @@ jobs:
 
   publish:
     needs: bootstrap
-    if: github.ref == 'refs/heads/codex/pending/ork-bootstrap' && needs.bootstrap.outputs.mode == 'prepare'
+    # A prepare-only push can defer the generated commit to an explicit rerun.
+    if: >-
+      github.ref == 'refs/heads/codex/pending/ork-bootstrap'
+      && needs.bootstrap.outputs.mode == 'prepare'
+      && (github.run_attempt > 1 || !contains(github.event.head_commit.message, '[p0 prepare only]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -54,7 +58,7 @@ jobs:
           ref: ${{ github.sha }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: unity-ork-p0-prepare-${{ github.sha }}
+          name: unity-ork-p0-prepare-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: artifacts/p0
       - name: Save the generated Unity configuration to the candidate branch
         id: publish
