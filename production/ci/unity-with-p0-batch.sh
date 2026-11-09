@@ -4,12 +4,12 @@ set -u
 
 run_tests=false
 project_path=''
-platform=''
+prepare=false
 previous=''
 for argument in "$@"; do
   [[ "$argument" == '-runTests' ]] && run_tests=true
   [[ "$previous" == '-projectPath' ]] && project_path="$argument"
-  [[ "$previous" == '-testPlatform' ]] && platform="$argument"
+  [[ "$argument" == '-rpgPrepareDefaults' ]] && prepare=true
   previous="$argument"
 done
 if [[ "$run_tests" != true ]]; then
@@ -22,12 +22,6 @@ fi
 
 evidence="$GITHUB_WORKSPACE/${ARTIFACTS_PATH:-artifacts/p0}"
 mkdir -p "$evidence"
-if [[ "${platform,,}" == playmode ]]; then
-  timeout --kill-after=15s 180s "$@"
-  tests_exit=$?
-  printf '%s\n' "$tests_exit" > "$evidence/playmode-editor-exit-code.txt"
-  exit "$tests_exit"
-fi
 "$@"
 tests_exit=$?
 printf '%s\n' "$tests_exit" > "$evidence/test-editor-exit-code.txt"
@@ -44,4 +38,16 @@ fi
 if ! grep -q 'RPG_BOOTSTRAP_VALIDATED' "$evidence/batch.log"; then
   echo 'Batch invocation did not produce the required validation marker.' >&2
   exit 1
+fi
+
+# A fresh editor process enters Play Mode through the normal scene entry point.
+if [[ "$prepare" != true && -f "$project_path/Assets/Game/Scenes/SoundwellTrial.unity" ]]; then
+  timeout --kill-after=15s 180s "$1" -batchmode -projectPath "$project_path" \
+    -executeMethod Rpg.Editor.SoundwellSmoke.RunFromCommandLine -logFile "$evidence/soundwell.log"
+  soundwell_exit=$?
+  printf '%s\n' "$soundwell_exit" > "$evidence/soundwell-editor-exit-code.txt"
+  if [[ "$soundwell_exit" -ne 0 ]]; then
+    tail -n 100 "$evidence/soundwell.log" >&2
+    exit "$soundwell_exit"
+  fi
 fi

@@ -24,8 +24,7 @@ permissions:
 
 concurrency:
   group: unity-ork-p0
-  # Replace the stalled first Soundwell PlayMode run once.
-  cancel-in-progress: ${{ github.ref == 'refs/heads/codex/pending/soundwell-signal' && github.event.before == 'ce136decb135e7ce52b14dd6db0739c580b604a1' }}
+  cancel-in-progress: false
 
 jobs:
   bootstrap:
