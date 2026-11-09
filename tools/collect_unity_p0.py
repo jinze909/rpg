@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -32,8 +33,8 @@ def collect(mode):
     if action_outcome and action_outcome != "success":
         errors.append(f"Unity action did not succeed: {action_outcome}.")
     sha = git("rev-parse", "HEAD").decode().strip()
-    if os.environ.get("GITHUB_SHA", sha) != sha:
-        errors.append("Checkout HEAD does not match the workflow SHA.")
+    if os.environ.get("P0_EXPECTED_SHA", os.environ.get("GITHUB_SHA", sha)) != sha:
+        errors.append("Checkout HEAD does not match the requested candidate SHA.")
 
     changed = git("diff", "--name-only", "-z", "HEAD", "--", *SOURCE_PATHS)
     untracked = git("ls-files", "--others", "--exclude-standard", "-z", "--", *SOURCE_PATHS)
@@ -76,12 +77,27 @@ def collect(mode):
         try:
             log = (evidence / filename).read_text(errors="replace")
             errors.extend(f"Missing {marker} in {filename}." for marker in markers if marker not in log)
+            import_error = re.search(
+                r"error CS\d+|Scripts have compiler errors|Unable to update following assemblies|"
+                r"Failed to resolve assembly|Assembly .+ will not be loaded", log, re.IGNORECASE,
+            )
+            if import_error:
+                errors.append(f"Unity import or compile error in {filename}: {import_error.group(0)}")
         except OSError:
             errors.append(f"Missing {filename}.")
 
     lock = root / "Packages/packages-lock.json"
+    ugui_version = None
     if lock.is_file():
         (evidence / "packages-lock.json").write_bytes(lock.read_bytes())
+        try:
+            ugui = json.loads(lock.read_text())["dependencies"]["com.unity.ugui"]
+            ugui_version = ugui["version"]
+            if not ugui_version.startswith("2."):
+                errors.append(f"Expected the editor's UGUI 2.x, got {ugui_version}.")
+            print(f"Resolved UGUI: {ugui_version}")
+        except (KeyError, ValueError) as error:
+            errors.append(f"Invalid UGUI package lock entry: {error}")
     else:
         errors.append("Unity did not generate Packages/packages-lock.json.")
     vendor = subprocess.run([sys.executable, "tools/verify_ork.py"], capture_output=True, text=True)
@@ -91,10 +107,12 @@ def collect(mode):
 
     status = "failed" if errors else ("prepared-candidate" if mode == "prepare" else "passed-clean-candidate")
     report = {
-        "source_sha": sha,
+        "source_sha": os.environ.get("GITHUB_SHA", sha),
+        "candidate_sha": sha if mode == "verify" else None,
         "mode": mode,
         "status": status,
         "unity": "6000.6.8f1",
+        "ugui": ugui_version,
         "unity_action_outcome": action_outcome,
         "run_url": f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}",
         "changed_files_sha256": hashes,

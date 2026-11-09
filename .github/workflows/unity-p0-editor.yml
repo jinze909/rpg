@@ -1,0 +1,116 @@
+name: Unity ORK P0 editor checks
+
+on:
+  workflow_call:
+    inputs:
+      revision:
+        type: string
+        required: true
+      mode:
+        type: string
+        required: false
+        default: ''
+    outputs:
+      mode:
+        value: ${{ jobs.bootstrap.outputs.mode }}
+    secrets:
+      UNITY_EMAIL:
+        required: false
+      UNITY_PASSWORD:
+        required: false
+      UNITY_SERIAL:
+        required: false
+      UNITY_LICENSE:
+        required: false
+      UNITY_LICENSING_SERVER:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    outputs:
+      mode: ${{ steps.phase.outputs.mode }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+
+      - name: Select explicit preparation or verification phase
+        id: phase
+        env:
+          P0_EXPECTED_SHA: ${{ inputs.revision }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+          LICENSE_METHOD: ${{ vars.UNITY_LICENSE_METHOD || 'personal' }}
+        shell: bash
+        run: |
+          mode="${REQUESTED_MODE:-$(cat production/ci/p0-mode.txt)}"
+          case "$mode" in prepare|verify) ;; *) echo 'Invalid P0 mode'; exit 1 ;; esac
+          case "$LICENSE_METHOD" in personal|serial|file|floating) ;; *) echo 'Invalid UNITY_LICENSE_METHOD'; exit 1 ;; esac
+          printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
+          printf 'owner=%s:%s\n' "$(id -u)" "$(id -g)" >> "$GITHUB_OUTPUT"
+          printf '## Unity / ORK P0: %s\n' "$mode" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$mode" == prepare ]]; then
+            echo 'This run prepares uncommitted candidate files. It cannot mark the source SHA as P0 passed.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            test -f 'Assets/Gaming Is Love/_Data/Project.asset'
+            test -f ProjectSettings/EditorSettings.asset
+            test -f Packages/packages-lock.json
+          fi
+          test "$(git rev-parse HEAD)" = "$P0_EXPECTED_SHA"
+          python3 tools/verify_ork.py
+
+      - name: Import, compile, play twice, and run the independent batch check
+        id: unity
+        env:
+          # Set UNITY_LICENSE_METHOD repository variable to personal, serial, file, or floating.
+          # Bind only the selected method. Secret values belong in GitHub Actions settings.
+          UNITY_EMAIL: ${{ (vars.UNITY_LICENSE_METHOD == '' || vars.UNITY_LICENSE_METHOD == 'personal' || vars.UNITY_LICENSE_METHOD == 'serial') && secrets.UNITY_EMAIL || '' }}
+          UNITY_PASSWORD: ${{ (vars.UNITY_LICENSE_METHOD == '' || vars.UNITY_LICENSE_METHOD == 'personal' || vars.UNITY_LICENSE_METHOD == 'serial') && secrets.UNITY_PASSWORD || '' }}
+          UNITY_SERIAL: ${{ vars.UNITY_LICENSE_METHOD == 'serial' && secrets.UNITY_SERIAL || '' }}
+          UNITY_LICENSE: ${{ vars.UNITY_LICENSE_METHOD == 'file' && secrets.UNITY_LICENSE || '' }}
+          UNITY_LICENSING_SERVER: ${{ vars.UNITY_LICENSE_METHOD == 'floating' && secrets.UNITY_LICENSING_SERVER || '' }}
+          ENGINE_LAUNCH_WRAPPER: bash /github/workspace/production/ci/unity-with-p0-batch.sh
+          P0_MODE: ${{ steps.phase.outputs.mode }}
+          P0_OWNER: ${{ steps.phase.outputs.owner }}
+        shell: bash
+        run: |
+          cli_dir="$(mktemp -d "$RUNNER_TEMP/game-ci.XXXXXX")"
+          curl --fail --silent --show-error --location --retry 2 \
+            https://github.com/game-ci/cli/releases/download/v0.1.72/game-ci-linux-x64.tar.gz \
+            --output "$cli_dir/game-ci.tar.gz"
+          echo "1de550a620ee92e05e920b6db7d431621440b60b2577f04b4a997dc92a58cb0a  $cli_dir/game-ci.tar.gz" | sha256sum --check
+          tar -xzf "$cli_dir/game-ci.tar.gz" -C "$cli_dir"
+
+          # On a fresh import, Unity runs the API Updater before it compiles UGUI.
+          # Keep the pinned DLL intact and assert its UGUI/TMP linkage in the test.
+          test_parameters='-testFilter Rpg.Tests.Editor.P0BootstrapTests -disable-assembly-updater Makinom2.UnityUI.dll'
+          if [[ "$P0_MODE" == prepare ]]; then
+            test_parameters+=' -rpgPrepareDefaults'
+          fi
+          # The Action emits --no-coverageEnabled, rejected by this CLI's parser.
+          "$cli_dir/game-ci" test --docker --dockerShmSize=1025m --engine=unity . \
+            --testPlatforms=editmode --engineVersion=6000.6.8f1 --coverageEnabled=false \
+            --customImage=unityci/editor@sha256:61efa80c3a17cf384da97465536f938f854dc9c5b5f3a8d9ee0173550b35c584 \
+            --customParameters="$test_parameters" --artifactsPath=artifacts/p0 --chownFilesTo="$P0_OWNER"
+
+      - name: Collect exact evidence and reject incomplete or dirty verification
+        if: always() && steps.phase.outputs.mode != ''
+        env:
+          P0_MODE: ${{ steps.phase.outputs.mode }}
+          P0_EXPECTED_SHA: ${{ inputs.revision }}
+          P0_UNITY_ACTION_OUTCOME: ${{ steps.unity.outcome }}
+        run: python3 tools/collect_unity_p0.py "$P0_MODE"
+
+      - name: Preserve logs, test XML, package lock, and candidate files
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unity-ork-p0-${{ steps.phase.outputs.mode }}-${{ inputs.revision }}
+          path: artifacts/p0/
+          if-no-files-found: error
+          retention-days: 14

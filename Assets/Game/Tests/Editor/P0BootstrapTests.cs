@@ -24,9 +24,13 @@ namespace Rpg.Tests.Editor
         public void SavedConfigurationAndWiringAreValid()
         {
             Assert.That(Application.unityVersion, Is.EqualTo("6000.6.8f1"));
+            Assert.That(Type.GetType("UnityEngine.UI.Button, UnityEngine.UI", throwOnError: true), Is.Not.Null);
+            Assert.That(Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro", throwOnError: true), Is.Not.Null);
+            Assert.That(Assembly.Load("Makinom2.UnityUI").GetTypes(), Is.Not.Empty,
+                "The pinned Makinom Unity UI DLL must resolve its types against this Unity installation.");
             if (Environment.GetCommandLineArgs().Contains("-rpgPrepareDefaults"))
             {
-                EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.None;
+                UnityEditor.EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.None;
                 if (AssetDatabase.LoadAssetAtPath<MakinomProjectAsset>(ProjectPath) == null)
                 {
                     CreateDefaultProject();
