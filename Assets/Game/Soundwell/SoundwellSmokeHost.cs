@@ -269,7 +269,11 @@ namespace Rpg.Soundwell
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
-            var beastContactRing = trial.GetComponentsInChildren<LineRenderer>(true)
+            // The beast is a scene-level actor, not necessarily a child of
+            // the trial controller. Search all actual scene roots just as
+            // FindRootComponent does, while keeping the exact marker name.
+            var beastContactRing = SceneManager.GetActiveScene().GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<LineRenderer>(true))
                 .SingleOrDefault(line => line.gameObject.name == "PLACEHOLDER beast contact radius");
             Require(beastContactRing != null && !beastContactRing.enabled &&
                 beastContactRing.loop && !beastContactRing.useWorldSpace &&
@@ -1233,7 +1237,8 @@ namespace Rpg.Soundwell
                 .Where(item => item.gameObject.name.StartsWith("PLACEHOLDER revealed claw trail "))
                 .Count(item => !item.enabled) == 3,
                 "Scene reload must hide all revealed claw evidence until reinspection.");
-            Require(!fresh.GetComponentsInChildren<LineRenderer>(true)
+            Require(!SceneManager.GetActiveScene().GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<LineRenderer>(true))
                 .Any(line => line.gameObject.name == "PLACEHOLDER beast contact radius" &&
                     line.enabled),
                 "A new scene must not retain an open-gate beast warning from the previous run.");
