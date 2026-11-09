@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
         private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
         private const string RopeObservedKey = "rpg.soundwell.signal-trial.rope-observed";
+        private const string CartObservedKey = "rpg.soundwell.signal-trial.cart-observed";
         private const string RopeRecoveredKey = "rpg.soundwell.signal-trial.rope-recovered";
         private const string EscortLineKey = "rpg.soundwell.signal-trial.surveyor-guide-line";
         private const string ClawsObservedKey = "rpg.soundwell.signal-trial.claws-observed";
@@ -32,6 +33,7 @@ namespace Rpg.Soundwell
         // Both source points are fixed and explicitly visible in the trial.
         public static readonly Vector2 SideBellStand = new Vector2(-2f, -1.95f);
         public static readonly Vector2 RopeEvidencePosition = new Vector2(-4.55f, 1.50f);
+        public static readonly Vector2 CartEvidencePosition = new Vector2(-3.35f, 2.30f);
         public static readonly Vector2 ClawEvidencePosition = new Vector2(-1.85f, 1.50f);
         public static readonly Vector2 SurveyorPosition = new Vector2(3.1f, 0.6f);
         public static readonly Vector2 UpperBoardPosition = new Vector2(2.75f, 1.75f);
@@ -87,15 +89,19 @@ namespace Rpg.Soundwell
         public bool FalseMarkerCleared => variables != null &&
             variables.GetInt(FalseMarkerClearedKey) != 0;
         public bool RopeObserved => variables != null && variables.GetInt(RopeObservedKey) != 0;
+        public bool CartObserved => variables != null && variables.GetInt(CartObservedKey) != 0;
         public bool RopeRecovered => variables != null && variables.GetInt(RopeRecoveredKey) != 0;
         public bool SurveyorLineTied => variables != null && variables.GetInt(EscortLineKey) != 0;
         public bool ClawsObserved => variables != null && variables.GetInt(ClawsObservedKey) != 0;
         public bool AtRopeEvidence => IsReady && !IsCarrying &&
             Vector2.Distance(playerBody.position, RopeEvidencePosition) <= 0.72f;
+        public bool AtCartEvidence => IsReady && !IsCarrying &&
+            Vector2.Distance(playerBody.position, CartEvidencePosition) <= 0.72f;
         public bool AtClawEvidence => IsReady && !IsCarrying &&
             Vector2.Distance(playerBody.position, ClawEvidencePosition) <= 0.72f;
         public bool CanInspectRope => AtRopeEvidence && !RopeObserved;
         public bool CanRecoverRope => AtRopeEvidence && RopeObserved && !RopeRecovered;
+        public bool CanInspectCart => AtCartEvidence && !CartObserved;
         public bool CanInspectClaws => AtClawEvidence && !ClawsObserved;
         public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
         public bool SurveyorWaitingForLeader => view != null && view.WaitingForEscortLeader;
@@ -240,9 +246,9 @@ namespace Rpg.Soundwell
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
-                AtRopeEvidence, AtClawEvidence, CanInspectRope, CanRecoverRope,
-                CanInspectClaws, CanTieEscortLine, RopeObserved, RopeRecovered,
-                ClawsObserved, SurveyorLineTied, BeastBlocksEscape, LowerPlankBroken,
+                AtRopeEvidence, AtCartEvidence, AtClawEvidence, CanInspectRope, CanRecoverRope,
+                CanInspectCart, CanInspectClaws, CanTieEscortLine, RopeObserved, RopeRecovered,
+                CartObserved, ClawsObserved, SurveyorLineTied, BeastBlocksEscape, LowerPlankBroken,
                 destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
@@ -337,6 +343,8 @@ namespace Rpg.Soundwell
                     variables.Set(RopeObservedKey, 1);
                 else if (CanRecoverRope)
                     variables.Set(RopeRecoveredKey, 1);
+                else if (CanInspectCart)
+                    variables.Set(CartObservedKey, 1);
                 else if (CanInspectClaws)
                     variables.Set(ClawsObservedKey, 1);
                 else if (CanOpenGate)
@@ -405,6 +413,7 @@ namespace Rpg.Soundwell
             variables.Set(RescueKey, 0);
             variables.Set(FalseMarkerClearedKey, 0);
             variables.Set(RopeObservedKey, 0);
+            variables.Set(CartObservedKey, 0);
             variables.Set(RopeRecoveredKey, 0);
             variables.Set(EscortLineKey, 0);
             variables.Set(ClawsObservedKey, 0);

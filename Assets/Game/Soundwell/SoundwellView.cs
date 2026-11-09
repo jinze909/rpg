@@ -23,6 +23,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer falseTrailMarker;
         private readonly SpriteRenderer escapeDangerMarker;
         private readonly SpriteRenderer ropeEvidenceMarker;
+        private readonly SpriteRenderer cartEvidenceMarker;
         private readonly SpriteRenderer clawEvidenceMarker;
         private readonly Transform escortLeader;
         private readonly Transform retreatMarker;
@@ -83,6 +84,17 @@ namespace Rpg.Soundwell
             ropeEvidenceMarker = Plate(root, "PLACEHOLDER severed bell rope",
                 SoundwellTrial.RopeEvidencePosition, new Vector2(0.22f, 0.78f),
                 new Color(0.53f, 0.38f, 0.27f), 2);
+            // The cart anchors the missing-person clue without revealing
+            // the sound-lure solution. It is a distinct physical prop.
+            cartEvidenceMarker = Plate(root, "PLACEHOLDER abandoned mule cart",
+                SoundwellTrial.CartEvidencePosition, new Vector2(1.02f, 0.46f),
+                new Color(0.49f, 0.35f, 0.24f), 2);
+            Plate(root, "PLACEHOLDER cart left wheel",
+                SoundwellTrial.CartEvidencePosition + new Vector2(-0.34f, -0.30f),
+                new Vector2(0.23f, 0.23f), Ink, 3);
+            Plate(root, "PLACEHOLDER cart right wheel",
+                SoundwellTrial.CartEvidencePosition + new Vector2(0.34f, -0.30f),
+                new Vector2(0.23f, 0.23f), Ink, 3);
             clawEvidenceMarker = Plate(root, "PLACEHOLDER claw marks",
                 SoundwellTrial.ClawEvidencePosition, new Vector2(0.86f, 0.24f),
                 new Color(0.56f, 0.29f, 0.27f), 2);
@@ -372,9 +384,9 @@ namespace Rpg.Soundwell
             bool hasSurveyorClue, bool atUpperPlank, bool canSecurePlank,
             bool plankSecured, bool canEscortSurveyor, bool surveyorEscorting,
             bool rescueComplete, bool falseMarkerCleared,
-            bool atRopeEvidence, bool atClawEvidence, bool canInspectRope,
-            bool canRecoverRope, bool canInspectClaws, bool canTieEscortLine,
-            bool ropeObserved, bool ropeRecovered, bool clawsObserved,
+            bool atRopeEvidence, bool atCartEvidence, bool atClawEvidence, bool canInspectRope,
+            bool canRecoverRope, bool canInspectCart, bool canInspectClaws, bool canTieEscortLine,
+            bool ropeObserved, bool ropeRecovered, bool cartObserved, bool clawsObserved,
             bool surveyorLineTied, bool beastBlocksEscape,
             bool lowerPlankBroken, Vector2 beastDestination)
         {
@@ -398,17 +410,20 @@ namespace Rpg.Soundwell
             falseTrailMarker.enabled = !falseMarkerCleared;
             ropeEvidenceMarker.enabled = !ropeRecovered;
             ropeEvidenceMarker.color = ropeObserved ? Cloth : new Color(0.53f, 0.38f, 0.27f);
+            cartEvidenceMarker.color = cartObserved ? new Color(0.72f, 0.80f, 0.65f)
+                : new Color(0.49f, 0.35f, 0.24f);
             clawEvidenceMarker.color = clawsObserved ? Gold : new Color(0.56f, 0.29f, 0.27f);
             ringButton.interactable = atBell && !carrying;
             wrapButton.interactable = atBell && !carrying;
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
-            gateButton.interactable = canInspectRope || canRecoverRope || canInspectClaws ||
+            gateButton.interactable = canInspectRope || canRecoverRope || canInspectCart || canInspectClaws ||
                 canTieEscortLine || canOpenGate || canSecurePlank || canEscortSurveyor ||
                 (atSurveyor && !hasSurveyorClue);
             string interactCaption = canInspectRope ? "INSPECT ROPE [G / RB]"
                 : canRecoverRope ? "RECOVER CORD [G / RB]"
+                : canInspectCart ? "INSPECT CART [G / RB]"
                 : canInspectClaws ? "INSPECT CLAWS [G / RB]"
                 : canTieEscortLine ? "TIE GUIDE LINE [G / RB]"
                 : canEscortSurveyor ? "LEAD SURVEYOR [G / RB]"
@@ -491,7 +506,9 @@ namespace Rpg.Soundwell
                         : atSurveyor ? "SURVEYOR: Stop! The lower plank won't hold you." : "";
             if (lowerPlankBroken && !hasSurveyorClue && !surveyorEscorting && !rescueComplete)
                 speech = "SURVEYOR: The lower plank snapped! Ask me about the safe upper route.";
-            if (speech.Length == 0 && atRopeEvidence && ropeObserved)
+            if (speech.Length == 0 && atCartEvidence && cartObserved)
+                speech = "OBSERVED: The abandoned cart was dragged to the gate; its tracks lead inside.";
+            else if (speech.Length == 0 && atRopeEvidence && ropeObserved)
                 speech = "OBSERVED: The bell cord was cut. A rough knot remains.";
             else if (speech.Length == 0 && atClawEvidence && clawsObserved)
                 speech = "OBSERVED: Claw marks turn toward the bell stand, not RETREAT.";
@@ -539,6 +556,10 @@ namespace Rpg.Soundwell
                     ? "[G / RB] Recover the usable cord for a guide line."
                     : ropeRecovered ? "You recovered the usable cord for the surveyor."
                     : "[G / RB] Inspect the torn bell cord.";
+            else if (atCartEvidence)
+                prompt = cartObserved
+                    ? "The cart tracks point toward the inner gate."
+                    : "[G / RB] Inspect the abandoned mule cart.";
             else if (atClawEvidence)
                 prompt = clawsObserved ? "The claw tracks are evidence. What drew the beast here?"
                     : "[G / RB] Inspect the beast's claw tracks.";

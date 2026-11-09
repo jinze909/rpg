@@ -287,6 +287,13 @@ namespace Rpg.Soundwell
                 "Broken cord and claw marks must be real inspectable world evidence.");
             Color ropeUnobservedColor = ropeEvidence.color;
             Color clawsUnobservedColor = clawEvidence.color;
+            var cartEvidence = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER abandoned mule cart");
+            Require(cartEvidence != null && !trial.CartObserved &&
+                Vector2.Distance((Vector2)cartEvidence.transform.position,
+                    SoundwellTrial.CartEvidencePosition) < 0.01f,
+                "The abandoned cart must exist as an inspectable world clue, not just a caption.");
+            Color cartUnobservedColor = cartEvidence.color;
             var escapeWarning = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER escape-lane risk");
             Require(escapeWarning != null && !escapeWarning.enabled &&
@@ -336,7 +343,7 @@ namespace Rpg.Soundwell
             Press(trial, ring: true);
             Require(!trial.HasBellTarget, "Interaction must require proximity.");
             Press(trial, gate: true);
-            Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.GateOpen,
+            Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved && !trial.GateOpen,
                 "Inspecting from RETREAT cannot remotely claim the environment evidence.");
 
             // Explore two optional details without being told the bell solution.
@@ -375,6 +382,38 @@ namespace Rpg.Soundwell
             Require(trial.RopeRecovered && !trial.CanRecoverRope,
                 "Repeated recovery must not duplicate the usable rope.");
 
+            // The cart is a separate optional clue. It requires real
+            // proximity and never opens the gate or reveals the lure trick.
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -3.40f,
+                "walk toward the abandoned cart"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= 2.26f,
+                "approach the abandoned cart"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.CanInspectCart && !trial.CanInspectRope && !trial.CanInspectClaws &&
+                TrialActionButton(trial, "Gate").interactable &&
+                TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                    .Contains("INSPECT CART", StringComparison.Ordinal) &&
+                ShowsPrompt(trial, "[G / RB] Inspect the abandoned mule cart"),
+                "Only physical proximity must enable inspection on the real UGUI button.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.CartObserved && cartEvidence.color != cartUnobservedColor &&
+                ShowsPrompt(trial, "tracks lead inside") &&
+                !trial.GateOpen && !trial.HasBellTarget && !trial.SurveyorEscorting,
+                "Cart inspection must reveal a rescue clue, not solve the bell or gate.");
+            Press(trial, gate: true);
+            Require(trial.CartObserved && !trial.CanInspectCart,
+                "Repeated inspection must not grant an extra effect.");
+            Capture(trial, "00-abandoned-cart-observed");
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= 1.48f,
+                "return from the cart to the evidence lane"); wait.MoveNext();)
+                yield return null;
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= -1.90f,
                 "follow the claw-mark trail"); wait.MoveNext();)
@@ -388,7 +427,7 @@ namespace Rpg.Soundwell
                 "The beast marks must only be inspectable up close.");
             ClickTrialAction(trial, "Gate");
             yield return null;
-            Require(trial.RopeObserved && trial.ClawsObserved &&
+            Require(trial.RopeObserved && trial.ClawsObserved && trial.CartObserved &&
                 clawEvidence.color != clawsUnobservedColor &&
                 ShowsPrompt(trial, "Claw marks turn toward the bell stand") &&
                 !trial.HasBellTarget,
@@ -406,7 +445,7 @@ namespace Rpg.Soundwell
             Press(trial);
             yield return null;
             Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.35f &&
-                trial.RopeObserved && trial.ClawsObserved,
+                trial.RopeObserved && trial.ClawsObserved && trial.CartObserved,
                 "Optional observations must persist as the player returns to safety.");
 
             Press(trial, Vector2.right);
@@ -527,12 +566,12 @@ namespace Rpg.Soundwell
             Require(!bellAudio.loop && bellAudio.clip == null, "Reset must clear the bell's playback state.");
             Require(!trial.IsCarrying && trial.BellPosition == bellStart,
                 "Reset must put the portable bell back at its original stand.");
-            Require(!trial.RopeObserved && !trial.ClawsObserved &&
+            Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved &&
                 !trial.RopeRecovered && !trial.SurveyorLineTied,
                 "Retreat reset must clear clues and previously recovered guide-rope supplies.");
             yield return null;
-            Require(ropeEvidence.enabled,
-                "Reset must physically restore the broken cord so it can be collected again.");
+            Require(ropeEvidence.enabled && cartEvidence.color == cartUnobservedColor,
+                "Reset must restore the recovered cord and unobserved cart appearance.");
             Require(!intentMarker.enabled, "Retreat/reset must clear the monster intent indicator.");
             Capture(trial, "03-retreat-reset");
 
