@@ -766,6 +766,46 @@ namespace Rpg.Soundwell
             Require(!trial.HasSurveyorClue,
                 "Crossing the threshold alone must not auto-reveal the surveyor's clue.");
 
+            // The real Rigidbody2D must stay in the room; merely displaying
+            // a colored boundary sprite is not sufficient.
+            foreach (var name in new[] { "East wall", "North inner wall", "South inner wall" })
+            {
+                var collider = trial.GetComponentsInChildren<BoxCollider2D>(true)
+                    .SingleOrDefault(body => body.gameObject.name == name);
+                Require(collider != null && collider.enabled && !collider.isTrigger,
+                    "The eastern enclosure must contain real non-trigger 2D physics: " + name);
+            }
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= 6.10f,
+                "explore the inner room toward its far wall"); wait.MoveNext();)
+                yield return null;
+            for (int frame = 0; frame < 42; frame++)
+                yield return null;
+            Press(trial);
+            Require(trial.PlayerPosition.x < 6.75f,
+                "The east wall must physically stop walking outside the inner room.");
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= 2.35f,
+                "test the north side of the inner room"); wait.MoveNext();)
+                yield return null;
+            for (int frame = 0; frame < 42; frame++)
+                yield return null;
+            Press(trial);
+            Require(trial.PlayerPosition.y < 3.0f && trial.PlayerPosition.y > 2.3f,
+                "The north inner wall must physically block leaving through the top.");
+            Capture(trial, "06-inner-room-physics-bounds");
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= 0.0f,
+                "return from the north boundary to the inner route"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.left);
+            for (var wait = Until(() => trial.PlayerPosition.x <= 0.95f,
+                "return from the east boundary to the surveyor route"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            Require(!trial.HasSurveyorClue && trial.GateOpen,
+                "Exploring closed room boundaries must not reveal or complete the rescue.");
+
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= 2.75f,
                 "reach the trapped surveyor in the inner room"); wait.MoveNext();)

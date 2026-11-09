@@ -171,6 +171,15 @@ namespace Rpg.Soundwell
             Wall(root, "West wall", new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
             Wall(root, "North wall", new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f));
             Wall(root, "South wall", new Vector2(-3.4f, -3.2f), new Vector2(7.3f, 0.28f));
+            // The eastern side used to be unbounded: players could simply
+            // leave the authored inner room instead of engaging its route.
+            // Complete the same collidable enclosure without changing the
+            // central, controlled gate or the surveyor's safe plank.
+            Wall(root, "East wall", new Vector2(7f, 0f), new Vector2(0.32f, 6.4f));
+            Wall(root, "North inner wall", new Vector2(3.625f, 3.2f),
+                new Vector2(6.75f, 0.28f));
+            Wall(root, "South inner wall", new Vector2(3.625f, -3.2f),
+                new Vector2(6.75f, 0.28f));
 
             Plate(player, "PLACEHOLDER player silhouette", Vector2.zero, new Vector2(0.64f, 0.64f), new Color(0.43f, 0.91f, 0.72f), 3);
             Plate(player, "Player face", new Vector2(0f, 0.12f), new Vector2(0.26f, 0.16f), Color.white, 4);
