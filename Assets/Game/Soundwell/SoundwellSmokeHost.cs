@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -158,6 +159,28 @@ namespace Rpg.Soundwell
             var entrance = FindRootComponent<SoundwellEntrance>();
             Require(entrance != null, "The saved Bootstrap scene must expose the trial.");
             Require(ShowsPrompt(entrance, "[F2 / Pad A] Enter the trial"), "The entry screen must show its entry control.");
+
+            // Route a pointer event through the actual UGUI Button + GraphicRaycaster.
+            var entryButton = entrance.GetComponentInChildren<Button>();
+            Require(entryButton != null && entryButton.interactable, "The entry must be a live UGUI button.");
+            var eventSystem = EventSystem.current;
+            Require(eventSystem != null && eventSystem.currentSelectedGameObject == entryButton.gameObject,
+                "The entry button must receive keyboard / controller selection.");
+            var raycaster = entrance.GetComponentInChildren<GraphicRaycaster>();
+            Require(raycaster != null && raycaster.enabled, "The entry must accept pointer raycasts.");
+            Canvas.ForceUpdateCanvases();
+            var pointer = new PointerEventData(eventSystem)
+            {
+                button = PointerEventData.InputButton.Left,
+                position = RectTransformUtility.WorldToScreenPoint(null, entryButton.transform.position)
+            };
+            var hits = new List<RaycastResult>();
+            raycaster.Raycast(pointer, hits);
+            Require(hits.Exists(hit => hit.gameObject == entryButton.gameObject),
+                "A pointer on the entry button must hit its UGUI graphic.");
+            ExecuteEvents.Execute<IPointerClickHandler>(entryButton.gameObject, pointer,
+                ExecuteEvents.pointerClickHandler);
+            Require(!entryButton.interactable, "Entry must disable on click to block double activation.");
             var load = entrance.OpenTrial();
             Require(load != null && ReferenceEquals(load, entrance.OpenTrial()),
                 "A second entry request during loading must reuse the same operation.");
@@ -270,6 +293,15 @@ namespace Rpg.Soundwell
             var returnedEntrance = FindRootComponent<SoundwellEntrance>();
             Require(returnedEntrance != null && ShowsPrompt(returnedEntrance, "[F2 / Pad A] Enter the trial"),
                 "The entry screen must be usable after returning from the trial.");
+            var submitButton = returnedEntrance.GetComponentInChildren<Button>();
+            Require(submitButton != null && submitButton.interactable,
+                "Returning must create a fresh actionable UGUI entry.");
+            Require(EventSystem.current != null, "Returning must restore UI navigation.");
+            EventSystem.current.SetSelectedGameObject(submitButton.gameObject);
+            ExecuteEvents.Execute<ISubmitHandler>(submitButton.gameObject,
+                new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
+            Require(!submitButton.interactable,
+                "Keyboard / controller Submit must activate and disable the entry button.");
             yield return returnedEntrance.OpenTrial();
             var restarted = FindRootComponent<SoundwellTrial>();
             Require(restarted != null, "The trial must be playable after returning to the entry screen.");
