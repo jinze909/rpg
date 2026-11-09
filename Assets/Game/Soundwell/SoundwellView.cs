@@ -27,6 +27,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer cartEvidenceMarker;
         private readonly SpriteRenderer cartMapKitMarker;
         private readonly SpriteRenderer clawEvidenceMarker;
+        private readonly SpriteRenderer[] revealedClawTrail;
         private readonly Transform escortLeader;
         private readonly Transform retreatMarker;
         private readonly BoxCollider2D gateBlocker;
@@ -106,6 +107,22 @@ namespace Rpg.Soundwell
                 SoundwellTrial.ClawEvidencePosition, new Vector2(0.86f, 0.24f),
                 new Color(0.56f, 0.29f, 0.27f), 2);
             clawEvidenceMarker.transform.rotation = Quaternion.Euler(0f, 0f, -24f);
+            // The observed claw direction is readable on the floor, not only
+            // in a dialogue. Three physical scratch marks trace the old route
+            // from the evidence site to the side stand; no hidden puzzle state
+            // or alternate beast destination is created by these markers.
+            revealedClawTrail = new SpriteRenderer[3];
+            for (int i = 0; i < revealedClawTrail.Length; i++)
+            {
+                float distance = (i + 1f) / (revealedClawTrail.Length + 1f);
+                Vector2 site = Vector2.Lerp(SoundwellTrial.ClawEvidencePosition,
+                    SoundwellTrial.SideBellStand, distance);
+                revealedClawTrail[i] = Plate(root,
+                    "PLACEHOLDER revealed claw trail " + (i + 1), site,
+                    new Vector2(0.31f, 0.10f), new Color(0.96f, 0.58f, 0.34f, 0.82f), 1);
+                revealedClawTrail[i].transform.rotation = Quaternion.Euler(0f, 0f, -65f);
+                revealedClawTrail[i].enabled = false;
+            }
             // Separate two solid rails from the controlled middle opening.
             Wall(root, "Safety grating upper", new Vector2(0.25f, 2.0f), new Vector2(0.32f, 2.4f));
             Wall(root, "Safety grating lower", new Vector2(0.25f, -2.0f), new Vector2(0.32f, 2.4f));
@@ -391,6 +408,8 @@ namespace Rpg.Soundwell
             escortLine.enabled = false;
             falseTrailMarker.enabled = true;
             safeTrailMarker.enabled = false;
+            foreach (var trail in revealedClawTrail)
+                trail.enabled = false;
         }
 
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
@@ -431,6 +450,8 @@ namespace Rpg.Soundwell
                 : new Color(0.49f, 0.35f, 0.24f);
             cartMapKitMarker.enabled = !cartKitReclaimed;
             clawEvidenceMarker.color = clawsObserved ? Gold : new Color(0.56f, 0.29f, 0.27f);
+            foreach (var trail in revealedClawTrail)
+                trail.enabled = clawsObserved;
             ringButton.interactable = atBell && !carrying;
             wrapButton.interactable = atBell && !carrying;
             retryButton.interactable = atSafePoint;
@@ -600,7 +621,8 @@ namespace Rpg.Soundwell
                     ? "The cart tracks point toward the inner gate."
                     : "[G / RB] Inspect the abandoned mule cart.";
             else if (atClawEvidence)
-                prompt = clawsObserved ? "The claw tracks are evidence. What drew the beast here?"
+                prompt = clawsObserved
+                    ? "The revealed claw trail runs toward the SIDE BELL STAND. The beast still needs a sound to follow."
                     : "[G / RB] Inspect the beast's claw tracks.";
             else if (atUpperPlank)
                 prompt = canTieEscortLine ? "[G / RB] Tie the recovered cord to guide the surveyor. Rescue not complete."

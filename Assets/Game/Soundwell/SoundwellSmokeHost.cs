@@ -287,6 +287,19 @@ namespace Rpg.Soundwell
                 "Broken cord and claw marks must be real inspectable world evidence.");
             Color ropeUnobservedColor = ropeEvidence.color;
             Color clawsUnobservedColor = clawEvidence.color;
+            var revealedClawTrail = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .Where(item => item.gameObject.name.StartsWith("PLACEHOLDER revealed claw trail "))
+                .OrderBy(item => item.gameObject.name).ToArray();
+            Require(revealedClawTrail.Length == 3 && revealedClawTrail.All(marker => !marker.enabled),
+                "Unexamined claw tracks must not expose a world-space route.");
+            for (int i = 0; i < revealedClawTrail.Length; i++)
+            {
+                Vector2 expected = Vector2.Lerp(SoundwellTrial.ClawEvidencePosition,
+                    SoundwellTrial.SideBellStand, (i + 1f) / (revealedClawTrail.Length + 1f));
+                Require(Vector2.Distance((Vector2)revealedClawTrail[i].transform.position,
+                    expected) < 0.015f,
+                    "Revealed claw trail must physically connect the observed marks to the side stand.");
+            }
             var cartEvidence = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER abandoned mule cart");
             Require(cartEvidence != null && !trial.CartObserved &&
@@ -437,9 +450,15 @@ namespace Rpg.Soundwell
             yield return null;
             Require(trial.RopeObserved && trial.ClawsObserved && trial.CartObserved &&
                 clawEvidence.color != clawsUnobservedColor &&
+                revealedClawTrail.All(marker => marker.enabled) &&
                 ShowsPrompt(trial, "Claw marks turn toward the bell stand") &&
+                ShowsPrompt(trial, "revealed claw trail runs toward the SIDE BELL STAND") &&
+                !trial.HasBellTarget && !trial.GateOpen,
+                "Claw inspection must reveal its real-world trail without sounding a bell or opening the gate.");
+            Press(trial, gate: true);
+            Require(trial.ClawsObserved && revealedClawTrail.All(marker => marker.enabled) &&
                 !trial.HasBellTarget,
-                "The claw tracks must provide a second observed fact, not auto-lure the beast.");
+                "Repeating the completed inspection must not modify the bell or duplicate the trail.");
             Capture(trial, "00-optional-entrance-evidence");
 
             Press(trial, Vector2.left);
@@ -575,8 +594,9 @@ namespace Rpg.Soundwell
             Require(!trial.IsCarrying && trial.BellPosition == bellStart,
                 "Reset must put the portable bell back at its original stand.");
             Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved &&
-                !trial.RopeRecovered && !trial.SurveyorLineTied,
-                "Retreat reset must clear clues and previously recovered guide-rope supplies.");
+                !trial.RopeRecovered && !trial.SurveyorLineTied &&
+                revealedClawTrail.All(marker => !marker.enabled),
+                "Retreat reset must clear clues, revealed claw trail, and recovered guide rope.");
             yield return null;
             Require(ropeEvidence.enabled && cartEvidence.color == cartUnobservedColor &&
                 cartMapKit.enabled && !trial.CartKitReclaimed &&
@@ -1123,6 +1143,10 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
             var freshFalseMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
+            Require(fresh.GetComponentsInChildren<SpriteRenderer>(true)
+                .Where(item => item.gameObject.name.StartsWith("PLACEHOLDER revealed claw trail "))
+                .Count(item => !item.enabled) == 3,
+                "Scene reload must hide all revealed claw evidence until reinspection.");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
                 !fresh.FalseMarkerCleared && !fresh.SafeRouteMarked &&
                 !fresh.RopeObserved && !fresh.ClawsObserved &&
