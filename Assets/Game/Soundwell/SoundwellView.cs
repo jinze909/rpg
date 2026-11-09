@@ -392,7 +392,8 @@ namespace Rpg.Soundwell
             bool rescueComplete, bool falseMarkerCleared,
             bool atRopeEvidence, bool atCartEvidence, bool atClawEvidence, bool canInspectRope,
             bool canRecoverRope, bool canInspectCart, bool canInspectClaws, bool canTieEscortLine,
-            bool ropeObserved, bool ropeRecovered, bool cartObserved, bool cartKitReclaimed,
+            bool canShareCartClue, bool ropeObserved, bool ropeRecovered, bool cartObserved,
+            bool cartClueShared, bool cartKitReclaimed,
             bool clawsObserved, bool surveyorLineTied, bool beastBlocksEscape,
             bool lowerPlankBroken, Vector2 beastDestination)
         {
@@ -426,11 +427,12 @@ namespace Rpg.Soundwell
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
             gateButton.interactable = canInspectRope || canRecoverRope || canInspectCart || canInspectClaws ||
-                canTieEscortLine || canOpenGate || canSecurePlank || canEscortSurveyor ||
+                canShareCartClue || canTieEscortLine || canOpenGate || canSecurePlank || canEscortSurveyor ||
                 (atSurveyor && !hasSurveyorClue);
             string interactCaption = canInspectRope ? "INSPECT ROPE [G / RB]"
                 : canRecoverRope ? "RECOVER CORD [G / RB]"
                 : canInspectCart ? "INSPECT CART [G / RB]"
+                : canShareCartClue ? "TELL ABOUT CART [G / RB]"
                 : canInspectClaws ? "INSPECT CLAWS [G / RB]"
                 : canTieEscortLine ? "TIE GUIDE LINE [G / RB]"
                 : canEscortSurveyor ? "LEAD SURVEYOR [G / RB]"
@@ -450,7 +452,7 @@ namespace Rpg.Soundwell
                 waitingForEscortLeader = false;
             if (rescueComplete)
                 routeTarget = !falseMarkerCleared ? FalseMarkerWorldPosition
-                    : cartObserved && !cartKitReclaimed
+                    : cartObserved && cartClueShared && !cartKitReclaimed
                         ? SoundwellTrial.CartEvidencePosition
                         : (Vector2)retreatMarker.position;
             else if (surveyorEscorting)
@@ -499,7 +501,7 @@ namespace Rpg.Soundwell
             string speech = falseMarkerCleared
                 ? cartKitReclaimed
                     ? "SURVEYOR: I've taken down that false trail sign. My map kit is safe, thanks to you."
-                    : cartObserved
+                    : cartObserved && cartClueShared
                         ? "SURVEYOR: I've taken down that false trail sign. You found my cart; I'll get my map kit."
                         : "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
                 : rescueComplete
@@ -555,9 +557,13 @@ namespace Rpg.Soundwell
             if (falseMarkerCleared)
                 prompt = cartKitReclaimed
                     ? "ROUTE CORRECTED: The surveyor recovered his map kit from the cart."
-                    : cartObserved
-                        ? "ROUTE CORRECTED: The surveyor is returning to the cart for his map kit."
-                        : "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
+                    : cartObserved && !cartClueShared
+                        ? canShareCartClue
+                            ? "ROUTE CORRECTED: [G / RB] Tell the surveyor about his cart, or leave it for now."
+                            : "ROUTE CORRECTED: You can tell the surveyor about his cart when nearby."
+                        : cartObserved
+                            ? "ROUTE CORRECTED: The surveyor is returning to the cart for his map kit."
+                            : "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
             else if (rescueComplete)
                 prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
             else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)

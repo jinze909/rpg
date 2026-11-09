@@ -1016,11 +1016,30 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "I've taken down that false trail sign"),
                 "The actual sign must disappear only after the surveyor reaches it.");
             Capture(trial, "11-route-marker-corrected");
-            // Inspecting the cart earlier matters: the survivor takes
-            // independent action AFTER reaching safety and correcting his sign.
-            Require(trial.CartObserved && !trial.CartKitReclaimed && cartMapKit.enabled &&
-                ShowsPrompt(trial, "returning to the cart for his map kit"),
-                "Discovering the cart cannot teleport or auto-award its kit during rescue.");
+            // The clue is optional: seeing the cart alone must not cause
+            // a scripted automatic retrieval. The player chooses whether
+            // to share it with the nearby rescued surveyor using real UGUI.
+            Require(trial.CartObserved && !trial.CartClueShared && !trial.CartKitReclaimed &&
+                cartMapKit.enabled && trial.CanShareCartClue &&
+                TrialActionButton(trial, "Gate").interactable &&
+                TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                    .Contains("TELL ABOUT CART", StringComparison.Ordinal) &&
+                ShowsPrompt(trial, "Tell the surveyor about his cart"),
+                "The surveyor needs the player's proximity and decision before retrieving his kit.");
+            Vector2 undisclosedPosition = trial.SurveyorWorldPosition;
+            for (int frame = 0; frame < 18; frame++)
+                yield return null;
+            Require(!trial.CartClueShared && !trial.CartKitReclaimed && cartMapKit.enabled &&
+                Vector2.Distance(trial.SurveyorWorldPosition,
+                    SoundwellTrial.CartEvidencePosition) > 1.5f,
+                "Waiting without choosing to share the clue must not secretly retrieve the cart kit.");
+            Capture(trial, "11-cart-clue-optional");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.CartClueShared && !trial.CanShareCartClue && !trial.CartKitReclaimed &&
+                cartMapKit.enabled && ShowsPrompt(trial, "returning to the cart for his map kit"),
+                "UGUI choice must share the actual clue, but the kit still needs physical retrieval.");
+            Capture(trial, "11-cart-clue-shared");
             for (var wait = Until(() => trial.CartKitReclaimed,
                 "surveyor actually reaches the cart to reclaim his map kit"); wait.MoveNext();)
                 yield return null;
@@ -1062,6 +1081,7 @@ namespace Rpg.Soundwell
                 !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
                 !trialAfterVictory.RopeRecovered && !trialAfterVictory.SurveyorLineTied &&
                 !trialAfterVictory.CartObserved && !trialAfterVictory.CartKitReclaimed &&
+                !trialAfterVictory.CartClueShared &&
                 !trialAfterVictory.LowerPlankBroken &&
                 !trialAfterVictory.PlankSecured && !trialAfterVictory.GateOpen &&
                 trialAfterVictory.PlayerPosition == retreat,
@@ -1082,7 +1102,7 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
                 !fresh.FalseMarkerCleared && !fresh.RopeObserved && !fresh.ClawsObserved &&
-                !fresh.CartObserved && !fresh.CartKitReclaimed &&
+                !fresh.CartObserved && !fresh.CartKitReclaimed && !fresh.CartClueShared &&
                 !fresh.RopeRecovered && !fresh.SurveyorLineTied &&
                 freshFalseMarker != null &&
                 freshFalseMarker.enabled && freshGate != null && freshGate.enabled,
