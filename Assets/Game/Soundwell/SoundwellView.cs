@@ -408,7 +408,7 @@ namespace Rpg.Soundwell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."
                     : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
             else if (atUpperPlank)
-                prompt = canEscortSurveyor ? "[G / RB] Lead the surveyor back through the gate."
+                prompt = canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
                     : surveyorEscorting ? "Escort active: lead the surveyor to RETREAT."
                     : plankSecured ? "Upper plank braced; surveyor can stand on it. Rescue not complete."
                     : canSecurePlank ? "[G / RB] Brace the upper plank for the surveyor."
