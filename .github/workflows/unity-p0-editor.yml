@@ -80,9 +80,15 @@ jobs:
         shell: bash
         run: |
           cli_dir="$(mktemp -d "$RUNNER_TEMP/game-ci.XXXXXX")"
-          curl --fail --silent --show-error --location --retry 2 \
+          archive="$cli_dir/game-ci.tar.gz"
+          if ! curl --fail --silent --show-error --location --retry 2 \
             https://github.com/game-ci/cli/releases/download/v0.1.72/game-ci-linux-x64.tar.gz \
-            --output "$cli_dir/game-ci.tar.gz"
+            --output "$archive"; then
+            curl --fail --silent --show-error --location --retry 2 \
+              --header 'Accept: application/octet-stream' --header 'Cache-Control: no-cache' \
+              https://api.github.com/repos/game-ci/cli/releases/assets/608713095 \
+              --output "$archive"
+          fi
           echo "1de550a620ee92e05e920b6db7d431621440b60b2577f04b4a997dc92a58cb0a  $cli_dir/game-ci.tar.gz" | sha256sum --check
           tar -xzf "$cli_dir/game-ci.tar.gz" -C "$cli_dir"
 
