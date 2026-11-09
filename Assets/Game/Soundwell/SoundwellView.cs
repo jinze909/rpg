@@ -379,7 +379,7 @@ namespace Rpg.Soundwell
                     : "Ask the surveyor which plank is safe before bracing anything.";
             else if (atSurveyor)
                 prompt = hasSurveyorClue
-                    ? "Upper plank marked. Secure it before the surveyor can cross."
+                    ? "Upper plank marked. The surveyor is still trapped; brace it before he can cross."
                     : "[G / RB] Ask the surveyor which plank can carry someone.";
             else if (atGatePanel)
                 prompt = gateOpen ? "Gate open: cross into the soundwell inner room."
