@@ -275,11 +275,23 @@ namespace Rpg.Soundwell
                 "The inner gate must physically block passage before any bell experiment.");
             Require(!TrialActionButton(trial, "Gate").interactable,
                 "The gate button must be unavailable without a real distraction.");
+            Require(!trial.AtSurveyor && !trial.HasSurveyorClue,
+                "The surveyor clue cannot be claimed from the entry zone.");
             var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
             Require(sideStand != null &&
                 Vector2.Distance((Vector2)sideStand.transform.position, SoundwellTrial.SideBellStand) < 0.05f,
                 "The side bell stand must visibly mark the authoritative second sound source.");
+            var upperBoard = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name ==
+                    "PLACEHOLDER upper load-bearing plank");
+            var surveyor = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER trapped surveyor");
+            Require(upperBoard != null && surveyor != null &&
+                Vector2.Distance((Vector2)surveyor.transform.position,
+                    SoundwellTrial.SurveyorPosition) < 0.01f,
+                "The inner room must contain the actual trapped surveyor and his unmarked plank.");
+            Color initialBoard = upperBoard.color;
             var intentMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
             Require(intentMarker != null && !intentMarker.enabled,
@@ -495,6 +507,34 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(trial.PlayerPosition.x > 0.25f,
                 "Player must cross the previously blocked doorway without teleporting.");
+            Require(!trial.HasSurveyorClue,
+                "Crossing the threshold alone must not auto-reveal the surveyor's clue.");
+
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= 2.75f,
+                "reach the trapped surveyor in the inner room"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.AtSurveyor && TrialActionButton(trial, "Gate").interactable &&
+                ShowsPrompt(trial, "[G / RB] Ask the surveyor"),
+                "The shared G/RB UGUI button must become a real Talk action near the survivor.");
+            Require(TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                .Contains("ASK SURVEYOR", StringComparison.Ordinal),
+                "The actual action caption must change from opening the gate to talking.");
+            ClickTrialAction(trial, "Gate");
+            Require(trial.HasSurveyorClue && trial.GateOpen,
+                "Dialogue must record the surveyor's route knowledge without closing the gate.");
+            yield return null;
+            Require(upperBoard.color != initialBoard &&
+                upperBoard.color.g > upperBoard.color.r &&
+                ShowsPrompt(trial, "That upper board holds two") &&
+                ShowsPrompt(trial, "The surveyor is still trapped"),
+                "A real spoken warning must mark the safe upper plank without falsely completing rescue.");
+            Press(trial, gate: true);
+            Require(trial.HasSurveyorClue,
+                "Repeated talk through the same input mapping must be idempotent.");
+            Capture(trial, "07-surveyor-plank-warning");
 
             Press(trial, Vector2.left);
             for (var wait = Until(() => trial.PlayerPosition.x <= -0.6f,
@@ -560,6 +600,12 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
             Require(!fresh.GateOpen && freshGate != null && freshGate.enabled,
                 "Reload must restore the closed and physically blocking inner gate.");
+            var freshBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name ==
+                    "PLACEHOLDER upper load-bearing plank");
+            Require(!fresh.HasSurveyorClue && freshBoard != null &&
+                freshBoard.color == initialBoard,
+                "Restarting the scene must reset the surveyor clue and its board highlight.");
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
             yield return null;
             var freshMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)

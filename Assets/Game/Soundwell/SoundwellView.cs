@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer bellMarker;
         private readonly SpriteRenderer beastIntentMarker;
         private readonly SpriteRenderer gateMarker;
+        private readonly SpriteRenderer upperBoardMarker;
         private readonly BoxCollider2D gateBlocker;
         private readonly LineRenderer pulse;
         private readonly AudioSource audio;
@@ -25,12 +26,14 @@ namespace Rpg.Soundwell
         private readonly Text hint;
         private readonly Text beastStatus;
         private readonly Text gateStatus;
+        private readonly Text surveyorStatus;
         private readonly Button ringButton;
         private readonly Button wrapButton;
         private readonly Button retryButton;
         private readonly Button backButton;
         private readonly Button carryButton;
         private readonly Button gateButton;
+        private readonly Text gateButtonLabel;
         private readonly Text carryButtonLabel;
         private readonly Text wrapButtonLabel;
         private readonly Text menuStatus;
@@ -69,6 +72,16 @@ namespace Rpg.Soundwell
             gateBlocker = gateMarker.GetComponent<BoxCollider2D>();
             Plate(root, "PLACEHOLDER gate control", new Vector2(-0.55f, 0f),
                 new Vector2(0.32f, 0.58f), Gold, 1);
+            // The surveyor is a scene character, not a global quest popup.
+            // The plank is visible before dialogue; only his firsthand
+            // warning marks which part can take the load.
+            Plate(root, "PLACEHOLDER trapped surveyor", SoundwellTrial.SurveyorPosition,
+                new Vector2(0.58f, 0.74f), Ink, 3);
+            Plate(root, "Surveyor face", SoundwellTrial.SurveyorPosition + new Vector2(0f, 0.14f),
+                new Vector2(0.25f, 0.15f), Gold, 4);
+            upperBoardMarker = Plate(root, "PLACEHOLDER upper load-bearing plank",
+                SoundwellTrial.UpperBoardPosition, new Vector2(1.65f, 0.3f),
+                new Color(0.30f, 0.37f, 0.40f), 1);
             Wall(root, "West wall", new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
             Wall(root, "North wall", new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f));
             Wall(root, "South wall", new Vector2(-3.4f, -3.2f), new Vector2(7.3f, 0.28f));
@@ -119,6 +132,8 @@ namespace Rpg.Soundwell
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
             gateStatus = AddLabel(rect, "GATE  /  LOCKED", 16, Ink,
                 new Vector2(0, -102), new Vector2(220, 30));
+            surveyorStatus = AddLabel(rect, "", 15, Cloth,
+                new Vector2(0, -148), new Vector2(760, 32));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
             AddLabel(rect, "[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry", 14, Cloth,
                 new Vector2(0, -222), new Vector2(760, 26));
@@ -145,6 +160,7 @@ namespace Rpg.Soundwell
             carryButton = CreateActionButton(actionCanvas.transform, "Carry", "LIFT  [F / LB]", 4, carry);
             carryButtonLabel = carryButton.GetComponentInChildren<Text>();
             gateButton = CreateActionButton(actionCanvas.transform, "Gate", "OPEN GATE [G / RB]", 5, gate);
+            gateButtonLabel = gateButton.GetComponentInChildren<Text>();
             menuStatus = AddLabel(actionCanvas.transform, "TAB / START: FOCUS ACTIONS",
                 14, Cloth, new Vector2(-270f, 220f), new Vector2(360f, 32f));
             menuStatus.resizeTextForBestFit = true;
@@ -284,7 +300,8 @@ namespace Rpg.Soundwell
 
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
             bool atBell, bool atSafePoint, bool carrying, bool canPlaceBell,
-            bool gateOpen, bool atGatePanel, bool canOpenGate, Vector2 beastDestination)
+            bool gateOpen, bool atGatePanel, bool canOpenGate, bool atSurveyor,
+            bool hasSurveyorClue, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -302,7 +319,16 @@ namespace Rpg.Soundwell
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
-            gateButton.interactable = canOpenGate;
+            gateButton.interactable = canOpenGate || atSurveyor;
+            string interactCaption = atSurveyor ? "ASK SURVEYOR [G / RB]" : "OPEN GATE [G / RB]";
+            if (gateButtonLabel.text != interactCaption)
+                gateButtonLabel.text = interactCaption;
+            upperBoardMarker.color = hasSurveyorClue ? Cloth : new Color(0.30f, 0.37f, 0.40f);
+            string speech = hasSurveyorClue
+                ? "SURVEYOR: That upper board holds two. My marker misled you; I'll take it down."
+                : atSurveyor ? "SURVEYOR: Stop! The lower plank won't hold you." : "";
+            if (surveyorStatus.text != speech)
+                surveyorStatus.text = speech;
             gateBlocker.enabled = !gateOpen;
             gateMarker.color = gateOpen ? new Color(0.30f, 0.84f, 0.65f, 0.16f)
                 : new Color(0.32f, 0.43f, 0.48f);
@@ -332,6 +358,10 @@ namespace Rpg.Soundwell
                 prompt = canPlaceBell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."
                     : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
+            else if (atSurveyor)
+                prompt = hasSurveyorClue
+                    ? "Upper plank marked. The surveyor is still trapped; plan the rescue."
+                    : "[G / RB] Ask the surveyor which plank can carry someone.";
             else if (atGatePanel)
                 prompt = gateOpen ? "Gate open: cross into the soundwell inner room."
                     : canOpenGate ? "[G / RB] Open the gate while the beast follows the side bell."
