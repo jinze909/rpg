@@ -303,6 +303,9 @@ namespace Rpg.Soundwell
             yield return new WaitForFixedUpdate();
             Require(Vector2.Distance(trial.PlayerPosition, pausedPosition) < 0.05f && !trial.HasBellTarget,
                 "The same stick and A/X inputs must neither move nor ring while the HUD has focus.");
+            // The evidence image must show actual UGUI focus, not only the world
+            // camera's SpriteRenderers and world-space text.
+            Capture(trial, "00-focused-actions");
             trial.SetActionMenuOpen(false);
             Require(!trial.ActionMenuOpen && !EventSystem.current.sendNavigationEvents &&
                 EventSystem.current.currentSelectedGameObject == null,
@@ -610,19 +613,57 @@ namespace Rpg.Soundwell
             const int width = 960;
             const int height = 540;
             var camera = trial.TrialCamera;
+            var actionHud = trial.GetComponentsInChildren<Canvas>(true).SingleOrDefault(
+                canvas => canvas.gameObject.name == "Soundwell actions HUD");
+            Require(actionHud != null && actionHud.renderMode == RenderMode.ScreenSpaceOverlay,
+                "The live action HUD must use Screen Space Overlay before evidence capture.");
+
             var previousTarget = camera.targetTexture;
             var previousActive = RenderTexture.active;
+            var previousMode = actionHud.renderMode;
+            var previousHudCamera = actionHud.worldCamera;
+            float previousPlaneDistance = actionHud.planeDistance;
             var target = RenderTexture.GetTemporary(width, height, 24);
             var frame = new Texture2D(width, height, TextureFormat.RGB24, false);
             try
             {
                 camera.targetTexture = target;
+
+                // Camera.Render alone omits Screen Space Overlay widgets, making CI
+                // screenshots misleading. Capture an identical world-only frame
+                // first, then render the real scene-local UGUI Canvas through the
+                // same camera and assert that the final pixels actually changed.
                 Canvas.ForceUpdateCanvases();
                 camera.Render();
                 RenderTexture.active = target;
                 frame.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 frame.Apply();
-                var colors = frame.GetPixels32().Where((_, index) => index % 173 == 0).Distinct().Count();
+                var worldPixels = frame.GetPixels32();
+
+                // Temporary evidence-only switch; gameplay stays ScreenSpaceOverlay.
+                // No synthetic UI, screenshot mock, or substitute scene is created.
+                actionHud.worldCamera = camera;
+                actionHud.planeDistance = 1f;
+                actionHud.renderMode = RenderMode.ScreenSpaceCamera;
+                Canvas.ForceUpdateCanvases();
+                camera.Render();
+                RenderTexture.active = target;
+                frame.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                frame.Apply();
+                var imagePixels = frame.GetPixels32();
+                int changedSamples = 0;
+                for (int i = 0; i < imagePixels.Length; i += 3)
+                {
+                    Color32 a = worldPixels[i];
+                    Color32 b = imagePixels[i];
+                    if (Math.Abs(a.r - b.r) + Math.Abs(a.g - b.g) +
+                        Math.Abs(a.b - b.b) > 45)
+                        changedSamples++;
+                }
+
+                Require(changedSamples > 150,
+                    $"Camera screenshot omitted the real UGUI action HUD: {stage} (changed {changedSamples} samples)");
+                int colors = imagePixels.Where((_, index) => index % 173 == 0).Distinct().Count();
                 Require(colors > 6, $"The captured scene is blank or incomplete: {stage}");
                 byte[] png = frame.EncodeToPNG();
                 const string directory = "artifacts/p0/soundwell";
@@ -632,8 +673,12 @@ namespace Rpg.Soundwell
             }
             finally
             {
+                actionHud.renderMode = previousMode;
+                actionHud.worldCamera = previousHudCamera;
+                actionHud.planeDistance = previousPlaneDistance;
                 camera.targetTexture = previousTarget;
                 RenderTexture.active = previousActive;
+                Canvas.ForceUpdateCanvases();
                 RenderTexture.ReleaseTemporary(target);
                 UnityEngine.Object.Destroy(frame);
             }
