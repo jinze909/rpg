@@ -15,6 +15,7 @@ namespace Rpg.Soundwell
         private readonly Sprite square;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
+        private readonly SpriteRenderer beastIntentMarker;
         private readonly LineRenderer pulse;
         private readonly AudioSource audio;
         private readonly AudioClip clearBell;
@@ -58,6 +59,13 @@ namespace Rpg.Soundwell
             Plate(player, "Player face", new Vector2(0f, 0.12f), new Vector2(0.26f, 0.16f), Color.white, 4);
             bellMarker = Plate(bell, "PLACEHOLDER copper bell", Vector2.zero, new Vector2(0.57f, 0.57f), Gold, 2);
             bellMarker.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            // A small diamond marks the beast's current physical destination.
+            // Gold tracks the audible signal; blue tracks the last-heard search.
+            // No simulated sound waves, pathfinding state or second AI target.
+            beastIntentMarker = Plate(root, "PLACEHOLDER beast intent marker",
+                Vector2.zero, new Vector2(0.46f, 0.46f), Gold, 1);
+            beastIntentMarker.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            beastIntentMarker.enabled = false;
             Plate(beast, "PLACEHOLDER beast", Vector2.zero, new Vector2(1.03f, 0.78f), new Color(0.95f, 0.41f, 0.42f), 3);
             Plate(beast, "Beast muzzle", new Vector2(0.56f, 0f), new Vector2(0.35f, 0.3f), new Color(1f, 0.67f, 0.49f), 4);
 
@@ -244,9 +252,19 @@ namespace Rpg.Soundwell
             return button;
         }
 
-        public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint)
+        public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint,
+            Vector2 beastDestination)
         {
             FitCamera();
+            beastIntentMarker.enabled = ringing || searching;
+            if (beastIntentMarker.enabled)
+            {
+                beastIntentMarker.transform.position =
+                    new Vector3(beastDestination.x, beastDestination.y, 0f);
+                Color intentColor = ringing ? Gold : Cloth;
+                intentColor.a = ringing ? 0.84f : 0.62f;
+                beastIntentMarker.color = intentColor;
+            }
             ArrangeActionHud(camera.aspect);
             ringButton.interactable = atBell;
             wrapButton.interactable = atBell;

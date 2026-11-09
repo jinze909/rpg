@@ -135,7 +135,9 @@ namespace Rpg.Soundwell
                 beast.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(facing.y, facing.x) * Mathf.Rad2Deg);
             beast.position = next;
 
-            view.Refresh(HasBellTarget, IsSearching, IsWrapped, AtBell, AtSafePoint);
+            // The drawn intent marker receives exactly the destination already
+            // used by the beast, never a separate visual guess.
+            view.Refresh(HasBellTarget, IsSearching, IsWrapped, AtBell, AtSafePoint, destination);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -185,7 +187,11 @@ namespace Rpg.Soundwell
             if (wrap)
             {
                 if (IsWrapped)
+                {
                     SetSignal(Signal.Ready);
+                    // Unwrapping a muffled bell must not leave a stale sound or pulse.
+                    view.ResetPulse();
+                }
                 else if (HasBellTarget)
                 {
                     lastHeard = HearingPoint();

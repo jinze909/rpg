@@ -269,6 +269,10 @@ namespace Rpg.Soundwell
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
+            var intentMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
+            Require(intentMarker != null && !intentMarker.enabled,
+                "The beast intent marker must exist but remain hidden before any sound.");
             Vector2 home = trial.BeastPosition;
             Vector2 retreat = trial.PlayerPosition;
             Press(trial, ring: true);
@@ -305,6 +309,12 @@ namespace Rpg.Soundwell
                 "Leaving focus mode must disable Submit and release the UGUI selection.");
             ClickTrialAction(trial, "Ring");
             Require(trial.HasBellTarget, "The UGUI Ring button must trigger the real Soundwell signal.");
+            yield return null;
+            Require(intentMarker.enabled && intentMarker.color.r > intentMarker.color.b,
+                "The visible gold intent marker must represent the beast tracking clear sound.");
+            Require(Vector2.Distance((Vector2)intentMarker.transform.position,
+                new Vector2(1.15f, 0f)) < 0.05f,
+                "The marker must use the same hearing target as real beast movement.");
             Require(bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Copper bell",
                 "The clear sound must repeat while the beast tracks it.");
             for (var wait = Until(() => trial.BeastPosition.x < home.x - 0.7f,
@@ -325,11 +335,29 @@ namespace Rpg.Soundwell
             yield return null;
             yield return null;
             Require(ShowsPrompt(trial, "[Q / Pad X] Remove the cloth"), "Wrapped bells must show the available actions.");
+            Require(intentMarker.enabled && intentMarker.color.b > intentMarker.color.r,
+                "Stopping the clear sound must change the beast intent marker to blue searching.");
+            Require(Vector2.Distance((Vector2)intentMarker.transform.position,
+                new Vector2(1.15f, 0f)) < 1.45f,
+                "Searching marker must follow the actual last-heard destination, not the player.");
             var muffled = Capture(trial, "02-wrapped-searching");
             Require(!muffled.SequenceEqual(clear), "The two signal phases must render differently.");
             for (var wait = Until(() => Vector2.Distance(trial.BeastPosition, pursued) > 0.35f,
                 "the beast continues searching after losing the bell"); wait.MoveNext();)
                 yield return null;
+
+            // Removing the cloth cancels muffled playback and clears the pursuit
+            // marker; wrapping again must not generate a clear sound.
+            Press(trial, wrap: true);
+            Require(!trial.IsWrapped && !trial.IsSearching && !trial.HasBellTarget,
+                "Unwrapping must return to the quiet ready signal.");
+            Require(!bellAudio.isPlaying && bellAudio.clip == null,
+                "Unwrapping must stop lingering muffled audio, not merely hide the signal.");
+            yield return null;
+            Require(!intentMarker.enabled, "No audible signal must hide the beast's intent marker.");
+            Press(trial, wrap: true);
+            Require(trial.IsWrapped && !trial.IsSearching && !bellAudio.isPlaying,
+                "Wrapping before a ring must not accidentally attract the beast.");
 
             Press(trial, retry: true);
             Require(trial.IsWrapped, "Retry requires a retreat to safety.");
@@ -355,6 +383,7 @@ namespace Rpg.Soundwell
             Require(trial.BeastPosition == home, "Reset must return the beast to its initial position.");
             Require(!bellAudio.loop && bellAudio.clip == null, "Reset must clear the bell's playback state.");
             yield return null;
+            Require(!intentMarker.enabled, "Retreat/reset must clear the monster intent indicator.");
             Capture(trial, "03-retreat-reset");
 
             Press(trial, Vector2.right);
@@ -370,6 +399,11 @@ namespace Rpg.Soundwell
             Require(!fresh.HasBellTarget, "fresh.HasBellTarget must be false.");
             Require(!fresh.IsWrapped, "fresh.IsWrapped must be false.");
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
+            yield return null;
+            var freshMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
+            Require(freshMarker != null && !freshMarker.enabled,
+                "Reload must clear the visible beast target from the previous experiment.");
             Require(SceneManager.GetActiveScene().GetRootGameObjects()
                 .Count(root => root.name == "PLACEHOLDER Player") == 1, "Reload must have exactly one player.");
 
