@@ -9,6 +9,15 @@ import sys
 from zipfile import ZipFile
 
 
+# The pinned Linux Editor adds its target SDK and toolchain packages on import.
+LINUX_EDITOR_PACKAGES = {
+    "com.unity.sdk.linux-arm64",
+    "com.unity.sdk.linux-x86_64",
+    "com.unity.sysroot.base",
+    "com.unity.toolchain.linux-x86_64-linux",
+}
+
+
 def allowed_path(name):
     path = PurePosixPath(name)
     if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
@@ -39,9 +48,17 @@ def validate_manifest(previous_bytes, generated_bytes, lock_bytes):
         if previous_dependencies.get(name) == version:
             continue
         resolved = lock.get(name, {})
-        if not (name.startswith("com.unity.") and resolved.get("source") == "builtin"
-                and resolved.get("depth") == 0 and resolved.get("version") == version):
-            raise ValueError(f"Manifest change is not an editor-bundled direct dependency: {name}")
+        builtin = name.startswith("com.unity.") and resolved.get("source") == "builtin"
+        linux_sdk = (
+            name not in previous_dependencies
+            and name in LINUX_EDITOR_PACKAGES
+            and version == "1.1.1"
+            and resolved.get("source") == "registry"
+            and resolved.get("url") == "https://packages.unity.com"
+        )
+        if not ((builtin or linux_sdk) and resolved.get("depth") == 0
+                and resolved.get("version") == version):
+            raise ValueError(f"Manifest change is not an approved editor dependency: {name}")
         print(f"Unity normalized {name}: {previous_dependencies.get(name, '(new)')} -> {version}")
 
 
