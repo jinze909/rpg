@@ -16,6 +16,8 @@ namespace Rpg.Soundwell
         private const string EscortKey = "rpg.soundwell.signal-trial.surveyor-escorted";
         private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
+        private const string RopeObservedKey = "rpg.soundwell.signal-trial.rope-observed";
+        private const string ClawsObservedKey = "rpg.soundwell.signal-trial.claws-observed";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -24,6 +26,8 @@ namespace Rpg.Soundwell
         public const float SearchDurationSeconds = 3.5f;
         // Both source points are fixed and explicitly visible in the trial.
         public static readonly Vector2 SideBellStand = new Vector2(-2f, -1.95f);
+        public static readonly Vector2 RopeEvidencePosition = new Vector2(-4.55f, 1.50f);
+        public static readonly Vector2 ClawEvidencePosition = new Vector2(-1.85f, 1.50f);
         public static readonly Vector2 SurveyorPosition = new Vector2(3.1f, 0.6f);
         public static readonly Vector2 UpperBoardPosition = new Vector2(2.75f, 1.75f);
 
@@ -69,6 +73,14 @@ namespace Rpg.Soundwell
         public bool RescueComplete => variables != null && variables.GetInt(RescueKey) != 0;
         public bool FalseMarkerCleared => variables != null &&
             variables.GetInt(FalseMarkerClearedKey) != 0;
+        public bool RopeObserved => variables != null && variables.GetInt(RopeObservedKey) != 0;
+        public bool ClawsObserved => variables != null && variables.GetInt(ClawsObservedKey) != 0;
+        public bool AtRopeEvidence => IsReady && !IsCarrying &&
+            Vector2.Distance(playerBody.position, RopeEvidencePosition) <= 0.72f;
+        public bool AtClawEvidence => IsReady && !IsCarrying &&
+            Vector2.Distance(playerBody.position, ClawEvidencePosition) <= 0.72f;
+        public bool CanInspectRope => AtRopeEvidence && !RopeObserved;
+        public bool CanInspectClaws => AtClawEvidence && !ClawsObserved;
         public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
         public bool CanEscortSurveyor => AtUpperPlank && PlankSecured && !SurveyorEscorting &&
             !RescueComplete && Vector2.Distance(SurveyorWorldPosition, UpperBoardPosition) < 0.18f;
@@ -198,7 +210,8 @@ namespace Rpg.Soundwell
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
-                destination);
+                AtRopeEvidence, AtClawEvidence, CanInspectRope, CanInspectClaws,
+                RopeObserved, ClawsObserved, destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
@@ -284,7 +297,11 @@ namespace Rpg.Soundwell
             // once the side bell has drawn the real beast away from its lane.
             if (gate)
             {
-                if (CanOpenGate)
+                if (CanInspectRope)
+                    variables.Set(RopeObservedKey, 1);
+                else if (CanInspectClaws)
+                    variables.Set(ClawsObservedKey, 1);
+                else if (CanOpenGate)
                     variables.Set(GateKey, 1);
                 else if (CanEscortSurveyor)
                 {
@@ -346,6 +363,8 @@ namespace Rpg.Soundwell
             variables.Set(EscortKey, 0);
             variables.Set(RescueKey, 0);
             variables.Set(FalseMarkerClearedKey, 0);
+            variables.Set(RopeObservedKey, 0);
+            variables.Set(ClawsObservedKey, 0);
             view.ResetSurveyor();
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);

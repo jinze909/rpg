@@ -274,6 +274,19 @@ namespace Rpg.Soundwell
             Require(falseTrailMarker != null && falseTrailMarker.enabled &&
                 !trial.FalseMarkerCleared,
                 "The wrong-way sign must visibly exist until the surveyor removes it.");
+            var ropeEvidence = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER severed bell rope");
+            var clawEvidence = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER claw marks");
+            Require(ropeEvidence != null && clawEvidence != null &&
+                Vector2.Distance(ropeEvidence.transform.position,
+                    SoundwellTrial.RopeEvidencePosition) < 0.01f &&
+                Vector2.Distance(clawEvidence.transform.position,
+                    SoundwellTrial.ClawEvidencePosition) < 0.01f &&
+                !trial.RopeObserved && !trial.ClawsObserved,
+                "Broken cord and claw marks must be real inspectable world evidence.");
+            Color ropeUnobservedColor = ropeEvidence.color;
+            Color clawsUnobservedColor = clawEvidence.color;
             var gateCollider = trial.GetComponentsInChildren<BoxCollider2D>(true)
                 .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
             Require(gateCollider != null && gateCollider.enabled && !trial.GateOpen,
@@ -310,6 +323,70 @@ namespace Rpg.Soundwell
                 "Bell pickup must require reaching the actual bell.");
             Press(trial, ring: true);
             Require(!trial.HasBellTarget, "Interaction must require proximity.");
+            Press(trial, gate: true);
+            Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.GateOpen,
+                "Inspecting from RETREAT cannot remotely claim the environment evidence.");
+
+            // Explore two optional details without being told the bell solution.
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= 1.45f,
+                "reach the optional broken-cord clue lane"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -4.60f,
+                "approach the torn rope"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.CanInspectRope && !trial.CanInspectClaws &&
+                TrialActionButton(trial, "Gate").interactable &&
+                TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                    .Contains("INSPECT ROPE", StringComparison.Ordinal),
+                "A nearby torn rope must enable a real contextual UGUI inspection.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.RopeObserved && !trial.ClawsObserved &&
+                ropeEvidence.color != ropeUnobservedColor &&
+                ShowsPrompt(trial, "bell cord was cut") &&
+                !trial.HasBellTarget && !trial.GateOpen,
+                "Inspecting the severed cord must reveal evidence without solving the puzzle.");
+            Press(trial, gate: true);
+            Require(trial.RopeObserved && !trial.ClawsObserved,
+                "Re-inspecting must not invent a second clue reward.");
+
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -1.90f,
+                "follow the claw-mark trail"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.CanInspectClaws && !trial.CanInspectRope &&
+                TrialActionButton(trial, "Gate").interactable &&
+                TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                    .Contains("INSPECT CLAWS", StringComparison.Ordinal),
+                "The beast marks must only be inspectable up close.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.RopeObserved && trial.ClawsObserved &&
+                clawEvidence.color != clawsUnobservedColor &&
+                ShowsPrompt(trial, "Claw marks turn toward the bell stand") &&
+                !trial.HasBellTarget,
+                "The claw tracks must provide a second observed fact, not auto-lure the beast.");
+            Capture(trial, "00-optional-entrance-evidence");
+
+            Press(trial, Vector2.left);
+            for (var wait = Until(() => trial.PlayerPosition.x <= retreat.x + 0.06f,
+                "return from the evidence lane toward RETREAT"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= retreat.y + 0.06f,
+                "return from the clues to the marked safe point"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.35f &&
+                trial.RopeObserved && trial.ClawsObserved,
+                "Optional observations must persist as the player returns to safety.");
 
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= -2.25f, "walk into bell range"); wait.MoveNext();)
@@ -421,6 +498,8 @@ namespace Rpg.Soundwell
             Require(!bellAudio.loop && bellAudio.clip == null, "Reset must clear the bell's playback state.");
             Require(!trial.IsCarrying && trial.BellPosition == bellStart,
                 "Reset must put the portable bell back at its original stand.");
+            Require(!trial.RopeObserved && !trial.ClawsObserved,
+                "Retreat reset must clear the optional observations as well as bell state.");
             yield return null;
             Require(!intentMarker.enabled, "Retreat/reset must clear the monster intent indicator.");
             Capture(trial, "03-retreat-reset");
@@ -707,7 +786,8 @@ namespace Rpg.Soundwell
             var freshFalseMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
-                !fresh.FalseMarkerCleared && freshFalseMarker != null &&
+                !fresh.FalseMarkerCleared && !fresh.RopeObserved && !fresh.ClawsObserved &&
+                freshFalseMarker != null &&
                 freshFalseMarker.enabled && freshGate != null && freshGate.enabled,
                 "Reload must restore the gate, wrong-way sign and survivor objective.");
             var freshBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)

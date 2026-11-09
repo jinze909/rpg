@@ -20,6 +20,8 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer upperBoardMarker;
         private readonly Transform surveyorFigure;
         private readonly SpriteRenderer falseTrailMarker;
+        private readonly SpriteRenderer ropeEvidenceMarker;
+        private readonly SpriteRenderer clawEvidenceMarker;
         private readonly Transform escortLeader;
         private readonly Transform retreatMarker;
         private readonly BoxCollider2D gateBlocker;
@@ -70,6 +72,16 @@ namespace Rpg.Soundwell
                 new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
             Plate(root, "PLACEHOLDER side bell stand", SoundwellTrial.SideBellStand,
                 new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
+            // Two optional pieces of physical evidence at the entrance.
+            // Inspection changes their visual status but never gates ringing
+            // or grants an automatic solution to the sound lure.
+            ropeEvidenceMarker = Plate(root, "PLACEHOLDER severed bell rope",
+                SoundwellTrial.RopeEvidencePosition, new Vector2(0.22f, 0.78f),
+                new Color(0.53f, 0.38f, 0.27f), 2);
+            clawEvidenceMarker = Plate(root, "PLACEHOLDER claw marks",
+                SoundwellTrial.ClawEvidencePosition, new Vector2(0.86f, 0.24f),
+                new Color(0.56f, 0.29f, 0.27f), 2);
+            clawEvidenceMarker.transform.rotation = Quaternion.Euler(0f, 0f, -24f);
             // Separate two solid rails from the controlled middle opening.
             Wall(root, "Safety grating upper", new Vector2(0.25f, 2.0f), new Vector2(0.32f, 2.4f));
             Wall(root, "Safety grating lower", new Vector2(0.25f, -2.0f), new Vector2(0.32f, 2.4f));
@@ -327,7 +339,10 @@ namespace Rpg.Soundwell
             bool gateOpen, bool atGatePanel, bool canOpenGate, bool atSurveyor,
             bool hasSurveyorClue, bool atUpperPlank, bool canSecurePlank,
             bool plankSecured, bool canEscortSurveyor, bool surveyorEscorting,
-            bool rescueComplete, bool falseMarkerCleared, Vector2 beastDestination)
+            bool rescueComplete, bool falseMarkerCleared,
+            bool atRopeEvidence, bool atClawEvidence, bool canInspectRope,
+            bool canInspectClaws, bool ropeObserved, bool clawsObserved,
+            Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -341,14 +356,19 @@ namespace Rpg.Soundwell
             }
             ArrangeActionHud(camera.aspect);
             falseTrailMarker.enabled = !falseMarkerCleared;
+            ropeEvidenceMarker.color = ropeObserved ? Cloth : new Color(0.53f, 0.38f, 0.27f);
+            clawEvidenceMarker.color = clawsObserved ? Gold : new Color(0.56f, 0.29f, 0.27f);
             ringButton.interactable = atBell && !carrying;
             wrapButton.interactable = atBell && !carrying;
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
-            gateButton.interactable = canOpenGate || canSecurePlank || canEscortSurveyor ||
+            gateButton.interactable = canInspectRope || canInspectClaws ||
+                canOpenGate || canSecurePlank || canEscortSurveyor ||
                 (atSurveyor && !hasSurveyorClue);
-            string interactCaption = canEscortSurveyor ? "LEAD SURVEYOR [G / RB]"
+            string interactCaption = canInspectRope ? "INSPECT ROPE [G / RB]"
+                : canInspectClaws ? "INSPECT CLAWS [G / RB]"
+                : canEscortSurveyor ? "LEAD SURVEYOR [G / RB]"
                 : canSecurePlank ? "BRACE PLANK [G / RB]"
                 : atSurveyor && !hasSurveyorClue ? "ASK SURVEYOR [G / RB]"
                 : "OPEN GATE [G / RB]";
@@ -387,6 +407,10 @@ namespace Rpg.Soundwell
                     : hasSurveyorClue
                         ? "SURVEYOR: That upper board holds two. My marker misled you; I'll take it down."
                         : atSurveyor ? "SURVEYOR: Stop! The lower plank won't hold you." : "";
+            if (speech.Length == 0 && atRopeEvidence && ropeObserved)
+                speech = "OBSERVED: The bell cord was cut. A rough knot remains.";
+            else if (speech.Length == 0 && atClawEvidence && clawsObserved)
+                speech = "OBSERVED: Claw marks turn toward the bell stand, not RETREAT.";
             if (surveyorStatus.text != speech)
                 surveyorStatus.text = speech;
             gateBlocker.enabled = !gateOpen;
@@ -422,6 +446,12 @@ namespace Rpg.Soundwell
                 prompt = canPlaceBell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."
                     : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
+            else if (atRopeEvidence)
+                prompt = ropeObserved ? "The severed cord is evidence. You can still test the bell."
+                    : "[G / RB] Inspect the torn bell cord.";
+            else if (atClawEvidence)
+                prompt = clawsObserved ? "The claw tracks are evidence. What drew the beast here?"
+                    : "[G / RB] Inspect the beast's claw tracks.";
             else if (atUpperPlank)
                 prompt = canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
                     : surveyorEscorting ? "Escort active: lead the surveyor to RETREAT."
