@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer upperBoardMarker;
         private readonly Transform surveyorFigure;
         private readonly SpriteRenderer falseTrailMarker;
+        private readonly SpriteRenderer escapeDangerMarker;
         private readonly SpriteRenderer ropeEvidenceMarker;
         private readonly SpriteRenderer clawEvidenceMarker;
         private readonly Transform escortLeader;
@@ -32,6 +33,7 @@ namespace Rpg.Soundwell
         private readonly Text hint;
         private readonly Text beastStatus;
         private readonly Text gateStatus;
+        private readonly Text escapeStatus;
         private readonly Text surveyorStatus;
         private readonly Button ringButton;
         private readonly Button wrapButton;
@@ -89,6 +91,12 @@ namespace Rpg.Soundwell
             gateMarker = Wall(root, "PLACEHOLDER soundwell gate", new Vector2(0.25f, 0f),
                 new Vector2(0.32f, 1.6f));
             gateBlocker = gateMarker.GetComponent<BoxCollider2D>();
+            // This warning is anchored at the same physical crossing that the
+            // rescued surveyor must use; it follows the beast's live position.
+            escapeDangerMarker = Plate(root, "PLACEHOLDER escape-lane risk",
+                SoundwellTrial.EscapeLanePosition, new Vector2(0.78f, 0.78f),
+                new Color(0.90f, 0.30f, 0.25f, 0.35f), 0);
+            escapeDangerMarker.enabled = false;
             Plate(root, "PLACEHOLDER gate control", new Vector2(-0.55f, 0f),
                 new Vector2(0.32f, 0.58f), Gold, 1);
             // This wrong-way trail sign is a physical consequence of the
@@ -160,6 +168,8 @@ namespace Rpg.Soundwell
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
             gateStatus = AddLabel(rect, "GATE  /  LOCKED", 16, Ink,
                 new Vector2(0, -102), new Vector2(220, 30));
+            escapeStatus = AddLabel(rect, "ESCAPE LANE  /  CLEAR", 13, Cloth,
+                new Vector2(-260, -104), new Vector2(240, 28));
             surveyorStatus = AddLabel(rect, "", 15, Cloth,
                 new Vector2(0, -148), new Vector2(760, 32));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
@@ -345,7 +355,7 @@ namespace Rpg.Soundwell
             bool rescueComplete, bool falseMarkerCleared,
             bool atRopeEvidence, bool atClawEvidence, bool canInspectRope,
             bool canInspectClaws, bool ropeObserved, bool clawsObserved,
-            Vector2 beastDestination)
+            bool beastBlocksEscape, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -358,6 +368,12 @@ namespace Rpg.Soundwell
                 beastIntentMarker.color = intentColor;
             }
             ArrangeActionHud(camera.aspect);
+            escapeDangerMarker.enabled = beastBlocksEscape;
+            string escapeCaption = beastBlocksEscape
+                ? "ESCAPE LANE  /  BLOCKED" : "ESCAPE LANE  /  CLEAR";
+            if (escapeStatus.text != escapeCaption)
+                escapeStatus.text = escapeCaption;
+            escapeStatus.color = beastBlocksEscape ? new Color(1f, 0.56f, 0.47f) : Cloth;
             falseTrailMarker.enabled = !falseMarkerCleared;
             ropeEvidenceMarker.color = ropeObserved ? Cloth : new Color(0.53f, 0.38f, 0.27f);
             clawEvidenceMarker.color = clawsObserved ? Gold : new Color(0.56f, 0.29f, 0.27f);
@@ -395,12 +411,13 @@ namespace Rpg.Soundwell
                     // Bracing and asking to follow are not enough on their own:
                     // the survivor waits on the proven plank until the player
                     // physically leads through the gate. No hidden countdown.
-                    routeTarget = escortLeader.position.x <= 0.85f
-                        ? new Vector2(0.85f, 0f)
-                        : SoundwellTrial.UpperBoardPosition;
+                    routeTarget = beastBlocksEscape ? npc
+                        : escortLeader.position.x <= 0.85f
+                            ? new Vector2(0.85f, 0f)
+                            : SoundwellTrial.UpperBoardPosition;
                 }
                 else if (npc.x > -0.65f)
-                    routeTarget = new Vector2(-0.65f, 0f);
+                    routeTarget = beastBlocksEscape ? npc : new Vector2(-0.65f, 0f);
                 else
                 {
                     // The surveyor will not catch up from arbitrarily far away.
@@ -425,8 +442,10 @@ namespace Rpg.Soundwell
                 : rescueComplete
                     ? "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
                     : surveyorEscorting
-                        ? waitingForEscortLeader
-                            ? "SURVEYOR: Too far ahead! Come back and lead me to RETREAT."
+                        ? beastBlocksEscape && npc.x > -0.65f
+                            ? "SURVEYOR: Beast at the gate! Draw it toward the SIDE BELL STAND."
+                            : waitingForEscortLeader
+                                ? "SURVEYOR: Too far ahead! Come back and lead me to RETREAT."
                             : escortLeader.position.x > 0.85f && npc.x > 0.85f
                                 ? "SURVEYOR: Show me the way through the gate. I'll wait on this plank."
                                 : "SURVEYOR: Keep the gate open. I'm right behind you."
@@ -470,6 +489,8 @@ namespace Rpg.Soundwell
                 prompt = "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
             else if (rescueComplete)
                 prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
+            else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)
+                prompt = "ESCAPE BLOCKED: Lure the beast away from the gate with the SIDE BELL STAND.";
             else if (surveyorEscorting && waitingForEscortLeader)
                 prompt = "ESCORT PAUSED: Return to the surveyor, then lead him toward RETREAT.";
             else if (carrying)

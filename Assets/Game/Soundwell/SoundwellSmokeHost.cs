@@ -287,6 +287,11 @@ namespace Rpg.Soundwell
                 "Broken cord and claw marks must be real inspectable world evidence.");
             Color ropeUnobservedColor = ropeEvidence.color;
             Color clawsUnobservedColor = clawEvidence.color;
+            var escapeWarning = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER escape-lane risk");
+            Require(escapeWarning != null && !escapeWarning.enabled &&
+                !trial.BeastBlocksEscape && ShowsPrompt(trial, "ESCAPE LANE  /  CLEAR"),
+                "Escape risk must start clear and have a real world-space warning marker.");
             var gateCollider = trial.GetComponentsInChildren<BoxCollider2D>(true)
                 .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
             Require(gateCollider != null && gateCollider.enabled && !trial.GateOpen,
@@ -435,6 +440,14 @@ namespace Rpg.Soundwell
                 "the beast turns and advances toward the bell"); wait.MoveNext();)
                 yield return null;
             Require(trial.BeastPosition.y < home.y, "The beast must approach the bell's lane.");
+            for (var wait = Until(() => trial.BeastBlocksEscape,
+                "clear bell draws the beast across the real escape lane"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(escapeWarning.enabled && ShowsPrompt(trial, "ESCAPE LANE  /  BLOCKED") &&
+                Vector2.Distance(trial.BeastPosition, SoundwellTrial.EscapeLanePosition) <
+                    SoundwellTrial.EscapeLaneDangerRadius,
+                "The danger cue must be driven by the beast physically crossing the same lane.");
             Vector2 pursued = trial.BeastPosition;
             var clear = Capture(trial, "01-ringing");
 
@@ -583,7 +596,14 @@ namespace Rpg.Soundwell
                 "The UGUI gate action requires a readable, real sound window.");
             ClickTrialAction(trial, "Gate");
             Require(trial.GateOpen, "The gate must open in the authoritative Makinom state.");
+            for (var wait = Until(() => !trial.BeastBlocksEscape,
+                "side bell draws the beast clear of the escape lane"); wait.MoveNext();)
+                yield return null;
             yield return null;
+            Require(!escapeWarning.enabled && ShowsPrompt(trial, "ESCAPE LANE  /  CLEAR") &&
+                Vector2.Distance(trial.BeastPosition, SoundwellTrial.EscapeLanePosition) >=
+                    SoundwellTrial.EscapeLaneDangerRadius,
+                "The escape lane can only become clear when the real beast moves away.");
             Require(!gateCollider.enabled && ShowsPrompt(trial, "GATE  /  OPEN"),
                 "The actual collider and world label must agree that the gate is open.");
             Capture(trial, "06-inner-gate-open");
@@ -696,8 +716,8 @@ namespace Rpg.Soundwell
                 "surveyor leaves the plank only after the player opens the way"); wait.MoveNext();)
                 yield return null;
             Require(trial.SurveyorEscorting && !trial.RescueComplete &&
-                ShowsPrompt(trial, "Keep the gate open"),
-                "Leading across the physical gate must resume the real survivor's movement.");
+                !trial.BeastBlocksEscape && ShowsPrompt(trial, "Keep the gate open"),
+                "A safe bell distraction and player leading must permit the real survivor to cross.");
             Capture(trial, "09-surveyor-follows-through-gate");
 
             // Sprint well ahead to test that the NPC is not an autopilot:

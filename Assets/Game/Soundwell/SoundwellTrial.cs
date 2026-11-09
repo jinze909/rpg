@@ -32,6 +32,8 @@ namespace Rpg.Soundwell
         public static readonly Vector2 ClawEvidencePosition = new Vector2(-1.85f, 1.50f);
         public static readonly Vector2 SurveyorPosition = new Vector2(3.1f, 0.6f);
         public static readonly Vector2 UpperBoardPosition = new Vector2(2.75f, 1.75f);
+        public static readonly Vector2 EscapeLanePosition = new Vector2(1.15f, 0f);
+        public const float EscapeLaneDangerRadius = 1.55f;
 
         [SerializeField] private Transform player;
         [SerializeField] private Transform bell;
@@ -56,6 +58,9 @@ namespace Rpg.Soundwell
         public Camera TrialCamera => trialCamera;
         public Vector2 PlayerPosition => playerBody.position;
         public Vector2 BeastPosition => beast.position;
+        // A live positional threat, never another saved or guessed target.
+        public bool BeastBlocksEscape => Vector2.Distance(beast.position, EscapeLanePosition) <
+            EscapeLaneDangerRadius;
         public Vector2 BellPosition => bell.position;
         public bool IsCarrying => variables != null && variables.GetInt(CarryKey) != 0;
         public bool CanPlaceBell => IsCarrying && FindBellStand(playerBody.position, out _);
@@ -214,7 +219,7 @@ namespace Rpg.Soundwell
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
                 AtRopeEvidence, AtClawEvidence, CanInspectRope, CanInspectClaws,
-                RopeObserved, ClawsObserved, destination);
+                RopeObserved, ClawsObserved, BeastBlocksEscape, destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
