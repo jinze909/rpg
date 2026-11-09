@@ -670,7 +670,16 @@ namespace Rpg.Soundwell
                 "Repeated context inputs must not duplicate or complete the escort.");
             Require(falseTrailMarker.enabled && !trial.FalseMarkerCleared,
                 "Starting escort alone must not remove the incorrect sign.");
-            Capture(trial, "09-surveyor-escort-started");
+            // The survivor will not magically leave while the player stays
+            // behind. Waiting is visible and costs no new hidden timer.
+            for (int frame = 0; frame < 18; frame++)
+                yield return null;
+            Require(Vector2.Distance((Vector2)surveyor.transform.position,
+                    SoundwellTrial.UpperBoardPosition) < 0.05f &&
+                ShowsPrompt(trial, "Show me the way through the gate") &&
+                !trial.RescueComplete,
+                "The survivor must wait on the safe plank until the player leads through the gate.");
+            Capture(trial, "09-surveyor-waits-for-leader");
 
             Press(trial, Vector2.down);
             for (var wait = Until(() => trial.PlayerPosition.y <= 0.05f,
@@ -680,6 +689,16 @@ namespace Rpg.Soundwell
             for (var wait = Until(() => trial.PlayerPosition.x <= -0.6f,
                 "return through the open gate"); wait.MoveNext();)
                 yield return null;
+            Press(trial);
+            for (var wait = Until(() => Vector2.Distance(
+                    (Vector2)surveyor.transform.position,
+                    SoundwellTrial.UpperBoardPosition) > 0.25f,
+                "surveyor leaves the plank only after the player opens the way"); wait.MoveNext();)
+                yield return null;
+            Require(trial.SurveyorEscorting && !trial.RescueComplete &&
+                ShowsPrompt(trial, "Keep the gate open"),
+                "Leading across the physical gate must resume the real survivor's movement.");
+            Capture(trial, "09-surveyor-follows-through-gate");
             Press(trial, Vector2.down);
             for (var wait = Until(() => trial.PlayerPosition.y <= -1.8f,
                 "return toward the side bell"); wait.MoveNext();)

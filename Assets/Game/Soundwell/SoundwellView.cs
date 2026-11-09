@@ -386,7 +386,14 @@ namespace Rpg.Soundwell
                 // Cross the only real doorway instead of taking a straight
                 // diagonal through the closed upper section of the grating.
                 if (npc.x > 0.85f)
-                    routeTarget = new Vector2(0.85f, 0f);
+                {
+                    // Bracing and asking to follow are not enough on their own:
+                    // the survivor waits on the proven plank until the player
+                    // physically leads through the gate. No hidden countdown.
+                    routeTarget = escortLeader.position.x <= 0.85f
+                        ? new Vector2(0.85f, 0f)
+                        : SoundwellTrial.UpperBoardPosition;
+                }
                 else if (npc.x > -0.65f)
                     routeTarget = new Vector2(-0.65f, 0f);
                 else
@@ -401,7 +408,10 @@ namespace Rpg.Soundwell
                 ? "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
                 : rescueComplete
                     ? "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
-                    : surveyorEscorting ? "SURVEYOR: Keep the gate open. I'm right behind you."
+                    : surveyorEscorting
+                        ? escortLeader.position.x > 0.85f && npc.x > 0.85f
+                            ? "SURVEYOR: Show me the way through the gate. I'll wait on this plank."
+                            : "SURVEYOR: Keep the gate open. I'm right behind you."
                 : plankSecured
                     ? "SURVEYOR: The upper plank holds. I can cross now—don't leave me here."
                     : hasSurveyorClue
@@ -454,7 +464,7 @@ namespace Rpg.Soundwell
                     : "[G / RB] Inspect the beast's claw tracks.";
             else if (atUpperPlank)
                 prompt = canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
-                    : surveyorEscorting ? "Escort active: lead the surveyor to RETREAT."
+                    : surveyorEscorting ? "Lead through the open gate first. The surveyor is waiting for you."
                     : plankSecured ? "Upper plank braced; surveyor can stand on it. Rescue not complete."
                     : canSecurePlank ? "[G / RB] Brace the upper plank for the surveyor."
                     : "Ask the surveyor which plank is safe before bracing anything.";
