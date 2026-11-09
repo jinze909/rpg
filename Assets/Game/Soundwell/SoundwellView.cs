@@ -53,7 +53,9 @@ namespace Rpg.Soundwell
             Plate(root, "Trial floor", Vector2.zero, new Vector2(14f, 6.4f), new Color(0.11f, 0.19f, 0.23f), -4);
             Plate(root, "Beast lane", new Vector2(3.7f, 0f), new Vector2(6.55f, 6.4f), new Color(0.22f, 0.16f, 0.18f), -3);
             Plate(safe, "Retreat mark", Vector2.zero, new Vector2(1.75f, 1.75f), new Color(0.16f, 0.38f, 0.36f), -1);
-            Plate(root, "PLACEHOLDER side bell stand", new Vector2(-2f, -1.95f),
+            Plate(root, "PLACEHOLDER entrance bell stand", bell.position,
+                new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
+            Plate(root, "PLACEHOLDER side bell stand", SoundwellTrial.SideBellStand,
                 new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
             Wall(root, "Safety grating", new Vector2(0.25f, 0f), new Vector2(0.32f, 6.4f));
             Wall(root, "West wall", new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
@@ -264,7 +266,7 @@ namespace Rpg.Soundwell
         }
 
         public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint,
-            bool carrying, Vector2 beastDestination)
+            bool carrying, bool canPlaceBell, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -281,7 +283,7 @@ namespace Rpg.Soundwell
             wrapButton.interactable = atBell && !carrying;
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
-            carryButton.interactable = atBell || carrying;
+            carryButton.interactable = carrying ? canPlaceBell : atBell;
             string carryCaption = carrying ? "DROP  [F / LB]" : "LIFT  [F / LB]";
             if (carryButtonLabel.text != carryCaption)
                 carryButtonLabel.text = carryCaption;
@@ -300,7 +302,9 @@ namespace Rpg.Soundwell
 
             string prompt;
             if (carrying)
-                prompt = "Carry the bell toward the SIDE BELL STAND. [F / LB] Drop to relocate its sound.";
+                prompt = canPlaceBell
+                    ? "[F / LB] Place the bell onto this marked stand to set its sound source."
+                    : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
             else if (atBell)
                 prompt = wrapped ? "[E / Pad A] Try the wrapped bell   [Q / Pad X] Remove the cloth"
                     : "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth   [F / LB] Lift";

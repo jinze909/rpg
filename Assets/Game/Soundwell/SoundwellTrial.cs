@@ -11,7 +11,10 @@ namespace Rpg.Soundwell
         private const string SignalKey = "rpg.soundwell.signal-trial.bell";
         private const string CarryKey = "rpg.soundwell.signal-trial.carrying-bell";
         private const float Reach = 1.25f;
+        private const float StandReach = 0.72f;
         private const float Speed = 4f;
+        // Both source points are fixed and explicitly visible in the trial.
+        public static readonly Vector2 SideBellStand = new Vector2(-2f, -1.95f);
 
         [SerializeField] private Transform player;
         [SerializeField] private Transform bell;
@@ -38,6 +41,7 @@ namespace Rpg.Soundwell
         public Vector2 BeastPosition => beast.position;
         public Vector2 BellPosition => bell.position;
         public bool IsCarrying => variables != null && variables.GetInt(CarryKey) != 0;
+        public bool CanPlaceBell => IsCarrying && FindBellStand(playerBody.position, out _);
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
@@ -149,7 +153,7 @@ namespace Rpg.Soundwell
             // The drawn intent marker receives exactly the destination already
             // used by the beast, never a separate visual guess.
             view.Refresh(HasBellTarget, IsSearching, IsWrapped, AtBell, AtSafePoint,
-                IsCarrying, destination);
+                IsCarrying, CanPlaceBell, destination);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -199,8 +203,13 @@ namespace Rpg.Soundwell
             {
                 if (IsCarrying)
                 {
-                    variables.Set(CarryKey, 0);
-                    bell.position = new Vector3(playerBody.position.x, playerBody.position.y, 0f);
+                    // A legal drop has one of two stable sound sources. An invalid
+                    // drop cannot create an arbitrary third destination.
+                    if (FindBellStand(playerBody.position, out Vector2 stand))
+                    {
+                        variables.Set(CarryKey, 0);
+                        bell.position = new Vector3(stand.x, stand.y, 0f);
+                    }
                 }
                 else if (AtBell)
                 {
@@ -252,6 +261,24 @@ namespace Rpg.Soundwell
             lastHeard = beastHome;
             SetSignal(Signal.Ready);
             view.ResetPulse();
+        }
+
+        private bool FindBellStand(Vector2 position, out Vector2 stand)
+        {
+            // Distinct, nonoverlapping pick-up stands. Use the real saved
+            // scene bell position for the entrance; never approximate its x/y.
+            if (Vector2.Distance(position, SideBellStand) <= StandReach)
+            {
+                stand = SideBellStand;
+                return true;
+            }
+            if (Vector2.Distance(position, bellHome) <= StandReach)
+            {
+                stand = bellHome;
+                return true;
+            }
+            stand = default;
+            return false;
         }
 
         private Vector2 HearingPoint() => new Vector2(1.15f, bell.position.y);

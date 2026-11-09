@@ -269,6 +269,11 @@ namespace Rpg.Soundwell
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
+            var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
+            Require(sideStand != null &&
+                Vector2.Distance((Vector2)sideStand.transform.position, SoundwellTrial.SideBellStand) < 0.05f,
+                "The side bell stand must visibly mark the authoritative second sound source.");
             var intentMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
             Require(intentMarker != null && !intentMarker.enabled,
@@ -403,6 +408,7 @@ namespace Rpg.Soundwell
             ClickTrialAction(trial, "Carry");
             Require(trial.IsCarrying && !trial.HasBellTarget && !bellAudio.isPlaying,
                 "UGUI Lift must carry the real bell and silence any decoy.");
+            Require(trial.CanPlaceBell, "The entrance stand must accept the bell near its saved position.");
             yield return null;
             Require(!TrialActionButton(trial, "Ring").interactable &&
                 !TrialActionButton(trial, "Wrap").interactable &&
@@ -412,16 +418,34 @@ namespace Rpg.Soundwell
             Require(!trial.HasBellTarget, "A carried bell may not create an infinite moving lure.");
 
             Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= -0.96f,
+                "carry the bell between the two marked stands"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.IsCarrying && !trial.CanPlaceBell &&
+                !TrialActionButton(trial, "Carry").interactable,
+                "The unmarked gap must forbid placing an arbitrary third sound source.");
+            Press(trial, carry: true);
+            Require(trial.IsCarrying,
+                "The input boundary must reject an invalid drop even if called without the UGUI.");
+
+            Press(trial, Vector2.down);
             for (var wait = Until(() => trial.PlayerPosition.y <= -1.8f,
                 "carry the bell into the side lane"); wait.MoveNext();)
                 yield return null;
             Press(trial);
             yield return null;
-            Require(trial.IsCarrying && trial.BellPosition.y < bellStart.y - 1.5f,
-                "The same bell object must follow the player to a distinct sound source.");
+            Require(trial.IsCarrying && trial.CanPlaceBell &&
+                trial.BellPosition.y < bellStart.y - 1.5f,
+                "The carried bell must reach the second stand, enabling a legal drop.");
+            yield return null;
+            Require(TrialActionButton(trial, "Carry").interactable,
+                "The real UGUI drop action must re-enable at the named side stand.");
             ClickTrialAction(trial, "Carry");
-            Require(!trial.IsCarrying && Vector2.Distance(trial.BellPosition, trial.PlayerPosition) < 0.15f,
-                "UGUI Drop must place the bell at the player, not teleport it to the old stand.");
+            Require(!trial.IsCarrying &&
+                Vector2.Distance(trial.BellPosition, SoundwellTrial.SideBellStand) < 0.001f,
+                "A legal drop must snap to the side stand, not invent a third position.");
             yield return null;
             Press(trial, ring: true);
             Require(trial.HasBellTarget, "The relocated bell must still ring using the real signal state.");
@@ -438,7 +462,7 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!fresh.HasBellTarget, "fresh.HasBellTarget must be false.");
             Require(!fresh.IsWrapped, "fresh.IsWrapped must be false.");
-            Require(!fresh.IsCarrying && fresh.BellPosition == bellStart,
+            Require(!fresh.IsCarrying && fresh.BellPosition == bellStart && !fresh.CanPlaceBell,
                 "Scene reload must restore the initial named bell stand and carrying state.");
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
             yield return null;
