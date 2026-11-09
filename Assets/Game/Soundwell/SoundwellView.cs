@@ -44,7 +44,7 @@ namespace Rpg.Soundwell
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
-            Action carry)
+            Action carry, Action gate)
         {
             this.camera = camera;
             square = Sprite.Create(Texture2D.whiteTexture,
