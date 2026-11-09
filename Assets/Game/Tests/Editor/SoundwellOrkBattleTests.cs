@@ -91,7 +91,7 @@ namespace Rpg.Tests.Editor
             Assert.That(ORK.BattleSettings.defaultBattleSystem.StoredAsset, Is.SameAs(turnBasedAsset),
                 "ORK's global default must select the saved Turn Based asset.");
             BattleSystem savedTurnBasedSettings =
-                ORK.BattleSettings.defaultBattleSystem.GetBattleSystem();
+                ORK.BattleSettings.defaultBattleSystem.StoredAsset.Settings;
             Assert.That(savedTurnBasedSettings, Is.SameAs(turnBasedAsset.Settings),
                 "ORK must resolve the selected asset's settings object.");
 
