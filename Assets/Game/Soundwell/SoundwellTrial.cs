@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private const string EscortKey = "rpg.soundwell.signal-trial.surveyor-escorted";
         private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
+        private const string SafeRouteMarkedKey = "rpg.soundwell.signal-trial.safe-route-marked";
         private const string RopeObservedKey = "rpg.soundwell.signal-trial.rope-observed";
         private const string CartObservedKey = "rpg.soundwell.signal-trial.cart-observed";
         private const string CartKitReclaimedKey = "rpg.soundwell.signal-trial.cart-kit-reclaimed";
@@ -28,6 +29,7 @@ namespace Rpg.Soundwell
         public const string EntryOutcomeKey = "rpg.soundwell.signal-trial.last-return-outcome";
         // Additional scene-to-scene outcome, not an ORK item or persistent save.
         public const string EntryCartKitKey = "rpg.soundwell.signal-trial.last-return-cart-kit";
+        public const string EntrySafeRouteKey = "rpg.soundwell.signal-trial.last-return-safe-route";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -92,6 +94,8 @@ namespace Rpg.Soundwell
         public bool RescueComplete => variables != null && variables.GetInt(RescueKey) != 0;
         public bool FalseMarkerCleared => variables != null &&
             variables.GetInt(FalseMarkerClearedKey) != 0;
+        public bool SafeRouteMarked => variables != null &&
+            variables.GetInt(SafeRouteMarkedKey) != 0;
         public bool RopeObserved => variables != null && variables.GetInt(RopeObservedKey) != 0;
         public bool CartObserved => variables != null && variables.GetInt(CartObservedKey) != 0;
         public bool CartKitReclaimed => variables != null && variables.GetInt(CartKitReclaimedKey) != 0;
@@ -257,7 +261,7 @@ namespace Rpg.Soundwell
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
-                AtRopeEvidence, AtCartEvidence, AtClawEvidence, CanInspectRope, CanRecoverRope,
+                SafeRouteMarked, AtRopeEvidence, AtCartEvidence, AtClawEvidence, CanInspectRope, CanRecoverRope,
                 CanInspectCart, CanInspectClaws, CanTieEscortLine, CanShareCartClue,
                 RopeObserved, RopeRecovered, CartObserved, CartClueShared, CartKitReclaimed,
                 ClawsObserved, SurveyorLineTied,
@@ -283,6 +287,13 @@ namespace Rpg.Soundwell
                 !CartKitReclaimed &&
                 Vector2.Distance(view.SurveyorWorldPosition, CartEvidencePosition) <= 0.20f)
                 variables.Set(CartKitReclaimedKey, 1);
+
+            // The optional map kit changes the world: after retrieving it, the
+            // surveyor actually walks back and posts the corrected route at
+            // his former misleading sign. Merely exiting cannot create it.
+            if (CartKitReclaimed && FalseMarkerCleared && !SafeRouteMarked &&
+                Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
+                variables.Set(SafeRouteMarkedKey, 1);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -300,6 +311,8 @@ namespace Rpg.Soundwell
                 // Merely finding or telling about the cart does not count.
                 variables.Set(EntryCartKitKey,
                     RescueComplete && FalseMarkerCleared && CartKitReclaimed ? 1 : 0);
+                variables.Set(EntrySafeRouteKey,
+                    RescueComplete && FalseMarkerCleared && CartKitReclaimed && SafeRouteMarked ? 1 : 0);
             }
             bootstrapLoad = SceneManager.LoadSceneAsync(SoundwellEntrance.BootstrapSceneName);
             movement = Vector2.zero;
@@ -440,6 +453,7 @@ namespace Rpg.Soundwell
             variables.Set(EscortKey, 0);
             variables.Set(RescueKey, 0);
             variables.Set(FalseMarkerClearedKey, 0);
+            variables.Set(SafeRouteMarkedKey, 0);
             variables.Set(RopeObservedKey, 0);
             variables.Set(CartObservedKey, 0);
             variables.Set(CartKitReclaimedKey, 0);

@@ -21,6 +21,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer lowerBoardMarker;
         private readonly Transform surveyorFigure;
         private readonly SpriteRenderer falseTrailMarker;
+        private readonly SpriteRenderer safeTrailMarker;
         private readonly SpriteRenderer escapeDangerMarker;
         private readonly SpriteRenderer ropeEvidenceMarker;
         private readonly SpriteRenderer cartEvidenceMarker;
@@ -125,6 +126,13 @@ namespace Rpg.Soundwell
                 (Vector2)safe.position + new Vector2(1.10f, -0.40f),
                 new Vector2(0.30f, 0.66f), new Color(0.94f, 0.43f, 0.29f), 2);
             falseTrailMarker.transform.rotation = Quaternion.Euler(0f, 0f, -24f);
+            // The new sign occupies the same physical site but remains absent
+            // until the surveyor returns with his recovered map kit.
+            safeTrailMarker = Plate(root, "PLACEHOLDER verified return route marker",
+                (Vector2)safe.position + new Vector2(1.10f, -0.40f),
+                new Vector2(0.32f, 0.72f), new Color(0.38f, 0.90f, 0.72f), 2);
+            safeTrailMarker.transform.rotation = Quaternion.Euler(0f, 0f, 24f);
+            safeTrailMarker.enabled = false;
             // The surveyor is a scene character, not a global quest popup.
             // The plank is visible before dialogue; only his firsthand
             // warning marks which part can take the load.
@@ -382,6 +390,7 @@ namespace Rpg.Soundwell
             waitingForEscortLeader = false;
             escortLine.enabled = false;
             falseTrailMarker.enabled = true;
+            safeTrailMarker.enabled = false;
         }
 
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
@@ -389,7 +398,7 @@ namespace Rpg.Soundwell
             bool gateOpen, bool atGatePanel, bool canOpenGate, bool atSurveyor,
             bool hasSurveyorClue, bool atUpperPlank, bool canSecurePlank,
             bool plankSecured, bool canEscortSurveyor, bool surveyorEscorting,
-            bool rescueComplete, bool falseMarkerCleared,
+            bool rescueComplete, bool falseMarkerCleared, bool safeRouteMarked,
             bool atRopeEvidence, bool atCartEvidence, bool atClawEvidence, bool canInspectRope,
             bool canRecoverRope, bool canInspectCart, bool canInspectClaws, bool canTieEscortLine,
             bool canShareCartClue, bool ropeObserved, bool ropeRecovered, bool cartObserved,
@@ -415,6 +424,7 @@ namespace Rpg.Soundwell
                 escapeStatus.text = escapeCaption;
             escapeStatus.color = beastBlocksEscape ? new Color(1f, 0.56f, 0.47f) : Cloth;
             falseTrailMarker.enabled = !falseMarkerCleared;
+            safeTrailMarker.enabled = safeRouteMarked;
             ropeEvidenceMarker.enabled = !ropeRecovered;
             ropeEvidenceMarker.color = ropeObserved ? Cloth : new Color(0.53f, 0.38f, 0.27f);
             cartEvidenceMarker.color = cartObserved ? new Color(0.72f, 0.80f, 0.65f)
@@ -454,7 +464,9 @@ namespace Rpg.Soundwell
                 routeTarget = !falseMarkerCleared ? FalseMarkerWorldPosition
                     : cartObserved && cartClueShared && !cartKitReclaimed
                         ? SoundwellTrial.CartEvidencePosition
-                        : (Vector2)retreatMarker.position;
+                        : cartKitReclaimed && !safeRouteMarked
+                            ? FalseMarkerWorldPosition
+                            : (Vector2)retreatMarker.position;
             else if (surveyorEscorting)
             {
                 // Cross the only real doorway instead of taking a straight
@@ -499,8 +511,10 @@ namespace Rpg.Soundwell
                 escortLine.SetPosition(1, surveyorFigure.position);
             }
             string speech = falseMarkerCleared
-                ? cartKitReclaimed
-                    ? "SURVEYOR: I've taken down that false trail sign. My map kit is safe, thanks to you."
+                ? safeRouteMarked
+                    ? "SURVEYOR: My map kit is safe. The verified route is posted where the false sign stood."
+                    : cartKitReclaimed
+                        ? "SURVEYOR: My map kit is safe. I'll mark the correct route by my old sign."
                     : cartObserved && cartClueShared
                         ? "SURVEYOR: I've taken down that false trail sign. You found my cart; I'll get my map kit."
                         : "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
@@ -555,8 +569,10 @@ namespace Rpg.Soundwell
 
             string prompt;
             if (falseMarkerCleared)
-                prompt = cartKitReclaimed
-                    ? "ROUTE CORRECTED: The surveyor recovered his map kit from the cart."
+                prompt = safeRouteMarked
+                    ? "SAFE ROUTE POSTED: The surveyor replaced his false marker with a verified route."
+                    : cartKitReclaimed
+                        ? "MAP KIT RECOVERED: The surveyor is returning to post the safe route."
                     : cartObserved && !cartClueShared
                         ? canShareCartClue
                             ? "ROUTE CORRECTED: [G / RB] Tell the surveyor about his cart, or leave it for now."

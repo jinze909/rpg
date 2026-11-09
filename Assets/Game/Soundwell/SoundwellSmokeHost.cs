@@ -296,8 +296,12 @@ namespace Rpg.Soundwell
             Color cartUnobservedColor = cartEvidence.color;
             var cartMapKit = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER cart map kit");
-            Require(cartMapKit != null && cartMapKit.enabled && !trial.CartKitReclaimed,
-                "The cart must physically hold the surveyor's map kit before rescue.");
+            var safeTrailMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name ==
+                    "PLACEHOLDER verified return route marker");
+            Require(cartMapKit != null && cartMapKit.enabled && !trial.CartKitReclaimed &&
+                safeTrailMarker != null && !safeTrailMarker.enabled && !trial.SafeRouteMarked,
+                "Initial scene must hold the map kit but no corrected safe-route sign.");
             var escapeWarning = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER escape-lane risk");
             Require(escapeWarning != null && !escapeWarning.enabled &&
@@ -575,8 +579,9 @@ namespace Rpg.Soundwell
                 "Retreat reset must clear clues and previously recovered guide-rope supplies.");
             yield return null;
             Require(ropeEvidence.enabled && cartEvidence.color == cartUnobservedColor &&
-                cartMapKit.enabled && !trial.CartKitReclaimed,
-                "Reset must restore cord, cart clue and map kit without early recovery.");
+                cartMapKit.enabled && !trial.CartKitReclaimed &&
+                !safeTrailMarker.enabled && !trial.SafeRouteMarked,
+                "Reset must restore cord, cart clue, map kit and absent safe route.");
             Require(!intentMarker.enabled, "Retreat/reset must clear the monster intent indicator.");
             Capture(trial, "03-retreat-reset");
 
@@ -1047,11 +1052,24 @@ namespace Rpg.Soundwell
             Require(trial.RescueComplete && trial.FalseMarkerCleared &&
                 Vector2.Distance(trial.SurveyorWorldPosition,
                     SoundwellTrial.CartEvidencePosition) < 0.3f &&
-                !cartMapKit.enabled &&
-                ShowsPrompt(trial, "recovered his map kit") &&
+                !cartMapKit.enabled && !trial.SafeRouteMarked && !safeTrailMarker.enabled &&
+                ShowsPrompt(trial, "MAP KIT RECOVERED") &&
                 ShowsPrompt(trial, "My map kit is safe"),
-                "The map kit must disappear only after the real survivor reaches it.");
+                "The map kit must disappear when the survivor reaches it, before a safe route exists.");
             Capture(trial, "12-surveyor-recovers-map-kit");
+            for (var wait = Until(() => trial.SafeRouteMarked,
+                "surveyor physically revisits the old sign to post a verified route"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(trial.RescueComplete && trial.FalseMarkerCleared &&
+                trial.CartKitReclaimed && trial.SafeRouteMarked &&
+                !falseTrailMarker.enabled && safeTrailMarker.enabled &&
+                Vector2.Distance(trial.SurveyorWorldPosition,
+                    (Vector2)falseTrailMarker.transform.position) < 0.28f &&
+                ShowsPrompt(trial, "SAFE ROUTE POSTED") &&
+                ShowsPrompt(trial, "verified route is posted"),
+                "Verified route sign requires the map kit and real arrival at the old marker.");
+            Capture(trial, "13-surveyor-posts-safe-route");
 
             // Returning after a real rescue must visibly carry its outcome
             // into Bootstrap. This is not a save or an invented ORK reward.
@@ -1064,13 +1082,15 @@ namespace Rpg.Soundwell
             var victoryEntrance = FindRootComponent<SoundwellEntrance>();
             Require(victoryEntrance != null, "Completed return must show the actual entry UI.");
             for (var wait = Until(() => victoryEntrance.LastReturnOutcome == 2 &&
-                victoryEntrance.LastReturnCartKitRecovered,
-                "entry HUD receives the actual rescue, route correction, and recovered map kit"); wait.MoveNext();)
+                victoryEntrance.LastReturnCartKitRecovered &&
+                victoryEntrance.LastReturnSafeRouteMarked,
+                "entry HUD receives rescue, recovered kit and the verified safe route"); wait.MoveNext();)
                 yield return null;
             Require(ShowsPrompt(victoryEntrance, "SURVEYOR SAFE") &&
                 ShowsPrompt(victoryEntrance, "FALSE TRAIL MARKER REMOVED") &&
-                ShowsPrompt(victoryEntrance, "MAP KIT RECOVERED"),
-                "Completed return must also visibly report the optional map kit retrieved by the NPC.");
+                ShowsPrompt(victoryEntrance, "MAP KIT RECOVERED") &&
+                ShowsPrompt(victoryEntrance, "SAFE ROUTE POSTED"),
+                "Completed return must report the physical sign, not merely the map kit.");
 
             yield return victoryEntrance.OpenTrial();
             var trialAfterVictory = FindRootComponent<SoundwellTrial>();
@@ -1081,6 +1101,7 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!trialAfterVictory.SurveyorEscorting &&
                 !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
+                !trialAfterVictory.SafeRouteMarked &&
                 !trialAfterVictory.RopeRecovered && !trialAfterVictory.SurveyorLineTied &&
                 !trialAfterVictory.CartObserved && !trialAfterVictory.CartKitReclaimed &&
                 !trialAfterVictory.CartClueShared &&
@@ -1103,7 +1124,8 @@ namespace Rpg.Soundwell
             var freshFalseMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
-                !fresh.FalseMarkerCleared && !fresh.RopeObserved && !fresh.ClawsObserved &&
+                !fresh.FalseMarkerCleared && !fresh.SafeRouteMarked &&
+                !fresh.RopeObserved && !fresh.ClawsObserved &&
                 !fresh.CartObserved && !fresh.CartKitReclaimed && !fresh.CartClueShared &&
                 !fresh.RopeRecovered && !fresh.SurveyorLineTied &&
                 freshFalseMarker != null &&
@@ -1143,9 +1165,11 @@ namespace Rpg.Soundwell
             yield return null;
             Require(returnedEntrance.LastReturnOutcome == 0 &&
                 !returnedEntrance.LastReturnCartKitRecovered &&
+                !returnedEntrance.LastReturnSafeRouteMarked &&
                 !ShowsPrompt(returnedEntrance, "SURVEYOR SAFE") &&
-                !ShowsPrompt(returnedEntrance, "MAP KIT RECOVERED"),
-                "A later incomplete return must clear the previously completed rescue and optional map kit.");
+                !ShowsPrompt(returnedEntrance, "MAP KIT RECOVERED") &&
+                !ShowsPrompt(returnedEntrance, "SAFE ROUTE POSTED"),
+                "A later incomplete return must clear rescue, map kit and safe route outcomes.");
             var submitButton = returnedEntrance.GetComponentInChildren<Button>();
             Require(submitButton != null && submitButton.interactable,
                 "Returning must create a fresh actionable UGUI entry.");
