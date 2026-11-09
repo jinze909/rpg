@@ -663,8 +663,8 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(component => component != null);
 
         private static void Press(SoundwellTrial trial, Vector2 direction = default, bool ring = false,
-            bool wrap = false, bool retry = false) =>
-            trial.ApplyInput(direction, ring, wrap, retry);
+            bool wrap = false, bool retry = false, bool carry = false) =>
+            trial.ApplyInput(direction, ring, wrap, retry, carry);
 
         private static IEnumerator Until(Func<bool> condition, string action)
         {
