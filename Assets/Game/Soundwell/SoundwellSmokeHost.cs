@@ -157,7 +157,7 @@ namespace Rpg.Soundwell
                 "Unexpected initial scene: " + SceneManager.GetActiveScene().path);
             var entrance = FindRootComponent<SoundwellEntrance>();
             Require(entrance != null, "The saved Bootstrap scene must expose the trial.");
-            Require(ShowsPrompt(entrance, "[F2] Enter the trial"), "The entry screen must show its entry control.");
+            Require(ShowsPrompt(entrance, "[F2 / Pad A] Enter the trial"), "The entry screen must show its entry control.");
             var load = entrance.OpenTrial();
             Require(load != null && ReferenceEquals(load, entrance.OpenTrial()),
                 "A second entry request during loading must reuse the same operation.");
@@ -177,7 +177,7 @@ namespace Rpg.Soundwell
             Require(left > 0f && right < 1f, "A square viewport must retain both ends of the trial.");
             camera.ResetAspect();
             Require(ShowsPrompt(trial, "Walk to the copper bell"), "The initial view must show where to go.");
-            Require(ShowsPrompt(trial, "[Esc] Back to entry"), "The exit control must be visible at the entrance.");
+            Require(ShowsPrompt(trial, "[Esc / Pad B] Back to entry"), "The exit control must be visible at the entrance.");
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
@@ -191,8 +191,8 @@ namespace Rpg.Soundwell
                 yield return null;
             yield return null;
             yield return null;
-            Require(ShowsPrompt(trial, "[E] Ring the bell"), "Bell actions must appear within reach.");
-            Require(ShowsPrompt(trial, "[WASD / Arrows] Move"), "The movement control must stay visible at the bell.");
+            Require(ShowsPrompt(trial, "[E / Pad A] Ring the bell"), "Bell actions must appear within reach.");
+            Require(ShowsPrompt(trial, "[WASD / Arrows / Stick] Move"), "The movement control must stay visible at the bell.");
             Press(trial, ring: true);
             Require(trial.HasBellTarget, "trial.HasBellTarget must be true.");
             Require(bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Copper bell",
@@ -214,7 +214,7 @@ namespace Rpg.Soundwell
             Require(!trial.HasBellTarget, "A wrapped bell must not attract the beast.");
             yield return null;
             yield return null;
-            Require(ShowsPrompt(trial, "[Q] Remove the cloth"), "Wrapped bells must show the available actions.");
+            Require(ShowsPrompt(trial, "[Q / Pad X] Remove the cloth"), "Wrapped bells must show the available actions.");
             var muffled = Capture(trial, "02-wrapped-searching");
             Require(!muffled.SequenceEqual(clear), "The two signal phases must render differently.");
             for (var wait = Until(() => Vector2.Distance(trial.BeastPosition, pursued) > 0.35f,
@@ -236,7 +236,7 @@ namespace Rpg.Soundwell
             Press(trial);
             yield return null;
             yield return null;
-            Require(ShowsPrompt(trial, "[R] Reset the experiment"), "Retreat must reveal the reset control.");
+            Require(ShowsPrompt(trial, "[R / Pad Y] Reset the experiment"), "Retreat must reveal the reset control.");
             Press(trial, retry: true);
             Require(!trial.IsWrapped, "trial.IsWrapped must be false.");
             Require(!trial.IsSearching, "trial.IsSearching must be false.");
@@ -268,7 +268,7 @@ namespace Rpg.Soundwell
             Require(SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
                 "Returning from the trial must restore the entry scene.");
             var returnedEntrance = FindRootComponent<SoundwellEntrance>();
-            Require(returnedEntrance != null && ShowsPrompt(returnedEntrance, "[F2] Enter the trial"),
+            Require(returnedEntrance != null && ShowsPrompt(returnedEntrance, "[F2 / Pad A] Enter the trial"),
                 "The entry screen must be usable after returning from the trial.");
             yield return returnedEntrance.OpenTrial();
             var restarted = FindRootComponent<SoundwellTrial>();
@@ -277,6 +277,77 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!restarted.HasBellTarget && !restarted.IsWrapped && restarted.PlayerPosition == retreat,
                 "Reentering from Bootstrap must start a fresh experiment.");
+
+            // Simulated controller button values exercise the exact production mapping and
+            // scene action boundary; a physical USB/Bluetooth gamepad remains untested.
+            restarted.ReadKeyboard = false;
+            Require(SoundwellControlFrame.EnterRequested(false, true),
+                "Controller south must be able to enter from the Bootstrap prompt.");
+            Require(!SoundwellControlFrame.EnterRequested(false, false),
+                "Unpressed entry controls must not trigger a scene change.");
+
+            var idle = SoundwellControlFrame.FromButtons(Vector2.zero,
+                false, false, false, false, false, false, false, false);
+            Require(!idle.Ring && !idle.Wrap && !idle.Retry && !idle.Back,
+                "A neutral pad must not trigger an action.");
+            var diagonal = SoundwellControlFrame.FromButtons(new Vector2(1f, 1f),
+                false, false, false, false, false, false, false, false);
+            Require(diagonal.Movement.magnitude <= 1.001f,
+                "Analog diagonal movement must be normalized to prevent faster travel.");
+
+            // Hold the stick across real physics frames until the saved player reaches the bell.
+            for (var wait = Until(() => restarted.PlayerPosition.x >= -2.25f,
+                "controller stick reaches the bell"); wait.MoveNext();)
+            {
+                restarted.ApplyControls(SoundwellControlFrame.FromButtons(Vector2.right,
+                    false, false, false, false, false, false, false, false));
+                yield return null;
+            }
+            restarted.ApplyControls(idle);
+            yield return null;
+            var south = SoundwellControlFrame.FromButtons(Vector2.zero,
+                false, false, false, false, true, false, false, false);
+            Require(south.Ring && !south.Wrap && !south.Retry && !south.Back,
+                "Controller south must map only to ringing.");
+            restarted.ApplyControls(south);
+            Require(restarted.HasBellTarget, "Controller south must ring the saved scene bell.");
+
+            var west = SoundwellControlFrame.FromButtons(Vector2.zero,
+                false, false, false, false, false, false, true, false);
+            Require(west.Wrap && !west.Ring && !west.Retry && !west.Back,
+                "Controller west must map only to wrapping.");
+            restarted.ApplyControls(west);
+            Require(restarted.IsWrapped && restarted.IsSearching && !restarted.HasBellTarget,
+                "Controller west must stop the clear bell and make the beast search.");
+
+            for (var wait = Until(() => Vector2.Distance(restarted.PlayerPosition, retreat) < 0.25f,
+                "controller stick returns to safety"); wait.MoveNext();)
+            {
+                restarted.ApplyControls(SoundwellControlFrame.FromButtons(Vector2.left,
+                    false, false, false, false, false, false, false, false));
+                yield return null;
+            }
+            restarted.ApplyControls(idle);
+            yield return null;
+            var north = SoundwellControlFrame.FromButtons(Vector2.zero,
+                false, false, false, false, false, false, false, true);
+            Require(north.Retry && !north.Ring && !north.Wrap && !north.Back,
+                "Controller north must map only to resetting.");
+            restarted.ApplyControls(north);
+            Require(!restarted.IsWrapped && !restarted.IsSearching && !restarted.HasBellTarget,
+                "Controller north must fully reset the soundwell trial.");
+
+            var east = SoundwellControlFrame.FromButtons(Vector2.zero,
+                false, false, false, false, false, true, false, false);
+            Require(east.Back && !east.Ring && !east.Wrap && !east.Retry,
+                "Controller east must map only to exit.");
+            restarted.ApplyControls(east);
+            yield return null;
+            for (var wait = Until(() => SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
+                "controller exit returns to the entry scene"); wait.MoveNext();)
+                yield return null;
+            Require(ShowsPrompt(FindRootComponent<SoundwellEntrance>(), "[F2 / Pad A] Enter the trial"),
+                "The entry prompt must remain usable after the controller exit.");
         }
 
         private static bool ShowsPrompt(Component owner, string prompt) =>

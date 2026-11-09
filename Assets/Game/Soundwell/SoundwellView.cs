@@ -78,7 +78,7 @@ namespace Rpg.Soundwell
             AddLabel(rect, "COPPER BELL", 13, Gold, new Vector2(-88, -43), new Vector2(120, 22));
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
-            AddLabel(rect, "[WASD / Arrows] Move      [Esc] Back to entry", 14, Cloth,
+            AddLabel(rect, "[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry", 14, Cloth,
                 new Vector2(0, -222), new Vector2(760, 26));
         }
 
@@ -95,10 +95,10 @@ namespace Rpg.Soundwell
 
             string prompt;
             if (atBell)
-                prompt = wrapped ? "[E] Try the wrapped bell      [Q] Remove the cloth"
-                    : "[E] Ring the bell      [Q] Wrap with the wet cloth";
+                prompt = wrapped ? "[E / Pad A] Try the wrapped bell   [Q / Pad X] Remove the cloth"
+                    : "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth";
             else if (ringing || wrapped)
-                prompt = atSafePoint ? "[R] Reset the experiment" : "Return to RETREAT to reset the experiment.";
+                prompt = atSafePoint ? "[R / Pad Y] Reset the experiment" : "Return to RETREAT to reset the experiment.";
             else
                 prompt = "Walk to the copper bell. Watch the beast beyond the grate.";
 

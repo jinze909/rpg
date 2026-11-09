@@ -67,17 +67,7 @@ namespace Rpg.Soundwell
             if (!IsReady || !ReadKeyboard)
                 return;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                ReturnToBootstrap();
-                return;
-            }
-
-            Vector2 direction = new Vector2(
-                Axis(KeyCode.A, KeyCode.LeftArrow, KeyCode.D, KeyCode.RightArrow),
-                Axis(KeyCode.S, KeyCode.DownArrow, KeyCode.W, KeyCode.UpArrow));
-            ApplyInput(direction, Input.GetKeyDown(KeyCode.E), Input.GetKeyDown(KeyCode.Q),
-                Input.GetKeyDown(KeyCode.R));
+            ApplyControls(SoundwellControlFrame.ReadUnity());
         }
 
         private void FixedUpdate()
@@ -126,7 +116,17 @@ namespace Rpg.Soundwell
             return bootstrapLoad;
         }
 
-        // Both the keyboard and the integration test use this scene input boundary.
+        // Keyboard, gamepad and the integration harness share this action boundary.
+        public void ApplyControls(SoundwellControlFrame controls)
+        {
+            if (controls.Back)
+            {
+                ReturnToBootstrap();
+                return;
+            }
+            ApplyInput(controls.Movement, controls.Ring, controls.Wrap, controls.Retry);
+        }
+
         public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry)
         {
             if (bootstrapLoad != null)
@@ -179,15 +179,48 @@ namespace Rpg.Soundwell
         private Vector2 HearingPoint() => new Vector2(1.15f, bell.position.y);
         private void SetSignal(Signal signal) => variables.Set(SignalKey, (int)signal);
 
-        private static int Axis(KeyCode low, KeyCode alternateLow, KeyCode high, KeyCode alternateHigh)
-        {
-            return (Input.GetKey(high) || Input.GetKey(alternateHigh) ? 1 : 0)
-                - (Input.GetKey(low) || Input.GetKey(alternateLow) ? 1 : 0);
-        }
-
         private void OnDestroy()
         {
             view?.Dispose();
         }
+    }
+
+    // The legacy InputManager already merges keyboard keys with joystick axes named
+    // Horizontal/Vertical. One mapping layer prevents duplicate scene input handlers.
+    // South/east/west/north map to Unity joystick buttons 0/1/2/3 respectively.
+    public readonly struct SoundwellControlFrame
+    {
+        public Vector2 Movement { get; }
+        public bool Ring { get; }
+        public bool Wrap { get; }
+        public bool Retry { get; }
+        public bool Back { get; }
+
+        private SoundwellControlFrame(Vector2 movement, bool ring, bool wrap, bool retry, bool back)
+        {
+            Movement = Vector2.ClampMagnitude(movement, 1f);
+            Ring = ring;
+            Wrap = wrap;
+            Retry = retry;
+            Back = back;
+        }
+
+        public static bool EnterRequested(bool keyboardF2, bool gamepadSouth) =>
+            keyboardF2 || gamepadSouth;
+
+        // Pure mapping for independent, hardware-free Play Mode assertions.
+        public static SoundwellControlFrame FromButtons(Vector2 movement,
+            bool keyboardRing, bool keyboardWrap, bool keyboardRetry, bool keyboardBack,
+            bool gamepadSouth, bool gamepadEast, bool gamepadWest, bool gamepadNorth) =>
+            new SoundwellControlFrame(movement, keyboardRing || gamepadSouth,
+                keyboardWrap || gamepadWest, keyboardRetry || gamepadNorth,
+                keyboardBack || gamepadEast);
+
+        public static SoundwellControlFrame ReadUnity() => FromButtons(
+            new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")),
+            Input.GetKeyDown(KeyCode.E), Input.GetKeyDown(KeyCode.Q),
+            Input.GetKeyDown(KeyCode.R), Input.GetKeyDown(KeyCode.Escape),
+            Input.GetKeyDown(KeyCode.JoystickButton0), Input.GetKeyDown(KeyCode.JoystickButton1),
+            Input.GetKeyDown(KeyCode.JoystickButton2), Input.GetKeyDown(KeyCode.JoystickButton3));
     }
 }

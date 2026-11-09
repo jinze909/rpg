@@ -22,13 +22,14 @@ namespace Rpg.Soundwell
 
             SoundwellView.AddLabel(canvas.transform, "SOUNDWELL SIGNAL TRIAL", 32,
                 new Color(0.86f, 0.93f, 0.97f), new Vector2(0f, 23f), new Vector2(520f, 48f));
-            SoundwellView.AddLabel(canvas.transform, "[F2] Enter the trial", 22,
+            SoundwellView.AddLabel(canvas.transform, "[F2 / Pad A] Enter the trial", 22,
                 new Color(1f, 0.72f, 0.33f), new Vector2(0f, -22f), new Vector2(420f, 34f));
         }
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.F2))
+            if (SoundwellControlFrame.EnterRequested(
+                Input.GetKeyDown(KeyCode.F2), Input.GetKeyDown(KeyCode.JoystickButton0)))
                 OpenTrial();
         }
 
