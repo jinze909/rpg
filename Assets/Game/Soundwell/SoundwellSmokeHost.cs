@@ -565,9 +565,12 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "I can cross now") &&
                 ShowsPrompt(trial, "Rescue not complete"),
                 "The board and surveyor must visibly respond while rescue remains unfinished.");
-            Press(trial, gate: true);
-            Require(trial.PlankSecured && trial.GateOpen,
-                "Repeated contextual input must not reverse the secured route.");
+            // A second G/RB interaction now legitimately begins the next
+            // contextual action (escort). First verify that bracing alone
+            // did not auto-start it; the following UGUI click must do that.
+            Require(trial.PlankSecured && trial.GateOpen &&
+                !trial.SurveyorEscorting && !trial.RescueComplete,
+                "Bracing must prepare the route without automatically starting escort.");
             Capture(trial, "08-braced-plank-surveyor");
             Require(trial.CanEscortSurveyor && !trial.SurveyorEscorting &&
                 !trial.RescueComplete && TrialActionButton(trial, "Gate").interactable &&
