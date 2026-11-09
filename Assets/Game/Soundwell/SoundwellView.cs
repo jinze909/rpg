@@ -16,6 +16,8 @@ namespace Rpg.Soundwell
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
         private readonly SpriteRenderer beastIntentMarker;
+        private readonly SpriteRenderer searchTimerTrack;
+        private readonly SpriteRenderer searchTimerFill;
         private readonly SpriteRenderer gateMarker;
         private readonly SpriteRenderer upperBoardMarker;
         private readonly SpriteRenderer lowerBoardMarker;
@@ -219,6 +221,18 @@ namespace Rpg.Soundwell
                     Mathf.Sin(angle) * SoundwellTrial.BeastContactRadius, 0f));
             }
             beastContactRing.enabled = false;
+
+            // Visualizes the existing, short muffled-bell search window.
+            // The timer uses the beast's actual remaining search fraction.
+            searchTimerTrack = Plate(root, "PLACEHOLDER beast search timer track",
+                (Vector2)beast.position + new Vector2(0f, 0.92f),
+                new Vector2(1.20f, 0.15f),
+                new Color(0.13f, 0.19f, 0.25f, 0.90f), 5);
+            searchTimerFill = Plate(root, "PLACEHOLDER beast search timer fill",
+                (Vector2)beast.position + new Vector2(0f, 0.92f),
+                new Vector2(1.12f, 0.11f), Cloth, 6);
+            searchTimerTrack.enabled = false;
+            searchTimerFill.enabled = false;
 
             var pulseObject = new GameObject("Bell pressure ripple");
             pulseObject.transform.SetParent(bell, false);
@@ -457,7 +471,8 @@ namespace Rpg.Soundwell
             bool canShareCartClue, bool ropeObserved, bool ropeRecovered, bool cartObserved,
             bool cartClueShared, bool cartKitReclaimed,
             bool clawsObserved, bool surveyorLineTied, bool beastBlocksEscape,
-            bool beastContacted, bool lowerPlankBroken, Vector2 beastDestination)
+            bool beastContacted, bool lowerPlankBroken,
+            float searchRemainingFraction, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -474,6 +489,21 @@ namespace Rpg.Soundwell
             // danger only after opening the inner room, and remove the ring
             // after the survivor reaches safety.
             beastContactRing.enabled = gateOpen && !rescueComplete;
+            searchTimerTrack.enabled = searching;
+            searchTimerFill.enabled = searching;
+            if (searching)
+            {
+                // World-horizontal despite rotations, placed over the
+                // beast's actual location, with a right-to-left depletion.
+                float remaining = Mathf.Clamp01(searchRemainingFraction);
+                Vector2 center = (Vector2)beastContactRing.transform.position +
+                    new Vector2(0f, 0.92f);
+                searchTimerTrack.transform.position = new Vector3(center.x, center.y, 0f);
+                searchTimerFill.transform.position = new Vector3(
+                    center.x - 0.56f * (1f - remaining), center.y, 0f);
+                searchTimerFill.transform.localScale =
+                    new Vector3(1.12f * remaining, 0.11f, 1f);
+            }
             escapeDangerMarker.enabled = beastBlocksEscape;
             string escapeCaption = beastBlocksEscape
                 ? "ESCAPE LANE  /  BLOCKED" : "ESCAPE LANE  /  CLEAR";

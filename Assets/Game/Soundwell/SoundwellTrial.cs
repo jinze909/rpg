@@ -130,6 +130,10 @@ namespace Rpg.Soundwell
         public bool CanTieEscortLine => CanEscortSurveyor && RopeRecovered && !SurveyorLineTied;
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
+        // Same expiry clock as the beast, not an independent UI timer.
+        public float SearchRemainingFraction => IsSearching
+            ? Mathf.Clamp01((SearchDurationSeconds - (Time.time - searchStarted)) /
+                SearchDurationSeconds) : 0f;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
         public bool ActionMenuOpen => actionMenuOpen;
 
@@ -285,7 +289,8 @@ namespace Rpg.Soundwell
                 CanInspectCart, CanInspectClaws, CanTieEscortLine, CanShareCartClue,
                 RopeObserved, RopeRecovered, CartObserved, CartClueShared, CartKitReclaimed,
                 ClawsObserved, SurveyorLineTied,
-                BeastBlocksEscape, BeastContacted, LowerPlankBroken, destination);
+                BeastBlocksEscape, BeastContacted, LowerPlankBroken,
+                SearchRemainingFraction, destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.

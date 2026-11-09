@@ -269,6 +269,16 @@ namespace Rpg.Soundwell
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
+            var searchTrack = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name ==
+                    "PLACEHOLDER beast search timer track");
+            var searchFill = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name ==
+                    "PLACEHOLDER beast search timer fill");
+            Require(searchTrack != null && searchFill != null &&
+                !searchTrack.enabled && !searchFill.enabled &&
+                !trial.IsSearching && trial.SearchRemainingFraction == 0f,
+                "An unused bell cannot expose a ghost search timer.");
             // The beast is a scene-level actor, not necessarily a child of
             // the trial controller. Search all actual scene roots just as
             // FindRootComponent does, while keeping the exact marker name.
@@ -614,7 +624,9 @@ namespace Rpg.Soundwell
             Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved &&
                 !trial.RopeRecovered && !trial.SurveyorLineTied &&
                 !trial.BeastContacted && trial.BeastContacts == 0 &&
-                !beastContactRing.enabled && revealedClawTrail.All(marker => !marker.enabled),
+                !beastContactRing.enabled && !searchTrack.enabled && !searchFill.enabled &&
+                trial.SearchRemainingFraction == 0f &&
+                revealedClawTrail.All(marker => !marker.enabled),
                 "Retreat reset must clear clues, revealed claw trail, and recovered guide rope.");
             yield return null;
             Require(ropeEvidence.enabled && cartEvidence.color == cartUnobservedColor &&
@@ -1072,19 +1084,39 @@ namespace Rpg.Soundwell
             Press(trial, wrap: true);
             Require(trial.IsSearching && trial.IsWrapped,
                 "Wrapping the side-stand bell must begin its search phase.");
+            yield return null;
+            Require(searchTrack.enabled && searchFill.enabled &&
+                trial.SearchRemainingFraction > 0.85f &&
+                Mathf.Abs(searchFill.transform.localScale.x -
+                    1.12f * trial.SearchRemainingFraction) < 0.02f &&
+                Vector2.Distance(searchTrack.transform.position,
+                    (Vector2)beastContactRing.transform.position +
+                    new Vector2(0f, 0.92f)) < 0.02f,
+                "The real search must display its current time over the moving beast.");
+            Capture(trial, "05-search-timer-start");
+            float fullSearchWidth = searchFill.transform.localScale.x;
             var searchDeadline = Time.time + SoundwellTrial.SearchDurationSeconds * 0.5f;
             for (var wait = Until(() => Time.time >= searchDeadline,
                 "search persists for a meaningful half-window"); wait.MoveNext();)
                 yield return null;
-            Require(trial.IsSearching, "Beast must not abandon the last bell sound immediately.");
+            Require(trial.IsSearching && searchTrack.enabled && searchFill.enabled &&
+                trial.SearchRemainingFraction > 0f &&
+                searchFill.transform.localScale.x < fullSearchWidth * 0.7f &&
+                searchFill.transform.localScale.x > fullSearchWidth * 0.2f &&
+                Mathf.Abs(searchFill.transform.localScale.x -
+                    1.12f * trial.SearchRemainingFraction) < 0.03f,
+                "The search bar must deplete in step with the real AI clock.");
+            Capture(trial, "05-search-timer-half");
             for (var wait = Until(() => !trial.IsSearching,
                 "beast search expires without another input"); wait.MoveNext();)
                 yield return null;
             Require(trial.IsWrapped && !trial.IsSearching && !trial.HasBellTarget,
                 "Search expiry must stop pursuit while leaving the wet cloth wrapped.");
             yield return null;
-            Require(!intentMarker.enabled && ShowsPrompt(trial, "BEAST  /  RETURNING"),
-                "Expired pursuit must hide its target and visibly announce the beast's return.");
+            Require(!intentMarker.enabled && ShowsPrompt(trial, "BEAST  /  RETURNING") &&
+                !searchTrack.enabled && !searchFill.enabled &&
+                trial.SearchRemainingFraction == 0f,
+                "Search expiry must hide the target and timer while the beast goes home.");
             Require(!bellAudio.loop && !bellAudio.isPlaying,
                 "The muffled bell must be silent while the beast returns.");
             Capture(trial, "05-beast-returning");
@@ -1245,6 +1277,11 @@ namespace Rpg.Soundwell
                 .Where(item => item.gameObject.name.StartsWith("PLACEHOLDER revealed claw trail "))
                 .Count(item => !item.enabled) == 3,
                 "Scene reload must hide all revealed claw evidence until reinspection.");
+            Require(!fresh.GetComponentsInChildren<SpriteRenderer>(true)
+                .Any(item => item.gameObject.name.StartsWith(
+                    "PLACEHOLDER beast search timer ") && item.enabled) &&
+                fresh.SearchRemainingFraction == 0f,
+                "Scene reload cannot inherit the prior search countdown.");
             Require(!SceneManager.GetActiveScene().GetRootGameObjects()
                 .SelectMany(root => root.GetComponentsInChildren<LineRenderer>(true))
                 .Any(line => line.gameObject.name == "PLACEHOLDER beast contact radius" &&
