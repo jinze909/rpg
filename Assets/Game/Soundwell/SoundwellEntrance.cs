@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
                 OpenTrial();
         }
 
-        public AsyncOperation OpenTrial() => SceneManager.LoadSceneAsync(SceneName);
+        public AsyncOperation OpenTrial(LoadSceneMode mode = LoadSceneMode.Single) =>
+            SceneManager.LoadSceneAsync(SceneName, mode);
     }
 }

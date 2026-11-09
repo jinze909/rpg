@@ -22,12 +22,14 @@ fi
 
 evidence="$GITHUB_WORKSPACE/${ARTIFACTS_PATH:-artifacts/p0}"
 mkdir -p "$evidence"
-"$@"
-tests_exit=$?
 if [[ "${platform,,}" == playmode ]]; then
+  timeout --kill-after=15s 180s "$@"
+  tests_exit=$?
   printf '%s\n' "$tests_exit" > "$evidence/playmode-editor-exit-code.txt"
   exit "$tests_exit"
 fi
+"$@"
+tests_exit=$?
 printf '%s\n' "$tests_exit" > "$evidence/test-editor-exit-code.txt"
 
 # A separate Editor invocation proves the documented batch entry point and exit.

@@ -17,15 +17,20 @@ namespace Rpg.Tests.PlayMode
         [UnityTest]
         public IEnumerator PlayerCanRingWrapRetreatAndRetry()
         {
-            yield return SceneManager.LoadSceneAsync("Bootstrap");
-            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("Bootstrap"));
+            // Keep the Unity Test Framework's host scene loaded across the trial.
+            yield return SceneManager.LoadSceneAsync("Bootstrap", LoadSceneMode.Additive);
+            var bootstrap = SceneManager.GetSceneByName("Bootstrap");
+            Assert.That(SceneManager.SetActiveScene(bootstrap), Is.True);
 
             var entrance = FindRootComponent<SoundwellEntrance>();
             Assert.That(entrance, Is.Not.Null, "The saved Bootstrap scene must expose the trial.");
-            var load = entrance.OpenTrial();
-            while (!load.isDone)
-                yield return null;
-            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(SceneName));
+            foreach (var root in bootstrap.GetRootGameObjects())
+                foreach (var listener in root.GetComponentsInChildren<AudioListener>())
+                    listener.enabled = false;
+            yield return entrance.OpenTrial(LoadSceneMode.Additive);
+            var trialScene = SceneManager.GetSceneByName(SceneName);
+            Assert.That(SceneManager.SetActiveScene(trialScene), Is.True);
+            yield return SceneManager.UnloadSceneAsync(bootstrap);
             var trial = FindRootComponent<SoundwellTrial>();
             Assert.That(trial, Is.Not.Null, "The saved trial scene must include the trial component.");
             trial.ReadKeyboard = false;
@@ -85,9 +90,9 @@ namespace Rpg.Tests.PlayMode
                 yield return null;
             Press(trial, ring: true);
             Assert.That(trial.HasBellTarget, Is.True, "The retry must allow the experiment again.");
-            var reload = SceneManager.LoadSceneAsync(SceneName);
-            for (var wait = Until(() => reload.isDone, "reload the trial"); wait.MoveNext();)
-                yield return null;
+            yield return SceneManager.UnloadSceneAsync(trialScene);
+            yield return SceneManager.LoadSceneAsync(SceneName, LoadSceneMode.Additive);
+            Assert.That(SceneManager.SetActiveScene(SceneManager.GetSceneByName(SceneName)), Is.True);
             var fresh = FindRootComponent<SoundwellTrial>();
             Assert.That(fresh, Is.Not.Null);
             Assert.That(fresh, Is.Not.SameAs(trial));
