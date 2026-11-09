@@ -16,7 +16,7 @@ Unity 2D RPG 工程。当前工作剧情为“归来”：被宣布战死的主�
 ## 本地启动
 
 1. 用 Unity Hub 安装 **Unity 6000.6.8f1**。克隆本仓库，先切换到 `codex/dev`。
-2. 此私有仓库已完整纳入 ORK 3.22.0 / Makinom 2.21.0 的插件、Gizmos、说明、源码压缩包及原始 `.meta`，克隆后无需再次导入原包。在仓库根目录用 Python 3 校验资源。Windows 上可将 `python` 换为 `py -3`。
+2. 此仓库已完整纳入 ORK 3.22.0 / Makinom 2.21.0 的插件、Gizmos、说明、源码压缩包及原始 `.meta`，克隆后无需再次导入原包。在仓库根目录用 Python 3 校验资源。Windows 上可将 `python` 换为 `py -3`。
 
    ```sh
    python tools/verify_ork.py
