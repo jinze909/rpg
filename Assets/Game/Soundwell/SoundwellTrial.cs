@@ -1,5 +1,5 @@
 using GamingIsLove.Makinom;
-using GamingIsLove.Makinom.Components;
+using System;
 using UnityEngine;
 
 namespace Rpg.Soundwell
@@ -7,7 +7,8 @@ namespace Rpg.Soundwell
     public sealed class SoundwellTrial : MonoBehaviour
     {
         private enum Signal { Ready, Ringing, Wrapped, Searching }
-        private const string SignalKey = "soundwell.bell";
+        private const string SignalKey = "bell";
+        private const string TrialVariableId = "rpg.soundwell.signal-trial";
         private const float Reach = 1.25f;
         private const float Speed = 4f;
 
@@ -26,6 +27,7 @@ namespace Rpg.Soundwell
         private float searchStarted;
 
         public bool ReadKeyboard { get; set; } = true;
+        public bool IsReady => view != null;
         public Camera TrialCamera => trialCamera;
         public Vector2 PlayerPosition => playerBody.position;
         public Vector2 BeastPosition => beast.position;
@@ -37,9 +39,16 @@ namespace Rpg.Soundwell
         private bool AtBell => Vector2.Distance(playerBody.position, bell.position) <= Reach;
         private bool AtSafePoint => Vector2.Distance(playerBody.position, safePoint.position) <= 1.1f;
 
-        private void Awake()
+        private void Start()
         {
-            variables = gameObject.AddComponent<ObjectVariablesComponent>().Handler;
+            // The saved ORK starter initializes Makinom before this scene begins.
+            variables = Maki.Initialized ? Maki.Game.GetObjectVariables(TrialVariableId) : null;
+            if (variables == null)
+            {
+                enabled = false;
+                throw new InvalidOperationException("Makinom could not create the Soundwell object's variables.");
+            }
+
             playerBody = player.gameObject.AddComponent<Rigidbody2D>();
             playerBody.gravityScale = 0f;
             playerBody.constraints = RigidbodyConstraints2D.FreezeRotation;

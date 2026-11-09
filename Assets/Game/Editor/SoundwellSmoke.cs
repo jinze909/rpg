@@ -103,6 +103,8 @@ namespace Rpg.Editor
             var trial = FindRootComponent<SoundwellTrial>();
             Require(trial != null, "The saved trial scene must include the trial component.");
             trial.ReadKeyboard = false;
+            for (var wait = Until(() => trial.IsReady, "initialize Soundwell"); wait.MoveNext();)
+                yield return null;
             Vector2 home = trial.BeastPosition;
             Vector2 retreat = trial.PlayerPosition;
             Press(trial, ring: true);
@@ -161,6 +163,8 @@ namespace Rpg.Editor
             yield return SceneManager.LoadSceneAsync(SceneName);
             var fresh = FindRootComponent<SoundwellTrial>();
             Require(fresh != null && !ReferenceEquals(fresh, trial), "Reload must create a fresh trial.");
+            for (var wait = Until(() => fresh.IsReady, "initialize the reloaded trial"); wait.MoveNext();)
+                yield return null;
             Require(!fresh.HasBellTarget, "fresh.HasBellTarget must be false.");
             Require(!fresh.IsWrapped, "fresh.IsWrapped must be false.");
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
