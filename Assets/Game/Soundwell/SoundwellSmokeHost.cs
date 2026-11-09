@@ -275,6 +275,9 @@ namespace Rpg.Soundwell
                 "The beast intent marker must exist but remain hidden before any sound.");
             Vector2 home = trial.BeastPosition;
             Vector2 retreat = trial.PlayerPosition;
+            Vector2 bellStart = trial.BellPosition;
+            Require(!trial.IsCarrying && !TrialActionButton(trial, "Carry").interactable,
+                "Bell pickup must require reaching the actual bell.");
             Press(trial, ring: true);
             Require(!trial.HasBellTarget, "Interaction must require proximity.");
 
@@ -287,8 +290,9 @@ namespace Rpg.Soundwell
             Require(ShowsPrompt(trial, "[WASD / Arrows / Stick] Move"), "The movement control must stay visible at the bell.");
             Require(TrialActionButton(trial, "Ring").interactable &&
                 TrialActionButton(trial, "Wrap").interactable &&
+                TrialActionButton(trial, "Carry").interactable &&
                 !TrialActionButton(trial, "Retry").interactable,
-                "The HUD must enable bell actions but reject reset away from safety.");
+                "The HUD must enable bell actions and pickup but reject reset away from safety.");
 
             // Activating keyboard/pad navigation must stop motion and suppress the
             // simultaneous gameplay input from the shared stick and A/B/X buttons.
@@ -385,6 +389,8 @@ namespace Rpg.Soundwell
             Require(!trial.IsSearching, "trial.IsSearching must be false.");
             Require(trial.BeastPosition == home, "Reset must return the beast to its initial position.");
             Require(!bellAudio.loop && bellAudio.clip == null, "Reset must clear the bell's playback state.");
+            Require(!trial.IsCarrying && trial.BellPosition == bellStart,
+                "Reset must put the portable bell back at its original stand.");
             yield return null;
             Require(!intentMarker.enabled, "Retreat/reset must clear the monster intent indicator.");
             Capture(trial, "03-retreat-reset");
@@ -392,8 +398,39 @@ namespace Rpg.Soundwell
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= -2.25f, "reach the bell on retry"); wait.MoveNext();)
                 yield return null;
+            Press(trial);
+            yield return null;
+            ClickTrialAction(trial, "Carry");
+            Require(trial.IsCarrying && !trial.HasBellTarget && !bellAudio.isPlaying,
+                "UGUI Lift must carry the real bell and silence any decoy.");
+            yield return null;
+            Require(!TrialActionButton(trial, "Ring").interactable &&
+                !TrialActionButton(trial, "Wrap").interactable &&
+                TrialActionButton(trial, "Carry").interactable,
+                "Carrying must disable ringing and wrapping until the bell is put down.");
             Press(trial, ring: true);
-            Require(trial.HasBellTarget, "The retry must allow the experiment again.");
+            Require(!trial.HasBellTarget, "A carried bell may not create an infinite moving lure.");
+
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= -1.8f,
+                "carry the bell into the side lane"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.IsCarrying && trial.BellPosition.y < bellStart.y - 1.5f,
+                "The same bell object must follow the player to a distinct sound source.");
+            ClickTrialAction(trial, "Carry");
+            Require(!trial.IsCarrying && Vector2.Distance(trial.BellPosition, trial.PlayerPosition) < 0.15f,
+                "UGUI Drop must place the bell at the player, not teleport it to the old stand.");
+            yield return null;
+            Press(trial, ring: true);
+            Require(trial.HasBellTarget, "The relocated bell must still ring using the real signal state.");
+            yield return null;
+            Require(intentMarker.enabled &&
+                Vector2.Distance((Vector2)intentMarker.transform.position,
+                    new Vector2(1.15f, trial.BellPosition.y)) < 0.06f,
+                "Relocating the bell must redirect the real beast intent toward the new lane.");
+            Capture(trial, "04-relocated-bell");
             yield return SceneManager.LoadSceneAsync(SceneName);
             var fresh = FindRootComponent<SoundwellTrial>();
             Require(fresh != null && !ReferenceEquals(fresh, trial), "Reload must create a fresh trial.");
@@ -401,6 +438,8 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!fresh.HasBellTarget, "fresh.HasBellTarget must be false.");
             Require(!fresh.IsWrapped, "fresh.IsWrapped must be false.");
+            Require(!fresh.IsCarrying && fresh.BellPosition == bellStart,
+                "Scene reload must restore the initial named bell stand and carrying state.");
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
             yield return null;
             var freshMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
@@ -446,7 +485,7 @@ namespace Rpg.Soundwell
 
             var idle = SoundwellControlFrame.FromButtons(Vector2.zero,
                 false, false, false, false, false, false, false, false);
-            Require(!idle.Ring && !idle.Wrap && !idle.Retry && !idle.Back,
+            Require(!idle.Ring && !idle.Wrap && !idle.Retry && !idle.Back && !idle.Carry,
                 "A neutral pad must not trigger an action.");
             var diagonal = SoundwellControlFrame.FromButtons(new Vector2(1f, 1f),
                 false, false, false, false, false, false, false, false);
@@ -463,6 +502,15 @@ namespace Rpg.Soundwell
             }
             restarted.ApplyControls(idle);
             yield return null;
+            var shoulder = SoundwellControlFrame.FromButtons(Vector2.zero,
+                false, false, false, false, false, false, false, false,
+                false, true);
+            Require(shoulder.Carry && !shoulder.Ring && !shoulder.Wrap && !shoulder.Retry,
+                "Controller left shoulder must map only to the portable bell action.");
+            restarted.ApplyControls(shoulder);
+            Require(restarted.IsCarrying, "Controller LB must actually lift the bell.");
+            restarted.ApplyControls(shoulder);
+            Require(!restarted.IsCarrying, "Controller LB must drop the same bell.");
             var south = SoundwellControlFrame.FromButtons(Vector2.zero,
                 false, false, false, false, true, false, false, false);
             Require(south.Ring && !south.Wrap && !south.Retry && !south.Back,

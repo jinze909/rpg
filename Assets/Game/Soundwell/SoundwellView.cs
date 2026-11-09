@@ -26,6 +26,8 @@ namespace Rpg.Soundwell
         private readonly Button wrapButton;
         private readonly Button retryButton;
         private readonly Button backButton;
+        private readonly Button carryButton;
+        private readonly Text carryButtonLabel;
         private readonly Text wrapButtonLabel;
         private readonly Text menuStatus;
         private readonly EventSystem actionEventSystem;
@@ -50,6 +52,8 @@ namespace Rpg.Soundwell
             Plate(root, "Trial floor", Vector2.zero, new Vector2(14f, 6.4f), new Color(0.11f, 0.19f, 0.23f), -4);
             Plate(root, "Beast lane", new Vector2(3.7f, 0f), new Vector2(6.55f, 6.4f), new Color(0.22f, 0.16f, 0.18f), -3);
             Plate(safe, "Retreat mark", Vector2.zero, new Vector2(1.75f, 1.75f), new Color(0.16f, 0.38f, 0.36f), -1);
+            Plate(root, "PLACEHOLDER side bell stand", new Vector2(-2f, -1.95f),
+                new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
             Wall(root, "Safety grating", new Vector2(0.25f, 0f), new Vector2(0.32f, 6.4f));
             Wall(root, "West wall", new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
             Wall(root, "North wall", new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f));
@@ -97,6 +101,7 @@ namespace Rpg.Soundwell
                 new Vector2(0, 194), new Vector2(650, 22));
             AddLabel(rect, "RETREAT", 13, Cloth, new Vector2(-278, -68), new Vector2(120, 24));
             AddLabel(rect, "COPPER BELL", 13, Gold, new Vector2(-88, -43), new Vector2(120, 22));
+            AddLabel(rect, "SIDE BELL STAND", 13, Cloth, new Vector2(-92, -122), new Vector2(180, 24));
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
             AddLabel(rect, "[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry", 14, Cloth,
@@ -121,6 +126,8 @@ namespace Rpg.Soundwell
             wrapButtonLabel = wrapButton.GetComponentInChildren<Text>();
             retryButton = CreateActionButton(actionCanvas.transform, "Retry", "RESET  [R / Y]", 2, retry);
             backButton = CreateActionButton(actionCanvas.transform, "Back", "BACK  [Esc / B]", 3, back);
+            carryButton = CreateActionButton(actionCanvas.transform, "Carry", "LIFT  [F / LB]", 4, carry);
+            carryButtonLabel = carryButton.GetComponentInChildren<Text>();
             menuStatus = AddLabel(actionCanvas.transform, "TAB / START: FOCUS ACTIONS",
                 14, Cloth, new Vector2(-270f, 220f), new Vector2(360f, 32f));
             menuStatus.resizeTextForBestFit = true;
@@ -146,7 +153,7 @@ namespace Rpg.Soundwell
         public void SetActionMenuOpen(bool open)
         {
             actionMenuOpen = open;
-            foreach (var button in new[] { ringButton, wrapButton, retryButton, backButton })
+            foreach (var button in new[] { ringButton, wrapButton, retryButton, backButton, carryButton })
                 button.navigation = new Navigation
                 {
                     mode = open ? Navigation.Mode.Automatic : Navigation.Mode.None
@@ -173,7 +180,7 @@ namespace Rpg.Soundwell
             layoutReady = true;
             compactHud = compact;
 
-            var buttons = new[] { ringButton, wrapButton, retryButton, backButton };
+            var buttons = new[] { ringButton, wrapButton, retryButton, backButton, carryButton };
             for (int i = 0; i < buttons.Length; i++)
             {
                 var rect = (RectTransform)buttons[i].transform;
@@ -181,8 +188,8 @@ namespace Rpg.Soundwell
                 {
                     rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
                     rect.pivot = new Vector2(0.5f, 0f);
-                    rect.anchoredPosition = new Vector2(i % 2 == 0 ? -105f : 105f,
-                        i < 2 ? 80f : 22f);
+                    rect.anchoredPosition = new Vector2(i == 4 ? 0f : i % 2 == 0 ? -105f : 105f,
+                        i == 4 ? 138f : i < 2 ? 80f : 22f);
                     rect.sizeDelta = new Vector2(190f, 46f);
                 }
                 else
@@ -199,7 +206,7 @@ namespace Rpg.Soundwell
             {
                 statusRect.anchorMin = statusRect.anchorMax = new Vector2(0.5f, 0f);
                 statusRect.pivot = new Vector2(0.5f, 0f);
-                statusRect.anchoredPosition = new Vector2(0f, 144f);
+                statusRect.anchoredPosition = new Vector2(0f, 202f);
                 statusRect.sizeDelta = new Vector2(435f, 36f);
             }
             else
@@ -213,7 +220,8 @@ namespace Rpg.Soundwell
 
         private bool IsActionSelection(GameObject selected) =>
             selected == ringButton.gameObject || selected == wrapButton.gameObject ||
-            selected == retryButton.gameObject || selected == backButton.gameObject;
+            selected == retryButton.gameObject || selected == backButton.gameObject ||
+            selected == carryButton.gameObject;
 
         private void EnsureActionSelection()
         {
@@ -223,7 +231,9 @@ namespace Rpg.Soundwell
                 return;
 
             var target = ringButton.interactable ? ringButton :
-                wrapButton.interactable ? wrapButton : retryButton.interactable ? retryButton : backButton;
+                wrapButton.interactable ? wrapButton :
+                carryButton.interactable ? carryButton :
+                retryButton.interactable ? retryButton : backButton;
             actionEventSystem.SetSelectedGameObject(target.gameObject);
         }
 
@@ -253,7 +263,7 @@ namespace Rpg.Soundwell
         }
 
         public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint,
-            Vector2 beastDestination)
+            bool carrying, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -266,10 +276,14 @@ namespace Rpg.Soundwell
                 beastIntentMarker.color = intentColor;
             }
             ArrangeActionHud(camera.aspect);
-            ringButton.interactable = atBell;
-            wrapButton.interactable = atBell;
+            ringButton.interactable = atBell && !carrying;
+            wrapButton.interactable = atBell && !carrying;
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
+            carryButton.interactable = atBell || carrying;
+            string carryCaption = carrying ? "DROP  [F / LB]" : "LIFT  [F / LB]";
+            if (carryButtonLabel.text != carryCaption)
+                carryButtonLabel.text = carryCaption;
             if (actionMenuOpen)
                 EnsureActionSelection();
             string wrapCaption = wrapped ? "UNWRAP  [Q / X]" : "WRAP  [Q / X]";
@@ -284,9 +298,11 @@ namespace Rpg.Soundwell
             }
 
             string prompt;
-            if (atBell)
+            if (carrying)
+                prompt = "Carry the bell toward the SIDE BELL STAND. [F / LB] Drop to relocate its sound.";
+            else if (atBell)
                 prompt = wrapped ? "[E / Pad A] Try the wrapped bell   [Q / Pad X] Remove the cloth"
-                    : "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth";
+                    : "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth   [F / LB] Lift";
             else if (ringing || wrapped)
                 prompt = atSafePoint ? "[R / Pad Y] Reset the experiment" : "Return to RETREAT to reset the experiment.";
             else

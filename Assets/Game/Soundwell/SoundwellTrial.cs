@@ -9,6 +9,7 @@ namespace Rpg.Soundwell
     {
         private enum Signal { Ready, Ringing, Wrapped, Searching }
         private const string SignalKey = "rpg.soundwell.signal-trial.bell";
+        private const string CarryKey = "rpg.soundwell.signal-trial.carrying-bell";
         private const float Reach = 1.25f;
         private const float Speed = 4f;
 
@@ -24,6 +25,7 @@ namespace Rpg.Soundwell
         private Rigidbody2D playerBody;
         private Vector2 movement;
         private Vector2 beastHome;
+        private Vector2 bellHome;
         private Vector2 lastHeard;
         private float searchStarted;
         private bool actionMenuOpen;
@@ -34,6 +36,8 @@ namespace Rpg.Soundwell
         public Camera TrialCamera => trialCamera;
         public Vector2 PlayerPosition => playerBody.position;
         public Vector2 BeastPosition => beast.position;
+        public Vector2 BellPosition => bell.position;
+        public bool IsCarrying => variables != null && variables.GetInt(CarryKey) != 0;
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
@@ -59,11 +63,13 @@ namespace Rpg.Soundwell
             playerBody.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             player.gameObject.AddComponent<CircleCollider2D>().radius = 0.3f;
             beastHome = beast.position;
+            bellHome = bell.position;
             view = new SoundwellView(transform, trialCamera, player, bell, beast, safePoint,
                 () => ApplyInput(movement, true, false, false),
                 () => ApplyInput(movement, false, true, false),
                 () => ApplyInput(movement, false, false, true),
-                () => { ReturnToBootstrap(); });
+                () => { ReturnToBootstrap(); },
+                () => ApplyInput(movement, false, false, false, true));
             ResetTrial();
             initialized = true;
         }
@@ -107,13 +113,18 @@ namespace Rpg.Soundwell
         private void FixedUpdate()
         {
             if (IsReady)
-                playerBody.linearVelocity = movement * Speed;
+                playerBody.linearVelocity = movement * (IsCarrying ? Speed * 0.7f : Speed);
         }
 
         private void LateUpdate()
         {
             if (!IsReady)
                 return;
+
+            // While lifted, the single saved bell object follows the player;
+            // it is silent until placed, so no mobile infinite decoy is created.
+            if (IsCarrying)
+                bell.position = new Vector3(playerBody.position.x + 0.35f, playerBody.position.y, 0f);
 
             Vector2 destination = beastHome;
             if (HasBellTarget)
@@ -137,7 +148,8 @@ namespace Rpg.Soundwell
 
             // The drawn intent marker receives exactly the destination already
             // used by the beast, never a separate visual guess.
-            view.Refresh(HasBellTarget, IsSearching, IsWrapped, AtBell, AtSafePoint, destination);
+            view.Refresh(HasBellTarget, IsSearching, IsWrapped, AtBell, AtSafePoint,
+                IsCarrying, destination);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -166,10 +178,10 @@ namespace Rpg.Soundwell
                 ReturnToBootstrap();
                 return;
             }
-            ApplyInput(controls.Movement, controls.Ring, controls.Wrap, controls.Retry);
+            ApplyInput(controls.Movement, controls.Ring, controls.Wrap, controls.Retry, controls.Carry);
         }
 
-        public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry)
+        public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry, bool carry = false)
         {
             if (bootstrapLoad != null)
                 return;
@@ -181,7 +193,25 @@ namespace Rpg.Soundwell
                 return;
             }
 
-            if (!AtBell)
+            // Carry/drop is a real player action, with its state held in the
+            // existing Makinom game variables alongside the bell signal.
+            if (carry)
+            {
+                if (IsCarrying)
+                {
+                    variables.Set(CarryKey, 0);
+                    bell.position = new Vector3(playerBody.position.x, playerBody.position.y, 0f);
+                }
+                else if (AtBell)
+                {
+                    variables.Set(CarryKey, 1);
+                    SetSignal(Signal.Ready);
+                    view.ResetPulse();
+                }
+                return;
+            }
+
+            if (IsCarrying || !AtBell)
                 return;
 
             if (wrap)
@@ -215,6 +245,8 @@ namespace Rpg.Soundwell
             movement = Vector2.zero;
             playerBody.linearVelocity = Vector2.zero;
             playerBody.position = safePoint.position;
+            bell.position = bellHome;
+            variables.Set(CarryKey, 0);
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);
             lastHeard = beastHome;
@@ -241,14 +273,17 @@ namespace Rpg.Soundwell
         public bool Wrap { get; }
         public bool Retry { get; }
         public bool Back { get; }
+        public bool Carry { get; }
 
-        private SoundwellControlFrame(Vector2 movement, bool ring, bool wrap, bool retry, bool back)
+        private SoundwellControlFrame(Vector2 movement, bool ring, bool wrap,
+            bool retry, bool back, bool carry)
         {
             Movement = Vector2.ClampMagnitude(movement, 1f);
             Ring = ring;
             Wrap = wrap;
             Retry = retry;
             Back = back;
+            Carry = carry;
         }
 
         public static bool EnterRequested(bool keyboardF2, bool gamepadSouth) =>
@@ -257,16 +292,18 @@ namespace Rpg.Soundwell
         // Pure mapping for independent, hardware-free Play Mode assertions.
         public static SoundwellControlFrame FromButtons(Vector2 movement,
             bool keyboardRing, bool keyboardWrap, bool keyboardRetry, bool keyboardBack,
-            bool gamepadSouth, bool gamepadEast, bool gamepadWest, bool gamepadNorth) =>
+            bool gamepadSouth, bool gamepadEast, bool gamepadWest, bool gamepadNorth,
+            bool keyboardCarry = false, bool gamepadLeftShoulder = false) =>
             new SoundwellControlFrame(movement, keyboardRing || gamepadSouth,
                 keyboardWrap || gamepadWest, keyboardRetry || gamepadNorth,
-                keyboardBack || gamepadEast);
+                keyboardBack || gamepadEast, keyboardCarry || gamepadLeftShoulder);
 
         public static SoundwellControlFrame ReadUnity() => FromButtons(
             new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")),
             Input.GetKeyDown(KeyCode.E), Input.GetKeyDown(KeyCode.Q),
             Input.GetKeyDown(KeyCode.R), Input.GetKeyDown(KeyCode.Escape),
             Input.GetKeyDown(KeyCode.JoystickButton0), Input.GetKeyDown(KeyCode.JoystickButton1),
-            Input.GetKeyDown(KeyCode.JoystickButton2), Input.GetKeyDown(KeyCode.JoystickButton3));
+            Input.GetKeyDown(KeyCode.JoystickButton2), Input.GetKeyDown(KeyCode.JoystickButton3),
+            Input.GetKeyDown(KeyCode.F), Input.GetKeyDown(KeyCode.JoystickButton4));
     }
 }
