@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         private Vector2 beastHome;
         private Vector2 lastHeard;
         private float searchStarted;
+        private bool actionMenuOpen;
         [NonSerialized] private bool initialized;
 
         public bool ReadKeyboard { get; set; } = true;
@@ -36,6 +37,7 @@ namespace Rpg.Soundwell
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
+        public bool ActionMenuOpen => actionMenuOpen;
 
         private Signal Current => (Signal)variables.GetInt(SignalKey);
         private bool AtBell => Vector2.Distance(playerBody.position, bell.position) <= Reach;
@@ -71,7 +73,35 @@ namespace Rpg.Soundwell
             if (!IsReady || !ReadKeyboard)
                 return;
 
+            if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.JoystickButton7))
+            {
+                SetActionMenuOpen(!actionMenuOpen);
+                return;
+            }
+
+            if (actionMenuOpen)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1))
+                    SetActionMenuOpen(false);
+                return;
+            }
+
             ApplyControls(SoundwellControlFrame.ReadUnity());
+        }
+
+        public void SetActionMenuOpen(bool open)
+        {
+            if (!IsReady || bootstrapLoad != null || actionMenuOpen == open)
+                return;
+
+            actionMenuOpen = open;
+            if (open)
+            {
+                movement = Vector2.zero;
+                playerBody.linearVelocity = Vector2.zero;
+            }
+
+            view.SetActionMenuOpen(open);
         }
 
         private void FixedUpdate()
@@ -113,6 +143,7 @@ namespace Rpg.Soundwell
             if (bootstrapLoad != null)
                 return bootstrapLoad;
 
+            SetActionMenuOpen(false);
             bootstrapLoad = SceneManager.LoadSceneAsync(SoundwellEntrance.BootstrapSceneName);
             movement = Vector2.zero;
             if (IsReady)
@@ -123,6 +154,11 @@ namespace Rpg.Soundwell
         // Keyboard, gamepad and the integration harness share this action boundary.
         public void ApplyControls(SoundwellControlFrame controls)
         {
+            // Do not double-handle the same gamepad A / directional event when
+            // StandaloneInputModule is submitting or moving a focused UGUI Button.
+            if (actionMenuOpen)
+                return;
+
             if (controls.Back)
             {
                 ReturnToBootstrap();

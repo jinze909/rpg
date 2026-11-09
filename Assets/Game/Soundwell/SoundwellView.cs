@@ -26,6 +26,10 @@ namespace Rpg.Soundwell
         private readonly Button retryButton;
         private readonly Button backButton;
         private readonly Text wrapButtonLabel;
+        private readonly Text menuStatus;
+        private readonly EventSystem actionEventSystem;
+        private readonly bool previousNavigationEvents;
+        private bool actionMenuOpen;
         private float pulseStarted = float.NegativeInfinity;
         private bool mutedPulse;
 
@@ -104,6 +108,8 @@ namespace Rpg.Soundwell
             wrapButtonLabel = wrapButton.GetComponentInChildren<Text>();
             retryButton = CreateActionButton(actionCanvas.transform, "Retry", "RESET  [R / Y]", 2, retry);
             backButton = CreateActionButton(actionCanvas.transform, "Back", "BACK  [Esc / B]", 3, back);
+            menuStatus = AddLabel(actionCanvas.transform, "TAB / START: FOCUS ACTIONS",
+                14, Cloth, new Vector2(-270f, 220f), new Vector2(360f, 32f));
 
             if (EventSystem.current == null)
             {
@@ -111,6 +117,49 @@ namespace Rpg.Soundwell
                     typeof(EventSystem), typeof(StandaloneInputModule));
                 events.transform.SetParent(root, false);
             }
+
+            actionEventSystem = EventSystem.current;
+            if (actionEventSystem == null)
+                throw new System.InvalidOperationException("Soundwell action HUD has no EventSystem.");
+            previousNavigationEvents = actionEventSystem.sendNavigationEvents;
+            actionEventSystem.sendNavigationEvents = false;
+        }
+
+        // Explicit focus mode: the same stick/keys either control the player OR UGUI,
+        // never both. Outside this mode only pointer clicks reach the action buttons.
+        public void SetActionMenuOpen(bool open)
+        {
+            actionMenuOpen = open;
+            foreach (var button in new[] { ringButton, wrapButton, retryButton, backButton })
+                button.navigation = new Navigation
+                {
+                    mode = open ? Navigation.Mode.Automatic : Navigation.Mode.None
+                };
+
+            actionEventSystem.sendNavigationEvents = open;
+            menuStatus.text = open
+                ? "ACTION FOCUS  /  MOVE: SELECT  /  ENTER OR A: USE  /  ESC OR B: RESUME"
+                : "TAB / START: FOCUS ACTIONS";
+            if (open)
+                EnsureActionSelection();
+            else if (IsActionSelection(actionEventSystem.currentSelectedGameObject))
+                actionEventSystem.SetSelectedGameObject(null);
+        }
+
+        private bool IsActionSelection(GameObject selected) =>
+            selected == ringButton.gameObject || selected == wrapButton.gameObject ||
+            selected == retryButton.gameObject || selected == backButton.gameObject;
+
+        private void EnsureActionSelection()
+        {
+            var selected = actionEventSystem.currentSelectedGameObject;
+            var button = selected != null ? selected.GetComponent<Button>() : null;
+            if (IsActionSelection(selected) && button != null && button.IsActive() && button.interactable)
+                return;
+
+            var target = ringButton.interactable ? ringButton :
+                wrapButton.interactable ? wrapButton : retryButton.interactable ? retryButton : backButton;
+            actionEventSystem.SetSelectedGameObject(target.gameObject);
         }
 
         private static Button CreateActionButton(Transform parent, string name, string caption, int index, Action action)
@@ -145,6 +194,8 @@ namespace Rpg.Soundwell
             wrapButton.interactable = atBell;
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
+            if (actionMenuOpen)
+                EnsureActionSelection();
             string wrapCaption = wrapped ? "UNWRAP  [Q / X]" : "WRAP  [Q / X]";
             if (wrapButtonLabel.text != wrapCaption)
                 wrapButtonLabel.text = wrapCaption;
@@ -216,6 +267,14 @@ namespace Rpg.Soundwell
 
         public void Dispose()
         {
+            // Return the EventSystem to its pre-trial state if ORK keeps it alive
+            // across the scene transition.
+            if (actionEventSystem != null)
+            {
+                actionEventSystem.sendNavigationEvents = previousNavigationEvents;
+                if (IsActionSelection(actionEventSystem.currentSelectedGameObject))
+                    actionEventSystem.SetSelectedGameObject(null);
+            }
             Object.Destroy(square);
             Object.Destroy(ringMaterial);
             Object.Destroy(clearBell);

@@ -226,6 +226,24 @@ namespace Rpg.Soundwell
                 TrialActionButton(trial, "Wrap").interactable &&
                 !TrialActionButton(trial, "Retry").interactable,
                 "The HUD must enable bell actions but reject reset away from safety.");
+
+            // Activating keyboard/pad navigation must stop motion and suppress the
+            // simultaneous gameplay input from the shared stick and A/B/X buttons.
+            trial.SetActionMenuOpen(true);
+            Require(trial.ActionMenuOpen && EventSystem.current.sendNavigationEvents,
+                "Tab/Start action mode must enable UGUI keyboard and gamepad navigation.");
+            Require(EventSystem.current.currentSelectedGameObject == TrialActionButton(trial, "Ring").gameObject,
+                "At the bell, focused UGUI navigation must initially select Ring.");
+            Vector2 pausedPosition = trial.PlayerPosition;
+            trial.ApplyControls(SoundwellControlFrame.FromButtons(Vector2.right,
+                false, false, false, false, true, false, true, false));
+            yield return new WaitForFixedUpdate();
+            Require(Vector2.Distance(trial.PlayerPosition, pausedPosition) < 0.05f && !trial.HasBellTarget,
+                "The same stick and A/X inputs must neither move nor ring while the HUD has focus.");
+            trial.SetActionMenuOpen(false);
+            Require(!trial.ActionMenuOpen && !EventSystem.current.sendNavigationEvents &&
+                EventSystem.current.currentSelectedGameObject == null,
+                "Leaving focus mode must disable Submit and release the UGUI selection.");
             ClickTrialAction(trial, "Ring");
             Require(trial.HasBellTarget, "The UGUI Ring button must trigger the real Soundwell signal.");
             Require(bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Copper bell",
@@ -400,12 +418,30 @@ namespace Rpg.Soundwell
                 yield return null;
             mouseTrial.ReadKeyboard = false;
             yield return null;
-            ClickTrialAction(mouseTrial, "Back");
+            mouseTrial.SetActionMenuOpen(true);
+            Require(mouseTrial.ActionMenuOpen && EventSystem.current.sendNavigationEvents,
+                "The new scene must support action focus.");
+            var first = EventSystem.current.currentSelectedGameObject;
+            Require(first == TrialActionButton(mouseTrial, "Retry").gameObject,
+                "At safety, focus must start at the enabled Reset button, not a disabled bell action.");
+            var nav = new AxisEventData(EventSystem.current)
+            {
+                moveDir = MoveDirection.Down,
+                moveVector = Vector2.down
+            };
+            ExecuteEvents.Execute<IMoveHandler>(first, nav, ExecuteEvents.moveHandler);
+            var backSelection = TrialActionButton(mouseTrial, "Back");
+            Require(EventSystem.current.currentSelectedGameObject == backSelection.gameObject,
+                "Down/left-stick navigation must reach the Back action.");
+            ExecuteEvents.Execute<ISubmitHandler>(backSelection.gameObject,
+                new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
             for (var wait = Until(() => SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
                 "HUD Back returns to the entry scene"); wait.MoveNext();)
                 yield return null;
             Require(FindRootComponent<SoundwellEntrance>() != null,
-                "The UGUI Back button must return to a live entry scene.");
+                "Focused UGUI Back Submit must return to a live entry scene.");
+            Require(EventSystem.current != null && EventSystem.current.sendNavigationEvents,
+                "Returning to Bootstrap must restore its keyboard/gamepad UGUI navigation.");
         }
 
         private static Button TrialActionButton(SoundwellTrial trial, string action)
