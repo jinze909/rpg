@@ -38,6 +38,7 @@ namespace Rpg.Tests.Editor
             var root = new GameObject("Soundwell CI runner");
             Object.DontDestroyOnLoad(root);
             var host = root.AddComponent<SoundwellSmokeHost>();
+            LogAssert.Expect(LogType.Log, "RPG_SOUNDWELL_SIGNAL_VALIDATED");
             host.Run();
             while (!host.ExitCode.HasValue && EditorApplication.timeSinceStartup < deadline)
                 yield return null;

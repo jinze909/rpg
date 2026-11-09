@@ -71,7 +71,6 @@ namespace Rpg.Soundwell
                 "Unexpected initial scene: " + SceneManager.GetActiveScene().path);
             var entrance = FindRootComponent<SoundwellEntrance>();
             Require(entrance != null, "The saved Bootstrap scene must expose the trial.");
-            Debug.Log("SOUNDWELL_CI_BOOTSTRAP_READY");
             yield return entrance.OpenTrial();
             Require(SceneManager.GetActiveScene().name == SceneName, "The Bootstrap entrance must load Soundwell.");
             var trial = FindRootComponent<SoundwellTrial>();
@@ -79,7 +78,6 @@ namespace Rpg.Soundwell
             trial.ReadKeyboard = false;
             for (var wait = Until(() => trial.IsReady, "initialize Soundwell"); wait.MoveNext();)
                 yield return null;
-            Debug.Log("SOUNDWELL_CI_TRIAL_READY");
             Vector2 home = trial.BeastPosition;
             Vector2 retreat = trial.PlayerPosition;
             Press(trial, ring: true);
