@@ -31,5 +31,35 @@ def main():
                         print(f"{line_number + 1:5}: {source[line_number]}")
 
 
+
+def inspect_battle_system_selection():
+    """Print the exact ORK 3.22 BattleSystemSelection declaration and members."""
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        matches = []
+        for name in archive.namelist():
+            if not name.endswith(".cs"):
+                continue
+            source = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for index, line in enumerate(source):
+                if "class BattleSystemSelection" in line or "struct BattleSystemSelection" in line:
+                    matches.append((name, source, index))
+        if not matches:
+            print("\\nBattleSystemSelection declaration not found; matching references:")
+            for name in archive.namelist():
+                if not name.endswith(".cs"):
+                    continue
+                source = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+                for index, line in enumerate(source):
+                    if "BattleSystemSelection" in line:
+                        print(f"{name}:{index + 1}: {line.strip()}")
+        for name, source, index in matches:
+            start = max(0, index - 12)
+            end = min(len(source), index + 260)
+            print(f"\\n--- {name}: BattleSystemSelection declaration (lines {start + 1}-{end}) ---")
+            for line_number in range(start, end):
+                print(f"{line_number + 1:5}: {source[line_number]}")
+
+
 if __name__ == "__main__":
     main()
+    inspect_battle_system_selection()

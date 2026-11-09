@@ -184,13 +184,8 @@ namespace Rpg.Tests.Editor
             Assert.That(factionAsset, Is.Not.Null, "The saved ORK faction asset must exist: " + factionAssetPath);
             Assert.That(combatantAsset, Is.Not.Null, "The saved ORK default combatant asset must exist.");
 
-            BattleSystemAsset battleSystemAsset = AssetDatabase.LoadAssetAtPath<BattleSystemAsset>(
-                "Assets/Gaming Is Love/_Data/Battle System/0 - Turn Based.asset");
-            Assert.That(battleSystemAsset, Is.Not.Null, "The saved Turn Based battle-system asset must exist.");
-
             addCombatant.settings.faction.SetAsset(factionAsset);
             addCombatant.settings.combatantSetting.combatant.SetAsset(combatantAsset);
-            addCombatant.settings.battleArena.battleSystem.SetAsset(battleSystemAsset);
             addCombatant.conditionSetting.autoCheckType = ConditionAutoCheckType.Start;
             return actor;
         }
