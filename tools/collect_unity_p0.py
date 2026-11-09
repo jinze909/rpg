@@ -17,6 +17,14 @@ EXPECTED_TESTS = {
     "Rpg.Tests.Editor.P0BootstrapTests.FirstPlayInitializesFramework",
     "Rpg.Tests.Editor.P0BootstrapTests.SecondPlayInitializesFramework",
 }
+SOUNDWELL_TESTS = {
+    "Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry",
+    "Rpg.Tests.Editor.SoundwellOrkBattleTests.ThreePlayerCombatantsEnterOneOrkTurnBasedBattle",
+}
+SOUNDWELL_MARKERS = (
+    "RPG_SOUNDWELL_SIGNAL_VALIDATED",
+    "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED",
+)
 SOURCE_PATHS = ("Assets", "Packages", "ProjectSettings")
 
 # Import/updater notices can include "Unable to update following assemblies"
@@ -129,7 +137,7 @@ def collect(mode):
     soundwell = mode == "verify" and (root / "Assets/Game/Scenes/SoundwellTrial.unity").is_file()
     performance = None
     if soundwell:
-        expected_tests.add("Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry")
+        expected_tests.update(SOUNDWELL_TESTS)
         for filename in ("01-ringing.png", "02-wrapped-searching.png", "03-retreat-reset.png"):
             frame = evidence / "soundwell" / filename
             if not frame.is_file() or frame.stat().st_size < 1024:
@@ -194,7 +202,7 @@ def collect(mode):
             errors.append(f"Missing {filename}.")
     editmode_markers = ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second")
     if soundwell:
-        editmode_markers += ("RPG_SOUNDWELL_SIGNAL_VALIDATED",)
+        editmode_markers += SOUNDWELL_MARKERS
     for filename, markers in {
         "editmode.log": editmode_markers,
         "batch.log": ("RPG_BOOTSTRAP_VALIDATED",),
