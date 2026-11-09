@@ -39,7 +39,8 @@ namespace Rpg.Soundwell
         private bool mutedPulse;
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
-            Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back)
+            Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
+            Action carry)
         {
             this.camera = camera;
             square = Sprite.Create(Texture2D.whiteTexture,
