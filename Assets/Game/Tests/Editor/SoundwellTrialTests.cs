@@ -35,6 +35,12 @@ namespace Rpg.Tests.Editor
                 yield return null;
 
             Assert.That(Maki.Initialized && ORK.Initialized, Is.True, "The saved Bootstrap project must start.");
+            // Bootstrap has its own 30-second watchdog. The full end-to-end
+            // play-through now contains an additional real cart inspection,
+            // physical rescue, sign correction and map-kit recovery. Give the
+            // scenario a separate bounded window; individual interaction
+            // waits in the smoke host still fail after 10 seconds.
+            deadline = EditorApplication.timeSinceStartup + 90;
             var root = new GameObject("Soundwell CI runner");
             Object.DontDestroyOnLoad(root);
             var host = root.AddComponent<SoundwellSmokeHost>();
