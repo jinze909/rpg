@@ -604,6 +604,31 @@ namespace Rpg.Soundwell
             Require(trial.RopeRecovered && !ropeEvidence.enabled && !trial.SurveyorLineTied,
                 "The second experiment must acquire its own real escort material.");
 
+            // Retreat resets all optional observations. The earlier cart visit
+            // cannot silently unlock a post-rescue scene in this new trial.
+            // Inspect the cart again, physically, before asking the survivor
+            // to return for his own map kit.
+            Require(!trial.CartObserved && !trial.CartKitReclaimed && cartMapKit.enabled,
+                "Reset must require discovering the cart again on the rescue attempt.");
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -3.40f,
+                "return to the cart after the reset"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= 2.26f,
+                "reach the cart on the rescue attempt"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.CanInspectCart && TrialActionButton(trial, "Gate").interactable,
+                "Cart inspection must require the second attempt's real proximity.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.CartObserved && !trial.CartKitReclaimed && cartMapKit.enabled &&
+                ShowsPrompt(trial, "tracks lead inside"),
+                "The rescue attempt must own the cart observation, without claiming its kit.");
+            Capture(trial, "03-cart-rediscovered-after-reset");
+
             Press(trial, Vector2.left);
             for (var wait = Until(() => trial.PlayerPosition.x <= retreat.x + 0.06f,
                 "return from rope recovery toward the entrance"); wait.MoveNext();)
