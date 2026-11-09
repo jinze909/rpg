@@ -37,7 +37,7 @@ class PerformanceSummaryTests(unittest.TestCase):
 
     def test_invalid_or_incomplete_samples_cannot_crash_summary(self):
         invalid = (
-            {"frame_samples": 240},
+            {"frame_samples": 0},
             {"frame_time_ms_p95": float("nan")},
             {"frame_time_ms_p95": float("inf")},
             {"frame_time_ms_p95": 0},
