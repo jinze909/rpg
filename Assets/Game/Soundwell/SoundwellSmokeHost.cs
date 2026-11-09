@@ -328,8 +328,8 @@ namespace Rpg.Soundwell
                 "The gate button must be unavailable without a real distraction.");
             Require(!trial.AtSurveyor && !trial.HasSurveyorClue &&
                 !trial.PlankSecured && !trial.CanSecurePlank &&
-                !trial.SurveyorEscorting && !trial.RescueComplete,
-                "No surveyor objective can be claimed from the entry zone.");
+                !trial.SurveyorEscorting && !trial.RescueComplete && !trial.BeastContacted,
+                "No rescue or beast-contact penalty can be claimed from the entry zone.");
             var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
             Require(sideStand != null &&
@@ -594,7 +594,7 @@ namespace Rpg.Soundwell
             Require(!trial.IsCarrying && trial.BellPosition == bellStart,
                 "Reset must put the portable bell back at its original stand.");
             Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved &&
-                !trial.RopeRecovered && !trial.SurveyorLineTied &&
+                !trial.RopeRecovered && !trial.SurveyorLineTied && !trial.BeastContacted &&
                 revealedClawTrail.All(marker => !marker.enabled),
                 "Retreat reset must clear clues, revealed claw trail, and recovered guide rope.");
             yield return null;
@@ -765,6 +765,34 @@ namespace Rpg.Soundwell
                 "Player must cross the previously blocked doorway without teleporting.");
             Require(!trial.HasSurveyorClue,
                 "Crossing the threshold alone must not auto-reveal the surveyor's clue.");
+
+            // Walk the actual player into the live beast while the side bell
+            // is audible. Contact has a visible positional consequence but
+            // does not revoke the open gate or complete the rescue.
+            Require(!trial.BeastContacted && trial.HasBellTarget &&
+                trial.BeastPosition.y < -0.95f,
+                "Only a genuinely active low-lane beast can test contact.");
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.BeastContacted,
+                "player physically meets the live beast in the side bell lane"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.12f &&
+                trial.GateOpen && trial.HasBellTarget && !trial.RescueComplete &&
+                !trial.SurveyorEscorting && !trial.CartClueShared &&
+                ShowsPrompt(trial, "BEAST CONTACT: Pushed back to RETREAT"),
+                "Beast contact must push the player to safety without hiding a reset or inventing rescue.");
+            Capture(trial, "06-beast-contact-retreat");
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= 0.9f,
+                "reenter the already open gate after beast contact"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.BeastContacted && trial.GateOpen &&
+                !trial.RescueComplete && !trial.HasSurveyorClue,
+                "Beast encounter must allow the player to continue the original rescue.");
 
             // The real Rigidbody2D must stay in the room; merely displaying
             // a colored boundary sprite is not sufficient.
@@ -1161,7 +1189,7 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!trialAfterVictory.SurveyorEscorting &&
                 !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
-                !trialAfterVictory.SafeRouteMarked &&
+                !trialAfterVictory.SafeRouteMarked && !trialAfterVictory.BeastContacted &&
                 !trialAfterVictory.RopeRecovered && !trialAfterVictory.SurveyorLineTied &&
                 !trialAfterVictory.CartObserved && !trialAfterVictory.CartKitReclaimed &&
                 !trialAfterVictory.CartClueShared &&
@@ -1188,6 +1216,7 @@ namespace Rpg.Soundwell
                 .Count(item => !item.enabled) == 3,
                 "Scene reload must hide all revealed claw evidence until reinspection.");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
+                !fresh.BeastContacted &&
                 !fresh.FalseMarkerCleared && !fresh.SafeRouteMarked &&
                 !fresh.RopeObserved && !fresh.ClawsObserved &&
                 !fresh.CartObserved && !fresh.CartKitReclaimed && !fresh.CartClueShared &&

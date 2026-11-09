@@ -15,6 +15,7 @@ namespace Rpg.Soundwell
         private const string PlankSecuredKey = "rpg.soundwell.signal-trial.upper-plank-secured";
         private const string LowerPlankBrokenKey = "rpg.soundwell.signal-trial.lower-plank-broken";
         private const string EscortKey = "rpg.soundwell.signal-trial.surveyor-escorted";
+        private const string BeastContactKey = "rpg.soundwell.signal-trial.player-caught-by-beast";
         private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
         private const string SafeRouteMarkedKey = "rpg.soundwell.signal-trial.safe-route-marked";
@@ -74,6 +75,8 @@ namespace Rpg.Soundwell
         // A live positional threat, never another saved or guessed target.
         public bool BeastBlocksEscape => Vector2.Distance(beast.position, EscapeLanePosition) <
             EscapeLaneDangerRadius;
+        public bool BeastContacted => variables != null && variables.GetInt(BeastContactKey) != 0;
+        public const float BeastContactRadius = 0.67f;
         public Vector2 BellPosition => bell.position;
         public bool IsCarrying => variables != null && variables.GetInt(CarryKey) != 0;
         public bool CanPlaceBell => IsCarrying && FindBellStand(playerBody.position, out _);
@@ -253,6 +256,19 @@ namespace Rpg.Soundwell
                 beast.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(facing.y, facing.x) * Mathf.Rad2Deg);
             beast.position = next;
 
+            // A real encounter with the beast must have a consequence. The
+            // locked gate protects the west side; only direct contact in the
+            // open eastern room pushes the player back to RETREAT. Preserve
+            // earned route and rescue clues, avoiding a hidden total reset.
+            if (GateOpen && !RescueComplete && playerBody.position.x > 0.55f &&
+                Vector2.Distance(playerBody.position, beast.position) <= BeastContactRadius)
+            {
+                variables.Set(BeastContactKey, 1);
+                movement = Vector2.zero;
+                playerBody.linearVelocity = Vector2.zero;
+                playerBody.position = safePoint.position;
+            }
+
             // The drawn intent marker receives exactly the destination already
             // used by the beast, never a separate visual guess.
             bool returning = !HasBellTarget && !IsSearching &&
@@ -265,7 +281,7 @@ namespace Rpg.Soundwell
                 CanInspectCart, CanInspectClaws, CanTieEscortLine, CanShareCartClue,
                 RopeObserved, RopeRecovered, CartObserved, CartClueShared, CartKitReclaimed,
                 ClawsObserved, SurveyorLineTied,
-                BeastBlocksEscape, LowerPlankBroken, destination);
+                BeastBlocksEscape, BeastContacted, LowerPlankBroken, destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
@@ -451,6 +467,7 @@ namespace Rpg.Soundwell
             variables.Set(PlankSecuredKey, 0);
             variables.Set(LowerPlankBrokenKey, 0);
             variables.Set(EscortKey, 0);
+            variables.Set(BeastContactKey, 0);
             variables.Set(RescueKey, 0);
             variables.Set(FalseMarkerClearedKey, 0);
             variables.Set(SafeRouteMarkedKey, 0);

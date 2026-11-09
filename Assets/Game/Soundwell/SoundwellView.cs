@@ -432,7 +432,7 @@ namespace Rpg.Soundwell
             bool canShareCartClue, bool ropeObserved, bool ropeRecovered, bool cartObserved,
             bool cartClueShared, bool cartKitReclaimed,
             bool clawsObserved, bool surveyorLineTied, bool beastBlocksEscape,
-            bool lowerPlankBroken, Vector2 beastDestination)
+            bool beastContacted, bool lowerPlankBroken, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -598,7 +598,9 @@ namespace Rpg.Soundwell
             }
 
             string prompt;
-            if (falseMarkerCleared)
+            if (beastContacted && atSafePoint && !surveyorEscorting && !rescueComplete)
+                prompt = "BEAST CONTACT: Pushed back to RETREAT. The gate remains open; choose a safer route.";
+            else if (falseMarkerCleared)
                 prompt = safeRouteMarked
                     ? "SAFE ROUTE POSTED: The surveyor replaced his false marker with a verified route."
                     : cartKitReclaimed
