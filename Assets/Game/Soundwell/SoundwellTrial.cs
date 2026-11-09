@@ -84,6 +84,7 @@ namespace Rpg.Soundwell
         public bool CanInspectRope => AtRopeEvidence && !RopeObserved;
         public bool CanInspectClaws => AtClawEvidence && !ClawsObserved;
         public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
+        public bool SurveyorWaitingForLeader => view != null && view.WaitingForEscortLeader;
         public bool CanEscortSurveyor => AtUpperPlank && PlankSecured && !SurveyorEscorting &&
             !RescueComplete && Vector2.Distance(SurveyorWorldPosition, UpperBoardPosition) < 0.18f;
         public bool HasBellTarget => Current == Signal.Ringing;

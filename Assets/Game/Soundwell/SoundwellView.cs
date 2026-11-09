@@ -46,6 +46,7 @@ namespace Rpg.Soundwell
         private readonly EventSystem actionEventSystem;
         private readonly bool previousNavigationEvents;
         private bool actionMenuOpen;
+        private bool waitingForEscortLeader;
         private bool layoutReady;
         private bool compactHud;
         private float pulseStarted = float.NegativeInfinity;
@@ -326,11 +327,13 @@ namespace Rpg.Soundwell
         }
 
         public Vector2 SurveyorWorldPosition => surveyorFigure.position;
+        public bool WaitingForEscortLeader => waitingForEscortLeader;
         public Vector2 FalseMarkerWorldPosition => falseTrailMarker.transform.position;
 
         public void ResetSurveyor()
         {
             surveyorFigure.position = SoundwellTrial.SurveyorPosition;
+            waitingForEscortLeader = false;
             falseTrailMarker.enabled = true;
         }
 
@@ -378,6 +381,8 @@ namespace Rpg.Soundwell
                 : hasSurveyorClue ? Cloth : new Color(0.30f, 0.37f, 0.40f);
             Vector2 npc = surveyorFigure.position;
             Vector2 routeTarget;
+            if (!surveyorEscorting || rescueComplete)
+                waitingForEscortLeader = false;
             if (rescueComplete)
                 routeTarget = falseMarkerCleared ? (Vector2)retreatMarker.position
                     : FalseMarkerWorldPosition;
@@ -397,7 +402,18 @@ namespace Rpg.Soundwell
                 else if (npc.x > -0.65f)
                     routeTarget = new Vector2(-0.65f, 0f);
                 else
-                    routeTarget = (Vector2)escortLeader.position + new Vector2(0.45f, 0f);
+                {
+                    // The surveyor will not catch up from arbitrarily far away.
+                    // A small hysteresis prevents toggling on every frame at
+                    // the boundary; players must return and genuinely escort.
+                    float separation = Vector2.Distance(npc, escortLeader.position);
+                    if (waitingForEscortLeader)
+                        waitingForEscortLeader = separation > 2.0f;
+                    else
+                        waitingForEscortLeader = separation > 3.15f;
+                    routeTarget = waitingForEscortLeader ? npc
+                        : (Vector2)escortLeader.position + new Vector2(0.45f, 0f);
+                }
             }
             else
                 routeTarget = plankSecured ? SoundwellTrial.UpperBoardPosition
@@ -409,9 +425,11 @@ namespace Rpg.Soundwell
                 : rescueComplete
                     ? "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
                     : surveyorEscorting
-                        ? escortLeader.position.x > 0.85f && npc.x > 0.85f
-                            ? "SURVEYOR: Show me the way through the gate. I'll wait on this plank."
-                            : "SURVEYOR: Keep the gate open. I'm right behind you."
+                        ? waitingForEscortLeader
+                            ? "SURVEYOR: Too far ahead! Come back and lead me to RETREAT."
+                            : escortLeader.position.x > 0.85f && npc.x > 0.85f
+                                ? "SURVEYOR: Show me the way through the gate. I'll wait on this plank."
+                                : "SURVEYOR: Keep the gate open. I'm right behind you."
                 : plankSecured
                     ? "SURVEYOR: The upper plank holds. I can cross now—don't leave me here."
                     : hasSurveyorClue
@@ -452,6 +470,8 @@ namespace Rpg.Soundwell
                 prompt = "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
             else if (rescueComplete)
                 prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
+            else if (surveyorEscorting && waitingForEscortLeader)
+                prompt = "ESCORT PAUSED: Return to the surveyor, then lead him toward RETREAT.";
             else if (carrying)
                 prompt = canPlaceBell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."

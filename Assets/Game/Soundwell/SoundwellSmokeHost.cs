@@ -699,6 +699,49 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "Keep the gate open"),
                 "Leading across the physical gate must resume the real survivor's movement.");
             Capture(trial, "09-surveyor-follows-through-gate");
+
+            // Sprint well ahead to test that the NPC is not an autopilot:
+            // he must reach the gate, stop, and ask for his guide to return.
+            Press(trial, Vector2.left);
+            for (var wait = Until(() => trial.PlayerPosition.x <= retreat.x + 0.12f,
+                "player runs ahead and leaves the surveyor behind"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            for (var wait = Until(() => trial.SurveyorWaitingForLeader,
+                "surveyor stops after losing sight of the guide"); wait.MoveNext();)
+                yield return null;
+            Vector2 strandedPosition = trial.SurveyorWorldPosition;
+            for (int frame = 0; frame < 20; frame++)
+                yield return null;
+            Require(Vector2.Distance(strandedPosition, trial.SurveyorWorldPosition) < 0.03f &&
+                !trial.RescueComplete && ShowsPrompt(trial, "ESCORT PAUSED") &&
+                ShowsPrompt(trial, "Too far ahead") &&
+                Vector2.Distance(trial.SurveyorWorldPosition, retreat) > 1.1f,
+                "Leaving the surveyor behind must halt him and cannot complete rescue.");
+            Capture(trial, "09-escort-paused");
+
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -2.45f,
+                "player returns to collect the surveyor"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            for (var wait = Until(() => !trial.SurveyorWaitingForLeader,
+                "surveyor resumes following once the guide returns"); wait.MoveNext();)
+                yield return null;
+            Vector2 resumedPosition = trial.SurveyorWorldPosition;
+            for (var wait = Until(() => Vector2.Distance(
+                    resumedPosition, trial.SurveyorWorldPosition) > 0.18f,
+                "surveyor makes physical progress after the player returns"); wait.MoveNext();)
+                yield return null;
+            Require(trial.SurveyorEscorting && !trial.RescueComplete &&
+                !ShowsPrompt(trial, "ESCORT PAUSED"),
+                "Returning for the surveyor must resume escort without awarding victory.");
+            Capture(trial, "09-escort-resumed");
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -0.67f,
+                "guide returns to the open gate approach"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
             Press(trial, Vector2.down);
             for (var wait = Until(() => trial.PlayerPosition.y <= -1.8f,
                 "return toward the side bell"); wait.MoveNext();)
