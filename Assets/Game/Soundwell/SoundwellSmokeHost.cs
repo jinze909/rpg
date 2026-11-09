@@ -269,6 +269,12 @@ namespace Rpg.Soundwell
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
+            var gateCollider = trial.GetComponentsInChildren<BoxCollider2D>(true)
+                .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
+            Require(gateCollider != null && gateCollider.enabled && !trial.GateOpen,
+                "The inner gate must physically block passage before any bell experiment.");
+            Require(!TrialActionButton(trial, "Gate").interactable,
+                "The gate button must be unavailable without a real distraction.");
             var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
             Require(sideStand != null &&
@@ -456,6 +462,57 @@ namespace Rpg.Soundwell
                 "Relocating the bell must redirect the real beast intent toward the new lane.");
             Capture(trial, "04-relocated-bell");
 
+            // The saved gate requires the actual side-stand signal, nearby
+            // player, and beast physically outside the escape lane.
+            Press(trial, gate: true);
+            Require(!trial.GateOpen && !TrialActionButton(trial, "Gate").interactable,
+                "A remote G/RB action cannot open the gate, even during tracking.");
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -0.6f,
+                "approach the west-side gate panel"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= -0.15f,
+                "stand at the gate control"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            for (var wait = Until(() => trial.CanOpenGate,
+                "side bell draws beast far enough from the gate"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(!trial.GateOpen && TrialActionButton(trial, "Gate").interactable &&
+                ShowsPrompt(trial, "[G / RB] Open the gate"),
+                "The UGUI gate action requires a readable, real sound window.");
+            ClickTrialAction(trial, "Gate");
+            Require(trial.GateOpen, "The gate must open in the authoritative Makinom state.");
+            yield return null;
+            Require(!gateCollider.enabled && ShowsPrompt(trial, "GATE  /  OPEN"),
+                "The actual collider and world label must agree that the gate is open.");
+            Capture(trial, "06-inner-gate-open");
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= 0.9f,
+                "walk through the now-open inner gate"); wait.MoveNext();)
+                yield return null;
+            Require(trial.PlayerPosition.x > 0.25f,
+                "Player must cross the previously blocked doorway without teleporting.");
+
+            Press(trial, Vector2.left);
+            for (var wait = Until(() => trial.PlayerPosition.x <= -0.6f,
+                "return through the open gate"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= -1.8f,
+                "return toward the side bell"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.left);
+            for (var wait = Until(() => trial.PlayerPosition.x <= -1.85f,
+                "return to the relocated bell"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.GateOpen && !gateCollider.enabled,
+                "The gate must stay physically open for the rescue approach.");
+
             // Stopping a relocated bell starts a bounded search. Once the beast
             // loses the trail, the same Makinom signal keeps the cloth wrapped,
             // the intent marker vanishes, and the beast walks home visibly.
@@ -499,6 +556,10 @@ namespace Rpg.Soundwell
             Require(!fresh.IsWrapped, "fresh.IsWrapped must be false.");
             Require(!fresh.IsCarrying && fresh.BellPosition == bellStart && !fresh.CanPlaceBell,
                 "Scene reload must restore the initial named bell stand and carrying state.");
+            var freshGate = fresh.GetComponentsInChildren<BoxCollider2D>(true)
+                .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
+            Require(!fresh.GateOpen && freshGate != null && freshGate.enabled,
+                "Reload must restore the closed and physically blocking inner gate.");
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
             yield return null;
             var freshMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
@@ -544,7 +605,8 @@ namespace Rpg.Soundwell
 
             var idle = SoundwellControlFrame.FromButtons(Vector2.zero,
                 false, false, false, false, false, false, false, false);
-            Require(!idle.Ring && !idle.Wrap && !idle.Retry && !idle.Back && !idle.Carry,
+            Require(!idle.Ring && !idle.Wrap && !idle.Retry && !idle.Back &&
+                !idle.Carry && !idle.Gate,
                 "A neutral pad must not trigger an action.");
             var diagonal = SoundwellControlFrame.FromButtons(new Vector2(1f, 1f),
                 false, false, false, false, false, false, false, false);
@@ -564,8 +626,15 @@ namespace Rpg.Soundwell
             var shoulder = SoundwellControlFrame.FromButtons(Vector2.zero,
                 false, false, false, false, false, false, false, false,
                 false, true);
-            Require(shoulder.Carry && !shoulder.Ring && !shoulder.Wrap && !shoulder.Retry,
+            Require(shoulder.Carry && !shoulder.Ring && !shoulder.Wrap &&
+                !shoulder.Retry && !shoulder.Gate,
                 "Controller left shoulder must map only to the portable bell action.");
+            var rightShoulder = SoundwellControlFrame.FromButtons(Vector2.zero,
+                false, false, false, false, false, false, false, false,
+                false, false, false, true);
+            Require(rightShoulder.Gate && !rightShoulder.Carry &&
+                !rightShoulder.Ring && !rightShoulder.Wrap,
+                "Controller right shoulder must map only to the gate interaction.");
             restarted.ApplyControls(shoulder);
             Require(restarted.IsCarrying, "Controller LB must actually lift the bell.");
             restarted.ApplyControls(shoulder);
@@ -698,8 +767,8 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(component => component != null);
 
         private static void Press(SoundwellTrial trial, Vector2 direction = default, bool ring = false,
-            bool wrap = false, bool retry = false, bool carry = false) =>
-            trial.ApplyInput(direction, ring, wrap, retry, carry);
+            bool wrap = false, bool retry = false, bool carry = false, bool gate = false) =>
+            trial.ApplyInput(direction, ring, wrap, retry, carry, gate);
 
         private static IEnumerator Until(Func<bool> condition, string action)
         {

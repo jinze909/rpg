@@ -10,6 +10,7 @@ namespace Rpg.Soundwell
         private enum Signal { Ready, Ringing, Wrapped, Searching }
         private const string SignalKey = "rpg.soundwell.signal-trial.bell";
         private const string CarryKey = "rpg.soundwell.signal-trial.carrying-bell";
+        private const string GateKey = "rpg.soundwell.signal-trial.inner-gate";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -45,6 +46,11 @@ namespace Rpg.Soundwell
         public Vector2 BellPosition => bell.position;
         public bool IsCarrying => variables != null && variables.GetInt(CarryKey) != 0;
         public bool CanPlaceBell => IsCarrying && FindBellStand(playerBody.position, out _);
+        public bool GateOpen => variables != null && variables.GetInt(GateKey) != 0;
+        public bool AtGatePanel => IsReady &&
+            Vector2.Distance(playerBody.position, new Vector2(-0.55f, 0f)) <= 0.8f;
+        public bool CanOpenGate => AtGatePanel && !GateOpen && HasBellTarget &&
+            Vector2.Distance(bell.position, SideBellStand) < 0.1f && beast.position.y < -0.95f;
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
@@ -76,7 +82,8 @@ namespace Rpg.Soundwell
                 () => ApplyInput(movement, false, true, false),
                 () => ApplyInput(movement, false, false, true),
                 () => { ReturnToBootstrap(); },
-                () => ApplyInput(movement, false, false, false, true));
+                () => ApplyInput(movement, false, false, false, true),
+                () => ApplyInput(movement, false, false, false, false, true));
             ResetTrial();
             initialized = true;
         }
@@ -167,7 +174,7 @@ namespace Rpg.Soundwell
             bool returning = !HasBellTarget && !IsSearching &&
                 Vector2.Distance(beast.position, beastHome) > 0.15f;
             view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
-                IsCarrying, CanPlaceBell, destination);
+                IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, destination);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -196,10 +203,12 @@ namespace Rpg.Soundwell
                 ReturnToBootstrap();
                 return;
             }
-            ApplyInput(controls.Movement, controls.Ring, controls.Wrap, controls.Retry, controls.Carry);
+            ApplyInput(controls.Movement, controls.Ring, controls.Wrap, controls.Retry,
+                controls.Carry, controls.Gate);
         }
 
-        public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry, bool carry = false)
+        public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry,
+            bool carry = false, bool gate = false)
         {
             if (bootstrapLoad != null)
                 return;
@@ -231,6 +240,15 @@ namespace Rpg.Soundwell
                     SetSignal(Signal.Ready);
                     view.ResetPulse();
                 }
+                return;
+            }
+
+            // Only the west-side panel can open the physical gate, and only
+            // once the side bell has drawn the real beast away from its lane.
+            if (gate)
+            {
+                if (CanOpenGate)
+                    variables.Set(GateKey, 1);
                 return;
             }
 
@@ -270,6 +288,7 @@ namespace Rpg.Soundwell
             playerBody.position = safePoint.position;
             bell.position = bellHome;
             variables.Set(CarryKey, 0);
+            variables.Set(GateKey, 0);
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);
             lastHeard = beastHome;
@@ -316,9 +335,10 @@ namespace Rpg.Soundwell
         public bool Retry { get; }
         public bool Back { get; }
         public bool Carry { get; }
+        public bool Gate { get; }
 
         private SoundwellControlFrame(Vector2 movement, bool ring, bool wrap,
-            bool retry, bool back, bool carry)
+            bool retry, bool back, bool carry, bool gate)
         {
             Movement = Vector2.ClampMagnitude(movement, 1f);
             Ring = ring;
@@ -326,6 +346,7 @@ namespace Rpg.Soundwell
             Retry = retry;
             Back = back;
             Carry = carry;
+            Gate = gate;
         }
 
         public static bool EnterRequested(bool keyboardF2, bool gamepadSouth) =>
@@ -335,10 +356,12 @@ namespace Rpg.Soundwell
         public static SoundwellControlFrame FromButtons(Vector2 movement,
             bool keyboardRing, bool keyboardWrap, bool keyboardRetry, bool keyboardBack,
             bool gamepadSouth, bool gamepadEast, bool gamepadWest, bool gamepadNorth,
-            bool keyboardCarry = false, bool gamepadLeftShoulder = false) =>
+            bool keyboardCarry = false, bool gamepadLeftShoulder = false,
+            bool keyboardGate = false, bool gamepadRightShoulder = false) =>
             new SoundwellControlFrame(movement, keyboardRing || gamepadSouth,
                 keyboardWrap || gamepadWest, keyboardRetry || gamepadNorth,
-                keyboardBack || gamepadEast, keyboardCarry || gamepadLeftShoulder);
+                keyboardBack || gamepadEast, keyboardCarry || gamepadLeftShoulder,
+                keyboardGate || gamepadRightShoulder);
 
         public static SoundwellControlFrame ReadUnity() => FromButtons(
             new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")),
@@ -346,6 +369,7 @@ namespace Rpg.Soundwell
             Input.GetKeyDown(KeyCode.R), Input.GetKeyDown(KeyCode.Escape),
             Input.GetKeyDown(KeyCode.JoystickButton0), Input.GetKeyDown(KeyCode.JoystickButton1),
             Input.GetKeyDown(KeyCode.JoystickButton2), Input.GetKeyDown(KeyCode.JoystickButton3),
-            Input.GetKeyDown(KeyCode.F), Input.GetKeyDown(KeyCode.JoystickButton4));
+            Input.GetKeyDown(KeyCode.F), Input.GetKeyDown(KeyCode.JoystickButton4),
+            Input.GetKeyDown(KeyCode.G), Input.GetKeyDown(KeyCode.JoystickButton5));
     }
 }

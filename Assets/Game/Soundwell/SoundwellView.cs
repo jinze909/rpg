@@ -16,17 +16,21 @@ namespace Rpg.Soundwell
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
         private readonly SpriteRenderer beastIntentMarker;
+        private readonly SpriteRenderer gateMarker;
+        private readonly BoxCollider2D gateBlocker;
         private readonly LineRenderer pulse;
         private readonly AudioSource audio;
         private readonly AudioClip clearBell;
         private readonly AudioClip mutedBell;
         private readonly Text hint;
         private readonly Text beastStatus;
+        private readonly Text gateStatus;
         private readonly Button ringButton;
         private readonly Button wrapButton;
         private readonly Button retryButton;
         private readonly Button backButton;
         private readonly Button carryButton;
+        private readonly Button gateButton;
         private readonly Text carryButtonLabel;
         private readonly Text wrapButtonLabel;
         private readonly Text menuStatus;
@@ -57,7 +61,14 @@ namespace Rpg.Soundwell
                 new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
             Plate(root, "PLACEHOLDER side bell stand", SoundwellTrial.SideBellStand,
                 new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
-            Wall(root, "Safety grating", new Vector2(0.25f, 0f), new Vector2(0.32f, 6.4f));
+            // Separate two solid rails from the controlled middle opening.
+            Wall(root, "Safety grating upper", new Vector2(0.25f, 2.0f), new Vector2(0.32f, 2.4f));
+            Wall(root, "Safety grating lower", new Vector2(0.25f, -2.0f), new Vector2(0.32f, 2.4f));
+            gateMarker = Wall(root, "PLACEHOLDER soundwell gate", new Vector2(0.25f, 0f),
+                new Vector2(0.32f, 1.6f));
+            gateBlocker = gateMarker.GetComponent<BoxCollider2D>();
+            Plate(root, "PLACEHOLDER gate control", new Vector2(-0.55f, 0f),
+                new Vector2(0.32f, 0.58f), Gold, 1);
             Wall(root, "West wall", new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
             Wall(root, "North wall", new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f));
             Wall(root, "South wall", new Vector2(-3.4f, -3.2f), new Vector2(7.3f, 0.28f));
@@ -106,6 +117,8 @@ namespace Rpg.Soundwell
             AddLabel(rect, "COPPER BELL", 13, Gold, new Vector2(-88, -43), new Vector2(120, 22));
             AddLabel(rect, "SIDE BELL STAND", 13, Cloth, new Vector2(-92, -122), new Vector2(180, 24));
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
+            gateStatus = AddLabel(rect, "GATE  /  LOCKED", 16, Ink,
+                new Vector2(0, -102), new Vector2(220, 30));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
             AddLabel(rect, "[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry", 14, Cloth,
                 new Vector2(0, -222), new Vector2(760, 26));
@@ -131,6 +144,7 @@ namespace Rpg.Soundwell
             backButton = CreateActionButton(actionCanvas.transform, "Back", "BACK  [Esc / B]", 3, back);
             carryButton = CreateActionButton(actionCanvas.transform, "Carry", "LIFT  [F / LB]", 4, carry);
             carryButtonLabel = carryButton.GetComponentInChildren<Text>();
+            gateButton = CreateActionButton(actionCanvas.transform, "Gate", "OPEN GATE [G / RB]", 5, gate);
             menuStatus = AddLabel(actionCanvas.transform, "TAB / START: FOCUS ACTIONS",
                 14, Cloth, new Vector2(-270f, 220f), new Vector2(360f, 32f));
             menuStatus.resizeTextForBestFit = true;
@@ -156,7 +170,8 @@ namespace Rpg.Soundwell
         public void SetActionMenuOpen(bool open)
         {
             actionMenuOpen = open;
-            foreach (var button in new[] { ringButton, wrapButton, retryButton, backButton, carryButton })
+            foreach (var button in new[] { ringButton, wrapButton, retryButton, backButton,
+                carryButton, gateButton })
                 button.navigation = new Navigation
                 {
                     mode = open ? Navigation.Mode.Automatic : Navigation.Mode.None
@@ -183,7 +198,8 @@ namespace Rpg.Soundwell
             layoutReady = true;
             compactHud = compact;
 
-            var buttons = new[] { ringButton, wrapButton, retryButton, backButton, carryButton };
+            var buttons = new[] { ringButton, wrapButton, retryButton, backButton,
+                carryButton, gateButton };
             for (int i = 0; i < buttons.Length; i++)
             {
                 var rect = (RectTransform)buttons[i].transform;
@@ -191,8 +207,8 @@ namespace Rpg.Soundwell
                 {
                     rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
                     rect.pivot = new Vector2(0.5f, 0f);
-                    rect.anchoredPosition = new Vector2(i == 4 ? 0f : i % 2 == 0 ? -105f : 105f,
-                        i == 4 ? 138f : i < 2 ? 80f : 22f);
+                    rect.anchoredPosition = new Vector2(i % 2 == 0 ? -105f : 105f,
+                        i < 2 ? 138f : i < 4 ? 80f : 22f);
                     rect.sizeDelta = new Vector2(190f, 46f);
                 }
                 else
@@ -224,7 +240,7 @@ namespace Rpg.Soundwell
         private bool IsActionSelection(GameObject selected) =>
             selected == ringButton.gameObject || selected == wrapButton.gameObject ||
             selected == retryButton.gameObject || selected == backButton.gameObject ||
-            selected == carryButton.gameObject;
+            selected == carryButton.gameObject || selected == gateButton.gameObject;
 
         private void EnsureActionSelection()
         {
@@ -236,6 +252,7 @@ namespace Rpg.Soundwell
             var target = ringButton.interactable ? ringButton :
                 wrapButton.interactable ? wrapButton :
                 carryButton.interactable ? carryButton :
+                gateButton.interactable ? gateButton :
                 retryButton.interactable ? retryButton : backButton;
             actionEventSystem.SetSelectedGameObject(target.gameObject);
         }
@@ -266,7 +283,8 @@ namespace Rpg.Soundwell
         }
 
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
-            bool atBell, bool atSafePoint, bool carrying, bool canPlaceBell, Vector2 beastDestination)
+            bool atBell, bool atSafePoint, bool carrying, bool canPlaceBell,
+            bool gateOpen, bool atGatePanel, bool canOpenGate, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -284,6 +302,14 @@ namespace Rpg.Soundwell
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
+            gateButton.interactable = canOpenGate;
+            gateBlocker.enabled = !gateOpen;
+            gateMarker.color = gateOpen ? new Color(0.30f, 0.84f, 0.65f, 0.16f)
+                : new Color(0.32f, 0.43f, 0.48f);
+            string gateCaption = gateOpen ? "GATE  /  OPEN" : "GATE  /  LOCKED";
+            if (gateStatus.text != gateCaption)
+                gateStatus.text = gateCaption;
+            gateStatus.color = gateOpen ? Cloth : Ink;
             string carryCaption = carrying ? "DROP  [F / LB]" : "LIFT  [F / LB]";
             if (carryButtonLabel.text != carryCaption)
                 carryButtonLabel.text = carryCaption;
@@ -306,6 +332,10 @@ namespace Rpg.Soundwell
                 prompt = canPlaceBell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."
                     : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
+            else if (atGatePanel)
+                prompt = gateOpen ? "Gate open: cross into the soundwell inner room."
+                    : canOpenGate ? "[G / RB] Open the gate while the beast follows the side bell."
+                    : "Move the bell to the SIDE STAND and draw the beast away to open this gate.";
             else if (atBell)
                 prompt = wrapped ? "[E / Pad A] Try the wrapped bell   [Q / Pad X] Remove the cloth"
                     : "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth   [F / LB] Lift";
@@ -409,10 +439,11 @@ namespace Rpg.Soundwell
             return renderer;
         }
 
-        private void Wall(Transform root, string name, Vector2 position, Vector2 size)
+        private SpriteRenderer Wall(Transform root, string name, Vector2 position, Vector2 size)
         {
             var wall = Plate(root, name, position, size, new Color(0.32f, 0.43f, 0.48f), 0);
             wall.gameObject.AddComponent<BoxCollider2D>().size = Vector2.one;
+            return wall;
         }
 
         private static AudioClip BellClip(string name, float frequency, float duration, float volume)
