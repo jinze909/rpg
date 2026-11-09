@@ -18,6 +18,8 @@ namespace Rpg.Soundwell
         private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
         private const string RopeObservedKey = "rpg.soundwell.signal-trial.rope-observed";
+        private const string RopeRecoveredKey = "rpg.soundwell.signal-trial.rope-recovered";
+        private const string EscortLineKey = "rpg.soundwell.signal-trial.surveyor-guide-line";
         private const string ClawsObservedKey = "rpg.soundwell.signal-trial.claws-observed";
         // Scene-to-scene handoff only: ORK still owns quests, rewards, and saves.
         public const string EntryOutcomeKey = "rpg.soundwell.signal-trial.last-return-outcome";
@@ -85,17 +87,21 @@ namespace Rpg.Soundwell
         public bool FalseMarkerCleared => variables != null &&
             variables.GetInt(FalseMarkerClearedKey) != 0;
         public bool RopeObserved => variables != null && variables.GetInt(RopeObservedKey) != 0;
+        public bool RopeRecovered => variables != null && variables.GetInt(RopeRecoveredKey) != 0;
+        public bool SurveyorLineTied => variables != null && variables.GetInt(EscortLineKey) != 0;
         public bool ClawsObserved => variables != null && variables.GetInt(ClawsObservedKey) != 0;
         public bool AtRopeEvidence => IsReady && !IsCarrying &&
             Vector2.Distance(playerBody.position, RopeEvidencePosition) <= 0.72f;
         public bool AtClawEvidence => IsReady && !IsCarrying &&
             Vector2.Distance(playerBody.position, ClawEvidencePosition) <= 0.72f;
         public bool CanInspectRope => AtRopeEvidence && !RopeObserved;
+        public bool CanRecoverRope => AtRopeEvidence && RopeObserved && !RopeRecovered;
         public bool CanInspectClaws => AtClawEvidence && !ClawsObserved;
         public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
         public bool SurveyorWaitingForLeader => view != null && view.WaitingForEscortLeader;
         public bool CanEscortSurveyor => AtUpperPlank && PlankSecured && !SurveyorEscorting &&
             !RescueComplete && Vector2.Distance(SurveyorWorldPosition, UpperBoardPosition) < 0.18f;
+        public bool CanTieEscortLine => CanEscortSurveyor && RopeRecovered && !SurveyorLineTied;
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
@@ -234,8 +240,9 @@ namespace Rpg.Soundwell
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
-                AtRopeEvidence, AtClawEvidence, CanInspectRope, CanInspectClaws,
-                RopeObserved, ClawsObserved, BeastBlocksEscape, LowerPlankBroken,
+                AtRopeEvidence, AtClawEvidence, CanInspectRope, CanRecoverRope,
+                CanInspectClaws, CanTieEscortLine, RopeObserved, RopeRecovered,
+                ClawsObserved, SurveyorLineTied, BeastBlocksEscape, LowerPlankBroken,
                 destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
@@ -328,10 +335,14 @@ namespace Rpg.Soundwell
             {
                 if (CanInspectRope)
                     variables.Set(RopeObservedKey, 1);
+                else if (CanRecoverRope)
+                    variables.Set(RopeRecoveredKey, 1);
                 else if (CanInspectClaws)
                     variables.Set(ClawsObservedKey, 1);
                 else if (CanOpenGate)
                     variables.Set(GateKey, 1);
+                else if (CanTieEscortLine)
+                    variables.Set(EscortLineKey, 1);
                 else if (CanEscortSurveyor)
                 {
                     variables.Set(EscortKey, 1);
@@ -394,6 +405,8 @@ namespace Rpg.Soundwell
             variables.Set(RescueKey, 0);
             variables.Set(FalseMarkerClearedKey, 0);
             variables.Set(RopeObservedKey, 0);
+            variables.Set(RopeRecoveredKey, 0);
+            variables.Set(EscortLineKey, 0);
             variables.Set(ClawsObservedKey, 0);
             view.ResetSurveyor();
             beast.position = beastHome;

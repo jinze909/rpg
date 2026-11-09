@@ -28,6 +28,7 @@ namespace Rpg.Soundwell
         private readonly Transform retreatMarker;
         private readonly BoxCollider2D gateBlocker;
         private readonly LineRenderer pulse;
+        private readonly LineRenderer escortLine;
         private readonly AudioSource audio;
         private readonly AudioClip clearBell;
         private readonly AudioClip mutedBell;
@@ -151,6 +152,17 @@ namespace Rpg.Soundwell
             pulse.positionCount = 40;
             pulse.sortingOrder = 1;
             pulse.widthMultiplier = 0.06f;
+
+            var guideObject = new GameObject("PLACEHOLDER surveyor guide rope");
+            guideObject.transform.SetParent(root, false);
+            escortLine = guideObject.AddComponent<LineRenderer>();
+            escortLine.sharedMaterial = ringMaterial;
+            escortLine.useWorldSpace = true;
+            escortLine.positionCount = 2;
+            escortLine.sortingOrder = 4;
+            escortLine.widthMultiplier = 0.055f;
+            escortLine.startColor = escortLine.endColor = Cloth;
+            escortLine.enabled = false;
 
             audio = bell.gameObject.AddComponent<AudioSource>();
             audio.playOnAwake = false;
@@ -350,6 +362,7 @@ namespace Rpg.Soundwell
         {
             surveyorFigure.position = SoundwellTrial.SurveyorPosition;
             waitingForEscortLeader = false;
+            escortLine.enabled = false;
             falseTrailMarker.enabled = true;
         }
 
@@ -360,8 +373,10 @@ namespace Rpg.Soundwell
             bool plankSecured, bool canEscortSurveyor, bool surveyorEscorting,
             bool rescueComplete, bool falseMarkerCleared,
             bool atRopeEvidence, bool atClawEvidence, bool canInspectRope,
-            bool canInspectClaws, bool ropeObserved, bool clawsObserved,
-            bool beastBlocksEscape, bool lowerPlankBroken, Vector2 beastDestination)
+            bool canRecoverRope, bool canInspectClaws, bool canTieEscortLine,
+            bool ropeObserved, bool ropeRecovered, bool clawsObserved,
+            bool surveyorLineTied, bool beastBlocksEscape,
+            bool lowerPlankBroken, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -381,6 +396,7 @@ namespace Rpg.Soundwell
                 escapeStatus.text = escapeCaption;
             escapeStatus.color = beastBlocksEscape ? new Color(1f, 0.56f, 0.47f) : Cloth;
             falseTrailMarker.enabled = !falseMarkerCleared;
+            ropeEvidenceMarker.enabled = !ropeRecovered;
             ropeEvidenceMarker.color = ropeObserved ? Cloth : new Color(0.53f, 0.38f, 0.27f);
             clawEvidenceMarker.color = clawsObserved ? Gold : new Color(0.56f, 0.29f, 0.27f);
             ringButton.interactable = atBell && !carrying;
@@ -388,11 +404,13 @@ namespace Rpg.Soundwell
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
-            gateButton.interactable = canInspectRope || canInspectClaws ||
-                canOpenGate || canSecurePlank || canEscortSurveyor ||
+            gateButton.interactable = canInspectRope || canRecoverRope || canInspectClaws ||
+                canTieEscortLine || canOpenGate || canSecurePlank || canEscortSurveyor ||
                 (atSurveyor && !hasSurveyorClue);
             string interactCaption = canInspectRope ? "INSPECT ROPE [G / RB]"
+                : canRecoverRope ? "RECOVER CORD [G / RB]"
                 : canInspectClaws ? "INSPECT CLAWS [G / RB]"
+                : canTieEscortLine ? "TIE GUIDE LINE [G / RB]"
                 : canEscortSurveyor ? "LEAD SURVEYOR [G / RB]"
                 : canSecurePlank ? "BRACE PLANK [G / RB]"
                 : atSurveyor && !hasSurveyorClue ? "ASK SURVEYOR [G / RB]"
@@ -434,9 +452,11 @@ namespace Rpg.Soundwell
                     // the boundary; players must return and genuinely escort.
                     float separation = Vector2.Distance(npc, escortLeader.position);
                     if (waitingForEscortLeader)
-                        waitingForEscortLeader = separation > 2.0f;
+                        waitingForEscortLeader = separation >
+                            (surveyorLineTied ? 3.0f : 2.0f);
                     else
-                        waitingForEscortLeader = separation > 3.15f;
+                        waitingForEscortLeader = separation >
+                            (surveyorLineTied ? 4.7f : 3.15f);
                     routeTarget = waitingForEscortLeader ? npc
                         : (Vector2)escortLeader.position + new Vector2(0.45f, 0f);
                 }
@@ -446,6 +466,12 @@ namespace Rpg.Soundwell
                     : SoundwellTrial.SurveyorPosition;
             surveyorFigure.position = Vector3.MoveTowards(surveyorFigure.position,
                 new Vector3(routeTarget.x, routeTarget.y, 0f), 2.25f * Time.deltaTime);
+            escortLine.enabled = surveyorLineTied && surveyorEscorting && !rescueComplete;
+            if (escortLine.enabled)
+            {
+                escortLine.SetPosition(0, escortLeader.position);
+                escortLine.SetPosition(1, surveyorFigure.position);
+            }
             string speech = falseMarkerCleared
                 ? "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
                 : rescueComplete
@@ -509,13 +535,16 @@ namespace Rpg.Soundwell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."
                     : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
             else if (atRopeEvidence)
-                prompt = ropeObserved ? "The severed cord is evidence. You can still test the bell."
+                prompt = canRecoverRope
+                    ? "[G / RB] Recover the usable cord for a guide line."
+                    : ropeRecovered ? "You recovered the usable cord for the surveyor."
                     : "[G / RB] Inspect the torn bell cord.";
             else if (atClawEvidence)
                 prompt = clawsObserved ? "The claw tracks are evidence. What drew the beast here?"
                     : "[G / RB] Inspect the beast's claw tracks.";
             else if (atUpperPlank)
-                prompt = canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
+                prompt = canTieEscortLine ? "[G / RB] Tie the recovered cord to guide the surveyor."
+                    : canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
                     : surveyorEscorting ? "Lead through the open gate first. The surveyor is waiting for you."
                     : plankSecured ? "Upper plank braced; surveyor can stand on it. Rescue not complete."
                     : canSecurePlank ? "[G / RB] Brace the upper plank for the surveyor."

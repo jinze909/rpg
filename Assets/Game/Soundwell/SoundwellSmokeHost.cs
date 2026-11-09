@@ -357,14 +357,23 @@ namespace Rpg.Soundwell
                 "A nearby torn rope must enable a real contextual UGUI inspection.");
             ClickTrialAction(trial, "Gate");
             yield return null;
-            Require(trial.RopeObserved && !trial.ClawsObserved &&
+            Require(trial.RopeObserved && !trial.RopeRecovered && !trial.ClawsObserved &&
                 ropeEvidence.color != ropeUnobservedColor &&
                 ShowsPrompt(trial, "bell cord was cut") &&
                 !trial.HasBellTarget && !trial.GateOpen,
                 "Inspecting the severed cord must reveal evidence without solving the puzzle.");
+            Require(trial.CanRecoverRope && TrialActionButton(trial, "Gate").interactable &&
+                TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                    .Contains("RECOVER CORD", StringComparison.Ordinal),
+                "Observing the cord must expose a separate, real recovery action.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.RopeRecovered && trial.RopeObserved && !ropeEvidence.enabled &&
+                !trial.ClawsObserved && !trial.HasBellTarget,
+                "Recovered rope must visibly leave the entrance, with no invented bell effect.");
             Press(trial, gate: true);
-            Require(trial.RopeObserved && !trial.ClawsObserved,
-                "Re-inspecting must not invent a second clue reward.");
+            Require(trial.RopeRecovered && !trial.CanRecoverRope,
+                "Repeated recovery must not duplicate the usable rope.");
 
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= -1.90f,
@@ -714,11 +723,23 @@ namespace Rpg.Soundwell
                 !trial.SurveyorEscorting && !trial.RescueComplete,
                 "Bracing must prepare the route without automatically starting escort.");
             Capture(trial, "08-braced-plank-surveyor");
-            Require(trial.CanEscortSurveyor && !trial.SurveyorEscorting &&
-                !trial.RescueComplete && TrialActionButton(trial, "Gate").interactable &&
+            Require(trial.CanTieEscortLine && trial.CanEscortSurveyor &&
+                !trial.SurveyorLineTied && !trial.SurveyorEscorting &&
+                TrialActionButton(trial, "Gate").interactable &&
                 TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
-                    .Contains("LEAD SURVEYOR", StringComparison.Ordinal),
-                "A real follow command must appear only after the NPC reaches the secured plank.");
+                    .Contains("TIE GUIDE LINE", StringComparison.Ordinal),
+                "Recovered cord must be usable at the braced plank, never an automatic bonus.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.SurveyorLineTied && !trial.SurveyorEscorting &&
+                !trial.CanTieEscortLine && trial.CanEscortSurveyor &&
+                ShowsPrompt(trial, "LEAD SURVEYOR"),
+                "Fastening the guide line cannot silently start or complete rescue.");
+            var guideLine = trial.GetComponentsInChildren<LineRenderer>(true)
+                .SingleOrDefault(line => line.gameObject.name == "PLACEHOLDER surveyor guide rope");
+            Require(guideLine != null && !guideLine.enabled,
+                "The guide line should appear only once the actual escort starts.");
+            Capture(trial, "08-guide-line-fastened");
             ClickTrialAction(trial, "Gate");
             Require(trial.SurveyorEscorting && !trial.RescueComplete &&
                 !trial.CanEscortSurveyor,
@@ -728,6 +749,12 @@ namespace Rpg.Soundwell
                 "Repeated context inputs must not duplicate or complete the escort.");
             Require(falseTrailMarker.enabled && !trial.FalseMarkerCleared,
                 "Starting escort alone must not remove the incorrect sign.");
+            yield return null;
+            Require(trial.SurveyorLineTied && guideLine.enabled &&
+                guideLine.positionCount == 2 &&
+                Vector2.Distance(guideLine.GetPosition(0), trial.PlayerPosition) < 0.06f &&
+                Vector2.Distance(guideLine.GetPosition(1), trial.SurveyorWorldPosition) < 0.06f,
+                "The recovered cord must physically connect player and surveyor in the world.");
             // The survivor will not magically leave while the player stays
             // behind. Waiting is visible and costs no new hidden timer.
             for (int frame = 0; frame < 18; frame++)
@@ -907,6 +934,7 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!trialAfterVictory.SurveyorEscorting &&
                 !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
+                !trialAfterVictory.RopeRecovered && !trialAfterVictory.SurveyorLineTied &&
                 !trialAfterVictory.LowerPlankBroken &&
                 !trialAfterVictory.PlankSecured && !trialAfterVictory.GateOpen &&
                 trialAfterVictory.PlayerPosition == retreat,
@@ -927,6 +955,7 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
                 !fresh.FalseMarkerCleared && !fresh.RopeObserved && !fresh.ClawsObserved &&
+                !fresh.RopeRecovered && !fresh.SurveyorLineTied &&
                 freshFalseMarker != null &&
                 freshFalseMarker.enabled && freshGate != null && freshGate.enabled,
                 "Reload must restore the gate, wrong-way sign and survivor objective.");
