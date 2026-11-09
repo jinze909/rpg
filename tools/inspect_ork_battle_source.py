@@ -6,8 +6,8 @@ import zipfile
 
 PROJECT = Path(__file__).resolve().parents[1]
 ARCHIVE = PROJECT / "Assets/Gaming Is Love/Makinom 2/ORK_Source_Code.zip"
-TARGETS = ("BattleComponent.cs", "BaseBattleComponent.cs")
-METHODS = ("CreateBattle(", "StartGroup(", "DoStartSetup(", "StartBattle(")
+TARGETS = ("BattleComponent.cs", "BaseBattleComponent.cs", "Group.cs", "AddCombatant.cs")
+METHODS = ("CreateBattle(", "StartGroups(", "StartBattle(", "DoStartSetup(", "Join(", "SetLeader(", "GetBattleComponent(")
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
                 hits = [index for index, line in enumerate(source) if method in line]
                 for index in hits[:2]:
                     start = max(0, index - 8)
-                    end = min(len(source), index + 55)
+                    end = min(len(source), index + (125 if method == "CreateBattle(" else 70))
                     print(f"\n--- {name}: {method} (lines {start + 1}-{end}) ---")
                     for line_number in range(start, end):
                         print(f"{line_number + 1:5}: {source[line_number]}")

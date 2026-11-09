@@ -88,10 +88,18 @@ namespace Rpg.Tests.Editor
             Assert.That(enemyGroup.GetGroup().Count, Is.EqualTo(1),
                 "The threat must be a real ORK enemy combatant.");
 
+            // ORK 3.22's CreateBattle factory requires an active-group leader
+            // with a live GameObject. Make that invariant explicit instead of
+            // relying on implicit leader selection during Group.Join.
+            playerGroup.SetLeader(party[0], false);
             ORK.Game.PlayerHandler.SetGroup(0, playerGroup, false);
             ORK.Game.PlayerHandler.SetActiveGroup(0, false, false);
             ORK.Game.PlayerHandler.SetPlayer(party[0], false);
             Assert.That(ORK.Game.PlayerHandler.ActiveGroup, Is.SameAs(playerGroup));
+            Assert.That(ORK.Game.ActiveGroup.Leader, Is.SameAs(party[0]),
+                "ORK's active player group must have the intended leader.");
+            Assert.That(ORK.Game.ActiveGroup.Leader.GameObject, Is.SameAs(partyObjects[0]),
+                "ORK's active leader must be backed by the registered player GameObject.");
 
             // CreateBattle supplies the runtime arena component; ORK requires
             // StartGroup to start it with the enemy group. The player group is
