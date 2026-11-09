@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
         private const string RopeObservedKey = "rpg.soundwell.signal-trial.rope-observed";
         private const string CartObservedKey = "rpg.soundwell.signal-trial.cart-observed";
+        private const string CartKitReclaimedKey = "rpg.soundwell.signal-trial.cart-kit-reclaimed";
         private const string RopeRecoveredKey = "rpg.soundwell.signal-trial.rope-recovered";
         private const string EscortLineKey = "rpg.soundwell.signal-trial.surveyor-guide-line";
         private const string ClawsObservedKey = "rpg.soundwell.signal-trial.claws-observed";
@@ -90,6 +91,7 @@ namespace Rpg.Soundwell
             variables.GetInt(FalseMarkerClearedKey) != 0;
         public bool RopeObserved => variables != null && variables.GetInt(RopeObservedKey) != 0;
         public bool CartObserved => variables != null && variables.GetInt(CartObservedKey) != 0;
+        public bool CartKitReclaimed => variables != null && variables.GetInt(CartKitReclaimedKey) != 0;
         public bool RopeRecovered => variables != null && variables.GetInt(RopeRecoveredKey) != 0;
         public bool SurveyorLineTied => variables != null && variables.GetInt(EscortLineKey) != 0;
         public bool ClawsObserved => variables != null && variables.GetInt(ClawsObservedKey) != 0;
@@ -248,8 +250,8 @@ namespace Rpg.Soundwell
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
                 AtRopeEvidence, AtCartEvidence, AtClawEvidence, CanInspectRope, CanRecoverRope,
                 CanInspectCart, CanInspectClaws, CanTieEscortLine, RopeObserved, RopeRecovered,
-                CartObserved, ClawsObserved, SurveyorLineTied, BeastBlocksEscape, LowerPlankBroken,
-                destination);
+                CartObserved, CartKitReclaimed, ClawsObserved, SurveyorLineTied,
+                BeastBlocksEscape, LowerPlankBroken, destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
@@ -263,6 +265,13 @@ namespace Rpg.Soundwell
             if (RescueComplete && !FalseMarkerCleared &&
                 Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
                 variables.Set(FalseMarkerClearedKey, 1);
+
+            // The optional cart clue pays off only through the survivor's
+            // physical return to the cart, AFTER he removes his false sign.
+            // No equipment, quest or reward state is fabricated by the UI.
+            if (RescueComplete && FalseMarkerCleared && CartObserved && !CartKitReclaimed &&
+                Vector2.Distance(view.SurveyorWorldPosition, CartEvidencePosition) <= 0.20f)
+                variables.Set(CartKitReclaimedKey, 1);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -414,6 +423,7 @@ namespace Rpg.Soundwell
             variables.Set(FalseMarkerClearedKey, 0);
             variables.Set(RopeObservedKey, 0);
             variables.Set(CartObservedKey, 0);
+            variables.Set(CartKitReclaimedKey, 0);
             variables.Set(RopeRecoveredKey, 0);
             variables.Set(EscortLineKey, 0);
             variables.Set(ClawsObservedKey, 0);

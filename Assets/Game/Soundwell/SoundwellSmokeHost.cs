@@ -294,6 +294,10 @@ namespace Rpg.Soundwell
                     SoundwellTrial.CartEvidencePosition) < 0.01f,
                 "The abandoned cart must exist as an inspectable world clue, not just a caption.");
             Color cartUnobservedColor = cartEvidence.color;
+            var cartMapKit = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER cart map kit");
+            Require(cartMapKit != null && cartMapKit.enabled && !trial.CartKitReclaimed,
+                "The cart must physically hold the surveyor's map kit before rescue.");
             var escapeWarning = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER escape-lane risk");
             Require(escapeWarning != null && !escapeWarning.enabled &&
@@ -570,8 +574,9 @@ namespace Rpg.Soundwell
                 !trial.RopeRecovered && !trial.SurveyorLineTied,
                 "Retreat reset must clear clues and previously recovered guide-rope supplies.");
             yield return null;
-            Require(ropeEvidence.enabled && cartEvidence.color == cartUnobservedColor,
-                "Reset must restore the recovered cord and unobserved cart appearance.");
+            Require(ropeEvidence.enabled && cartEvidence.color == cartUnobservedColor &&
+                cartMapKit.enabled && !trial.CartKitReclaimed,
+                "Reset must restore cord, cart clue and map kit without early recovery.");
             Require(!intentMarker.enabled, "Retreat/reset must clear the monster intent indicator.");
             Capture(trial, "03-retreat-reset");
 
@@ -986,6 +991,23 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "I've taken down that false trail sign"),
                 "The actual sign must disappear only after the surveyor reaches it.");
             Capture(trial, "11-route-marker-corrected");
+            // Inspecting the cart earlier matters: the survivor takes
+            // independent action AFTER reaching safety and correcting his sign.
+            Require(trial.CartObserved && !trial.CartKitReclaimed && cartMapKit.enabled &&
+                ShowsPrompt(trial, "returning to the cart for his map kit"),
+                "Discovering the cart cannot teleport or auto-award its kit during rescue.");
+            for (var wait = Until(() => trial.CartKitReclaimed,
+                "surveyor actually reaches the cart to reclaim his map kit"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(trial.RescueComplete && trial.FalseMarkerCleared &&
+                Vector2.Distance(trial.SurveyorWorldPosition,
+                    SoundwellTrial.CartEvidencePosition) < 0.3f &&
+                !cartMapKit.enabled &&
+                ShowsPrompt(trial, "recovered his map kit") &&
+                ShowsPrompt(trial, "My map kit is safe"),
+                "The map kit must disappear only after the real survivor reaches it.");
+            Capture(trial, "12-surveyor-recovers-map-kit");
 
             // Returning after a real rescue must visibly carry its outcome
             // into Bootstrap. This is not a save or an invented ORK reward.
@@ -1014,6 +1036,7 @@ namespace Rpg.Soundwell
             Require(!trialAfterVictory.SurveyorEscorting &&
                 !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
                 !trialAfterVictory.RopeRecovered && !trialAfterVictory.SurveyorLineTied &&
+                !trialAfterVictory.CartObserved && !trialAfterVictory.CartKitReclaimed &&
                 !trialAfterVictory.LowerPlankBroken &&
                 !trialAfterVictory.PlankSecured && !trialAfterVictory.GateOpen &&
                 trialAfterVictory.PlayerPosition == retreat,
@@ -1034,6 +1057,7 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
                 !fresh.FalseMarkerCleared && !fresh.RopeObserved && !fresh.ClawsObserved &&
+                !fresh.CartObserved && !fresh.CartKitReclaimed &&
                 !fresh.RopeRecovered && !fresh.SurveyorLineTied &&
                 freshFalseMarker != null &&
                 freshFalseMarker.enabled && freshGate != null && freshGate.enabled,

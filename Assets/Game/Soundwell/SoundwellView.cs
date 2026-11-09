@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer escapeDangerMarker;
         private readonly SpriteRenderer ropeEvidenceMarker;
         private readonly SpriteRenderer cartEvidenceMarker;
+        private readonly SpriteRenderer cartMapKitMarker;
         private readonly SpriteRenderer clawEvidenceMarker;
         private readonly Transform escortLeader;
         private readonly Transform retreatMarker;
@@ -89,6 +90,11 @@ namespace Rpg.Soundwell
             cartEvidenceMarker = Plate(root, "PLACEHOLDER abandoned mule cart",
                 SoundwellTrial.CartEvidencePosition, new Vector2(1.02f, 0.46f),
                 new Color(0.49f, 0.35f, 0.24f), 2);
+            // A recoverable personal map kit: the surveyor must actually
+            // return to this cart after rescue to retrieve it.
+            cartMapKitMarker = Plate(root, "PLACEHOLDER cart map kit",
+                SoundwellTrial.CartEvidencePosition + new Vector2(0f, 0.22f),
+                new Vector2(0.31f, 0.26f), Gold, 4);
             Plate(root, "PLACEHOLDER cart left wheel",
                 SoundwellTrial.CartEvidencePosition + new Vector2(-0.34f, -0.30f),
                 new Vector2(0.23f, 0.23f), Ink, 3);
@@ -386,8 +392,8 @@ namespace Rpg.Soundwell
             bool rescueComplete, bool falseMarkerCleared,
             bool atRopeEvidence, bool atCartEvidence, bool atClawEvidence, bool canInspectRope,
             bool canRecoverRope, bool canInspectCart, bool canInspectClaws, bool canTieEscortLine,
-            bool ropeObserved, bool ropeRecovered, bool cartObserved, bool clawsObserved,
-            bool surveyorLineTied, bool beastBlocksEscape,
+            bool ropeObserved, bool ropeRecovered, bool cartObserved, bool cartKitReclaimed,
+            bool clawsObserved, bool surveyorLineTied, bool beastBlocksEscape,
             bool lowerPlankBroken, Vector2 beastDestination)
         {
             FitCamera();
@@ -412,6 +418,7 @@ namespace Rpg.Soundwell
             ropeEvidenceMarker.color = ropeObserved ? Cloth : new Color(0.53f, 0.38f, 0.27f);
             cartEvidenceMarker.color = cartObserved ? new Color(0.72f, 0.80f, 0.65f)
                 : new Color(0.49f, 0.35f, 0.24f);
+            cartMapKitMarker.enabled = !cartKitReclaimed;
             clawEvidenceMarker.color = clawsObserved ? Gold : new Color(0.56f, 0.29f, 0.27f);
             ringButton.interactable = atBell && !carrying;
             wrapButton.interactable = atBell && !carrying;
@@ -442,8 +449,10 @@ namespace Rpg.Soundwell
             if (!surveyorEscorting || rescueComplete)
                 waitingForEscortLeader = false;
             if (rescueComplete)
-                routeTarget = falseMarkerCleared ? (Vector2)retreatMarker.position
-                    : FalseMarkerWorldPosition;
+                routeTarget = !falseMarkerCleared ? FalseMarkerWorldPosition
+                    : cartObserved && !cartKitReclaimed
+                        ? SoundwellTrial.CartEvidencePosition
+                        : (Vector2)retreatMarker.position;
             else if (surveyorEscorting)
             {
                 // Cross the only real doorway instead of taking a straight
@@ -488,7 +497,11 @@ namespace Rpg.Soundwell
                 escortLine.SetPosition(1, surveyorFigure.position);
             }
             string speech = falseMarkerCleared
-                ? "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
+                ? cartKitReclaimed
+                    ? "SURVEYOR: I've taken down that false trail sign. My map kit is safe, thanks to you."
+                    : cartObserved
+                        ? "SURVEYOR: I've taken down that false trail sign. You found my cart; I'll get my map kit."
+                        : "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
                 : rescueComplete
                     ? "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
                     : surveyorEscorting
@@ -540,7 +553,11 @@ namespace Rpg.Soundwell
 
             string prompt;
             if (falseMarkerCleared)
-                prompt = "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
+                prompt = cartKitReclaimed
+                    ? "ROUTE CORRECTED: The surveyor recovered his map kit from the cart."
+                    : cartObserved
+                        ? "ROUTE CORRECTED: The surveyor is returning to the cart for his map kit."
+                        : "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
             else if (rescueComplete)
                 prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
             else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)
