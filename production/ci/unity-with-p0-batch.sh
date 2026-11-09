@@ -4,10 +4,12 @@ set -u
 
 run_tests=false
 project_path=''
+platform=''
 previous=''
 for argument in "$@"; do
   [[ "$argument" == '-runTests' ]] && run_tests=true
   [[ "$previous" == '-projectPath' ]] && project_path="$argument"
+  [[ "$previous" == '-testPlatform' ]] && platform="$argument"
   previous="$argument"
 done
 if [[ "$run_tests" != true ]]; then
@@ -22,6 +24,10 @@ evidence="$GITHUB_WORKSPACE/${ARTIFACTS_PATH:-artifacts/p0}"
 mkdir -p "$evidence"
 "$@"
 tests_exit=$?
+if [[ "${platform,,}" == playmode ]]; then
+  printf '%s\n' "$tests_exit" > "$evidence/playmode-editor-exit-code.txt"
+  exit "$tests_exit"
+fi
 printf '%s\n' "$tests_exit" > "$evidence/test-editor-exit-code.txt"
 
 # A separate Editor invocation proves the documented batch entry point and exit.

@@ -4,12 +4,11 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Rpg.Soundwell;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
-namespace Rpg.Tests.Editor
+namespace Rpg.Tests.PlayMode
 {
     public sealed class SoundwellTrialTests
     {
@@ -18,16 +17,16 @@ namespace Rpg.Tests.Editor
         [UnityTest]
         public IEnumerator PlayerCanRingWrapRetreatAndRetry()
         {
-            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
-            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return SceneManager.LoadSceneAsync("Bootstrap");
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("Bootstrap"));
 
-            var entrance = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
+            var entrance = FindRootComponent<SoundwellEntrance>();
             Assert.That(entrance, Is.Not.Null, "The saved Bootstrap scene must expose the trial.");
             var load = entrance.OpenTrial();
             while (!load.isDone)
                 yield return null;
             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(SceneName));
-            var trial = UnityEngine.Object.FindFirstObjectByType<SoundwellTrial>();
+            var trial = FindRootComponent<SoundwellTrial>();
             Assert.That(trial, Is.Not.Null, "The saved trial scene must include the trial component.");
             trial.ReadKeyboard = false;
             Vector2 home = trial.BeastPosition;
@@ -89,7 +88,7 @@ namespace Rpg.Tests.Editor
             var reload = SceneManager.LoadSceneAsync(SceneName);
             for (var wait = Until(() => reload.isDone, "reload the trial"); wait.MoveNext();)
                 yield return null;
-            var fresh = UnityEngine.Object.FindFirstObjectByType<SoundwellTrial>();
+            var fresh = FindRootComponent<SoundwellTrial>();
             Assert.That(fresh, Is.Not.Null);
             Assert.That(fresh, Is.Not.SameAs(trial));
             Assert.That(fresh.HasBellTarget, Is.False);
@@ -99,15 +98,12 @@ namespace Rpg.Tests.Editor
                 .Count(root => root.name == "PLACEHOLDER Player"), Is.EqualTo(1));
             LogAssert.NoUnexpectedReceived();
             Debug.Log("RPG_SOUNDWELL_SIGNAL_VALIDATED");
-            yield return new ExitPlayMode();
         }
 
-        [UnityTearDown]
-        public IEnumerator RestoreEditMode()
-        {
-            if (Application.isPlaying)
-                yield return new ExitPlayMode();
-        }
+        private static T FindRootComponent<T>() where T : Component =>
+            SceneManager.GetActiveScene().GetRootGameObjects()
+                .Select(root => root.GetComponent<T>())
+                .SingleOrDefault(component => component != null);
 
         private static void Press(SoundwellTrial trial, Vector2 direction = default, bool ring = false,
             bool wrap = false, bool retry = false) =>

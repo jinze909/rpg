@@ -53,39 +53,44 @@ def collect(mode):
     if mode == "verify" and paths:
         errors.append("Verification changed source files: " + ", ".join(paths))
 
-    expected_tests = set(EXPECTED_TESTS)
+    suites = {"editmode": EXPECTED_TESTS}
     soundwell = mode == "verify" and (root / "Assets/Game/Scenes/SoundwellTrial.unity").is_file()
     if soundwell:
-        expected_tests.add("Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry")
+        suites["playmode"] = {"Rpg.Tests.PlayMode.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry"}
         for filename in ("01-ringing.png", "02-wrapped-searching.png", "03-retreat-reset.png"):
             frame = evidence / "soundwell" / filename
             if not frame.is_file() or frame.stat().st_size < 1024:
                 errors.append(f"Missing Soundwell frame: {filename}")
 
-    try:
-        result = ET.parse(evidence / "editmode-results.xml").getroot()
-        cases = list(result.iter("test-case"))
-        names = [case.get("fullname") for case in cases]
-        if len(names) != len(expected_tests) or set(names) != expected_tests:
-            errors.append("Expected exactly the configured Unity tests; empty/partial test runs are invalid.")
-        if result.get("result") != "Passed" or any(case.get("result") != "Passed" for case in cases):
-            errors.append("All configured Unity tests must pass; skipped/inconclusive tests are invalid.")
-    except (OSError, ET.ParseError) as error:
-        errors.append(f"Missing or invalid test XML: {error}")
+    for suite, expected_tests in suites.items():
+        try:
+            result = ET.parse(evidence / f"{suite}-results.xml").getroot()
+            cases = list(result.iter("test-case"))
+            names = [case.get("fullname") for case in cases]
+            if len(names) != len(expected_tests) or set(names) != expected_tests:
+                errors.append(f"Expected exactly the configured {suite} tests; empty/partial runs are invalid.")
+            if result.get("result") != "Passed" or any(case.get("result") != "Passed" for case in cases):
+                errors.append(f"All configured {suite} tests must pass; skipped/inconclusive tests are invalid.")
+        except (OSError, ET.ParseError) as error:
+            errors.append(f"Missing or invalid {suite} test XML: {error}")
 
-    for filename in ("test-editor-exit-code.txt", "batch-editor-exit-code.txt"):
+    exit_files = ["test-editor-exit-code.txt", "batch-editor-exit-code.txt"]
+    if soundwell:
+        exit_files.append("playmode-editor-exit-code.txt")
+    for filename in exit_files:
         try:
             if (evidence / filename).read_text().strip() != "0":
                 errors.append(f"{filename} is not zero.")
         except OSError:
             errors.append(f"Missing {filename}.")
-    editmode_markers = ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second")
-    if soundwell:
-        editmode_markers += ("RPG_SOUNDWELL_SIGNAL_VALIDATED",)
-    for filename, markers in {
-        "editmode.log": editmode_markers,
+
+    required_logs = {
+        "editmode.log": ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second"),
         "batch.log": ("RPG_BOOTSTRAP_VALIDATED",),
-    }.items():
+    }
+    if soundwell:
+        required_logs["playmode.log"] = ("RPG_SOUNDWELL_SIGNAL_VALIDATED",)
+    for filename, markers in required_logs.items():
         try:
             log = (evidence / filename).read_text(errors="replace")
             errors.extend(f"Missing {marker} in {filename}." for marker in markers if marker not in log)
