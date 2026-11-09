@@ -4,11 +4,14 @@ Unity 2D RPG 工程。当前工作剧情为“归来”：被宣布战死的主�
 
 ## 剧情与内容设计
 
-**好玩第一，一切建立在好玩的基础上。** 当前大纲 v0.1 是写作与任务分解基线，游戏内容尚未实现、真实玩家试玩未进行，不以文本规模证明质量。
+**好玩第一，一切建立在好玩的基础上。** 当前剧情 v0.2 是写作与任务分解基线，本版剧情演出尚未实现、真实玩家试玩未进行，不以文本规模证明质量。
 
 - [详细主线大纲](docs/narrative/STORY_OUTLINE.md)：世界、序章至尾声、关键行动、路线与结局。
 - [人物与关系](docs/narrative/CHARACTERS.md)：核心人物、沈砾重逢后的双向成长、合作与分离。
 - [地区与长期故事](docs/narrative/REGIONAL_STORIES.md)：六条有自身人物冲突和回访变化的地方线。
+- [卖点与开场](docs/narrative/PITCH_AND_HOOK.md)：点名、“在”与白水渡序幕的叙事钩子。
+- [S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)：已补写的开场对白与可参与动作草稿。
+- [叙事事实登记](docs/narrative/NARRATIVE_FACTS.md) · [写作准则](docs/narrative/NARRATIVE_GUIDE.md) · [v0.2 整合记录](docs/narrative/REVISION_NOTES.md)。
 - [一页玩法基线](docs/gameplay/BASELINE.md)：已定体验、暂定原型条件、移动/固定阵位对照与乐趣裁决边界。
 
 剧情文档包含完整剧透。“归来”是工作标题；叙事场景、游戏内容与技术验收仍需逐步落实。
