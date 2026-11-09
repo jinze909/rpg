@@ -1,0 +1,4 @@
+{
+  "name": "Rpg.Soundwell",
+  "references": ["UnityEngine.UI"]
+}

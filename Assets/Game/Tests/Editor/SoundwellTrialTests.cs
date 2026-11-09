@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using Rpg.Soundwell;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -13,7 +14,6 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellTrialTests
     {
         private const string SceneName = "SoundwellTrial";
-        private static Component Trial => Find("Soundwell signal trial", "SoundwellTrial");
 
         [UnityTest]
         public IEnumerator PlayerCanRingWrapRetreatAndRetry()
@@ -21,68 +21,80 @@ namespace Rpg.Tests.Editor
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
 
-            var entrance = Find("Soundwell trial entrance", "SoundwellEntrance");
-            entrance.GetType().GetMethod("OpenTrial").Invoke(entrance, null);
-            yield return Until(() => SceneManager.GetActiveScene().name == SceneName, "load the saved trial scene");
-            var trial = Trial;
-            trial.GetType().GetProperty("ReadKeyboard").SetValue(trial, false);
-            Vector2 home = Read<Vector2>(trial, "BeastPosition");
-            Vector2 retreat = Read<Vector2>(trial, "PlayerPosition");
+            var entrance = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance, Is.Not.Null, "The saved Bootstrap scene must expose the trial.");
+            var load = entrance.OpenTrial();
+            while (!load.isDone)
+                yield return null;
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(SceneName));
+            var trial = UnityEngine.Object.FindFirstObjectByType<SoundwellTrial>();
+            Assert.That(trial, Is.Not.Null, "The saved trial scene must include the trial component.");
+            trial.ReadKeyboard = false;
+            Vector2 home = trial.BeastPosition;
+            Vector2 retreat = trial.PlayerPosition;
             Press(trial, ring: true);
-            Assert.That(Read<bool>(trial, "HasBellTarget"), Is.False, "Interaction must require proximity.");
+            Assert.That(trial.HasBellTarget, Is.False, "Interaction must require proximity.");
 
             Press(trial, Vector2.right);
-            yield return Until(() => Read<Vector2>(trial, "PlayerPosition").x >= -2.25f, "walk into bell range");
+            for (var wait = Until(() => trial.PlayerPosition.x >= -2.25f, "walk into bell range"); wait.MoveNext();)
+                yield return null;
             Press(trial, ring: true);
-            Assert.That(Read<bool>(trial, "HasBellTarget"), Is.True);
-            yield return Until(() => Read<Vector2>(trial, "BeastPosition").x < home.x - 0.7f,
-                "the beast turns and advances toward the bell");
-            Assert.That(Read<Vector2>(trial, "BeastPosition").y, Is.LessThan(home.y));
-            Vector2 pursued = Read<Vector2>(trial, "BeastPosition");
+            Assert.That(trial.HasBellTarget, Is.True);
+            for (var wait = Until(() => trial.BeastPosition.x < home.x - 0.7f,
+                "the beast turns and advances toward the bell"); wait.MoveNext();)
+                yield return null;
+            Assert.That(trial.BeastPosition.y, Is.LessThan(home.y));
+            Vector2 pursued = trial.BeastPosition;
             var clear = Capture(trial, "01-ringing");
 
             Press(trial, wrap: true);
-            Assert.That(Read<bool>(trial, "IsWrapped"), Is.True);
-            Assert.That(Read<bool>(trial, "HasBellTarget"), Is.False);
-            Assert.That(Read<bool>(trial, "IsSearching"), Is.True);
+            Assert.That(trial.IsWrapped, Is.True);
+            Assert.That(trial.HasBellTarget, Is.False);
+            Assert.That(trial.IsSearching, Is.True);
             Press(trial, ring: true);
-            Assert.That(Read<bool>(trial, "HasBellTarget"), Is.False, "A wrapped bell must not attract the beast.");
+            Assert.That(trial.HasBellTarget, Is.False, "A wrapped bell must not attract the beast.");
             yield return null;
             yield return null;
             var muffled = Capture(trial, "02-wrapped-searching");
             Assert.That(muffled.SequenceEqual(clear), Is.False, "The two signal phases must render differently.");
-            yield return Until(() => Vector2.Distance(Read<Vector2>(trial, "BeastPosition"), pursued) > 0.35f,
-                "the beast continues searching after losing the bell");
+            for (var wait = Until(() => Vector2.Distance(trial.BeastPosition, pursued) > 0.35f,
+                "the beast continues searching after losing the bell"); wait.MoveNext();)
+                yield return null;
 
             Press(trial, retry: true);
-            Assert.That(Read<bool>(trial, "IsWrapped"), Is.True, "Retry requires a retreat to safety.");
+            Assert.That(trial.IsWrapped, Is.True, "Retry requires a retreat to safety.");
             Press(trial, Vector2.right);
             float collisionCheck = Time.time + 0.85f;
-            yield return Until(() => Time.time >= collisionCheck, "hold movement against the grating");
-            Assert.That(Read<Vector2>(trial, "PlayerPosition").x, Is.LessThan(-0.10f),
+            for (var wait = Until(() => Time.time >= collisionCheck, "hold movement against the grating"); wait.MoveNext();)
+                yield return null;
+            Assert.That(trial.PlayerPosition.x, Is.LessThan(-0.10f),
                 "The safety grating must block the player.");
 
             Press(trial, Vector2.left);
-            yield return Until(() => Vector2.Distance(Read<Vector2>(trial, "PlayerPosition"), retreat) < 0.25f,
-                "return to the safety mark");
+            for (var wait = Until(() => Vector2.Distance(trial.PlayerPosition, retreat) < 0.25f,
+                "return to the safety mark"); wait.MoveNext();)
+                yield return null;
             Press(trial, retry: true);
-            Assert.That(Read<bool>(trial, "IsWrapped"), Is.False);
-            Assert.That(Read<bool>(trial, "IsSearching"), Is.False);
-            Assert.That(Read<Vector2>(trial, "BeastPosition"), Is.EqualTo(home));
+            Assert.That(trial.IsWrapped, Is.False);
+            Assert.That(trial.IsSearching, Is.False);
+            Assert.That(trial.BeastPosition, Is.EqualTo(home));
             yield return null;
             Capture(trial, "03-retreat-reset");
 
             Press(trial, Vector2.right);
-            yield return Until(() => Read<Vector2>(trial, "PlayerPosition").x >= -2.25f, "reach the bell on retry");
+            for (var wait = Until(() => trial.PlayerPosition.x >= -2.25f, "reach the bell on retry"); wait.MoveNext();)
+                yield return null;
             Press(trial, ring: true);
-            Assert.That(Read<bool>(trial, "HasBellTarget"), Is.True, "The retry must allow the experiment again.");
+            Assert.That(trial.HasBellTarget, Is.True, "The retry must allow the experiment again.");
             var reload = SceneManager.LoadSceneAsync(SceneName);
-            yield return Until(() => reload.isDone, "reload the trial");
-            var fresh = Trial;
+            for (var wait = Until(() => reload.isDone, "reload the trial"); wait.MoveNext();)
+                yield return null;
+            var fresh = UnityEngine.Object.FindFirstObjectByType<SoundwellTrial>();
+            Assert.That(fresh, Is.Not.Null);
             Assert.That(fresh, Is.Not.SameAs(trial));
-            Assert.That(Read<bool>(fresh, "HasBellTarget"), Is.False);
-            Assert.That(Read<bool>(fresh, "IsWrapped"), Is.False);
-            Assert.That(Read<Vector2>(fresh, "PlayerPosition"), Is.EqualTo(retreat));
+            Assert.That(fresh.HasBellTarget, Is.False);
+            Assert.That(fresh.IsWrapped, Is.False);
+            Assert.That(fresh.PlayerPosition, Is.EqualTo(retreat));
             Assert.That(SceneManager.GetActiveScene().GetRootGameObjects()
                 .Count(root => root.name == "PLACEHOLDER Player"), Is.EqualTo(1));
             LogAssert.NoUnexpectedReceived();
@@ -97,22 +109,9 @@ namespace Rpg.Tests.Editor
                 yield return new ExitPlayMode();
         }
 
-        private static Component Find(string objectName, string component)
-        {
-            var root = GameObject.Find(objectName);
-            Assert.That(root, Is.Not.Null, objectName);
-            var type = Type.GetType($"Rpg.Soundwell.{component}, Assembly-CSharp", true);
-            var result = root.GetComponent(type);
-            Assert.That(result, Is.Not.Null, component);
-            return result;
-        }
-
-        private static T Read<T>(Component component, string property) =>
-            (T)component.GetType().GetProperty(property).GetValue(component);
-
-        private static void Press(Component component, Vector2 direction = default, bool ring = false,
+        private static void Press(SoundwellTrial trial, Vector2 direction = default, bool ring = false,
             bool wrap = false, bool retry = false) =>
-            component.GetType().GetMethod("ApplyInput").Invoke(component, new object[] { direction, ring, wrap, retry });
+            trial.ApplyInput(direction, ring, wrap, retry);
 
         private static IEnumerator Until(Func<bool> condition, string action)
         {
@@ -122,11 +121,11 @@ namespace Rpg.Tests.Editor
             Assert.That(condition(), Is.True, action);
         }
 
-        private static byte[] Capture(Component trial, string stage)
+        private static byte[] Capture(SoundwellTrial trial, string stage)
         {
             const int width = 960;
             const int height = 540;
-            var camera = Read<Camera>(trial, "TrialCamera");
+            var camera = trial.TrialCamera;
             var previousTarget = camera.targetTexture;
             var previousActive = RenderTexture.active;
             var target = RenderTexture.GetTemporary(width, height, 24);
