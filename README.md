@@ -30,7 +30,7 @@ Unity 2D RPG 工程。当前工作剧情为“归来”：被宣布战死的主�
 4. 打开 `Assets/Game/Scenes/Bootstrap.unity`。从 `Window > Gaming Is Love > ORK Framework` 打开框架编辑器。仅在尚无项目配置时首次保存设置。项目数据位于 `Assets/Gaming Is Love/_Data/Project.asset`。
 5. 运行 `Tools > RPG > Wire ORK Bootstrap`，然后连续进入并退出 Play Mode 两次，每次检查 Console 和 ORK 初始化。开发者可提交自己的场景及框架配置数据。第一阶段验证启动与框架初始化，角色生成和交互见接力记录。
 
-Unity 6 的 UGUI 2.0 已包含 TextMesh Pro。首次成功解析依赖后，提交 Unity 生成的 `Packages/packages-lock.json`，供其他工作环境复现。ORK 3.22.0 和 Makinom 2.21.0 使用现有的固定包，组合兼容性由下方验收记录确认。
+Unity 6.6 本工程验证过的 UGUI 2.6.0 已包含 TextMesh Pro。首次成功解析依赖后，提交 Unity 生成的 `Packages/packages-lock.json`，供其他工作环境复现。ORK 3.22.0 和 Makinom 2.21.0 使用现有的固定包，组合兼容性由下方验收记录确认。
 
 ### 批处理启动验收
 
@@ -45,7 +45,7 @@ git rev-parse HEAD
 
 ## 工作室开发流程
 
-GitHub Actions 的首次配置准备、两次 Play Mode 与干净提交验收见 [Unity / ORK P0 CI](docs/unity-p0-ci.md)。CI 候选已推送，运行状态尚未确认，P0 仍待 Unity 实证。
+GitHub Actions 的首次配置准备、两次 Play Mode 与干净提交验收见 [Unity / ORK P0 CI](docs/unity-p0-ci.md)。Unity 6000.6.8f1 已在固定依赖与干净提交上通过 P0 引导验收：[P0 验证](https://github.com/jinze909/rpg/actions/runs/42551491951)。声井 002 的自动化回归在 `82d0f99dc167b8425d04306fd685dedf3e2a8daa` 通过 4 项测试与独立批处理：[codex/dev 同 SHA 验证](https://github.com/jinze909/rpg/actions/runs/42586562395)。真实键鼠、声音和玩家理解仍待真人试玩，CI 绿色不代表乐趣得到验证。
 
 后续开发默认在普通 ChatGPT 聊天中使用 GitHub 插件，从 [对话入口](CHATGPT.md) 读取实时任务并提交。Codex 通过 `AGENTS.md`，Claude Code 通过 `/dev-story` 和 `/story-done` 使用同一套规则。
 

@@ -18,6 +18,8 @@
 
 ## 每轮更新
 
+- 2026-11-09 接续确认：`codex/dev` 上声井操作提示、返回入口与重入测试的实现候选 `82d0f99dc167b8425d04306fd685dedf3e2a8daa` 已在 Unity 6000.6.8f1 干净检出中通过 4/4 测试、独立批处理与 `passed-clean-candidate`。[dev 同 SHA Run 42586562395](https://github.com/jinze909/rpg/actions/runs/42586562395)。实体键鼠、扬声器、真人探索理解及乐趣仍待验证。仓库按用户最新指令保持 Public；原生常驻总指令已按任务保存版本纳入 `CHATGPT.md`。
+
 - 002 复查修复了窄视口裁切、清响音效与追索状态脱节、重复加载入口。Unity 6000.6.8f1 在 `cc33cbd8402d7faf80083bc3a17661990128baaf` 的干净检出上通过 4 项测试与独立批处理。实体键盘、扬声器和真人试玩仍待验证。[同 SHA CI](https://github.com/jinze909/rpg/actions/runs/42584125951)
 
 - 剧情 v0.2：整合用户提供的 Claude 文稿，新增[卖点与开场](docs/narrative/PITCH_AND_HOOK.md)、[写作准则](docs/narrative/NARRATIVE_GUIDE.md)，补齐[事实登记](docs/narrative/NARRATIVE_FACTS.md)与[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)。[整合记录](docs/narrative/REVISION_NOTES.md)说明来源与修订。叙事 S00 不等于技术 P0；名册 UI、对账和听雾操作未实现、未验证，现有队伍短回合和声井样本范围不变。本轮为文稿验收，保留下述技术／002 实现与同 SHA 证据。
