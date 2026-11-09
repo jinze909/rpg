@@ -15,6 +15,7 @@ namespace Rpg.Soundwell
         private const string PlankSecuredKey = "rpg.soundwell.signal-trial.upper-plank-secured";
         private const string EscortKey = "rpg.soundwell.signal-trial.surveyor-escorted";
         private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
+        private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -66,6 +67,8 @@ namespace Rpg.Soundwell
         public bool CanSecurePlank => AtUpperPlank && HasSurveyorClue && !PlankSecured;
         public bool SurveyorEscorting => variables != null && variables.GetInt(EscortKey) != 0;
         public bool RescueComplete => variables != null && variables.GetInt(RescueKey) != 0;
+        public bool FalseMarkerCleared => variables != null &&
+            variables.GetInt(FalseMarkerClearedKey) != 0;
         public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
         public bool CanEscortSurveyor => AtUpperPlank && PlankSecured && !SurveyorEscorting &&
             !RescueComplete && Vector2.Distance(SurveyorWorldPosition, UpperBoardPosition) < 0.18f;
@@ -194,13 +197,21 @@ namespace Rpg.Soundwell
             view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
-                CanEscortSurveyor, SurveyorEscorting, RescueComplete, destination);
+                CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
+                destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
             if (SurveyorEscorting && !RescueComplete && AtSafePoint &&
                 Vector2.Distance(view.SurveyorWorldPosition, safePoint.position) <= 0.9f)
                 variables.Set(RescueKey, 1);
+
+            // The surveyor does what he promised after being saved. This
+            // second, observable outcome occurs only when his actual figure
+            // reaches his misleading route marker, not on rescue alone.
+            if (RescueComplete && !FalseMarkerCleared &&
+                Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
+                variables.Set(FalseMarkerClearedKey, 1);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -334,6 +345,7 @@ namespace Rpg.Soundwell
             variables.Set(PlankSecuredKey, 0);
             variables.Set(EscortKey, 0);
             variables.Set(RescueKey, 0);
+            variables.Set(FalseMarkerClearedKey, 0);
             view.ResetSurveyor();
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);

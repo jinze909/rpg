@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer gateMarker;
         private readonly SpriteRenderer upperBoardMarker;
         private readonly Transform surveyorFigure;
+        private readonly SpriteRenderer falseTrailMarker;
         private readonly Transform escortLeader;
         private readonly Transform retreatMarker;
         private readonly BoxCollider2D gateBlocker;
@@ -77,6 +78,12 @@ namespace Rpg.Soundwell
             gateBlocker = gateMarker.GetComponent<BoxCollider2D>();
             Plate(root, "PLACEHOLDER gate control", new Vector2(-0.55f, 0f),
                 new Vector2(0.32f, 0.58f), Gold, 1);
+            // This wrong-way trail sign is a physical consequence of the
+            // surveyor's mistaken directions. He removes it after rescue.
+            falseTrailMarker = Plate(root, "PLACEHOLDER false trail marker",
+                (Vector2)safe.position + new Vector2(1.10f, -0.40f),
+                new Vector2(0.30f, 0.66f), new Color(0.94f, 0.43f, 0.29f), 2);
+            falseTrailMarker.transform.rotation = Quaternion.Euler(0f, 0f, -24f);
             // The surveyor is a scene character, not a global quest popup.
             // The plank is visible before dialogue; only his firsthand
             // warning marks which part can take the load.
@@ -307,10 +314,12 @@ namespace Rpg.Soundwell
         }
 
         public Vector2 SurveyorWorldPosition => surveyorFigure.position;
+        public Vector2 FalseMarkerWorldPosition => falseTrailMarker.transform.position;
 
         public void ResetSurveyor()
         {
             surveyorFigure.position = SoundwellTrial.SurveyorPosition;
+            falseTrailMarker.enabled = true;
         }
 
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
@@ -318,7 +327,7 @@ namespace Rpg.Soundwell
             bool gateOpen, bool atGatePanel, bool canOpenGate, bool atSurveyor,
             bool hasSurveyorClue, bool atUpperPlank, bool canSecurePlank,
             bool plankSecured, bool canEscortSurveyor, bool surveyorEscorting,
-            bool rescueComplete, Vector2 beastDestination)
+            bool rescueComplete, bool falseMarkerCleared, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -331,6 +340,7 @@ namespace Rpg.Soundwell
                 beastIntentMarker.color = intentColor;
             }
             ArrangeActionHud(camera.aspect);
+            falseTrailMarker.enabled = !falseMarkerCleared;
             ringButton.interactable = atBell && !carrying;
             wrapButton.interactable = atBell && !carrying;
             retryButton.interactable = atSafePoint;
@@ -349,7 +359,8 @@ namespace Rpg.Soundwell
             Vector2 npc = surveyorFigure.position;
             Vector2 routeTarget;
             if (rescueComplete)
-                routeTarget = retreatMarker.position;
+                routeTarget = falseMarkerCleared ? (Vector2)retreatMarker.position
+                    : FalseMarkerWorldPosition;
             else if (surveyorEscorting)
             {
                 // Cross the only real doorway instead of taking a straight
@@ -366,9 +377,11 @@ namespace Rpg.Soundwell
                     : SoundwellTrial.SurveyorPosition;
             surveyorFigure.position = Vector3.MoveTowards(surveyorFigure.position,
                 new Vector3(routeTarget.x, routeTarget.y, 0f), 2.25f * Time.deltaTime);
-            string speech = rescueComplete
-                ? "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
-                : surveyorEscorting ? "SURVEYOR: Keep the gate open. I'm right behind you."
+            string speech = falseMarkerCleared
+                ? "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
+                : rescueComplete
+                    ? "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
+                    : surveyorEscorting ? "SURVEYOR: Keep the gate open. I'm right behind you."
                 : plankSecured
                     ? "SURVEYOR: The upper plank holds. I can cross now—don't leave me here."
                     : hasSurveyorClue
@@ -401,7 +414,9 @@ namespace Rpg.Soundwell
             }
 
             string prompt;
-            if (rescueComplete)
+            if (falseMarkerCleared)
+                prompt = "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
+            else if (rescueComplete)
                 prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
             else if (carrying)
                 prompt = canPlaceBell

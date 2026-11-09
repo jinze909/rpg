@@ -269,6 +269,11 @@ namespace Rpg.Soundwell
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
+            var falseTrailMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
+            Require(falseTrailMarker != null && falseTrailMarker.enabled &&
+                !trial.FalseMarkerCleared,
+                "The wrong-way sign must visibly exist until the surveyor removes it.");
             var gateCollider = trial.GetComponentsInChildren<BoxCollider2D>(true)
                 .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
             Require(gateCollider != null && gateCollider.enabled && !trial.GateOpen,
@@ -584,6 +589,8 @@ namespace Rpg.Soundwell
             Press(trial, gate: true);
             Require(trial.SurveyorEscorting && !trial.RescueComplete,
                 "Repeated context inputs must not duplicate or complete the escort.");
+            Require(falseTrailMarker.enabled && !trial.FalseMarkerCleared,
+                "Starting escort alone must not remove the incorrect sign.");
             Capture(trial, "09-surveyor-escort-started");
 
             Press(trial, Vector2.down);
@@ -663,12 +670,24 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "My marker was wrong"),
                 "Rescue must require the actual NPC reaching the safe point and his own response.");
             Capture(trial, "10-surveyor-rescued");
+            // Rescue success does not merely flip a dialogue: the actual NPC
+            // walks to his misleading route sign and physically removes it.
+            for (var wait = Until(() => trial.FalseMarkerCleared,
+                "surveyor walks to remove the false trail sign"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(!falseTrailMarker.enabled && trial.RescueComplete &&
+                ShowsPrompt(trial, "ROUTE CORRECTED") &&
+                ShowsPrompt(trial, "I've taken down that false trail sign"),
+                "The actual sign must disappear only after the surveyor reaches it.");
+            Capture(trial, "11-route-marker-corrected");
 
             // A retry after victory must reset both NPC position and Makinom
             // rescue flags, not leave a previous win on an otherwise fresh run.
             Press(trial, retry: true);
             yield return null;
             Require(!trial.SurveyorEscorting && !trial.RescueComplete &&
+                !trial.FalseMarkerCleared && falseTrailMarker.enabled &&
                 !trial.PlankSecured && !trial.GateOpen &&
                 Vector2.Distance((Vector2)surveyor.transform.position,
                     SoundwellTrial.SurveyorPosition) < 0.01f,
@@ -685,9 +704,12 @@ namespace Rpg.Soundwell
                 "Scene reload must restore the initial named bell stand and carrying state.");
             var freshGate = fresh.GetComponentsInChildren<BoxCollider2D>(true)
                 .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
+            var freshFalseMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
-                freshGate != null && freshGate.enabled,
-                "Reload must restore the gate and clear any previous survivor outcome.");
+                !fresh.FalseMarkerCleared && freshFalseMarker != null &&
+                freshFalseMarker.enabled && freshGate != null && freshGate.enabled,
+                "Reload must restore the gate, wrong-way sign and survivor objective.");
             var freshBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name ==
                     "PLACEHOLDER upper load-bearing plank");
