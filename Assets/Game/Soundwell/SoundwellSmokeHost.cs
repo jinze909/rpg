@@ -168,7 +168,34 @@ namespace Rpg.Soundwell
                 "The entry button must receive keyboard / controller selection.");
             var raycaster = entrance.GetComponentInChildren<GraphicRaycaster>();
             Require(raycaster != null && raycaster.enabled, "The entry must accept pointer raycasts.");
+
+            // Validate compact title/menu layout as well as the standard 16:9 path.
+            // The viewport ratio is injected; physical monitor aspect remains a
+            // manual test, while these raycasts exercise real UGUI components.
+            entrance.LayoutForViewportAspect(0.6f);
             Canvas.ForceUpdateCanvases();
+            Require(Mathf.Approximately(entryButton.GetComponent<RectTransform>().sizeDelta.x, 310f),
+                "Portrait entry must use a compact button size.");
+            var compactText = entryButton.GetComponentInChildren<Text>();
+            Require(compactText != null && compactText.rectTransform.sizeDelta.x <
+                entryButton.GetComponent<RectTransform>().sizeDelta.x,
+                "The entry label must stay inside its portrait button.");
+            var compactPointer = new PointerEventData(eventSystem)
+            {
+                button = PointerEventData.InputButton.Left,
+                position = RectTransformUtility.WorldToScreenPoint(null, entryButton.transform.position)
+            };
+            var compactHits = new List<RaycastResult>();
+            raycaster.Raycast(compactPointer, compactHits);
+            Require(compactHits.Exists(hit => hit.gameObject == entryButton.gameObject),
+                "The portrait-layout entry must remain raycastable.");
+
+            entrance.LayoutForViewportAspect(16f / 9f);
+            Canvas.ForceUpdateCanvases();
+            Require(Mathf.Approximately(entryButton.GetComponent<RectTransform>().sizeDelta.x, 460f),
+                "The entry must restore its landscape button size.");
+            Require(eventSystem.currentSelectedGameObject == entryButton.gameObject,
+                "Switching entry layout must not discard keyboard/gamepad focus.");
             var pointer = new PointerEventData(eventSystem)
             {
                 button = PointerEventData.InputButton.Left,

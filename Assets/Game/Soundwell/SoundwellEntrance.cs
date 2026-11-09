@@ -12,6 +12,11 @@ namespace Rpg.Soundwell
 
         private AsyncOperation trialLoad;
         private Button entryButton;
+        private RectTransform entryRect;
+        private Text titleText;
+        private Text actionText;
+        private Text footerText;
+        private float layoutAspect = -1f;
 
         private void Awake()
         {
@@ -21,9 +26,10 @@ namespace Rpg.Soundwell
             var scaler = canvas.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(960, 540);
+            scaler.matchWidthOrHeight = 0.5f;
             canvas.gameObject.AddComponent<GraphicRaycaster>();
 
-            SoundwellView.AddLabel(canvas.transform, "SOUNDWELL SIGNAL TRIAL", 32,
+            titleText = SoundwellView.AddLabel(canvas.transform, "SOUNDWELL SIGNAL TRIAL", 32,
                 new Color(0.86f, 0.93f, 0.97f), new Vector2(0f, 70f), new Vector2(520f, 48f));
 
             var buttonObject = new GameObject("Enter Soundwell button",
@@ -33,6 +39,7 @@ namespace Rpg.Soundwell
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = new Vector2(0f, -8f);
             rect.sizeDelta = new Vector2(460f, 62f);
+            entryRect = rect;
 
             var background = buttonObject.GetComponent<Image>();
             background.color = new Color(0.15f, 0.24f, 0.30f);
@@ -45,12 +52,23 @@ namespace Rpg.Soundwell
             colors.disabledColor = new Color(0.40f, 0.44f, 0.47f);
             entryButton.colors = colors;
             entryButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
-            SoundwellView.AddLabel(rect, "[F2 / Pad A] Enter the trial", 22,
+            actionText = SoundwellView.AddLabel(rect, "[F2 / Pad A] Enter the trial", 22,
                 new Color(1f, 0.72f, 0.33f), Vector2.zero, new Vector2(440f, 50f));
             entryButton.onClick.AddListener(() => OpenTrial());
 
-            SoundwellView.AddLabel(canvas.transform, "CLICK / ENTER / PAD A TO BEGIN", 15,
+            footerText = SoundwellView.AddLabel(canvas.transform, "CLICK / ENTER / PAD A TO BEGIN", 15,
                 new Color(0.65f, 0.78f, 0.83f), new Vector2(0f, -65f), new Vector2(440f, 28f));
+            titleText.resizeTextForBestFit = true;
+            titleText.resizeTextMinSize = 18;
+            titleText.resizeTextMaxSize = 32;
+            actionText.resizeTextForBestFit = true;
+            actionText.resizeTextMinSize = 15;
+            actionText.resizeTextMaxSize = 22;
+            footerText.resizeTextForBestFit = true;
+            footerText.resizeTextMinSize = 11;
+            footerText.resizeTextMaxSize = 15;
+            LayoutForViewportAspect((float)Screen.width / Mathf.Max(Screen.height, 1));
+
             if (EventSystem.current == null)
             {
                 var events = new GameObject("Soundwell entry EventSystem",
@@ -67,8 +85,30 @@ namespace Rpg.Soundwell
                 EventSystem.current.SetSelectedGameObject(entryButton.gameObject);
         }
 
+        // Responsive scene-local UGUI layout; no new scene or parallel input stack.
+        // Widths below are canvas units, with CanvasScaler handling screen pixels.
+        public void LayoutForViewportAspect(float aspect)
+        {
+            layoutAspect = Mathf.Max(0.1f, aspect);
+            bool compact = layoutAspect <= 1.25f;
+            entryRect.sizeDelta = new Vector2(compact ? 310f : 460f, compact ? 68f : 62f);
+            entryRect.anchoredPosition = new Vector2(0f, compact ? -5f : -8f);
+            titleText.rectTransform.sizeDelta = new Vector2(compact ? 340f : 520f, 50f);
+            titleText.rectTransform.anchoredPosition = new Vector2(0f, compact ? 96f : 70f);
+            titleText.fontSize = compact ? 26 : 32;
+            actionText.rectTransform.sizeDelta = new Vector2(compact ? 295f : 440f, 50f);
+            actionText.fontSize = compact ? 19 : 22;
+            footerText.rectTransform.sizeDelta = new Vector2(compact ? 320f : 440f, 30f);
+            footerText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -80f : -65f);
+            footerText.fontSize = compact ? 13 : 15;
+        }
+
         private void Update()
         {
+            float aspect = (float)Screen.width / Mathf.Max(Screen.height, 1);
+            if (!Mathf.Approximately(aspect, layoutAspect))
+                LayoutForViewportAspect(aspect);
+
             if (SoundwellControlFrame.EnterRequested(
                 Input.GetKeyDown(KeyCode.F2), Input.GetKeyDown(KeyCode.JoystickButton0)))
                 OpenTrial();
