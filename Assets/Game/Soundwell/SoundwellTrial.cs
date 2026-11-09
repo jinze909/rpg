@@ -7,8 +7,7 @@ namespace Rpg.Soundwell
     public sealed class SoundwellTrial : MonoBehaviour
     {
         private enum Signal { Ready, Ringing, Wrapped, Searching }
-        private const string SignalKey = "bell";
-        private const string TrialVariableId = "rpg.soundwell.signal-trial";
+        private const string SignalKey = "rpg.soundwell.signal-trial.bell";
         private const float Reach = 1.25f;
         private const float Speed = 4f;
 
@@ -25,9 +24,10 @@ namespace Rpg.Soundwell
         private Vector2 beastHome;
         private Vector2 lastHeard;
         private float searchStarted;
+        private bool initialized;
 
         public bool ReadKeyboard { get; set; } = true;
-        public bool IsReady => view != null;
+        public bool IsReady => initialized;
         public Camera TrialCamera => trialCamera;
         public Vector2 PlayerPosition => playerBody.position;
         public Vector2 BeastPosition => beast.position;
@@ -42,11 +42,11 @@ namespace Rpg.Soundwell
         private void Start()
         {
             // The saved ORK starter initializes Makinom before this scene begins.
-            variables = Maki.Initialized ? Maki.Game.GetObjectVariables(TrialVariableId) : null;
+            variables = Maki.Initialized ? Maki.Game?.Variables : null;
             if (variables == null)
             {
                 enabled = false;
-                throw new InvalidOperationException("Makinom could not create the Soundwell object's variables.");
+                throw new InvalidOperationException("Makinom's game variables are unavailable in the Soundwell scene.");
             }
 
             playerBody = player.gameObject.AddComponent<Rigidbody2D>();
@@ -57,11 +57,12 @@ namespace Rpg.Soundwell
             beastHome = beast.position;
             view = new SoundwellView(transform, trialCamera, player, bell, beast, safePoint);
             ResetTrial();
+            initialized = true;
         }
 
         private void Update()
         {
-            if (!ReadKeyboard)
+            if (!initialized || !ReadKeyboard)
                 return;
 
             Vector2 direction = new Vector2(
@@ -73,11 +74,15 @@ namespace Rpg.Soundwell
 
         private void FixedUpdate()
         {
-            playerBody.linearVelocity = movement * Speed;
+            if (initialized)
+                playerBody.linearVelocity = movement * Speed;
         }
 
         private void LateUpdate()
         {
+            if (!initialized)
+                return;
+
             Vector2 destination = beastHome;
             if (HasBellTarget)
             {

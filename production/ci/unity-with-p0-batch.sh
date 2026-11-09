@@ -62,7 +62,8 @@ if [[ "$prepare" != true && -f "$project_path/Assets/Game/Scenes/SoundwellTrial.
   fi
   printf '%s\n' "$soundwell_exit" > "$evidence/soundwell-editor-exit-code.txt"
   if [[ "$soundwell_exit" -ne 0 ]]; then
-    tail -n 100 "$evidence/soundwell.log" >&2
+    grep -m 2 -A 15 -E '^[[:alpha:].]+Exception:' "$evidence/soundwell.log" >&2 || true
+    tail -n 80 "$evidence/soundwell.log" >&2
     exit "$soundwell_exit"
   fi
 fi
