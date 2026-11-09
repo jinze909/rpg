@@ -76,6 +76,19 @@ namespace Rpg.Tests.Editor
             Combatant beast = ORKComponentHelper.GetCombatant(beastObject);
             Assert.That(beast, Is.Not.Null, "ORK Add Combatant must create the enemy combatant.");
             Assert.That(beast.GameObject, Is.SameAs(beastObject));
+
+            // AddCombatant assigns each spawned combatant's group the saved
+            // battle system from its battle-arena settings. Preserve that
+            // framework-owned configuration when assembling the encounter groups.
+            var playerBattleSystem = party[0].Group.BattleSystem;
+            var enemyBattleSystem = beast.Group.BattleSystem;
+            Assert.That(playerBattleSystem, Is.Not.Null,
+                "The player AddCombatant setup must resolve the saved Turn Based battle system.");
+            Assert.That(enemyBattleSystem, Is.Not.Null,
+                "The enemy AddCombatant setup must resolve the saved Turn Based battle system.");
+            playerGroup.BattleSystem = playerBattleSystem;
+            enemyGroup.BattleSystem = enemyBattleSystem;
+
             foreach (Combatant member in party)
             {
                 Assert.That(member.GameObject, Is.Not.Null);
@@ -128,7 +141,10 @@ namespace Rpg.Tests.Editor
             Assert.That(enemyGroup.GetBattle().Count, Is.EqualTo(1));
             Assert.That(playerGroup.BattleSystem, Is.Not.Null);
             Assert.That(playerGroup.BattleSystem.GetType().Name, Does.Contain("TurnBased"),
-                "The encounter must use ORK's saved Turn Based system, not a custom turn loop.");
+                "The player group must retain ORK's saved Turn Based system.");
+            Assert.That(enemyGroup.BattleSystem, Is.Not.Null);
+            Assert.That(enemyGroup.BattleSystem.GetType().Name, Does.Contain("TurnBased"),
+                "The enemy group must retain ORK's saved Turn Based system.");
 
             Debug.Log("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             LogAssert.NoUnexpectedReceived();
@@ -168,8 +184,13 @@ namespace Rpg.Tests.Editor
             Assert.That(factionAsset, Is.Not.Null, "The saved ORK faction asset must exist: " + factionAssetPath);
             Assert.That(combatantAsset, Is.Not.Null, "The saved ORK default combatant asset must exist.");
 
+            BattleSystemAsset battleSystemAsset = AssetDatabase.LoadAssetAtPath<BattleSystemAsset>(
+                "Assets/Gaming Is Love/_Data/Battle System/0 - Turn Based.asset");
+            Assert.That(battleSystemAsset, Is.Not.Null, "The saved Turn Based battle-system asset must exist.");
+
             addCombatant.settings.faction.SetAsset(factionAsset);
             addCombatant.settings.combatantSetting.combatant.SetAsset(combatantAsset);
+            addCombatant.settings.battleArena.battleSystem.SetAsset(battleSystemAsset);
             addCombatant.conditionSetting.autoCheckType = ConditionAutoCheckType.Start;
             return actor;
         }
