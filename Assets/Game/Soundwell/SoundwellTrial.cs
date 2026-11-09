@@ -13,6 +13,7 @@ namespace Rpg.Soundwell
         private const string GateKey = "rpg.soundwell.signal-trial.inner-gate";
         private const string SurveyorClueKey = "rpg.soundwell.signal-trial.surveyor-route";
         private const string PlankSecuredKey = "rpg.soundwell.signal-trial.upper-plank-secured";
+        private const string LowerPlankBrokenKey = "rpg.soundwell.signal-trial.lower-plank-broken";
         private const string EscortKey = "rpg.soundwell.signal-trial.surveyor-escorted";
         private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
         private const string FalseMarkerClearedKey = "rpg.soundwell.signal-trial.false-route-corrected";
@@ -32,6 +33,8 @@ namespace Rpg.Soundwell
         public static readonly Vector2 ClawEvidencePosition = new Vector2(-1.85f, 1.50f);
         public static readonly Vector2 SurveyorPosition = new Vector2(3.1f, 0.6f);
         public static readonly Vector2 UpperBoardPosition = new Vector2(2.75f, 1.75f);
+        public static readonly Vector2 LowerBoardPosition = new Vector2(2.75f, -1.75f);
+        private static readonly Vector2 LowerBoardRecovery = new Vector2(2.75f, -0.25f);
         public static readonly Vector2 EscapeLanePosition = new Vector2(1.15f, 0f);
         public const float EscapeLaneDangerRadius = 1.55f;
 
@@ -75,6 +78,7 @@ namespace Rpg.Soundwell
         public bool AtUpperPlank => GateOpen && !IsCarrying &&
             Vector2.Distance(playerBody.position, UpperBoardPosition) <= 0.68f;
         public bool PlankSecured => variables != null && variables.GetInt(PlankSecuredKey) != 0;
+        public bool LowerPlankBroken => variables != null && variables.GetInt(LowerPlankBrokenKey) != 0;
         public bool CanSecurePlank => AtUpperPlank && HasSurveyorClue && !PlankSecured;
         public bool SurveyorEscorting => variables != null && variables.GetInt(EscortKey) != 0;
         public bool RescueComplete => variables != null && variables.GetInt(RescueKey) != 0;
@@ -176,6 +180,18 @@ namespace Rpg.Soundwell
             if (!IsReady)
                 return;
 
+            // The lower route is physically unsafe, rather than a fake
+            // dialogue lock. Any attempt to walk over its weak section drops
+            // the player back inside. A broken plank remains impassable.
+            if (GateOpen && Vector2.Distance(playerBody.position, LowerBoardPosition) <= 0.48f)
+            {
+                if (!LowerPlankBroken)
+                    variables.Set(LowerPlankBrokenKey, 1);
+                movement = Vector2.zero;
+                playerBody.linearVelocity = Vector2.zero;
+                playerBody.position = LowerBoardRecovery;
+            }
+
             // While lifted, the single saved bell object follows the player;
             // it is silent until placed, so no mobile infinite decoy is created.
             if (IsCarrying)
@@ -219,7 +235,8 @@ namespace Rpg.Soundwell
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
                 AtRopeEvidence, AtClawEvidence, CanInspectRope, CanInspectClaws,
-                RopeObserved, ClawsObserved, BeastBlocksEscape, destination);
+                RopeObserved, ClawsObserved, BeastBlocksEscape, LowerPlankBroken,
+                destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
@@ -372,6 +389,7 @@ namespace Rpg.Soundwell
             variables.Set(GateKey, 0);
             variables.Set(SurveyorClueKey, 0);
             variables.Set(PlankSecuredKey, 0);
+            variables.Set(LowerPlankBrokenKey, 0);
             variables.Set(EscortKey, 0);
             variables.Set(RescueKey, 0);
             variables.Set(FalseMarkerClearedKey, 0);

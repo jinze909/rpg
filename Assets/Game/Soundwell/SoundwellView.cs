@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer beastIntentMarker;
         private readonly SpriteRenderer gateMarker;
         private readonly SpriteRenderer upperBoardMarker;
+        private readonly SpriteRenderer lowerBoardMarker;
         private readonly Transform surveyorFigure;
         private readonly SpriteRenderer falseTrailMarker;
         private readonly SpriteRenderer escapeDangerMarker;
@@ -118,6 +119,11 @@ namespace Rpg.Soundwell
             upperBoardMarker = Plate(root, "PLACEHOLDER upper load-bearing plank",
                 SoundwellTrial.UpperBoardPosition, new Vector2(1.65f, 0.3f),
                 new Color(0.30f, 0.37f, 0.40f), 1);
+            // A visible weak lower route and its collapsed state make the
+            // surveyor's warning consequential without a hidden timer.
+            lowerBoardMarker = Plate(root, "PLACEHOLDER unsafe lower plank",
+                SoundwellTrial.LowerBoardPosition, new Vector2(1.65f, 0.34f),
+                new Color(0.67f, 0.39f, 0.27f), 1);
             Wall(root, "West wall", new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
             Wall(root, "North wall", new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f));
             Wall(root, "South wall", new Vector2(-3.4f, -3.2f), new Vector2(7.3f, 0.28f));
@@ -355,7 +361,7 @@ namespace Rpg.Soundwell
             bool rescueComplete, bool falseMarkerCleared,
             bool atRopeEvidence, bool atClawEvidence, bool canInspectRope,
             bool canInspectClaws, bool ropeObserved, bool clawsObserved,
-            bool beastBlocksEscape, Vector2 beastDestination)
+            bool beastBlocksEscape, bool lowerPlankBroken, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -395,6 +401,9 @@ namespace Rpg.Soundwell
                 gateButtonLabel.text = interactCaption;
             upperBoardMarker.color = plankSecured ? new Color(0.45f, 0.92f, 0.74f)
                 : hasSurveyorClue ? Cloth : new Color(0.30f, 0.37f, 0.40f);
+            lowerBoardMarker.color = lowerPlankBroken
+                ? new Color(0.90f, 0.24f, 0.24f, 0.22f)
+                : new Color(0.67f, 0.39f, 0.27f);
             Vector2 npc = surveyorFigure.position;
             Vector2 routeTarget;
             if (!surveyorEscorting || rescueComplete)
@@ -454,6 +463,8 @@ namespace Rpg.Soundwell
                     : hasSurveyorClue
                         ? "SURVEYOR: That upper board holds two. My marker misled you; I'll take it down."
                         : atSurveyor ? "SURVEYOR: Stop! The lower plank won't hold you." : "";
+            if (lowerPlankBroken && !hasSurveyorClue && !surveyorEscorting && !rescueComplete)
+                speech = "SURVEYOR: The lower plank snapped! Ask me about the safe upper route.";
             if (speech.Length == 0 && atRopeEvidence && ropeObserved)
                 speech = "OBSERVED: The bell cord was cut. A rough knot remains.";
             else if (speech.Length == 0 && atClawEvidence && clawsObserved)

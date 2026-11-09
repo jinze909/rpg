@@ -310,13 +310,20 @@ namespace Rpg.Soundwell
             var upperBoard = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name ==
                     "PLACEHOLDER upper load-bearing plank");
+            var lowerBoard = trial.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name ==
+                    "PLACEHOLDER unsafe lower plank");
             var surveyor = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER trapped surveyor");
-            Require(upperBoard != null && surveyor != null &&
+            Require(upperBoard != null && lowerBoard != null &&
+                !trial.LowerPlankBroken && surveyor != null &&
+                Vector2.Distance((Vector2)lowerBoard.transform.position,
+                    SoundwellTrial.LowerBoardPosition) < 0.01f &&
                 Vector2.Distance((Vector2)surveyor.transform.position,
                     SoundwellTrial.SurveyorPosition) < 0.01f,
-                "The inner room must contain the actual trapped surveyor and his unmarked plank.");
+                "Both physical plank options and the trapped surveyor must exist in the inner room.");
             Color initialBoard = upperBoard.color;
+            Color initialLowerBoard = lowerBoard.color;
             var intentMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
             Require(intentMarker != null && !intentMarker.enabled,
@@ -622,6 +629,37 @@ namespace Rpg.Soundwell
                 yield return null;
             Press(trial);
             yield return null;
+            // Testing the wrong plank causes a visible collapse. The player
+            // recovers near the surveyor instead of being silently rewarded.
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.LowerPlankBroken,
+                "unsafe lower plank gives way under the moving player"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.PlayerPosition.y > -0.75f && trial.GateOpen &&
+                !trial.HasSurveyorClue && lowerBoard.color != initialLowerBoard &&
+                ShowsPrompt(trial, "lower plank snapped"),
+                "Stepping on the weak lower plank must collapse it and recover the player.");
+            Capture(trial, "07-lower-plank-collapses");
+            // The weakened route must remain unsafe on another attempt.
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y < -0.9f,
+                "approach the collapsed lower plank"); wait.MoveNext();)
+                yield return null;
+            for (int frame = 0; frame < 22; frame++)
+                yield return null;
+            Press(trial);
+            Require(trial.LowerPlankBroken && trial.PlayerPosition.y > -1.25f &&
+                lowerBoard.color != initialLowerBoard,
+                "A collapsed lower plank cannot be crossed by repeating the same movement.");
+            // Regain talking range without a teleport, then choose the safe route.
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= -0.10f,
+                "return to the surveyor after a failed lower route"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
             Require(trial.AtSurveyor && TrialActionButton(trial, "Gate").interactable &&
                 ShowsPrompt(trial, "[G / RB] Ask the surveyor"),
                 "The shared G/RB UGUI button must become a real Talk action near the survivor.");
@@ -869,6 +907,7 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!trialAfterVictory.SurveyorEscorting &&
                 !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
+                !trialAfterVictory.LowerPlankBroken &&
                 !trialAfterVictory.PlankSecured && !trialAfterVictory.GateOpen &&
                 trialAfterVictory.PlayerPosition == retreat,
                 "Replay after victory must start fresh without copying the previous rescue.");
@@ -896,8 +935,11 @@ namespace Rpg.Soundwell
                     "PLACEHOLDER upper load-bearing plank");
             var freshSurveyor = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER trapped surveyor");
-            Require(!fresh.HasSurveyorClue && !fresh.PlankSecured && freshBoard != null &&
-                freshBoard.color == initialBoard && freshSurveyor != null &&
+            var freshLowerBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER unsafe lower plank");
+            Require(!fresh.HasSurveyorClue && !fresh.PlankSecured && !fresh.LowerPlankBroken &&
+                freshLowerBoard != null && freshLowerBoard.color == initialLowerBoard &&
+                freshBoard != null && freshBoard.color == initialBoard && freshSurveyor != null &&
                 Vector2.Distance((Vector2)freshSurveyor.transform.position,
                     SoundwellTrial.SurveyorPosition) < 0.01f,
                 "Reload must clear secured-plank state and return the surveyor to his inner-room start.");
