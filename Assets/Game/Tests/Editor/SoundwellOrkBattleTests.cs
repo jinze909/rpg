@@ -93,13 +93,12 @@ namespace Rpg.Tests.Editor
             ORK.Game.PlayerHandler.SetPlayer(party[0], false);
             Assert.That(ORK.Game.PlayerHandler.ActiveGroup, Is.SameAs(playerGroup));
 
-            // CreateBattle is ORK's runtime arena factory when no scene Battle
-            // component is pre-placed. It starts the supplied enemy combatants
-            // against the active player group configured above. StartGroup is for
-            // supplying enemy groups to an existing Battle component; passing the
-            // player group there reverses the intended side and never enters battle.
+            // CreateBattle supplies the runtime arena component; ORK requires
+            // StartGroup to start it with the enemy group. The player group is
+            // already registered as the active player group above.
             BattleComponent battle = BattleComponent.CreateBattle(new List<Combatant> { beast });
-            Assert.That(battle, Is.Not.Null, "ORK must create and start the arena Battle component.");
+            Assert.That(battle, Is.Not.Null, "ORK must create the arena Battle component.");
+            battle.StartGroup(enemyGroup, null);
 
             float battleDeadline = Time.realtimeSinceStartup + 8f;
             while (ORK.Game.Combatants.GetInBattle().Count < 4 &&
