@@ -19,7 +19,8 @@
 ## 每轮更新
 
 - 本轮技术P0继续：基于 `21ce4693323552858430f10db69b5ba40d3c1f2f` 准备 [Actions CI 草稿](docs/unity-p0-ci.md)，固定 Unity、GameCI 与测试框架，覆盖重复接线、两次完整 Play 周期和独立批处理进程。首次 `prepare` 仅生成可审查候选；提交生成配置后才可 `verify` 干净 SHA。
-- 本地仍无 Unity Editor，当前云网络拒绝 `api.github.com`，Actions 运行记录与仓库授权配置未读到；CI 候选已推送到 `codex/dev`，远端确认 SHA 为 `3c9502ad6b86a6c905ee8c5e6bdbc8600ff4347f`，由 push 事件请求首次 prepare。API 仍返回 Forbidden，尚未确认运行编号、排队状态或结果。P0 保持待验证，不能把原包校验或静态审查当成运行通过。
-- 下一步：追加放行 GitHub API，查询本次 push 对应的 Actions 运行并取得 prepare artifact，审查真实生成文件后提交并完成同 SHA 验证。
+- 网络现已放开并取得实际结果：[run 42520640550](https://github.com/jinze909/rpg/actions/runs/42520640550) 测试候选 `3c9502ad6b86a6c905ee8c5e6bdbc8600ff4347f`，失败于 GameCI CLI 参数 `Unknown argument: noCoverageEnabled`，Unity 尚未启动。当前首错是 Action/CLI 参数兼容，不继续把旧 API 网络拒绝当现状；ULF 沿用用户现有方案。
+- 本轮联网研究并经叙事、战斗、探索、制作、玩家体验与独立创意审查，收敛[声井首样本设计](docs/gameplay/FIRST_PLAYABLE.md)及[002 声源试验](production/stories/002-soundwell-signal.md)。只定可开发范围，未实现、未运行、未真人试玩；移动/阵位和乐趣仍待对照，正式队友及美术未冻结。
+- 下一步：先修复已确认的 CI 参数错误并完成 001；技术 P0 通过后实施 002 的“响铃—兽响应—止声—回撤”真实交互链，再补完整救援遭遇。不要直接生产整序章或继续无边扩写设计。
 
 Producer 在此更新当前故事、最近交付、证据 SHA 及链接、未完成的检查和一个明确的下一步。项目长期背景见 [基线记录](production/session-state/active.md)。
