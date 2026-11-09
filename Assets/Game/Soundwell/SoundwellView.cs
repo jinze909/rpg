@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer beastIntentMarker;
         private readonly SpriteRenderer gateMarker;
         private readonly SpriteRenderer upperBoardMarker;
+        private readonly Transform surveyorFigure;
         private readonly BoxCollider2D gateBlocker;
         private readonly LineRenderer pulse;
         private readonly AudioSource audio;
@@ -75,9 +76,12 @@ namespace Rpg.Soundwell
             // The surveyor is a scene character, not a global quest popup.
             // The plank is visible before dialogue; only his firsthand
             // warning marks which part can take the load.
-            Plate(root, "PLACEHOLDER trapped surveyor", SoundwellTrial.SurveyorPosition,
+            surveyorFigure = new GameObject("Surveyor figure").transform;
+            surveyorFigure.SetParent(root, false);
+            surveyorFigure.position = SoundwellTrial.SurveyorPosition;
+            Plate(surveyorFigure, "PLACEHOLDER trapped surveyor", Vector2.zero,
                 new Vector2(0.58f, 0.74f), Ink, 3);
-            Plate(root, "Surveyor face", SoundwellTrial.SurveyorPosition + new Vector2(0f, 0.14f),
+            Plate(surveyorFigure, "Surveyor face", new Vector2(0f, 0.14f),
                 new Vector2(0.25f, 0.15f), Gold, 4);
             upperBoardMarker = Plate(root, "PLACEHOLDER upper load-bearing plank",
                 SoundwellTrial.UpperBoardPosition, new Vector2(1.65f, 0.3f),
@@ -301,7 +305,8 @@ namespace Rpg.Soundwell
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
             bool atBell, bool atSafePoint, bool carrying, bool canPlaceBell,
             bool gateOpen, bool atGatePanel, bool canOpenGate, bool atSurveyor,
-            bool hasSurveyorClue, Vector2 beastDestination)
+            bool hasSurveyorClue, bool atUpperPlank, bool canSecurePlank,
+            bool plankSecured, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -319,14 +324,24 @@ namespace Rpg.Soundwell
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
-            gateButton.interactable = canOpenGate || atSurveyor;
-            string interactCaption = atSurveyor ? "ASK SURVEYOR [G / RB]" : "OPEN GATE [G / RB]";
+            gateButton.interactable = canOpenGate || canSecurePlank ||
+                (atSurveyor && !hasSurveyorClue);
+            string interactCaption = canSecurePlank ? "BRACE PLANK [G / RB]"
+                : atSurveyor && !hasSurveyorClue ? "ASK SURVEYOR [G / RB]"
+                : "OPEN GATE [G / RB]";
             if (gateButtonLabel.text != interactCaption)
                 gateButtonLabel.text = interactCaption;
-            upperBoardMarker.color = hasSurveyorClue ? Cloth : new Color(0.30f, 0.37f, 0.40f);
-            string speech = hasSurveyorClue
-                ? "SURVEYOR: That upper board holds two. My marker misled you; I'll take it down."
-                : atSurveyor ? "SURVEYOR: Stop! The lower plank won't hold you." : "";
+            upperBoardMarker.color = plankSecured ? new Color(0.45f, 0.92f, 0.74f)
+                : hasSurveyorClue ? Cloth : new Color(0.30f, 0.37f, 0.40f);
+            Vector2 routeTarget = plankSecured ? SoundwellTrial.UpperBoardPosition
+                : SoundwellTrial.SurveyorPosition;
+            surveyorFigure.position = Vector3.MoveTowards(surveyorFigure.position,
+                new Vector3(routeTarget.x, routeTarget.y, 0f), 1.6f * Time.deltaTime);
+            string speech = plankSecured
+                ? "SURVEYOR: The upper plank holds. I can cross now—don't leave me here."
+                : hasSurveyorClue
+                    ? "SURVEYOR: That upper board holds two. My marker misled you; I'll take it down."
+                    : atSurveyor ? "SURVEYOR: Stop! The lower plank won't hold you." : "";
             if (surveyorStatus.text != speech)
                 surveyorStatus.text = speech;
             gateBlocker.enabled = !gateOpen;
@@ -358,9 +373,13 @@ namespace Rpg.Soundwell
                 prompt = canPlaceBell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."
                     : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
+            else if (atUpperPlank)
+                prompt = plankSecured ? "Upper plank braced; surveyor can stand on it. Rescue not complete."
+                    : canSecurePlank ? "[G / RB] Brace the upper plank for the surveyor."
+                    : "Ask the surveyor which plank is safe before bracing anything.";
             else if (atSurveyor)
                 prompt = hasSurveyorClue
-                    ? "Upper plank marked. The surveyor is still trapped; plan the rescue."
+                    ? "Upper plank marked. Secure it before the surveyor can cross."
                     : "[G / RB] Ask the surveyor which plank can carry someone.";
             else if (atGatePanel)
                 prompt = gateOpen ? "Gate open: cross into the soundwell inner room."

@@ -275,8 +275,9 @@ namespace Rpg.Soundwell
                 "The inner gate must physically block passage before any bell experiment.");
             Require(!TrialActionButton(trial, "Gate").interactable,
                 "The gate button must be unavailable without a real distraction.");
-            Require(!trial.AtSurveyor && !trial.HasSurveyorClue,
-                "The surveyor clue cannot be claimed from the entry zone.");
+            Require(!trial.AtSurveyor && !trial.HasSurveyorClue &&
+                !trial.PlankSecured && !trial.CanSecurePlank,
+                "The surveyor route and braced plank cannot be claimed from the entry zone.");
             var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
             Require(sideStand != null &&
@@ -532,10 +533,46 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "The surveyor is still trapped"),
                 "A real spoken warning must mark the safe upper plank without falsely completing rescue.");
             Press(trial, gate: true);
-            Require(trial.HasSurveyorClue,
-                "Repeated talk through the same input mapping must be idempotent.");
+            Require(trial.HasSurveyorClue && !trial.PlankSecured,
+                "Repeated talk must not brace the plank from the surveyor's position.");
             Capture(trial, "07-surveyor-plank-warning");
 
+            // The marked plank is interactive rather than an automatic clue
+            // reward. Reaching and bracing it lets the surveyor move of his
+            // own accord, but does not silently finish the rescue.
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= 1.65f,
+                "reach the marked upper board"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.CanSecurePlank && TrialActionButton(trial, "Gate").interactable &&
+                TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                    .Contains("BRACE PLANK", StringComparison.Ordinal) &&
+                ShowsPrompt(trial, "[G / RB] Brace the upper plank"),
+                "The marked plank must expose an actual contextual bracing action.");
+            ClickTrialAction(trial, "Gate");
+            Require(trial.PlankSecured && !trial.CanSecurePlank,
+                "Bracing must update its single authoritative Makinom status.");
+            for (var wait = Until(() => Vector2.Distance(
+                    (Vector2)surveyor.transform.position, SoundwellTrial.UpperBoardPosition) < 0.1f,
+                "surveyor independently takes the braced upper route"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(upperBoard.color.g > upperBoard.color.r &&
+                upperBoard.color.g > initialBoard.g &&
+                ShowsPrompt(trial, "I can cross now") &&
+                ShowsPrompt(trial, "Rescue not complete"),
+                "The board and surveyor must visibly respond while rescue remains unfinished.");
+            Press(trial, gate: true);
+            Require(trial.PlankSecured && trial.GateOpen,
+                "Repeated contextual input must not reverse the secured route.");
+            Capture(trial, "08-braced-plank-surveyor");
+
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= 0.05f,
+                "leave the secured upper plank"); wait.MoveNext();)
+                yield return null;
             Press(trial, Vector2.left);
             for (var wait = Until(() => trial.PlayerPosition.x <= -0.6f,
                 "return through the open gate"); wait.MoveNext();)
@@ -603,9 +640,13 @@ namespace Rpg.Soundwell
             var freshBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name ==
                     "PLACEHOLDER upper load-bearing plank");
-            Require(!fresh.HasSurveyorClue && freshBoard != null &&
-                freshBoard.color == initialBoard,
-                "Restarting the scene must reset the surveyor clue and its board highlight.");
+            var freshSurveyor = fresh.GetComponentsInChildren<SpriteRenderer>(true)
+                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER trapped surveyor");
+            Require(!fresh.HasSurveyorClue && !fresh.PlankSecured && freshBoard != null &&
+                freshBoard.color == initialBoard && freshSurveyor != null &&
+                Vector2.Distance((Vector2)freshSurveyor.transform.position,
+                    SoundwellTrial.SurveyorPosition) < 0.01f,
+                "Reload must clear secured-plank state and return the surveyor to his inner-room start.");
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
             yield return null;
             var freshMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)

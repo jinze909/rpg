@@ -12,6 +12,7 @@ namespace Rpg.Soundwell
         private const string CarryKey = "rpg.soundwell.signal-trial.carrying-bell";
         private const string GateKey = "rpg.soundwell.signal-trial.inner-gate";
         private const string SurveyorClueKey = "rpg.soundwell.signal-trial.surveyor-route";
+        private const string PlankSecuredKey = "rpg.soundwell.signal-trial.upper-plank-secured";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -57,6 +58,10 @@ namespace Rpg.Soundwell
         public bool AtSurveyor => GateOpen && !IsCarrying &&
             Vector2.Distance(playerBody.position, SurveyorPosition) <= 1.05f;
         public bool HasSurveyorClue => variables != null && variables.GetInt(SurveyorClueKey) != 0;
+        public bool AtUpperPlank => GateOpen && !IsCarrying &&
+            Vector2.Distance(playerBody.position, UpperBoardPosition) <= 0.68f;
+        public bool PlankSecured => variables != null && variables.GetInt(PlankSecuredKey) != 0;
+        public bool CanSecurePlank => AtUpperPlank && HasSurveyorClue && !PlankSecured;
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
@@ -181,7 +186,7 @@ namespace Rpg.Soundwell
                 Vector2.Distance(beast.position, beastHome) > 0.15f;
             view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
-                HasSurveyorClue, destination);
+                HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured, destination);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -256,11 +261,15 @@ namespace Rpg.Soundwell
             {
                 if (CanOpenGate)
                     variables.Set(GateKey, 1);
-                else if (AtSurveyor)
+                else if (CanSecurePlank)
                 {
-                    // The same contextual G/RB action lets the trapped surveyor
-                    // identify a sound upper plank. Keep this clue with the
-                    // existing Makinom scenario state, not a UI-only flag.
+                    // Interaction must happen at the load-bearing upper plank,
+                    // after the surveyor identifies it. His movement then uses
+                    // this single Makinom variable, never a UI-only reward.
+                    variables.Set(PlankSecuredKey, 1);
+                }
+                else if (AtSurveyor && !HasSurveyorClue)
+                {
                     variables.Set(SurveyorClueKey, 1);
                 }
                 return;
@@ -304,6 +313,7 @@ namespace Rpg.Soundwell
             variables.Set(CarryKey, 0);
             variables.Set(GateKey, 0);
             variables.Set(SurveyorClueKey, 0);
+            variables.Set(PlankSecuredKey, 0);
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);
             lastHeard = beastHome;
