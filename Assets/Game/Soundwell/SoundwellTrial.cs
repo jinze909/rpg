@@ -31,6 +31,7 @@ namespace Rpg.Soundwell
         // Additional scene-to-scene outcome, not an ORK item or persistent save.
         public const string EntryCartKitKey = "rpg.soundwell.signal-trial.last-return-cart-kit";
         public const string EntrySafeRouteKey = "rpg.soundwell.signal-trial.last-return-safe-route";
+        public const string EntryBeastContactsKey = "rpg.soundwell.signal-trial.last-return-beast-contacts";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -75,7 +76,8 @@ namespace Rpg.Soundwell
         // A live positional threat, never another saved or guessed target.
         public bool BeastBlocksEscape => Vector2.Distance(beast.position, EscapeLanePosition) <
             EscapeLaneDangerRadius;
-        public bool BeastContacted => variables != null && variables.GetInt(BeastContactKey) != 0;
+        public int BeastContacts => variables != null ? variables.GetInt(BeastContactKey) : 0;
+        public bool BeastContacted => BeastContacts > 0;
         public const float BeastContactRadius = 0.67f;
         public Vector2 BellPosition => bell.position;
         public bool IsCarrying => variables != null && variables.GetInt(CarryKey) != 0;
@@ -263,7 +265,9 @@ namespace Rpg.Soundwell
             if (GateOpen && !RescueComplete && playerBody.position.x > 0.55f &&
                 Vector2.Distance(playerBody.position, beast.position) <= BeastContactRadius)
             {
-                variables.Set(BeastContactKey, 1);
+                // One encounter per physical knockback; the player is moved
+                // away immediately, so the same collision can't count twice.
+                variables.Set(BeastContactKey, Mathf.Min(999, BeastContacts + 1));
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
                 playerBody.position = safePoint.position;
@@ -329,6 +333,7 @@ namespace Rpg.Soundwell
                     RescueComplete && FalseMarkerCleared && CartKitReclaimed ? 1 : 0);
                 variables.Set(EntrySafeRouteKey,
                     RescueComplete && FalseMarkerCleared && CartKitReclaimed && SafeRouteMarked ? 1 : 0);
+                variables.Set(EntryBeastContactsKey, BeastContacts);
             }
             bootstrapLoad = SceneManager.LoadSceneAsync(SoundwellEntrance.BootstrapSceneName);
             movement = Vector2.zero;

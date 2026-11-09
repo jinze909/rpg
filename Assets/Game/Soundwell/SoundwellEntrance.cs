@@ -22,10 +22,12 @@ namespace Rpg.Soundwell
         private int shownOutcome = -1;
         private bool shownCartKitRecovered;
         private bool shownSafeRouteMarked;
+        private int shownBeastContacts = -1;
 
         public int LastReturnOutcome => shownOutcome;
         public bool LastReturnCartKitRecovered => shownCartKitRecovered;
         public bool LastReturnSafeRouteMarked => shownSafeRouteMarked;
+        public int LastReturnBeastContacts => shownBeastContacts;
 
         private void Awake()
         {
@@ -78,6 +80,9 @@ namespace Rpg.Soundwell
             footerText.resizeTextForBestFit = true;
             footerText.resizeTextMinSize = 11;
             footerText.resizeTextMaxSize = 15;
+            outcomeText.resizeTextForBestFit = true;
+            outcomeText.resizeTextMinSize = 13;
+            outcomeText.resizeTextMaxSize = 17;
             LayoutForViewportAspect((float)Screen.width / Mathf.Max(Screen.height, 1));
 
             if (EventSystem.current == null)
@@ -113,7 +118,7 @@ namespace Rpg.Soundwell
             footerText.rectTransform.sizeDelta = new Vector2(compact ? 320f : 440f, 30f);
             footerText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -80f : -65f);
             footerText.fontSize = compact ? 13 : 15;
-            outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, compact ? 112f : 96f);
+            outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, compact ? 126f : 116f);
             outcomeText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -142f : -126f);
             outcomeText.fontSize = compact ? 15 : 17;
         }
@@ -143,19 +148,26 @@ namespace Rpg.Soundwell
                 variables.GetInt(SoundwellTrial.EntryCartKitKey) != 0;
             bool safeRouteMarked = cartKitRecovered &&
                 variables.GetInt(SoundwellTrial.EntrySafeRouteKey) != 0;
+            int contacts = Mathf.Clamp(
+                variables.GetInt(SoundwellTrial.EntryBeastContactsKey), 0, 999);
             if (result == shownOutcome && cartKitRecovered == shownCartKitRecovered &&
-                safeRouteMarked == shownSafeRouteMarked)
+                safeRouteMarked == shownSafeRouteMarked && contacts == shownBeastContacts)
                 return;
 
             shownOutcome = result;
             shownCartKitRecovered = cartKitRecovered;
             shownSafeRouteMarked = safeRouteMarked;
+            shownBeastContacts = contacts;
+            string encounterReport = contacts > 0 ? "\nBEAST CONTACTS: " + contacts
+                : result > 0 ? "\nCLEAN EVASION: NO BEAST CONTACT" : "";
             outcomeText.text = result == 2
                 ? "SURVEYOR SAFE / FALSE TRAIL MARKER REMOVED" +
                     (cartKitRecovered ? "\nMAP KIT RECOVERED" : "") +
-                    (safeRouteMarked ? "\nSAFE ROUTE POSTED" : "")
-                : result == 1 ? "SURVEYOR SAFE / ROUTE MARKER STILL NEEDS CORRECTION"
-                : "";
+                    (safeRouteMarked ? "\nSAFE ROUTE POSTED" : "") +
+                    encounterReport
+                : result == 1 ? "SURVEYOR SAFE / ROUTE MARKER STILL NEEDS CORRECTION" +
+                    encounterReport
+                : contacts > 0 ? "WITHDREW / BEAST CONTACTS: " + contacts : "";
         }
 
         public AsyncOperation OpenTrial()

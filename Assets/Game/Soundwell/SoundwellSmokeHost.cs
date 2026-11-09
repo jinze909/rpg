@@ -345,7 +345,8 @@ namespace Rpg.Soundwell
                 "The gate button must be unavailable without a real distraction.");
             Require(!trial.AtSurveyor && !trial.HasSurveyorClue &&
                 !trial.PlankSecured && !trial.CanSecurePlank &&
-                !trial.SurveyorEscorting && !trial.RescueComplete && !trial.BeastContacted,
+                !trial.SurveyorEscorting && !trial.RescueComplete &&
+                !trial.BeastContacted && trial.BeastContacts == 0,
                 "No rescue or beast-contact penalty can be claimed from the entry zone.");
             var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
@@ -611,7 +612,8 @@ namespace Rpg.Soundwell
             Require(!trial.IsCarrying && trial.BellPosition == bellStart,
                 "Reset must put the portable bell back at its original stand.");
             Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved &&
-                !trial.RopeRecovered && !trial.SurveyorLineTied && !trial.BeastContacted &&
+                !trial.RopeRecovered && !trial.SurveyorLineTied &&
+                !trial.BeastContacted && trial.BeastContacts == 0 &&
                 !beastContactRing.enabled && revealedClawTrail.All(marker => !marker.enabled),
                 "Retreat reset must clear clues, revealed claw trail, and recovered guide rope.");
             yield return null;
@@ -801,7 +803,7 @@ namespace Rpg.Soundwell
             Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.12f &&
                 trial.GateOpen && trial.HasBellTarget && !trial.RescueComplete &&
                 !trial.SurveyorEscorting && !trial.CartClueShared &&
-                beastContactRing.enabled &&
+                trial.BeastContacts == 1 && beastContactRing.enabled &&
                 Vector2.Distance(beastContactRing.transform.position, trial.BeastPosition) < 0.02f &&
                 ShowsPrompt(trial, "BEAST CONTACT: Pushed back to RETREAT"),
                 "Beast contact must push the player to safety without hiding a reset or inventing rescue.");
@@ -1183,6 +1185,9 @@ namespace Rpg.Soundwell
 
             // Returning after a real rescue must visibly carry its outcome
             // into Bootstrap. This is not a save or an invented ORK reward.
+            int earnedContacts = trial.BeastContacts;
+            Require(earnedContacts >= 1,
+                "The actual encounter must remain recorded through the full rescue.");
             var finishedReturn = trial.ReturnToBootstrap();
             Require(finishedReturn != null && ReferenceEquals(finishedReturn,
                 trial.ReturnToBootstrap()), "Completed return must be idempotent.");
@@ -1193,14 +1198,16 @@ namespace Rpg.Soundwell
             Require(victoryEntrance != null, "Completed return must show the actual entry UI.");
             for (var wait = Until(() => victoryEntrance.LastReturnOutcome == 2 &&
                 victoryEntrance.LastReturnCartKitRecovered &&
-                victoryEntrance.LastReturnSafeRouteMarked,
-                "entry HUD receives rescue, recovered kit and the verified safe route"); wait.MoveNext();)
+                victoryEntrance.LastReturnSafeRouteMarked &&
+                victoryEntrance.LastReturnBeastContacts == earnedContacts,
+                "entry HUD receives rescue, recovered kit, safe route and true contact count"); wait.MoveNext();)
                 yield return null;
             Require(ShowsPrompt(victoryEntrance, "SURVEYOR SAFE") &&
                 ShowsPrompt(victoryEntrance, "FALSE TRAIL MARKER REMOVED") &&
                 ShowsPrompt(victoryEntrance, "MAP KIT RECOVERED") &&
-                ShowsPrompt(victoryEntrance, "SAFE ROUTE POSTED"),
-                "Completed return must report the physical sign, not merely the map kit.");
+                ShowsPrompt(victoryEntrance, "SAFE ROUTE POSTED") &&
+                ShowsPrompt(victoryEntrance, "BEAST CONTACTS: " + earnedContacts),
+                "Completed return must report physical route and contact penalties, not only victory.");
 
             yield return victoryEntrance.OpenTrial();
             var trialAfterVictory = FindRootComponent<SoundwellTrial>();
@@ -1211,7 +1218,8 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(!trialAfterVictory.SurveyorEscorting &&
                 !trialAfterVictory.RescueComplete && !trialAfterVictory.FalseMarkerCleared &&
-                !trialAfterVictory.SafeRouteMarked && !trialAfterVictory.BeastContacted &&
+                !trialAfterVictory.SafeRouteMarked &&
+                !trialAfterVictory.BeastContacted && trialAfterVictory.BeastContacts == 0 &&
                 !trialAfterVictory.RopeRecovered && !trialAfterVictory.SurveyorLineTied &&
                 !trialAfterVictory.CartObserved && !trialAfterVictory.CartKitReclaimed &&
                 !trialAfterVictory.CartClueShared &&
@@ -1243,7 +1251,7 @@ namespace Rpg.Soundwell
                     line.enabled),
                 "A new scene must not retain an open-gate beast warning from the previous run.");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
-                !fresh.BeastContacted &&
+                !fresh.BeastContacted && fresh.BeastContacts == 0 &&
                 !fresh.FalseMarkerCleared && !fresh.SafeRouteMarked &&
                 !fresh.RopeObserved && !fresh.ClawsObserved &&
                 !fresh.CartObserved && !fresh.CartKitReclaimed && !fresh.CartClueShared &&
@@ -1286,6 +1294,8 @@ namespace Rpg.Soundwell
             Require(returnedEntrance.LastReturnOutcome == 0 &&
                 !returnedEntrance.LastReturnCartKitRecovered &&
                 !returnedEntrance.LastReturnSafeRouteMarked &&
+                returnedEntrance.LastReturnBeastContacts == 0 &&
+                !ShowsPrompt(returnedEntrance, "BEAST CONTACTS:") &&
                 !ShowsPrompt(returnedEntrance, "SURVEYOR SAFE") &&
                 !ShowsPrompt(returnedEntrance, "MAP KIT RECOVERED") &&
                 !ShowsPrompt(returnedEntrance, "SAFE ROUTE POSTED"),
