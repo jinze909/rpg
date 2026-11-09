@@ -9,6 +9,7 @@ namespace Rpg.Soundwell
         private static readonly Color Ink = new Color(0.79f, 0.87f, 0.90f);
         private static readonly Color Gold = new Color(1f, 0.72f, 0.33f);
         private static readonly Color Cloth = new Color(0.45f, 0.73f, 0.83f);
+        private readonly Camera camera;
         private readonly Sprite square;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
@@ -24,12 +25,13 @@ namespace Rpg.Soundwell
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe)
         {
+            this.camera = camera;
             square = Sprite.Create(Texture2D.whiteTexture,
                 new Rect(0, 0, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
                 new Vector2(0.5f, 0.5f), Texture2D.whiteTexture.width);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
-            camera.orthographicSize = 5.5f;
+            FitCamera();
 
             Plate(root, "Trial floor", Vector2.zero, new Vector2(14f, 6.4f), new Color(0.11f, 0.19f, 0.23f), -4);
             Plate(root, "Beast lane", new Vector2(3.7f, 0f), new Vector2(6.55f, 6.4f), new Color(0.22f, 0.16f, 0.18f), -3);
@@ -80,6 +82,7 @@ namespace Rpg.Soundwell
 
         public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint)
         {
+            FitCamera();
             bellMarker.color = wrapped ? Cloth : Gold;
             string status = ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING" : "BEAST  /  LISTENING";
             if (beastStatus.text != status)
@@ -89,10 +92,10 @@ namespace Rpg.Soundwell
             if (hint.text != controls)
                 hint.text = controls;
             float age = Time.time - pulseStarted;
-            pulse.enabled = ringing || age < (mutedPulse ? 0.33f : 0.75f);
+            pulse.enabled = ringing || age < (mutedPulse ? 0.33f : clearBell.length);
             if (!pulse.enabled)
                 return;
-            float progress = ringing ? Mathf.Repeat(age * 1.65f, 1f) : Mathf.Clamp01(age / 0.33f);
+            float progress = ringing ? Mathf.Repeat(age / clearBell.length, 1f) : Mathf.Clamp01(age / 0.33f);
             float radius = Mathf.Lerp(0.32f, mutedPulse ? 0.78f : 2.15f, progress);
             Color color = mutedPulse ? Cloth : Gold;
             color.a = 0.95f - progress * 0.68f;
@@ -104,12 +107,26 @@ namespace Rpg.Soundwell
             }
         }
 
+        private void FitCamera()
+        {
+            // Preserve the hall and its world-space labels as the window narrows.
+            float aspect = camera.aspect;
+            if (aspect <= 0f)
+                return;
+
+            float size = Mathf.Max(5.5f, 8.4f / aspect);
+            if (!Mathf.Approximately(camera.orthographicSize, size))
+                camera.orthographicSize = size;
+        }
+
         public void PlayBell(bool muffled)
         {
             mutedPulse = muffled;
             pulseStarted = Time.time;
             audio.Stop();
-            audio.PlayOneShot(muffled ? mutedBell : clearBell);
+            audio.clip = muffled ? mutedBell : clearBell;
+            audio.loop = !muffled;
+            audio.Play();
         }
 
         public void ResetPulse()
@@ -117,6 +134,8 @@ namespace Rpg.Soundwell
             pulseStarted = float.NegativeInfinity;
             pulse.enabled = false;
             audio.Stop();
+            audio.loop = false;
+            audio.clip = null;
         }
 
         public void Dispose()

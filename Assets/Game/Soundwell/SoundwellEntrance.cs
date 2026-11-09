@@ -8,6 +8,8 @@ namespace Rpg.Soundwell
     {
         public const string SceneName = "SoundwellTrial";
 
+        private AsyncOperation trialLoad;
+
         private void Awake()
         {
             var canvas = new GameObject("Soundwell entry prompt", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
@@ -24,6 +26,6 @@ namespace Rpg.Soundwell
                 OpenTrial();
         }
 
-        public AsyncOperation OpenTrial() => SceneManager.LoadSceneAsync(SceneName);
+        public AsyncOperation OpenTrial() => trialLoad ??= SceneManager.LoadSceneAsync(SceneName);
     }
 }

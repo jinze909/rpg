@@ -71,13 +71,27 @@ namespace Rpg.Soundwell
                 "Unexpected initial scene: " + SceneManager.GetActiveScene().path);
             var entrance = FindRootComponent<SoundwellEntrance>();
             Require(entrance != null, "The saved Bootstrap scene must expose the trial.");
-            yield return entrance.OpenTrial();
+            var load = entrance.OpenTrial();
+            Require(load != null && ReferenceEquals(load, entrance.OpenTrial()),
+                "A second entry request during loading must reuse the same operation.");
+            yield return load;
             Require(SceneManager.GetActiveScene().name == SceneName, "The Bootstrap entrance must load Soundwell.");
             var trial = FindRootComponent<SoundwellTrial>();
             Require(trial != null, "The saved trial scene must include the trial component.");
             trial.ReadKeyboard = false;
             for (var wait = Until(() => trial.IsReady, "initialize Soundwell"); wait.MoveNext();)
                 yield return null;
+            var camera = trial.TrialCamera;
+            camera.aspect = 1f;
+            yield return null;
+            yield return null;
+            float left = camera.WorldToViewportPoint(new Vector3(-8.1f, 0f, 0f)).x;
+            float right = camera.WorldToViewportPoint(new Vector3(8.1f, 0f, 0f)).x;
+            Require(left > 0f && right < 1f, "A square viewport must retain both ends of the trial.");
+            camera.ResetAspect();
+
+            var bellAudio = FindRootComponent<AudioSource>();
+            Require(bellAudio != null, "The copper bell must expose its audio source.");
             Vector2 home = trial.BeastPosition;
             Vector2 retreat = trial.PlayerPosition;
             Press(trial, ring: true);
@@ -88,6 +102,8 @@ namespace Rpg.Soundwell
                 yield return null;
             Press(trial, ring: true);
             Require(trial.HasBellTarget, "trial.HasBellTarget must be true.");
+            Require(bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Copper bell",
+                "The clear sound must repeat while the beast tracks it.");
             for (var wait = Until(() => trial.BeastPosition.x < home.x - 0.7f,
                 "the beast turns and advances toward the bell"); wait.MoveNext();)
                 yield return null;
@@ -99,6 +115,8 @@ namespace Rpg.Soundwell
             Require(trial.IsWrapped, "trial.IsWrapped must be true.");
             Require(!trial.HasBellTarget, "trial.HasBellTarget must be false.");
             Require(trial.IsSearching, "trial.IsSearching must be true.");
+            Require(!bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Wrapped bell",
+                "Wrapping must stop the clear loop and switch to a muffled sound.");
             Press(trial, ring: true);
             Require(!trial.HasBellTarget, "A wrapped bell must not attract the beast.");
             yield return null;
@@ -125,6 +143,7 @@ namespace Rpg.Soundwell
             Require(!trial.IsWrapped, "trial.IsWrapped must be false.");
             Require(!trial.IsSearching, "trial.IsSearching must be false.");
             Require(trial.BeastPosition == home, "Reset must return the beast to its initial position.");
+            Require(!bellAudio.loop && bellAudio.clip == null, "Reset must clear the bell's playback state.");
             yield return null;
             Capture(trial, "03-retreat-reset");
 
