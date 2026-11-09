@@ -265,8 +265,8 @@ namespace Rpg.Soundwell
             return button;
         }
 
-        public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint,
-            bool carrying, bool canPlaceBell, Vector2 beastDestination)
+        public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
+            bool atBell, bool atSafePoint, bool carrying, bool canPlaceBell, Vector2 beastDestination)
         {
             FitCamera();
             beastIntentMarker.enabled = ringing || searching;
@@ -293,11 +293,12 @@ namespace Rpg.Soundwell
             if (wrapButtonLabel.text != wrapCaption)
                 wrapButtonLabel.text = wrapCaption;
             bellMarker.color = wrapped ? Cloth : Gold;
-            string status = ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING" : "BEAST  /  LISTENING";
+            string status = ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING"
+                : returning ? "BEAST  /  RETURNING" : "BEAST  /  LISTENING";
             if (beastStatus.text != status)
             {
                 beastStatus.text = status;
-                beastStatus.color = ringing ? Gold : searching ? Cloth : Ink;
+                beastStatus.color = ringing ? Gold : searching || returning ? Cloth : Ink;
             }
 
             string prompt;

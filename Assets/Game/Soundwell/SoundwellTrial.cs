@@ -13,6 +13,9 @@ namespace Rpg.Soundwell
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
+        // A muffled ring leaves a short, legible search window; the beast
+        // eventually gives up instead of tracking an inaudible source forever.
+        public const float SearchDurationSeconds = 3.5f;
         // Both source points are fixed and explicitly visible in the trial.
         public static readonly Vector2 SideBellStand = new Vector2(-2f, -1.95f);
 
@@ -139,8 +142,17 @@ namespace Rpg.Soundwell
             else if (IsSearching)
             {
                 float time = Time.time - searchStarted;
-                destination = lastHeard + new Vector2(0.45f + 0.45f * Mathf.Cos(time * 2f),
-                    0.8f * Mathf.Sin(time * 2f));
+                if (time >= SearchDurationSeconds)
+                {
+                    // Keep the cloth wrapped: its silence is still a meaningful
+                    // choice, and only the bell's owner can remove it.
+                    SetSignal(Signal.Wrapped);
+                }
+                else
+                {
+                    destination = lastHeard + new Vector2(0.45f + 0.45f * Mathf.Cos(time * 2f),
+                        0.8f * Mathf.Sin(time * 2f));
+                }
             }
 
             Vector2 position = beast.position;
@@ -152,7 +164,9 @@ namespace Rpg.Soundwell
 
             // The drawn intent marker receives exactly the destination already
             // used by the beast, never a separate visual guess.
-            view.Refresh(HasBellTarget, IsSearching, IsWrapped, AtBell, AtSafePoint,
+            bool returning = !HasBellTarget && !IsSearching &&
+                Vector2.Distance(beast.position, beastHome) > 0.15f;
+            view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
                 IsCarrying, CanPlaceBell, destination);
         }
 
@@ -259,6 +273,7 @@ namespace Rpg.Soundwell
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);
             lastHeard = beastHome;
+            searchStarted = float.NegativeInfinity;
             SetSignal(Signal.Ready);
             view.ResetPulse();
         }

@@ -455,6 +455,41 @@ namespace Rpg.Soundwell
                     new Vector2(1.15f, trial.BellPosition.y)) < 0.06f,
                 "Relocating the bell must redirect the real beast intent toward the new lane.");
             Capture(trial, "04-relocated-bell");
+
+            // Stopping a relocated bell starts a bounded search. Once the beast
+            // loses the trail, the same Makinom signal keeps the cloth wrapped,
+            // the intent marker vanishes, and the beast walks home visibly.
+            Press(trial, wrap: true);
+            Require(trial.IsSearching && trial.IsWrapped,
+                "Wrapping the side-stand bell must begin its search phase.");
+            var searchDeadline = Time.time + SoundwellTrial.SearchDurationSeconds * 0.5f;
+            for (var wait = Until(() => Time.time >= searchDeadline,
+                "search persists for a meaningful half-window"); wait.MoveNext();)
+                yield return null;
+            Require(trial.IsSearching, "Beast must not abandon the last bell sound immediately.");
+            for (var wait = Until(() => !trial.IsSearching,
+                "beast search expires without another input"); wait.MoveNext();)
+                yield return null;
+            Require(trial.IsWrapped && !trial.IsSearching && !trial.HasBellTarget,
+                "Search expiry must stop pursuit while leaving the wet cloth wrapped.");
+            yield return null;
+            Require(!intentMarker.enabled && ShowsPrompt(trial, "BEAST  /  RETURNING"),
+                "Expired pursuit must hide its target and visibly announce the beast's return.");
+            Require(!bellAudio.loop && !bellAudio.isPlaying,
+                "The muffled bell must be silent while the beast returns.");
+            Capture(trial, "05-beast-returning");
+            for (var wait = Until(() => Vector2.Distance(trial.BeastPosition, home) < 0.10f,
+                "beast returns to its original watch point"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(ShowsPrompt(trial, "BEAST  /  LISTENING"),
+                "Once home, the beast must visibly resume listening instead of searching forever.");
+            // A quiet wrapped bell does not reactivate pursuit until the player
+            // intentionally unwraps and rings it again.
+            Press(trial, ring: true);
+            Require(!trial.HasBellTarget && !trial.IsSearching,
+                "A wrapped bell must not restart tracking after the search expires.");
+
             yield return SceneManager.LoadSceneAsync(SceneName);
             var fresh = FindRootComponent<SoundwellTrial>();
             Require(fresh != null && !ReferenceEquals(fresh, trial), "Reload must create a fresh trial.");
