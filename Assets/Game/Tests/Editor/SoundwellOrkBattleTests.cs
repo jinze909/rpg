@@ -70,9 +70,8 @@ namespace Rpg.Tests.Editor
             }
 
             Assert.That(party.Count, Is.EqualTo(3), "ORK Add Combatant components must create all three party members.");
-            // Component-backed runtime actors are resolved by ORKComponentHelper
-            // before they have joined a runtime group. The global combatant handler
-            // is asserted only after StartGroup below, against its in-battle set.
+            // All four actors are now registered by ORK. The player and enemy
+            // groups below are explicit runtime groups, not a parallel simulator.
 
             Combatant beast = ORKComponentHelper.GetCombatant(beastObject);
             Assert.That(beast, Is.Not.Null, "ORK Add Combatant must create the enemy combatant.");
@@ -94,9 +93,13 @@ namespace Rpg.Tests.Editor
             ORK.Game.PlayerHandler.SetPlayer(party[0], false);
             Assert.That(ORK.Game.PlayerHandler.ActiveGroup, Is.SameAs(playerGroup));
 
+            // CreateBattle is ORK's runtime arena factory when no scene Battle
+            // component is pre-placed. It starts the supplied enemy combatants
+            // against the active player group configured above. StartGroup is for
+            // supplying enemy groups to an existing Battle component; passing the
+            // player group there reverses the intended side and never enters battle.
             BattleComponent battle = BattleComponent.CreateBattle(new List<Combatant> { beast });
-            Assert.That(battle, Is.Not.Null, "ORK must create the arena Battle component.");
-            battle.StartGroup(playerGroup, null);
+            Assert.That(battle, Is.Not.Null, "ORK must create and start the arena Battle component.");
 
             float battleDeadline = Time.realtimeSinceStartup + 8f;
             while (ORK.Game.Combatants.GetInBattle().Count < 4 &&
