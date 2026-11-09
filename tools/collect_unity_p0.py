@@ -51,7 +51,7 @@ def collect(mode):
             else:
                 hashes[name] = None  # A reviewed deletion is represented in candidate.patch.
     if mode == "verify" and paths:
-        errors.append("Verification changed source files; this is not clean-SHA acceptance.")
+        errors.append("Verification changed source files: " + ", ".join(paths))
 
     try:
         result = ET.parse(evidence / "editmode-results.xml").getroot()

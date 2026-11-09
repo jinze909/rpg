@@ -16,6 +16,7 @@ def allowed_path(name):
     if name in {
         "Assets/Game/Scenes/Bootstrap.unity",
         "Assets/Gaming Is Love/_Data.meta",
+        "Packages/manifest.json",
         "Packages/packages-lock.json",
         "ProjectSettings/SceneTemplateSettings.json",
     }:
@@ -23,6 +24,25 @@ def allowed_path(name):
     if len(path.parts) > 3 and path.parts[:3] == ("Assets", "Gaming Is Love", "_Data"):
         return path.suffix in {".asset", ".meta"}
     return len(path.parts) == 2 and path.parts[0] == "ProjectSettings" and path.suffix == ".asset"
+
+
+def validate_manifest(previous_bytes, generated_bytes, lock_bytes):
+    previous = json.loads(previous_bytes)
+    generated = json.loads(generated_bytes)
+    lock = json.loads(lock_bytes)["dependencies"]
+    previous_dependencies = previous.pop("dependencies")
+    generated_dependencies = generated.pop("dependencies")
+    if previous != generated or previous_dependencies.keys() - generated_dependencies.keys():
+        raise ValueError("Unity changed manifest configuration or removed a direct dependency.")
+
+    for name, version in sorted(generated_dependencies.items()):
+        if previous_dependencies.get(name) == version:
+            continue
+        resolved = lock.get(name, {})
+        if not (name.startswith("com.unity.") and resolved.get("source") == "builtin"
+                and resolved.get("depth") == 0 and resolved.get("version") == version):
+            raise ValueError(f"Manifest change is not an editor-bundled direct dependency: {name}")
+        print(f"Unity normalized {name}: {previous_dependencies.get(name, '(new)')} -> {version}")
 
 
 def restore(evidence):
@@ -39,6 +59,10 @@ def restore(evidence):
     with ZipFile(evidence / "candidate-files.zip") as archive:
         if sorted(archive.namelist()) != sorted(hashes):
             raise ValueError("Candidate archive and preparation evidence differ.")
+        manifest = "Packages/manifest.json"
+        if manifest in hashes:
+            validate_manifest(Path(manifest).read_bytes(), archive.read(manifest),
+                              archive.read("Packages/packages-lock.json"))
         for name, digest in hashes.items():
             data = archive.read(name)
             if hashlib.sha256(data).hexdigest() != digest:
