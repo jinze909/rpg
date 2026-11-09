@@ -20,8 +20,10 @@ namespace Rpg.Soundwell
         private Text outcomeText;
         private float layoutAspect = -1f;
         private int shownOutcome = -1;
+        private bool shownCartKitRecovered;
 
         public int LastReturnOutcome => shownOutcome;
+        public bool LastReturnCartKitRecovered => shownCartKitRecovered;
 
         private void Awake()
         {
@@ -109,7 +111,7 @@ namespace Rpg.Soundwell
             footerText.rectTransform.sizeDelta = new Vector2(compact ? 320f : 440f, 30f);
             footerText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -80f : -65f);
             footerText.fontSize = compact ? 13 : 15;
-            outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, 64f);
+            outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, compact ? 88f : 80f);
             outcomeText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -142f : -126f);
             outcomeText.fontSize = compact ? 15 : 17;
         }
@@ -135,12 +137,16 @@ namespace Rpg.Soundwell
                 return;
 
             int result = variables.GetInt(SoundwellTrial.EntryOutcomeKey);
-            if (result == shownOutcome)
+            bool cartKitRecovered = result == 2 &&
+                variables.GetInt(SoundwellTrial.EntryCartKitKey) != 0;
+            if (result == shownOutcome && cartKitRecovered == shownCartKitRecovered)
                 return;
 
             shownOutcome = result;
+            shownCartKitRecovered = cartKitRecovered;
             outcomeText.text = result == 2
-                ? "SURVEYOR SAFE / FALSE TRAIL MARKER REMOVED"
+                ? "SURVEYOR SAFE / FALSE TRAIL MARKER REMOVED" +
+                    (cartKitRecovered ? "\nMAP KIT RECOVERED" : "")
                 : result == 1 ? "SURVEYOR SAFE / ROUTE MARKER STILL NEEDS CORRECTION"
                 : "";
         }

@@ -26,6 +26,8 @@ namespace Rpg.Soundwell
         private const string ClawsObservedKey = "rpg.soundwell.signal-trial.claws-observed";
         // Scene-to-scene handoff only: ORK still owns quests, rewards, and saves.
         public const string EntryOutcomeKey = "rpg.soundwell.signal-trial.last-return-outcome";
+        // Additional scene-to-scene outcome, not an ORK item or persistent save.
+        public const string EntryCartKitKey = "rpg.soundwell.signal-trial.last-return-cart-kit";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -292,7 +294,13 @@ namespace Rpg.Soundwell
             // Preserve the actual last exit result for the Bootstrap UI.
             // A fresh incomplete retreat overwrites an earlier victory.
             if (variables != null)
+            {
                 variables.Set(EntryOutcomeKey, FalseMarkerCleared ? 2 : RescueComplete ? 1 : 0);
+                // Overwrite this every exit, including an incomplete replay.
+                // Merely finding or telling about the cart does not count.
+                variables.Set(EntryCartKitKey,
+                    RescueComplete && FalseMarkerCleared && CartKitReclaimed ? 1 : 0);
+            }
             bootstrapLoad = SceneManager.LoadSceneAsync(SoundwellEntrance.BootstrapSceneName);
             movement = Vector2.zero;
             if (IsReady)

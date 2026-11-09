@@ -1063,12 +1063,14 @@ namespace Rpg.Soundwell
                 "Completed rescue must return to the actual entry scene.");
             var victoryEntrance = FindRootComponent<SoundwellEntrance>();
             Require(victoryEntrance != null, "Completed return must show the actual entry UI.");
-            for (var wait = Until(() => victoryEntrance.LastReturnOutcome == 2,
-                "entry HUD receives the completed rescue and corrected route"); wait.MoveNext();)
+            for (var wait = Until(() => victoryEntrance.LastReturnOutcome == 2 &&
+                victoryEntrance.LastReturnCartKitRecovered,
+                "entry HUD receives the actual rescue, route correction, and recovered map kit"); wait.MoveNext();)
                 yield return null;
             Require(ShowsPrompt(victoryEntrance, "SURVEYOR SAFE") &&
-                ShowsPrompt(victoryEntrance, "FALSE TRAIL MARKER REMOVED"),
-                "Returning from a completed rescue must present both real results to the player.");
+                ShowsPrompt(victoryEntrance, "FALSE TRAIL MARKER REMOVED") &&
+                ShowsPrompt(victoryEntrance, "MAP KIT RECOVERED"),
+                "Completed return must also visibly report the optional map kit retrieved by the NPC.");
 
             yield return victoryEntrance.OpenTrial();
             var trialAfterVictory = FindRootComponent<SoundwellTrial>();
@@ -1140,8 +1142,10 @@ namespace Rpg.Soundwell
                 "The entry screen must be usable after returning from the trial.");
             yield return null;
             Require(returnedEntrance.LastReturnOutcome == 0 &&
-                !ShowsPrompt(returnedEntrance, "SURVEYOR SAFE"),
-                "A later incomplete return must not show the previous completed rescue.");
+                !returnedEntrance.LastReturnCartKitRecovered &&
+                !ShowsPrompt(returnedEntrance, "SURVEYOR SAFE") &&
+                !ShowsPrompt(returnedEntrance, "MAP KIT RECOVERED"),
+                "A later incomplete return must clear the previously completed rescue and optional map kit.");
             var submitButton = returnedEntrance.GetComponentInChildren<Button>();
             Require(submitButton != null && submitButton.interactable,
                 "Returning must create a fresh actionable UGUI entry.");
