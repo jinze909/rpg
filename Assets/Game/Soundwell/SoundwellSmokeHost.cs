@@ -198,7 +198,39 @@ namespace Rpg.Soundwell
             float left = camera.WorldToViewportPoint(new Vector3(-8.1f, 0f, 0f)).x;
             float right = camera.WorldToViewportPoint(new Vector3(8.1f, 0f, 0f)).x;
             Require(left > 0f && right < 1f, "A square viewport must retain both ends of the trial.");
+
+            // A square/narrow viewport must reflow the actual screen-space UGUI
+            // actions to two bottom rows, with active pointer hit targets.
+            var compactRing = TrialActionButton(trial, "Ring");
+            var compactWrap = TrialActionButton(trial, "Wrap");
+            var compactRetry = TrialActionButton(trial, "Retry");
+            var compactBack = TrialActionButton(trial, "Back");
+            Require(((RectTransform)compactRing.transform).anchorMin == new Vector2(0.5f, 0f) &&
+                ((RectTransform)compactBack.transform).anchorMin == new Vector2(0.5f, 0f),
+                "Square viewports must use a bottom-anchored compact HUD.");
+            Require(((RectTransform)compactRing.transform).anchoredPosition.y ==
+                ((RectTransform)compactWrap.transform).anchoredPosition.y &&
+                ((RectTransform)compactRetry.transform).anchoredPosition.y ==
+                ((RectTransform)compactBack.transform).anchoredPosition.y,
+                "Compact actions must form two reachable horizontal rows.");
+            AssertHudHit(trial, "Ring");
+            AssertHudHit(trial, "Wrap");
+            AssertHudHit(trial, "Retry");
+            AssertHudHit(trial, "Back");
+
+            camera.aspect = 0.6f;
+            yield return null;
+            yield return null;
+            Require(((RectTransform)compactRing.transform).anchorMin == new Vector2(0.5f, 0f),
+                "Portrait viewports must preserve the compact button layout.");
+            AssertHudHit(trial, "Retry");
             camera.ResetAspect();
+            yield return null;
+            yield return null;
+            Require(((RectTransform)compactRing.transform).anchorMin == Vector2.one &&
+                ((RectTransform)compactBack.transform).anchorMin == Vector2.one,
+                "Landscape viewports must restore the original top-right HUD stack.");
+            AssertHudHit(trial, "Back");
             Require(ShowsPrompt(trial, "Walk to the copper bell"), "The initial view must show where to go.");
             Require(ShowsPrompt(trial, "[Esc / Pad B] Back to entry"), "The exit control must be visible at the entrance.");
             Require(!TrialActionButton(trial, "Ring").interactable &&
@@ -452,10 +484,9 @@ namespace Rpg.Soundwell
             return button;
         }
 
-        private static void ClickTrialAction(SoundwellTrial trial, string action)
+        private static void AssertHudHit(SoundwellTrial trial, string action)
         {
             var button = TrialActionButton(trial, action);
-            Require(button.interactable, "Disabled action cannot be clicked: " + action);
             var canvas = button.GetComponentInParent<Canvas>();
             var raycaster = canvas != null ? canvas.GetComponent<GraphicRaycaster>() : null;
             var eventSystem = EventSystem.current;
@@ -471,6 +502,18 @@ namespace Rpg.Soundwell
             raycaster.Raycast(pointer, hits);
             Require(hits.Any(hit => hit.gameObject == button.gameObject),
                 "The " + action + " button must be reached by a real UI raycast.");
+        }
+
+        private static void ClickTrialAction(SoundwellTrial trial, string action)
+        {
+            var button = TrialActionButton(trial, action);
+            Require(button.interactable, "Disabled action cannot be clicked: " + action);
+            AssertHudHit(trial, action);
+            var pointer = new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left,
+                position = RectTransformUtility.WorldToScreenPoint(null, button.transform.position)
+            };
             ExecuteEvents.Execute<IPointerClickHandler>(button.gameObject, pointer,
                 ExecuteEvents.pointerClickHandler);
         }

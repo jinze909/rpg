@@ -30,6 +30,8 @@ namespace Rpg.Soundwell
         private readonly EventSystem actionEventSystem;
         private readonly bool previousNavigationEvents;
         private bool actionMenuOpen;
+        private bool layoutReady;
+        private bool compactHud;
         private float pulseStarted = float.NegativeInfinity;
         private bool mutedPulse;
 
@@ -102,6 +104,9 @@ namespace Rpg.Soundwell
             var scaler = actionCanvas.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(960f, 540f);
+            // Balance width and height scaling so a portrait viewport does not
+            // shrink every action target to a tiny fraction of the reference UI.
+            scaler.matchWidthOrHeight = 0.5f;
             actionCanvas.gameObject.AddComponent<GraphicRaycaster>();
             ringButton = CreateActionButton(actionCanvas.transform, "Ring", "RING  [E / A]", 0, ring);
             wrapButton = CreateActionButton(actionCanvas.transform, "Wrap", "WRAP  [Q / X]", 1, wrap);
@@ -110,6 +115,9 @@ namespace Rpg.Soundwell
             backButton = CreateActionButton(actionCanvas.transform, "Back", "BACK  [Esc / B]", 3, back);
             menuStatus = AddLabel(actionCanvas.transform, "TAB / START: FOCUS ACTIONS",
                 14, Cloth, new Vector2(-270f, 220f), new Vector2(360f, 32f));
+            menuStatus.resizeTextForBestFit = true;
+            menuStatus.resizeTextMinSize = 11;
+            menuStatus.resizeTextMaxSize = 14;
 
             if (EventSystem.current == null)
             {
@@ -144,6 +152,55 @@ namespace Rpg.Soundwell
                 EnsureActionSelection();
             else if (IsActionSelection(actionEventSystem.currentSelectedGameObject))
                 actionEventSystem.SetSelectedGameObject(null);
+        }
+
+        private void ArrangeActionHud(float viewportAspect)
+        {
+            // Below landscape width, use two bottom rows instead of a tall
+            // right-hand stack. This leaves the trial and its world-space hints
+            // clear while keeping the action targets inside the visible viewport.
+            bool compact = viewportAspect <= 1.25f;
+            if (layoutReady && compactHud == compact)
+                return;
+            layoutReady = true;
+            compactHud = compact;
+
+            var buttons = new[] { ringButton, wrapButton, retryButton, backButton };
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                var rect = (RectTransform)buttons[i].transform;
+                if (compact)
+                {
+                    rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+                    rect.pivot = new Vector2(0.5f, 0f);
+                    rect.anchoredPosition = new Vector2(i % 2 == 0 ? -105f : 105f,
+                        i < 2 ? 80f : 22f);
+                    rect.sizeDelta = new Vector2(190f, 46f);
+                }
+                else
+                {
+                    rect.anchorMin = rect.anchorMax = Vector2.one;
+                    rect.pivot = Vector2.one;
+                    rect.anchoredPosition = new Vector2(-16f, -26f - i * 52f);
+                    rect.sizeDelta = new Vector2(198f, 44f);
+                }
+            }
+
+            var statusRect = menuStatus.rectTransform;
+            if (compact)
+            {
+                statusRect.anchorMin = statusRect.anchorMax = new Vector2(0.5f, 0f);
+                statusRect.pivot = new Vector2(0.5f, 0f);
+                statusRect.anchoredPosition = new Vector2(0f, 144f);
+                statusRect.sizeDelta = new Vector2(435f, 36f);
+            }
+            else
+            {
+                statusRect.anchorMin = statusRect.anchorMax = new Vector2(0f, 1f);
+                statusRect.pivot = new Vector2(0f, 1f);
+                statusRect.anchoredPosition = new Vector2(20f, -15f);
+                statusRect.sizeDelta = new Vector2(440f, 34f);
+            }
         }
 
         private bool IsActionSelection(GameObject selected) =>
@@ -190,6 +247,7 @@ namespace Rpg.Soundwell
         public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint)
         {
             FitCamera();
+            ArrangeActionHud(camera.aspect);
             ringButton.interactable = atBell;
             wrapButton.interactable = atBell;
             retryButton.interactable = atSafePoint;
