@@ -17,14 +17,10 @@ namespace Rpg.Editor
 
         private const string ActiveKey = "Rpg.SoundwellSmoke.Active";
         private const string ExitKey = "Rpg.SoundwellSmoke.Exit";
-        private static IEnumerator steps;
-        private static AsyncOperation pending;
-        private static string runtimeError;
-
         static SoundwellSmoke()
         {
             if (SessionState.GetBool(ActiveKey, false))
-                EditorApplication.update += Tick;
+                EditorApplication.playModeStateChanged += PlayModeChanged;
         }
 
         public static void RunFromCommandLine()
@@ -34,70 +30,42 @@ namespace Rpg.Editor
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
             SessionState.SetBool(ActiveKey, true);
             SessionState.SetInt(ExitKey, -1);
+            EditorApplication.playModeStateChanged -= PlayModeChanged;
+            EditorApplication.playModeStateChanged += PlayModeChanged;
             EditorApplication.isPlaying = true;
         }
 
-        private static void Tick()
+        private static void PlayModeChanged(PlayModeStateChange state)
         {
-            if (!EditorApplication.isPlaying)
+            if (state == PlayModeStateChange.EnteredPlayMode)
             {
-                int exitCode = SessionState.GetInt(ExitKey, -1);
-                if (exitCode >= 0 && !EditorApplication.isPlayingOrWillChangePlaymode)
-                {
-                    SessionState.EraseBool(ActiveKey);
-                    SessionState.EraseInt(ExitKey);
-                    EditorApplication.Exit(exitCode);
-                }
-                return;
+                var host = new GameObject("Soundwell CI runner");
+                UnityEngine.Object.DontDestroyOnLoad(host);
+                host.AddComponent<SoundwellSmokeHost>().Run(VerifyTrial(), Finish);
             }
-
-            if (SessionState.GetInt(ExitKey, -1) >= 0)
-                return;
-
-            try
+            else if (state == PlayModeStateChange.EnteredEditMode)
             {
-                if (steps == null)
-                {
-                    Application.logMessageReceived += RecordRuntimeError;
-                    steps = VerifyTrial();
-                }
-                Require(runtimeError == null, runtimeError);
-                if (pending != null && !pending.isDone)
-                    return;
-                if (steps.MoveNext())
-                {
-                    pending = steps.Current as AsyncOperation;
-                    return;
-                }
-
-                Require(runtimeError == null, runtimeError);
-                Debug.Log("RPG_SOUNDWELL_SIGNAL_VALIDATED");
-                Finish(0);
+                int exitCode = SessionState.GetInt(ExitKey, 1);
+                SessionState.EraseBool(ActiveKey);
+                SessionState.EraseInt(ExitKey);
+                EditorApplication.Exit(exitCode < 0 ? 1 : exitCode);
             }
-            catch (Exception error)
-            {
-                Debug.LogException(error);
-                Finish(1);
-            }
-        }
-
-        private static void RecordRuntimeError(string message, string stack, LogType type)
-        {
-            if (type == LogType.Error || type == LogType.Assert || type == LogType.Exception)
-                runtimeError ??= message;
         }
 
         private static void Finish(int status)
         {
-            Application.logMessageReceived -= RecordRuntimeError;
             SessionState.SetInt(ExitKey, status);
-            EditorApplication.isPlaying = false;
+            EditorApplication.delayCall += () => EditorApplication.isPlaying = false;
         }
 
         private static IEnumerator VerifyTrial()
         {
+            yield return null;
+            Require(SceneManager.GetActiveScene().name == "Bootstrap",
+                "Unexpected initial scene: " + SceneManager.GetActiveScene().path);
             var entrance = FindRootComponent<SoundwellEntrance>();
             Require(entrance != null, "The saved Bootstrap scene must expose the trial.");
+            Debug.Log("SOUNDWELL_CI_BOOTSTRAP_READY");
             yield return entrance.OpenTrial();
             Require(SceneManager.GetActiveScene().name == SceneName, "The Bootstrap entrance must load Soundwell.");
             var trial = FindRootComponent<SoundwellTrial>();
@@ -105,6 +73,7 @@ namespace Rpg.Editor
             trial.ReadKeyboard = false;
             for (var wait = Until(() => trial.IsReady, "initialize Soundwell"); wait.MoveNext();)
                 yield return null;
+            Debug.Log("SOUNDWELL_CI_TRIAL_READY");
             Vector2 home = trial.BeastPosition;
             Vector2 retreat = trial.PlayerPosition;
             Press(trial, ring: true);

@@ -24,10 +24,10 @@ namespace Rpg.Soundwell
         private Vector2 beastHome;
         private Vector2 lastHeard;
         private float searchStarted;
-        private bool initialized;
+        [NonSerialized] private bool initialized;
 
         public bool ReadKeyboard { get; set; } = true;
-        public bool IsReady => initialized;
+        public bool IsReady => initialized && variables != null;
         public Camera TrialCamera => trialCamera;
         public Vector2 PlayerPosition => playerBody.position;
         public Vector2 BeastPosition => beast.position;
@@ -62,7 +62,7 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (!initialized || !ReadKeyboard)
+            if (!IsReady || !ReadKeyboard)
                 return;
 
             Vector2 direction = new Vector2(
@@ -74,13 +74,13 @@ namespace Rpg.Soundwell
 
         private void FixedUpdate()
         {
-            if (initialized)
+            if (IsReady)
                 playerBody.linearVelocity = movement * Speed;
         }
 
         private void LateUpdate()
         {
-            if (!initialized)
+            if (!IsReady)
                 return;
 
             Vector2 destination = beastHome;
