@@ -1,6 +1,7 @@
 using GamingIsLove.Makinom;
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Rpg.Soundwell
 {
@@ -17,6 +18,7 @@ namespace Rpg.Soundwell
         [SerializeField] private Transform safePoint;
         [SerializeField] private Camera trialCamera;
 
+        private AsyncOperation bootstrapLoad;
         private VariableHandler variables;
         private SoundwellView view;
         private Rigidbody2D playerBody;
@@ -65,6 +67,12 @@ namespace Rpg.Soundwell
             if (!IsReady || !ReadKeyboard)
                 return;
 
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                ReturnToBootstrap();
+                return;
+            }
+
             Vector2 direction = new Vector2(
                 Axis(KeyCode.A, KeyCode.LeftArrow, KeyCode.D, KeyCode.RightArrow),
                 Axis(KeyCode.S, KeyCode.DownArrow, KeyCode.W, KeyCode.UpArrow));
@@ -106,9 +114,24 @@ namespace Rpg.Soundwell
             view.Refresh(HasBellTarget, IsSearching, IsWrapped, AtBell, AtSafePoint);
         }
 
+        public AsyncOperation ReturnToBootstrap()
+        {
+            if (bootstrapLoad != null)
+                return bootstrapLoad;
+
+            bootstrapLoad = SceneManager.LoadSceneAsync(SoundwellEntrance.BootstrapSceneName);
+            movement = Vector2.zero;
+            if (IsReady)
+                playerBody.linearVelocity = Vector2.zero;
+            return bootstrapLoad;
+        }
+
         // Both the keyboard and the integration test use this scene input boundary.
         public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry)
         {
+            if (bootstrapLoad != null)
+                return;
+
             movement = Vector2.ClampMagnitude(direction, 1f);
             if (retry && AtSafePoint)
             {

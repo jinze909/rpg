@@ -77,7 +77,9 @@ namespace Rpg.Soundwell
             AddLabel(rect, "RETREAT", 13, Cloth, new Vector2(-278, -68), new Vector2(120, 24));
             AddLabel(rect, "COPPER BELL", 13, Gold, new Vector2(-88, -43), new Vector2(120, 22));
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
-            hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -201), new Vector2(760, 36));
+            hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
+            AddLabel(rect, "[WASD / Arrows] Move      [Esc] Back to entry", 14, Cloth,
+                new Vector2(0, -222), new Vector2(760, 26));
         }
 
         public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint)
@@ -86,11 +88,22 @@ namespace Rpg.Soundwell
             bellMarker.color = wrapped ? Cloth : Gold;
             string status = ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING" : "BEAST  /  LISTENING";
             if (beastStatus.text != status)
+            {
                 beastStatus.text = status;
-            string controls = atBell ? (wrapped ? "[E] Muffled bell     [Q] Unwrap" : "[E] Ring     [Q] Wrap with wet cloth")
-                : atSafePoint ? "[WASD / Arrows] Move     [R] Reset trial" : "[WASD / Arrows] Move";
-            if (hint.text != controls)
-                hint.text = controls;
+                beastStatus.color = ringing ? Gold : searching ? Cloth : Ink;
+            }
+
+            string prompt;
+            if (atBell)
+                prompt = wrapped ? "[E] Try the wrapped bell      [Q] Remove the cloth"
+                    : "[E] Ring the bell      [Q] Wrap with the wet cloth";
+            else if (ringing || wrapped)
+                prompt = atSafePoint ? "[R] Reset the experiment" : "Return to RETREAT to reset the experiment.";
+            else
+                prompt = "Walk to the copper bell. Watch the beast beyond the grate.";
+
+            if (hint.text != prompt)
+                hint.text = prompt;
             float age = Time.time - pulseStarted;
             pulse.enabled = ringing || age < (mutedPulse ? 0.33f : clearBell.length);
             if (!pulse.enabled)
