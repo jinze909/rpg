@@ -276,8 +276,9 @@ namespace Rpg.Soundwell
             Require(!TrialActionButton(trial, "Gate").interactable,
                 "The gate button must be unavailable without a real distraction.");
             Require(!trial.AtSurveyor && !trial.HasSurveyorClue &&
-                !trial.PlankSecured && !trial.CanSecurePlank,
-                "The surveyor route and braced plank cannot be claimed from the entry zone.");
+                !trial.PlankSecured && !trial.CanSecurePlank &&
+                !trial.SurveyorEscorting && !trial.RescueComplete,
+                "No surveyor objective can be claimed from the entry zone.");
             var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
             Require(sideStand != null &&
@@ -568,6 +569,19 @@ namespace Rpg.Soundwell
             Require(trial.PlankSecured && trial.GateOpen,
                 "Repeated contextual input must not reverse the secured route.");
             Capture(trial, "08-braced-plank-surveyor");
+            Require(trial.CanEscortSurveyor && !trial.SurveyorEscorting &&
+                !trial.RescueComplete && TrialActionButton(trial, "Gate").interactable &&
+                TrialActionButton(trial, "Gate").GetComponentInChildren<Text>().text
+                    .Contains("LEAD SURVEYOR", StringComparison.Ordinal),
+                "A real follow command must appear only after the NPC reaches the secured plank.");
+            ClickTrialAction(trial, "Gate");
+            Require(trial.SurveyorEscorting && !trial.RescueComplete &&
+                !trial.CanEscortSurveyor,
+                "The Makinom escort flag must start without claiming an early rescue.");
+            Press(trial, gate: true);
+            Require(trial.SurveyorEscorting && !trial.RescueComplete,
+                "Repeated context inputs must not duplicate or complete the escort.");
+            Capture(trial, "09-surveyor-escort-started");
 
             Press(trial, Vector2.down);
             for (var wait = Until(() => trial.PlayerPosition.y <= 0.05f,
@@ -623,6 +637,39 @@ namespace Rpg.Soundwell
             Press(trial, ring: true);
             Require(!trial.HasBellTarget && !trial.IsSearching,
                 "A wrapped bell must not restart tracking after the search expires.");
+            // Returning the PLAYER alone does not count as saving the trapped
+            // surveyor: wait until his on-screen figure reaches the same refuge.
+            Press(trial, Vector2.left);
+            for (var wait = Until(() => trial.PlayerPosition.x <= retreat.x + 0.12f,
+                "lead the surveyor back toward the retreat entrance"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= retreat.y - 0.10f,
+                "return to the safe retreat marker"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.5f &&
+                trial.SurveyorEscorting, "The player and escort must reach the same safety zone.");
+            for (var wait = Until(() => trial.RescueComplete,
+                "wait for the real surveyor to reach RETREAT"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(Vector2.Distance((Vector2)surveyor.transform.position, retreat) <= 0.98f &&
+                trial.RescueComplete && !trial.CanEscortSurveyor &&
+                ShowsPrompt(trial, "RESCUED: The surveyor reached RETREAT") &&
+                ShowsPrompt(trial, "My marker was wrong"),
+                "Rescue must require the actual NPC reaching the safe point and his own response.");
+            Capture(trial, "10-surveyor-rescued");
+
+            // A retry after victory must reset both NPC position and Makinom
+            // rescue flags, not leave a previous win on an otherwise fresh run.
+            Press(trial, retry: true);
+            yield return null;
+            Require(!trial.SurveyorEscorting && !trial.RescueComplete &&
+                !trial.PlankSecured && !trial.GateOpen &&
+                Vector2.Distance((Vector2)surveyor.transform.position,
+                    SoundwellTrial.SurveyorPosition) < 0.01f,
+                "Retry must restore the survivor and clear the entire escort outcome.");
 
             yield return SceneManager.LoadSceneAsync(SceneName);
             var fresh = FindRootComponent<SoundwellTrial>();
@@ -635,8 +682,9 @@ namespace Rpg.Soundwell
                 "Scene reload must restore the initial named bell stand and carrying state.");
             var freshGate = fresh.GetComponentsInChildren<BoxCollider2D>(true)
                 .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
-            Require(!fresh.GateOpen && freshGate != null && freshGate.enabled,
-                "Reload must restore the closed and physically blocking inner gate.");
+            Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
+                freshGate != null && freshGate.enabled,
+                "Reload must restore the gate and clear any previous survivor outcome.");
             var freshBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name ==
                     "PLACEHOLDER upper load-bearing plank");

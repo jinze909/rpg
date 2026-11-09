@@ -13,6 +13,8 @@ namespace Rpg.Soundwell
         private const string GateKey = "rpg.soundwell.signal-trial.inner-gate";
         private const string SurveyorClueKey = "rpg.soundwell.signal-trial.surveyor-route";
         private const string PlankSecuredKey = "rpg.soundwell.signal-trial.upper-plank-secured";
+        private const string EscortKey = "rpg.soundwell.signal-trial.surveyor-escorted";
+        private const string RescueKey = "rpg.soundwell.signal-trial.surveyor-rescued";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
         private const float Speed = 4f;
@@ -62,6 +64,11 @@ namespace Rpg.Soundwell
             Vector2.Distance(playerBody.position, UpperBoardPosition) <= 0.68f;
         public bool PlankSecured => variables != null && variables.GetInt(PlankSecuredKey) != 0;
         public bool CanSecurePlank => AtUpperPlank && HasSurveyorClue && !PlankSecured;
+        public bool SurveyorEscorting => variables != null && variables.GetInt(EscortKey) != 0;
+        public bool RescueComplete => variables != null && variables.GetInt(RescueKey) != 0;
+        public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
+        public bool CanEscortSurveyor => AtUpperPlank && PlankSecured && !SurveyorEscorting &&
+            !RescueComplete && Vector2.Distance(SurveyorWorldPosition, UpperBoardPosition) < 0.18f;
         public bool HasBellTarget => Current == Signal.Ringing;
         public bool IsSearching => Current == Signal.Searching;
         public bool IsWrapped => Current == Signal.Wrapped || IsSearching;
@@ -186,7 +193,14 @@ namespace Rpg.Soundwell
                 Vector2.Distance(beast.position, beastHome) > 0.15f;
             view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
-                HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured, destination);
+                HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
+                CanEscortSurveyor, SurveyorEscorting, RescueComplete, destination);
+            // Makinom owns the rescue outcome. Neither opening the gate nor
+            // reaching safety alone is enough: the survivor must physically
+            // make it back to the same marked retreat point.
+            if (SurveyorEscorting && !RescueComplete && AtSafePoint &&
+                Vector2.Distance(view.SurveyorWorldPosition, safePoint.position) <= 0.9f)
+                variables.Set(RescueKey, 1);
         }
 
         public AsyncOperation ReturnToBootstrap()
@@ -261,6 +275,10 @@ namespace Rpg.Soundwell
             {
                 if (CanOpenGate)
                     variables.Set(GateKey, 1);
+                else if (CanEscortSurveyor)
+                {
+                    variables.Set(EscortKey, 1);
+                }
                 else if (CanSecurePlank)
                 {
                     // Interaction must happen at the load-bearing upper plank,
@@ -314,6 +332,9 @@ namespace Rpg.Soundwell
             variables.Set(GateKey, 0);
             variables.Set(SurveyorClueKey, 0);
             variables.Set(PlankSecuredKey, 0);
+            variables.Set(EscortKey, 0);
+            variables.Set(RescueKey, 0);
+            view.ResetSurveyor();
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);
             lastHeard = beastHome;
