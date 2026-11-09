@@ -9,6 +9,7 @@ on:
       - 'ProjectSettings/**'
       - 'production/ci/**'
       - 'tools/collect_unity_p0.py'
+      - 'tools/test_collect_unity_p0.py'
       - 'tools/restore_unity_p0.py'
       - '.github/workflows/unity-p0*.yml'
   workflow_dispatch:
