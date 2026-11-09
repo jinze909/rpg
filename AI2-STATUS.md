@@ -6,7 +6,7 @@
 - 用户授权深入讨论并写一页玩法基线，本轮新增[基线v0.1](docs/gameplay/BASELINE.md)：区域探索与队伍短回合为方向，三人、固定个人顺序及镜头等仅作首轮控制；移动/固定阵位须公平对照，仍未实现、未试玩。
 - 先前撤销的游戏设定继续作废。主角外观、美术尺度等未锁定，玩法的已定/暂定/待验证以[玩法基线](docs/gameplay/BASELINE.md)和 [BACKLOG](BACKLOG.md) 为准。
 - 当前故事为 [002 · 声井声源试验](production/stories/002-soundwell-signal.md)。自动化验收通过，真人试玩待做。
-- 工程锁定 Unity 6.6（6000.6.8f1）与随编辑器发布的 UGUI 2.0。当前框架仍用已提供的 ORK 3.22.0 / Makinom 2.21.0 固定包。此前已对安装脚本的 136 个文件做逐字节比对并验证重跑。
+- 工程锁定 Unity 6.6（6000.6.8f1）与随编辑器发布的 UGUI（CI 解析为 2.6.0）。当前框架仍用已提供的 ORK 3.22.0 / Makinom 2.21.0 固定包。此前已对安装脚本的 136 个文件做逐字节比对并验证重跑。
 - 框架包已完整整合到开发分支：73 个资源条目、136 个文件与原包逐字节一致，原始 GUID 保留；当时重复安装新增 0 个文件，`python tools/verify_ork.py` 与两个源码 ZIP 的 CRC 检查通过。详见 [整合证据](docs/ork-integration.md)。[P0 已通过 Unity 验收](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)。
 - 启动接线会拒绝空配置、禁用的 Starter 与错误的数据来源。新增 [Unity 批处理检查](README.md#批处理启动验收)，可记录配置验收日志。
 - P0 在 `6ea56a9746106559d32dbcd0456cfec17fce29d2` 的干净检出上通过 Unity 6000.6.8f1 导入、编译、重复接线、两次 Play Mode 和独立批处理。编辑器生成的项目配置和包锁已入库。[验证日志](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)
@@ -17,6 +17,8 @@
 - 本轮玩法基线文档验收：设计、技术、叙事、UX与QA互评，状态边界及对照口径审查通过；7份Markdown的56处本地链接与空白检查通过。没有运行Unity或游戏测试，未实现、未试玩。
 
 ## 每轮更新
+
+- 002 复查修复了窄视口裁切、清响音效与追索状态脱节、重复加载入口。Unity 6000.6.8f1 在 `cc33cbd8402d7faf80083bc3a17661990128baaf` 的干净检出上通过 4 项测试与独立批处理。实体键盘、扬声器和真人试玩仍待验证。[同 SHA CI](https://github.com/jinze909/rpg/actions/runs/42584125951)
 
 - 剧情 v0.2：整合用户提供的 Claude 文稿，新增[卖点与开场](docs/narrative/PITCH_AND_HOOK.md)、[写作准则](docs/narrative/NARRATIVE_GUIDE.md)，补齐[事实登记](docs/narrative/NARRATIVE_FACTS.md)与[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)。[整合记录](docs/narrative/REVISION_NOTES.md)说明来源与修订。叙事 S00 不等于技术 P0；名册 UI、对账和听雾操作未实现、未验证，现有队伍短回合和声井样本范围不变。本轮为文稿验收，保留下述技术／002 实现与同 SHA 证据。
 

@@ -31,4 +31,6 @@
 
 被测 SHA 为 `e7312010b42c9a29e4bf65badd02a946ddd9381d`。Unity 6000.6.8f1 在真实 Play Mode 中通过场景进入、接近限制、格栅碰撞、追索与止声搜索、回撤、重试、重载检查。CI 从游戏输入适配层注入操作并保存三张截图。实体键盘和玩家理解仍待真人试玩。[CI 与截图产物](https://github.com/jinze909/rpg/actions/runs/42581703947)
 
+复查补充验证了方形视口、清响循环与包铃止声、重试清音和重复入场请求。干净检出 SHA 为 `cc33cbd8402d7faf80083bc3a17661990128baaf`。[复查 CI](https://github.com/jinze909/rpg/actions/runs/42584125951)
+
 下一项是在真人试玩记录后接入三功能样本的短回合救援遭遇。
