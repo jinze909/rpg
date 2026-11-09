@@ -527,11 +527,51 @@ namespace Rpg.Soundwell
             Require(!bellAudio.loop && bellAudio.clip == null, "Reset must clear the bell's playback state.");
             Require(!trial.IsCarrying && trial.BellPosition == bellStart,
                 "Reset must put the portable bell back at its original stand.");
-            Require(!trial.RopeObserved && !trial.ClawsObserved,
-                "Retreat reset must clear the optional observations as well as bell state.");
+            Require(!trial.RopeObserved && !trial.ClawsObserved &&
+                !trial.RopeRecovered && !trial.SurveyorLineTied,
+                "Retreat reset must clear clues and previously recovered guide-rope supplies.");
             yield return null;
+            Require(ropeEvidence.enabled,
+                "Reset must physically restore the broken cord so it can be collected again.");
             Require(!intentMarker.enabled, "Retreat/reset must clear the monster intent indicator.");
             Capture(trial, "03-retreat-reset");
+
+            // This rescue begins after a legitimate reset: the cord recovered
+            // in the first experiment no longer exists in the player's supplies.
+            // Collect it again from the real world before entering the room.
+            Press(trial, Vector2.up);
+            for (var wait = Until(() => trial.PlayerPosition.y >= 1.45f,
+                "return to the recovered rope's original location"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.right);
+            for (var wait = Until(() => trial.PlayerPosition.x >= -4.60f,
+                "reach the restored broken bell cord"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(trial.CanInspectRope && !trial.RopeRecovered,
+                "A fresh trial must require inspecting the restored rope again.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.CanRecoverRope && !trial.RopeRecovered,
+                "Inspection must make the physical recovered cord available.");
+            ClickTrialAction(trial, "Gate");
+            yield return null;
+            Require(trial.RopeRecovered && !ropeEvidence.enabled && !trial.SurveyorLineTied,
+                "The second experiment must acquire its own real escort material.");
+
+            Press(trial, Vector2.left);
+            for (var wait = Until(() => trial.PlayerPosition.x <= retreat.x + 0.06f,
+                "return from rope recovery toward the entrance"); wait.MoveNext();)
+                yield return null;
+            Press(trial, Vector2.down);
+            for (var wait = Until(() => trial.PlayerPosition.y <= retreat.y + 0.06f,
+                "return to the entrance after recovering cord"); wait.MoveNext();)
+                yield return null;
+            Press(trial);
+            yield return null;
+            Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.35f &&
+                trial.RopeRecovered, "The recovered cord must follow the player into the rescue run.");
 
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= -2.25f, "reach the bell on retry"); wait.MoveNext();)
