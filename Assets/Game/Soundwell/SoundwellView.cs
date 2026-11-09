@@ -543,7 +543,7 @@ namespace Rpg.Soundwell
                 prompt = clawsObserved ? "The claw tracks are evidence. What drew the beast here?"
                     : "[G / RB] Inspect the beast's claw tracks.";
             else if (atUpperPlank)
-                prompt = canTieEscortLine ? "[G / RB] Tie the recovered cord to guide the surveyor."
+                prompt = canTieEscortLine ? "[G / RB] Tie the recovered cord to guide the surveyor. Rescue not complete."
                     : canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
                     : surveyorEscorting ? "Lead through the open gate first. The surveyor is waiting for you."
                     : plankSecured ? "Upper plank braced; surveyor can stand on it. Rescue not complete."
