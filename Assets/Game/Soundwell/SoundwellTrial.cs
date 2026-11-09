@@ -57,7 +57,11 @@ namespace Rpg.Soundwell
             playerBody.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             player.gameObject.AddComponent<CircleCollider2D>().radius = 0.3f;
             beastHome = beast.position;
-            view = new SoundwellView(transform, trialCamera, player, bell, beast, safePoint);
+            view = new SoundwellView(transform, trialCamera, player, bell, beast, safePoint,
+                () => ApplyInput(movement, true, false, false),
+                () => ApplyInput(movement, false, true, false),
+                () => ApplyInput(movement, false, false, true),
+                () => { ReturnToBootstrap(); });
             ResetTrial();
             initialized = true;
         }

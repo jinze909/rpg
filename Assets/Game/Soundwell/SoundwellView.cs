@@ -1,4 +1,6 @@
+using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -19,11 +21,16 @@ namespace Rpg.Soundwell
         private readonly AudioClip mutedBell;
         private readonly Text hint;
         private readonly Text beastStatus;
+        private readonly Button ringButton;
+        private readonly Button wrapButton;
+        private readonly Button retryButton;
+        private readonly Button backButton;
+        private readonly Text wrapButtonLabel;
         private float pulseStarted = float.NegativeInfinity;
         private bool mutedPulse;
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
-            Transform beast, Transform safe)
+            Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back)
         {
             this.camera = camera;
             square = Sprite.Create(Texture2D.whiteTexture,
@@ -80,11 +87,67 @@ namespace Rpg.Soundwell
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
             AddLabel(rect, "[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry", 14, Cloth,
                 new Vector2(0, -222), new Vector2(760, 26));
+
+            // Pointer-only HUD: keyboard/controller buttons already route through the
+            // one SoundwellControlFrame input adapter. Prevent duplicate gamepad Submit.
+            var actionCanvas = new GameObject("Soundwell actions HUD", typeof(RectTransform),
+                typeof(Canvas)).GetComponent<Canvas>();
+            actionCanvas.transform.SetParent(root, false);
+            actionCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            actionCanvas.sortingOrder = 20;
+            var scaler = actionCanvas.gameObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(960f, 540f);
+            actionCanvas.gameObject.AddComponent<GraphicRaycaster>();
+            ringButton = CreateActionButton(actionCanvas.transform, "Ring", "RING  [E / A]", 0, ring);
+            wrapButton = CreateActionButton(actionCanvas.transform, "Wrap", "WRAP  [Q / X]", 1, wrap);
+            wrapButtonLabel = wrapButton.GetComponentInChildren<Text>();
+            retryButton = CreateActionButton(actionCanvas.transform, "Retry", "RESET  [R / Y]", 2, retry);
+            backButton = CreateActionButton(actionCanvas.transform, "Back", "BACK  [Esc / B]", 3, back);
+
+            if (EventSystem.current == null)
+            {
+                var events = new GameObject("Soundwell actions EventSystem",
+                    typeof(EventSystem), typeof(StandaloneInputModule));
+                events.transform.SetParent(root, false);
+            }
+        }
+
+        private static Button CreateActionButton(Transform parent, string name, string caption, int index, Action action)
+        {
+            var obj = new GameObject("Soundwell " + name + " button",
+                typeof(RectTransform), typeof(Image), typeof(Button));
+            obj.transform.SetParent(parent, false);
+            var rect = (RectTransform)obj.transform;
+            rect.anchorMin = rect.anchorMax = Vector2.one;
+            rect.pivot = Vector2.one;
+            rect.anchoredPosition = new Vector2(-16f, -26f - index * 52f);
+            rect.sizeDelta = new Vector2(198f, 44f);
+            var image = obj.GetComponent<Image>();
+            image.color = new Color(0.14f, 0.23f, 0.28f, 0.94f);
+            var button = obj.GetComponent<Button>();
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 0.90f, 0.69f);
+            colors.pressedColor = Gold;
+            colors.disabledColor = new Color(0.50f, 0.55f, 0.57f, 0.50f);
+            button.colors = colors;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.onClick.AddListener(() => action());
+            AddLabel(rect, caption, 15, Ink, Vector2.zero, new Vector2(190f, 38f));
+            return button;
         }
 
         public void Refresh(bool ringing, bool searching, bool wrapped, bool atBell, bool atSafePoint)
         {
             FitCamera();
+            ringButton.interactable = atBell;
+            wrapButton.interactable = atBell;
+            retryButton.interactable = atSafePoint;
+            backButton.interactable = true;
+            string wrapCaption = wrapped ? "UNWRAP  [Q / X]" : "WRAP  [Q / X]";
+            if (wrapButtonLabel.text != wrapCaption)
+                wrapButtonLabel.text = wrapCaption;
             bellMarker.color = wrapped ? Cloth : Gold;
             string status = ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING" : "BEAST  /  LISTENING";
             if (beastStatus.text != status)

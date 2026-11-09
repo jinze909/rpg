@@ -201,6 +201,12 @@ namespace Rpg.Soundwell
             camera.ResetAspect();
             Require(ShowsPrompt(trial, "Walk to the copper bell"), "The initial view must show where to go.");
             Require(ShowsPrompt(trial, "[Esc / Pad B] Back to entry"), "The exit control must be visible at the entrance.");
+            Require(!TrialActionButton(trial, "Ring").interactable &&
+                !TrialActionButton(trial, "Wrap").interactable,
+                "Out-of-reach bell actions must not be clickable.");
+            Require(TrialActionButton(trial, "Retry").interactable &&
+                TrialActionButton(trial, "Back").interactable,
+                "Reset and return must be available at the entrance.");
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
@@ -216,8 +222,12 @@ namespace Rpg.Soundwell
             yield return null;
             Require(ShowsPrompt(trial, "[E / Pad A] Ring the bell"), "Bell actions must appear within reach.");
             Require(ShowsPrompt(trial, "[WASD / Arrows / Stick] Move"), "The movement control must stay visible at the bell.");
-            Press(trial, ring: true);
-            Require(trial.HasBellTarget, "trial.HasBellTarget must be true.");
+            Require(TrialActionButton(trial, "Ring").interactable &&
+                TrialActionButton(trial, "Wrap").interactable &&
+                !TrialActionButton(trial, "Retry").interactable,
+                "The HUD must enable bell actions but reject reset away from safety.");
+            ClickTrialAction(trial, "Ring");
+            Require(trial.HasBellTarget, "The UGUI Ring button must trigger the real Soundwell signal.");
             Require(bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Copper bell",
                 "The clear sound must repeat while the beast tracks it.");
             for (var wait = Until(() => trial.BeastPosition.x < home.x - 0.7f,
@@ -227,8 +237,8 @@ namespace Rpg.Soundwell
             Vector2 pursued = trial.BeastPosition;
             var clear = Capture(trial, "01-ringing");
 
-            Press(trial, wrap: true);
-            Require(trial.IsWrapped, "trial.IsWrapped must be true.");
+            ClickTrialAction(trial, "Wrap");
+            Require(trial.IsWrapped, "The UGUI Wrap button must update the real Soundwell state.");
             Require(!trial.HasBellTarget, "trial.HasBellTarget must be false.");
             Require(trial.IsSearching, "trial.IsSearching must be true.");
             Require(!bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Wrapped bell",
@@ -260,8 +270,10 @@ namespace Rpg.Soundwell
             yield return null;
             yield return null;
             Require(ShowsPrompt(trial, "[R / Pad Y] Reset the experiment"), "Retreat must reveal the reset control.");
-            Press(trial, retry: true);
-            Require(!trial.IsWrapped, "trial.IsWrapped must be false.");
+            Require(TrialActionButton(trial, "Retry").interactable,
+                "Returning to safety must enable the UGUI Reset button.");
+            ClickTrialAction(trial, "Retry");
+            Require(!trial.IsWrapped, "The UGUI Reset button must restore the real signal state.");
             Require(!trial.IsSearching, "trial.IsSearching must be false.");
             Require(trial.BeastPosition == home, "Reset must return the beast to its initial position.");
             Require(!bellAudio.loop && bellAudio.clip == null, "Reset must clear the bell's playback state.");
@@ -380,6 +392,51 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(ShowsPrompt(FindRootComponent<SoundwellEntrance>(), "[F2 / Pad A] Enter the trial"),
                 "The entry prompt must remain usable after the controller exit.");
+
+            // Re-enter and click the actual HUD Back button, not the input adapter.
+            yield return FindRootComponent<SoundwellEntrance>().OpenTrial();
+            var mouseTrial = FindRootComponent<SoundwellTrial>();
+            for (var wait = Until(() => mouseTrial.IsReady, "initialize mouse HUD trial"); wait.MoveNext();)
+                yield return null;
+            mouseTrial.ReadKeyboard = false;
+            yield return null;
+            ClickTrialAction(mouseTrial, "Back");
+            for (var wait = Until(() => SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
+                "HUD Back returns to the entry scene"); wait.MoveNext();)
+                yield return null;
+            Require(FindRootComponent<SoundwellEntrance>() != null,
+                "The UGUI Back button must return to a live entry scene.");
+        }
+
+        private static Button TrialActionButton(SoundwellTrial trial, string action)
+        {
+            var button = trial.GetComponentsInChildren<Button>(true)
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell " + action + " button");
+            Require(button != null, "Missing real UGUI action button: " + action);
+            return button;
+        }
+
+        private static void ClickTrialAction(SoundwellTrial trial, string action)
+        {
+            var button = TrialActionButton(trial, action);
+            Require(button.interactable, "Disabled action cannot be clicked: " + action);
+            var canvas = button.GetComponentInParent<Canvas>();
+            var raycaster = canvas != null ? canvas.GetComponent<GraphicRaycaster>() : null;
+            var eventSystem = EventSystem.current;
+            Require(eventSystem != null && raycaster != null,
+                "The action HUD must have an active EventSystem and GraphicRaycaster.");
+            Canvas.ForceUpdateCanvases();
+            var pointer = new PointerEventData(eventSystem)
+            {
+                button = PointerEventData.InputButton.Left,
+                position = RectTransformUtility.WorldToScreenPoint(null, button.transform.position)
+            };
+            var hits = new List<RaycastResult>();
+            raycaster.Raycast(pointer, hits);
+            Require(hits.Any(hit => hit.gameObject == button.gameObject),
+                "The " + action + " button must be reached by a real UI raycast.");
+            ExecuteEvents.Execute<IPointerClickHandler>(button.gameObject, pointer,
+                ExecuteEvents.pointerClickHandler);
         }
 
         private static bool ShowsPrompt(Component owner, string prompt) =>
