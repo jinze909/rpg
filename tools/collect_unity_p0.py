@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -55,12 +56,53 @@ def collect(mode):
 
     expected_tests = set(EXPECTED_TESTS)
     soundwell = mode == "verify" and (root / "Assets/Game/Scenes/SoundwellTrial.unity").is_file()
+    performance = None
     if soundwell:
         expected_tests.add("Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry")
         for filename in ("01-ringing.png", "02-wrapped-searching.png", "03-retreat-reset.png"):
             frame = evidence / "soundwell" / filename
             if not frame.is_file() or frame.stat().st_size < 1024:
                 errors.append(f"Missing Soundwell frame: {filename}")
+
+        # Independently validate the end-to-end Play Mode performance artifact.
+        # Reject absent, zero, non-finite, or internally inconsistent measurements.
+        path = evidence / "performance" / "soundwell-playmode.json"
+        try:
+            performance = json.loads(path.read_text())
+            if performance.get("schema_version") != 1:
+                errors.append("Soundwell performance schema is not version 1.")
+            if performance.get("unity_version") != "6000.6.8f1":
+                errors.append("Soundwell performance Unity version does not match the pinned editor.")
+            if performance.get("sample_source") != "UnityEngine.Time.unscaledDeltaTime":
+                errors.append("Soundwell performance source is not a Play Mode frame interval.")
+            if performance.get("scenario") != "soundwell-ring-wrap-retreat-reload-reenter":
+                errors.append("Soundwell performance scenario does not match the tested path.")
+
+            samples = performance.get("frame_samples")
+            if type(samples) is not int or samples < 30:
+                errors.append("Soundwell performance must contain at least 30 real frame samples.")
+
+            timings = []
+            for key in ("frame_time_ms_p50", "frame_time_ms_p95", "frame_time_ms_max"):
+                value = performance.get(key)
+                if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+                    errors.append(f"Soundwell {key} must be positive and finite.")
+                else:
+                    timings.append(value)
+            if len(timings) == 3 and not (timings[0] <= timings[1] <= timings[2]):
+                errors.append("Soundwell frame time percentiles are inconsistent.")
+
+            for key in ("gc_gen0_collections_delta", "gc_gen1_collections_delta", "gc_gen2_collections_delta",
+                        "managed_heap_start_bytes", "managed_heap_end_bytes", "managed_heap_peak_bytes"):
+                value = performance.get(key)
+                if type(value) is not int or value < 0:
+                    errors.append(f"Soundwell {key} is missing or negative.")
+            heap = [performance.get(k) for k in
+                    ("managed_heap_start_bytes", "managed_heap_end_bytes", "managed_heap_peak_bytes")]
+            if all(type(v) is int and v >= 0 for v in heap) and heap[2] < max(heap[0], heap[1]):
+                errors.append("Soundwell peak heap is below its starting or ending sample.")
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            errors.append(f"Missing or invalid Soundwell performance artifact: {error}")
 
     try:
         result = ET.parse(evidence / "editmode-results.xml").getroot()
@@ -128,6 +170,7 @@ def collect(mode):
         "unity_action_outcome": action_outcome,
         "run_url": f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}",
         "changed_files_sha256": hashes,
+        "performance": performance if soundwell else None,
         "errors": errors,
         "note": "Preparation verifies SHA plus generated files; commit reviewed files and rerun verify for clean-SHA evidence.",
     }

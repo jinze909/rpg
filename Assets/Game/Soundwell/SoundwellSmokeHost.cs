@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -14,13 +15,88 @@ namespace Rpg.Soundwell
     {
         private const string SceneName = "SoundwellTrial";
         private string runtimeError;
+        private readonly List<float> frameTimeMs = new List<float>(512);
+        private int startGc0;
+        private int startGc1;
+        private int startGc2;
+        private long startHeapBytes;
+        private long peakHeapBytes;
+
+        [Serializable]
+        private sealed class PlayModePerformance
+        {
+            public int schema_version = 1;
+            public string scenario = "soundwell-ring-wrap-retreat-reload-reenter";
+            public string sample_source = "UnityEngine.Time.unscaledDeltaTime";
+            public string environment = "Unity Editor Play Mode (GameCI Linux container; not player hardware)";
+            public string unity_version;
+            public int frame_samples;
+            public float frame_time_ms_p50;
+            public float frame_time_ms_p95;
+            public float frame_time_ms_max;
+            public int gc_gen0_collections_delta;
+            public int gc_gen1_collections_delta;
+            public int gc_gen2_collections_delta;
+            public long managed_heap_start_bytes;
+            public long managed_heap_end_bytes;
+            public long managed_heap_peak_bytes;
+        }
 
         public int? ExitCode { get; private set; }
 
         public void Run()
         {
+            startGc0 = GC.CollectionCount(0);
+            startGc1 = GC.CollectionCount(1);
+            startGc2 = GC.CollectionCount(2);
+            startHeapBytes = GC.GetTotalMemory(false);
+            peakHeapBytes = startHeapBytes;
+            frameTimeMs.Clear();
             Application.logMessageReceived += RecordRuntimeError;
             StartCoroutine(Drive(VerifyTrial()));
+        }
+
+        // Record real Play Mode frame intervals, including trial transitions and scene reload.
+        // These headless Editor measurements support comparisons only; they are not FPS targets.
+        private void Update()
+        {
+            if (ExitCode.HasValue)
+                return;
+
+            float milliseconds = Time.unscaledDeltaTime * 1000f;
+            if (milliseconds > 0f && !float.IsNaN(milliseconds) && !float.IsInfinity(milliseconds))
+                frameTimeMs.Add(milliseconds);
+
+            // Heap collection itself has overhead; sample it sparsely rather than each frame.
+            if (frameTimeMs.Count > 0 && frameTimeMs.Count % 30 == 0)
+                peakHeapBytes = Math.Max(peakHeapBytes, GC.GetTotalMemory(false));
+        }
+
+        private void SavePerformanceEvidence()
+        {
+            if (frameTimeMs.Count < 30)
+                throw new InvalidOperationException("Soundwell performance capture has fewer than 30 Play Mode frames.");
+
+            var sorted = frameTimeMs.ToArray();
+            Array.Sort(sorted);
+            long endHeapBytes = GC.GetTotalMemory(false);
+            var evidence = new PlayModePerformance
+            {
+                unity_version = Application.unityVersion,
+                frame_samples = sorted.Length,
+                frame_time_ms_p50 = sorted[(int)Math.Ceiling(sorted.Length * 0.50) - 1],
+                frame_time_ms_p95 = sorted[(int)Math.Ceiling(sorted.Length * 0.95) - 1],
+                frame_time_ms_max = sorted[sorted.Length - 1],
+                gc_gen0_collections_delta = GC.CollectionCount(0) - startGc0,
+                gc_gen1_collections_delta = GC.CollectionCount(1) - startGc1,
+                gc_gen2_collections_delta = GC.CollectionCount(2) - startGc2,
+                managed_heap_start_bytes = startHeapBytes,
+                managed_heap_end_bytes = endHeapBytes,
+                managed_heap_peak_bytes = Math.Max(peakHeapBytes, endHeapBytes)
+            };
+            const string file = "artifacts/p0/performance/soundwell-playmode.json";
+            Directory.CreateDirectory(Path.GetDirectoryName(file));
+            File.WriteAllText(file, JsonUtility.ToJson(evidence, true) + "\n");
         }
 
         private IEnumerator Drive(IEnumerator steps)
@@ -45,8 +121,17 @@ namespace Rpg.Soundwell
                 {
                     if (runtimeError == null)
                     {
-                        Debug.Log("RPG_SOUNDWELL_SIGNAL_VALIDATED");
-                        status = 0;
+                        try
+                        {
+                            // Only successful end-to-end input paths produce performance evidence.
+                            SavePerformanceEvidence();
+                            Debug.Log("RPG_SOUNDWELL_SIGNAL_VALIDATED");
+                            status = 0;
+                        }
+                        catch (Exception error)
+                        {
+                            Debug.LogException(error);
+                        }
                     }
                     break;
                 }
