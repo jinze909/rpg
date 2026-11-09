@@ -32,6 +32,7 @@ namespace Rpg.Soundwell
         private readonly Transform retreatMarker;
         private readonly BoxCollider2D gateBlocker;
         private readonly LineRenderer pulse;
+        private readonly LineRenderer beastContactRing;
         private readonly LineRenderer escortLine;
         private readonly AudioSource audio;
         private readonly AudioClip clearBell;
@@ -194,6 +195,30 @@ namespace Rpg.Soundwell
             beastIntentMarker.enabled = false;
             Plate(beast, "PLACEHOLDER beast", Vector2.zero, new Vector2(1.03f, 0.78f), new Color(0.95f, 0.41f, 0.42f), 3);
             Plate(beast, "Beast muzzle", new Vector2(0.56f, 0f), new Vector2(0.35f, 0.3f), new Color(1f, 0.67f, 0.49f), 4);
+
+            // Telegraph the actual encounter radius rather than asking the
+            // player to guess a hidden distance. The ring shares the same
+            // authoritative radius as SoundwellTrial's knockback check and
+            // is parented to the moving beast, never a copied AI position.
+            var contactObject = new GameObject("PLACEHOLDER beast contact radius");
+            contactObject.transform.SetParent(beast, false);
+            beastContactRing = contactObject.AddComponent<LineRenderer>();
+            beastContactRing.sharedMaterial = ringMaterial;
+            beastContactRing.useWorldSpace = false;
+            beastContactRing.loop = true;
+            beastContactRing.positionCount = 40;
+            beastContactRing.sortingOrder = 2;
+            beastContactRing.widthMultiplier = 0.04f;
+            beastContactRing.startColor = beastContactRing.endColor =
+                new Color(1f, 0.30f, 0.26f, 0.85f);
+            for (int i = 0; i < beastContactRing.positionCount; i++)
+            {
+                float angle = 2f * Mathf.PI * i / beastContactRing.positionCount;
+                beastContactRing.SetPosition(i, new Vector3(
+                    Mathf.Cos(angle) * SoundwellTrial.BeastContactRadius,
+                    Mathf.Sin(angle) * SoundwellTrial.BeastContactRadius, 0f));
+            }
+            beastContactRing.enabled = false;
 
             var pulseObject = new GameObject("Bell pressure ripple");
             pulseObject.transform.SetParent(bell, false);
@@ -445,6 +470,10 @@ namespace Rpg.Soundwell
                 beastIntentMarker.color = intentColor;
             }
             ArrangeActionHud(camera.aspect);
+            // The west side is protected by the locked gate. Telegraph the
+            // danger only after opening the inner room, and remove the ring
+            // after the survivor reaches safety.
+            beastContactRing.enabled = gateOpen && !rescueComplete;
             escapeDangerMarker.enabled = beastBlocksEscape;
             string escapeCaption = beastBlocksEscape
                 ? "ESCAPE LANE  /  BLOCKED" : "ESCAPE LANE  /  CLEAR";

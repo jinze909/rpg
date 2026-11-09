@@ -269,6 +269,19 @@ namespace Rpg.Soundwell
 
             var bellAudio = FindRootComponent<AudioSource>();
             Require(bellAudio != null, "The copper bell must expose its audio source.");
+            var beastContactRing = trial.GetComponentsInChildren<LineRenderer>(true)
+                .SingleOrDefault(line => line.gameObject.name == "PLACEHOLDER beast contact radius");
+            Require(beastContactRing != null && !beastContactRing.enabled &&
+                beastContactRing.loop && !beastContactRing.useWorldSpace &&
+                beastContactRing.positionCount == 40,
+                "Locked-gate players must see no phantom beast-contact hazard.");
+            for (int i = 0; i < beastContactRing.positionCount; i++)
+                Require(Mathf.Abs(beastContactRing.GetPosition(i).magnitude -
+                    SoundwellTrial.BeastContactRadius) < 0.003f,
+                    "Every hazard-ring vertex must match the real knockback radius.");
+            Require(Vector2.Distance(beastContactRing.transform.position,
+                trial.BeastPosition) < 0.005f,
+                "The danger ring must belong to the moving beast, not a simulated position.");
             var falseTrailMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
             Require(falseTrailMarker != null && falseTrailMarker.enabled &&
@@ -595,7 +608,7 @@ namespace Rpg.Soundwell
                 "Reset must put the portable bell back at its original stand.");
             Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved &&
                 !trial.RopeRecovered && !trial.SurveyorLineTied && !trial.BeastContacted &&
-                revealedClawTrail.All(marker => !marker.enabled),
+                !beastContactRing.enabled && revealedClawTrail.All(marker => !marker.enabled),
                 "Retreat reset must clear clues, revealed claw trail, and recovered guide rope.");
             yield return null;
             Require(ropeEvidence.enabled && cartEvidence.color == cartUnobservedColor &&
@@ -756,6 +769,9 @@ namespace Rpg.Soundwell
                 "The escape lane can only become clear when the real beast moves away.");
             Require(!gateCollider.enabled && ShowsPrompt(trial, "GATE  /  OPEN"),
                 "The actual collider and world label must agree that the gate is open.");
+            Require(beastContactRing.enabled &&
+                Vector2.Distance(beastContactRing.transform.position, trial.BeastPosition) < 0.02f,
+                "Opening the actual gate must reveal the beast's authoritative live contact radius.");
             Capture(trial, "06-inner-gate-open");
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= 0.9f,
@@ -781,6 +797,8 @@ namespace Rpg.Soundwell
             Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.12f &&
                 trial.GateOpen && trial.HasBellTarget && !trial.RescueComplete &&
                 !trial.SurveyorEscorting && !trial.CartClueShared &&
+                beastContactRing.enabled &&
+                Vector2.Distance(beastContactRing.transform.position, trial.BeastPosition) < 0.02f &&
                 ShowsPrompt(trial, "BEAST CONTACT: Pushed back to RETREAT"),
                 "Beast contact must push the player to safety without hiding a reset or inventing rescue.");
             Capture(trial, "06-beast-contact-retreat");
@@ -1093,7 +1111,7 @@ namespace Rpg.Soundwell
                 yield return null;
             yield return null;
             Require(Vector2.Distance((Vector2)surveyor.transform.position, retreat) <= 0.98f &&
-                trial.RescueComplete && !trial.CanEscortSurveyor &&
+                trial.RescueComplete && !trial.CanEscortSurveyor && !beastContactRing.enabled &&
                 ShowsPrompt(trial, "RESCUED: The surveyor reached RETREAT") &&
                 ShowsPrompt(trial, "My marker was wrong"),
                 "Rescue must require the actual NPC reaching the safe point and his own response.");
@@ -1215,6 +1233,10 @@ namespace Rpg.Soundwell
                 .Where(item => item.gameObject.name.StartsWith("PLACEHOLDER revealed claw trail "))
                 .Count(item => !item.enabled) == 3,
                 "Scene reload must hide all revealed claw evidence until reinspection.");
+            Require(!fresh.GetComponentsInChildren<LineRenderer>(true)
+                .Any(line => line.gameObject.name == "PLACEHOLDER beast contact radius" &&
+                    line.enabled),
+                "A new scene must not retain an open-gate beast warning from the previous run.");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
                 !fresh.BeastContacted &&
                 !fresh.FalseMarkerCleared && !fresh.SafeRouteMarked &&
