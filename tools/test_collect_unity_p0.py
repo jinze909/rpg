@@ -2,7 +2,7 @@
 """Regression checks for Unity P0 log acceptance and compiler failures."""
 import unittest
 
-from collect_unity_p0 import UNITY_COMPILER_ERROR, format_performance_summary
+from collect_unity_p0 import UNITY_COMPILER_ERROR, SOUNDWELL_MARKERS, SOUNDWELL_TESTS, format_performance_summary
 
 
 
@@ -59,6 +59,19 @@ class PerformanceSummaryTests(unittest.TestCase):
         performance["environment"] = "Unity Editor\nmalicious next line"
         self.assertIn("- Environment: Unity Editor malicious next line\n",
                       format_performance_summary(performance))
+
+class SoundwellAcceptanceContractTests(unittest.TestCase):
+    def test_ork_battle_test_and_runtime_marker_are_required(self):
+        self.assertIn(
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.ThreePlayerCombatantsEnterOneOrkTurnBasedBattle",
+            SOUNDWELL_TESTS,
+        )
+        self.assertIn("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED", SOUNDWELL_MARKERS)
+        self.assertIn(
+            "Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry",
+            SOUNDWELL_TESTS,
+        )
+        self.assertIn("RPG_SOUNDWELL_SIGNAL_VALIDATED", SOUNDWELL_MARKERS)
 
 
 class CompilerLogTests(unittest.TestCase):

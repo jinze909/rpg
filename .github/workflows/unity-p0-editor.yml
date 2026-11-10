@@ -64,6 +64,9 @@ jobs:
           test "$(git rev-parse HEAD)" = "$P0_EXPECTED_SHA"
           python3 tools/verify_ork.py
 
+      - name: Inspect ORK 3 battle factory implementation from the vendored source
+        run: python3 tools/inspect_ork_battle_source.py
+
       - name: Check evidence parser against real compiler errors and API-updater notices
         run: python3 -m unittest discover -s tools -p 'test_collect_unity_p0.py' -v
 
