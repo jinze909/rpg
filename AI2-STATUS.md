@@ -5,14 +5,14 @@
 - 用户已同意“归来”主线并要求详细大纲入库。现有[主线大纲](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)、[地区与长期故事](docs/narrative/REGIONAL_STORIES.md) v0.2：采用用户提供的 Claude 文稿，加入白水渡谜线、点名与受限听雾，保留中段救友、后半共同成长与独立地方故事。它们是写作基线，未实现、未试玩；工作标题与具体扩写细节仍可改稿。
 - 用户授权深入讨论并写一页玩法基线，本轮新增[基线v0.1](docs/gameplay/BASELINE.md)：区域探索与队伍短回合为方向，三人、固定个人顺序及镜头等仅作首轮控制；移动/固定阵位须公平对照，仍未实现、未试玩。
 - 先前撤销的游戏设定继续作废。主角外观、美术尺度等未锁定，玩法的已定/暂定/待验证以[玩法基线](docs/gameplay/BASELINE.md)和 [BACKLOG](BACKLOG.md) 为准。
-- 当前开发为 [003 · 三人短回合声井救援](production/stories/003-soundwell-turn-rescue.md)，待实现。002 的工程验收通过。玩家能否自行发现声源与回撤规律、是否觉得好玩，另记为真人试玩待验证。
+- 当前开发为 [003 · 三人短回合声井救援](production/stories/003-soundwell-turn-rescue.md)，进行中而非完成。已交付 ORK 三名真实 Combatant 组成一个 PlayerGroup、借声兽作为 EnemyGroup，并在真实 ORK Turn Based Battle 中验证四名 Combatant 同场；声井摇铃、包铃、撤退、重试路径也通过 Play Mode 回归。尚未证明两条独立救援策略都能从同一起点完成，亦未完成真人试玩；固定阵位对照和乐趣仍待验证。
 - 工程锁定 Unity 6.6（6000.6.8f1）与随编辑器发布的 UGUI（CI 解析为 2.6.0）。当前框架仍用已提供的 ORK 3.22.0 / Makinom 2.21.0 固定包。此前已对安装脚本的 136 个文件做逐字节比对并验证重跑。
 - 框架包已完整整合到开发分支：73 个资源条目、136 个文件与原包逐字节一致，原始 GUID 保留；当时重复安装新增 0 个文件，`python tools/verify_ork.py` 与两个源码 ZIP 的 CRC 检查通过。详见 [整合证据](docs/ork-integration.md)。[P0 已通过 Unity 验收](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)。
 - 启动接线会拒绝空配置、禁用的 Starter 与错误的数据来源。新增 [Unity 批处理检查](README.md#批处理启动验收)，可记录配置验收日志。
 - P0 在 `6ea56a9746106559d32dbcd0456cfec17fce29d2` 的干净检出上通过 Unity 6000.6.8f1 导入、编译、重复接线、两次 Play Mode 和独立批处理。编辑器生成的项目配置和包锁已入库。[验证日志](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)
 - [任务顺序及冻结范围](BACKLOG.md) · [工作室角色](production/team.md) · [验收与证据规则](production/workflow.md)
 - 剧情文档下一步：打磨已补写的 S00—M00 场景稿，展开一条完整地方线与 M08—M11 连续人物场；文档链接、因果与分支检查不代替真实玩家体验。Unity相关未运行项仍保持待验证。
-- 玩法下一步：从现有入口接入 ORK 三人短回合，先实现移动版。同一起点分别走通引兽撤离与正面牵制救援，取得同 SHA 的 Unity 自动化证据。固定阵位对照与体验结论保留待验证。
+- 下一步技术增量：独立候选迁移 URP 2D（Built-in → URP 2D Renderer），保持 Unity 6000.6.8f1、ORK/Makinom 冻结、UGUI 保留；通过同 SHA Unity 验收后再进行 New Input System 迁移。003 玩法下一步仍是分别走通引兽撤离与正面牵制救援，取得同 SHA 证据；固定阵位对照与体验结论保留待验证。
 - 上轮剧情大纲文档验收（`15e35c39faf59a930dca55ca9d323677f14ed80b`）：叙事作者与独立一致性审稿完成；时间地理、重逢后因果、人物离开替代与结局边界审查通过；当时9份Markdown的53处本地链接、16个主线章节和6个地方线编号及空白检查通过，不代表游戏实现通过。
 - 本轮玩法基线文档验收：设计、技术、叙事、UX与QA互评，状态边界及对照口径审查通过；7份Markdown的56处本地链接与空白检查通过。没有运行Unity或游戏测试，未实现、未试玩。
 
