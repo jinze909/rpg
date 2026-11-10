@@ -23,6 +23,14 @@ def allowed_path(name):
     if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
         return False
     if name in {
+        # M11: native Unity-authored Linux Debug/Test Build Profiles.
+        # Do not allow any arbitrary profile path, platform or signing settings.
+        "Assets/Settings.meta",
+        "Assets/Settings/Build Profiles.meta",
+        "Assets/Settings/Build Profiles/Soundwell Debug Linux.asset",
+        "Assets/Settings/Build Profiles/Soundwell Debug Linux.asset.meta",
+        "Assets/Settings/Build Profiles/Soundwell Test Linux.asset",
+        "Assets/Settings/Build Profiles/Soundwell Test Linux.asset.meta",
         # M4: only these Unity-authored game-owned clips/controller and their
         # folder/asset metadata may be published from an animation prepare run.
         # M5: Unity-authored saved Soundwell Tilemap scene, Rule Tile and sprite imports.

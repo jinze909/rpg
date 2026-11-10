@@ -43,6 +43,7 @@ namespace Rpg.Tests.Editor
                 InvokeSoundwellTilemapSetup("Prepare");
                 InvokeSoundwellAudioMixerSetup("Prepare");
                 InvokeSoundwellLocalizationSetup("Prepare");
+                InvokeSoundwellBuildProfilesSetup("Prepare");
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             else
@@ -54,6 +55,7 @@ namespace Rpg.Tests.Editor
                 InvokeSoundwellTilemapSetup("Validate");
                 InvokeSoundwellAudioMixerSetup("Validate");
                 InvokeSoundwellLocalizationSetup("Validate");
+                InvokeSoundwellBuildProfilesSetup("Validate");
                 ValidateConfiguration();
             }
 
@@ -64,6 +66,8 @@ namespace Rpg.Tests.Editor
                 "Running the command again must not rewrite the saved scene.");
             ValidateConfiguration();
             Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
+            if (!Environment.GetCommandLineArgs().Contains("-rpgPrepareDefaults"))
+                InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
         }
 
         [Test, Order(1)]
@@ -192,6 +196,13 @@ namespace Rpg.Tests.Editor
             {
                 throw error.InnerException;
             }
+        }
+
+        private static void InvokeSoundwellBuildProfilesSetup(string methodName)
+        {
+            var type = Type.GetType("Rpg.Editor.SoundwellBuildProfilesSetup, Assembly-CSharp-Editor", true);
+            try { type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null); }
+            catch (TargetInvocationException error) when (error.InnerException != null) { throw error.InnerException; }
         }
 
         private static void InvokeSoundwellLocalizationSetup(string methodName)

@@ -179,6 +179,39 @@ def validate_memory_phases(report):
     return errors
 
 
+BUILD_SCENES = (
+    "Assets/Game/Scenes/Bootstrap.unity", "Assets/Game/Scenes/SoundwellTrial.unity",
+)
+
+
+def validate_build_profile_player(report):
+    """Only a real Linux Player build is evidence; an .asset alone is not."""
+    if not isinstance(report, dict):
+        return ["M11 Player build report must be a JSON object."]
+    errors = []
+    expected = {
+        "schema_version": 1, "unity_version": "6000.6.8f1",
+        "platform_guid": "cb423bfea44b4d658edb8bc5d91a3024",
+        "target": "StandaloneLinux64",
+        "test_profile": "Assets/Settings/Build Profiles/Soundwell Test Linux.asset",
+        "result": "Succeeded", "development_build": True,
+        "total_errors": 0, "data_directory_present": True,
+    }
+    for k, v in expected.items():
+        if report.get(k) != v or type(report.get(k)) != type(v):
+            errors.append(f"M11 invalid verified build field: {k}.")
+    if report.get("scenes") != list(BUILD_SCENES):
+        errors.append("M11 build used a scene list different from global ORK scenes.")
+    if report.get("scripting_backend") not in ("Mono2x", "IL2CPP"):
+        errors.append("M11 has no verified Standalone scripting backend.")
+    for k in ("executable_bytes", "build_report_bytes"):
+        if type(report.get(k)) is not int or report[k] <= 1024:
+            errors.append("M11 requires a nonempty actual player artifact: " + k)
+    if "not a user device" not in str(report.get("environment", "")):
+        errors.append("M11 evidence must identify CI and not a user device.")
+    return errors
+
+
 def collect(mode):
     root = Path(__file__).resolve().parents[1]
     os.chdir(root)
@@ -214,7 +247,14 @@ def collect(mode):
     expected_tests = expected_tests_for(mode, has_soundwell_scene)
     performance = None
     memory_phases = None
+    test_player = None
     if soundwell:
+        try:
+            report_path = evidence / "builds" / "soundwell-test-linux.json"
+            test_player = json.loads(report_path.read_text())
+            errors.extend(validate_build_profile_player(test_player))
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            errors.append(f"Missing or invalid M11 Linux Player build evidence: {error}")
         for filename in ("01-ringing.png", "02-wrapped-searching.png",
                          "03-retreat-reset.png", "14-localized-zh-Hans.png"):
             frame = evidence / "soundwell" / filename
@@ -338,6 +378,7 @@ def collect(mode):
         "changed_files_sha256": hashes,
         "performance": performance if soundwell else None,
         "memory_phases": memory_phases if soundwell else None,
+        "test_player": test_player if soundwell else None,
         "errors": errors,
         "note": "Preparation verifies SHA plus generated files; commit reviewed files and rerun verify for clean-SHA evidence.",
     }

@@ -12,6 +12,7 @@ from collect_unity_p0 import (
     expected_tests_for,
     format_performance_summary,
     validate_memory_phases,
+    validate_build_profile_player,
     MEMORY_PHASES,
 )
 
@@ -70,6 +71,37 @@ class PerformanceSummaryTests(unittest.TestCase):
         performance["environment"] = "Unity Editor\nmalicious next line"
         self.assertIn("- Environment: Unity Editor malicious next line\n",
                       format_performance_summary(performance))
+
+class BuildProfilePlayerEvidenceTests(unittest.TestCase):
+    def sample(self):
+        return {
+            "schema_version": 1, "unity_version": "6000.6.8f1",
+            "platform_guid": "cb423bfea44b4d658edb8bc5d91a3024",
+            "target": "StandaloneLinux64",
+            "test_profile": "Assets/Settings/Build Profiles/Soundwell Test Linux.asset",
+            "scripting_backend": "Mono2x",
+            "scenes": ["Assets/Game/Scenes/Bootstrap.unity",
+                       "Assets/Game/Scenes/SoundwellTrial.unity"],
+            "result": "Succeeded", "development_build": True,
+            "total_errors": 0, "executable_bytes": 40000,
+            "build_report_bytes": 90000, "data_directory_present": True,
+            "environment": "Unity Linux Editor CI; real Player; not a user device",
+        }
+
+    def test_requires_real_build_and_global_scene_list(self):
+        self.assertEqual(validate_build_profile_player(self.sample()), [])
+        for name, changed in [
+            ("no_executable", 0), ("non_linux", 1), ("test_as_release", False),
+            ("wrong_scenes", []), ("bad_backend", "Other")
+        ]:
+            with self.subTest(name=name):
+                report = self.sample()
+                key = {"no_executable": "executable_bytes", "non_linux": "target",
+                       "test_as_release": "development_build", "wrong_scenes": "scenes",
+                       "bad_backend": "scripting_backend"}[name]
+                report[key] = changed
+                self.assertTrue(validate_build_profile_player(report))
+
 
 class MemoryPhasesEvidenceTests(unittest.TestCase):
     def sample(self, phase, scene):
