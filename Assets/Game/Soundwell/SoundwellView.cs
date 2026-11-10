@@ -78,7 +78,6 @@ namespace Rpg.Soundwell
                 new Vector2(0.5f, 0.5f), Texture2D.whiteTexture.width);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
-            FitCamera();
 
             Plate(root, "Trial floor", Vector2.zero, new Vector2(14f, 6.4f), new Color(0.11f, 0.19f, 0.23f), -4);
             Plate(root, "Beast lane", new Vector2(3.7f, 0f), new Vector2(6.55f, 6.4f), new Color(0.22f, 0.16f, 0.18f), -3);
@@ -489,7 +488,6 @@ namespace Rpg.Soundwell
             bool beastContacted, bool lowerPlankBroken,
             float searchRemainingFraction, Vector2 beastDestination)
         {
-            FitCamera();
             beastIntentMarker.enabled = ringing || searching;
             if (beastIntentMarker.enabled)
             {
@@ -763,18 +761,6 @@ namespace Rpg.Soundwell
                 float angle = i * (2f * Mathf.PI / pulse.positionCount);
                 pulse.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius));
             }
-        }
-
-        private void FitCamera()
-        {
-            // Preserve the hall and its world-space labels as the window narrows.
-            float aspect = camera.aspect;
-            if (aspect <= 0f)
-                return;
-
-            float size = Mathf.Max(5.5f, 8.4f / aspect);
-            if (!Mathf.Approximately(camera.orthographicSize, size))
-                camera.orthographicSize = size;
         }
 
         public void PlayBell(bool muffled)

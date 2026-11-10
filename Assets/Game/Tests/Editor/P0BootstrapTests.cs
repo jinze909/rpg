@@ -29,6 +29,8 @@ namespace Rpg.Tests.Editor
             Assert.That(Type.GetType("TMPro.TMP_Text, Unity.TextMeshPro", throwOnError: true), Is.Not.Null);
             Assert.That(Assembly.Load("Makinom2.UnityUI").GetTypes(), Is.Not.Empty,
                 "The pinned Makinom Unity UI DLL must resolve its types against this Unity installation.");
+            Assert.That(Assembly.Load("Unity.Cinemachine").GetType("Unity.Cinemachine.CinemachineCamera"), Is.Not.Null,
+                "Unity 6.6 must resolve its editor-matched Cinemachine 3 core package.");
             if (Environment.GetCommandLineArgs().Contains("-rpgPrepareDefaults"))
             {
                 UnityEditor.EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.None;

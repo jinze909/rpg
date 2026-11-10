@@ -177,6 +177,10 @@ namespace Rpg.Soundwell
             player.gameObject.AddComponent<CircleCollider2D>().radius = 0.3f;
             beastHome = beast.position;
             bellHome = bell.position;
+            // M3: One Cinemachine Brain on the scene's real Camera and one
+            // CinemachineCamera for the trial. SoundwellView never drives its lens.
+            var cameraRig = trialCamera.gameObject.AddComponent<SoundwellCameraRig>();
+            cameraRig.Initialize(trialCamera, player, transform);
             view = new SoundwellView(transform, trialCamera, player, bell, beast, safePoint,
                 () => ApplyInput(movement, true, false, false),
                 () => ApplyInput(movement, false, true, false),

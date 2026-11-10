@@ -11,6 +11,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using Unity.Cinemachine;
 using UnityEngine.UI;
 using UnityEngine.TestTools;
 using Rpg.Soundwell;
@@ -72,6 +73,40 @@ namespace Rpg.Tests.Editor
             Physics2D.SyncTransforms();
             Assert.That(trial.CanEngageBeast, Is.True,
                 "The undecided route must offer direct engagement at the real gate panel.");
+
+            // M3: the real Unity orthographic camera is driven only by one
+            // Cinemachine 3 Brain, with one scene-local follow camera. The
+            // aspect-responsive lens is owned by that virtual camera.
+            var rig = trial.TrialCamera.GetComponent<SoundwellCameraRig>();
+            Assert.That(rig, Is.Not.Null, "The Soundwell camera needs a Cinemachine rig.");
+            Assert.That(Object.FindObjectsByType<CinemachineBrain>(FindObjectsSortMode.None).Length,
+                Is.EqualTo(1), "Exactly one Brain may drive the scene's camera.");
+            Assert.That(Object.FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None).Length,
+                Is.EqualTo(1), "Exactly one virtual camera should control Soundwell.");
+            Assert.That(rig.VirtualCamera.Follow, Is.SameAs(rig.FramingTarget));
+            Assert.That(rig.VirtualCamera.GetComponent<CinemachineFollow>(), Is.Not.Null);
+            Assert.That(trial.TrialCamera.orthographic, Is.True);
+            float savedAspect = trial.TrialCamera.aspect;
+            try
+            {
+                trial.TrialCamera.aspect = 1f;
+                rig.RefreshFraming();
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(8.4f).Within(0.01f),
+                    "Square viewports must retain the original Soundwell world label framing.");
+                trial.TrialCamera.aspect = 16f / 9f;
+                rig.RefreshFraming();
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(5.5f).Within(0.01f),
+                    "Widescreen must retain the original Soundwell framing.");
+            }
+            finally
+            {
+                trial.TrialCamera.aspect = savedAspect;
+                rig.RefreshFraming();
+            }
+            Assert.That(Mathf.Abs(rig.FramingTarget.position.x), Is.LessThanOrEqualTo(0.851f),
+                "The follow target must remain inside the horizontal trial framing bounds.");
+            Assert.That(Mathf.Abs(rig.FramingTarget.position.y), Is.LessThanOrEqualTo(0.501f),
+                "The follow target must remain inside the vertical trial framing bounds.");
 
             // M2: Test the *live* UGUI action canvas and its shared New Input
             // EventSystem before the same gate starts ORK combat. This catches
