@@ -110,8 +110,56 @@ def inspect_battle_end_lifecycle():
                     print(f"{line_no + 1:5}: {source[line_no]}")
 
 
+
+def inspect_combatant_action_contract():
+    """Audit the installed ORK player-choice API without dumping licensed source bodies."""
+    classes = (
+        "class CombatantAbilities", "class CombatantActions",
+        "class AbilityShortcut", "class AbilityAction", "class BaseAction",
+        "class ActiveAbility", "class BattleAction", "class CombatantAction",
+    )
+    methods = (
+        "GetCurrentBaseAttack(", "StartAction(", "UseAbility(",
+        "Use(", "Choose(", "Select(", "SetTarget(", "SetTargets(",
+        "GetAbility(", "AddAction(", "Execute(", "Activate(",
+    )
+    found_classes = set()
+    method_signatures = 0
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            if not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            declared = [(number, line.strip()) for number, line in enumerate(lines, 1)
+                        if any(marker in line for marker in classes)]
+            if not declared:
+                continue
+            for number, line in declared[:5]:
+                found_classes.add(line)
+                print(f"ORK_ACTION_TYPE {Path(name).name}:{number}: {line[:240]}")
+            printed_here = 0
+            for number, line in enumerate(lines, 1):
+                signature = line.strip()
+                if not signature.startswith(("public ", "internal ", "protected ")):
+                    continue
+                if not any(marker in signature for marker in methods):
+                    continue
+                # Only publish declaration lines: never dump implementation bodies
+                # from the user's licensed ORK source archive into public CI logs.
+                print(f"ORK_ACTION_SIGNATURE {Path(name).name}:{number}: {signature[:240]}")
+                printed_here += 1
+                method_signatures += 1
+                if printed_here == 18 or method_signatures == 90:
+                    break
+            if method_signatures == 90:
+                break
+    if not found_classes:
+        raise RuntimeError("Frozen ORK archive is missing expected action classes")
+    print(f"ORK_ACTION_AUDIT_OK classes={len(found_classes)} signatures={method_signatures}")
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
     inspect_ork_battle_types()
     inspect_battle_end_lifecycle()
+    inspect_combatant_action_contract()

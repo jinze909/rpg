@@ -11,6 +11,7 @@ on:
       - 'tools/collect_unity_p0.py'
       - 'tools/test_collect_unity_p0.py'
       - 'tools/restore_unity_p0.py'
+      - 'tools/inspect_ork_battle_source.py'
       - '.github/workflows/unity-p0*.yml'
   workflow_dispatch:
     inputs:
