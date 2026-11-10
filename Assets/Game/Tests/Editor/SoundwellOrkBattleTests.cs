@@ -99,8 +99,15 @@ namespace Rpg.Tests.Editor
             Assert.That(party.Members.Any(member => member.Actions.IsChoosing), Is.True,
                 "The direct route must enter a real ORK player turn, not only register battle participants.");
 
+            Assert.That(party.BattleInProgress, Is.True,
+                "The ORK encounter must still be active when its enemy is defeated.");
             party.Beast.Status.Death();
             ORK.Game.Combatants.CheckDeath();
+            Assert.That(party.Beast.Status.IsDead, Is.True,
+                "ORK must record the beast as dead before the rescue gate can unlock.");
+            // CheckDeath marks the combatant dead; the battle handler's EndBattle
+            // is the framework boundary that reports the encounter's conclusion.
+            ORK.Game.Combatants.EndBattle();
             float victoryDeadline = Time.realtimeSinceStartup + 8f;
             while (!trial.DirectCombatComplete && Time.realtimeSinceStartup < victoryDeadline)
                 yield return null;

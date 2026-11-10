@@ -38,16 +38,20 @@ namespace Rpg.Tests.Editor
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
 
                 input.Press(keyboard.f2Key);
+                yield return null;
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True,
                     "F2 must activate the real Entry action.");
                 input.Release(keyboard.f2Key);
+                yield return null;
 
                 input.Press(gamepad.buttonSouth);
+                yield return null;
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True,
                     "Gamepad South must activate the real Entry action.");
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.False,
                     "Entry input must not also ring the gameplay bell.");
                 input.Release(gamepad.buttonSouth);
+                yield return null;
 
                 SoundwellInputAdapter.SetGameplayContext();
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
@@ -60,15 +64,19 @@ namespace Rpg.Tests.Editor
                 input.Release(gamepad.buttonSouth);
 
                 input.Press(keyboard.wKey);
+                yield return null;
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Movement.y, Is.GreaterThan(0.9f),
                     "W must drive the real Gameplay Move action.");
 
                 SoundwellInputAdapter.SetUiContext();
                 input.Release(keyboard.wKey);
+                yield return null;
                 input.Press(keyboard.sKey);
+                yield return null;
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Movement, Is.EqualTo(Vector2.zero),
                     "UI focus must disable gameplay movement rather than moving behind a focused menu.");
                 input.Release(keyboard.sKey);
+                yield return null;
             }
             finally
             {
