@@ -21,7 +21,8 @@ namespace Rpg.Tests.Editor
         private const string ProjectPath = "Assets/Gaming Is Love/_Data/Project.asset";
 
         // Keep preparation out of SetUp/OneTimeSetUp: UTF reruns them after domain reload.
-        [Test, Order(0)]
+        // A real Linux Player build can exceed NUnit's 180-second default.
+        [Test, Order(0), Timeout(900000)]
         public void SavedConfigurationAndWiringAreValid()
         {
             Assert.That(Application.unityVersion, Is.EqualTo("6000.6.8f1"));
@@ -66,8 +67,9 @@ namespace Rpg.Tests.Editor
                 "Running the command again must not rewrite the saved scene.");
             ValidateConfiguration();
             Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
-            if (!Environment.GetCommandLineArgs().Contains("-rpgPrepareDefaults"))
-                InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
+            // Prepare must also persist URP normalization caused by the real Player build.
+            // Verify rebuilds the same committed profiles and requires a clean checkout.
+            InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
         }
 
         [Test, Order(1)]
