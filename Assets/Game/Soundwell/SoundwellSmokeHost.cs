@@ -233,12 +233,32 @@ namespace Rpg.Soundwell
             SoundwellMemoryProbe.Capture("soundwell_entered");
             RequireInputSystemEventSystem("SoundwellTrial");
             var camera = trial.TrialCamera;
-            camera.aspect = 1f;
-            yield return null;
-            yield return null;
-            float left = camera.WorldToViewportPoint(new Vector3(-8.1f, 0f, 0f)).x;
-            float right = camera.WorldToViewportPoint(new Vector3(8.1f, 0f, 0f)).x;
-            Require(left > 0f && right < 1f, "A square viewport must retain both ends of the trial.");
+            // URP PixelPerfectCamera calculates its orthographic pixel grid from the
+            // actual render target, not Camera.aspect alone. A headless Editor
+            // GameView can be 16:9 even when the simulated viewport is square;
+            // that mismatch falsely reports cropped exits. Verify with the same
+            // 640x640 framebuffer used for the real square screenshot.
+            var originalTarget = camera.targetTexture;
+            var squareTarget = RenderTexture.GetTemporary(640, 640, 24);
+            try
+            {
+                camera.targetTexture = squareTarget;
+                camera.aspect = 1f;
+                yield return null;
+                yield return null;
+                camera.Render();
+                float left = camera.WorldToViewportPoint(new Vector3(-8.1f, 0f, 0f)).x;
+                float right = camera.WorldToViewportPoint(new Vector3(8.1f, 0f, 0f)).x;
+                Require(left > 0f && right < 1f,
+                    $"A square viewport must retain both ends of the trial: left={left:F3}, " +
+                    $"right={right:F3}, aspect={camera.aspect:F3}, ortho={camera.orthographicSize:F3}, " +
+                    $"pixelRect={camera.pixelRect}, screen={Screen.width}x{Screen.height}.");
+            }
+            finally
+            {
+                camera.targetTexture = originalTarget;
+                RenderTexture.ReleaseTemporary(squareTarget);
+            }
 
             // A square/narrow viewport must reflow the actual screen-space UGUI
             // actions to two bottom rows, with active pointer hit targets.
