@@ -27,6 +27,10 @@ INPUT_SYSTEM_TESTS = {
     "Rpg.Tests.Editor.SoundwellInputSystemTests.InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled",
     "Rpg.Tests.Editor.SoundwellInputSystemTests.EntryAndGameplayContextsRouteLiveKeyboardAndGamepadEvents",
 }
+ORK_UI_TESTS = {
+    "Rpg.Tests.Editor.MakinomUiIntegrationSurfaceTests.UnityUiModuleExposesItsSystemSettingsAndCreationCommands",
+}
+ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
     "RPG_SOUNDWELL_LOCALIZATION_PLAY_VALIDATED",
@@ -41,6 +45,7 @@ def expected_tests_for(mode, has_soundwell_scene):
     if mode == "verify" and has_soundwell_scene:
         expected.update(SOUNDWELL_TESTS)
         expected.update(INPUT_SYSTEM_TESTS)
+        expected.update(ORK_UI_TESTS)
     return expected
 
 
@@ -332,7 +337,7 @@ def collect(mode):
                         "RPG_SOUNDWELL_AUDIO_MIXER_VALIDATED",
                         "RPG_SOUNDWELL_LOCALIZATION_VALIDATED")
     if soundwell:
-        editmode_markers += SOUNDWELL_MARKERS
+        editmode_markers += SOUNDWELL_MARKERS + (ORK_UI_MARKER,)
     for filename, markers in {
         "editmode.log": editmode_markers,
         "batch.log": ("RPG_BOOTSTRAP_VALIDATED",),

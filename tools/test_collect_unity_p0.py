@@ -5,6 +5,8 @@ import unittest
 from collect_unity_p0 import (
     EXPECTED_TESTS,
     INPUT_SYSTEM_TESTS,
+    ORK_UI_TESTS,
+    ORK_UI_MARKER,
     URP2D_MARKER,
     UNITY_COMPILER_ERROR,
     SOUNDWELL_MARKERS,
@@ -169,6 +171,15 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
         self.assertIn("RPG_SOUNDWELL_SIGNAL_VALIDATED", SOUNDWELL_MARKERS)
 
 
+class OrkUiAcceptanceContractTests(unittest.TestCase):
+    def test_unity_ui_surface_test_and_runtime_marker_are_required(self):
+        self.assertEqual(
+            ORK_UI_TESTS,
+            {"Rpg.Tests.Editor.MakinomUiIntegrationSurfaceTests.UnityUiModuleExposesItsSystemSettingsAndCreationCommands"},
+        )
+        self.assertEqual(ORK_UI_MARKER, "RPG_ORK_UI_SURFACE_VALIDATED")
+
+
 class Urp2DAcceptanceContractTests(unittest.TestCase):
     def test_real_urp_2d_runtime_test_and_marker_are_required(self):
         self.assertIn(
@@ -189,8 +200,8 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
         self.assertEqual(len(EXPECTED_TESTS), 4)
         self.assertEqual(expected_tests_for("prepare", True), EXPECTED_TESTS)
         verify_tests = expected_tests_for("verify", True)
-        self.assertEqual(verify_tests, EXPECTED_TESTS | SOUNDWELL_TESTS | INPUT_SYSTEM_TESTS)
-        self.assertEqual(len(verify_tests), 8)
+        self.assertEqual(verify_tests, EXPECTED_TESTS | SOUNDWELL_TESTS | INPUT_SYSTEM_TESTS | ORK_UI_TESTS)
+        self.assertEqual(len(verify_tests), 9)
 
 
 class CompilerLogTests(unittest.TestCase):
