@@ -1294,6 +1294,9 @@ namespace Rpg.Soundwell
             Require(SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese &&
                 ShowsPrompt(fresh, "声井 / 信号试炼"),
                 "Reload must retain the selected local HUD language.");
+            // Capture the actual Chinese locale in the native GameView renderer,
+            // not only English screenshots and string equality assertions.
+            Capture(fresh, "14-localized-zh-Hans");
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             Require(ShowsPrompt(fresh, "SOUNDWELL  /  SIGNAL TRIAL"),
                 "Reverting language must immediately update live UGUI after reload.");

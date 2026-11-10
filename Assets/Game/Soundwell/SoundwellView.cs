@@ -455,11 +455,24 @@ namespace Rpg.Soundwell
 
         private void RefreshLocalizedLabels()
         {
+            var displayFont = SoundwellUiLocalization.PresentationFont(
+                Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
             foreach (var kv in localizedLabels)
-                if (kv.Key != null)
-                    kv.Key.text = SoundwellUiLocalization.Get(kv.Value);
+            {
+                if (kv.Key == null)
+                    continue;
+                kv.Key.font = displayFont;
+                kv.Key.text = SoundwellUiLocalization.Get(kv.Value);
+            }
             if (menuStatus != null)
+            {
+                menuStatus.font = displayFont;
                 menuStatus.text = SoundwellUiLocalization.Get(actionMenuOpen ? "hud.focus_active" : "hud.focus");
+            }
+            if (wrapButtonLabel != null)
+                wrapButtonLabel.font = displayFont;
+            if (carryButtonLabel != null)
+                carryButtonLabel.font = displayFont;
         }
 
         private static Button CreateActionButton(Transform parent, string name, string caption, int index, Action action)

@@ -118,6 +118,11 @@ namespace Rpg.Tests.Editor
             localeButton.onClick.Invoke();
             Assert.That(SoundwellUiLocalization.Language, Is.EqualTo(SoundwellUiLocalization.Chinese));
             Assert.That(title.text, Is.EqualTo("声井 / 信号试炼"));
+            Assert.That(title.font, Is.Not.Null);
+            Assert.That(title.font.HasCharacter('声') && title.font.HasCharacter('中'),
+                Is.True, "Chinese StringTable text must use a real font with CJK glyphs.");
+            Assert.That(localeButton.GetComponentInChildren<Text>().font.HasCharacter('中'), Is.True,
+                "The locale toggle must not render only '/ EN' with invisible Chinese glyphs.");
             Assert.That(SoundwellUiLocalization.Get("diagnostic.fallback"),
                 Is.EqualTo("English table fallback"));
             Assert.That(SoundwellUiLocalization.Get("diagnostic.unknown"),

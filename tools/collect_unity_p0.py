@@ -155,7 +155,8 @@ def collect(mode):
     expected_tests = expected_tests_for(mode, has_soundwell_scene)
     performance = None
     if soundwell:
-        for filename in ("01-ringing.png", "02-wrapped-searching.png", "03-retreat-reset.png"):
+        for filename in ("01-ringing.png", "02-wrapped-searching.png",
+                         "03-retreat-reset.png", "14-localized-zh-Hans.png"):
             frame = evidence / "soundwell" / filename
             if not frame.is_file() or frame.stat().st_size < 1024:
                 errors.append(f"Missing Soundwell frame: {filename}")
