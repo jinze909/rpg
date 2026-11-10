@@ -70,8 +70,7 @@ jobs:
       - name: Check evidence parser against real compiler errors and API-updater notices
         run: python3 -m unittest discover -s tools -p 'test_collect_unity_p0.py' -v
 
-      - name: Prepare pinned OFL Chinese font in the same Unity candidate
-        if: steps.phase.outputs.mode == 'prepare'
+      - name: Verify pinned OFL Chinese font or prepare it once
         run: python3 tools/prepare_soundwell_cjk_font.py
 
       - name: Import, compile, play twice, and run the independent batch check

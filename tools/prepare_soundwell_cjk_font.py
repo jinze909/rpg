@@ -46,8 +46,20 @@ def checked_download():
 
 
 def main():
+    if FONT_PATH.is_file():
+        # All later migrations inherit the already-published OFL binary.
+        # Hash its actual bytes before reusing it, without network access or
+        # reauthoring a new asset/metadata file on each Unity preparation.
+        current = FONT_PATH.read_bytes()
+        digest = hashlib.sha1(
+            b"blob " + str(len(current)).encode() + b"\x00" + current
+        ).hexdigest()
+        if len(current) != EXPECTED_SIZE or digest != EXPECTED_GIT_BLOB_SHA1:
+            raise ValueError("Existing Chinese font is not the pinned OFL blob.")
+        print("Existing pinned OFL Chinese font verified:", digest)
+        return
     if FONT_PATH.exists():
-        raise RuntimeError("Refusing to overwrite an existing CJK font asset.")
+        raise RuntimeError("Expected font path is not a regular file.")
     if not FONT_PATH.parent.parent.is_dir():
         raise RuntimeError("Soundwell resource root missing.")
     raw = checked_download()
