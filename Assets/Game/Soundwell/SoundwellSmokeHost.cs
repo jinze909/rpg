@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -1567,10 +1568,22 @@ namespace Rpg.Soundwell
             Require(ui.actionsAsset != null && ui.move != null && ui.move.action != null &&
                 ui.submit != null && ui.submit.action != null && ui.cancel != null && ui.cancel.action != null,
                 context + " must have valid New Input System UI navigation, Submit and Cancel actions.");
-            Require(ui.submit.action.bindings.Any(binding => binding.path == "<Gamepad>/buttonSouth"),
-                context + " must route gamepad South through UGUI Submit.");
-            Require(ui.cancel.action.bindings.Any(binding => binding.path == "<Gamepad>/buttonEast"),
-                context + " must route gamepad East through UGUI Cancel.");
+            // The package's DefaultInputActions intentionally uses semantic usage
+            // bindings (*/{Submit} and */{Cancel}), not literal button paths.
+            // Resolve those bindings against a virtual pad so this checks the actual
+            // controls that UGUI will receive rather than one serialized path spelling.
+            var gamepad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                Require(ui.submit.action.controls.Any(control => control == gamepad.buttonSouth),
+                    context + " must resolve gamepad South through UGUI Submit.");
+                Require(ui.cancel.action.controls.Any(control => control == gamepad.buttonEast),
+                    context + " must resolve gamepad East through UGUI Cancel.");
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(gamepad);
+            }
         }
 
         private static void Require(bool condition, string message)
