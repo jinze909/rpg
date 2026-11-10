@@ -2,7 +2,7 @@
 """Regression checks for Unity P0 log acceptance and compiler failures."""
 import unittest
 
-from collect_unity_p0 import UNITY_COMPILER_ERROR, SOUNDWELL_MARKERS, SOUNDWELL_TESTS, format_performance_summary
+from collect_unity_p0 import EXPECTED_TESTS, URP2D_MARKER, UNITY_COMPILER_ERROR, SOUNDWELL_MARKERS, SOUNDWELL_TESTS, format_performance_summary
 
 
 
@@ -72,6 +72,15 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             SOUNDWELL_TESTS,
         )
         self.assertIn("RPG_SOUNDWELL_SIGNAL_VALIDATED", SOUNDWELL_MARKERS)
+
+
+class Urp2DAcceptanceContractTests(unittest.TestCase):
+    def test_real_urp_2d_runtime_test_and_marker_are_required(self):
+        self.assertIn(
+            "Rpg.Tests.Editor.P0BootstrapTests.Urp2DRendererIsTheOnlyActivePipeline",
+            EXPECTED_TESTS,
+        )
+        self.assertEqual(URP2D_MARKER, "RPG_URP2D_VALIDATED")
 
 
 class CompilerLogTests(unittest.TestCase):

@@ -10,6 +10,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.TestTools;
 
 namespace Rpg.Tests.Editor
@@ -35,6 +36,7 @@ namespace Rpg.Tests.Editor
                 {
                     CreateDefaultProject();
                 }
+                InvokeUrpSetup("Prepare");
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             else
@@ -52,6 +54,64 @@ namespace Rpg.Tests.Editor
                 "Running the command again must not rewrite the saved scene.");
             ValidateConfiguration();
             Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
+        }
+
+        [Test, Order(1)]
+        public void Urp2DRendererIsTheOnlyActivePipeline()
+        {
+            RenderPipelineAsset pipeline = GraphicsSettings.defaultRenderPipeline;
+            Assert.That(pipeline, Is.Not.Null, "The project must assign one default URP asset.");
+            Assert.That(pipeline.GetType().FullName,
+                Is.EqualTo("UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset"));
+
+            var rendererProperty = pipeline.GetType().GetProperty("scriptableRenderer",
+                BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(rendererProperty, Is.Not.Null, "The URP asset must expose its active renderer.");
+            var renderer = rendererProperty.GetValue(pipeline);
+            Assert.That(renderer, Is.Not.Null);
+            Assert.That(renderer.GetType().Name, Is.EqualTo("Renderer2D"),
+                "The project must use the 2D Renderer, not the 3D Universal Renderer.");
+
+            var rendererList = new SerializedObject(pipeline).FindProperty("m_RendererDataList");
+            Assert.That(rendererList, Is.Not.Null);
+            Assert.That(rendererList.arraySize, Is.EqualTo(1),
+                "Keep one renderer only; do not leave a parallel 3D renderer configured.");
+            Assert.That(rendererList.GetArrayElementAtIndex(0).objectReferenceValue.GetType().Name,
+                Is.EqualTo("Renderer2DData"));
+            Assert.That(GraphicsSettings.currentRenderPipeline, Is.SameAs(pipeline));
+
+            int originalQuality = QualitySettings.GetQualityLevel();
+            try
+            {
+                for (int i = 0; i < QualitySettings.names.Length; i++)
+                {
+                    QualitySettings.SetQualityLevel(i, true);
+                    Assert.That(QualitySettings.renderPipeline, Is.Null,
+                        "Quality level " + QualitySettings.names[i] +
+                        " must inherit the single global URP asset, not override it.");
+                    Assert.That(GraphicsSettings.currentRenderPipeline, Is.SameAs(pipeline));
+                }
+            }
+            finally
+            {
+                QualitySettings.SetQualityLevel(originalQuality, true);
+            }
+
+            foreach (string guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets/Game" }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+                Assert.That(material, Is.Not.Null);
+                Assert.That(material.shader, Is.Not.Null, path + " has a missing shader.");
+                string shaderName = material.shader.name;
+                Assert.That(shaderName == "Sprites/Default" || shaderName == "Standard" ||
+                    shaderName.StartsWith("Legacy Shaders/", StringComparison.Ordinal),
+                    Is.False, path + " still references a Built-in-only shader: " + shaderName);
+            }
+
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_URP2D_VALIDATED");
+            Debug.Log("RPG_URP2D_VALIDATED");
+            LogAssert.NoUnexpectedReceived();
         }
 
         // UTF restores iterator position across reload, not ordinary local variables.
@@ -109,6 +169,19 @@ namespace Rpg.Tests.Editor
             Assert.That(Time.frameCount, Is.GreaterThan(frame), "Play Mode frames did not advance.");
             // UTF fails on unexpected Error/Exception/Assert logs; do not clear or ignore them.
             LogAssert.NoUnexpectedReceived();
+        }
+
+        private static void InvokeUrpSetup(string methodName)
+        {
+            var type = Type.GetType("Rpg.Editor.Urp2DProjectSetup, Assembly-CSharp-Editor", true);
+            try
+            {
+                type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
+            }
+            catch (TargetInvocationException error) when (error.InnerException != null)
+            {
+                throw error.InnerException;
+            }
         }
 
         private static void ValidateConfiguration()

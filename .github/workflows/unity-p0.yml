@@ -44,7 +44,7 @@ jobs:
     needs: bootstrap
     # A prepare-only push can defer the generated commit to an explicit rerun.
     if: >-
-      github.ref == 'refs/heads/codex/pending/ork-bootstrap'
+      startsWith(github.ref, 'refs/heads/codex/pending/')
       && needs.bootstrap.outputs.mode == 'prepare'
       && (github.run_attempt > 1 || !contains(github.event.head_commit.message, '[p0 prepare only]'))
     runs-on: ubuntu-24.04
