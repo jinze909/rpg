@@ -25,6 +25,47 @@ namespace Rpg.Soundwell
         };
 
         private const float FollowSpeed = 4.5f;
+        private const float WalkFrameSeconds = 0.15f;
+
+        private static readonly string[] IdlePixels =
+        {
+            "................",
+            ".....######.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            "......####......",
+            "...##########...",
+            "...#+######+#...",
+            "...#+######+#...",
+            ".....######.....",
+            ".....######.....",
+            ".....##..##.....",
+            ".....##..##.....",
+            "....###..###....",
+            "....###..###....",
+            "................",
+        };
+
+        private static readonly string[] WalkPixels =
+        {
+            "................",
+            ".....######.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            "......####......",
+            "...##########...",
+            "..###+######....",
+            "..###+######....",
+            ".....######.....",
+            ".....######.....",
+            "....###..##.....",
+            "...###....##....",
+            "..###......##...",
+            "..##........##..",
+            "................",
+        };
         private const float FrameworkTimeout = 30f;
         private const float RegistrationTimeout = 8f;
 
@@ -39,6 +80,8 @@ namespace Rpg.Soundwell
         private readonly List<Combatant> members = new List<Combatant>(3);
         private Sprite placeholderSprite;
         private Texture2D placeholderTexture;
+        private Sprite walkingSprite;
+        private Texture2D walkingTexture;
         private bool battleStarted;
         // The party remains ORK-owned for battles, but its exploration input is
         // exclusively handled by the saved Soundwell 2D Input System adapter.
@@ -96,7 +139,10 @@ namespace Rpg.Soundwell
                 yield break;
             }
 
-            placeholderSprite = CreatePixelRescuerSprite();
+            placeholderSprite = CreatePixelRescuerSprite(
+                IdlePixels, "PLACEHOLDER 16px Soundwell rescuer idle", out placeholderTexture);
+            walkingSprite = CreatePixelRescuerSprite(
+                WalkPixels, "PLACEHOLDER 16px Soundwell rescuer walking", out walkingTexture);
 
             EnsureInvisibleActorRenderer(leader.gameObject);
             EnsureInvisibleActorRenderer(beast.gameObject);
@@ -282,30 +328,16 @@ namespace Rpg.Soundwell
         // A real 16-PPU, point-filtered pixel silhouette, not a stretched
         // white 1x1 texture. Tint is applied by the SpriteRenderer, so both
         // rescue followers share one owned sprite and texture per scene.
-        private Sprite CreatePixelRescuerSprite()
+        private static Sprite CreatePixelRescuerSprite(
+            string[] rows, string name, out Texture2D texture)
         {
             const int size = 16;
-            string[] rows = {
-                "................",
-                ".....######.....",
-                ".....#++++#.....",
-                ".....#++++#.....",
-                ".....#++++#.....",
-                "......####......",
-                "...##########...",
-                "...#+######+#...",
-                "...#+######+#...",
-                ".....######.....",
-                ".....######.....",
-                ".....##..##.....",
-                ".....##..##.....",
-                "....###..###....",
-                "....###..###....",
-                "................",
-            };
-            placeholderTexture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            if (rows.Length != size)
+                throw new System.InvalidOperationException("Pixel rescuer requires 16 rows.");
+
+            texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
-                name = "PLACEHOLDER 16px Soundwell rescuer",
+                name = name,
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,
                 anisoLevel = 0
@@ -313,6 +345,8 @@ namespace Rpg.Soundwell
             var pixels = new Color32[size * size];
             for (int y = 0; y < size; y++)
             {
+                if (rows[size - 1 - y].Length != size)
+                    throw new System.InvalidOperationException("Pixel rescuer row must be 16 pixels.");
                 for (int x = 0; x < size; x++)
                 {
                     char part = rows[size - 1 - y][x];
@@ -323,9 +357,9 @@ namespace Rpg.Soundwell
                             : new Color32(0, 0, 0, 0);
                 }
             }
-            placeholderTexture.SetPixels32(pixels);
-            placeholderTexture.Apply(false, false);
-            return Sprite.Create(placeholderTexture,
+            texture.SetPixels32(pixels);
+            texture.Apply(false, false);
+            return Sprite.Create(texture,
                 new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f),
                 16f, 0, SpriteMeshType.FullRect);
         }
@@ -379,16 +413,34 @@ namespace Rpg.Soundwell
             if (battleStarted && IsBattleRunning())
                 battleObservedActive = true;
 
-            if (!IsReady || leader == null || IsBattleRunning())
+            if (!IsReady || leader == null)
                 return;
 
+            // Two authored pixel frames and SpriteRenderer.flipX preserve pixel
+            // outlines. Never animate the ORK Combatant or change its authority.
+            bool inBattle = IsBattleRunning();
             for (int i = 1; i < actors.Count; i++)
             {
                 Transform follower = actors[i].transform;
+                SpriteRenderer renderer = actors[i].GetComponent<SpriteRenderer>();
+                if (inBattle)
+                {
+                    renderer.sprite = placeholderSprite;
+                    continue;
+                }
+
                 Vector3 target = leader.position + (Vector3)FollowOffsets[i - 1];
                 target.z = 0f;
-                follower.position = Vector3.MoveTowards(follower.position,
+                Vector3 prior = follower.position;
+                follower.position = Vector3.MoveTowards(prior,
                     target, FollowSpeed * Time.deltaTime);
+                Vector3 displacement = follower.position - prior;
+                bool moving = displacement.sqrMagnitude > 0.000001f;
+                if (Mathf.Abs(displacement.x) > 0.001f)
+                    renderer.flipX = displacement.x < 0f;
+                renderer.sprite = moving &&
+                    Mathf.FloorToInt(Time.time / WalkFrameSeconds) % 2 == 1
+                    ? walkingSprite : placeholderSprite;
             }
         }
 
@@ -404,6 +456,10 @@ namespace Rpg.Soundwell
                 Destroy(placeholderSprite);
             if (placeholderTexture != null)
                 Destroy(placeholderTexture);
+            if (walkingSprite != null)
+                Destroy(walkingSprite);
+            if (walkingTexture != null)
+                Destroy(walkingTexture);
         }
     }
 }

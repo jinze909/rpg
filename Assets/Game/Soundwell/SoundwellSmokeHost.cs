@@ -432,11 +432,25 @@ namespace Rpg.Soundwell
             Require(!trial.RopeObserved && !trial.ClawsObserved && !trial.CartObserved && !trial.GateOpen,
                 "Inspecting from RETREAT cannot remotely claim the environment evidence.");
 
+            // The same live Soundwell movement path drives two-frame pixel
+            // followers; test a real moving scene, not a synthetic texture.
+            var followerRenderer = party.Actors[1].GetComponent<SpriteRenderer>();
+            Require(followerRenderer != null && followerRenderer.sprite != null &&
+                followerRenderer.sprite.texture.filterMode == FilterMode.Point,
+                "The first rescuer must render with a point-filtered pixel sprite.");
+            var idleFollowerSprite = followerRenderer.sprite;
+            bool sawWalkingFrame = false;
             // Explore two optional details without being told the bell solution.
             Press(trial, Vector2.up);
             for (var wait = Until(() => trial.PlayerPosition.y >= 1.45f,
                 "reach the optional broken-cord clue lane"); wait.MoveNext();)
+            {
+                if (followerRenderer.sprite != idleFollowerSprite)
+                    sawWalkingFrame = true;
                 yield return null;
+            }
+            Require(sawWalkingFrame,
+                "Moving across the real clue lane must visibly animate a follower without scaling its pixels.");
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= -4.60f,
                 "approach the torn rope"); wait.MoveNext();)
