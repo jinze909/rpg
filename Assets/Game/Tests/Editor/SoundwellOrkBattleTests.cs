@@ -147,6 +147,7 @@ namespace Rpg.Tests.Editor
             Group enemyGroup = party.EnemyGroup;
             Rigidbody2D leaderBody = party.Leader.GetComponent<Rigidbody2D>();
             Assert.That(leaderBody, Is.Not.Null, "The ORK leader must share the live exploration body.");
+            Vector2 originalSafePoint = leaderBody.position;
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             Assert.That(trial.CanEngageBeast, Is.True,
@@ -300,6 +301,23 @@ namespace Rpg.Tests.Editor
             List<Combatant> participants = ORK.Game.Combatants.GetInBattle();
             Assert.That(participants.Count, Is.EqualTo(4),
                 "ORK must register all three scene rescuers and the beast in one battle.");
+            // The active player turn must never trap the player with all
+            // exploration controls and all exit actions hidden.
+            yield return null;
+            Assert.That(Object.FindObjectsByType<ButtonPlayerController>(
+                    FindObjectsSortMode.None).Any(controller => controller.isActiveAndEnabled),
+                Is.False,
+                "ORK must not run its 3D Button controller on the 2D Rigidbody2D rescue leader.");
+            var battleRetreat = GameObject.Find("Soundwell Back button")?.GetComponent<Button>();
+            Assert.That(battleRetreat, Is.Not.Null);
+            Assert.That(battleRetreat.gameObject.activeInHierarchy, Is.True,
+                "A focused UGUI exit must remain visible during ORK combat.");
+            Assert.That(battleRetreat.interactable, Is.True);
+            Assert.That(ringButton.gameObject.activeInHierarchy, Is.False,
+                "Exploration ring/interaction must remain suspended during combat.");
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(battleRetreat.gameObject),
+                "Keyboard/gamepad Submit must reach the only scene-level retreat action.");
             foreach (Combatant member in party.Members)
             {
                 Assert.That(participants, Does.Contain(member));
@@ -380,6 +398,63 @@ namespace Rpg.Tests.Editor
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.GateOpen, Is.True,
                 "The direct-combat route must open the same physical gate used by the bell route.");
+
+            // A defeated ORK battle owns retired combatants. A real Retry
+            // reloads the saved Soundwell scene, recreating one fresh group
+            // rather than attempting StartGroup on the retired BattleComponent.
+            leaderBody.position = originalSafePoint;
+            Physics2D.SyncTransforms();
+            trial.ApplyInput(Vector2.zero, false, false, true);
+            float reloadDeadline = Time.realtimeSinceStartup + 15f;
+            while (GameObject.Find("Soundwell signal trial") == root &&
+                   Time.realtimeSinceStartup < reloadDeadline)
+                yield return null;
+            GameObject replayRoot = GameObject.Find("Soundwell signal trial");
+            Assert.That(replayRoot, Is.Not.Null, "Retry must load a new saved Soundwell scene.");
+            Assert.That(replayRoot, Is.Not.SameAs(root),
+                "A completed ORK battle must recreate its scene and combatants before replay.");
+            trial = replayRoot.GetComponent<SoundwellTrial>();
+            party = replayRoot.GetComponent<SoundwellOrkParty>();
+            Assert.That(trial, Is.Not.Null);
+            Assert.That(party, Is.Not.Null);
+            float replayReadyDeadline = Time.realtimeSinceStartup + 15f;
+            while ((!trial.IsReady || !party.IsReady) &&
+                   string.IsNullOrEmpty(party.InitializationError) &&
+                   Time.realtimeSinceStartup < replayReadyDeadline)
+                yield return null;
+            Assert.That(trial.IsReady && party.IsReady, Is.True,
+                "Replay needs fresh Makinom and ORK registrations: " + party.InitializationError);
+            Assert.That(trial.GateOpen, Is.False, "Retry must restore the saved gate state.");
+            Assert.That(trial.DirectCombatComplete, Is.False);
+            Assert.That(party.Beast.Status.IsDead, Is.False);
+            Assert.That(ORK.Control.InBattle, Is.False,
+                "The previous ORK battle must release its global control state before retry.");
+            leaderBody = party.Leader.GetComponent<Rigidbody2D>();
+            Assert.That(leaderBody, Is.Not.Null);
+            leaderBody.position = new Vector2(-0.55f, 0f);
+            Physics2D.SyncTransforms();
+            Assert.That(trial.CanEngageBeast, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.DirectCombatStarted, Is.True);
+            float secondBattleDeadline = Time.realtimeSinceStartup + 8f;
+            while (ORK.Game.Combatants.GetInBattle().Count < 4 &&
+                   Time.realtimeSinceStartup < secondBattleDeadline)
+                yield return null;
+            Assert.That(ORK.Game.Combatants.GetInBattle().Count, Is.EqualTo(4));
+            var retreat = GameObject.Find("Soundwell Back button")?.GetComponent<Button>();
+            Assert.That(retreat, Is.Not.Null);
+            Assert.That(retreat.gameObject.activeInHierarchy, Is.True);
+            retreat.onClick.Invoke(); // The actual player's UGUI action.
+            Assert.That(trial.DirectCombatStarted, Is.False,
+                "Scene withdrawal must clear Makinom's in-progress combat flag.");
+            float returnDeadline = Time.realtimeSinceStartup + 8f;
+            while (SceneManager.GetActiveScene().name != SoundwellEntrance.BootstrapSceneName &&
+                   Time.realtimeSinceStartup < returnDeadline)
+                yield return null;
+            Assert.That(SceneManager.GetActiveScene().name,
+                Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
+            Assert.That(ORK.Game.Combatants.GetInBattle(), Is.Empty,
+                "Leaving during a live fight must not strand any ORK battle participants.");
 
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");

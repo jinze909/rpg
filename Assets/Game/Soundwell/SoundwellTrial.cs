@@ -70,6 +70,9 @@ namespace Rpg.Soundwell
         private Vector2 lastHeard;
         private float searchStarted;
         private bool actionMenuOpen;
+        // ORK's BattleComponent is a one-encounter runtime owner; a fresh scene
+        // is required to re-register a defeated combatant and start a new battle.
+        private bool combatStartedInThisScene;
         [NonSerialized] private bool initialized;
         private float nextEventSystemAuditAt;
 
@@ -406,6 +409,15 @@ namespace Rpg.Soundwell
                 return bootstrapLoad;
 
             SetActionMenuOpen(false);
+            // Leaving mid-battle must clear ORK's live participant registry and
+            // restore combatant HP before the next Bootstrap/scene entry.
+            // Merely unloading the scene leaves the framework's battle global.
+            if (DirectCombatStarted && orkParty != null && orkParty.IsReady)
+            {
+                orkParty.ResetEncounter();
+                variables.Set(DirectCombatStartedKey, 0);
+                variables.Set(RescueApproachKey, 0);
+            }
             // Preserve the actual last exit result for the Bootstrap UI.
             // A fresh incomplete retreat overwrites an earlier victory.
             if (variables != null)
@@ -452,7 +464,21 @@ namespace Rpg.Soundwell
             movement = Vector2.ClampMagnitude(direction, 1f);
             if (retry && AtSafePoint)
             {
-                ResetTrial();
+                if (combatStartedInThisScene)
+                {
+                    // Restart the live scene to create fresh ORK combatants,
+                    // group registrations and battle components. Simply
+                    // regenerating HP on a completed ORK battle cannot create
+                    // a second encounter (Unity regression: 0 participants).
+                    orkParty.ResetEncounter();
+                    movement = Vector2.zero;
+                    playerBody.linearVelocity = Vector2.zero;
+                    bootstrapLoad = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
+                }
+                else
+                {
+                    ResetTrial();
+                }
                 return;
             }
 
@@ -490,6 +516,7 @@ namespace Rpg.Soundwell
                     SoundwellInputAdapter.SetUiContext();
                     if (orkParty.TryStartDirectEncounter())
                     {
+                        combatStartedInThisScene = true;
                         variables.Set(RescueApproachKey, 2);
                         variables.Set(DirectCombatStartedKey, 1);
                         movement = Vector2.zero;

@@ -87,7 +87,31 @@ def inspect_ork_battle_types():
                     print(f"{line_number + 1:5}: {source[line_number]}")
 
 
+
+def inspect_battle_end_lifecycle():
+    """Expose the installed ORK 3 battle teardown contract in the Unity CI log."""
+    targets = {"Battle.cs", "ControlHandler.cs", "BattleComponent.cs"}
+    needles = ("ClearBattle(", "EndBattle(", "bool InBattle", " InBattle =>")
+    printed = 0
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in archive.namelist():
+            if Path(name).name not in targets or not name.endswith(".cs"):
+                continue
+            source = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for index, line in enumerate(source):
+                if not any(needle in line for needle in needles):
+                    continue
+                if printed >= 14:
+                    return
+                printed += 1
+                start, end = max(0, index - 5), min(len(source), index + 32)
+                print(f"\\n--- ORK battle lifecycle: {name}:{index + 1} ---")
+                for line_no in range(start, end):
+                    print(f"{line_no + 1:5}: {source[line_no]}")
+
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
     inspect_ork_battle_types()
+    inspect_battle_end_lifecycle()

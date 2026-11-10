@@ -394,12 +394,26 @@ namespace Rpg.Soundwell
                 return;
 
             battleMode = active;
-            if (active)
-                actionEventSystem.SetSelectedGameObject(null);
             trialCanvas.gameObject.SetActive(!active);
-            actionCanvas.gameObject.SetActive(!active);
             battleCanvas.gameObject.SetActive(active);
-            actionEventSystem.sendNavigationEvents = active;
+            // Until Makinom's player-choice UI is wired, combat still needs
+            // a genuine, reachable way to abandon an otherwise stalled turn.
+            // This is the existing scene-exit action, not a second battle UI.
+            foreach (var button in new[] { ringButton, wrapButton, retryButton,
+                carryButton, gateButton, languageButton })
+                button.gameObject.SetActive(!active);
+            menuStatus.gameObject.SetActive(!active);
+            actionCanvas.gameObject.SetActive(true);
+            backButton.gameObject.SetActive(true);
+            backButton.navigation = new Navigation
+            {
+                mode = active || actionMenuOpen ? Navigation.Mode.Automatic : Navigation.Mode.None
+            };
+            actionEventSystem.sendNavigationEvents = active || actionMenuOpen;
+            if (active)
+                actionEventSystem.SetSelectedGameObject(backButton.gameObject);
+            else if (actionEventSystem.currentSelectedGameObject == backButton.gameObject)
+                actionEventSystem.SetSelectedGameObject(null);
         }
 
         public void SetBattleReadout(string summary)

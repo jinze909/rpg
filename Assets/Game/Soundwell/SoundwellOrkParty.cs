@@ -13,6 +13,9 @@ namespace Rpg.Soundwell
     /// The leader remains the exploration controller; the two visible
     /// placeholders follow in formation and all three belong to one ORK group.
     /// </summary>
+    // Suppress ORK's legacy 3D ButtonPlayerController before its Update; the
+    // SoundwellTrial/Input System already owns 2D Rigidbody2D movement.
+    [DefaultExecutionOrder(-10000)]
     public sealed class SoundwellOrkParty : MonoBehaviour
     {
         private static readonly Vector2[] FollowOffsets =
@@ -36,6 +39,9 @@ namespace Rpg.Soundwell
         private readonly List<Combatant> members = new List<Combatant>(3);
         private Sprite placeholderSprite;
         private bool battleStarted;
+        // The party remains ORK-owned for battles, but its exploration input is
+        // exclusively handled by the saved Soundwell 2D Input System adapter.
+        private bool playerAssignedToOrk;
         private bool battleObservedActive;
         private float battleStartedAt;
         private const float BattleStartTimeout = 8f;
@@ -152,6 +158,28 @@ namespace Rpg.Soundwell
             IsReady = true;
         }
 
+        private void Update()
+        {
+            if (playerAssignedToOrk && IsReady && ORK.Initialized)
+                DisableConflicting3DPlayerControllers();
+        }
+
+        private static void DisableConflicting3DPlayerControllers()
+        {
+            // ORK's default Button controller adds a 3D CharacterController in
+            // Update. That component conflicts with Soundwell's real Rigidbody2D
+            // and throws before the player can choose or abandon a battle.
+            // Disable only the world-movement component, not ORK combat,
+            // statuses, action selection or its UI ownership.
+            foreach (ButtonPlayerController controller in
+                     UnityEngine.Object.FindObjectsByType<ButtonPlayerController>(
+                         FindObjectsSortMode.None))
+            {
+                if (controller != null && controller.enabled)
+                    controller.enabled = false;
+            }
+        }
+
         /// <summary>
         /// Read-only snapshot for the provisional battle HUD. ORK remains the
         /// authority for HP, turn choice, battle outcomes and available actions.
@@ -182,14 +210,16 @@ namespace Rpg.Soundwell
         public bool TryStartDirectEncounter()
         {
             if (!IsReady || battleStarted || Beast == null || Beast.Status.IsDead ||
-                !ORK.Initialized || IsBattleRunning() || PlayerGroup == null ||
-                EnemyGroup == null || members.Count != 3)
+                !ORK.Initialized || ORK.Control.InBattle || IsBattleRunning() ||
+                PlayerGroup == null || EnemyGroup == null || members.Count != 3)
                 return false;
 
             PlayerGroup.SetLeader(members[0], false);
             ORK.Game.PlayerHandler.SetGroup(0, PlayerGroup, false);
             ORK.Game.PlayerHandler.SetActiveGroup(0, false, false);
             ORK.Game.PlayerHandler.SetPlayer(members[0], false);
+            playerAssignedToOrk = true;
+            DisableConflicting3DPlayerControllers();
 
             BattleComponent battle = BattleComponent.CreateBattle(new List<Combatant> { Beast });
             if (battle == null)
@@ -204,8 +234,17 @@ namespace Rpg.Soundwell
 
         public void ResetEncounter()
         {
-            if (ORK.Initialized && IsBattleRunning())
-                ORK.Game.Combatants.EndBattle();
+            if (ORK.Initialized && battleStarted)
+            {
+                // CombatantHandler.EndBattle() only detaches participants; ORK's
+                // battle arena/control state can still block StartInteraction
+                // on the next encounter. Clear the actual ORK battle owner only
+                // once its participants have left, before reloading the scene.
+                if (IsBattleRunning())
+                    ORK.Game.Combatants.EndBattle();
+                if (ORK.Game.Combatants.GetInBattle().Count == 0)
+                    ORK.Battle.ClearBattle();
+            }
 
             if (Beast != null)
                 Beast.Status.Regenerate(true);
