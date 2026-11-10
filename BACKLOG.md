@@ -10,13 +10,13 @@
 | P0-b | 建立脚本化冒烟、同 SHA 验证和基础帧时间、P95、GC 趋势采样。 | 待开发 |
 | G1 | 标题、菜单和 HUD 使用 UGUI，验证键鼠与手柄焦点及分辨率适配。世界渲染走 SpriteRenderer / Tilemap，并检查排序层。 | 待开发 |
 | N1 | 打磨已有[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)，写完一条独立地区线及 M08—M11 连续人物场；检查具体行动、对白与因果。 | 开场初稿已整理，后续待编剧；剧情演出未实现、未试玩 |
-| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，真人试玩待做。当前优先实现 [003 · 三人短回合声井救援](production/stories/003-soundwell-turn-rescue.md) 的移动版。 |
+| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，真人试玩待做。当前根据用户最新优先级先推进 M2–M11 迁移，003 后续开发保留为待续接。 |
 
-Producer 按实际依赖和阻塞选下一项，每轮收敛到一个可验收结果。当前执行状态见 [AI2-STATUS](AI2-STATUS.md)。
+**用户新决定：当前必须优先持续完成 M1–M11 技术迁移；不得再默认转去推进剧情/故事 003。** 每个阶段都在 `codex/pending/` 下保留固定分支头（见 [迁移阶段索引](docs/technical/MIGRATION_STAGE_BRANCHES.md)）；先处理正在执行阶段的 CI/故障，然后按 M 编号推进。Producer 按真实依赖与阻塞选择当前迁移增量，每轮收敛到可验收成果。当前执行状态见 [AI2-STATUS](AI2-STATUS.md)。
 
 ## 现代工作室技术路线（已建 GitHub 实施卡；迁移尚未完成）
 
-**跨轮迁移接力已经立项：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2)，下设 14 张独立执行票 [#3—#16](https://github.com/jinze909/rpg/issues/3)。按总票与下表逐张实施：**先在当前 dev 上整合 Soundwell 的已通过候选，再做 [URP 2D #3](https://github.com/jinze909/rpg/issues/3)，然后做 [New Input System #4](https://github.com/jinze909/rpg/issues/4)**。其余有实际意义的迁移已分别开票，后续 AI 应沿同一编号推进，**不得因为换聊天就丢弃**，也不得将开票当作已迁移、为每项建空分支或在单一候选中混装多技术。ORK 原有输入文件保留，但游戏自有输入动作最终只允许 New Input System 一个运行执行者；内核 ORK 兼容由实际 Unity 结果决定。
+**跨轮迁移接力已经立项：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2)，下设 14 张独立执行票 [#3—#16](https://github.com/jinze909/rpg/issues/3)。按总票与下表逐张实施：**先在当前 dev 上整合 Soundwell 的已通过候选，再做 [URP 2D #3](https://github.com/jinze909/rpg/issues/3)，然后做 [New Input System #4](https://github.com/jinze909/rpg/issues/4)**。其余有实际意义的迁移已分别开票，后续 AI 应沿同一编号推进，**不得因为换聊天就丢弃**。用户现明确要求为 M1–M11 **提前建立各自的空预留分支头**；开票或开分支不等于迁移完成，也不得在一个候选中混装多项技术。ORK 原有输入文件保留，但游戏自有输入动作最终只允许 New Input System 一个运行执行者；内核 ORK 兼容由实际 Unity 结果决定。
 
 **本轮技术先行证据：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。M2 Soundwell New Input System gameplay adapter 已在 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 合入 `codex/dev`，同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；[artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。003 的玩家战斗菜单/攻击、两种完整救援策略与真人试玩仍是后续验收，不可冒充整卡完成。
 
@@ -24,7 +24,7 @@ Producer 按实际依赖和阻塞选下一项，每轮收敛到一个可验收�
 
 | 技术卡 | 独立增量（只选有实际收益的官方/零新增购买方案） | 状态与门槛 |
 | --- | --- | --- |
-| M0 · 当前优先 | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 已整合到 `codex/dev`：`0fb1389c9df1e50d41eef73551e25d0c391c1a43`；同 SHA Run 42740645793 通过 5/5、批处理与 `passed-clean-candidate`。003 两条策略仍未完成 |
+| M0 · 历史前提（已解决） | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 已整合到 `codex/dev`：`0fb1389c9df1e50d41eef73551e25d0c391c1a43`；同 SHA Run 42740645793 通过 5/5、批处理与 `passed-clean-candidate`。003 两条策略仍未完成 |
 | M1 · URP 2D | 单独候选：2D Renderer、项目管线、质量级继承、材质/相机/UGUI/场景回归 | **已合入** `codex/dev`：merge SHA `8c36229e011248d019f0ef4d8a9a162dd6354afe`；最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16`，Run 42744816128 `passed-clean-candidate`，6/6 tests；dev Run 42747121343 成功 |
 | M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **核心适配已合入** `codex/dev`：SHA `2eee996adaec6563fd379416e7ec6fad8e1b9a62`；官方 1.20.1；Run 42766341628 同 SHA 通过 8/8 tests、双次 Play Mode、独立 Batch。Active Input Handling Both 保留供 ORK 兼容，ORK 原厂 Input Key 资产未改。剩余 UGUI 导航/焦点与更广泛 ORK 兼容验收，M2 尚未关闭 |
 | M3 · Cinemachine 3 | 替代唯一自有摄像机控制路径，验证 2D 跟随、边界、各宽高比和战斗镜头 | 仅计划；不得同时运行双摄像机控制器 |
@@ -39,7 +39,7 @@ Producer 按实际依赖和阻塞选下一项，每轮收敛到一个可验收�
 | M12 · Addressables | 仅大型/远程资源管理需求成立后考虑 | 暂缓；目前保持直接引用 |
 | 不列为必修 | DOTS/ECS、HDRP、付费 Asset Store 工具、商业云服务、ORK 升级 | 不采用，除非用户日后另作明确决定 |
 
-**顺序:** 先保证当前 P2/003 游戏本体可运行；完成每个独立技术增量时按 [同 SHA 验收](production/workflow.md#同-sha-验收) 和新技术文档验证。文档清单不是授权一次安装上述全部包，更不能因文档完成而把技术卡标成绿色。
+**顺序（用户新优先级）:** 先处理阻塞当前迁移的 P2/003 编译、测试或关键玩家路径故障，然后优先完成 M2→M3→…→M11；独立剧情功能暂不抢占迁移主线。完成每个独立技术增量时按 [同 SHA 验收](production/workflow.md#同-sha-验收) 和新技术文档验证。文档清单不是授权一次安装上述全部包，更不能因文档完成而把技术卡标成绿色。
 
 ## 冻结范围
 

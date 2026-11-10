@@ -64,6 +64,9 @@
 
 ## 5. 优先级与实施接力
 
+**2026-11-09 用户最新指令覆盖旧顺序：M1–M11 迁移为接下来开发的主线，先解决阻塞的 CI/真实回归，不因轮次中断而转为剧情故事优先。** 已为所有阶段创建固定 `codex/pending/*` 头，保留 [阶段索引](MIGRATION_STAGE_BRANCHES.md)；预留分支不是迁移成功证据。阶段门槛、ARK/ORK 冻结与零费用限制不变。
+
+
 - **已完成：** URP 2D 已独立迁移并通过最终资产 SHA 的 Unity 验收，合入 `codex/dev`。
 - **当前：** New Input System 1.20.1 独立候选迁移，先 Both，游戏自有 Input Actions 替代旧 `Input.*` 执行路径，保留 ORK 原厂输入数据与兼容后端。
 - **后续（相互独立）：** Cinemachine 3 → 第一套角色动画 → Tilemap/Audio Mixer。每项单独决定实施时机和验收；禁止同时迁移。
