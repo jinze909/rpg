@@ -23,6 +23,20 @@ def allowed_path(name):
     if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
         return False
     if name in {
+        # M4: only these Unity-authored game-owned clips/controller and their
+        # folder/asset metadata may be published from an animation prepare run.
+        "Assets/Game/Resources/Soundwell.meta",
+        "Assets/Game/Resources/Soundwell/Clips.meta",
+        "Assets/Game/Resources/Soundwell/PlaceholderPlayer.controller",
+        "Assets/Game/Resources/Soundwell/PlaceholderPlayer.controller.meta",
+        "Assets/Game/Resources/Soundwell/Clips/Idle.anim",
+        "Assets/Game/Resources/Soundwell/Clips/Idle.anim.meta",
+        "Assets/Game/Resources/Soundwell/Clips/Move.anim",
+        "Assets/Game/Resources/Soundwell/Clips/Move.anim.meta",
+        "Assets/Game/Resources/Soundwell/Clips/Action.anim",
+        "Assets/Game/Resources/Soundwell/Clips/Action.anim.meta",
+        "Assets/Game/Resources/Soundwell/Clips/Hit.anim",
+        "Assets/Game/Resources/Soundwell/Clips/Hit.anim.meta",
         "Assets/Game/Scenes/Bootstrap.unity",
         "Assets/Game/Rendering.meta",
         "Assets/Game/Rendering/URP2D.meta",

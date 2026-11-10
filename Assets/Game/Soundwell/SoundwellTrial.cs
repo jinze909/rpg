@@ -344,6 +344,7 @@ namespace Rpg.Soundwell
                 // One encounter per physical knockback; the player is moved
                 // away immediately, so the same collision can't count twice.
                 variables.Set(BeastContactKey, Mathf.Min(999, BeastContacts + 1));
+                view.AnimatePlayerHit();
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
                 playerBody.position = safePoint.position;
@@ -354,6 +355,7 @@ namespace Rpg.Soundwell
             bool returning = !DirectCombatStarted && !DirectCombatComplete &&
                 !HasBellTarget && !IsSearching && beast != null &&
                 Vector2.Distance(beast.position, beastHome) > 0.15f;
+            view.AnimatePlayerMotion(movement.sqrMagnitude > 0.0001f && !battleMode && !ActionMenuOpen);
             view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate,
                 CanEngageBeast, DirectCombatComplete, AtSurveyor,
@@ -480,6 +482,7 @@ namespace Rpg.Soundwell
             {
                 if (CanEngageBeast)
                 {
+                    view.AnimatePlayerAction();
                     SetActionMenuOpen(false);
                     SoundwellInputAdapter.SetUiContext();
                     if (orkParty.TryStartDirectEncounter())
@@ -547,12 +550,14 @@ namespace Rpg.Soundwell
                 }
                 else
                     SetSignal(Signal.Wrapped);
+                view.AnimatePlayerAction();
             }
             else if (ring)
             {
                 if (!IsWrapped)
                     SetSignal(Signal.Ringing);
                 view.PlayBell(IsWrapped);
+                view.AnimatePlayerAction();
             }
         }
 
@@ -585,6 +590,7 @@ namespace Rpg.Soundwell
             variables.Set(EscortLineKey, 0);
             variables.Set(ClawsObservedKey, 0);
             view.SetBattleMode(false);
+            view.ResetPlayerAnimation();
             view.ResetSurveyor();
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);

@@ -13,6 +13,7 @@ namespace Rpg.Soundwell
         private static readonly Color Cloth = new Color(0.45f, 0.73f, 0.83f);
         private readonly Camera camera;
         private readonly Sprite square;
+        private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
         private readonly SpriteRenderer beastIntentMarker;
@@ -186,8 +187,16 @@ namespace Rpg.Soundwell
             Wall(root, "South inner wall", new Vector2(3.625f, -3.2f),
                 new Vector2(6.75f, 0.28f));
 
-            Plate(player, "PLACEHOLDER player silhouette", Vector2.zero, new Vector2(0.64f, 0.64f), new Color(0.43f, 0.91f, 0.72f), 3);
-            Plate(player, "Player face", new Vector2(0f, 0.12f), new Vector2(0.26f, 0.16f), Color.white, 4);
+            // Both silhouette and face animate under one visual-only Animator;
+            // the ORK leader's physics/transform is never animated.
+            var animatedPlayer = new GameObject("PLACEHOLDER animated player").transform;
+            animatedPlayer.SetParent(player, false);
+            Plate(animatedPlayer, "PLACEHOLDER player silhouette", Vector2.zero,
+                new Vector2(0.64f, 0.64f), new Color(0.43f, 0.91f, 0.72f), 3);
+            Plate(animatedPlayer, "Player face", new Vector2(0f, 0.12f),
+                new Vector2(0.26f, 0.16f), Color.white, 4);
+            playerAnimation = animatedPlayer.gameObject.AddComponent<SoundwellPlayerVisualAnimation>();
+            playerAnimation.Initialize();
             bellMarker = Plate(bell, "PLACEHOLDER copper bell", Vector2.zero, new Vector2(0.57f, 0.57f), Gold, 2);
             bellMarker.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
             // A small diamond marks the beast's current physical destination.
@@ -772,6 +781,11 @@ namespace Rpg.Soundwell
             audio.loop = !muffled;
             audio.Play();
         }
+
+        public void AnimatePlayerMotion(bool moving) => playerAnimation.UpdateMotion(moving);
+        public void AnimatePlayerAction() => playerAnimation.PlayAction();
+        public void AnimatePlayerHit() => playerAnimation.PlayHit();
+        public void ResetPlayerAnimation() => playerAnimation.ResetAnimation();
 
         public void ResetPulse()
         {

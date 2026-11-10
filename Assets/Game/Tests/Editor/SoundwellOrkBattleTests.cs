@@ -108,6 +108,27 @@ namespace Rpg.Tests.Editor
             Assert.That(Mathf.Abs(rig.FramingTarget.position.y), Is.LessThanOrEqualTo(0.501f),
                 "The follow target must remain inside the vertical trial framing bounds.");
 
+            // M4: actual saved Unity Animator clips animate the entire placeholder
+            // visual without writing to the leader Rigidbody2D or ORK combatant.
+            var visual = GameObject.Find("PLACEHOLDER animated player")
+                ?.GetComponent<SoundwellPlayerVisualAnimation>();
+            Assert.That(visual, Is.Not.Null);
+            Assert.That(visual.Controller, Is.Not.Null);
+            Assert.That(visual.Controller.applyRootMotion, Is.False);
+            Assert.That(visual.Controller.runtimeAnimatorController.animationClips.Select(c => c.name),
+                Is.EquivalentTo(new[] { "Idle", "Move", "Action", "Hit" }));
+            foreach (var state in new[] { "Idle", "Move", "Action", "Hit" })
+                Assert.That(visual.Controller.HasState(0, Animator.StringToHash(state)), Is.True);
+            Assert.That(visual.CurrentState, Is.EqualTo("Idle"));
+            trial.ApplyInput(Vector2.right, false, false, false);
+            yield return null;
+            Assert.That(visual.CurrentState, Is.EqualTo("Move"));
+            trial.ApplyInput(Vector2.zero, false, false, false);
+            yield return null;
+            Assert.That(visual.CurrentState, Is.EqualTo("Idle"));
+            leaderBody.position = new Vector2(-0.55f, 0f);
+            Physics2D.SyncTransforms();
+
             // M2: Test the *live* UGUI action canvas and its shared New Input
             // EventSystem before the same gate starts ORK combat. This catches
             // stale focus after a world action becomes unavailable.
