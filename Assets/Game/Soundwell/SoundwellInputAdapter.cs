@@ -107,15 +107,44 @@ namespace Rpg.Soundwell
         public static EventSystem EnsureEventSystem(Transform owner)
         {
             var systems = UnityEngine.Object.FindObjectsByType<EventSystem>();
-            EventSystem eventSystem;
-            if (systems.Length == 0)
+            EventSystem current = EventSystem.current;
+            EventSystem eventSystem = current != null &&
+                current.GetComponent<InputSystemUIInputModule>() != null
+                    ? current
+                    : systems.FirstOrDefault(system =>
+                        system.GetComponent<InputSystemUIInputModule>() != null) ??
+                      current ?? systems.FirstOrDefault();
+
+            if (eventSystem == null)
             {
                 var instance = new GameObject("Soundwell EventSystem", typeof(EventSystem));
                 if (owner != null) instance.transform.SetParent(owner, false);
                 eventSystem = instance.GetComponent<EventSystem>();
             }
-            else if (systems.Length == 1) eventSystem = systems[0];
-            else throw new InvalidOperationException("Soundwell requires one EventSystem; found " + systems.Length + ".");
+
+            // ORK may create its own EventSystem after the scene has loaded.
+            // Keep the project-owned New Input System instance and retire any
+            // duplicates instead of failing the whole trial or running two UIs.
+            foreach (EventSystem duplicate in systems)
+            {
+                if (duplicate == null || duplicate == eventSystem)
+                    continue;
+                foreach (BaseInputModule duplicateModule in duplicate.GetComponents<BaseInputModule>())
+                {
+                    duplicateModule.enabled = false;
+                    UnityEngine.Object.Destroy(duplicateModule);
+                }
+                duplicate.enabled = false;
+                UnityEngine.Object.Destroy(duplicate);
+            }
+
+            if (!eventSystem.enabled)
+                eventSystem.enabled = true;
+            if (EventSystem.current != eventSystem)
+            {
+                eventSystem.enabled = false;
+                eventSystem.enabled = true;
+            }
 
             foreach (var module in eventSystem.GetComponents<BaseInputModule>())
             {

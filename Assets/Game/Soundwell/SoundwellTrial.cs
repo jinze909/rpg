@@ -67,6 +67,7 @@ namespace Rpg.Soundwell
         private float searchStarted;
         private bool actionMenuOpen;
         [NonSerialized] private bool initialized;
+        private float nextEventSystemAuditAt;
 
         public bool ReadInput { get; set; } = true;
         public bool IsReady => initialized && variables != null;
@@ -220,6 +221,15 @@ namespace Rpg.Soundwell
         {
             if (!IsReady)
                 return;
+
+            // ORK can instantiate its own UI root after the initial scene setup.
+            // Reconcile the EventSystem after framework/party startup so both
+            // exploration and ORK battle menus share one InputSystemUIInputModule.
+            if (Time.unscaledTime >= nextEventSystemAuditAt)
+            {
+                SoundwellInputAdapter.EnsureEventSystem(transform);
+                nextEventSystemAuditAt = Time.unscaledTime + 1f;
+            }
 
             // The lower route is physically unsafe, rather than a fake
             // dialogue lock. Any attempt to walk over its weak section drops

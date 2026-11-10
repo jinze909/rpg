@@ -48,14 +48,14 @@ namespace Rpg.Tests.Editor
                 SoundwellInputAdapter.SetGameplayContext();
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 
-                InputSystem.QueueDeltaStateEvent(gamepad.buttonSouth, 1f);
+                InputSystem.QueueStateEvent(gamepad, new GamepadState(GamepadButton.South));
                 InputSystem.Update();
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.True,
                     "Gamepad South must ring only after the Gameplay map is active.");
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.False,
                     "Gameplay input must not also activate the Entry action.");
 
-                InputSystem.QueueDeltaStateEvent(gamepad.buttonSouth, 0f);
+                InputSystem.QueueStateEvent(gamepad, new GamepadState());
                 InputSystem.Update();
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W));
                 InputSystem.Update();

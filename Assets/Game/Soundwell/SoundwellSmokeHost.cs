@@ -216,12 +216,17 @@ namespace Rpg.Soundwell
                 "A second entry request during loading must reuse the same operation.");
             yield return load;
             Require(SceneManager.GetActiveScene().name == SceneName, "The Bootstrap entrance must load Soundwell.");
-            RequireInputSystemEventSystem("SoundwellTrial");
             var trial = FindRootComponent<SoundwellTrial>();
+            var party = FindRootComponent<SoundwellOrkParty>();
             Require(trial != null, "The saved trial scene must include the trial component.");
+            Require(party != null, "The saved trial scene must include its ORK party.");
             trial.ReadInput = false;
-            for (var wait = Until(() => trial.IsReady, "initialize Soundwell"); wait.MoveNext();)
+            for (var wait = Until(() => trial.IsReady && party.IsReady,
+                "initialize Soundwell and register the ORK party"); wait.MoveNext();)
                 yield return null;
+            SoundwellInputAdapter.EnsureEventSystem(trial.transform);
+            yield return null;
+            RequireInputSystemEventSystem("SoundwellTrial");
             var camera = trial.TrialCamera;
             camera.aspect = 1f;
             yield return null;
@@ -1560,7 +1565,8 @@ namespace Rpg.Soundwell
         private static void RequireInputSystemEventSystem(string context)
         {
             var systems = UnityEngine.Object.FindObjectsByType<EventSystem>();
-            Require(systems.Length == 1, context + " must have exactly one active EventSystem.");
+            Require(systems.Length == 1, context + " must have exactly one active EventSystem; found " +
+                systems.Length + ": " + string.Join(", ", systems.Select(system => system.gameObject.name)) + ".");
             var modules = systems[0].GetComponents<BaseInputModule>().Where(module => module != null && module.enabled).ToArray();
             Require(modules.Length == 1 && modules[0] is InputSystemUIInputModule,
                 context + " must use exactly one active InputSystemUIInputModule and no legacy module.");
