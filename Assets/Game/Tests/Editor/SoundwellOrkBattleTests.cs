@@ -124,6 +124,7 @@ namespace Rpg.Tests.Editor
                 Is.EqualTo("diagnostic.unknown"));
             localeButton.onClick.Invoke();
             Assert.That(title.text, Is.EqualTo("SOUNDWELL  /  SIGNAL TRIAL"));
+            LogAssert.Expect(LogType.Log, "RPG_SOUNDWELL_LOCALIZATION_PLAY_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_LOCALIZATION_PLAY_VALIDATED");
             trial.ReadInput = false;
             Assert.That(party.Members.Count, Is.EqualTo(3));
