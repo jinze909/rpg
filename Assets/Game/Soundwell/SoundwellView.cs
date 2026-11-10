@@ -129,9 +129,8 @@ namespace Rpg.Soundwell
                 revealedClawTrail[i].transform.rotation = Quaternion.Euler(0f, 0f, -65f);
                 revealedClawTrail[i].enabled = false;
             }
-            // Separate two solid rails from the controlled middle opening.
-            Wall(root, "Safety grating upper", new Vector2(0.25f, 2.0f), new Vector2(0.32f, 2.4f));
-            Wall(root, "Safety grating lower", new Vector2(0.25f, -2.0f), new Vector2(0.32f, 2.4f));
+            // M5: fixed walls live in the saved TilemapCollider2D scene layer.
+            // Only the Makinom-controlled gate retains a dynamic BoxCollider2D.
             gateMarker = Wall(root, "PLACEHOLDER soundwell gate", new Vector2(0.25f, 0f),
                 new Vector2(0.32f, 1.6f));
             gateBlocker = gateMarker.GetComponent<BoxCollider2D>();
@@ -174,18 +173,6 @@ namespace Rpg.Soundwell
             lowerBoardMarker = Plate(root, "PLACEHOLDER unsafe lower plank",
                 SoundwellTrial.LowerBoardPosition, new Vector2(1.65f, 0.34f),
                 new Color(0.67f, 0.39f, 0.27f), 1);
-            Wall(root, "West wall", new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
-            Wall(root, "North wall", new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f));
-            Wall(root, "South wall", new Vector2(-3.4f, -3.2f), new Vector2(7.3f, 0.28f));
-            // The eastern side used to be unbounded: players could simply
-            // leave the authored inner room instead of engaging its route.
-            // Complete the same collidable enclosure without changing the
-            // central, controlled gate or the surveyor's safe plank.
-            Wall(root, "East wall", new Vector2(7f, 0f), new Vector2(0.32f, 6.4f));
-            Wall(root, "North inner wall", new Vector2(3.625f, 3.2f),
-                new Vector2(6.75f, 0.28f));
-            Wall(root, "South inner wall", new Vector2(3.625f, -3.2f),
-                new Vector2(6.75f, 0.28f));
 
             // Both silhouette and face animate under one visual-only Animator;
             // the ORK leader's physics/transform is never animated.

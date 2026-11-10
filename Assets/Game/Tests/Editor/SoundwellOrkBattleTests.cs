@@ -13,6 +13,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using Unity.Cinemachine;
 using UnityEngine.UI;
+using UnityEngine.Tilemaps;
 using UnityEngine.TestTools;
 using Rpg.Soundwell;
 
@@ -54,6 +55,35 @@ namespace Rpg.Tests.Editor
             while (!trial.IsReady && Time.realtimeSinceStartup < trialDeadline)
                 yield return null;
             Assert.That(trial.IsReady, Is.True, "The live rescue trial must initialize its Makinom state.");
+            // M5: the saved scene, rather than transient Wall() objects, owns
+            // the static stone boundary. No duplicate BoxCollider2D may exist
+            // for a wall already blocked by the TilemapCollider2D.
+            var tilemaps = Object.FindObjectsByType<Tilemap>(FindObjectsSortMode.None);
+            Assert.That(tilemaps.Length, Is.EqualTo(1), "Soundwell needs one saved wall Tilemap.");
+            Tilemap wallMap = tilemaps[0];
+            var wallCollider = wallMap.GetComponent<TilemapCollider2D>();
+            Assert.That(wallCollider, Is.Not.Null);
+            Assert.That(wallMap.GetComponent<TilemapRenderer>()?.sortingLayerName,
+                Is.EqualTo("Default"));
+            Assert.That(wallMap.GetTile(new Vector3Int(-35, 0, 0)), Is.TypeOf<RuleTile>(),
+                "The west enclosure must be a persisted Rule Tile, not a runtime BoxCollider.");
+            Assert.That(wallMap.GetTile(new Vector3Int(1, 9, 0)), Is.TypeOf<RuleTile>(),
+                "The safety grating upper rail must physically seal the beast lane.");
+            Assert.That(wallMap.GetTile(new Vector3Int(1, -10, 0)), Is.TypeOf<RuleTile>(),
+                "The lower rail must remain a solid boundary.");
+            Assert.That(wallMap.GetTile(new Vector3Int(1, 0, 0)), Is.Null,
+                "The only central opening must be controlled by the Makinom gate.");
+            Assert.That(GameObject.Find("West wall"), Is.Null);
+            Assert.That(GameObject.Find("Safety grating upper"), Is.Null);
+            var gateCollider = GameObject.Find("PLACEHOLDER soundwell gate")
+                ?.GetComponent<BoxCollider2D>();
+            Assert.That(gateCollider, Is.Not.Null);
+            Physics2D.SyncTransforms();
+            var westRay = Physics2D.Raycast(new Vector2(-6.3f, 0f), Vector2.left, 1.4f);
+            Assert.That(westRay.collider, Is.SameAs(wallCollider),
+                "The player's west retreat boundary must now be physically solid Tilemap cells.");
+            Assert.That(Physics2D.OverlapPoint(new Vector2(0.25f, 0f)), Is.SameAs(gateCollider),
+                "A closed physical gate must remain the sole central obstacle.");
             trial.ReadInput = false;
             Assert.That(party.Members.Count, Is.EqualTo(3));
             Assert.That(party.Actors.Count, Is.EqualTo(3));

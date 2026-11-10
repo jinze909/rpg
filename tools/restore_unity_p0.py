@@ -25,6 +25,15 @@ def allowed_path(name):
     if name in {
         # M4: only these Unity-authored game-owned clips/controller and their
         # folder/asset metadata may be published from an animation prepare run.
+        # M5: Unity-authored saved Soundwell Tilemap scene, Rule Tile and sprite imports.
+        "Assets/Game/Scenes/SoundwellTrial.unity",
+        "Assets/Game/Resources/Soundwell/Tiles.meta",
+        "Assets/Game/Resources/Soundwell/Tiles/GratingWall.asset",
+        "Assets/Game/Resources/Soundwell/Tiles/GratingWall.asset.meta",
+        "Assets/Game/Resources/Soundwell/Tiles/GratingBase.png",
+        "Assets/Game/Resources/Soundwell/Tiles/GratingBase.png.meta",
+        "Assets/Game/Resources/Soundwell/Tiles/GratingJoined.png",
+        "Assets/Game/Resources/Soundwell/Tiles/GratingJoined.png.meta",
         "Assets/Game/Resources/Soundwell.meta",
         "Assets/Game/Resources/Soundwell/Clips.meta",
         "Assets/Game/Resources/Soundwell/PlaceholderPlayer.controller",

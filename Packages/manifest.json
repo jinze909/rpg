@@ -21,7 +21,8 @@
     "com.unity.modules.unitywebrequest": "1.0.0",
     "com.unity.modules.unitywebrequestassetbundle": "1.0.0",
     "com.unity.render-pipelines.universal": "17.6.0",
-    "com.unity.inputsystem": "1.20.1"
+    "com.unity.inputsystem": "1.20.1",
+    "com.unity.2d.tilemap.extras": "9.0.1"
   },
   "testables": [
     "com.unity.inputsystem"
