@@ -234,6 +234,28 @@ namespace Rpg.Tests.Editor
             Assert.That(visual, Is.Not.Null);
             Assert.That(visual.Controller, Is.Not.Null);
             Assert.That(visual.Controller.applyRootMotion, Is.False);
+            // Leader and beast must be distinct, point-filtered 16px sprites,
+            // not white rectangles; the ORK scene actors remain untouched.
+            var pixelLeader = GameObject.Find("PLACEHOLDER player silhouette")
+                ?.GetComponent<SpriteRenderer>();
+            var pixelBeast = GameObject.Find("PLACEHOLDER beast")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(pixelLeader, Is.Not.Null);
+            Assert.That(pixelBeast, Is.Not.Null);
+            foreach (var actor in new[] { pixelLeader, pixelBeast })
+            {
+                Assert.That(actor.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+                Assert.That(actor.sprite.pixelsPerUnit, Is.EqualTo(16f));
+                Assert.That(actor.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(actor.sprite.texture.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
+                Assert.That(actor.transform.localScale, Is.EqualTo(Vector3.one));
+                var colorPixels = actor.sprite.texture.GetPixels32();
+                Assert.That(colorPixels.Count(pixel => pixel.a > 0), Is.GreaterThan(65));
+                Assert.That(colorPixels.Count(pixel => pixel.a == 0), Is.GreaterThan(40));
+            }
+            Assert.That(pixelLeader.transform.parent, Is.SameAs(visual.transform));
+            Assert.That(pixelBeast.transform.parent, Is.SameAs(party.Beast.GameObject.transform));
+
             Assert.That(visual.Controller.runtimeAnimatorController.animationClips.Select(c => c.name),
                 Is.EquivalentTo(new[] { "Idle", "Move", "Action", "Hit" }));
             foreach (var state in new[] { "Idle", "Move", "Action", "Hit" })

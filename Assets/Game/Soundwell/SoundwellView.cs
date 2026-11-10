@@ -14,6 +14,10 @@ namespace Rpg.Soundwell
         private static readonly Color Cloth = new Color(0.45f, 0.73f, 0.83f);
         private readonly Camera camera;
         private readonly Sprite square;
+        private readonly Sprite leaderPixelSprite;
+        private readonly Sprite beastPixelSprite;
+        private readonly Texture2D leaderPixelTexture;
+        private readonly Texture2D beastPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
@@ -82,6 +86,10 @@ namespace Rpg.Soundwell
             square = Sprite.Create(Texture2D.whiteTexture,
                 new Rect(0, 0, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
                 new Vector2(0.5f, 0.5f), Texture2D.whiteTexture.width);
+            leaderPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader",
+                LeaderPixels, out leaderPixelTexture);
+            beastPixelSprite = CreatePixelSprite("PLACEHOLDER 16px beast",
+                BeastPixels, out beastPixelTexture);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
 
@@ -183,10 +191,11 @@ namespace Rpg.Soundwell
             // the ORK leader's physics/transform is never animated.
             var animatedPlayer = new GameObject("PLACEHOLDER animated player").transform;
             animatedPlayer.SetParent(player, false);
-            Plate(animatedPlayer, "PLACEHOLDER player silhouette", Vector2.zero,
-                new Vector2(0.64f, 0.64f), new Color(0.43f, 0.91f, 0.72f), 3);
-            Plate(animatedPlayer, "Player face", new Vector2(0f, 0.12f),
-                new Vector2(0.26f, 0.16f), Color.white, 4);
+            // The original Animator still moves this complete visual-only child.
+            // The face is part of one transparent pixel silhouette.
+            var leaderRenderer = Plate(animatedPlayer, "PLACEHOLDER player silhouette",
+                Vector2.zero, Vector2.one, new Color(0.43f, 0.91f, 0.72f), 3);
+            leaderRenderer.sprite = leaderPixelSprite;
             playerAnimation = animatedPlayer.gameObject.AddComponent<SoundwellPlayerVisualAnimation>();
             playerAnimation.Initialize();
             bellMarker = Plate(bell, "PLACEHOLDER copper bell", Vector2.zero, new Vector2(0.57f, 0.57f), Gold, 2);
@@ -198,8 +207,10 @@ namespace Rpg.Soundwell
                 Vector2.zero, new Vector2(0.46f, 0.46f), Gold, 1);
             beastIntentMarker.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
             beastIntentMarker.enabled = false;
-            Plate(beast, "PLACEHOLDER beast", Vector2.zero, new Vector2(1.03f, 0.78f), new Color(0.95f, 0.41f, 0.42f), 3);
-            Plate(beast, "Beast muzzle", new Vector2(0.56f, 0f), new Vector2(0.35f, 0.3f), new Color(1f, 0.67f, 0.49f), 4);
+            // A horned pixel silhouette on the same authoritative ORK beast.
+            var beastRenderer = Plate(beast, "PLACEHOLDER beast", Vector2.zero,
+                Vector2.one, new Color(0.95f, 0.41f, 0.42f), 3);
+            beastRenderer.sprite = beastPixelSprite;
 
             // Telegraph the actual encounter radius rather than asking the
             // player to guess a hidden distance. The ring shares the same
@@ -888,6 +899,10 @@ namespace Rpg.Soundwell
                     actionEventSystem.SetSelectedGameObject(null);
             }
             Object.Destroy(square);
+            Object.Destroy(leaderPixelSprite);
+            Object.Destroy(beastPixelSprite);
+            Object.Destroy(leaderPixelTexture);
+            Object.Destroy(beastPixelTexture);
             Object.Destroy(ringMaterial);
             Object.Destroy(clearBell);
             Object.Destroy(mutedBell);
@@ -908,6 +923,82 @@ namespace Rpg.Soundwell
             label.raycastTarget = false;
             label.text = content;
             return label;
+        }
+
+        // Render only: no collider, movement or ORK status depends on pixels.
+        private static readonly string[] LeaderPixels =
+        {
+            "................",
+            "......####......",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            "......####......",
+            ".....######.....",
+            "...##########...",
+            "...##+####+##...",
+            "...##########...",
+            ".....######.....",
+            ".....##..##.....",
+            ".....##..##.....",
+            "....###..###....",
+            "....###..###....",
+            "................",
+        };
+
+        private static readonly string[] BeastPixels =
+        {
+            "................",
+            "..##........##..",
+            "..###......###..",
+            "...##########...",
+            "..############..",
+            "..##++####++##..",
+            ".##############.",
+            ".######++######.",
+            "###############.",
+            "...##########...",
+            "...###....###...",
+            "..####....####..",
+            ".####......####.",
+            ".###........###.",
+            "................",
+            "................",
+        };
+
+        private static Sprite CreatePixelSprite(string name, string[] rows,
+            out Texture2D texture)
+        {
+            const int size = 16;
+            if (rows.Length != size)
+                throw new System.InvalidOperationException("Expected 16 character rows.");
+            texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = name,
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                anisoLevel = 0
+            };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                string row = rows[size - 1 - y];
+                if (row.Length != size)
+                    throw new System.InvalidOperationException("Expected a 16-pixel row.");
+                for (int x = 0; x < size; x++)
+                {
+                    char value = row[x];
+                    pixels[y * size + x] = value == '#'
+                        ? new Color32(255, 255, 255, 255)
+                        : value == '+'
+                            ? new Color32(175, 175, 175, 255)
+                            : new Color32(0, 0, 0, 0);
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, false);
+            return Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f), 16f, 0, SpriteMeshType.FullRect);
         }
 
         private SpriteRenderer Plate(Transform parent, string name, Vector2 position, Vector2 size, Color color, int order)
