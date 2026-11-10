@@ -217,7 +217,8 @@ def collect(mode):
         except OSError:
             errors.append(f"Missing {filename}.")
     editmode_markers = ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second",
-                        URP2D_MARKER, "RPG_SOUNDWELL_TILEMAP_VALIDATED")
+                        URP2D_MARKER, "RPG_SOUNDWELL_TILEMAP_VALIDATED",
+                        "RPG_SOUNDWELL_AUDIO_MIXER_VALIDATED")
     if soundwell:
         editmode_markers += SOUNDWELL_MARKERS
     for filename, markers in {

@@ -255,6 +255,8 @@ namespace Rpg.Soundwell
 
             audio = bell.gameObject.AddComponent<AudioSource>();
             audio.playOnAwake = false;
+            // M6: the saved mixer is the single output route for this bell.
+            SoundwellAudioBus.Route(audio);
             clearBell = BellClip("Copper bell", 640f, 0.75f, 0.22f);
             mutedBell = BellClip("Wrapped bell", 230f, 0.20f, 0.10f);
 

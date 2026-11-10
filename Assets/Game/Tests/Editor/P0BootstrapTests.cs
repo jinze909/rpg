@@ -41,6 +41,7 @@ namespace Rpg.Tests.Editor
                 InvokeUrpSetup("Prepare");
                 InvokeSoundwellAnimationSetup("Prepare");
                 InvokeSoundwellTilemapSetup("Prepare");
+                InvokeSoundwellAudioMixerSetup("Prepare");
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             else
@@ -50,6 +51,7 @@ namespace Rpg.Tests.Editor
                 // Validate BEFORE wiring: verification must not repair missing configuration.
                 InvokeSoundwellAnimationSetup("Validate");
                 InvokeSoundwellTilemapSetup("Validate");
+                InvokeSoundwellAudioMixerSetup("Validate");
                 ValidateConfiguration();
             }
 
@@ -180,6 +182,19 @@ namespace Rpg.Tests.Editor
         private static void InvokeUrpSetup(string methodName)
         {
             var type = Type.GetType("Rpg.Editor.Urp2DProjectSetup, Assembly-CSharp-Editor", true);
+            try
+            {
+                type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
+            }
+            catch (TargetInvocationException error) when (error.InnerException != null)
+            {
+                throw error.InnerException;
+            }
+        }
+
+        private static void InvokeSoundwellAudioMixerSetup(string methodName)
+        {
+            var type = Type.GetType("Rpg.Editor.SoundwellAudioMixerSetup, Assembly-CSharp-Editor", true);
             try
             {
                 type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null);

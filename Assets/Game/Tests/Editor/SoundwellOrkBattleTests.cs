@@ -14,6 +14,7 @@ using UnityEngine.InputSystem.UI;
 using Unity.Cinemachine;
 using UnityEngine.UI;
 using UnityEngine.Tilemaps;
+using UnityEngine.Audio;
 using UnityEngine.TestTools;
 using Rpg.Soundwell;
 
@@ -84,6 +85,28 @@ namespace Rpg.Tests.Editor
                 "The player's west retreat boundary must now be physically solid Tilemap cells.");
             Assert.That(Physics2D.OverlapPoint(new Vector2(0.25f, 0f)), Is.SameAs(gateCollider),
                 "A closed physical gate must remain the sole central obstacle.");
+            // M6: the actual copper bell routes to one persistent mixer bus,
+            // and its SFX attenuation can mute and restore without replacing
+            // the AudioSource, changing ORK state or inventing fake audio.
+            var bellSource = GameObject.Find("Copper bell and wet cloth")?.GetComponent<AudioSource>();
+            Assert.That(bellSource, Is.Not.Null);
+            Assert.That(bellSource.playOnAwake, Is.False);
+            Assert.That(bellSource.outputAudioMixerGroup, Is.Not.Null,
+                "The bell must not bypass the mixer and route straight to AudioListener.");
+            Assert.That(bellSource.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
+            AudioMixer soundwellMixer = bellSource.outputAudioMixerGroup.audioMixer;
+            Assert.That(soundwellMixer, Is.Not.Null);
+            Assert.That(soundwellMixer.FindMatchingGroups("").Select(g => g.name),
+                Is.EquivalentTo(new[] { "Master", "Music", "Ambient", "SFX" }));
+            Assert.That(soundwellMixer.FindSnapshot("Snapshot"), Is.Not.Null);
+            Assert.That(SoundwellAudioBus.TryGetVolume(soundwellMixer, out float normalDb), Is.True);
+            Assert.That(normalDb, Is.EqualTo(0f).Within(0.1f));
+            Assert.That(SoundwellAudioBus.SetMuted(soundwellMixer, true), Is.True);
+            Assert.That(SoundwellAudioBus.TryGetVolume(soundwellMixer, out float mutedDb), Is.True);
+            Assert.That(mutedDb, Is.LessThanOrEqualTo(-79f));
+            Assert.That(SoundwellAudioBus.SetMuted(soundwellMixer, false), Is.True);
+            Assert.That(SoundwellAudioBus.TryGetVolume(soundwellMixer, out float restoredDb), Is.True);
+            Assert.That(restoredDb, Is.EqualTo(0f).Within(0.1f));
             trial.ReadInput = false;
             Assert.That(party.Members.Count, Is.EqualTo(3));
             Assert.That(party.Actors.Count, Is.EqualTo(3));

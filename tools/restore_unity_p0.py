@@ -26,6 +26,10 @@ def allowed_path(name):
         # M4: only these Unity-authored game-owned clips/controller and their
         # folder/asset metadata may be published from an animation prepare run.
         # M5: Unity-authored saved Soundwell Tilemap scene, Rule Tile and sprite imports.
+        # M6: only native Unity-generated mixer and its folder metadata.
+        "Assets/Game/Resources/Soundwell/Audio.meta",
+        "Assets/Game/Resources/Soundwell/Audio/SoundwellMixer.mixer",
+        "Assets/Game/Resources/Soundwell/Audio/SoundwellMixer.mixer.meta",
         "Assets/Game/Scenes/SoundwellTrial.unity",
         "Assets/Game/Resources/Soundwell/Tiles.meta",
         "Assets/Game/Resources/Soundwell/Tiles/GratingWall.asset",
