@@ -294,6 +294,24 @@ namespace Rpg.Tests.Editor
 
             Assert.That(party.BattleInProgress, Is.True,
                 "The ORK encounter must still be active when its enemy is defeated.");
+            // The battle screen cannot be blank: the provisional, non-interactive
+            // readout must show live ORK HP/turn state without a parallel action UI.
+            yield return null;
+            var battleHud = GameObject.Find("Soundwell ORK battle HUD");
+            Assert.That(battleHud, Is.Not.Null,
+                "The battle should have a player-visible status HUD.");
+            var battleReadout = GameObject.Find("Soundwell ORK battle readout")?.GetComponent<Text>();
+            Assert.That(battleReadout, Is.Not.Null);
+            Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +
+                party.Members[0].Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Contain("Beast  HP " +
+                party.Beast.Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Contain("< TURN"),
+                "The live ORK chooser must be visible to the player.");
+            Assert.That(battleReadout.raycastTarget, Is.False);
+            Assert.That(battleHud.GetComponent<GraphicRaycaster>(), Is.Null,
+                "A status-only overlay cannot intercept ORK input.");
+
             // HP is ORK status value ID 1 in this project. Apply a real ORK
             // status change, then ask ORK's death check to resolve OnMinimum.
             var beastHp = party.Beast.Status[1];
@@ -313,6 +331,9 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.DirectCombatComplete, Is.True,
                 "The gate must remain locked until ORK reports the beast defeated.");
+            yield return null;
+            Assert.That(battleHud.activeInHierarchy, Is.False,
+                "The battle-only HUD must disappear after ORK ends the encounter.");
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             Assert.That(trial.CanOpenGate, Is.True,

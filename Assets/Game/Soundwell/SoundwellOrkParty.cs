@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using GamingIsLove.Makinom;
 using GamingIsLove.ORKFramework;
 using GamingIsLove.ORKFramework.Components;
@@ -149,6 +150,30 @@ namespace Rpg.Soundwell
             }
 
             IsReady = true;
+        }
+
+        /// <summary>
+        /// Read-only snapshot for the provisional battle HUD. ORK remains the
+        /// authority for HP, turn choice, battle outcomes and available actions.
+        /// </summary>
+        public string BuildBattleReadout()
+        {
+            if (!BattleInProgress || members.Count != 3 || Beast == null)
+                return string.Empty;
+
+            var text = new StringBuilder("ORK TURN-BASED ENCOUNTER  /  PLACEHOLDER\n");
+            for (int i = 0; i < members.Count; i++)
+            {
+                Combatant member = members[i];
+                text.Append("Rescuer ").Append(i + 1).Append("  HP ")
+                    .Append(member.Status[1].GetValue());
+                if (member.Actions.IsChoosing)
+                    text.Append("  < TURN");
+                text.Append('\n');
+            }
+            text.Append("Beast  HP ").Append(Beast.Status[1].GetValue());
+            text.Append("\nAttack selection awaits the ORK UI menu.");
+            return text.ToString();
         }
 
         public bool TryStartDirectEncounter()

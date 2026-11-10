@@ -279,6 +279,9 @@ namespace Rpg.Soundwell
             view.SetBattleMode(battleMode);
             if (battleMode)
             {
+                // The view reads a live ORK snapshot; it never resolves attacks
+                // or maintains a second copy of combat state.
+                view.SetBattleReadout(orkParty != null ? orkParty.BuildBattleReadout() : string.Empty);
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
             }

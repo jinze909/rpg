@@ -62,6 +62,8 @@ namespace Rpg.Soundwell
         private readonly bool previousNavigationEvents;
         private readonly Canvas trialCanvas;
         private readonly Canvas actionCanvas;
+        private readonly Canvas battleCanvas;
+        private readonly Text battleReadout;
         private bool actionMenuOpen;
         private bool battleMode;
         private bool waitingForEscortLeader;
@@ -302,6 +304,28 @@ namespace Rpg.Soundwell
             // shrink every action target to a tiny fraction of the reference UI.
             scaler.matchWidthOrHeight = 0.5f;
             actionCanvas.gameObject.AddComponent<GraphicRaycaster>();
+
+            // Read-only player-facing status, sourced exclusively from ORK combatants.
+            // Do not add a raycaster or a second EventSystem: ORK owns combat actions.
+            battleCanvas = new GameObject("Soundwell ORK battle HUD",
+                typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
+            battleCanvas.transform.SetParent(root, false);
+            battleCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            battleCanvas.sortingOrder = 21;
+            var battleScaler = battleCanvas.gameObject.AddComponent<CanvasScaler>();
+            battleScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            battleScaler.referenceResolution = new Vector2(960f, 540f);
+            battleScaler.matchWidthOrHeight = 0.5f;
+            battleReadout = AddLabel(battleCanvas.transform, "", 17, Ink,
+                Vector2.zero, new Vector2(460f, 195f));
+            battleReadout.gameObject.name = "Soundwell ORK battle readout";
+            var battleRect = battleReadout.rectTransform;
+            battleRect.anchorMin = battleRect.anchorMax = new Vector2(0f, 1f);
+            battleRect.pivot = new Vector2(0f, 1f);
+            battleRect.anchoredPosition = new Vector2(20f, -20f);
+            battleReadout.alignment = TextAnchor.UpperLeft;
+            battleReadout.font = SoundwellUiLocalization.PresentationFont(battleReadout.font);
+            battleCanvas.gameObject.SetActive(false);
             ringButton = CreateActionButton(actionCanvas.transform, "Ring", "", 0, ring);
             Localize(ringButton.GetComponentInChildren<Text>(), "action.ring");
             wrapButton = CreateActionButton(actionCanvas.transform, "Wrap", "", 1, wrap);
@@ -374,7 +398,14 @@ namespace Rpg.Soundwell
                 actionEventSystem.SetSelectedGameObject(null);
             trialCanvas.gameObject.SetActive(!active);
             actionCanvas.gameObject.SetActive(!active);
+            battleCanvas.gameObject.SetActive(active);
             actionEventSystem.sendNavigationEvents = active;
+        }
+
+        public void SetBattleReadout(string summary)
+        {
+            if (battleMode && battleReadout.text != summary)
+                battleReadout.text = summary;
         }
 
         private void ArrangeActionHud(float viewportAspect)
@@ -464,6 +495,8 @@ namespace Rpg.Soundwell
                 kv.Key.font = displayFont;
                 kv.Key.text = SoundwellUiLocalization.Get(kv.Value);
             }
+            if (battleReadout != null)
+                battleReadout.font = displayFont;
             if (menuStatus != null)
             {
                 menuStatus.font = displayFont;
