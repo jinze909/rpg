@@ -1315,8 +1315,17 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
             Require(freshMarker != null && !freshMarker.enabled,
                 "Reload must clear the visible beast target from the previous experiment.");
-            Require(SceneManager.GetActiveScene().GetRootGameObjects()
-                .Count(root => root.name == "PLACEHOLDER Player") == 1, "Reload must have exactly one player.");
+            // ORK can rename actors to their combatant asset name ("Default").
+            // Check the real serialized player actor and the unique physics
+            // controller in the current scene, not a presentation name.
+            var reloadedBodies = SceneManager.GetActiveScene().GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<Rigidbody2D>(true))
+                .ToArray();
+            Require(reloadedBodies.Length == 1 &&
+                reloadedBodies[0].transform == fresh.PlayerActor &&
+                Vector2.Distance(reloadedBodies[0].position, fresh.PlayerPosition) < 0.01f,
+                "Reload must have exactly one live scene physics player linked to the trial " +
+                "(found " + reloadedBodies.Length + " Rigidbody2D controllers).");
 
             var back = fresh.ReturnToBootstrap();
             Require(back != null && ReferenceEquals(back, fresh.ReturnToBootstrap()),

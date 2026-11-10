@@ -71,6 +71,7 @@ namespace Rpg.Soundwell
         public bool ReadKeyboard { get; set; } = true;
         public bool IsReady => initialized && variables != null;
         public Camera TrialCamera => trialCamera;
+        public Transform PlayerActor => player;
         public Vector2 PlayerPosition => playerBody.position;
         public Vector2 BeastPosition => beast.position;
         // A live positional threat, never another saved or guessed target.

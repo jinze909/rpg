@@ -279,6 +279,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2101}
   - component: {fileID: 2102}
+  - component: {fileID: 2103}
   m_Layer: 0
   m_Name: Soundwell signal trial
   m_TagString: Untagged
@@ -318,6 +319,24 @@ MonoBehaviour:
   beast: {fileID: 2131}
   safePoint: {fileID: 2141}
   trialCamera: {fileID: 1002}
+--- !u!114 &2103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e5d1a3c9b2f4d6e8a0c1b3f5d7e9a2c, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  leader: {fileID: 2111}
+  beast: {fileID: 2131}
+  playerFaction: {fileID: 11400000, guid: 74f59b827fd1780d389ae2bae3ebc92f, type: 2}
+  enemyFaction: {fileID: 11400000, guid: c0ab107cc22ba40808d05e1476b3273b, type: 2}
+  defaultCombatant: {fileID: 11400000, guid: 356b05c3892e9e56ea1e6693f73b9db1, type: 2}
+  turnBasedBattleSystem: {fileID: 11400000, guid: ee228fb7ecb276bbeb8a7b4ee14b4c63, type: 2}
 --- !u!1 &2110
 GameObject:
   m_ObjectHideFlags: 0
