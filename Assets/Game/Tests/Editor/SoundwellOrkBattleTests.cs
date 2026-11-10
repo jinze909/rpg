@@ -9,6 +9,9 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.UI;
 using UnityEngine.TestTools;
 using Rpg.Soundwell;
 
@@ -69,6 +72,63 @@ namespace Rpg.Tests.Editor
             Physics2D.SyncTransforms();
             Assert.That(trial.CanEngageBeast, Is.True,
                 "The undecided route must offer direct engagement at the real gate panel.");
+
+            // M2: Test the *live* UGUI action canvas and its shared New Input
+            // EventSystem before the same gate starts ORK combat. This catches
+            // stale focus after a world action becomes unavailable.
+            yield return null; // Let the scene recompute button interactability.
+            var ringButton = GameObject.Find("Soundwell Ring button")?.GetComponent<Button>();
+            var gateButton = GameObject.Find("Soundwell Gate button")?.GetComponent<Button>();
+            Assert.That(ringButton, Is.Not.Null);
+            Assert.That(gateButton, Is.Not.Null);
+            Assert.That(gateButton.interactable, Is.True,
+                "The real gate action must be enabled at the battle gate.");
+
+            // The ring and gate interaction radii can legitimately overlap.
+            // Query live availability rather than assuming the ring is disabled.
+            // The view's documented focus priority is ring, wrap, carry, gate,
+            // retry, back. At least one other action must be unavailable.
+            var priorityButtons = new[] { "Ring", "Wrap", "Carry", "Gate", "Retry", "Back" }
+                .Select(name => GameObject.Find("Soundwell " + name + " button")?.GetComponent<Button>())
+                .ToArray();
+            Assert.That(priorityButtons.All(button => button != null), Is.True,
+                "All six real action buttons must be present in the UGUI canvas.");
+            var firstAvailable = priorityButtons.First(button => button.interactable);
+            var disabledButton = priorityButtons.FirstOrDefault(button => !button.interactable);
+            Assert.That(disabledButton, Is.Not.Null,
+                "At least one world-dependent action must be disabled at the gate.");
+            trial.SetActionMenuOpen(true);
+            Assert.That(trial.ActionMenuOpen, Is.True);
+            Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True,
+                "Focused UGUI must disable the gameplay action map.");
+            var eventSystem = EventSystem.current;
+            Assert.That(eventSystem, Is.Not.Null);
+            Assert.That(Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None).Length,
+                Is.EqualTo(1), "There must be only one live UI EventSystem.");
+            Assert.That(eventSystem.GetComponents<UnityEngine.EventSystems.BaseInputModule>()
+                .Count(module => module.enabled), Is.EqualTo(1),
+                "Only one active UI input module may dispatch Submit.");
+            Assert.That(eventSystem.GetComponent<InputSystemUIInputModule>(), Is.Not.Null);
+            Assert.That(eventSystem.sendNavigationEvents, Is.True);
+            Assert.That(eventSystem.currentSelectedGameObject, Is.EqualTo(firstAvailable.gameObject),
+                "Focus must begin on the first available action, not a stale disabled target.");
+
+            // Simulate a pointer or controller holding focus on an action whose
+            // world preconditions no longer hold. Refresh must repair focus,
+            // without opening the gate or starting a duplicate ORK battle.
+            eventSystem.SetSelectedGameObject(disabledButton.gameObject);
+            yield return null;
+            Assert.That(eventSystem.currentSelectedGameObject, Is.EqualTo(firstAvailable.gameObject),
+                "Refreshing world availability must replace stale disabled-button focus.");
+            Assert.That(trial.DirectCombatStarted, Is.False);
+            Assert.That(trial.GateOpen, Is.False);
+            trial.SetActionMenuOpen(false);
+            Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                "Exiting the UI must restore the single gameplay action map.");
+            Assert.That(eventSystem.sendNavigationEvents, Is.False);
+            Assert.That(eventSystem.currentSelectedGameObject, Is.Null,
+                "Closing focus must not leave a gamepad Submit target selected.");
+
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.DirectCombatStarted, Is.True,
                 "The existing gate interaction must start the direct ORK rescue route.");

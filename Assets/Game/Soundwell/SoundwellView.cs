@@ -544,6 +544,11 @@ namespace Rpg.Soundwell
             gateButton.interactable = canEngageBeast || canInspectRope || canRecoverRope ||
                 canInspectCart || canInspectClaws || canShareCartClue || canTieEscortLine ||
                 canOpenGate || canSecurePlank || canEscortSurveyor || (atSurveyor && !hasSurveyorClue);
+            // Timers and world interactions can invalidate a previously focused
+            // action while the menu is open. Never leave keyboard/gamepad Submit
+            // targeting a disabled button; return focus to an available action.
+            if (actionMenuOpen)
+                EnsureActionSelection();
             string interactCaption = canEngageBeast ? "ENGAGE BEAST [G / RB]"
                 : canInspectRope ? "INSPECT ROPE [G / RB]"
                 : canRecoverRope ? "RECOVER CORD [G / RB]"
