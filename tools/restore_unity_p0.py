@@ -24,12 +24,20 @@ def allowed_path(name):
         return False
     if name in {
         "Assets/Game/Scenes/Bootstrap.unity",
+        "Assets/Game/Rendering.meta",
+        "Assets/Game/Rendering/URP2D.meta",
+        "Assets/UniversalRenderPipelineGlobalSettings.asset",
+        "Assets/UniversalRenderPipelineGlobalSettings.asset.meta",
+        "Assets/DefaultVolumeProfile.asset",
+        "Assets/DefaultVolumeProfile.asset.meta",
         "Assets/Gaming Is Love/_Data.meta",
         "Packages/manifest.json",
         "Packages/packages-lock.json",
         "ProjectSettings/SceneTemplateSettings.json",
     }:
         return True
+    if len(path.parts) == 5 and path.parts[:4] == ("Assets", "Game", "Rendering", "URP2D"):
+        return path.suffix in {".asset", ".meta"}
     if len(path.parts) > 3 and path.parts[:3] == ("Assets", "Gaming Is Love", "_Data"):
         return path.suffix in {".asset", ".meta"}
     return len(path.parts) == 2 and path.parts[0] == "ProjectSettings" and path.suffix == ".asset"

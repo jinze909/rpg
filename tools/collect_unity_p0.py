@@ -16,7 +16,9 @@ EXPECTED_TESTS = {
     "Rpg.Tests.Editor.P0BootstrapTests.SavedConfigurationAndWiringAreValid",
     "Rpg.Tests.Editor.P0BootstrapTests.FirstPlayInitializesFramework",
     "Rpg.Tests.Editor.P0BootstrapTests.SecondPlayInitializesFramework",
+    "Rpg.Tests.Editor.P0BootstrapTests.Urp2DRendererIsTheOnlyActivePipeline",
 }
+URP2D_MARKER = "RPG_URP2D_VALIDATED"
 SOUNDWELL_TESTS = {
     "Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry",
     "Rpg.Tests.Editor.SoundwellOrkBattleTests.ThreePlayerCombatantsEnterOneOrkTurnBasedBattle",
@@ -200,7 +202,7 @@ def collect(mode):
                 errors.append(f"{filename} is not zero.")
         except OSError:
             errors.append(f"Missing {filename}.")
-    editmode_markers = ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second")
+    editmode_markers = ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second", URP2D_MARKER)
     if soundwell:
         editmode_markers += SOUNDWELL_MARKERS
     for filename, markers in {
