@@ -2,12 +2,14 @@ using System.Collections;
 using System.Collections.Generic;
 using GamingIsLove.Makinom;
 using GamingIsLove.ORKFramework;
+using GamingIsLove.ORKFramework.Components;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using Rpg.Soundwell;
 
 namespace Rpg.Tests.Editor
 {
