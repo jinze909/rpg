@@ -54,17 +54,25 @@ namespace Rpg.Soundwell
             if (sceneCamera == null || player == null || framingTarget == null)
                 return;
 
-            // On narrow displays, preserve the same minimum world width
-            // that SoundwellView historically rendered, without fighting
-            // Cinemachine by writing to Camera.orthographicSize.
+            // Keep BOTH trial ends in frame on square and portrait displays.
+            // The old static camera showed x=-8.1 and x=+8.1 even at 1:1;
+            // blindly following the player by 0.85 units would crop the far
+            // end because the square viewport has only 0.3 units of slack.
+            // Widescreen has enough slack for the full gentle follow range.
+            // Only Cinemachine owns the real camera's pose and lens.
+            float aspect = sceneCamera.aspect > 0f ? sceneCamera.aspect : 16f / 9f;
+            float desiredSize = Mathf.Max(5.5f, 8.4f / aspect);
+            const float trialHalfWidth = 8.1f;
+            const float edgeMargin = 0.12f;
+            float availablePan = Mathf.Max(0f, desiredSize * aspect - trialHalfWidth - edgeMargin);
+            float horizontalPan = Mathf.Min(0.85f, availablePan);
             framingTarget.position = new Vector3(
-                Mathf.Clamp(player.position.x * 0.14f, -0.85f, 0.85f),
+                Mathf.Clamp(player.position.x * 0.14f, -horizontalPan, horizontalPan),
                 Mathf.Clamp(player.position.y * 0.15f, -0.5f, 0.5f),
                 0f);
 
-            if (virtualCamera == null || sceneCamera.aspect <= 0f)
+            if (virtualCamera == null)
                 return;
-            float desiredSize = Mathf.Max(5.5f, 8.4f / sceneCamera.aspect);
             var lens = virtualCamera.Lens;
             if (Mathf.Approximately(lens.OrthographicSize, desiredSize))
                 return;
