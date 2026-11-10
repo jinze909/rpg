@@ -46,6 +46,21 @@ namespace Rpg.Soundwell
         public static bool InteractPressed() { EnsureLoaded(); return interact.WasPressedThisFrame(); }
         public static bool ToggleMenuPressed() { EnsureLoaded(); return toggleMenu.WasPressedThisFrame(); }
 
+        public static bool IsEntryContextActive
+        {
+            get { EnsureLoaded(); return entryMap.enabled && !gameplayMap.enabled; }
+        }
+
+        public static bool IsGameplayContextActive
+        {
+            get { EnsureLoaded(); return gameplayMap.enabled && !entryMap.enabled; }
+        }
+
+        public static bool IsUiContextActive
+        {
+            get { EnsureLoaded(); return !entryMap.enabled && !gameplayMap.enabled; }
+        }
+
         public static SoundwellControlFrame ReadGameplay()
         {
             EnsureLoaded();
