@@ -355,7 +355,7 @@ namespace Rpg.Soundwell
         public void ApplyControls(SoundwellControlFrame controls)
         {
             // Do not double-handle the same gamepad A / directional event when
-            // StandaloneInputModule is submitting or moving a focused UGUI Button.
+            // InputSystemUIInputModule is submitting or moving a focused UGUI Button.
             if (actionMenuOpen)
                 return;
 

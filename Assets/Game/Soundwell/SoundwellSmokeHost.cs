@@ -1372,7 +1372,7 @@ namespace Rpg.Soundwell
 
             // Simulated controller button values exercise the exact production mapping and
             // scene action boundary; a physical USB/Bluetooth gamepad remains untested.
-            restarted.ReadKeyboard = false;
+            restarted.ReadInput = false;
             Require(SoundwellControlFrame.EnterRequested(false, true),
                 "Controller south must be able to enter from the Bootstrap prompt.");
             Require(!SoundwellControlFrame.EnterRequested(false, false),
@@ -1463,7 +1463,7 @@ namespace Rpg.Soundwell
             var mouseTrial = FindRootComponent<SoundwellTrial>();
             for (var wait = Until(() => mouseTrial.IsReady, "initialize mouse HUD trial"); wait.MoveNext();)
                 yield return null;
-            mouseTrial.ReadKeyboard = false;
+            mouseTrial.ReadInput = false;
             yield return null;
             mouseTrial.SetActionMenuOpen(true);
             Require(mouseTrial.ActionMenuOpen && EventSystem.current.sendNavigationEvents,
@@ -1556,7 +1556,7 @@ namespace Rpg.Soundwell
 
         private static void RequireInputSystemEventSystem(string context)
         {
-            var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
+            var systems = UnityEngine.Object.FindObjectsByType<EventSystem>();
             Require(systems.Length == 1, context + " must have exactly one active EventSystem.");
             var modules = systems[0].GetComponents<BaseInputModule>().Where(module => module != null && module.enabled).ToArray();
             Require(modules.Length == 1 && modules[0] is InputSystemUIInputModule,
@@ -1567,6 +1567,8 @@ namespace Rpg.Soundwell
                 context + " must have valid New Input System UI navigation, Submit and Cancel actions.");
             Require(ui.submit.action.bindings.Any(binding => binding.path == "<Gamepad>/buttonSouth"),
                 context + " must route gamepad South through UGUI Submit.");
+            Require(ui.cancel.action.bindings.Any(binding => binding.path == "<Gamepad>/buttonEast"),
+                context + " must route gamepad East through UGUI Cancel.");
         }
 
         private static void Require(bool condition, string message)

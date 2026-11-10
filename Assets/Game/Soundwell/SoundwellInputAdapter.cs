@@ -75,6 +75,7 @@ namespace Rpg.Soundwell
             if (actions.actionMaps.Count != 2)
                 throw new InvalidOperationException("Soundwell must have exactly Entry and Gameplay action maps.");
             RequireBinding(interact, "<Keyboard>/f2");
+            RequireBinding(interact, "<Gamepad>/buttonSouth");
             foreach (string path in new[] { "2DVector", "<Keyboard>/w", "<Keyboard>/a", "<Keyboard>/s",
                 "<Keyboard>/d", "<Keyboard>/upArrow", "<Keyboard>/leftArrow", "<Keyboard>/downArrow",
                 "<Keyboard>/rightArrow", "<Gamepad>/leftStick", "<Gamepad>/dpad" })
@@ -90,7 +91,7 @@ namespace Rpg.Soundwell
 
         public static EventSystem EnsureEventSystem(Transform owner)
         {
-            var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
+            var systems = UnityEngine.Object.FindObjectsByType<EventSystem>();
             EventSystem eventSystem;
             if (systems.Length == 0)
             {
