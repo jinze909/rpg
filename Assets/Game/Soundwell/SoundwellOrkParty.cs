@@ -161,18 +161,21 @@ namespace Rpg.Soundwell
             if (!BattleInProgress || members.Count != 3 || Beast == null)
                 return string.Empty;
 
-            var text = new StringBuilder("ORK TURN-BASED ENCOUNTER  /  PLACEHOLDER\n");
+            var text = new StringBuilder(SoundwellUiLocalization.Get("battle.heading")).Append('\n');
             for (int i = 0; i < members.Count; i++)
             {
                 Combatant member = members[i];
-                text.Append("Rescuer ").Append(i + 1).Append("  HP ")
+                text.Append(SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
+                    .Append("  ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                     .Append(member.Status[1].GetValue());
                 if (member.Actions.IsChoosing)
-                    text.Append("  < TURN");
+                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.turn"));
                 text.Append('\n');
             }
-            text.Append("Beast  HP ").Append(Beast.Status[1].GetValue());
-            text.Append("\nAttack selection awaits the ORK UI menu.");
+            text.Append(SoundwellUiLocalization.Get("battle.beast")).Append("  ")
+                .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
+                .Append(Beast.Status[1].GetValue())
+                .Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
             return text.ToString();
         }
 

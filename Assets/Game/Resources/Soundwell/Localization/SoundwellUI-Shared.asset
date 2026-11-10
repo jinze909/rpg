@@ -83,6 +83,30 @@ MonoBehaviour:
     m_Key: diagnostic.fallback
     m_Metadata:
       m_Items: []
+  - m_Id: 94572917518336
+    m_Key: battle.heading
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267072
+    m_Key: battle.rescuer
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267073
+    m_Key: battle.beast
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267074
+    m_Key: battle.hp
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267075
+    m_Key: battle.turn
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267076
+    m_Key: battle.menu_pending
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

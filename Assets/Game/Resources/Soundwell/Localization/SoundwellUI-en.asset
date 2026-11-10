@@ -86,6 +86,30 @@ MonoBehaviour:
     m_Localized: English table fallback
     m_Metadata:
       m_Items: []
+  - m_Id: 94572917518336
+    m_Localized: ORK TURN-BASED ENCOUNTER  /  PLACEHOLDER
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267072
+    m_Localized: Rescuer
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267073
+    m_Localized: Beast
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267074
+    m_Localized: HP
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267075
+    m_Localized: < TURN
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267076
+    m_Localized: Attack selection awaits the ORK UI menu.
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

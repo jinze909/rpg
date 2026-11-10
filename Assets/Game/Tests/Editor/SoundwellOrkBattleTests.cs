@@ -336,6 +336,21 @@ namespace Rpg.Tests.Editor
             Assert.That(battleHud.GetComponent<GraphicRaycaster>(), Is.Null,
                 "A status-only overlay cannot intercept ORK input.");
 
+            // This HUD is game-owned UGUI, not ORK battle text. It must
+            // follow the same persisted Unity Localization tables as the
+            // surrounding Soundwell controls, including the active turn.
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(battleReadout.text, Does.Contain("救援队员 1  生命 " +
+                party.Members[0].Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Contain("野兽  生命 " +
+                party.Beast.Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Contain("ORK 攻击指令菜单尚未接入。"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +
+                party.Members[0].Status[1].GetValue()));
+
             // HP is ORK status value ID 1 in this project. Apply a real ORK
             // status change, then ask ORK's death check to resolve OnMinimum.
             var beastHp = party.Beast.Status[1];

@@ -34,6 +34,12 @@ namespace Rpg.Editor
             ("action.lift", "LIFT  [F / LB]", "拿起 [F / LB]"),
             ("action.drop", "DROP  [F / LB]", "放下 [F / LB]"),
             ("action.language", "中文 / EN", "EN / 中文"),
+            ("battle.heading", "ORK TURN-BASED ENCOUNTER  /  PLACEHOLDER", "ORK 回合战 / 占位"),
+            ("battle.rescuer", "Rescuer", "救援队员"),
+            ("battle.beast", "Beast", "野兽"),
+            ("battle.hp", "HP", "生命"),
+            ("battle.turn", "< TURN", "< 行动"),
+            ("battle.menu_pending", "Attack selection awaits the ORK UI menu.", "ORK 攻击指令菜单尚未接入。"),
             // Deliberately absent in Chinese for real EN fallback verification.
             ("diagnostic.fallback", "English table fallback", null),
         };
@@ -42,6 +48,49 @@ namespace Rpg.Editor
         {
             if (AssetDatabase.LoadAssetAtPath<StringTable>(EnPath) != null)
             {
+                // Only prepare may append newly authored game-owned UI keys.
+                // Verify must never silently repair or overwrite translations.
+                var existingEn = AssetDatabase.LoadAssetAtPath<StringTable>(EnPath);
+                var existingZh = AssetDatabase.LoadAssetAtPath<StringTable>(ZhPath);
+                var existingShared = AssetDatabase.LoadAssetAtPath<SharedTableData>(SharedPath);
+                if (existingShared == null || existingZh == null ||
+                    existingEn.SharedData != existingShared ||
+                    existingZh.SharedData != existingShared)
+                    throw new InvalidOperationException("Incomplete M9 StringTable assets; refusing to repair.");
+                bool changed = false;
+                foreach (var item in Entries)
+                {
+                    var english = existingEn.GetEntry(item.key);
+                    if (english == null)
+                    {
+                        existingEn.AddEntry(item.key, item.en);
+                        changed = true;
+                    }
+                    else if (english.LocalizedValue != item.en)
+                        throw new InvalidOperationException("Existing M9 English translation differs: " + item.key);
+
+                    var chinese = existingZh.GetEntry(item.key);
+                    if (item.zh == null)
+                    {
+                        if (chinese != null)
+                            throw new InvalidOperationException("EN fallback key acquired a Chinese override: " + item.key);
+                    }
+                    else if (chinese == null)
+                    {
+                        existingZh.AddEntry(item.key, item.zh);
+                        changed = true;
+                    }
+                    else if (chinese.LocalizedValue != item.zh)
+                        throw new InvalidOperationException("Existing M9 Chinese translation differs: " + item.key);
+                }
+                if (changed)
+                {
+                    EditorUtility.SetDirty(existingShared);
+                    EditorUtility.SetDirty(existingEn);
+                    EditorUtility.SetDirty(existingZh);
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
+                }
                 Validate();
                 return;
             }
