@@ -522,8 +522,9 @@ namespace Rpg.Soundwell
             // Activating keyboard/pad navigation must stop motion and suppress the
             // simultaneous gameplay input from the shared stick and A/B/X buttons.
             trial.SetActionMenuOpen(true);
-            Require(trial.ActionMenuOpen && EventSystem.current.sendNavigationEvents,
-                "Tab/Start action mode must enable UGUI keyboard and gamepad navigation.");
+            Require(trial.ActionMenuOpen && EventSystem.current.sendNavigationEvents &&
+                SoundwellInputAdapter.IsUiContextActive,
+                "Tab/Start action mode must transfer focus to UGUI and disable gameplay actions.");
             Require(EventSystem.current.currentSelectedGameObject == TrialActionButton(trial, "Ring").gameObject,
                 "At the bell, focused UGUI navigation must initially select Ring.");
             Vector2 pausedPosition = trial.PlayerPosition;
@@ -540,8 +541,9 @@ namespace Rpg.Soundwell
             ExecuteEvents.ExecuteHierarchy<ICancelHandler>(focusedAction,
                 new BaseEventData(EventSystem.current), ExecuteEvents.cancelHandler);
             Require(!trial.ActionMenuOpen && !EventSystem.current.sendNavigationEvents &&
-                EventSystem.current.currentSelectedGameObject == null,
-                "Leaving focus mode must disable Submit and release the UGUI selection.");
+                EventSystem.current.currentSelectedGameObject == null &&
+                SoundwellInputAdapter.IsGameplayContextActive,
+                "Cancel must close UGUI focus, restore gameplay actions, and release the selection.");
             ClickTrialAction(trial, "Ring");
             Require(trial.HasBellTarget, "The UGUI Ring button must trigger the real Soundwell signal.");
             yield return null;

@@ -17,18 +17,31 @@ EXPECTED_TESTS = {
     "Rpg.Tests.Editor.P0BootstrapTests.FirstPlayInitializesFramework",
     "Rpg.Tests.Editor.P0BootstrapTests.SecondPlayInitializesFramework",
     "Rpg.Tests.Editor.P0BootstrapTests.Urp2DRendererIsTheOnlyActivePipeline",
-    "Rpg.Tests.Editor.SoundwellInputSystemTests.InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled",
 }
 URP2D_MARKER = "RPG_URP2D_VALIDATED"
 SOUNDWELL_TESTS = {
     "Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry",
     "Rpg.Tests.Editor.SoundwellOrkBattleTests.ThreePlayerCombatantsEnterOneOrkTurnBasedBattle",
 }
+INPUT_SYSTEM_TESTS = {
+    "Rpg.Tests.Editor.SoundwellInputSystemTests.InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled",
+    "Rpg.Tests.Editor.SoundwellInputSystemTests.EntryAndGameplayContextsRouteLiveKeyboardAndGamepadEvents",
+}
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
     "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED",
 )
 SOURCE_PATHS = ("Assets", "Packages", "ProjectSettings")
+
+
+def expected_tests_for(mode, has_soundwell_scene):
+    """Match the exact test filter used by prepare versus full clean verify."""
+    expected = set(EXPECTED_TESTS)
+    if mode == "verify" and has_soundwell_scene:
+        expected.update(SOUNDWELL_TESTS)
+        expected.update(INPUT_SYSTEM_TESTS)
+    return expected
+
 
 # Import/updater notices can include "Unable to update following assemblies"
 # even when the pinned DLL is intentionally excluded from API updating,
@@ -136,11 +149,11 @@ def collect(mode):
     if mode == "verify" and paths:
         errors.append("Verification changed source files: " + ", ".join(paths))
 
-    expected_tests = set(EXPECTED_TESTS)
-    soundwell = mode == "verify" and (root / "Assets/Game/Scenes/SoundwellTrial.unity").is_file()
+    has_soundwell_scene = (root / "Assets/Game/Scenes/SoundwellTrial.unity").is_file()
+    soundwell = mode == "verify" and has_soundwell_scene
+    expected_tests = expected_tests_for(mode, has_soundwell_scene)
     performance = None
     if soundwell:
-        expected_tests.update(SOUNDWELL_TESTS)
         for filename in ("01-ringing.png", "02-wrapped-searching.png", "03-retreat-reset.png"):
             frame = evidence / "soundwell" / filename
             if not frame.is_file() or frame.stat().st_size < 1024:

@@ -2,7 +2,16 @@
 """Regression checks for Unity P0 log acceptance and compiler failures."""
 import unittest
 
-from collect_unity_p0 import EXPECTED_TESTS, URP2D_MARKER, UNITY_COMPILER_ERROR, SOUNDWELL_MARKERS, SOUNDWELL_TESTS, format_performance_summary
+from collect_unity_p0 import (
+    EXPECTED_TESTS,
+    INPUT_SYSTEM_TESTS,
+    URP2D_MARKER,
+    UNITY_COMPILER_ERROR,
+    SOUNDWELL_MARKERS,
+    SOUNDWELL_TESTS,
+    expected_tests_for,
+    format_performance_summary,
+)
 
 
 
@@ -83,8 +92,19 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
         self.assertEqual(URP2D_MARKER, "RPG_URP2D_VALIDATED")
         self.assertIn(
             "Rpg.Tests.Editor.SoundwellInputSystemTests.InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled",
-            EXPECTED_TESTS,
+            INPUT_SYSTEM_TESTS,
         )
+        self.assertIn(
+            "Rpg.Tests.Editor.SoundwellInputSystemTests.EntryAndGameplayContextsRouteLiveKeyboardAndGamepadEvents",
+            INPUT_SYSTEM_TESTS,
+        )
+
+    def test_prepare_and_verify_expect_only_the_tests_the_workflow_runs(self):
+        self.assertEqual(len(EXPECTED_TESTS), 4)
+        self.assertEqual(expected_tests_for("prepare", True), EXPECTED_TESTS)
+        verify_tests = expected_tests_for("verify", True)
+        self.assertEqual(verify_tests, EXPECTED_TESTS | SOUNDWELL_TESTS | INPUT_SYSTEM_TESTS)
+        self.assertEqual(len(verify_tests), 8)
 
 
 class CompilerLogTests(unittest.TestCase):

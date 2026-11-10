@@ -65,7 +65,7 @@ namespace Rpg.Soundwell
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
-            Action carry, Action gate)
+            Action carry, Action gate, Action cancelActionMenu)
         {
             this.camera = camera;
             escortLeader = player;
@@ -315,7 +315,9 @@ namespace Rpg.Soundwell
             menuStatus.resizeTextMaxSize = 14;
 
             var cancelHandler = actionCanvas.gameObject.AddComponent<SoundwellActionMenuCancelHandler>();
-            cancelHandler.Initialize(() => SetActionMenuOpen(false));
+            // Route Cancel through the trial owner so it restores the gameplay map,
+            // not just the view's local focus state.
+            cancelHandler.Initialize(cancelActionMenu);
 
             actionEventSystem = SoundwellInputAdapter.EnsureEventSystem(root);
             if (actionEventSystem == null)

@@ -167,7 +167,8 @@ namespace Rpg.Soundwell
                 () => ApplyInput(movement, false, false, true),
                 () => { ReturnToBootstrap(); },
                 () => ApplyInput(movement, false, false, false, true),
-                () => ApplyInput(movement, false, false, false, false, true));
+                () => ApplyInput(movement, false, false, false, false, true),
+                () => SetActionMenuOpen(false));
             ResetTrial();
             initialized = true;
         }
