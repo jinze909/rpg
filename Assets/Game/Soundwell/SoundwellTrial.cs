@@ -68,7 +68,7 @@ namespace Rpg.Soundwell
         private bool actionMenuOpen;
         [NonSerialized] private bool initialized;
 
-        public bool ReadKeyboard { get; set; } = true;
+        public bool ReadInput { get; set; } = true;
         public bool IsReady => initialized && variables != null;
         public Camera TrialCamera => trialCamera;
         public Transform PlayerActor => player;
@@ -152,6 +152,8 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException("Makinom's game variables are unavailable in the Soundwell scene.");
             }
 
+            SoundwellInputAdapter.SetGameplayContext();
+            SoundwellInputAdapter.EnsureEventSystem(transform);
             playerBody = player.gameObject.AddComponent<Rigidbody2D>();
             playerBody.gravityScale = 0f;
             playerBody.constraints = RigidbodyConstraints2D.FreezeRotation;
@@ -172,23 +174,19 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (!IsReady || !ReadKeyboard)
+            if (!IsReady || !ReadInput)
                 return;
 
-            if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.JoystickButton7))
+            if (SoundwellInputAdapter.ToggleMenuPressed())
             {
                 SetActionMenuOpen(!actionMenuOpen);
                 return;
             }
 
             if (actionMenuOpen)
-            {
-                if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1))
-                    SetActionMenuOpen(false);
                 return;
-            }
 
-            ApplyControls(SoundwellControlFrame.ReadUnity());
+            ApplyControls(SoundwellInputAdapter.ReadGameplay());
         }
 
         public void SetActionMenuOpen(bool open)
@@ -199,8 +197,13 @@ namespace Rpg.Soundwell
             actionMenuOpen = open;
             if (open)
             {
+                SoundwellInputAdapter.SetUiContext();
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
+            }
+            else
+            {
+                SoundwellInputAdapter.SetGameplayContext();
             }
 
             view.SetActionMenuOpen(open);
@@ -554,23 +557,18 @@ namespace Rpg.Soundwell
             keyboardF2 || gamepadSouth;
 
         // Pure mapping for independent, hardware-free Play Mode assertions.
+        public static SoundwellControlFrame FromActions(Vector2 movement, bool ring, bool wrap,
+            bool retry, bool back, bool carry, bool gate) =>
+            new SoundwellControlFrame(movement, ring, wrap, retry, back, carry, gate);
+
+        // Pure mapping helper retained for hardware-free regression assertions.
         public static SoundwellControlFrame FromButtons(Vector2 movement,
             bool keyboardRing, bool keyboardWrap, bool keyboardRetry, bool keyboardBack,
             bool gamepadSouth, bool gamepadEast, bool gamepadWest, bool gamepadNorth,
             bool keyboardCarry = false, bool gamepadLeftShoulder = false,
             bool keyboardGate = false, bool gamepadRightShoulder = false) =>
-            new SoundwellControlFrame(movement, keyboardRing || gamepadSouth,
-                keyboardWrap || gamepadWest, keyboardRetry || gamepadNorth,
-                keyboardBack || gamepadEast, keyboardCarry || gamepadLeftShoulder,
-                keyboardGate || gamepadRightShoulder);
-
-        public static SoundwellControlFrame ReadUnity() => FromButtons(
-            new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")),
-            Input.GetKeyDown(KeyCode.E), Input.GetKeyDown(KeyCode.Q),
-            Input.GetKeyDown(KeyCode.R), Input.GetKeyDown(KeyCode.Escape),
-            Input.GetKeyDown(KeyCode.JoystickButton0), Input.GetKeyDown(KeyCode.JoystickButton1),
-            Input.GetKeyDown(KeyCode.JoystickButton2), Input.GetKeyDown(KeyCode.JoystickButton3),
-            Input.GetKeyDown(KeyCode.F), Input.GetKeyDown(KeyCode.JoystickButton4),
-            Input.GetKeyDown(KeyCode.G), Input.GetKeyDown(KeyCode.JoystickButton5));
+            FromActions(movement, keyboardRing || gamepadSouth, keyboardWrap || gamepadWest,
+                keyboardRetry || gamepadNorth, keyboardBack || gamepadEast,
+                keyboardCarry || gamepadLeftShoulder, keyboardGate || gamepadRightShoulder);
     }
 }

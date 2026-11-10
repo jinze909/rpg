@@ -81,6 +81,10 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
             EXPECTED_TESTS,
         )
         self.assertEqual(URP2D_MARKER, "RPG_URP2D_VALIDATED")
+        self.assertIn(
+            "Rpg.Tests.Editor.SoundwellInputSystemTests.InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled",
+            EXPECTED_TESTS,
+        )
 
 
 class CompilerLogTests(unittest.TestCase):

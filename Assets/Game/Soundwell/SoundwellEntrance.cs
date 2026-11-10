@@ -31,6 +31,8 @@ namespace Rpg.Soundwell
 
         private void Awake()
         {
+            SoundwellInputAdapter.SetEntryContext();
+            SoundwellInputAdapter.EnsureEventSystem(transform);
             var canvas = new GameObject("Soundwell entry prompt", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
             canvas.transform.SetParent(transform, false);
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -85,12 +87,6 @@ namespace Rpg.Soundwell
             outcomeText.resizeTextMaxSize = 17;
             LayoutForViewportAspect((float)Screen.width / Mathf.Max(Screen.height, 1));
 
-            if (EventSystem.current == null)
-            {
-                var events = new GameObject("Soundwell entry EventSystem",
-                    typeof(EventSystem), typeof(StandaloneInputModule));
-                events.transform.SetParent(transform, false);
-            }
         }
 
         private void Start()
@@ -132,8 +128,7 @@ namespace Rpg.Soundwell
             if (!Mathf.Approximately(aspect, layoutAspect))
                 LayoutForViewportAspect(aspect);
 
-            if (SoundwellControlFrame.EnterRequested(
-                Input.GetKeyDown(KeyCode.F2), Input.GetKeyDown(KeyCode.JoystickButton0)))
+            if (SoundwellControlFrame.EnterRequested(SoundwellInputAdapter.InteractPressed(), false))
                 OpenTrial();
         }
 

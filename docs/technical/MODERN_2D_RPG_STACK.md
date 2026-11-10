@@ -17,16 +17,16 @@
 | --- | --- | --- |
 | 引擎 | `ProjectSettings/ProjectVersion.txt` 为 Unity `6000.6.8f1` | 固定，不主动改版 |
 | RPG 数据与流程 | ORK 3.22.0 / Makinom 2.21.0；框架数据已由现有 Unity CI 验过 | **冻结** |
-| 渲染 | `GraphicsSettings.asset` 的 `m_CustomRenderPipeline: {fileID: 0}`；Quality 各等级未指定管线；manifest 无 URP | **Built-in 2D，待单独迁移评估** |
+| 渲染 | Unity 6000.6.8f1；URP 17.6.0；GraphicsSettings 指向唯一项目 URP Asset，唯一 Renderer 为 Renderer2D；各 Quality override 清空 | **URP 2D 已在最终 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 通过 Unity 验收并合入 dev** |
 | UI | 已使用 UGUI；禁用“顺手换 UI Toolkit”提案 | **继续 UGUI** |
-| 输入 | `SoundwellTrial.cs` 仍用 `Input.GetAxisRaw`、`Input.GetKeyDown`；manifest 未声明 `com.unity.inputsystem` | 旧 Input Manager，未迁移 |
+| 输入 | M2 候选声明 `com.unity.inputsystem` 1.20.1；Active Input Handling 设为 Both；游戏自有 Input Actions 与 UI Input Module 正在替换 Soundwell 的旧 API；ORK 原厂 Input Key 资产保留 | **New Input System 迁移进行中，尚待最终 Unity 同 SHA 验收** |
 | 摄像机 | `SoundwellView.cs` 手动设置 orthographic size、Camera 等；未声明 Cinemachine | 未采用 Cinemachine 3 |
 | 2D 动画/地图 | 未见自有 `.anim`、Animator Controller、Tilemap 地图资产；仅基础 Sprite/Tilemap 模块 | 制作管线未建立 |
 | 音频 | 场景代码使用 `AudioSource`，未见 Audio Mixer 资产 | 未采用 Mixer/Snapshots |
 | 图集/像素优化 | 未见 `.spriteatlas` / `.spriteatlasv2`；2D Pixel Perfect 包未声明 | 视美术规格启用 |
 | 本地化/资源加载 | 未声明 Unity Localization、Addressables | 尚未采用，不自动强制 |
 | 性能/构建 | 已有 Unity Actions 回归、帧时间/GC 趋势摘要；未见专门 Build Profile、Memory Profiler 包资产 | 继续改进可追溯证据 |
-| 正在开发 | 003 声井真实队伍候选另有失败 CI，属于当前开发阻塞 | 不混入现代化候选 |
+| 正在开发 | 003 声井真实队伍/单场 ORK Turn Based Battle 已在 dev 验收；两种救援策略与真人试玩仍待完成。M2 输入迁移在独立候选中 | 玩法故事与输入技术候选分开验收 |
 
 “未见”限定于该 SHA 的已提交文件，不代表开发者本机或未提交资源一定不存在。审核当前状态须重新读 HEAD、manifest、锁文件、ProjectSettings 与场景，而非照抄此表。
 
@@ -64,8 +64,9 @@
 
 ## 5. 优先级与实施接力
 
-- **先做：** 修复现有 `codex/pending/p2-soundwell-party-runtime` 真实重载回归，不因为写了本技术文档就更改当前故事的优先级。
-- **再做（相互独立）：** URP 2D → 输入 Both 渐进迁移 → Cinemachine 3 → 第一套角色动画 → Tilemap/Audio Mixer。每项单独决定实施时机和验收。必要时输入和 URP 顺序可依风险调整，禁止同时迁移。
+- **已完成：** URP 2D 已独立迁移并通过最终资产 SHA 的 Unity 验收，合入 `codex/dev`。
+- **当前：** New Input System 1.20.1 独立候选迁移，先 Both，游戏自有 Input Actions 替代旧 `Input.*` 执行路径，保留 ORK 原厂输入数据与兼容后端。
+- **后续（相互独立）：** Cinemachine 3 → 第一套角色动画 → Tilemap/Audio Mixer。每项单独决定实施时机和验收；禁止同时迁移。
 - **有充分证据后：** Sprite Atlas V2、Pixel Perfect（取决于美术）、Localization（先确认文本权威）、Memory Profiler、Build Profiles。
 - **不强推：** Addressables、DOTS/ECS、HDRP；没有现阶段需求就不装。
 - 既有用户决定：**ORK/Makinom 不动、无新增花费、UGUI 保留**。这是对任何旧的框架升级建议的明确覆盖。

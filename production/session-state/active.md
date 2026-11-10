@@ -4,7 +4,9 @@ Current story and next acceptance check are maintained in [AI2-STATUS.md](../../
 
 ## Baseline
 
-- Unity 6000.6.8f1, built-in rendering, 2D orthographic startup scene at `Assets/Game/Scenes/Bootstrap.unity`.
+- Unity 6000.6.8f1, URP 17.6.0 with one Renderer2D as the active rendering pipeline; 2D orthographic startup scene at `Assets/Game/Scenes/Bootstrap.unity`.
+- M1 URP 2D final asset SHA `3a3465225636212effcb1d452deb6d7802bb0d16` passed clean Unity verification and was merged to `codex/dev` as `8c36229e011248d019f0ef4d8a9a162dd6354afe`.
+- M2 New Input System migration is in isolated candidate `codex/pending/m2-new-input-system`; keep Active Input Handling Both during ORK compatibility validation. ORK Input Key vendor assets remain untouched.
 - ORK 3.22.0 and Makinom 2.21.0 are pinned by package SHA-256. The installer preserves package assets and their Unity metadata.
 - `Tools > RPG > Wire ORK Bootstrap` assigns a saved Makinom Project asset to the ORK starter in the bootstrap scene. The first starter only initializes the framework. Starting a new game is deferred until the project has a player and a start schematic.
 

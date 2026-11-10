@@ -1,4 +1,4 @@
 {
   "name": "Rpg.Soundwell",
-  "references": ["UnityEngine.UI"]
+  "references": ["UnityEngine.UI", "Unity.InputSystem"]
 }

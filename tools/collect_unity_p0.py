@@ -17,6 +17,7 @@ EXPECTED_TESTS = {
     "Rpg.Tests.Editor.P0BootstrapTests.FirstPlayInitializesFramework",
     "Rpg.Tests.Editor.P0BootstrapTests.SecondPlayInitializesFramework",
     "Rpg.Tests.Editor.P0BootstrapTests.Urp2DRendererIsTheOnlyActivePipeline",
+    "Rpg.Tests.Editor.SoundwellInputSystemTests.InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled",
 }
 URP2D_MARKER = "RPG_URP2D_VALIDATED"
 SOUNDWELL_TESTS = {

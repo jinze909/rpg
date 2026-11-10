@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -163,6 +164,7 @@ namespace Rpg.Soundwell
             // Route a pointer event through the actual UGUI Button + GraphicRaycaster.
             var entryButton = entrance.GetComponentInChildren<Button>();
             Require(entryButton != null && entryButton.interactable, "The entry must be a live UGUI button.");
+            RequireInputSystemEventSystem("Bootstrap");
             var eventSystem = EventSystem.current;
             Require(eventSystem != null && eventSystem.currentSelectedGameObject == entryButton.gameObject,
                 "The entry button must receive keyboard / controller selection.");
@@ -213,9 +215,10 @@ namespace Rpg.Soundwell
                 "A second entry request during loading must reuse the same operation.");
             yield return load;
             Require(SceneManager.GetActiveScene().name == SceneName, "The Bootstrap entrance must load Soundwell.");
+            RequireInputSystemEventSystem("SoundwellTrial");
             var trial = FindRootComponent<SoundwellTrial>();
             Require(trial != null, "The saved trial scene must include the trial component.");
-            trial.ReadKeyboard = false;
+            trial.ReadInput = false;
             for (var wait = Until(() => trial.IsReady, "initialize Soundwell"); wait.MoveNext();)
                 yield return null;
             var camera = trial.TrialCamera;
@@ -532,7 +535,10 @@ namespace Rpg.Soundwell
             // The evidence image must show actual UGUI focus, not only the world
             // camera's SpriteRenderers and world-space text.
             Capture(trial, "00-focused-actions");
-            trial.SetActionMenuOpen(false);
+            var focusedAction = EventSystem.current.currentSelectedGameObject;
+            Require(focusedAction != null, "The focused action menu must have a selected control before Cancel.");
+            ExecuteEvents.ExecuteHierarchy<ICancelHandler>(focusedAction,
+                new BaseEventData(EventSystem.current), ExecuteEvents.cancelHandler);
             Require(!trial.ActionMenuOpen && !EventSystem.current.sendNavigationEvents &&
                 EventSystem.current.currentSelectedGameObject == null,
                 "Leaving focus mode must disable Submit and release the UGUI selection.");
@@ -1334,6 +1340,7 @@ namespace Rpg.Soundwell
             Require(SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
                 "Returning from the trial must restore the entry scene.");
             var returnedEntrance = FindRootComponent<SoundwellEntrance>();
+            RequireInputSystemEventSystem("Bootstrap after trial return");
             Require(returnedEntrance != null && ShowsPrompt(returnedEntrance, "[F2 / Pad A] Enter the trial"),
                 "The entry screen must be usable after returning from the trial.");
             yield return null;
@@ -1480,6 +1487,7 @@ namespace Rpg.Soundwell
                 yield return null;
             Require(FindRootComponent<SoundwellEntrance>() != null,
                 "Focused UGUI Back Submit must return to a live entry scene.");
+            RequireInputSystemEventSystem("Bootstrap after HUD exit");
             Require(EventSystem.current != null && EventSystem.current.sendNavigationEvents,
                 "Returning to Bootstrap must restore its keyboard/gamepad UGUI navigation.");
         }
@@ -1544,6 +1552,21 @@ namespace Rpg.Soundwell
             while (!condition() && Time.realtimeSinceStartup < deadline)
                 yield return null;
             Require(condition(), "Timed out: " + action);
+        }
+
+        private static void RequireInputSystemEventSystem(string context)
+        {
+            var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
+            Require(systems.Length == 1, context + " must have exactly one active EventSystem.");
+            var modules = systems[0].GetComponents<BaseInputModule>().Where(module => module != null && module.enabled).ToArray();
+            Require(modules.Length == 1 && modules[0] is InputSystemUIInputModule,
+                context + " must use exactly one active InputSystemUIInputModule and no legacy module.");
+            var ui = (InputSystemUIInputModule)modules[0];
+            Require(ui.actionsAsset != null && ui.move != null && ui.move.action != null &&
+                ui.submit != null && ui.submit.action != null && ui.cancel != null && ui.cancel.action != null,
+                context + " must have valid New Input System UI navigation, Submit and Cancel actions.");
+            Require(ui.submit.action.bindings.Any(binding => binding.path == "<Gamepad>/buttonSouth"),
+                context + " must route gamepad South through UGUI Submit.");
         }
 
         private static void Require(bool condition, string message)

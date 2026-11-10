@@ -285,8 +285,8 @@ namespace Rpg.Soundwell
             AddLabel(rect, "[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry", 14, Cloth,
                 new Vector2(0, -222), new Vector2(760, 26));
 
-            // Pointer-only HUD: keyboard/controller buttons already route through the
-            // one SoundwellControlFrame input adapter. Prevent duplicate gamepad Submit.
+            // Pointer input remains available outside focus mode. The single
+            // InputSystem UI module owns keyboard/gamepad navigation and Submit.
             var actionCanvas = new GameObject("Soundwell actions HUD", typeof(RectTransform),
                 typeof(Canvas)).GetComponent<Canvas>();
             actionCanvas.transform.SetParent(root, false);
@@ -314,14 +314,10 @@ namespace Rpg.Soundwell
             menuStatus.resizeTextMinSize = 11;
             menuStatus.resizeTextMaxSize = 14;
 
-            if (EventSystem.current == null)
-            {
-                var events = new GameObject("Soundwell actions EventSystem",
-                    typeof(EventSystem), typeof(StandaloneInputModule));
-                events.transform.SetParent(root, false);
-            }
+            var cancelHandler = actionCanvas.gameObject.AddComponent<SoundwellActionMenuCancelHandler>();
+            cancelHandler.Initialize(() => SetActionMenuOpen(false));
 
-            actionEventSystem = EventSystem.current;
+            actionEventSystem = SoundwellInputAdapter.EnsureEventSystem(root);
             if (actionEventSystem == null)
                 throw new System.InvalidOperationException("Soundwell action HUD has no EventSystem.");
             previousNavigationEvents = actionEventSystem.sendNavigationEvents;
@@ -837,5 +833,12 @@ namespace Rpg.Soundwell
             clip.SetData(samples, 0);
             return clip;
         }
+    }
+
+    internal sealed class SoundwellActionMenuCancelHandler : MonoBehaviour, ICancelHandler
+    {
+        private System.Action cancel;
+        public void Initialize(System.Action callback) => cancel = callback;
+        public void OnCancel(BaseEventData eventData) => cancel?.Invoke();
     }
 }

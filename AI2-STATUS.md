@@ -12,7 +12,7 @@
 - P0 在 `6ea56a9746106559d32dbcd0456cfec17fce29d2` 的干净检出上通过 Unity 6000.6.8f1 导入、编译、重复接线、两次 Play Mode 和独立批处理。编辑器生成的项目配置和包锁已入库。[验证日志](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)
 - [任务顺序及冻结范围](BACKLOG.md) · [工作室角色](production/team.md) · [验收与证据规则](production/workflow.md)
 - 剧情文档下一步：打磨已补写的 S00—M00 场景稿，展开一条完整地方线与 M08—M11 连续人物场；文档链接、因果与分支检查不代替真实玩家体验。Unity相关未运行项仍保持待验证。
-- 下一步技术增量：独立候选迁移 URP 2D（Built-in → URP 2D Renderer），保持 Unity 6000.6.8f1、ORK/Makinom 冻结、UGUI 保留；通过同 SHA Unity 验收后再进行 New Input System 迁移。003 玩法下一步仍是分别走通引兽撤离与正面牵制救援，取得同 SHA 证据；固定阵位对照与体验结论保留待验证。
+- 技术迁移当前接力：M1 URP 2D 已合入 `codex/dev`，最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 在 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 同 SHA 干净验收通过（6/6 Editor tests、双次 Play Mode、Soundwell ORK 战斗/信号回归）；合并提交为 `8c36229e011248d019f0ef4d8a9a162dd6354afe`，dev Run 42747121343 通过。M2 New Input System 正在独立候选 `codex/pending/m2-new-input-system` 上实施，起点 SHA `8c36229e011248d019f0ef4d8a9a162dd6354afe`；使用 Unity 6000.6 对应官方包 1.20.1，Active Input Handling = Both，ORK 原厂 Input Key 文件保留。待同一最终 SHA 的 Unity prepare/verify 结果。003 两条救援策略与真人试玩仍未完成；固定阵位对照与体验结论保留待验证。
 - 上轮剧情大纲文档验收（`15e35c39faf59a930dca55ca9d323677f14ed80b`）：叙事作者与独立一致性审稿完成；时间地理、重逢后因果、人物离开替代与结局边界审查通过；当时9份Markdown的53处本地链接、16个主线章节和6个地方线编号及空白检查通过，不代表游戏实现通过。
 - 本轮玩法基线文档验收：设计、技术、叙事、UX与QA互评，状态边界及对照口径审查通过；7份Markdown的56处本地链接与空白检查通过。没有运行Unity或游戏测试，未实现、未试玩。
 
