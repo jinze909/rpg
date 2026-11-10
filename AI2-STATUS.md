@@ -5,14 +5,14 @@
 - 用户已同意“归来”主线并要求详细大纲入库。现有[主线大纲](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)、[地区与长期故事](docs/narrative/REGIONAL_STORIES.md) v0.2：采用用户提供的 Claude 文稿，加入白水渡谜线、点名与受限听雾，保留中段救友、后半共同成长与独立地方故事。它们是写作基线，未实现、未试玩；工作标题与具体扩写细节仍可改稿。
 - 用户授权深入讨论并写一页玩法基线，本轮新增[基线v0.1](docs/gameplay/BASELINE.md)：区域探索与队伍短回合为方向，三人、固定个人顺序及镜头等仅作首轮控制；移动/固定阵位须公平对照，仍未实现、未试玩。
 - 先前撤销的游戏设定继续作废。主角外观、美术尺度等未锁定，玩法的已定/暂定/待验证以[玩法基线](docs/gameplay/BASELINE.md)和 [BACKLOG](BACKLOG.md) 为准。
-- 当前开发为 [003 · 三人短回合声井救援](production/stories/003-soundwell-turn-rescue.md)，进行中而非完成。已交付 ORK 三名真实 Combatant 组成一个 PlayerGroup、借声兽作为 EnemyGroup，并在真实 ORK Turn Based Battle 中验证四名 Combatant 同场；声井摇铃、包铃、撤退、重试路径也通过 Play Mode 回归。尚未证明两条独立救援策略都能从同一起点完成，亦未完成真人试玩；固定阵位对照和乐趣仍待验证。
+- 当前开发为 [003 · 三人短回合声井救援](production/stories/003-soundwell-turn-rescue.md)，进行中而非完成。最新候选 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 已快进合入 `codex/dev`；同 SHA 的 [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 `passed-clean-candidate`（8/8 Editor tests、两次 Play Mode、独立 Batch）。该增量验证了 New Input System 键鼠/手柄动作路由、三人 ORK 回合战斗进入及 ORK HP 死亡/战斗结束后的闸门逻辑。故事仍未完成：Makinom UI System 仍为 `NoneUISystem`，自动战斗菜单关闭，默认攻击 Ability 未配置，因此玩家实际选择攻击/目标的完整战斗尚不可玩；两条完整救援策略和真人试玩仍待验收。
 - 工程锁定 Unity 6.6（6000.6.8f1）与随编辑器发布的 UGUI（CI 解析为 2.6.0）。当前框架仍用已提供的 ORK 3.22.0 / Makinom 2.21.0 固定包。此前已对安装脚本的 136 个文件做逐字节比对并验证重跑。
 - 框架包已完整整合到开发分支：73 个资源条目、136 个文件与原包逐字节一致，原始 GUID 保留；当时重复安装新增 0 个文件，`python tools/verify_ork.py` 与两个源码 ZIP 的 CRC 检查通过。详见 [整合证据](docs/ork-integration.md)。[P0 已通过 Unity 验收](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)。
 - 启动接线会拒绝空配置、禁用的 Starter 与错误的数据来源。新增 [Unity 批处理检查](README.md#批处理启动验收)，可记录配置验收日志。
 - P0 在 `6ea56a9746106559d32dbcd0456cfec17fce29d2` 的干净检出上通过 Unity 6000.6.8f1 导入、编译、重复接线、两次 Play Mode 和独立批处理。编辑器生成的项目配置和包锁已入库。[验证日志](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)
 - [任务顺序及冻结范围](BACKLOG.md) · [工作室角色](production/team.md) · [验收与证据规则](production/workflow.md)
 - 剧情文档下一步：打磨已补写的 S00—M00 场景稿，展开一条完整地方线与 M08—M11 连续人物场；文档链接、因果与分支检查不代替真实玩家体验。Unity相关未运行项仍保持待验证。
-- 技术迁移当前接力：M1 URP 2D 已合入 `codex/dev`，最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 在 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 同 SHA 干净验收通过（6/6 Editor tests、双次 Play Mode、Soundwell ORK 战斗/信号回归）；合并提交为 `8c36229e011248d019f0ef4d8a9a162dd6354afe`，dev Run 42747121343 通过。M2 New Input System 正在独立候选 `codex/pending/m2-new-input-system` 上实施，起点 SHA `8c36229e011248d019f0ef4d8a9a162dd6354afe`；使用 Unity 6000.6 对应官方包 1.20.1，Active Input Handling = Both，ORK 原厂 Input Key 文件保留。待同一最终 SHA 的 Unity prepare/verify 结果。003 两条救援策略与真人试玩仍未完成；固定阵位对照与体验结论保留待验证。
+- 技术迁移当前接力：M1 URP 2D 已合入 `codex/dev`，最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 在 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 同 SHA 干净验收通过（6/6 Editor tests、双次 Play Mode、Soundwell ORK 战斗/信号回归）；合并提交为 `8c36229e011248d019f0ef4d8a9a162dd6354afe`。M2 游戏自有 Soundwell 输入动作适配已合入 `codex/dev`，候选 SHA `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 在 [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；使用 Input System 1.20.1，保留 `Active Input Handling = Both` 供 ORK 兼容，未修改 ORK 原厂 Input Key 资产。M2 剩余 UGUI 导航/焦点与更广泛 ORK 兼容验收。003 的实际战斗菜单、两条救援策略与真人试玩仍未完成。
 - 上轮剧情大纲文档验收（`15e35c39faf59a930dca55ca9d323677f14ed80b`）：叙事作者与独立一致性审稿完成；时间地理、重逢后因果、人物离开替代与结局边界审查通过；当时9份Markdown的53处本地链接、16个主线章节和6个地方线编号及空白检查通过，不代表游戏实现通过。
 - 本轮玩法基线文档验收：设计、技术、叙事、UX与QA互评，状态边界及对照口径审查通过；7份Markdown的56处本地链接与空白检查通过。没有运行Unity或游戏测试，未实现、未试玩。
 
@@ -32,3 +32,6 @@
 - 002 实作和自动化验收完成。Unity 实测 SHA `e7312010b42c9a29e4bf65badd02a946ddd9381d`，从 Bootstrap 进入场景，验证移动与碰撞、摇铃追索、包铃搜索、回撤重试及场景重载，保存三张截图。[同 SHA CI](https://github.com/jinze909/rpg/actions/runs/42581703947)
 
 Producer 在此更新当前故事、最近交付、证据 SHA 及链接、未完成的检查和一个明确的下一步。项目长期背景见 [基线记录](production/session-state/active.md)。
+
+
+- 2026-11-10 交付：`codex/dev` 从 `8c36229e011248d019f0ef4d8a9a162dd6354afe` 快进至 `2eee996adaec6563fd379416e7ec6fad8e1b9a62`。同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 为 `passed-clean-candidate`；8/8 Editor tests 全部通过：Bootstrap wiring、URP 2D renderer、两次 Play 初始化、键盘/手柄动作上下文、三人 ORK 回合战斗与 Soundwell 信号流程。验收产物：[Unity P0 artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。

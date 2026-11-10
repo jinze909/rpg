@@ -18,7 +18,7 @@ Producer 按实际依赖和阻塞选下一项，每轮收敛到一个可验收�
 
 **跨轮迁移接力已经立项：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2)，下设 14 张独立执行票 [#3—#16](https://github.com/jinze909/rpg/issues/3)。按总票与下表逐张实施：**先在当前 dev 上整合 Soundwell 的已通过候选，再做 [URP 2D #3](https://github.com/jinze909/rpg/issues/3)，然后做 [New Input System #4](https://github.com/jinze909/rpg/issues/4)**。其余有实际意义的迁移已分别开票，后续 AI 应沿同一编号推进，**不得因为换聊天就丢弃**，也不得将开票当作已迁移、为每项建空分支或在单一候选中混装多技术。ORK 原有输入文件保留，但游戏自有输入动作最终只允许 New Input System 一个运行执行者；内核 ORK 兼容由实际 Unity 结果决定。
 
-**本轮技术先行证据：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。003 的两种救援策略与真人试玩仍是后续故事验收，不可冒充整卡完成。
+**本轮技术先行证据：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。M2 Soundwell New Input System gameplay adapter 已在 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 合入 `codex/dev`，同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；[artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。003 的玩家战斗菜单/攻击、两种完整救援策略与真人试玩仍是后续验收，不可冒充整卡完成。
 
 **硬限制：** 现有 ORK 3.22.0 / Makinom 2.21.0 **保持不变**，不升级/重购/改厂商文件或设置；UGUI 保留，不迁移 UI Toolkit；禁止未经另行授权的新付费插件、订阅、云服务和 CI 费用。统一执行规则与官方链接见 [现代 2D RPG 技术基线](docs/technical/MODERN_2D_RPG_STACK.md)。
 
@@ -26,7 +26,7 @@ Producer 按实际依赖和阻塞选下一项，每轮收敛到一个可验收�
 | --- | --- | --- |
 | M0 · 当前优先 | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 已整合到 `codex/dev`：`0fb1389c9df1e50d41eef73551e25d0c391c1a43`；同 SHA Run 42740645793 通过 5/5、批处理与 `passed-clean-candidate`。003 两条策略仍未完成 |
 | M1 · URP 2D | 单独候选：2D Renderer、项目管线、质量级继承、材质/相机/UGUI/场景回归 | **已合入** `codex/dev`：merge SHA `8c36229e011248d019f0ef4d8a9a162dd6354afe`；最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16`，Run 42744816128 `passed-clean-candidate`，6/6 tests；dev Run 42747121343 成功 |
-| M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **进行中**：独立候选 `codex/pending/m2-new-input-system`，基线 `8c36229e011248d019f0ef4d8a9a162dd6354afe`；官方 1.20.1；迁移游戏自有执行路径，保留 ORK 原厂输入资产/兼容后端，等待同 SHA Unity 验收 |
+| M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **核心适配已合入** `codex/dev`：SHA `2eee996adaec6563fd379416e7ec6fad8e1b9a62`；官方 1.20.1；Run 42766341628 同 SHA 通过 8/8 tests、双次 Play Mode、独立 Batch。Active Input Handling Both 保留供 ORK 兼容，ORK 原厂 Input Key 资产未改。剩余 UGUI 导航/焦点与更广泛 ORK 兼容验收，M2 尚未关闭 |
 | M3 · Cinemachine 3 | 替代唯一自有摄像机控制路径，验证 2D 跟随、边界、各宽高比和战斗镜头 | 仅计划；不得同时运行双摄像机控制器 |
 | M4 · 2D 动画 | 确定逐帧或骨骼方案后做可见角色待机/移动/战斗/受击一条闭环 | 仅计划；不强制骨骼 |
 | M5 · Tilemap Extras | 真实区域的 Rule Tile、Tilemap、碰撞与排序 | 仅计划；地图需求成立再执行 |

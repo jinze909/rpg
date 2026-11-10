@@ -1,6 +1,6 @@
 # 003 · 三人短回合声井救援
 
-状态：进行中。002 的真人试玩待做；003 已完成三人 ORK 队伍/单场 Turn Based Battle 接线及声井摇铃、包铃、撤退、重试自动回归，尚未完成两条独立救援策略的完整验收。设计依据见[首样本](../../docs/gameplay/FIRST_PLAYABLE.md)。
+状态：进行中。002 的真人试玩待做；003 已完成三人 ORK 队伍/单场 Turn Based Battle 接线、New Input System 键鼠/手柄路由回归，以及声井摇铃、包铃、撤退、重试自动回归。直接战斗入口与 ORK 死亡/战斗结束后的闸门逻辑已通过自动测试，但 ORK 玩家战斗菜单和实际攻击尚未接通，因此两条独立救援策略仍未完成完整验收。设计依据见[首样本](../../docs/gameplay/FIRST_PLAYABLE.md)。
 
 ## 玩家得到什么
 
@@ -29,7 +29,15 @@
 ## 2026-11-10 Direct-combat route increment
 
 - The existing gate-panel interaction now offers a direct route before the player commits to the bell route. The route starts the saved three-member ORK player group against the Soundwell beast in the scene's saved Turn Based battle system.
-- During battle, the Soundwell exploration controls and trial HUD are suspended; the ORK battle UI owns navigation and action selection. The party's follow formation also pauses while its members are in battle.
+- During battle, the Soundwell exploration controls and trial HUD are suspended; the party's follow formation also pauses while its members are in battle. The ORK battle UI is **not yet active**: Makinom UI System Settings are still `NoneUISystem`, and `autoCallBattleMenu` is disabled to avoid invoking an unconfigured menu. Turn state is live, but player action/target selection is not yet playable.
 - The same gate can now be opened by either a confirmed ORK victory or the existing side-bell lure condition. The selected approach is stored in Makinom variables; the ORK beast's `Status.IsDead` state, not a UI flag, is the direct-route victory condition.
-- The editor integration test enters the direct route through the actual gate interaction, checks all four battle participants and a player turn, then exercises ORK's combatant death state to verify that only a resolved victory unlocks the gate.
-- Still incomplete: a distinct protect/guard action during the direct battle, and a full player-input play-through of both rescue routes through surveyor escort and retreat. This increment does not close Story 003.
+- The editor integration test enters the direct route through the actual gate interaction, checks all four battle participants and a player turn, applies damage through ORK HP status value ID 1 until the configured OnMinimum threshold, resolves `CombatantStatus.CheckDeath`, and ends the test encounter through `ORK.Game.Combatants.EndBattle`. It verifies that the gate stays locked until the ORK beast is dead and the battle has ended. This simulates an ORK status-damage result; it does **not** yet exercise a player-selected Attack action.
+- Still incomplete: configure the Unity UI system, UI Box/button prefabs and default base-attack Ability; implement player-selected Attack/target and protect/guard actions; then run a full player-input play-through of both rescue routes through surveyor escort and retreat. First-time player comprehension and fun still require human playtesting. This increment does not close Story 003.
+
+
+## 2026-11-10 Verified delivery
+
+- Final tested candidate SHA: `2eee996adaec6563fd379416e7ec6fad8e1b9a62`, merged into `codex/dev` by fast-forward from `8c36229e011248d019f0ef4d8a9a162dd6354afe`.
+- [Unity P0 Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) passed on that exact SHA with `passed-clean-candidate`: 8/8 Editor tests, first and second Play Mode initialization, independent Batch check, Soundwell ORK battle and signal markers. [Evidence artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633).
+- The input integration test uses the New Input System action asset and test devices for F2, Gamepad South, gameplay Ring, W movement and UI-focus movement suppression. The ORK integration test validates three player combatants plus the beast in one Turn Based battle and the HP-death/battle-end gate condition.
+- This is an accepted technical increment, not completion of Story 003. The project still has no configured ORK Unity UI system or player-selected base attack, so direct combat action selection remains blocked.
