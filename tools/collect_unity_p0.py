@@ -120,6 +120,65 @@ def format_performance_summary(performance):
     )
 
 
+MEMORY_PHASES = (
+    "bootstrap_before_entry", "soundwell_entered", "rescue_completed",
+    "soundwell_reloaded", "bootstrap_after_return",
+)
+MEMORY_COUNTER_KEYS = (
+    "managed_gc_heap_bytes", "unity_managed_used_bytes",
+    "unity_managed_reserved_bytes", "unity_total_allocated_bytes",
+    "unity_total_reserved_bytes", "unity_unused_reserved_bytes",
+    "loaded_game_objects", "loaded_textures", "loaded_audio_clips",
+)
+
+
+def validate_memory_phases(report):
+    """Reject synthetic/empty/incomplete memory evidence, not natural growth."""
+    errors = []
+    if not isinstance(report, dict):
+        return ["M10 memory report must be a JSON object."]
+    if report.get("schema_version") != 1:
+        errors.append("M10 memory schema version must be 1.")
+    if report.get("unity_version") != "6000.6.8f1":
+        errors.append("M10 memory evidence must come from pinned Unity.")
+    if report.get("scenario") != "soundwell-enter-rescue-reload-return" or (
+        report.get("sample_source") != "UnityEngine.Profiling.Profiler + System.GC"
+    ):
+        errors.append("M10 memory evidence must use the real tested scenario and Profiler counters.")
+    if "not player hardware" not in str(report.get("environment", "")):
+        errors.append("M10 must identify the Linux Editor container, not player hardware.")
+    samples = report.get("snapshots")
+    if not isinstance(samples, list) or len(samples) != len(MEMORY_PHASES):
+        return errors + ["M10 requires five real story-phase memory measurements."]
+    expected_scenes = ("Bootstrap", "SoundwellTrial", "SoundwellTrial",
+                       "SoundwellTrial", "Bootstrap")
+    for index, (sample, phase, scene) in enumerate(zip(samples, MEMORY_PHASES, expected_scenes)):
+        if not isinstance(sample, dict) or sample.get("phase") != phase or sample.get("scene") != scene:
+            errors.append(f"M10 sample {index} must be the real {phase} scene.")
+            continue
+        if type(sample.get("unity_frame")) is not int or sample["unity_frame"] < 0:
+            errors.append(f"M10 sample {phase} lacks a valid Unity frame.")
+        for key in MEMORY_COUNTER_KEYS:
+            value = sample.get(key)
+            if type(value) is not int or value < 0 or (
+                key in ("managed_gc_heap_bytes", "loaded_game_objects") and value == 0
+            ):
+                errors.append(f"M10 sample {phase} has invalid {key}.")
+    for key in ("bootstrap_managed_gc_heap_delta_bytes",
+                "bootstrap_unity_total_allocated_delta_bytes"):
+        if type(report.get(key)) is not int:
+            errors.append(f"M10 report missing signed delta: {key}.")
+    if not errors:
+        before, after = samples[0], samples[-1]
+        if report["bootstrap_managed_gc_heap_delta_bytes"] != (
+            after["managed_gc_heap_bytes"] - before["managed_gc_heap_bytes"]
+        ) or report["bootstrap_unity_total_allocated_delta_bytes"] != (
+            after["unity_total_allocated_bytes"] - before["unity_total_allocated_bytes"]
+        ):
+            errors.append("M10 bootstrap delta does not reconcile with collected samples.")
+    return errors
+
+
 def collect(mode):
     root = Path(__file__).resolve().parents[1]
     os.chdir(root)
@@ -154,6 +213,7 @@ def collect(mode):
     soundwell = mode == "verify" and has_soundwell_scene
     expected_tests = expected_tests_for(mode, has_soundwell_scene)
     performance = None
+    memory_phases = None
     if soundwell:
         for filename in ("01-ringing.png", "02-wrapped-searching.png",
                          "03-retreat-reset.png", "14-localized-zh-Hans.png"):
@@ -200,6 +260,15 @@ def collect(mode):
                 errors.append("Soundwell peak heap is below its starting or ending sample.")
         except (OSError, ValueError, TypeError, AttributeError) as error:
             errors.append(f"Missing or invalid Soundwell performance artifact: {error}")
+
+        # M10 always derives actual before/after samples from the same CI
+        # Soundwell story, with Unity native/managed metrics and asset counts.
+        try:
+            memory_path = evidence / "performance" / "soundwell-memory-phases.json"
+            memory_phases = json.loads(memory_path.read_text())
+            errors.extend(validate_memory_phases(memory_phases))
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            errors.append(f"Missing or invalid M10 memory evidence: {error}")
 
     try:
         result = ET.parse(evidence / "editmode-results.xml").getroot()
@@ -268,6 +337,7 @@ def collect(mode):
         "run_url": f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}",
         "changed_files_sha256": hashes,
         "performance": performance if soundwell else None,
+        "memory_phases": memory_phases if soundwell else None,
         "errors": errors,
         "note": "Preparation verifies SHA plus generated files; commit reviewed files and rerun verify for clean-SHA evidence.",
     }

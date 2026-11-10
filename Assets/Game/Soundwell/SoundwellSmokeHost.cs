@@ -56,6 +56,7 @@ namespace Rpg.Soundwell
             startHeapBytes = GC.GetTotalMemory(false);
             peakHeapBytes = startHeapBytes;
             frameTimeMs.Clear();
+            SoundwellMemoryProbe.Reset();
             Application.logMessageReceived += RecordRuntimeError;
             StartCoroutine(Drive(VerifyTrial()));
         }
@@ -101,6 +102,7 @@ namespace Rpg.Soundwell
             const string file = "artifacts/p0/performance/soundwell-playmode.json";
             Directory.CreateDirectory(Path.GetDirectoryName(file));
             File.WriteAllText(file, JsonUtility.ToJson(evidence, true) + "\n");
+            SoundwellMemoryProbe.Save();
         }
 
         private IEnumerator Drive(IEnumerator steps)
@@ -159,6 +161,7 @@ namespace Rpg.Soundwell
             yield return null;
             Require(SceneManager.GetActiveScene().name == "Bootstrap",
                 "Unexpected initial scene: " + SceneManager.GetActiveScene().path);
+            SoundwellMemoryProbe.Capture("bootstrap_before_entry");
             var entrance = FindRootComponent<SoundwellEntrance>();
             Require(entrance != null, "The saved Bootstrap scene must expose the trial.");
             Require(ShowsPrompt(entrance, "[F2 / Pad A] Enter the trial"), "The entry screen must show its entry control.");
@@ -227,6 +230,7 @@ namespace Rpg.Soundwell
                 yield return null;
             SoundwellInputAdapter.EnsureEventSystem(trial.transform);
             yield return null;
+            SoundwellMemoryProbe.Capture("soundwell_entered");
             RequireInputSystemEventSystem("SoundwellTrial");
             var camera = trial.TrialCamera;
             camera.aspect = 1f;
@@ -1239,6 +1243,7 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "verified route is posted"),
                 "Verified route sign requires the map kit and real arrival at the old marker.");
             Capture(trial, "13-surveyor-posts-safe-route");
+            SoundwellMemoryProbe.Capture("rescue_completed");
 
             // Returning after a real rescue must visibly carry its outcome
             // into Bootstrap. This is not a save or an invented ORK reward.
@@ -1291,6 +1296,7 @@ namespace Rpg.Soundwell
             Require(fresh != null && !ReferenceEquals(fresh, trial), "Reload must create a fresh trial.");
             for (var wait = Until(() => fresh.IsReady, "initialize the reloaded trial"); wait.MoveNext();)
                 yield return null;
+            SoundwellMemoryProbe.Capture("soundwell_reloaded");
             Require(SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese &&
                 ShowsPrompt(fresh, "声井 / 信号试炼"),
                 "Reload must retain the selected local HUD language.");
@@ -1519,6 +1525,7 @@ namespace Rpg.Soundwell
             RequireInputSystemEventSystem("Bootstrap after HUD exit");
             Require(EventSystem.current != null && EventSystem.current.sendNavigationEvents,
                 "Returning to Bootstrap must restore its keyboard/gamepad UGUI navigation.");
+            SoundwellMemoryProbe.Capture("bootstrap_after_return");
         }
 
         private static Button TrialActionButton(SoundwellTrial trial, string action)

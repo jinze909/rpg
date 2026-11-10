@@ -11,6 +11,8 @@ from collect_unity_p0 import (
     SOUNDWELL_TESTS,
     expected_tests_for,
     format_performance_summary,
+    validate_memory_phases,
+    MEMORY_PHASES,
 )
 
 
@@ -68,6 +70,58 @@ class PerformanceSummaryTests(unittest.TestCase):
         performance["environment"] = "Unity Editor\nmalicious next line"
         self.assertIn("- Environment: Unity Editor malicious next line\n",
                       format_performance_summary(performance))
+
+class MemoryPhasesEvidenceTests(unittest.TestCase):
+    def sample(self, phase, scene):
+        return {
+            "phase": phase, "scene": scene, "unity_frame": 100,
+            "managed_gc_heap_bytes": 20000000,
+            "unity_managed_used_bytes": 10000000,
+            "unity_managed_reserved_bytes": 40000000,
+            "unity_total_allocated_bytes": 50000000,
+            "unity_total_reserved_bytes": 60000000,
+            "unity_unused_reserved_bytes": 10000000,
+            "loaded_game_objects": 120, "loaded_textures": 10,
+            "loaded_audio_clips": 2,
+        }
+
+    def evidence(self):
+        scenes = ("Bootstrap", "SoundwellTrial", "SoundwellTrial",
+                  "SoundwellTrial", "Bootstrap")
+        return {
+            "schema_version": 1,
+            "unity_version": "6000.6.8f1",
+            "scenario": "soundwell-enter-rescue-reload-return",
+            "environment": "Unity Editor Play Mode (GameCI Linux container; not player hardware)",
+            "sample_source": "UnityEngine.Profiling.Profiler + System.GC",
+            "snapshots": [self.sample(phase, scene)
+                          for phase, scene in zip(MEMORY_PHASES, scenes)],
+            "bootstrap_managed_gc_heap_delta_bytes": 0,
+            "bootstrap_unity_total_allocated_delta_bytes": 0,
+        }
+
+    def test_real_metrics_can_be_compared_without_declaring_growth_a_leak(self):
+        data = self.evidence()
+        data["snapshots"][-1]["managed_gc_heap_bytes"] += 2048
+        data["bootstrap_managed_gc_heap_delta_bytes"] = 2048
+        self.assertEqual(validate_memory_phases(data), [])
+
+    def test_missing_unreal_or_misordered_samples_are_rejected(self):
+        for mutation in ("empty", "wrong_scene", "negative", "bool", "delta"):
+            with self.subTest(mutation=mutation):
+                data = self.evidence()
+                if mutation == "empty":
+                    data["snapshots"] = []
+                elif mutation == "wrong_scene":
+                    data["snapshots"][2]["scene"] = "Bootstrap"
+                elif mutation == "negative":
+                    data["snapshots"][1]["loaded_textures"] = -1
+                elif mutation == "bool":
+                    data["snapshots"][3]["managed_gc_heap_bytes"] = True
+                elif mutation == "delta":
+                    data["bootstrap_unity_total_allocated_delta_bytes"] = 999
+                self.assertTrue(validate_memory_phases(data), mutation)
+
 
 class SoundwellAcceptanceContractTests(unittest.TestCase):
     def test_ork_battle_test_and_runtime_marker_are_required(self):
