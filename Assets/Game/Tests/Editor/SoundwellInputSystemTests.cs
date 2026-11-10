@@ -30,44 +30,44 @@ namespace Rpg.Tests.Editor
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
 
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2));
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True,
                     "F2 must activate the real Entry action.");
 
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState());
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 InputSystem.QueueStateEvent(gamepad, new GamepadState(GamepadButton.South));
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True,
                     "Gamepad South must activate the real Entry action.");
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.False,
                     "Entry input must not also ring the gameplay bell.");
 
                 InputSystem.QueueStateEvent(gamepad, new GamepadState());
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 SoundwellInputAdapter.SetGameplayContext();
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 
                 InputSystem.QueueStateEvent(gamepad, new GamepadState(GamepadButton.South));
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.True,
                     "Gamepad South must ring only after the Gameplay map is active.");
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.False,
                     "Gameplay input must not also activate the Entry action.");
 
                 InputSystem.QueueStateEvent(gamepad, new GamepadState());
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.W));
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Movement.y, Is.GreaterThan(0.9f),
                     "W must drive the real Gameplay Move action.");
 
                 SoundwellInputAdapter.SetUiContext();
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState());
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.S));
-                InputSystem.Update();
+                InputSystem.Update(InputUpdateType.Editor);
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Movement, Is.EqualTo(Vector2.zero),
                     "UI focus must disable gameplay movement rather than moving behind a focused menu.");
             }
