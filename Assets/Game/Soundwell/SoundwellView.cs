@@ -15,9 +15,12 @@ namespace Rpg.Soundwell
         private readonly Camera camera;
         private readonly Sprite square;
         private readonly Sprite leaderPixelSprite;
+        private readonly Sprite leaderWalkPixelSprite;
+        private readonly SpriteRenderer leaderVisualRenderer;
         private readonly Sprite beastPixelSprite;
         private readonly SpriteRenderer beastVisualRenderer;
         private readonly Texture2D leaderPixelTexture;
+        private readonly Texture2D leaderWalkPixelTexture;
         private readonly Texture2D beastPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
@@ -89,6 +92,8 @@ namespace Rpg.Soundwell
                 new Vector2(0.5f, 0.5f), Texture2D.whiteTexture.width);
             leaderPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader",
                 LeaderPixels, out leaderPixelTexture);
+            leaderWalkPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader walk",
+                LeaderWalkPixels, out leaderWalkPixelTexture);
             beastPixelSprite = CreatePixelSprite("PLACEHOLDER 16px beast",
                 BeastPixels, out beastPixelTexture);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
@@ -194,9 +199,9 @@ namespace Rpg.Soundwell
             animatedPlayer.SetParent(player, false);
             // The original Animator still moves this complete visual-only child.
             // The face is part of one transparent pixel silhouette.
-            var leaderRenderer = Plate(animatedPlayer, "PLACEHOLDER player silhouette",
+            leaderVisualRenderer = Plate(animatedPlayer, "PLACEHOLDER player silhouette",
                 Vector2.zero, Vector2.one, new Color(0.43f, 0.91f, 0.72f), 3);
-            leaderRenderer.sprite = leaderPixelSprite;
+            leaderVisualRenderer.sprite = leaderPixelSprite;
             playerAnimation = animatedPlayer.gameObject.AddComponent<SoundwellPlayerVisualAnimation>();
             playerAnimation.Initialize();
             bellMarker = Plate(bell, "PLACEHOLDER copper bell", Vector2.zero, new Vector2(0.57f, 0.57f), Gold, 2);
@@ -883,10 +888,33 @@ namespace Rpg.Soundwell
             audio.Play();
         }
 
-        public void AnimatePlayerMotion(bool moving) => playerAnimation.UpdateMotion(moving);
-        public void AnimatePlayerAction() => playerAnimation.PlayAction();
-        public void AnimatePlayerHit() => playerAnimation.PlayHit();
-        public void ResetPlayerAnimation() => playerAnimation.ResetAnimation();
+        // Reuse M4's sole presentation Animator; only the sprite image changes.
+        // The rendered leader is still a child of the authoritative ORK/2D actor.
+        public void AnimatePlayerMotion(bool moving)
+        {
+            playerAnimation.UpdateMotion(moving);
+            bool walkFrame = playerAnimation.CurrentState == "Move" &&
+                Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1;
+            leaderVisualRenderer.sprite = walkFrame ? leaderWalkPixelSprite : leaderPixelSprite;
+        }
+
+        public void AnimatePlayerAction()
+        {
+            playerAnimation.PlayAction();
+            leaderVisualRenderer.sprite = leaderPixelSprite;
+        }
+
+        public void AnimatePlayerHit()
+        {
+            playerAnimation.PlayHit();
+            leaderVisualRenderer.sprite = leaderPixelSprite;
+        }
+
+        public void ResetPlayerAnimation()
+        {
+            playerAnimation.ResetAnimation();
+            leaderVisualRenderer.sprite = leaderPixelSprite;
+        }
 
         public void ResetPulse()
         {
@@ -910,8 +938,10 @@ namespace Rpg.Soundwell
             }
             Object.Destroy(square);
             Object.Destroy(leaderPixelSprite);
+            Object.Destroy(leaderWalkPixelSprite);
             Object.Destroy(beastPixelSprite);
             Object.Destroy(leaderPixelTexture);
+            Object.Destroy(leaderWalkPixelTexture);
             Object.Destroy(beastPixelTexture);
             Object.Destroy(ringMaterial);
             Object.Destroy(clearBell);
@@ -953,6 +983,28 @@ namespace Rpg.Soundwell
             ".....##..##.....",
             "....###..###....",
             "....###..###....",
+            "................",
+        };
+
+        // Same 16px body, with a readable alternating leg pose.
+        // It is visual only: frame selection never changes movement or ORK status.
+        private static readonly string[] LeaderWalkPixels =
+        {
+            "................",
+            "......####......",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            "......####......",
+            ".....######.....",
+            "...##########...",
+            "...##+####+##...",
+            "...##########...",
+            ".....######.....",
+            ".....##..##.....",
+            "....###...##....",
+            "...###.....###..",
+            "..###.......###.",
             "................",
         };
 

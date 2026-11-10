@@ -281,12 +281,26 @@ namespace Rpg.Tests.Editor
             foreach (var state in new[] { "Idle", "Move", "Action", "Hit" })
                 Assert.That(visual.Controller.HasState(0, Animator.StringToHash(state)), Is.True);
             Assert.That(visual.CurrentState, Is.EqualTo("Idle"));
+            var idleLeaderSprite = pixelLeader.sprite;
             trial.ApplyInput(Vector2.right, false, false, false);
             yield return null;
             Assert.That(visual.CurrentState, Is.EqualTo("Move"));
+            // A second authored 16px frame must really appear during locomotion,
+            // while retaining one Animator and never altering the ORK character.
+            float walkFrameDeadline = Time.realtimeSinceStartup + 0.6f;
+            while (pixelLeader.sprite == idleLeaderSprite &&
+                   Time.realtimeSinceStartup < walkFrameDeadline)
+                yield return null;
+            Assert.That(pixelLeader.sprite, Is.Not.SameAs(idleLeaderSprite),
+                "Moving leader needs a second visible pixel pose.");
+            Assert.That(pixelLeader.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(pixelLeader.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(pixelLeader.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             trial.ApplyInput(Vector2.zero, false, false, false);
             yield return null;
             Assert.That(visual.CurrentState, Is.EqualTo("Idle"));
+            Assert.That(pixelLeader.sprite, Is.SameAs(idleLeaderSprite),
+                "Idle must restore the same original pixel pose.");
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
 
