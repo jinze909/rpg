@@ -1315,21 +1315,17 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
             Require(freshMarker != null && !freshMarker.enabled,
                 "Reload must clear the visible beast target from the previous experiment.");
-            // ORK may place its combatant under a scene owner. Count every
-            // actor in the reloaded scene, not only scene-root objects; still
-            // reject duplicates and require the actual controlled Rigidbody2D.
-            var scenePlayers = SceneManager.GetActiveScene().GetRootGameObjects()
-                .SelectMany(root => root.GetComponentsInChildren<Transform>(true))
-                .Where(actor => actor.gameObject.name == "PLACEHOLDER Player")
+            // ORK can rename actors to their combatant asset name ("Default").
+            // Check the real serialized player actor and the unique physics
+            // controller in the current scene, not a presentation name.
+            var reloadedBodies = SceneManager.GetActiveScene().GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<Rigidbody2D>(true))
                 .ToArray();
-            Require(scenePlayers.Length == 1 &&
-                scenePlayers[0].GetComponent<Rigidbody2D>() != null &&
-                Vector2.Distance(scenePlayers[0].GetComponent<Rigidbody2D>().position,
-                    fresh.PlayerPosition) < 0.01f,
-                "Reload must have exactly one controllable scene player (found " +
-                scenePlayers.Length + "; scene roots: " +
-                string.Join(", ", SceneManager.GetActiveScene().GetRootGameObjects()
-                    .Select(root => root.name)) + ").");
+            Require(reloadedBodies.Length == 1 &&
+                reloadedBodies[0].transform == fresh.PlayerActor &&
+                Vector2.Distance(reloadedBodies[0].position, fresh.PlayerPosition) < 0.01f,
+                "Reload must have exactly one live scene physics player linked to the trial " +
+                "(found " + reloadedBodies.Length + " Rigidbody2D controllers).");
 
             var back = fresh.ReturnToBootstrap();
             Require(back != null && ReferenceEquals(back, fresh.ReturnToBootstrap()),
