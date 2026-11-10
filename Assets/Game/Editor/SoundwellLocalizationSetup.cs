@@ -15,6 +15,7 @@ namespace Rpg.Editor
         private const string SharedPath = Folder + "/SoundwellUI-Shared.asset";
         private const string EnPath = Folder + "/SoundwellUI-en.asset";
         private const string ZhPath = Folder + "/SoundwellUI-zh-Hans.asset";
+        private const string CjkFontPath = "Assets/Game/Resources/Soundwell/Fonts/SoundwellChinese.ttf";
         private static readonly (string key, string en, string zh)[] Entries =
         {
             ("hud.title", "SOUNDWELL  /  SIGNAL TRIAL", "声井 / 信号试炼"),
@@ -76,6 +77,12 @@ namespace Rpg.Editor
 
         public static void Validate()
         {
+            // The imported OFL font must be a real game asset, not a system
+            // font that happens to be installed in one CI container.
+            var font = AssetDatabase.LoadAssetAtPath<Font>(CjkFontPath);
+            if (font == null || !font.HasCharacter('中') ||
+                !font.HasCharacter('声') || !font.HasCharacter('铃'))
+                throw new InvalidOperationException("M9 requires the saved game-owned CJK font with real glyphs.");
             var shared = AssetDatabase.LoadAssetAtPath<SharedTableData>(SharedPath);
             var en = AssetDatabase.LoadAssetAtPath<StringTable>(EnPath);
             var zh = AssetDatabase.LoadAssetAtPath<StringTable>(ZhPath);

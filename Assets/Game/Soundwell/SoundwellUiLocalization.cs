@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Localization.Tables;
 
@@ -15,41 +14,24 @@ namespace Rpg.Soundwell
         private static string language = English;
         public static string Language => language;
         public static event Action Changed;
+        private const string CjkFontPath = "Soundwell/Fonts/SoundwellChinese";
         private static Font cjkFont;
-        private static bool checkedOsFonts;
 
-        // Unity's bundled LegacyRuntime Latin font may silently drop Chinese
-        // glyphs. Prefer a CJK-capable installed font rather than claiming the
-        // localized string is visible merely because label.text changed.
-        // Do not ship or modify an ORK/Makinom font or create a parallel UI.
+        // M9: use one pinned, game-owned OFL typeface imported by Unity.
+        // The previous OS-font fallback advertised HasCharacter(true), yet
+        // rendered blank CJK glyphs on the actual CI GameView screenshots.
+        // Keep the original Latin font for English and do not touch ORK UI.
         public static Font PresentationFont(Font englishFont)
         {
             if (language != Chinese)
                 return englishFont;
-            if (!checkedOsFonts)
-            {
-                checkedOsFonts = true;
-                string[] installed = Font.GetOSInstalledFontNames();
-                if (installed != null && installed.Length > 0)
-                {
-                    var ranked = installed
-                        .OrderBy(name => name.IndexOf("CJK", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                            name.IndexOf("Droid Sans Fallback", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                            name.IndexOf("YaHei", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                            name.IndexOf("PingFang", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                            name.IndexOf("WenQuan", StringComparison.OrdinalIgnoreCase) >= 0
-                            ? 0 : 1)
-                        .ToArray();
-                    Font candidate = Font.CreateDynamicFontFromOSFont(ranked, 20);
-                    if (candidate != null &&
-                        candidate.HasCharacter('中') && candidate.HasCharacter('声') &&
-                        candidate.HasCharacter('铃'))
-                        cjkFont = candidate;
-                    else if (candidate != null)
-                        UnityEngine.Object.Destroy(candidate);
-                }
-            }
-            return cjkFont != null ? cjkFont : englishFont;
+            if (cjkFont == null)
+                cjkFont = Resources.Load<Font>(CjkFontPath);
+            if (cjkFont == null || !cjkFont.HasCharacter('中') ||
+                !cjkFont.HasCharacter('声') || !cjkFont.HasCharacter('铃'))
+                throw new InvalidOperationException(
+                    "The pinned Chinese font is missing or lacks required glyphs: " + CjkFontPath);
+            return cjkFont;
         }
 
         public static string Get(string key)

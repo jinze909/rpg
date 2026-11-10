@@ -1662,6 +1662,24 @@ namespace Rpg.Soundwell
                 frame.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 frame.Apply();
                 var imagePixels = frame.GetPixels32();
+                if (stage == "14-localized-zh-Hans")
+                {
+                    // UI pixels from the Chinese title, excluding the ASCII
+                    // slash. Prior screenshots had ZERO visible Chinese title
+                    // pixels despite Font.HasCharacter returning true.
+                    int glyphPixels = 0;
+                    for (int y = 446; y < 477; y++)
+                        for (int x = 399; x < 592; x++)
+                        {
+                            if (x >= 465 && x <= 503)
+                                continue;
+                            Color32 pixel = imagePixels[y * width + x];
+                            if (pixel.r > 115 && pixel.g > 115 && pixel.b > 115)
+                                glyphPixels++;
+                        }
+                    Require(glyphPixels >= 45,
+                        "Chinese title lacks actual GameView glyph pixels: " + glyphPixels);
+                }
                 int changedSamples = 0;
                 for (int i = 0; i < imagePixels.Length; i += 3)
                 {

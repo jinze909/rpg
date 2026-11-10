@@ -26,6 +26,11 @@ def allowed_path(name):
         # M4: only these Unity-authored game-owned clips/controller and their
         # folder/asset metadata may be published from an animation prepare run.
         # M5: Unity-authored saved Soundwell Tilemap scene, Rule Tile and sprite imports.
+        # M9: pinned, verified OFL Chinese font imported by Unity; never load
+        # fragile CI OS fonts or silently replace a missing binary.
+        "Assets/Game/Resources/Soundwell/Fonts.meta",
+        "Assets/Game/Resources/Soundwell/Fonts/SoundwellChinese.ttf",
+        "Assets/Game/Resources/Soundwell/Fonts/SoundwellChinese.ttf.meta",
         # M9: game-owned native Unity StringTables and shared key asset.
         "Assets/Game/Resources/Soundwell/Localization.meta",
         "Assets/Game/Resources/Soundwell/Localization/SoundwellUI-Shared.asset",
