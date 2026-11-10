@@ -163,7 +163,7 @@ namespace Rpg.Tests.Editor
             Assert.That(enemyGroup.BattleSystem, Is.SameAs(turnBasedAsset.Settings),
                 "The enemy group must retain the selected Turn Based settings object.");
 
-            LogAssert.Expect(LogType.Log, "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             LogAssert.NoUnexpectedReceived();
         }
