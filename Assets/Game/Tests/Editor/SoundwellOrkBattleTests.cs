@@ -12,6 +12,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using Unity.Cinemachine;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 using UnityEngine.Tilemaps;
 using UnityEngine.Audio;
@@ -163,17 +164,34 @@ namespace Rpg.Tests.Editor
             Assert.That(rig.VirtualCamera.Follow, Is.SameAs(rig.FramingTarget));
             Assert.That(rig.VirtualCamera.GetComponent<CinemachineFollow>(), Is.Not.Null);
             Assert.That(trial.TrialCamera.orthographic, Is.True);
+            var pixelCamera = trial.TrialCamera.GetComponent<PixelPerfectCamera>();
+            Assert.That(pixelCamera, Is.Not.Null, "The real camera must use URP Pixel Perfect.");
+            Assert.That(trial.TrialCamera.GetComponents<PixelPerfectCamera>().Length, Is.EqualTo(1));
+            Assert.That(pixelCamera.assetsPPU, Is.EqualTo(16));
+            Assert.That(pixelCamera.refResolutionX, Is.EqualTo(320));
+            Assert.That(pixelCamera.refResolutionY, Is.EqualTo(180));
+            Assert.That(pixelCamera.cropFrame, Is.EqualTo(PixelPerfectCamera.CropFrame.Windowbox));
+            Assert.That(pixelCamera.gridSnapping, Is.EqualTo(PixelPerfectCamera.GridSnapping.PixelSnapping));
+            Assert.That(typeof(CinemachineExtension).IsAssignableFrom(typeof(CinemachinePixelPerfect)), Is.True,
+                "CM3 must load its URP extension, not a fallback dummy MonoBehaviour.");
+            Assert.That(rig.VirtualCamera.GetComponent<CinemachinePixelPerfect>(), Is.Not.Null);
+            var gameplayHud = trial.GetComponentsInChildren<Canvas>(true)
+                .Single(c => c.gameObject.name == "Soundwell actions HUD");
+            Assert.That(gameplayHud.renderMode, Is.EqualTo(RenderMode.ScreenSpaceOverlay),
+                "High-resolution UGUI must not be rendered at 320x180.");
+            Assert.That(gameplayHud.GetComponent<CanvasScaler>().referenceResolution,
+                Is.EqualTo(new Vector2(960f, 540f)));
             float savedAspect = trial.TrialCamera.aspect;
             try
             {
                 trial.TrialCamera.aspect = 1f;
                 rig.RefreshFraming();
-                Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(8.4f).Within(0.01f),
-                    "Square viewports must retain the original Soundwell world label framing.");
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(8.5f).Within(0.01f),
+                    "Square viewports must show both Soundwell exits.");
                 trial.TrialCamera.aspect = 16f / 9f;
                 rig.RefreshFraming();
-                Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(5.5f).Within(0.01f),
-                    "Widescreen must retain the original Soundwell framing.");
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(5.625f).Within(0.01f),
+                    "Widescreen lens must match 320x180 at 16 PPU.");
             }
             finally
             {
@@ -184,6 +202,12 @@ namespace Rpg.Tests.Editor
                 "The follow target must remain inside the horizontal trial framing bounds.");
             Assert.That(Mathf.Abs(rig.FramingTarget.position.y), Is.LessThanOrEqualTo(0.501f),
                 "The follow target must remain inside the vertical trial framing bounds.");
+            Assert.That(rig.FramingTarget.position.x * 16f,
+                Is.EqualTo(Mathf.Round(rig.FramingTarget.position.x * 16f)).Within(0.001f));
+            Assert.That(rig.FramingTarget.position.y * 16f,
+                Is.EqualTo(Mathf.Round(rig.FramingTarget.position.y * 16f)).Within(0.001f));
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_PIXEL_PERFECT_VALIDATED");
+            Debug.Log("RPG_SOUNDWELL_PIXEL_PERFECT_VALIDATED");
 
             // M4: actual saved Unity Animator clips animate the entire placeholder
             // visual without writing to the leader Rigidbody2D or ORK combatant.

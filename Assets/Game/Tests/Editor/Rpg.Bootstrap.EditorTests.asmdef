@@ -1,6 +1,6 @@
 {
   "name": "Rpg.Bootstrap.EditorTests",
-  "references": ["UnityEngine.TestRunner", "UnityEditor.TestRunner", "Rpg.Soundwell", "Unity.InputSystem", "Unity.InputSystem.TestFramework", "UnityEngine.UI", "Unity.Cinemachine", "Unity.2D.Tilemap.Extras", "Unity.Localization"],
+  "references": ["UnityEngine.TestRunner", "UnityEditor.TestRunner", "Rpg.Soundwell", "Unity.InputSystem", "Unity.InputSystem.TestFramework", "UnityEngine.UI", "Unity.Cinemachine", "Unity.2D.Tilemap.Extras", "Unity.Localization", "Unity.RenderPipelines.Universal.Runtime"],
   "includePlatforms": ["Editor"],
   "overrideReferences": true,
   "precompiledReferences": [

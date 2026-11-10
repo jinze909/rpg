@@ -1,6 +1,7 @@
 using System;
 using Unity.Cinemachine;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace Rpg.Soundwell
 {
@@ -13,6 +14,10 @@ namespace Rpg.Soundwell
     [DefaultExecutionOrder(-50)]
     public sealed class SoundwellCameraRig : MonoBehaviour
     {
+        // 16 PPU matches the persisted wall sprites; do not rescale ORK physics.
+        public const int PixelsPerUnit = 16;
+        public const int ReferenceWidth = 320;
+        public const int ReferenceHeight = 180;
         private Camera sceneCamera;
         private Transform player;
         private Transform framingTarget;
@@ -28,8 +33,18 @@ namespace Rpg.Soundwell
             if (!camera.orthographic || camera.GetComponent<CinemachineBrain>() != null)
                 throw new InvalidOperationException("Soundwell requires one orthographic Camera without a competing Brain.");
 
+            if (camera.GetComponent<PixelPerfectCamera>() != null ||
+                Array.Exists(camera.GetComponents<MonoBehaviour>(), component =>
+                    component != null && component.GetType().FullName == "UnityEngine.U2D.PixelPerfectCamera"))
+                throw new InvalidOperationException("Only the native URP 2D Pixel Perfect Camera may control Soundwell.");
             sceneCamera = camera;
             player = leader;
+            var pixelCamera = camera.gameObject.AddComponent<PixelPerfectCamera>();
+            pixelCamera.assetsPPU = PixelsPerUnit;
+            pixelCamera.refResolutionX = ReferenceWidth;
+            pixelCamera.refResolutionY = ReferenceHeight;
+            pixelCamera.cropFrame = PixelPerfectCamera.CropFrame.Windowbox;
+            pixelCamera.gridSnapping = PixelPerfectCamera.GridSnapping.PixelSnapping;
 
             var focus = new GameObject("Soundwell Cinemachine framing target");
             focus.transform.SetParent(sceneRoot, false);
@@ -40,6 +55,8 @@ namespace Rpg.Soundwell
             vcamObject.transform.SetParent(sceneRoot, false);
             vcamObject.transform.position = framingTarget.position + new Vector3(0f, 0f, -10f);
             virtualCamera = vcamObject.AddComponent<CinemachineCamera>();
+            // Cinemachine 3 must cooperate with URP's pixel lens, not fight it.
+            vcamObject.AddComponent<CinemachinePixelPerfect>();
             var follow = vcamObject.AddComponent<CinemachineFollow>();
             follow.FollowOffset = new Vector3(0f, 0f, -10f);
             virtualCamera.Follow = framingTarget;
@@ -61,15 +78,19 @@ namespace Rpg.Soundwell
             // Widescreen has enough slack for the full gentle follow range.
             // Only Cinemachine owns the real camera's pose and lens.
             float aspect = sceneCamera.aspect > 0f ? sceneCamera.aspect : 16f / 9f;
-            float desiredSize = Mathf.Max(5.5f, 8.4f / aspect);
+            // The 320x180 / 16 PPU 16:9 view has half-height 5.625.
+            // Narrow viewports expand the composition to keep both exits.
+            float desiredSize = Mathf.Max(ReferenceHeight / (2f * PixelsPerUnit), 8.5f / aspect);
             const float trialHalfWidth = 8.1f;
             const float edgeMargin = 0.12f;
             float availablePan = Mathf.Max(0f, desiredSize * aspect - trialHalfWidth - edgeMargin);
             float horizontalPan = Mathf.Min(0.85f, availablePan);
+            // Quantize the visual framing target, not player/ORK positions.
+            float x = Mathf.Clamp(player.position.x * 0.14f, -horizontalPan, horizontalPan);
+            float y = Mathf.Clamp(player.position.y * 0.15f, -0.5f, 0.5f);
             framingTarget.position = new Vector3(
-                Mathf.Clamp(player.position.x * 0.14f, -horizontalPan, horizontalPan),
-                Mathf.Clamp(player.position.y * 0.15f, -0.5f, 0.5f),
-                0f);
+                Mathf.Round(x * PixelsPerUnit) / PixelsPerUnit,
+                Mathf.Round(y * PixelsPerUnit) / PixelsPerUnit, 0f);
 
             if (virtualCamera == null)
                 return;

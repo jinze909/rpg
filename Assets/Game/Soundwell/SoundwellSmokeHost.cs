@@ -258,6 +258,7 @@ namespace Rpg.Soundwell
             AssertHudHit(trial, "Wrap");
             AssertHudHit(trial, "Retry");
             AssertHudHit(trial, "Back");
+            Capture(trial, "00-m8-square-pixel-perfect", 640, 640);
 
             camera.aspect = 0.6f;
             yield return null;
@@ -265,6 +266,7 @@ namespace Rpg.Soundwell
             Require(((RectTransform)compactRing.transform).anchorMin == new Vector2(0.5f, 0f),
                 "Portrait viewports must preserve the compact button layout.");
             AssertHudHit(trial, "Retry");
+            Capture(trial, "00-m8-portrait-pixel-perfect", 480, 800);
             camera.ResetAspect();
             yield return null;
             yield return null;
@@ -272,6 +274,7 @@ namespace Rpg.Soundwell
                 ((RectTransform)compactBack.transform).anchorMin == Vector2.one,
                 "Landscape viewports must restore the original top-right HUD stack.");
             AssertHudHit(trial, "Back");
+            Capture(trial, "00-m8-widescreen-pixel-perfect", 960, 540);
             Require(ShowsPrompt(trial, "Walk to the copper bell"), "The initial view must show where to go.");
             Require(ShowsPrompt(trial, "[Esc / Pad B] Back to entry"), "The exit control must be visible at the entrance.");
             Require(!TrialActionButton(trial, "Ring").interactable &&
@@ -1626,10 +1629,9 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException(message);
         }
 
-        private static byte[] Capture(SoundwellTrial trial, string stage)
+        private static byte[] Capture(SoundwellTrial trial, string stage,
+            int width = 960, int height = 540)
         {
-            const int width = 960;
-            const int height = 540;
             var camera = trial.TrialCamera;
             var actionHud = trial.GetComponentsInChildren<Canvas>(true).SingleOrDefault(
                 canvas => canvas.gameObject.name == "Soundwell actions HUD");
