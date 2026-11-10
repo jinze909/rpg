@@ -70,7 +70,12 @@ namespace Rpg.Tests.Editor
                 yield return null;
 
                 input.Press(keyboard.wKey);
-                yield return null;
+                // InputTestFixture queues UnityTest events for the next player-loop update.
+                // Force one deterministic update here so the composite value is observable
+                // before the test runner advances the coroutine again.
+                InputSystem.Update();
+                Assert.That(keyboard.wKey.isPressed, Is.True,
+                    "The test runtime must apply the queued W key state.");
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Movement.y, Is.GreaterThan(0.9f),
                     "W must drive the real Gameplay Move action.");
 
