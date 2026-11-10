@@ -94,3 +94,13 @@ sequentially in one session. The original technical inspection used no subagents
 later narrative drafting used separate character/regional authors and a continuity
 reviewer. Keep unverified acceptance items Pending and do not treat historical
 validation or narrative document checks as current gameplay evidence.
+
+
+## 2026-11-09 技术基线补充（以上历史快照不再代表实时仓库）
+
+原审查段落严格属于 2026-11-07 的旧 SHA，诸如“没有已保存 ORK 项目数据/测试/CI”“私有仓库”都是当时的记录，**不能当作现状**。当前抽查 `codex/dev` SHA `790d9486dd8e163c278adefb9c25ae1be5821aa9` 已有两份 Unity 场景、Soundwell 游戏代码、CI 测试/证据以及已保存 ORK 项目；目前用户决定仓库保持 Public，许可约束继续有效。
+
+- `Packages/manifest.json` 尚无 URP、Input System、Cinemachine、2D Animation、Tilemap Extras、Pixel Perfect、Localization、Addressables、Memory Profiler；并不证明这些包在所有本地未提交缓存中不存在。
+- `ProjectSettings/GraphicsSettings.asset` 的 `m_CustomRenderPipeline` 是 `{fileID: 0}`，Quality 的渲染管线也均为 `{fileID: 0}`：目前使用 Built-in。自有 Soundwell 仍有旧 `Input.GetAxisRaw`/`GetKeyDown` 和手写相机逻辑，未见动画/图集/混音器的独立已提交资产。
+- **用户最新硬限制：ORK 3.22.0 / Makinom 2.21.0 保持原版，不更新、不碰厂商文件和设置、不新增付费依赖；UGUI 保留，不迁移 UI Toolkit。** 现代化规范见 [现代工作室技术基线](../technical/MODERN_2D_RPG_STACK.md)；这只是规划，任何实际迁移须分支独立验收。
+- 当前 003 的独立候选 `codex/pending/p2-soundwell-party-runtime` 有失败的 [同 SHA CI](https://github.com/jinze909/rpg/actions/runs/42732604423)：Soundwell 现有重载测试报 `Reload must have exactly one player`。此为未解决的玩法/运行回归，不能通过迁移 URP/Input 或写文档掩盖。主线已有 [通过的验收](https://github.com/jinze909/rpg/actions/runs/42728344621)。

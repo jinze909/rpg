@@ -43,6 +43,12 @@ git rev-parse HEAD
 
 记录提交 SHA、退出码及日志。退出码为 0 且日志含 `RPG_BOOTSTRAP_VALIDATED` 才算批处理配置检查通过。Play Mode 启动是单独的验收项。
 
+## 现代技术方向与成本约束
+
+项目目标是在已验证的 Unity 6.6 / UGUI / ORK 3 / Makinom 2 基础上，按现代 2D RPG 工作室的可维护流程逐步升级，而不是一次换光框架。完整、可执行的技术矩阵、路线图、官方文档、分支隔离及验收门槛见 **[现代 2D RPG 工作室技术基线](docs/technical/MODERN_2D_RPG_STACK.md)**。
+
+**用户最新冻结决定：ORK 3.22.0 和 Makinom 2.21.0 不升级、不重购、不修改框架/厂商资产与设置。新增购买成本 $0；不迁移 UI Toolkit，继续 UGUI。** 有价值的候选技术包括 URP 2D、Input System Both 过渡、Cinemachine 3、2D 动画/Tilemap、Audio Mixer、Sprite Atlas V2、可选 Pixel Perfect、Localization、Memory Profiler 和 Build Profiles；Addressables 等按需评估。当前它们是**路线图，不是已经安装完成**。
+
 ## 工作室开发流程
 
 GitHub Actions 的首次配置准备、两次 Play Mode 与干净提交验收见 [Unity / ORK P0 CI](docs/unity-p0-ci.md)。Unity 6000.6.8f1 已在固定依赖与干净提交上通过 P0 引导验收：[P0 验证](https://github.com/jinze909/rpg/actions/runs/42551491951)。声井 002 的自动化回归在 `82d0f99dc167b8425d04306fd685dedf3e2a8daa` 通过 4 项测试与独立批处理：[codex/dev 同 SHA 验证](https://github.com/jinze909/rpg/actions/runs/42586562395)。真实键鼠、声音和玩家理解仍待真人试玩，CI 绿色不代表乐趣得到验证。

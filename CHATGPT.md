@@ -25,6 +25,14 @@
 - ORK 是战斗、成长、物品、装备、任务和存读档的唯一权威。Makinom Schematics 组织交互与剧情。Unity 负责 2D 表现、碰撞、动画和输入适配。UI 读取同一份权威状态。输入、移动和镜头各有一个执行者。
 - 优先复用已提交的数据和公开 API。通过真实 Unity 编辑器或公开 API 生成并保存 ORK 数据，先验证少量输出及实际引用，再扩量。框架内部序列化数据由框架或编辑器生成。保留原厂资源、DLL、源码 ZIP 和 GUID，源码与 DLL 避免同时进入编译路径。源码替换须说明技术目标、程序集处理、校验和回滚方案。
 
+## 二-A、现代工作室技术与零付费底线（用户 2026-11-09 明确决定）
+
+- **现代、好玩、长期可维护的 2D RPG；不是为了“最新版”而堆技术。** 详细技术选型、现状、阶段计划、来源、验收与回退门槛统一以 [现代 2D RPG 工作室技术基线](docs/technical/MODERN_2D_RPG_STACK.md) 为准。作为当前用户新决定，它优先于旧的“尽量升级全部”的建议。
+- **ORK 3.22.0 和 Makinom 2.21.0 严格冻结。** 不升级 ORK 3、不迁 ORK 4、不重新购买、不修改框架源码、DLL、原始厂商文件、GUID、厂商项目数据或 ORK/Makinom 配置。仍由 ORK/Makinom 担任单一权威。现代化仅改游戏自有层；若需要触动框架，停止并报告，等待用户新的明确授权。
+- **新增购买成本为零。** 优先现有 Unity 引擎功能与已发布的 Unity Registry 官方包、许可可核实的免费/开源工具；不得购买插件、素材或升级、开付费订阅、额外云服务/构建计费或自动创建开销。包兼容、平台许可、许可证与 CI 配额须先核对。没有证据不得断言某项免费或已安装。
+- **UGUI 留用，排除 UI Toolkit 迁移。** 可评估 URP 2D、Input System（先 Both，不能禁用 ORK 所需旧输入）、Cinemachine 3、2D 动画、Tilemap Extras、Audio Mixer、Sprite Atlas V2、按风格的 Pixel Perfect、Localization、Memory Profiler、Build Profiles；Addressables/ECS/HDRP 暂缓，不要求一次装齐。
+- **先修当前故事候选，再分域迁移。** 任何包、渲染、输入、场景、相机升级均用单独候选和同 SHA Unity 验收，保护已证明的启动、声井探索、ORK 战斗、UGUI 和重载路径。纯规划文档更新不等于任何工具安装/升级成功。
+
 ## 三、每轮如何推进
 
 - 先核对 codex/dev 的完整 SHA，读取 AGENTS.md、CHATGPT.md、AI2-STATUS.md、BACKLOG.md 和 production/team.md，再查相关候选和 CI。选定任务后读相关实现和故事卡。已读内容且版本未变时复用。
@@ -66,6 +74,6 @@
 
 ## 工作入口
 
-- [开发约束](AGENTS.md) · [当前接力](AI2-STATUS.md) · [任务清单](BACKLOG.md)
+- [开发约束](AGENTS.md) · [现代技术基线](docs/technical/MODERN_2D_RPG_STACK.md) · [当前接力](AI2-STATUS.md) · [任务清单](BACKLOG.md)
 - [角色表](production/team.md) · [同 SHA 验收](production/workflow.md#同-sha-验收)
 - 以 `codex/dev` 实时 HEAD 为准；按候选分支和 Actions 结果接续，不使用本文提交日期代替实时进度。

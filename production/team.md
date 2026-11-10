@@ -29,3 +29,4 @@
 - Creative director 仲裁体验、范围和美术冲突，technical director 仲裁架构和构建冲突。跨域影响由 producer 汇总，冻结项的变更须由用户决定。
 - 负责人提供约束与审查，专家交付实现和证据。Lead programmer 终审实际差异，QA lead 逐项核验。一个对话承担多角时，按职责顺序完成检查并标明证据来源。
 - 交接最少包括任务、输入基线 SHA、负责领域、改动路径、可复现验收和剩余阻塞。
+- Technical director 与 producer 共同维护 [现代 2D RPG 工作室技术基线](../docs/technical/MODERN_2D_RPG_STACK.md) 中的零新增购买和 ORK/Makinom 冻结；engine-programmer 负责 URP 2D/相机，gameplay-programmer 负责 Input System Both 适配，technical-artist/level-designer 负责 2D 动画与地图，qa-lead 负责各自独立 CI/玩家路径。文档计划不能被当作已通过工程验收。

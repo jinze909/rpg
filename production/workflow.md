@@ -4,6 +4,12 @@
 
 ChatGPT 从 [对话入口](../CHATGPT.md) 开始，Codex 从 `AGENTS.md` 开始，Claude Code 可用 `/dev-story [story-path]` 和 `/story-done [story-path]`。三个入口共用同一套角色、任务与证据。
 
+## 现代化候选与零费用验收门槛
+
+执行任何现代 Unity 技术迁移前，先读 [现代 2D RPG 工作室技术基线](../docs/technical/MODERN_2D_RPG_STACK.md)。新的用户硬限制覆盖旧的泛升级建议：**ORK 3.22.0 / Makinom 2.21.0 原厂文件、版本、GUID、配置、数据不动；UGUI 留用；新增购买、订阅和云/CI 收费为零**。需要付费或触动冻结框架的方案停下，不自动“修兼容”或申请授权。
+
+迁移必须是有玩家/维护收益的单项增量，不得在一个候选中同时换渲染、输入、摄像机与动画，更不能叠加到有失败的 P2 救援候选。Producer 与 technical-director 先列现状 SHA、成本、兼容版本和回滚路径；lead-programmer 审查 `manifest.json`、锁文件、场景和 `.meta`；qa-lead 逐项验证 Unity 编译、ORK 状态、UGUI、Bootstrap/声井重载、相机截图、键鼠/手柄等被影响路径。只接受同一最终 SHA 的真实结果。纯文档路线图不触发安装或“已升级”状态。
+
 ## Prepare · 选任务
 
 1. Producer 确认实时 `codex/dev` HEAD，读取 [AI2-STATUS](../AI2-STATUS.md)、[BACKLOG](../BACKLOG.md) 和相关 CI。
