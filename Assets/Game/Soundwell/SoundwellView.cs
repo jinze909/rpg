@@ -56,7 +56,10 @@ namespace Rpg.Soundwell
         private readonly Text menuStatus;
         private readonly EventSystem actionEventSystem;
         private readonly bool previousNavigationEvents;
+        private readonly Canvas trialCanvas;
+        private readonly Canvas actionCanvas;
         private bool actionMenuOpen;
+        private bool battleMode;
         private bool waitingForEscortLeader;
         private bool layoutReady;
         private bool compactHud;
@@ -260,12 +263,12 @@ namespace Rpg.Soundwell
             clearBell = BellClip("Copper bell", 640f, 0.75f, 0.22f);
             mutedBell = BellClip("Wrapped bell", 230f, 0.20f, 0.10f);
 
-            var canvas = new GameObject("PLACEHOLDER trial UI", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
-            canvas.transform.SetParent(root, false);
-            canvas.renderMode = RenderMode.WorldSpace;
-            canvas.worldCamera = camera;
-            canvas.sortingOrder = 12;
-            var rect = (RectTransform)canvas.transform;
+            trialCanvas = new GameObject("PLACEHOLDER trial UI", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
+            trialCanvas.transform.SetParent(root, false);
+            trialCanvas.renderMode = RenderMode.WorldSpace;
+            trialCanvas.worldCamera = camera;
+            trialCanvas.sortingOrder = 12;
+            var rect = (RectTransform)trialCanvas.transform;
             rect.sizeDelta = new Vector2(840, 480);
             rect.localScale = Vector3.one * 0.02f;
             AddLabel(rect, "SOUNDWELL  /  SIGNAL TRIAL", 25, Ink, new Vector2(0, 224), new Vector2(700, 40));
@@ -287,7 +290,7 @@ namespace Rpg.Soundwell
 
             // Pointer input remains available outside focus mode. The single
             // InputSystem UI module owns keyboard/gamepad navigation and Submit.
-            var actionCanvas = new GameObject("Soundwell actions HUD", typeof(RectTransform),
+            actionCanvas = new GameObject("Soundwell actions HUD", typeof(RectTransform),
                 typeof(Canvas)).GetComponent<Canvas>();
             actionCanvas.transform.SetParent(root, false);
             actionCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -346,6 +349,19 @@ namespace Rpg.Soundwell
                 EnsureActionSelection();
             else if (IsActionSelection(actionEventSystem.currentSelectedGameObject))
                 actionEventSystem.SetSelectedGameObject(null);
+        }
+
+        public void SetBattleMode(bool active)
+        {
+            if (battleMode == active)
+                return;
+
+            battleMode = active;
+            if (active)
+                actionEventSystem.SetSelectedGameObject(null);
+            trialCanvas.gameObject.SetActive(!active);
+            actionCanvas.gameObject.SetActive(!active);
+            actionEventSystem.sendNavigationEvents = active;
         }
 
         private void ArrangeActionHud(float viewportAspect)
@@ -460,7 +476,8 @@ namespace Rpg.Soundwell
 
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
             bool atBell, bool atSafePoint, bool carrying, bool canPlaceBell,
-            bool gateOpen, bool atGatePanel, bool canOpenGate, bool atSurveyor,
+            bool gateOpen, bool atGatePanel, bool canOpenGate, bool canEngageBeast,
+            bool beastDefeated, bool atSurveyor,
             bool hasSurveyorClue, bool atUpperPlank, bool canSecurePlank,
             bool plankSecured, bool canEscortSurveyor, bool surveyorEscorting,
             bool rescueComplete, bool falseMarkerCleared, bool safeRouteMarked,
@@ -486,7 +503,8 @@ namespace Rpg.Soundwell
             // The west side is protected by the locked gate. Telegraph the
             // danger only after opening the inner room, and remove the ring
             // after the survivor reaches safety.
-            beastContactRing.enabled = gateOpen && !rescueComplete;
+            if (beastContactRing != null)
+                beastContactRing.enabled = gateOpen && !rescueComplete && !beastDefeated;
             searchTimerTrack.enabled = searching;
             searchTimerFill.enabled = searching;
             if (searching)
@@ -523,10 +541,11 @@ namespace Rpg.Soundwell
             retryButton.interactable = atSafePoint;
             backButton.interactable = true;
             carryButton.interactable = carrying ? canPlaceBell : atBell;
-            gateButton.interactable = canInspectRope || canRecoverRope || canInspectCart || canInspectClaws ||
-                canShareCartClue || canTieEscortLine || canOpenGate || canSecurePlank || canEscortSurveyor ||
-                (atSurveyor && !hasSurveyorClue);
-            string interactCaption = canInspectRope ? "INSPECT ROPE [G / RB]"
+            gateButton.interactable = canEngageBeast || canInspectRope || canRecoverRope ||
+                canInspectCart || canInspectClaws || canShareCartClue || canTieEscortLine ||
+                canOpenGate || canSecurePlank || canEscortSurveyor || (atSurveyor && !hasSurveyorClue);
+            string interactCaption = canEngageBeast ? "ENGAGE BEAST [G / RB]"
+                : canInspectRope ? "INSPECT ROPE [G / RB]"
                 : canRecoverRope ? "RECOVER CORD [G / RB]"
                 : canInspectCart ? "INSPECT CART [G / RB]"
                 : canShareCartClue ? "TELL ABOUT CART [G / RB]"
@@ -646,7 +665,8 @@ namespace Rpg.Soundwell
             if (wrapButtonLabel.text != wrapCaption)
                 wrapButtonLabel.text = wrapCaption;
             bellMarker.color = wrapped ? Cloth : Gold;
-            string status = ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING"
+            string status = beastDefeated ? "BEAST  /  DEFEATED"
+                : ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING"
                 : returning ? "BEAST  /  RETURNING" : "BEAST  /  LISTENING";
             if (beastStatus.text != status)
             {
@@ -669,6 +689,10 @@ namespace Rpg.Soundwell
                         : cartObserved
                             ? "ROUTE CORRECTED: The surveyor is returning to the cart for his map kit."
                             : "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
+            else if (beastDefeated && !gateOpen)
+                prompt = "BEAST DEFEATED: The three-member ORK party cleared the inner lane. Open the gate.";
+            else if (canEngageBeast)
+                prompt = "DIRECT ROUTE: Engage the beast with the three-member ORK party, or lure it away with the bell.";
             else if (rescueComplete)
                 prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
             else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)

@@ -24,3 +24,12 @@
 - 已在 Unity 6000.6.8f1 的最终 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 上通过 5/5 Editor tests、独立 Bootstrap batch 检查及 `passed-clean-candidate`：[Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793)。
 - 已验证三名场景玩家注册为同一个 ORK PlayerGroup，借声兽注册为 EnemyGroup，三名玩家和敌人进入同一个 ORK Turn Based Battle；声井摇铃、包铃、撤退、重试的自动化路径通过。
 - 未验证/未完成：从同一起点分别通过引兽撤离和正面牵制两条策略完成救援；战术差异、玩家理解与乐趣的真人试玩。不得将上述自动化结果视为整张 003 完成。
+
+
+## 2026-11-10 Direct-combat route increment
+
+- The existing gate-panel interaction now offers a direct route before the player commits to the bell route. The route starts the saved three-member ORK player group against the Soundwell beast in the scene's saved Turn Based battle system.
+- During battle, the Soundwell exploration controls and trial HUD are suspended; the ORK battle UI owns navigation and action selection. The party's follow formation also pauses while its members are in battle.
+- The same gate can now be opened by either a confirmed ORK victory or the existing side-bell lure condition. The selected approach is stored in Makinom variables; the ORK beast's `Status.IsDead` state, not a UI flag, is the direct-route victory condition.
+- The editor integration test enters the direct route through the actual gate interaction, checks all four battle participants and a player turn, then exercises ORK's combatant death state to verify that only a resolved victory unlocks the gate.
+- Still incomplete: a distinct protect/guard action during the direct battle, and a full player-input play-through of both rescue routes through surveyor escort and retreat. This increment does not close Story 003.

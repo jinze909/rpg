@@ -34,6 +34,10 @@ namespace Rpg.Soundwell
         private readonly List<GameObject> actors = new List<GameObject>(3);
         private readonly List<Combatant> members = new List<Combatant>(3);
         private Sprite placeholderSprite;
+        private bool battleStarted;
+        private bool battleObservedActive;
+        private float battleStartedAt;
+        private const float BattleStartTimeout = 8f;
 
         public bool IsReady { get; private set; }
         public string InitializationError { get; private set; }
@@ -44,6 +48,14 @@ namespace Rpg.Soundwell
         public IReadOnlyList<GameObject> Actors => actors;
         public IReadOnlyList<Combatant> Members => members;
         public BattleSystemAsset TurnBasedAsset => turnBasedBattleSystem;
+        public bool BattleStarted => battleStarted;
+        public bool BattleInProgress => battleStarted && IsBattleRunning();
+        public bool EncounterStartFailed => battleStarted && !battleObservedActive &&
+            Time.realtimeSinceStartup - battleStartedAt >= BattleStartTimeout;
+        public bool EncounterWon => battleStarted && battleObservedActive && !IsBattleRunning() &&
+            Beast != null && Beast.Status.IsDead;
+        public bool EncounterFailed => battleStarted && battleObservedActive && !IsBattleRunning() &&
+            Beast != null && !Beast.Status.IsDead;
 
         private void Start()
         {
@@ -139,6 +151,68 @@ namespace Rpg.Soundwell
             IsReady = true;
         }
 
+        public bool TryStartDirectEncounter()
+        {
+            if (!IsReady || battleStarted || Beast == null || Beast.Status.IsDead ||
+                !ORK.Initialized || IsBattleRunning() || PlayerGroup == null ||
+                EnemyGroup == null || members.Count != 3)
+                return false;
+
+            PlayerGroup.SetLeader(members[0], false);
+            ORK.Game.PlayerHandler.SetGroup(0, PlayerGroup, false);
+            ORK.Game.PlayerHandler.SetActiveGroup(0, false, false);
+            ORK.Game.PlayerHandler.SetPlayer(members[0], false);
+
+            BattleComponent battle = BattleComponent.CreateBattle(new List<Combatant> { Beast });
+            if (battle == null)
+                return false;
+
+            battleStarted = true;
+            battleObservedActive = false;
+            battleStartedAt = Time.realtimeSinceStartup;
+            battle.StartGroup(EnemyGroup, null);
+            return true;
+        }
+
+        public void ResetEncounter()
+        {
+            if (ORK.Initialized && IsBattleRunning())
+                ORK.Game.Combatants.EndBattle();
+
+            if (Beast != null)
+                Beast.Status.Regenerate(true);
+            foreach (Combatant member in members)
+            {
+                if (member != null)
+                    member.Status.Regenerate(true);
+            }
+
+            battleStarted = false;
+            battleObservedActive = false;
+            battleStartedAt = 0f;
+        }
+
+        public void ReleaseFailedEncounter()
+        {
+            ResetEncounter();
+        }
+
+        private bool IsBattleRunning()
+        {
+            if (!ORK.Initialized)
+                return false;
+
+            List<Combatant> participants = ORK.Game.Combatants.GetInBattle();
+            if (Beast != null && participants.Contains(Beast))
+                return true;
+            foreach (Combatant member in members)
+            {
+                if (member != null && participants.Contains(member))
+                    return true;
+            }
+            return false;
+        }
+
         private GameObject CreateFollower(string objectName, Vector2 offset, Color tint)
         {
             var actor = new GameObject(objectName);
@@ -185,8 +259,10 @@ namespace Rpg.Soundwell
 
         private void LateUpdate()
         {
-            if (!IsReady || leader == null ||
-                (ORK.Initialized && ORK.Game.Combatants.GetInBattle().Count > 0))
+            if (battleStarted && IsBattleRunning())
+                battleObservedActive = true;
+
+            if (!IsReady || leader == null || IsBattleRunning())
                 return;
 
             for (int i = 1; i < actors.Count; i++)

@@ -26,6 +26,9 @@ namespace Rpg.Soundwell
         private const string RopeRecoveredKey = "rpg.soundwell.signal-trial.rope-recovered";
         private const string EscortLineKey = "rpg.soundwell.signal-trial.surveyor-guide-line";
         private const string ClawsObservedKey = "rpg.soundwell.signal-trial.claws-observed";
+        private const string RescueApproachKey = "rpg.soundwell.signal-trial.rescue-approach";
+        private const string DirectCombatStartedKey = "rpg.soundwell.signal-trial.direct-combat-started";
+        private const string DirectCombatCompleteKey = "rpg.soundwell.signal-trial.direct-combat-complete";
         // Scene-to-scene handoff only: ORK still owns quests, rewards, and saves.
         public const string EntryOutcomeKey = "rpg.soundwell.signal-trial.last-return-outcome";
         // Additional scene-to-scene outcome, not an ORK item or persistent save.
@@ -59,6 +62,7 @@ namespace Rpg.Soundwell
         private AsyncOperation bootstrapLoad;
         private VariableHandler variables;
         private SoundwellView view;
+        private SoundwellOrkParty orkParty;
         private Rigidbody2D playerBody;
         private Vector2 movement;
         private Vector2 beastHome;
@@ -74,10 +78,17 @@ namespace Rpg.Soundwell
         public Camera TrialCamera => trialCamera;
         public Transform PlayerActor => player;
         public Vector2 PlayerPosition => playerBody.position;
-        public Vector2 BeastPosition => beast.position;
+        public Vector2 BeastPosition => beast != null ? (Vector2)beast.position : beastHome;
+        public bool DirectCombatStarted => variables != null &&
+            variables.GetInt(DirectCombatStartedKey) != 0;
+        public bool DirectCombatComplete => variables != null &&
+            variables.GetInt(DirectCombatCompleteKey) != 0;
+        public bool CanEngageBeast => IsReady && AtGatePanel && !GateOpen &&
+            !IsCarrying && !DirectCombatStarted && !DirectCombatComplete &&
+            variables.GetInt(RescueApproachKey) == 0 && orkParty != null && orkParty.IsReady;
         // A live positional threat, never another saved or guessed target.
-        public bool BeastBlocksEscape => Vector2.Distance(beast.position, EscapeLanePosition) <
-            EscapeLaneDangerRadius;
+        public bool BeastBlocksEscape => !DirectCombatComplete && beast != null &&
+            Vector2.Distance(beast.position, EscapeLanePosition) < EscapeLaneDangerRadius;
         public int BeastContacts => variables != null ? variables.GetInt(BeastContactKey) : 0;
         public bool BeastContacted => BeastContacts > 0;
         public const float BeastContactRadius = 0.67f;
@@ -87,8 +98,11 @@ namespace Rpg.Soundwell
         public bool GateOpen => variables != null && variables.GetInt(GateKey) != 0;
         public bool AtGatePanel => IsReady &&
             Vector2.Distance(playerBody.position, new Vector2(-0.55f, 0f)) <= 0.8f;
-        public bool CanOpenGate => AtGatePanel && !GateOpen && HasBellTarget &&
-            Vector2.Distance(bell.position, SideBellStand) < 0.1f && beast.position.y < -0.95f;
+        public bool CanOpenGate => AtGatePanel && !GateOpen &&
+            (DirectCombatComplete || (variables != null &&
+                variables.GetInt(RescueApproachKey) == 1 && HasBellTarget &&
+                Vector2.Distance(bell.position, SideBellStand) < 0.1f &&
+                beast != null && beast.position.y < -0.95f));
         public bool AtSurveyor => GateOpen && !IsCarrying &&
             Vector2.Distance(playerBody.position, SurveyorPosition) <= 1.05f;
         public bool HasSurveyorClue => variables != null && variables.GetInt(SurveyorClueKey) != 0;
@@ -153,6 +167,7 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException("Makinom's game variables are unavailable in the Soundwell scene.");
             }
 
+            orkParty = GetComponent<SoundwellOrkParty>();
             SoundwellInputAdapter.SetGameplayContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
             playerBody = player.gameObject.AddComponent<Rigidbody2D>();
@@ -176,7 +191,7 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (!IsReady || !ReadInput)
+            if (!IsReady || !ReadInput || DirectCombatStarted)
                 return;
 
             if (SoundwellInputAdapter.ToggleMenuPressed())
@@ -213,8 +228,15 @@ namespace Rpg.Soundwell
 
         private void FixedUpdate()
         {
-            if (IsReady)
-                playerBody.linearVelocity = movement * (IsCarrying ? Speed * 0.7f : Speed);
+            if (!IsReady)
+                return;
+            if (DirectCombatStarted)
+            {
+                movement = Vector2.zero;
+                playerBody.linearVelocity = Vector2.zero;
+                return;
+            }
+            playerBody.linearVelocity = movement * (IsCarrying ? Speed * 0.7f : Speed);
         }
 
         private void LateUpdate()
@@ -229,6 +251,32 @@ namespace Rpg.Soundwell
             {
                 SoundwellInputAdapter.EnsureEventSystem(transform);
                 nextEventSystemAuditAt = Time.unscaledTime + 1f;
+            }
+
+            if (DirectCombatStarted && orkParty != null)
+            {
+                if (orkParty.EncounterWon)
+                {
+                    variables.Set(DirectCombatStartedKey, 0);
+                    variables.Set(DirectCombatCompleteKey, 1);
+                    variables.Set(RescueApproachKey, 2);
+                    SoundwellInputAdapter.SetGameplayContext();
+                }
+                else if (orkParty.EncounterFailed || orkParty.EncounterStartFailed)
+                {
+                    variables.Set(DirectCombatStartedKey, 0);
+                    variables.Set(RescueApproachKey, 0);
+                    orkParty.ReleaseFailedEncounter();
+                    SoundwellInputAdapter.SetGameplayContext();
+                }
+            }
+
+            bool battleMode = DirectCombatStarted;
+            view.SetBattleMode(battleMode);
+            if (battleMode)
+            {
+                movement = Vector2.zero;
+                playerBody.linearVelocity = Vector2.zero;
             }
 
             // The lower route is physically unsafe, rather than a fake
@@ -248,40 +296,45 @@ namespace Rpg.Soundwell
             if (IsCarrying)
                 bell.position = new Vector3(playerBody.position.x + 0.35f, playerBody.position.y, 0f);
 
-            Vector2 destination = beastHome;
-            if (HasBellTarget)
+            Vector2 destination = beast != null ? (Vector2)beast.position : beastHome;
+            if (!DirectCombatStarted && !DirectCombatComplete && beast != null)
             {
-                destination = HearingPoint();
-                lastHeard = destination;
-            }
-            else if (IsSearching)
-            {
-                float time = Time.time - searchStarted;
-                if (time >= SearchDurationSeconds)
+                destination = beastHome;
+                if (HasBellTarget)
                 {
-                    // Keep the cloth wrapped: its silence is still a meaningful
-                    // choice, and only the bell's owner can remove it.
-                    SetSignal(Signal.Wrapped);
+                    destination = HearingPoint();
+                    lastHeard = destination;
                 }
-                else
+                else if (IsSearching)
                 {
-                    destination = lastHeard + new Vector2(0.45f + 0.45f * Mathf.Cos(time * 2f),
-                        0.8f * Mathf.Sin(time * 2f));
+                    float time = Time.time - searchStarted;
+                    if (time >= SearchDurationSeconds)
+                    {
+                        // Keep the cloth wrapped: its silence is still a meaningful
+                        // choice, and only the bell's owner can remove it.
+                        SetSignal(Signal.Wrapped);
+                    }
+                    else
+                    {
+                        destination = lastHeard + new Vector2(0.45f + 0.45f * Mathf.Cos(time * 2f),
+                            0.8f * Mathf.Sin(time * 2f));
+                    }
                 }
-            }
 
-            Vector2 position = beast.position;
-            Vector2 next = Vector2.MoveTowards(position, destination, 2.5f * Time.deltaTime);
-            Vector2 facing = next - position;
-            if (facing.sqrMagnitude > 0.000001f)
-                beast.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(facing.y, facing.x) * Mathf.Rad2Deg);
-            beast.position = next;
+                Vector2 position = beast.position;
+                Vector2 next = Vector2.MoveTowards(position, destination, 2.5f * Time.deltaTime);
+                Vector2 facing = next - position;
+                if (facing.sqrMagnitude > 0.000001f)
+                    beast.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(facing.y, facing.x) * Mathf.Rad2Deg);
+                beast.position = next;
+            }
 
             // A real encounter with the beast must have a consequence. The
             // locked gate protects the west side; only direct contact in the
             // open eastern room pushes the player back to RETREAT. Preserve
             // earned route and rescue clues, avoiding a hidden total reset.
-            if (GateOpen && !RescueComplete && playerBody.position.x > 0.55f &&
+            if (!DirectCombatStarted && !DirectCombatComplete && beast != null &&
+                GateOpen && !RescueComplete && playerBody.position.x > 0.55f &&
                 Vector2.Distance(playerBody.position, beast.position) <= BeastContactRadius)
             {
                 // One encounter per physical knockback; the player is moved
@@ -294,10 +347,12 @@ namespace Rpg.Soundwell
 
             // The drawn intent marker receives exactly the destination already
             // used by the beast, never a separate visual guess.
-            bool returning = !HasBellTarget && !IsSearching &&
+            bool returning = !DirectCombatStarted && !DirectCombatComplete &&
+                !HasBellTarget && !IsSearching && beast != null &&
                 Vector2.Distance(beast.position, beastHome) > 0.15f;
             view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
-                IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate, AtSurveyor,
+                IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate,
+                CanEngageBeast, DirectCombatComplete, AtSurveyor,
                 HasSurveyorClue, AtUpperPlank, CanSecurePlank, PlankSecured,
                 CanEscortSurveyor, SurveyorEscorting, RescueComplete, FalseMarkerCleared,
                 SafeRouteMarked, AtRopeEvidence, AtCartEvidence, AtClawEvidence, CanInspectRope, CanRecoverRope,
@@ -367,7 +422,7 @@ namespace Rpg.Soundwell
         {
             // Do not double-handle the same gamepad A / directional event when
             // InputSystemUIInputModule is submitting or moving a focused UGUI Button.
-            if (actionMenuOpen)
+            if (actionMenuOpen || DirectCombatStarted)
                 return;
 
             if (controls.Back)
@@ -382,7 +437,7 @@ namespace Rpg.Soundwell
         public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry,
             bool carry = false, bool gate = false)
         {
-            if (bootstrapLoad != null)
+            if (bootstrapLoad != null || DirectCombatStarted)
                 return;
 
             movement = Vector2.ClampMagnitude(direction, 1f);
@@ -419,7 +474,24 @@ namespace Rpg.Soundwell
             // once the side bell has drawn the real beast away from its lane.
             if (gate)
             {
-                if (CanInspectRope)
+                if (CanEngageBeast)
+                {
+                    SetActionMenuOpen(false);
+                    SoundwellInputAdapter.SetUiContext();
+                    if (orkParty.TryStartDirectEncounter())
+                    {
+                        variables.Set(RescueApproachKey, 2);
+                        variables.Set(DirectCombatStartedKey, 1);
+                        movement = Vector2.zero;
+                        playerBody.linearVelocity = Vector2.zero;
+                        view.SetBattleMode(true);
+                    }
+                    else
+                    {
+                        SoundwellInputAdapter.SetGameplayContext();
+                    }
+                }
+                else if (CanInspectRope)
                     variables.Set(RopeObservedKey, 1);
                 else if (CanRecoverRope)
                     variables.Set(RopeRecoveredKey, 1);
@@ -486,6 +558,11 @@ namespace Rpg.Soundwell
             playerBody.linearVelocity = Vector2.zero;
             playerBody.position = safePoint.position;
             bell.position = bellHome;
+            if (orkParty != null && orkParty.IsReady)
+                orkParty.ResetEncounter();
+            variables.Set(RescueApproachKey, 0);
+            variables.Set(DirectCombatStartedKey, 0);
+            variables.Set(DirectCombatCompleteKey, 0);
             variables.Set(CarryKey, 0);
             variables.Set(GateKey, 0);
             variables.Set(SurveyorClueKey, 0);
@@ -503,6 +580,7 @@ namespace Rpg.Soundwell
             variables.Set(RopeRecoveredKey, 0);
             variables.Set(EscortLineKey, 0);
             variables.Set(ClawsObservedKey, 0);
+            view.SetBattleMode(false);
             view.ResetSurveyor();
             beast.position = beastHome;
             beast.rotation = Quaternion.Euler(0f, 0f, 180f);
@@ -531,7 +609,12 @@ namespace Rpg.Soundwell
         }
 
         private Vector2 HearingPoint() => new Vector2(1.15f, bell.position.y);
-        private void SetSignal(Signal signal) => variables.Set(SignalKey, (int)signal);
+        private void SetSignal(Signal signal)
+        {
+            if (signal == Signal.Ringing && variables.GetInt(RescueApproachKey) == 0)
+                variables.Set(RescueApproachKey, 1);
+            variables.Set(SignalKey, (int)signal);
+        }
 
         private void OnDestroy()
         {
