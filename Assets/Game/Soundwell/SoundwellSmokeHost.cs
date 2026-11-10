@@ -1315,8 +1315,21 @@ namespace Rpg.Soundwell
                 .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
             Require(freshMarker != null && !freshMarker.enabled,
                 "Reload must clear the visible beast target from the previous experiment.");
-            Require(SceneManager.GetActiveScene().GetRootGameObjects()
-                .Count(root => root.name == "PLACEHOLDER Player") == 1, "Reload must have exactly one player.");
+            // ORK may place its combatant under a scene owner. Count every
+            // actor in the reloaded scene, not only scene-root objects; still
+            // reject duplicates and require the actual controlled Rigidbody2D.
+            var scenePlayers = SceneManager.GetActiveScene().GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<Transform>(true))
+                .Where(actor => actor.gameObject.name == "PLACEHOLDER Player")
+                .ToArray();
+            Require(scenePlayers.Length == 1 &&
+                scenePlayers[0].GetComponent<Rigidbody2D>() != null &&
+                Vector2.Distance(scenePlayers[0].GetComponent<Rigidbody2D>().position,
+                    fresh.PlayerPosition) < 0.01f,
+                "Reload must have exactly one controllable scene player (found " +
+                scenePlayers.Length + "; scene roots: " +
+                string.Join(", ", SceneManager.GetActiveScene().GetRootGameObjects()
+                    .Select(root => root.name)) + ").");
 
             var back = fresh.ReturnToBootstrap();
             Require(back != null && ReferenceEquals(back, fresh.ReturnToBootstrap()),
