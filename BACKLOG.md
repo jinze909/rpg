@@ -14,13 +14,17 @@
 
 Producer 按实际依赖和阻塞选下一项，每轮收敛到一个可验收结果。当前执行状态见 [AI2-STATUS](AI2-STATUS.md)。
 
-## 现代工作室技术路线（用户明确决定；仅规划，全部未交付）
+## 现代工作室技术路线（已建 GitHub 实施卡；迁移尚未完成）
+
+**跨轮迁移接力已经立项：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2)，下设 14 张独立执行票 [#3—#16](https://github.com/jinze909/rpg/issues/3)。按总票与下表逐张实施：**先在当前 dev 上整合 Soundwell 的已通过候选，再做 [URP 2D #3](https://github.com/jinze909/rpg/issues/3)，然后做 [New Input System #4](https://github.com/jinze909/rpg/issues/4)**。其余有实际意义的迁移已分别开票，后续 AI 应沿同一编号推进，**不得因为换聊天就丢弃**，也不得将开票当作已迁移、为每项建空分支或在单一候选中混装多技术。ORK 原有输入文件保留，但游戏自有输入动作最终只允许 New Input System 一个运行执行者；内核 ORK 兼容由实际 Unity 结果决定。
+
+**本轮技术先行证据：** Soundwell `codex/pending/p2-soundwell-party-runtime` 的 `9e0911798177354f85464f320d9b77bdede93df9` 已在 [Run 42739401484](https://github.com/jinze909/rpg/actions/runs/42739401484) 的 Unity 6000.6.8f1 上取得 5/5、`passed-clean-candidate`，**尚需合入前移 dev 并对最终整合 SHA 复验**；003 的两种救援策略仍是后续故事验收，不可冒充整卡完成。
 
 **硬限制：** 现有 ORK 3.22.0 / Makinom 2.21.0 **保持不变**，不升级/重购/改厂商文件或设置；UGUI 保留，不迁移 UI Toolkit；禁止未经另行授权的新付费插件、订阅、云服务和 CI 费用。统一执行规则与官方链接见 [现代 2D RPG 技术基线](docs/technical/MODERN_2D_RPG_STACK.md)。
 
 | 技术卡 | 独立增量（只选有实际收益的官方/零新增购买方案） | 状态与门槛 |
 | --- | --- | --- |
-| M0 · 当前优先 | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 当前失败，优先于迁移 |
+| M0 · 当前优先 | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 候选 9e091179 通过 5/5；待在前移 dev 上整合并复验 |
 | M1 · URP 2D | 单独从通过的 dev 创建候选：2D Renderer、转换材质/引用、摄像机/UGUI/场景视觉验收 | 仅计划；目前 Built-in；不可在 dev 直接批量转换 |
 | M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | 仅计划；框架旧输入必须仍有效 |
 | M3 · Cinemachine 3 | 替代唯一自有摄像机控制路径，验证 2D 跟随、边界、各宽高比和战斗镜头 | 仅计划；不得同时运行双摄像机控制器 |
