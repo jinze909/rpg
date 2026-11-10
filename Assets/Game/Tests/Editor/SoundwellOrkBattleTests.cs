@@ -140,6 +140,23 @@ namespace Rpg.Tests.Editor
             Assert.That(party.Members[0].GameObject.transform, Is.SameAs(party.Leader));
             Assert.That(party.Actors[1].GetComponent<SpriteRenderer>().enabled, Is.True);
             Assert.That(party.Actors[2].GetComponent<SpriteRenderer>().enabled, Is.True);
+            // Followers must be visible pixel characters, not the old
+            // 1x1 whiteTexture sprite scaled to a nearly invisible size.
+            for (int i = 1; i < party.Actors.Count; i++)
+            {
+                var follower = party.Actors[i].GetComponent<SpriteRenderer>();
+                Assert.That(follower.sprite, Is.Not.Null);
+                Assert.That(follower.sprite.pixelsPerUnit, Is.EqualTo(16f));
+                Assert.That(follower.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+                Assert.That(follower.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(follower.sprite.texture.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
+                Assert.That(follower.transform.localScale, Is.EqualTo(Vector3.one));
+                var pixels = follower.sprite.texture.GetPixels32();
+                Assert.That(pixels.Count(pixel => pixel.a > 0), Is.GreaterThan(70),
+                    "A rescuer needs a readable humanoid silhouette, not a single solid pixel.");
+                Assert.That(pixels.Count(pixel => pixel.a == 0), Is.GreaterThan(70),
+                    "A rescuer silhouette needs transparent outline pixels.");
+            }
             Assert.That(party.PlayerGroup.BattleSystem, Is.SameAs(party.TurnBasedAsset.Settings));
             Assert.That(party.EnemyGroup.BattleSystem, Is.SameAs(party.TurnBasedAsset.Settings));
 

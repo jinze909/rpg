@@ -38,6 +38,7 @@ namespace Rpg.Soundwell
         private readonly List<GameObject> actors = new List<GameObject>(3);
         private readonly List<Combatant> members = new List<Combatant>(3);
         private Sprite placeholderSprite;
+        private Texture2D placeholderTexture;
         private bool battleStarted;
         // The party remains ORK-owned for battles, but its exploration input is
         // exclusively handled by the saved Soundwell 2D Input System adapter.
@@ -95,9 +96,7 @@ namespace Rpg.Soundwell
                 yield break;
             }
 
-            placeholderSprite = Sprite.Create(Texture2D.whiteTexture,
-                new Rect(0f, 0f, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
-                new Vector2(0.5f, 0.5f), 100f);
+            placeholderSprite = CreatePixelRescuerSprite();
 
             EnsureInvisibleActorRenderer(leader.gameObject);
             EnsureInvisibleActorRenderer(beast.gameObject);
@@ -280,13 +279,64 @@ namespace Rpg.Soundwell
             return false;
         }
 
+        // A real 16-PPU, point-filtered pixel silhouette, not a stretched
+        // white 1x1 texture. Tint is applied by the SpriteRenderer, so both
+        // rescue followers share one owned sprite and texture per scene.
+        private Sprite CreatePixelRescuerSprite()
+        {
+            const int size = 16;
+            string[] rows = {
+                "................",
+                ".....######.....",
+                ".....#++++#.....",
+                ".....#++++#.....",
+                ".....#++++#.....",
+                "......####......",
+                "...##########...",
+                "...#+######+#...",
+                "...#+######+#...",
+                ".....######.....",
+                ".....######.....",
+                ".....##..##.....",
+                ".....##..##.....",
+                "....###..###....",
+                "....###..###....",
+                "................",
+            };
+            placeholderTexture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "PLACEHOLDER 16px Soundwell rescuer",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                anisoLevel = 0
+            };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    char part = rows[size - 1 - y][x];
+                    pixels[y * size + x] = part == '#'
+                        ? new Color32(255, 255, 255, 255)
+                        : part == '+'
+                            ? new Color32(176, 176, 176, 255)
+                            : new Color32(0, 0, 0, 0);
+                }
+            }
+            placeholderTexture.SetPixels32(pixels);
+            placeholderTexture.Apply(false, false);
+            return Sprite.Create(placeholderTexture,
+                new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f),
+                16f, 0, SpriteMeshType.FullRect);
+        }
+
         private GameObject CreateFollower(string objectName, Vector2 offset, Color tint)
         {
             var actor = new GameObject(objectName);
             actor.SetActive(false);
             actor.transform.SetParent(transform, true);
             actor.transform.position = leader.position + (Vector3)offset;
-            actor.transform.localScale = new Vector3(0.56f, 0.56f, 1f);
+            actor.transform.localScale = Vector3.one; // 16 pixels at 16 PPU = one world unit.
 
             var renderer = actor.AddComponent<SpriteRenderer>();
             renderer.sprite = placeholderSprite;
@@ -352,6 +402,8 @@ namespace Rpg.Soundwell
         {
             if (placeholderSprite != null)
                 Destroy(placeholderSprite);
+            if (placeholderTexture != null)
+                Destroy(placeholderTexture);
         }
     }
 }
