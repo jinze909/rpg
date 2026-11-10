@@ -255,6 +255,26 @@ namespace Rpg.Tests.Editor
             }
             Assert.That(pixelLeader.transform.parent, Is.SameAs(visual.transform));
             Assert.That(pixelBeast.transform.parent, Is.SameAs(party.Beast.GameObject.transform));
+            // Point-filtered pixels must not spin diagonally when the real
+            // beast actor aims toward its sound target. Verify both world
+            // headings in the running saved scene; no second AI transform.
+            var beastActor = party.Beast.GameObject.transform;
+            var initialBeastRotation = beastActor.rotation;
+            beastActor.rotation = Quaternion.Euler(0f, 0f, 180f);
+            yield return null;
+            Assert.That(Quaternion.Angle(pixelBeast.transform.rotation,
+                    Quaternion.identity), Is.LessThan(0.01f),
+                "Left-facing pixel art must remain upright even when its ORK actor rotates.");
+            Assert.That(pixelBeast.flipX, Is.True);
+            beastActor.rotation = Quaternion.Euler(0f, 0f, 0f);
+            yield return null;
+            Assert.That(Quaternion.Angle(pixelBeast.transform.rotation,
+                    Quaternion.identity), Is.LessThan(0.01f));
+            Assert.That(pixelBeast.flipX, Is.False,
+                "Facing right should flip the same visible sprite, not alter ORK AI.");
+            beastActor.rotation = initialBeastRotation;
+            yield return null;
+
 
             Assert.That(visual.Controller.runtimeAnimatorController.animationClips.Select(c => c.name),
                 Is.EquivalentTo(new[] { "Idle", "Move", "Action", "Hit" }));

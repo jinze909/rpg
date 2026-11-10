@@ -16,6 +16,7 @@ namespace Rpg.Soundwell
         private readonly Sprite square;
         private readonly Sprite leaderPixelSprite;
         private readonly Sprite beastPixelSprite;
+        private readonly SpriteRenderer beastVisualRenderer;
         private readonly Texture2D leaderPixelTexture;
         private readonly Texture2D beastPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
@@ -208,9 +209,9 @@ namespace Rpg.Soundwell
             beastIntentMarker.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
             beastIntentMarker.enabled = false;
             // A horned pixel silhouette on the same authoritative ORK beast.
-            var beastRenderer = Plate(beast, "PLACEHOLDER beast", Vector2.zero,
+            beastVisualRenderer = Plate(beast, "PLACEHOLDER beast", Vector2.zero,
                 Vector2.one, new Color(0.95f, 0.41f, 0.42f), 3);
-            beastRenderer.sprite = beastPixelSprite;
+            beastVisualRenderer.sprite = beastPixelSprite;
 
             // Telegraph the actual encounter radius rather than asking the
             // player to guess a hidden distance. The ring shares the same
@@ -588,6 +589,15 @@ namespace Rpg.Soundwell
             bool beastContacted, bool lowerPlankBroken,
             float searchRemainingFraction, Vector2 beastDestination)
         {
+            // The existing beast actor rotates continuously toward its real
+            // sound target. Keep its 16px sprite upright on the screen and
+            // flip on actual horizontal facing instead of rotating pixels
+            // at arbitrary angles. This changes no ORK status, AI or collider.
+            beastVisualRenderer.transform.rotation = Quaternion.identity;
+            float beastFacingX = beastVisualRenderer.transform.parent.right.x;
+            if (Mathf.Abs(beastFacingX) > 0.1f)
+                beastVisualRenderer.flipX = beastFacingX < 0f;
+
             beastIntentMarker.enabled = ringing || searching;
             if (beastIntentMarker.enabled)
             {
