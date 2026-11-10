@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9620f8c34305754d8cc9a7e49e852d9, type: 3}
+  m_Name: SoundwellUI-en
+  m_EditorClassIdentifier: Unity.Localization::UnityEngine.Localization.Tables.StringTable
+  m_LocaleId:
+    m_Code: en
+  m_SharedData: {fileID: 11400000, guid: 519735d468e573d7c9e22919fe3ae84c, type: 2}
+  m_Metadata:
+    m_Items: []
+  m_TableData:
+  - m_Id: 760188928
+    m_Localized: SOUNDWELL  /  SIGNAL TRIAL
+    m_Metadata:
+      m_Items: []
+  - m_Id: 793743360
+    m_Localized: PLACEHOLDER   /   Entrance and observation lane
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937664
+    m_Localized: RETREAT
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937665
+    m_Localized: COPPER BELL
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937666
+    m_Localized: SIDE BELL STAND
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937667
+    m_Localized: '[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937668
+    m_Localized: 'TAB / START: FOCUS ACTIONS'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937669
+    m_Localized: 'ACTION FOCUS  /  MOVE: SELECT  /  ENTER OR A: USE  /  ESC OR B: RESUME'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937670
+    m_Localized: 'RING  [E / A]'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937671
+    m_Localized: 'WRAP  [Q / X]'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937672
+    m_Localized: 'UNWRAP  [Q / X]'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937673
+    m_Localized: 'RESET  [R / Y]'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937674
+    m_Localized: 'BACK  [Esc / B]'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937675
+    m_Localized: 'LIFT  [F / LB]'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937676
+    m_Localized: 'DROP  [F / LB]'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937677
+    m_Localized: "\u4E2D\u6587 / EN"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937678
+    m_Localized: English table fallback
+    m_Metadata:
+      m_Items: []
+  references:
+    version: 2
+    RefIds: []

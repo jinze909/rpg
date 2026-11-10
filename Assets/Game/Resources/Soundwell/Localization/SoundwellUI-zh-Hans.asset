@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9620f8c34305754d8cc9a7e49e852d9, type: 3}
+  m_Name: SoundwellUI-zh-Hans
+  m_EditorClassIdentifier: Unity.Localization::UnityEngine.Localization.Tables.StringTable
+  m_LocaleId:
+    m_Code: zh-Hans
+  m_SharedData: {fileID: 11400000, guid: 519735d468e573d7c9e22919fe3ae84c, type: 2}
+  m_Metadata:
+    m_Items: []
+  m_TableData:
+  - m_Id: 760188928
+    m_Localized: "\u58F0\u4E95 / \u4FE1\u53F7\u8BD5\u70BC"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 793743360
+    m_Localized: "\u5360\u4F4D\u573A\u666F / \u5165\u53E3\u4E0E\u89C2\u5BDF\u901A\u9053"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937664
+    m_Localized: "\u64A4\u9000\u70B9"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937665
+    m_Localized: "\u94DC\u94C3"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937666
+    m_Localized: "\u4FA7\u8FB9\u94C3\u67B6"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937667
+    m_Localized: "[WASD / \u65B9\u5411\u952E / \u6447\u6746] \u79FB\u52A8    [Esc / B] \u8FD4\u56DE\u5165\u53E3"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937668
+    m_Localized: "TAB / START\uFF1A\u9009\u62E9\u64CD\u4F5C"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937669
+    m_Localized: "\u64CD\u4F5C\u9009\u62E9 / \u65B9\u5411\u952E\uFF1A\u9009\u62E9 / Enter \u6216 A\uFF1A\u786E\u8BA4 / Esc \u6216 B\uFF1A\u8FD4\u56DE"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937670
+    m_Localized: "\u6447\u94C3 [E / A]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937671
+    m_Localized: "\u5305\u88F9 [Q / X]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937672
+    m_Localized: "\u89E3\u5F00 [Q / X]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937673
+    m_Localized: "\u91CD\u8BD5 [R / Y]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937674
+    m_Localized: "\u8FD4\u56DE [Esc / B]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937675
+    m_Localized: "\u62FF\u8D77 [F / LB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937676
+    m_Localized: "\u653E\u4E0B [F / LB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 797937677
+    m_Localized: "EN / \u4E2D\u6587"
+    m_Metadata:
+      m_Items: []
+  references:
+    version: 2
+    RefIds: []
