@@ -28,7 +28,7 @@
 ## 二-A、现代工作室技术
 
 - **现代、好玩、长期可维护的 2D RPG；不是为了“最新版”而堆技术。** 详细技术选型、现状、阶段计划、来源、验收与回退门槛统一以 [现代 2D RPG 工作室技术基线](docs/technical/MODERN_2D_RPG_STACK.md) 为准。作为当前用户新决定，它优先于旧的“尽量升级全部”的建议。
-- **ORK 3.22.0 和 Makinom 2.21.0 严格冻结。** 不升级 ORK 3、不迁 ORK 4、不重新购买、不修改框架源码、DLL、原始厂商文件、GUID、厂商项目数据或 ORK/Makinom 配置。仍由 ORK/Makinom 担任单一权威。现代化仅改游戏自有层；若需要触动框架，停止并报告，等待用户新的明确授权。
+- **ORK 3.22.0 和 Makinom 2.21.0 严格冻结。** 不升级 ORK 3、不迁 ORK 4、不重新购买、不修改框架源码、DLL、原始厂商文件、GUID、厂商项目数据或 ORK/Makinom 配置。仍由 ORK/Makinom 担任单一权威。现代化仅改游戏自有层；若需要触动框架，在做充分验证后对框架进行修改。
 - **新增购买成本为零。** 优先现有 Unity 引擎功能与已发布的 Unity Registry 官方包、许可可核实的免费/开源工具；不得购买插件、素材或升级、开付费订阅、额外云服务/构建计费或自动创建开销。包兼容、平台许可、许可证与 CI 配额须先核对。没有证据不得断言某项免费或已安装。
 - **UGUI 留用，排除 UI Toolkit 迁移。** 可评估 URP 2D、Input System（先 Both，不能禁用 ORK 所需旧输入）、Cinemachine 3、2D 动画、Tilemap Extras、Audio Mixer、Sprite Atlas V2、按风格的 Pixel Perfect、Localization、Memory Profiler、Build Profiles；Addressables/ECS/HDRP 暂缓，不要求一次装齐。
 - **先修当前故事候选，再分域迁移。** 任何包、渲染、输入、场景、相机升级均用单独候选和同 SHA Unity 验收，保护已证明的启动、声井探索、ORK 战斗、UGUI 和重载路径。纯规划文档更新不等于任何工具安装/升级成功。
