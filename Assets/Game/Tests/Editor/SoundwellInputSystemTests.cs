@@ -3,6 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEditor.SceneManagement;
 using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
 
@@ -23,6 +24,9 @@ namespace Rpg.Tests.Editor
         [UnityTest]
         public IEnumerator EntryAndGameplayContextsRouteLiveKeyboardAndGamepadEvents()
         {
+            // Bootstrap's SoundwellEntrance initializes the production action asset in Awake.
+            // Keep this input-runtime test isolated so InputTestFixture owns the runtime first.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
 
             // InputTestFixture is designed for Play Mode tests. It isolates the
@@ -57,11 +61,13 @@ namespace Rpg.Tests.Editor
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 
                 input.Press(gamepad.buttonSouth);
+                yield return null;
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.True,
                     "Gamepad South must ring only after the Gameplay map is active.");
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.False,
                     "Gameplay input must not also activate the Entry action.");
                 input.Release(gamepad.buttonSouth);
+                yield return null;
 
                 input.Press(keyboard.wKey);
                 yield return null;

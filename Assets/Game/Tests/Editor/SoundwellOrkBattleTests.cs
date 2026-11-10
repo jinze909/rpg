@@ -101,12 +101,19 @@ namespace Rpg.Tests.Editor
 
             Assert.That(party.BattleInProgress, Is.True,
                 "The ORK encounter must still be active when its enemy is defeated.");
-            party.Beast.Status.Death();
-            ORK.Game.Combatants.CheckDeath();
+            // HP is ORK status value ID 1 in this project. Apply a real ORK
+            // status change, then ask ORK's death check to resolve OnMinimum.
+            var beastHp = party.Beast.Status[1];
+            beastHp.AddValue(-999, false, false, false, true, true, false, false,
+                default(StatusValueChangeSource));
+            Assert.That(beastHp.GetValue(), Is.EqualTo(0),
+                "The ORK HP status must reach its configured minimum.");
+            Assert.That(party.Beast.Status.CheckDeath(), Is.True,
+                "ORK must resolve the beast's OnMinimum death condition.");
             Assert.That(party.Beast.Status.IsDead, Is.True,
                 "ORK must record the beast as dead before the rescue gate can unlock.");
-            // CheckDeath marks the combatant dead; the battle handler's EndBattle
-            // is the framework boundary that reports the encounter's conclusion.
+            // The test simulates a completed player attack without a UI menu;
+            // use ORK's battle handler to report the encounter's end.
             ORK.Game.Combatants.EndBattle();
             float victoryDeadline = Time.realtimeSinceStartup + 8f;
             while (!trial.DirectCombatComplete && Time.realtimeSinceStartup < victoryDeadline)
