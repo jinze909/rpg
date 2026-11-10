@@ -59,6 +59,8 @@ def allowed_path(name):
         "Assets/Game/Resources/Soundwell/Tiles/GratingBase.png.meta",
         "Assets/Game/Resources/Soundwell/Tiles/GratingJoined.png",
         "Assets/Game/Resources/Soundwell/Tiles/GratingJoined.png.meta",
+        "Assets/Game/Resources/Soundwell/Tiles/SoundwellWalls.spriteatlasv2",
+        "Assets/Game/Resources/Soundwell/Tiles/SoundwellWalls.spriteatlasv2.meta",
         "Assets/Game/Resources/Soundwell.meta",
         "Assets/Game/Resources/Soundwell/Clips.meta",
         "Assets/Game/Resources/Soundwell/PlaceholderPlayer.controller",

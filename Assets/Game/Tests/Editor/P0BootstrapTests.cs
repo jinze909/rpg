@@ -42,6 +42,7 @@ namespace Rpg.Tests.Editor
                 InvokeUrpSetup("Prepare");
                 InvokeSoundwellAnimationSetup("Prepare");
                 InvokeSoundwellTilemapSetup("Prepare");
+                InvokeSoundwellSpriteAtlasSetup("Prepare");
                 InvokeSoundwellAudioMixerSetup("Prepare");
                 InvokeSoundwellLocalizationSetup("Prepare");
                 InvokeSoundwellBuildProfilesSetup("Prepare");
@@ -54,6 +55,7 @@ namespace Rpg.Tests.Editor
                 // Validate BEFORE wiring: verification must not repair missing configuration.
                 InvokeSoundwellAnimationSetup("Validate");
                 InvokeSoundwellTilemapSetup("Validate");
+                InvokeSoundwellSpriteAtlasSetup("Validate");
                 InvokeSoundwellAudioMixerSetup("Validate");
                 InvokeSoundwellLocalizationSetup("Validate");
                 InvokeSoundwellBuildProfilesSetup("Validate");
@@ -225,6 +227,13 @@ namespace Rpg.Tests.Editor
             {
                 throw error.InnerException;
             }
+        }
+
+        private static void InvokeSoundwellSpriteAtlasSetup(string methodName)
+        {
+            var type = Type.GetType("Rpg.Editor.SoundwellSpriteAtlasSetup, Assembly-CSharp-Editor", true);
+            try { type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null); }
+            catch (TargetInvocationException error) when (error.InnerException != null) { throw error.InnerException; }
         }
 
         private static void InvokeSoundwellTilemapSetup(string methodName)
