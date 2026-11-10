@@ -29,6 +29,7 @@ INPUT_SYSTEM_TESTS = {
 }
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
+    "RPG_SOUNDWELL_LOCALIZATION_PLAY_VALIDATED",
     "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED",
 )
 SOURCE_PATHS = ("Assets", "Packages", "ProjectSettings")
@@ -218,7 +219,8 @@ def collect(mode):
             errors.append(f"Missing {filename}.")
     editmode_markers = ("RPG_BOOTSTRAP_PLAY_VALIDATED:first", "RPG_BOOTSTRAP_PLAY_VALIDATED:second",
                         URP2D_MARKER, "RPG_SOUNDWELL_TILEMAP_VALIDATED",
-                        "RPG_SOUNDWELL_AUDIO_MIXER_VALIDATED")
+                        "RPG_SOUNDWELL_AUDIO_MIXER_VALIDATED",
+                        "RPG_SOUNDWELL_LOCALIZATION_VALIDATED")
     if soundwell:
         editmode_markers += SOUNDWELL_MARKERS
     for filename, markers in {

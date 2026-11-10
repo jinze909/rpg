@@ -107,6 +107,24 @@ namespace Rpg.Tests.Editor
             Assert.That(SoundwellAudioBus.SetMuted(soundwellMixer, false), Is.True);
             Assert.That(SoundwellAudioBus.TryGetVolume(soundwellMixer, out float restoredDb), Is.True);
             Assert.That(restoredDb, Is.EqualTo(0f).Within(0.1f));
+            // Saved StringTables drive a live UGUI button, not duplicate data.
+            var title = root.GetComponentsInChildren<Text>(true)
+                .SingleOrDefault(label => label.text == "SOUNDWELL  /  SIGNAL TRIAL");
+            Assert.That(title, Is.Not.Null);
+            var localeButton = root.GetComponentsInChildren<Button>(true)
+                .SingleOrDefault(button => button.gameObject.name == "Soundwell Language button");
+            Assert.That(localeButton, Is.Not.Null);
+            Assert.That(SoundwellUiLocalization.Language, Is.EqualTo(SoundwellUiLocalization.English));
+            localeButton.onClick.Invoke();
+            Assert.That(SoundwellUiLocalization.Language, Is.EqualTo(SoundwellUiLocalization.Chinese));
+            Assert.That(title.text, Is.EqualTo("声井 / 信号试炼"));
+            Assert.That(SoundwellUiLocalization.Get("diagnostic.fallback"),
+                Is.EqualTo("English table fallback"));
+            Assert.That(SoundwellUiLocalization.Get("diagnostic.unknown"),
+                Is.EqualTo("diagnostic.unknown"));
+            localeButton.onClick.Invoke();
+            Assert.That(title.text, Is.EqualTo("SOUNDWELL  /  SIGNAL TRIAL"));
+            Debug.Log("RPG_SOUNDWELL_LOCALIZATION_PLAY_VALIDATED");
             trial.ReadInput = false;
             Assert.That(party.Members.Count, Is.EqualTo(3));
             Assert.That(party.Actors.Count, Is.EqualTo(3));

@@ -1285,11 +1285,18 @@ namespace Rpg.Soundwell
                 trialAfterVictory.PlayerPosition == retreat,
                 "Replay after victory must start fresh without copying the previous rescue.");
 
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             yield return SceneManager.LoadSceneAsync(SceneName);
             var fresh = FindRootComponent<SoundwellTrial>();
             Require(fresh != null && !ReferenceEquals(fresh, trial), "Reload must create a fresh trial.");
             for (var wait = Until(() => fresh.IsReady, "initialize the reloaded trial"); wait.MoveNext();)
                 yield return null;
+            Require(SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese &&
+                ShowsPrompt(fresh, "声井 / 信号试炼"),
+                "Reload must retain the selected local HUD language.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            Require(ShowsPrompt(fresh, "SOUNDWELL  /  SIGNAL TRIAL"),
+                "Reverting language must immediately update live UGUI after reload.");
             Require(!fresh.HasBellTarget, "fresh.HasBellTarget must be false.");
             Require(!fresh.IsWrapped, "fresh.IsWrapped must be false.");
             Require(!fresh.IsCarrying && fresh.BellPosition == bellStart && !fresh.CanPlaceBell,

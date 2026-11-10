@@ -1,4 +1,5 @@
 using Action = System.Action;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -55,6 +56,8 @@ namespace Rpg.Soundwell
         private readonly Text carryButtonLabel;
         private readonly Text wrapButtonLabel;
         private readonly Text menuStatus;
+        private readonly Dictionary<Text, string> localizedLabels = new Dictionary<Text, string>();
+        private readonly Button languageButton;
         private readonly EventSystem actionEventSystem;
         private readonly bool previousNavigationEvents;
         private readonly Canvas trialCanvas;
@@ -268,12 +271,12 @@ namespace Rpg.Soundwell
             var rect = (RectTransform)trialCanvas.transform;
             rect.sizeDelta = new Vector2(840, 480);
             rect.localScale = Vector3.one * 0.02f;
-            AddLabel(rect, "SOUNDWELL  /  SIGNAL TRIAL", 25, Ink, new Vector2(0, 224), new Vector2(700, 40));
-            AddLabel(rect, "PLACEHOLDER   /   Entrance and observation lane", 14, Cloth,
-                new Vector2(0, 194), new Vector2(650, 22));
-            AddLabel(rect, "RETREAT", 13, Cloth, new Vector2(-278, -68), new Vector2(120, 24));
-            AddLabel(rect, "COPPER BELL", 13, Gold, new Vector2(-88, -43), new Vector2(120, 22));
-            AddLabel(rect, "SIDE BELL STAND", 13, Cloth, new Vector2(-92, -122), new Vector2(180, 24));
+            Localize(AddLabel(rect, "", 25, Ink, new Vector2(0, 224), new Vector2(700, 40)), "hud.title");
+            Localize(AddLabel(rect, "", 14, Cloth,
+                new Vector2(0, 194), new Vector2(650, 22)), "hud.entrance");
+            Localize(AddLabel(rect, "", 13, Cloth, new Vector2(-278, -68), new Vector2(120, 24)), "hud.retreat");
+            Localize(AddLabel(rect, "", 13, Gold, new Vector2(-88, -43), new Vector2(120, 22)), "hud.copper_bell");
+            Localize(AddLabel(rect, "", 13, Cloth, new Vector2(-92, -122), new Vector2(180, 24)), "hud.side_stand");
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
             gateStatus = AddLabel(rect, "GATE  /  LOCKED", 16, Ink,
                 new Vector2(0, -102), new Vector2(220, 30));
@@ -282,8 +285,8 @@ namespace Rpg.Soundwell
             surveyorStatus = AddLabel(rect, "", 15, Cloth,
                 new Vector2(0, -148), new Vector2(760, 32));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
-            AddLabel(rect, "[WASD / Arrows / Stick] Move    [Esc / Pad B] Back to entry", 14, Cloth,
-                new Vector2(0, -222), new Vector2(760, 26));
+            Localize(AddLabel(rect, "", 14, Cloth,
+                new Vector2(0, -222), new Vector2(760, 26)), "hud.controls");
 
             // Pointer input remains available outside focus mode. The single
             // InputSystem UI module owns keyboard/gamepad navigation and Submit.
@@ -299,20 +302,35 @@ namespace Rpg.Soundwell
             // shrink every action target to a tiny fraction of the reference UI.
             scaler.matchWidthOrHeight = 0.5f;
             actionCanvas.gameObject.AddComponent<GraphicRaycaster>();
-            ringButton = CreateActionButton(actionCanvas.transform, "Ring", "RING  [E / A]", 0, ring);
-            wrapButton = CreateActionButton(actionCanvas.transform, "Wrap", "WRAP  [Q / X]", 1, wrap);
+            ringButton = CreateActionButton(actionCanvas.transform, "Ring", "", 0, ring);
+            Localize(ringButton.GetComponentInChildren<Text>(), "action.ring");
+            wrapButton = CreateActionButton(actionCanvas.transform, "Wrap", "", 1, wrap);
             wrapButtonLabel = wrapButton.GetComponentInChildren<Text>();
-            retryButton = CreateActionButton(actionCanvas.transform, "Retry", "RESET  [R / Y]", 2, retry);
-            backButton = CreateActionButton(actionCanvas.transform, "Back", "BACK  [Esc / B]", 3, back);
-            carryButton = CreateActionButton(actionCanvas.transform, "Carry", "LIFT  [F / LB]", 4, carry);
+            retryButton = CreateActionButton(actionCanvas.transform, "Retry", "", 2, retry);
+            Localize(retryButton.GetComponentInChildren<Text>(), "action.retry");
+            backButton = CreateActionButton(actionCanvas.transform, "Back", "", 3, back);
+            Localize(backButton.GetComponentInChildren<Text>(), "action.back");
+            carryButton = CreateActionButton(actionCanvas.transform, "Carry", "", 4, carry);
             carryButtonLabel = carryButton.GetComponentInChildren<Text>();
             gateButton = CreateActionButton(actionCanvas.transform, "Gate", "OPEN GATE [G / RB]", 5, gate);
             gateButtonLabel = gateButton.GetComponentInChildren<Text>();
-            menuStatus = AddLabel(actionCanvas.transform, "TAB / START: FOCUS ACTIONS",
+            menuStatus = AddLabel(actionCanvas.transform, "",
                 14, Cloth, new Vector2(-270f, 220f), new Vector2(360f, 32f));
             menuStatus.resizeTextForBestFit = true;
             menuStatus.resizeTextMinSize = 11;
             menuStatus.resizeTextMaxSize = 14;
+
+            // Pointer-accessible locale toggle remains separate from gameplay actions.
+            languageButton = CreateActionButton(actionCanvas.transform, "Language", "", 7,
+                SoundwellUiLocalization.Toggle);
+            var langRect = (RectTransform)languageButton.transform;
+            langRect.anchorMin = langRect.anchorMax = new Vector2(0.5f, 1f);
+            langRect.pivot = new Vector2(0.5f, 1f);
+            langRect.anchoredPosition = new Vector2(120f, -14f);
+            langRect.sizeDelta = new Vector2(138f, 34f);
+            Localize(languageButton.GetComponentInChildren<Text>(), "action.language");
+            SoundwellUiLocalization.Changed += RefreshLocalizedLabels;
+            RefreshLocalizedLabels();
 
             var cancelHandler = actionCanvas.gameObject.AddComponent<SoundwellActionMenuCancelHandler>();
             // Route Cancel through the trial owner so it restores the gameplay map,
@@ -339,9 +357,7 @@ namespace Rpg.Soundwell
                 };
 
             actionEventSystem.sendNavigationEvents = open;
-            menuStatus.text = open
-                ? "ACTION FOCUS  /  MOVE: SELECT  /  ENTER OR A: USE  /  ESC OR B: RESUME"
-                : "TAB / START: FOCUS ACTIONS";
+            menuStatus.text = SoundwellUiLocalization.Get(open ? "hud.focus_active" : "hud.focus");
             if (open)
                 EnsureActionSelection();
             else if (IsActionSelection(actionEventSystem.currentSelectedGameObject))
@@ -429,6 +445,21 @@ namespace Rpg.Soundwell
                 gateButton.interactable ? gateButton :
                 retryButton.interactable ? retryButton : backButton;
             actionEventSystem.SetSelectedGameObject(target.gameObject);
+        }
+
+        private void Localize(Text label, string key)
+        {
+            localizedLabels.Add(label, key);
+            label.text = SoundwellUiLocalization.Get(key);
+        }
+
+        private void RefreshLocalizedLabels()
+        {
+            foreach (var kv in localizedLabels)
+                if (kv.Key != null)
+                    kv.Key.text = SoundwellUiLocalization.Get(kv.Value);
+            if (menuStatus != null)
+                menuStatus.text = SoundwellUiLocalization.Get(actionMenuOpen ? "hud.focus_active" : "hud.focus");
         }
 
         private static Button CreateActionButton(Transform parent, string name, string caption, int index, Action action)
@@ -657,12 +688,12 @@ namespace Rpg.Soundwell
             if (gateStatus.text != gateCaption)
                 gateStatus.text = gateCaption;
             gateStatus.color = gateOpen ? Cloth : Ink;
-            string carryCaption = carrying ? "DROP  [F / LB]" : "LIFT  [F / LB]";
+            string carryCaption = SoundwellUiLocalization.Get(carrying ? "action.drop" : "action.lift");
             if (carryButtonLabel.text != carryCaption)
                 carryButtonLabel.text = carryCaption;
             if (actionMenuOpen)
                 EnsureActionSelection();
-            string wrapCaption = wrapped ? "UNWRAP  [Q / X]" : "WRAP  [Q / X]";
+            string wrapCaption = SoundwellUiLocalization.Get(wrapped ? "action.unwrap" : "action.wrap");
             if (wrapButtonLabel.text != wrapCaption)
                 wrapButtonLabel.text = wrapCaption;
             bellMarker.color = wrapped ? Cloth : Gold;
@@ -787,6 +818,7 @@ namespace Rpg.Soundwell
 
         public void Dispose()
         {
+            SoundwellUiLocalization.Changed -= RefreshLocalizedLabels;
             // Return the EventSystem to its pre-trial state if ORK keeps it alive
             // across the scene transition.
             if (actionEventSystem != null)
