@@ -9,6 +9,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.Tilemaps;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -844,15 +845,25 @@ namespace Rpg.Soundwell
                 !trial.RescueComplete && !trial.HasSurveyorClue,
                 "Beast encounter must allow the player to continue the original rescue.");
 
-            // The real Rigidbody2D must stay in the room; merely displaying
-            // a colored boundary sprite is not sufficient.
-            foreach (var name in new[] { "East wall", "North inner wall", "South inner wall" })
-            {
-                var collider = trial.GetComponentsInChildren<BoxCollider2D>(true)
-                    .SingleOrDefault(body => body.gameObject.name == name);
-                Require(collider != null && collider.enabled && !collider.isTrigger,
-                    "The eastern enclosure must contain real non-trigger 2D physics: " + name);
-            }
+            // M5: solid walls are saved as one TilemapCollider2D, not the old
+            // runtime BoxCollider2D GameObjects. Verify the persisted wall
+            // cells and non-trigger physics, then try walking into them below.
+            var wallCollider = UnityEngine.Object.FindObjectsByType<TilemapCollider2D>(
+                    FindObjectsSortMode.None)
+                .SingleOrDefault(body => body.gameObject.name == "Solid walls");
+            Require(wallCollider != null && wallCollider.enabled && !wallCollider.isTrigger,
+                "The saved eastern enclosure must have one active solid TilemapCollider2D.");
+            var wallTiles = wallCollider.GetComponent<Tilemap>();
+            Require(wallTiles != null &&
+                wallTiles.HasTile(new Vector3Int(35, 0, 0)) &&
+                wallTiles.HasTile(new Vector3Int(18, 16, 0)) &&
+                wallTiles.HasTile(new Vector3Int(18, -16, 0)),
+                "The saved east, north inner and south inner walls must all have solid tiles.");
+            Require(!trial.GetComponentsInChildren<BoxCollider2D>(true).Any(body =>
+                    body.gameObject.name == "East wall" ||
+                    body.gameObject.name == "North inner wall" ||
+                    body.gameObject.name == "South inner wall"),
+                "M5 must not keep parallel old wall colliders.");
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= 6.10f,
                 "explore the inner room toward its far wall"); wait.MoveNext();)
