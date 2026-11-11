@@ -454,6 +454,7 @@ namespace Rpg.Tests.Editor
             Assert.That(party.Members.Any(member => member.Actions.IsChoosing), Is.True,
                 "The direct route must enter a real ORK player turn, not only register battle participants.");
 
+            Debug.Log("RPG_ORK_ATTACK_STAGE:pre_select");
             // Attack must be an actual ORK ability from the active combatant,
             // targeted at the saved beast. Do not treat manual status subtraction
             // or a mocked battle-end event as proof of a usable player action.
@@ -466,17 +467,35 @@ namespace Rpg.Tests.Editor
             // Diagnose ORK's SAVED, real combatant ability state when the
             // configured base attack is missing or unselectable. Keep the
             // failure strict: no synthetic combat damage or action bypass.
+            Debug.Log("RPG_ORK_ATTACK_STAGE:readiness_probe");
             string attackAvailability = string.Join("; ", party.Members.Select((member, index) =>
             {
                 var baseAttack = member.Abilities.GetCurrentBaseAttack();
+                // Diagnostic probes must never replace a strict NUnit failure
+                // with an unrelated NullReference from an unusable ORK ability.
+                string canChoose, canUse, noCost, canTarget;
+                try
+                {
+                    bool choose = baseAttack != null && baseAttack.CanChoose(member, true, true);
+                    canChoose = choose.ToString();
+                    canUse = (baseAttack != null && baseAttack.CanUse(member, true, true)).ToString();
+                    noCost = (baseAttack != null && baseAttack.CanChoose(member, false, false)).ToString();
+                    canTarget = !choose ? "not evaluated (cannot choose)" :
+                        baseAttack.CanTarget(member, party.Beast).ToString();
+                }
+                catch (System.Exception error)
+                {
+                    return "member " + index + " ability probe threw " +
+                        error.GetType().Name + ": " + error.Message;
+                }
                 return "member " + index +
                     " choosing=" + member.Actions.IsChoosing +
                     " dead=" + member.Status.IsDead +
                     " baseAttack=" + (baseAttack != null) +
-                    " canChoose=" + (baseAttack != null && baseAttack.CanChoose(member, true, true)) +
-                    " canUse=" + (baseAttack != null && baseAttack.CanUse(member, true, true)) +
-                    " canChooseNoCost=" + (baseAttack != null && baseAttack.CanChoose(member, false, false)) +
-                    " canTargetBeast=" + (baseAttack != null && baseAttack.CanTarget(member, party.Beast));
+                    " canChoose=" + canChoose +
+                    " canUse=" + canUse +
+                    " canChooseNoCost=" + noCost +
+                    " canTargetBeast=" + canTarget;
             }));
             string baseAttackApi = string.Join("; ", party.Members[0].Abilities.GetType()
                 .GetMethods(System.Reflection.BindingFlags.Public |
@@ -485,6 +504,7 @@ namespace Rpg.Tests.Editor
                     method.Name.Contains("Ability"))
                 .Select(method => method.ToString())
                 .Distinct().Take(24));
+            Debug.Log("RPG_ORK_ATTACK_STAGE:assert_readiness");
             Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
                 "A saved ORK player combatant must have a selectable base attack on its turn. " +
                 attackAvailability + " | public ORK API: " + baseAttackApi +

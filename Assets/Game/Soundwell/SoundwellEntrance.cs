@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
         private Text actionText;
         private Text footerText;
         private Text outcomeText;
+        private Font englishFont;
         private float layoutAspect = -1f;
         private int shownOutcome = -1;
         private bool shownCartKitRecovered;
@@ -25,6 +26,7 @@ namespace Rpg.Soundwell
         private int shownBeastContacts = -1;
 
         public int LastReturnOutcome => shownOutcome;
+        public string ReturnSummaryText => outcomeText != null ? outcomeText.text : string.Empty;
         public bool LastReturnCartKitRecovered => shownCartKitRecovered;
         public bool LastReturnSafeRouteMarked => shownSafeRouteMarked;
         public int LastReturnBeastContacts => shownBeastContacts;
@@ -85,8 +87,33 @@ namespace Rpg.Soundwell
             outcomeText.resizeTextForBestFit = true;
             outcomeText.resizeTextMinSize = 13;
             outcomeText.resizeTextMaxSize = 17;
+            englishFont = titleText.font;
+            RefreshLocalizedPresentation();
             LayoutForViewportAspect((float)Screen.width / Mathf.Max(Screen.height, 1));
+        }
 
+        private void OnEnable()
+        {
+            SoundwellUiLocalization.Changed += RefreshLocalizedPresentation;
+        }
+
+        private void OnDisable()
+        {
+            SoundwellUiLocalization.Changed -= RefreshLocalizedPresentation;
+        }
+
+        private void RefreshLocalizedPresentation()
+        {
+            if (titleText == null)
+                return;
+            // Keep the return screen in the same authored StringTables as
+            // Soundwell's UGUI controls. ORK and Makinom remain authoritative.
+            Font font = SoundwellUiLocalization.PresentationFont(englishFont);
+            titleText.font = actionText.font = footerText.font = outcomeText.font = font;
+            titleText.text = SoundwellUiLocalization.Get("entry.title");
+            actionText.text = SoundwellUiLocalization.Get("entry.action");
+            footerText.text = SoundwellUiLocalization.Get("entry.footer");
+            RefreshReturnOutcome(true);
         }
 
         private void Start()
@@ -132,7 +159,7 @@ namespace Rpg.Soundwell
                 OpenTrial();
         }
 
-        public void RefreshReturnOutcome()
+        public void RefreshReturnOutcome(bool force = false)
         {
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;
             if (variables == null)
@@ -145,7 +172,7 @@ namespace Rpg.Soundwell
                 variables.GetInt(SoundwellTrial.EntrySafeRouteKey) != 0;
             int contacts = Mathf.Clamp(
                 variables.GetInt(SoundwellTrial.EntryBeastContactsKey), 0, 999);
-            if (result == shownOutcome && cartKitRecovered == shownCartKitRecovered &&
+            if (!force && result == shownOutcome && cartKitRecovered == shownCartKitRecovered &&
                 safeRouteMarked == shownSafeRouteMarked && contacts == shownBeastContacts)
                 return;
 
@@ -153,16 +180,19 @@ namespace Rpg.Soundwell
             shownCartKitRecovered = cartKitRecovered;
             shownSafeRouteMarked = safeRouteMarked;
             shownBeastContacts = contacts;
-            string encounterReport = contacts > 0 ? "\nBEAST CONTACTS: " + contacts
-                : result > 0 ? "\nCLEAN EVASION: NO BEAST CONTACT" : "";
+            string encounterReport = contacts > 0
+                ? string.Format(SoundwellUiLocalization.Get("entry.contacts"), contacts)
+                : result > 0 ? SoundwellUiLocalization.Get("entry.clean_evasion") : "";
             outcomeText.text = result == 2
-                ? "SURVEYOR SAFE / FALSE TRAIL MARKER REMOVED" +
-                    (cartKitRecovered ? "\nMAP KIT RECOVERED" : "") +
-                    (safeRouteMarked ? "\nSAFE ROUTE POSTED" : "") +
+                ? SoundwellUiLocalization.Get("entry.safe_corrected") +
+                    (cartKitRecovered ? SoundwellUiLocalization.Get("entry.kit_recovered") : "") +
+                    (safeRouteMarked ? SoundwellUiLocalization.Get("entry.route_posted") : "") +
                     encounterReport
-                : result == 1 ? "SURVEYOR SAFE / ROUTE MARKER STILL NEEDS CORRECTION" +
+                : result == 1 ? SoundwellUiLocalization.Get("entry.safe_pending") +
                     encounterReport
-                : contacts > 0 ? "WITHDREW / BEAST CONTACTS: " + contacts : "";
+                : contacts > 0
+                    ? string.Format(SoundwellUiLocalization.Get("entry.withdrawn"), contacts)
+                    : "";
         }
 
         public AsyncOperation OpenTrial()
