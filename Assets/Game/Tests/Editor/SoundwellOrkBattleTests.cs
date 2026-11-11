@@ -483,6 +483,11 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(battleHud.activeInHierarchy, Is.False,
                 "The battle-only HUD must disappear after ORK ends the encounter.");
+            var explorationBackLabel = GameObject.Find("Soundwell Back button")?.GetComponentInChildren<Text>();
+            Assert.That(explorationBackLabel, Is.Not.Null);
+            Assert.That(explorationBackLabel.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("action.back")),
+                "After ORK victory, the same UGUI action must return to its exploration label.");
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             Assert.That(trial.CanOpenGate, Is.True,
@@ -685,6 +690,9 @@ namespace Rpg.Tests.Editor
             var back = GameObject.Find("Soundwell Back button")?.GetComponent<Button>();
             Assert.That(back, Is.Not.Null);
             Assert.That(back.gameObject.activeInHierarchy, Is.True);
+            Assert.That(back.GetComponentInChildren<Text>().text,
+                Is.EqualTo(SoundwellUiLocalization.Get("action.retreat")),
+                "Battle Cancel is an explicit ORK encounter withdrawal, not an ambiguous Back.");
             EventSystem events = EventSystem.current;
             Assert.That(events, Is.Not.Null);
             Assert.That(events.currentSelectedGameObject, Is.SameAs(back.gameObject),
