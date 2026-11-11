@@ -317,6 +317,34 @@ def inspect_ork_damage_data_contract():
                   " types=" + repr(classes[:10]) +
                   " fields=" + repr(declarations[:55]))
 
+def inspect_exact_attack_damage_configuration():
+    """Report type declarations needed to finish the real ORK attack payload.
+
+    The public API shapes are sufficient; no vendor method bodies are logged.
+    """
+    import re
+
+    targets = {
+        "TargetStatusChange.cs", "StatusValueStatusChangeType.cs",
+        "StatusValueChange.cs", "FloatValue.cs", "AssetSelection.cs",
+        "StatusValueAsset.cs", "SimpleOperator.cs", "ValueSetter.cs",
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            filename = Path(name).name
+            if filename not in targets:
+                continue
+            source = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            declarations = [
+                line.strip()[:230] for line in source
+                if re.match(r"^\s*public\s+", line)
+                and (" class " in line or " enum " in line or " struct " in line
+                     or "=" in line or line.strip().endswith(";")
+                     or "(" in line)
+            ]
+            print("ORK_DAMAGE_SHAPE " + filename +
+                  " declarations=" + repr(declarations[:65]))
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
@@ -327,3 +355,4 @@ if __name__ == "__main__":
     inspect_attack_guard_flow()
     inspect_attack_return_dependencies()
     inspect_ork_damage_data_contract()
+    inspect_exact_attack_damage_configuration()
