@@ -1,0 +1,164 @@
+name: Close verified newly merged pending branches
+
+on:
+  push:
+    branches: [codex/dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: close-verified-codex-pending
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.repository == 'jinze909/rpg'
+      && github.ref == 'refs/heads/codex/dev'
+      && !github.event.forced
+      && !github.event.created
+      && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Check same-SHA Unity evidence and close only newly merged refs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess, urllib.parse, urllib.request
+          REPO="jinze909/rpg"
+          REF="refs/heads/codex/dev"
+          SHARE=re.compile(r"^[0-9a-f]{40}$")
+          PENDING=re.compile(r"^codex/pending/[A-Za-z0-9._/-]+$")
+          TOKEN=os.environ["GH_TOKEN"]
+          HEADERS={"Authorization":"Bearer "+TOKEN,"Accept":"application/vnd.github+json",
+                   "X-GitHub-Api-Version":"2022-11-28"}
+          
+          def check(ok,reason):
+              if not ok: raise RuntimeError("SAFETY STOP: "+reason)
+          def git(*args):
+              proc=subprocess.run(["git",*args],capture_output=True,text=True)
+              check(proc.returncode==0,"git "+args[0]+": "+proc.stderr[-240:])
+              return proc.stdout.strip()
+          def ancestor(a,b):
+              p=subprocess.run(["git","merge-base","--is-ancestor",a,b],capture_output=True,text=True)
+              check(p.returncode in (0,1),"unknown ancestry: "+p.stderr[-240:])
+              return p.returncode==0
+          def api(path):
+              check(path.startswith("/repos/"+REPO+"/"),"invalid API route")
+              q=urllib.request.Request("https://api.github.com"+path,headers=HEADERS)
+              with urllib.request.urlopen(q,timeout=30) as response:
+                  return json.load(response)
+          def pages(path,key=None,limit=500):
+              items=[]
+              for n in range(1,limit//100+2):
+                  sep="&" if "?" in path else "?"
+                  response=api(path+sep+"per_page=100&page="+str(n))
+                  batch=response[key] if key else response
+                  check(isinstance(batch,list),"invalid API page")
+                  items+=batch
+                  check(len(items)<=limit,"API page limit reached")
+                  if len(batch)<100:return items
+              raise RuntimeError("API page limit exceeded")
+          def runs_for(name):
+              runs=pages("/repos/"+REPO+"/actions/runs?branch="+urllib.parse.quote(name,safe=""),
+                         "workflow_runs")
+              check(all(r.get("status")=="completed" for r in runs),"active or queued CI")
+              return runs
+          def verify_run(name,sha):
+              runs=runs_for(name)
+              for r in runs:
+                  if r.get("name")!="Unity ORK P0" or r.get("conclusion")!="success":continue
+                  attempt=r.get("run_attempt")
+                  want="unity-ork-p0-verify-"+sha+"-attempt-"+str(attempt)
+                  artifacts=pages("/repos/"+REPO+"/actions/runs/"+str(r["id"])+"/artifacts",
+                                  "artifacts",limit=200)
+                  if not any(a.get("name")==want and a.get("expired") is False and
+                             a.get("size_in_bytes",0)>0 for a in artifacts):continue
+                  # A later failed run of this exact SHA invalidates the old green result.
+                  stamp=r.get("created_at","")
+                  if any(x.get("name")=="Unity ORK P0" and x.get("head_sha")==sha and
+                         x.get("created_at","")>stamp and x.get("conclusion")!="success"
+                         for x in runs):return None
+                  return r.get("html_url")
+              return None
+          check(os.environ.get("GITHUB_REPOSITORY")==REPO,"wrong repository")
+          check(os.environ.get("GITHUB_REF")==REF,"wrong branch")
+          with open(os.environ["GITHUB_EVENT_PATH"],encoding="utf-8") as f:event=json.load(f)
+          check(event.get("ref")==REF and event.get("forced") is False and
+                event.get("created") is False and event.get("deleted") is False,
+                "not an ordinary dev update")
+          before,after=event.get("before"),event.get("after")
+          check(isinstance(before,str) and isinstance(after,str) and
+                SHARE.fullmatch(before) and SHARE.fullmatch(after) and
+                before!="0"*40 and before!=after,"invalid push history")
+          git("fetch","--no-tags","origin","+refs/heads/*:refs/remotes/origin/*")
+          dev=api("/repos/"+REPO+"/git/ref/heads/codex/dev")["object"]["sha"]
+          check(git("rev-parse","refs/remotes/origin/codex/dev")==dev,
+                "dev changed while fetching")
+          check(ancestor(before,after) and ancestor(after,dev),
+                "force update, missing baseline, or stale event")
+          pr_heads={p["head"]["ref"] for p in pages("/repos/"+REPO+"/pulls?state=open")}
+          branches=pages("/repos/"+REPO+"/branches",limit=1000)
+          seen=0
+          deleted=[]
+          kept=[]
+          for b in branches:
+              name=b.get("name","")
+              sha=b.get("commit",{}).get("sha","")
+              if not PENDING.fullmatch(name):continue
+              check(bool(SHARE.fullmatch(sha)),"bad candidate SHA")
+              if not ancestor(sha,after) or ancestor(sha,before):continue
+              seen+=1
+              try:
+                  check(not b.get("protected"),"protected branch")
+                  check(name not in pr_heads,"open PR")
+                  check(git("rev-parse","refs/remotes/origin/"+name)==sha,
+                        "local HEAD changed")
+                  proof=verify_run(name,sha)
+                  check(proof,"no exact-SHA successful Unity verify artifact")
+                  check(api("/repos/"+REPO+"/git/ref/heads/codex/dev")["object"]["sha"]==dev,
+                        "dev moved")
+                  check(name not in {p["head"]["ref"] for p in
+                                     pages("/repos/"+REPO+"/pulls?state=open")},
+                        "new open PR")
+                  fresh=api("/repos/"+REPO+"/branches/"+urllib.parse.quote(name,safe=""))
+                  check(fresh["commit"]["sha"]==sha and not fresh.get("protected"),
+                        "remote HEAD changed or protected")
+                  runs_for(name)
+                  ref="refs/heads/"+name
+                  lines=git("ls-remote","--heads","origin",ref).splitlines()
+                  check(len(lines)==1 and lines[0].split()[0]==sha,
+                        "compare-and-swap precondition failed")
+                  git("push","--force-with-lease="+ref+":"+sha,
+                      "origin","--delete",ref)
+                  check(not git("ls-remote","--heads","origin",ref),
+                        "deletion not confirmed")
+                  deleted.append((name,sha,proof))
+                  print("DELETED "+name+" at "+sha+" verified "+proof,flush=True)
+              except (RuntimeError,ValueError,KeyError,OSError) as err:
+                  kept.append((name,str(err)))
+                  print("RETAIN "+name+" : "+str(err),flush=True)
+          print("SUMMARY newly_included="+str(seen)+" deleted="+str(len(deleted))+
+                " kept="+str(len(kept)),flush=True)
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              out.write("## Merged pending branch cleanup\n\n")
+              out.write("Event "+before[:12]+".."+after[:12]+"; newly included "+
+                        str(seen)+"; deleted "+str(len(deleted))+
+                        "; retained "+str(len(kept))+".\n\n")
+              for name,sha,proof in deleted:
+                  out.write("- Deleted "+name+" at "+sha+"; verify "+proof+"\n")
+              for name,why in kept:
+                  out.write("- Retained "+name+": "+why+"\n")
+              if not seen:out.write("No newly included pending HEAD; no deletion.\n")
+          PY

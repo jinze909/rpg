@@ -12,7 +12,7 @@
 | N1 | 打磨已有[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)，写完一条独立地区线及 M08—M11 连续人物场；检查具体行动、对白与因果。 | 开场初稿已整理，后续待编剧；剧情演出未实现、未试玩 |
 | P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，真人试玩待做。当前根据用户最新优先级先推进 M2–M11 迁移，003 后续开发保留为待续接。 |
 
-**用户新决定：当前必须优先持续完成 M1–M11 技术迁移；不得再默认转去推进剧情/故事 003。** M1–M11 仍按实际需求使用 `codex/pending/*` 候选，但**已完成阶段不再永久保留任何分支头**。每次候选实际成功合入 `codex/dev` 后，按[清理规则](production/workflow.md#候选分支清理)仅检查本次候选和直接相关、已完全取代的旧候选，不做全量扫描；同一阶段/故事后续从最新 dev 新建不同名称候选，绝不复用已合入旧头（见[历史索引](docs/technical/MIGRATION_STAGE_BRANCHES.md)）。先处理当前 CI/故障，再按 M 编号推进；当前任务状态见 [AI2-STATUS](AI2-STATUS.md)。
+**用户新决定：当前必须优先持续完成 M1–M11 技术迁移；不得再默认转去推进剧情/故事 003。** M1–M11 仍按实际需求使用 `codex/pending/*` 候选，但**已完成阶段不再永久保留任何分支头**。每次候选实际成功合入 `codex/dev` 后，按[清理规则](production/workflow.md#候选分支清理)仅检查本次候选和直接相关、已完全取代的旧候选，不做全量扫描；日常删除由[自动清理 Actions](.github/workflows/close-merged-pending.yml)核验本次新合入 HEAD 与同 SHA verify 后执行；同一阶段/故事后续从最新 dev 新建不同名称候选，绝不复用已合入旧头（见[历史索引](docs/technical/MIGRATION_STAGE_BRANCHES.md)）。先处理当前 CI/故障，再按 M 编号推进；当前任务状态见 [AI2-STATUS](AI2-STATUS.md)。
 
 ## 现代工作室技术路线（已建 GitHub 实施卡；迁移尚未完成）
 
