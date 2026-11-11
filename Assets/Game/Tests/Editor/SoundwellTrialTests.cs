@@ -126,6 +126,54 @@ namespace Rpg.Tests.Editor
             yield return new ExitPlayMode();
         }
 
+        [UnityTest]
+        public IEnumerator PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi()
+        {
+            // Simulate a player toggling language before a full Play Mode
+            // domain restart; the next Bootstrap UI must be born in Chinese.
+            const string key = SoundwellUiLocalization.LanguagePreferenceKey;
+            bool hadPreference = PlayerPrefs.HasKey(key);
+            string previousPreference = PlayerPrefs.GetString(key, string.Empty);
+            string previousLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                SoundwellUiLocalization.Toggle();
+                Assert.That(SoundwellUiLocalization.Language,
+                    Is.EqualTo(SoundwellUiLocalization.Chinese));
+                Assert.That(PlayerPrefs.GetString(key),
+                    Is.EqualTo(SoundwellUiLocalization.Chinese),
+                    "The player's own UI toggle must persist the chosen language.");
+
+                // Non-player diagnostic changes must not overwrite the
+                // preference that a fresh game session will restore.
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(PlayerPrefs.GetString(key),
+                    Is.EqualTo(SoundwellUiLocalization.Chinese));
+
+                EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+                yield return new EnterPlayMode(expectDomainReload: true);
+                Assert.That(SoundwellUiLocalization.Language,
+                    Is.EqualTo(SoundwellUiLocalization.Chinese),
+                    "The language must restore before a new Bootstrap scene is presented.");
+                var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+                Assert.That(entry, Is.Not.Null);
+                Assert.That(entry.GetComponentsInChildren<Text>(true).Any(label =>
+                    label.text.Contains("进入试炼") && label.font.HasCharacter('中')), Is.True,
+                    "The freshly constructed entry UI must use the saved Chinese table and glyphs.");
+                yield return new ExitPlayMode();
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                if (hadPreference)
+                    PlayerPrefs.SetString(key, previousPreference);
+                else
+                    PlayerPrefs.DeleteKey(key);
+                PlayerPrefs.Save();
+            }
+        }
+
         [UnityTearDown]
         public IEnumerator RestoreEditMode()
         {
