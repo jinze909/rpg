@@ -268,7 +268,8 @@ namespace Rpg.Soundwell
                     if (member == null || member.Status.IsDead || !member.Actions.IsChoosing)
                         continue;
                     AbilityShortcut attack = member.Abilities.GetCurrentBaseAttack();
-                    if (attack != null && attack.CanChoose(member, true, true))
+                    if (attack != null && attack.CanChoose(member, true, true) &&
+                        attack.CanTarget(member, Beast))
                         return i;
                 }
                 return -1;
@@ -285,7 +286,7 @@ namespace Rpg.Soundwell
                 return false;
             Combatant attacker = members[index];
             AbilityShortcut attack = attacker.Abilities.GetCurrentBaseAttack();
-            return attack != null &&
+            return attack != null && attack.CanTarget(attacker, Beast) &&
                 attack.Use(attacker, new List<Combatant> { Beast }, true);
         }
 

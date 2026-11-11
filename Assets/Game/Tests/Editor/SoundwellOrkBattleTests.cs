@@ -447,7 +447,8 @@ namespace Rpg.Tests.Editor
                     " baseAttack=" + (baseAttack != null) +
                     " canChoose=" + (baseAttack != null && baseAttack.CanChoose(member, true, true)) +
                     " canUse=" + (baseAttack != null && baseAttack.CanUse(member, true, true)) +
-                    " canChooseNoCost=" + (baseAttack != null && baseAttack.CanChoose(member, false, false));
+                    " canChooseNoCost=" + (baseAttack != null && baseAttack.CanChoose(member, false, false)) +
+                    " canTargetBeast=" + (baseAttack != null && baseAttack.CanTarget(member, party.Beast));
             }));
             string baseAttackApi = string.Join("; ", party.Members[0].Abilities.GetType()
                 .GetMethods(System.Reflection.BindingFlags.Public |
@@ -726,7 +727,18 @@ namespace Rpg.Tests.Editor
                 .Where(method => method.Name.Contains("Can") || method.Name.Contains("Use") ||
                     method.Name.Contains("Ability") || method.Name.Contains("Attack"))
                 .Select(method => method.ToString()).Distinct().Take(36);
+            var useableMethod = type.GetMethods(flags).FirstOrDefault(method =>
+                method.Name == "IsUseable" && method.GetParameters().Length == 1 &&
+                method.GetParameters()[0].ParameterType.IsEnum);
+            var useableStates = useableMethod == null ? "unavailable" :
+                string.Join(", ", System.Enum.GetValues(useableMethod.GetParameters()[0].ParameterType)
+                    .Cast<object>().Select(option =>
+                    {
+                        try { return option + "=" + useableMethod.Invoke(attack, new[] { option }); }
+                        catch (System.Exception) { return option + "=<unreadable>"; }
+                    }));
             return "type=" + type.FullName +
+                " useableIn={" + useableStates + "}" +
                 " scalarProperties={" + string.Join(", ", properties) +
                 "} scalarFields={" + string.Join(", ", fields) +
                 "} publicMethods={" + string.Join(", ", usefulMethods) + "}";
