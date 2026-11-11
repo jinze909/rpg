@@ -279,6 +279,44 @@ def inspect_attack_return_dependencies():
                               " predicates=" + ",".join(predicates[:72]))
                     break
 
+
+
+def inspect_ork_damage_data_contract():
+    """List fields/classes for a real ORK ability status change, not source bodies."""
+    import re
+
+    basenames = {
+        "ActiveAbility.cs", "AbilityLevel.cs", "TargetChanges.cs", "TargetChange.cs",
+        "StatusChange.cs", "StatusChangeValue.cs", "StatusValueChange.cs",
+        "StatusChangeSettings.cs", "Ability.cs", "ActionSettings.cs",
+        "StatusValueChangeSetting.cs", "StatusChangeType.cs",
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if not name.endswith(".cs"):
+                continue
+            if basename not in basenames and not (
+                "TargetChange" in basename or "StatusValueChange" in basename
+            ):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            classes = [re.sub(r"\s+", " ", line.strip())[:180]
+                       for line in lines
+                       if re.match(r"^\s*(?:public|internal)\s+"
+                                   r"(?:(?:partial|sealed|abstract)\s+)?"
+                                   r"(?:class|struct|enum)\s+", line)]
+            declarations = [re.sub(r"\s+", " ", line.strip())[:190]
+                            for line in lines
+                            if re.match(r"^\s*public\s+"
+                                        r"(?!class\b|struct\b|enum\b)"
+                                        r"(?!override\b)"
+                                        r"[A-Za-z0-9_<>,?.\[\] ]+\s+"
+                                        r"[A-Za-z_][A-Za-z0-9_]*\s*(?:=|;|\{)", line)]
+            print("ORK_DAMAGE_DATA_API " + basename +
+                  " types=" + repr(classes[:10]) +
+                  " fields=" + repr(declarations[:55]))
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
@@ -288,3 +326,4 @@ if __name__ == "__main__":
     inspect_ability_selection_predicates()
     inspect_attack_guard_flow()
     inspect_attack_return_dependencies()
+    inspect_ork_damage_data_contract()

@@ -536,7 +536,11 @@ namespace Rpg.Tests.Editor
                    Time.realtimeSinceStartup < attackResolutionDeadline)
                 yield return null;
             Assert.That(party.Beast.Status[1].GetValue(), Is.LessThan(beastHpBeforeAttack),
-                "A player UGUI click must resolve its target and HP through a real ORK base attack.");
+                "A player UGUI click must resolve its target and HP through a real ORK base attack. " +
+                "ActiveAbility=" + DescribeActiveAttackSetup(
+                    party.Members[0].Abilities.GetCurrentBaseAttack()) +
+                " turn=" + party.Members[0].Actions.IsChoosing +
+                " battle=" + party.BattleInProgress);
 
             Assert.That(party.BattleInProgress, Is.True,
                 "The ORK encounter must still be active when its enemy is defeated.");
@@ -762,6 +766,42 @@ namespace Rpg.Tests.Editor
         // configuration/eligibility faults to be distinguished before edits.
         // Inspect the saved ORK combatant state at the actual failing turn.
         // Reflection is read-only and never modifies an ORK action blocker.
+        // Read-only ORK configuration snapshot. A selectable attack is not
+        // sufficient: a real attack must define ORK target status changes.
+        // This helps identify the missing public setting without copying
+        // proprietary framework method bodies into CI logs.
+        private static string DescribeActiveAttackSetup(object shortcut)
+        {
+            if (shortcut == null)
+                return "no shortcut";
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var get = shortcut.GetType().GetMethod("GetActiveLevel", flags);
+            object active = null;
+            try { active = get?.Invoke(shortcut, null); }
+            catch (System.Exception error) { return "GetActiveLevel failed: " + error.GetType().Name; }
+            if (active == null)
+                return "no active level";
+            var members = active.GetType().GetFields(flags)
+                .Where(field => !field.IsStatic)
+                .Select(field =>
+                {
+                    string kind = "unreadable";
+                    try
+                    {
+                        object value = field.GetValue(active);
+                        kind = value == null ? "null" :
+                            value is System.Collections.ICollection collection
+                                ? "count=" + collection.Count : "set";
+                    }
+                    catch (System.Exception error) { kind = error.GetType().Name; }
+                    return field.Name + ":" + field.FieldType.Name + "=" + kind;
+                }).Take(50);
+            return active.GetType().Name + " {" + string.Join(", ", members) + "}";
+        }
+
         private static string DescribeRuntimeActionBlockers(Combatant member, object attack)
         {
             const System.Reflection.BindingFlags flags =
