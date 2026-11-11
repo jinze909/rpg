@@ -393,6 +393,65 @@ def inspect_attack_execution_pipeline():
                           " token_category=" + ("target-status" if "targetChange" in line
                                                else "calculation-or-animation"))
 
+
+def inspect_attack_orchestration_contract():
+    """Expose framework-owned action lifecycle names, never licensed method bodies."""
+    import re
+    sought = {
+        "CombatantActions.cs": ("GetCurrent", "GetAction", "AddAction", "Action", "Perform", "Start"),
+        "AbilityShortcut.cs": ("Use",),
+        "ActiveAbility.cs": ("Use",),
+        "BaseAction.cs": ("PerformAction", "CalculateSimple", "SetActionFinished"),
+        "AbilityAction.cs": ("Calculate", "ActionAdded"),
+        "BattleActionHandler.cs": ("Perform", "Action", "Calculate"),
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for filename, patterns in sought.items():
+            found = [n for n in archive.namelist() if Path(n).name == filename]
+            if not found:
+                print("ORK_ATTACK_LIFECYCLE_MISSING " + filename)
+                continue
+            lines = archive.read(found[0]).decode("utf-8-sig", errors="replace").splitlines()
+            if filename == "CombatantActions.cs":
+                for number, line in enumerate(lines, 1):
+                    stripped = line.strip()
+                    if stripped.startswith("public ") and any(
+                        marker.lower() in stripped.lower() for marker in patterns
+                    ):
+                        print(f"ORK_COMBATANT_ACTION_API {filename}:{number} {stripped[:195]}")
+            signatures = []
+            for index, line in enumerate(lines):
+                normalized = re.sub(r"\\s+", " ", line.strip())
+                if not re.match(r"^(?:public|protected|private|internal)\\s", normalized):
+                    continue
+                if not any(re.search(r"\\b" + marker + r"\\s*\\(", normalized)
+                           for marker in patterns if marker != "Action"):
+                    continue
+                if "(" not in normalized:
+                    continue
+                signatures.append((index, normalized[:180]))
+            for index, signature in signatures[:14]:
+                depth, begun, body = 0, False, []
+                for line in lines[index:index + 220]:
+                    depth += line.count("{") - line.count("}")
+                    if "{" in line:
+                        begun = True
+                    body.append(line)
+                    if begun and depth == 0:
+                        break
+                source = "\\n".join(body)
+                calls = re.findall(r"(?<![A-Za-z0-9_])([A-Za-z_][A-Za-z_0-9]*)\\s*\\(", source)
+                relevant = [name for name in dict.fromkeys(calls)
+                            if name in ("Calculate", "CalculateSimple", "Use", "PerformAction",
+                                        "Perform", "Start", "ActionAdded", "UseAbility",
+                                        "PlayAction", "GetBattleAnimation", "GetActiveLevel",
+                                        "AddAction", "CreateAbility", "ConsumeCosts",
+                                        "UseTarget", "UseStatus", "SetActionFinished",
+                                        "StartSchematic", "PlaySchematic")]
+                print(f"ORK_ATTACK_LIFECYCLE {filename}:{index+1} {signature} calls=" +
+                      ",".join(relevant) + " branches=" + str(len(re.findall(
+                          r"\\b(?:if|switch)\\s*\\(", source))))
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
@@ -405,3 +464,4 @@ if __name__ == "__main__":
     inspect_ork_damage_data_contract()
     inspect_exact_attack_damage_configuration()
     inspect_attack_execution_pipeline()
+    inspect_attack_orchestration_contract()
