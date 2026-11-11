@@ -13,6 +13,8 @@ namespace Rpg.Soundwell
     {
         public const string MixerResource = "Soundwell/Audio/SoundwellMixer";
         public const string VolumeParameter = "SoundwellSFXVolume";
+        public const string MutePreferenceKey = "rpg.soundwell.audio.sfx-muted.v1";
+        public static bool IsMuted => PlayerPrefs.GetInt(MutePreferenceKey, 0) != 0;
 
         public static void Route(AudioSource bell)
         {
@@ -25,12 +27,20 @@ namespace Rpg.Soundwell
             if (outputs.Length != 1)
                 throw new InvalidOperationException("Expected exactly one SFX mixer output.");
             bell.outputAudioMixerGroup = outputs[0];
-            if (!SetMuted(mixer, false))
+            // Connecting a new scene must not overwrite the player's mute choice.
+            // Only the explicit SetMuted command is allowed to update preferences.
+            if (!mixer.SetFloat(VolumeParameter, IsMuted ? -80f : 0f))
                 throw new InvalidOperationException("The SFX volume control is not exposed by the saved mixer.");
         }
 
-        public static bool SetMuted(AudioMixer mixer, bool muted) =>
-            mixer != null && mixer.SetFloat(VolumeParameter, muted ? -80f : 0f);
+        public static bool SetMuted(AudioMixer mixer, bool muted)
+        {
+            if (mixer == null || !mixer.SetFloat(VolumeParameter, muted ? -80f : 0f))
+                return false;
+            PlayerPrefs.SetInt(MutePreferenceKey, muted ? 1 : 0);
+            PlayerPrefs.Save();
+            return true;
+        }
 
         public static bool TryGetVolume(AudioMixer mixer, out float decibels)
         {

@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Rpg.Soundwell;
 using GamingIsLove.Makinom;
 using GamingIsLove.Makinom.Editor;
 using GamingIsLove.ORKFramework;
@@ -10,6 +11,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Rendering;
 using UnityEngine.TestTools;
 
@@ -154,6 +156,48 @@ namespace Rpg.Tests.Editor
             Debug.Log("RPG_BOOTSTRAP_PLAY_VALIDATED:second");
             yield return new ExitPlayMode();
             Assert.That(EditorApplication.isPlaying, Is.False);
+        }
+
+        [UnityTest, Order(30)]
+        public IEnumerator SoundwellAudioMuteSurvivesSceneRerouting()
+        {
+            // M6 regression: switching/reloading the Soundwell scene must
+            // never silently undo an explicit player mute.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var mixer = Resources.Load<AudioMixer>(SoundwellAudioBus.MixerResource);
+            Assert.That(mixer, Is.Not.Null, "The saved mixer must load in player mode.");
+            bool hadPreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
+            int previousPreference = PlayerPrefs.GetInt(SoundwellAudioBus.MutePreferenceKey, 0);
+            var bell = new GameObject("Audio routing test bell").AddComponent<AudioSource>();
+            try
+            {
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, true), Is.True);
+                Assert.That(SoundwellAudioBus.IsMuted, Is.True);
+                SoundwellAudioBus.Route(bell);
+                Assert.That(bell.outputAudioMixerGroup, Is.Not.Null);
+                Assert.That(SoundwellAudioBus.TryGetVolume(mixer, out float mutedDb), Is.True);
+                Assert.That(mutedDb, Is.EqualTo(-80f).Within(0.1f),
+                    "Re-routing a new bell must retain player mute.");
+
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, false), Is.True);
+                SoundwellAudioBus.Route(bell);
+                Assert.That(SoundwellAudioBus.IsMuted, Is.False);
+                Assert.That(SoundwellAudioBus.TryGetVolume(mixer, out float audibleDb), Is.True);
+                Assert.That(audibleDb, Is.EqualTo(0f).Within(0.1f),
+                    "Unmuting must survive the next scene's audio hookup.");
+            }
+            finally
+            {
+                SoundwellAudioBus.SetMuted(mixer, previousPreference != 0);
+                if (!hadPreference)
+                    PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                PlayerPrefs.Save();
+                UnityEngine.Object.Destroy(bell.gameObject);
+            }
+
+            yield return new ExitPlayMode();
         }
 
         [UnityTearDown]
