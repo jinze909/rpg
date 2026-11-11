@@ -132,9 +132,14 @@ namespace Rpg.Tests.Editor
             // Simulate a player toggling language before a full Play Mode
             // domain restart; the next Bootstrap UI must be born in Chinese.
             const string key = SoundwellUiLocalization.LanguagePreferenceKey;
-            bool hadPreference = PlayerPrefs.HasKey(key);
-            string previousPreference = PlayerPrefs.GetString(key, string.Empty);
-            string previousLanguage = SoundwellUiLocalization.Language;
+            // UnityTest domain reloads do not retain captured coroutine
+            // locals reliably. Preserve the previous editor session values
+            // outside the test iterator so cleanup cannot hide the real
+            // Play Mode assertion failure or discard a developer's setting.
+            const string saved = "rpg.soundwell.m9-test.saved.";
+            SessionState.SetBool(saved + "has", PlayerPrefs.HasKey(key));
+            SessionState.SetString(saved + "value", PlayerPrefs.GetString(key, string.Empty));
+            SessionState.SetString(saved + "language", SoundwellUiLocalization.Language);
             try
             {
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
@@ -165,9 +170,14 @@ namespace Rpg.Tests.Editor
             }
             finally
             {
-                SoundwellUiLocalization.SetLanguage(previousLanguage);
-                if (hadPreference)
-                    PlayerPrefs.SetString(key, previousPreference);
+                string previousLanguage = SessionState.GetString(saved + "language",
+                    SoundwellUiLocalization.English);
+                SoundwellUiLocalization.SetLanguage(
+                    previousLanguage == SoundwellUiLocalization.Chinese
+                        ? SoundwellUiLocalization.Chinese : SoundwellUiLocalization.English);
+                if (SessionState.GetBool(saved + "has", false))
+                    PlayerPrefs.SetString(key, SessionState.GetString(saved + "value",
+                        SoundwellUiLocalization.English));
                 else
                     PlayerPrefs.DeleteKey(key);
                 PlayerPrefs.Save();
