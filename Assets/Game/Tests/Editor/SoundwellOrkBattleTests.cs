@@ -37,12 +37,11 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            // The separate BattleBackCancel test already validates Bootstrap's
-            // actual UGUI scene loader and UGUI Cancel path. This long test
-            // focuses on ORK battle choices, victory, escort and replay. Load
-            // the saved trial scene synchronously here so an incomplete
-            // AsyncOperation cannot invalidate the test's coroutine on CI.
-            SceneManager.LoadScene(SoundwellEntrance.SceneName, LoadSceneMode.Single);
+            // BattleBackCancel separately validates the Bootstrap UGUI scene
+            // loader. Keep the test runner's Bootstrap scene alive while this
+            // long battle test exercises the saved trial scene: replacing it
+            // during an active UnityTest can destroy its coroutine host.
+            SceneManager.LoadScene(SoundwellEntrance.SceneName, LoadSceneMode.Additive);
             yield return null;
             Debug.Log("RPG_ORK_ATTACK_STAGE:trial_scene_loaded");
 
@@ -54,6 +53,13 @@ namespace Rpg.Tests.Editor
             while (Time.realtimeSinceStartup < sceneDeadline)
             {
                 Scene active = SceneManager.GetActiveScene();
+                Scene loadedTrial = SceneManager.GetSceneByName(SoundwellEntrance.SceneName);
+                if (loadedTrial.IsValid() && loadedTrial.isLoaded && active != loadedTrial)
+                {
+                    Assert.That(SceneManager.SetActiveScene(loadedTrial), Is.True,
+                        "The additive trial must become the active gameplay scene.");
+                    active = loadedTrial;
+                }
                 lastScene = active.name;
                 if (active.isLoaded && active.name == SoundwellEntrance.SceneName)
                 {
