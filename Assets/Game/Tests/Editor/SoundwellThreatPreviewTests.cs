@@ -109,6 +109,44 @@ namespace Rpg.Tests.Editor
                 "The beast must stop advertising an expired search target.");
             Assert.That(countdown.enabled, Is.False,
                 "The search timer must disappear when the same AI clock expires.");
+
+            // A silent, wrapped bell cannot keep an expired lure alive or
+            // unlock the gate merely because the beast remains near that lane.
+            body.position = new Vector2(-0.55f, 0f);
+            Physics2D.SyncTransforms();
+            Assert.That(trial.AtGatePanel, Is.True);
+            Assert.That(trial.CanOpenGate, Is.False,
+                "A completed search must not count as an active side-bell lure.");
+
+            // Repeatedly trying the wrapped bell must remain silent. The
+            // player must deliberately unwrap and ring it to rearm the lure.
+            body.position = SoundwellTrial.SideBellStand;
+            Physics2D.SyncTransforms();
+            trial.ApplyInput(Vector2.zero, true, false, false);
+            yield return null;
+            Assert.That(trial.IsWrapped, Is.True,
+                "Ringing while wrapped must not silently discard the cloth.");
+            Assert.That(trial.HasBellTarget, Is.False,
+                "A muted strike must not re-create a pursuit target.");
+            Assert.That(trial.IsSearching, Is.False);
+            Assert.That(intent.enabled, Is.False,
+                "The intent marker must reflect the actual muted AI state.");
+            Assert.That(countdown.enabled, Is.False);
+
+            trial.ApplyInput(Vector2.zero, false, true, false);
+            Assert.That(trial.IsWrapped, Is.False,
+                "Removing the cloth must restore a ready, not already-ringing bell.");
+            Assert.That(trial.HasBellTarget, Is.False);
+            trial.ApplyInput(Vector2.zero, true, false, false);
+            yield return null;
+            Assert.That(trial.HasBellTarget, Is.True,
+                "A fresh audible strike must resume the real lure.");
+            Assert.That(intent.enabled, Is.True,
+                "The resumed pursuit must once again have a visible target.");
+            Assert.That(Vector2.Distance((Vector2)intent.transform.position, lureTarget),
+                Is.LessThan(0.001f),
+                "A resumed lure must target the same physical side-bell location.");
+
             Debug.Log("RPG_SOUNDWELL_THREAT_PREVIEW_VALIDATED");
             yield return new ExitPlayMode();
         }
