@@ -2,6 +2,7 @@ using GamingIsLove.Makinom;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.Audio;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -18,6 +19,9 @@ namespace Rpg.Soundwell
         private Text actionText;
         private Text footerText;
         private Text outcomeText;
+        private Button sfxButton;
+        private RectTransform sfxRect;
+        private Text sfxText;
         private Font englishFont;
         private float layoutAspect = -1f;
         private int shownOutcome = -1;
@@ -75,6 +79,22 @@ namespace Rpg.Soundwell
                 new Color(0.65f, 0.78f, 0.83f), new Vector2(0f, -65f), new Vector2(440f, 28f));
             outcomeText = SoundwellView.AddLabel(canvas.transform, "", 17,
                 new Color(0.58f, 0.88f, 0.76f), new Vector2(0f, -126f), new Vector2(600f, 64f));
+
+            // Player-facing control for the existing persistent SFX mixer bus.
+            // Keep it on the entry screen so it never competes with ORK turns.
+            var sfxObject = new GameObject("Soundwell SFX toggle",
+                typeof(RectTransform), typeof(Image), typeof(Button));
+            sfxObject.transform.SetParent(canvas.transform, false);
+            sfxRect = (RectTransform)sfxObject.transform;
+            sfxRect.anchorMin = sfxRect.anchorMax = new Vector2(0.5f, 0.5f);
+            sfxRect.anchoredPosition = new Vector2(0f, -230f);
+            sfxRect.sizeDelta = new Vector2(320f, 40f);
+            sfxObject.GetComponent<Image>().color = new Color(0.15f, 0.24f, 0.30f);
+            sfxButton = sfxObject.GetComponent<Button>();
+            sfxButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
+            sfxButton.onClick.AddListener(ToggleSfx);
+            sfxText = SoundwellView.AddLabel(sfxRect, "", 16,
+                new Color(0.80f, 0.91f, 0.93f), Vector2.zero, new Vector2(314f, 36f));
             titleText.resizeTextForBestFit = true;
             titleText.resizeTextMinSize = 18;
             titleText.resizeTextMaxSize = 32;
@@ -114,6 +134,25 @@ namespace Rpg.Soundwell
             actionText.text = SoundwellUiLocalization.Get("entry.action");
             footerText.text = SoundwellUiLocalization.Get("entry.footer");
             RefreshReturnOutcome(true);
+            RefreshSfxText();
+        }
+
+        private void ToggleSfx()
+        {
+            AudioMixer mixer = Resources.Load<AudioMixer>(SoundwellAudioBus.MixerResource);
+            if (mixer == null || !SoundwellAudioBus.SetMuted(mixer, !SoundwellAudioBus.IsMuted))
+                throw new System.InvalidOperationException(
+                    "The saved Soundwell SFX volume control is unavailable.");
+            RefreshSfxText();
+        }
+
+        private void RefreshSfxText()
+        {
+            if (sfxText == null)
+                return;
+            sfxText.font = SoundwellUiLocalization.PresentationFont(englishFont);
+            sfxText.text = SoundwellUiLocalization.Get(
+                SoundwellAudioBus.IsMuted ? "entry.sfx_unmute" : "entry.sfx_mute");
         }
 
         private void Start()
@@ -144,6 +183,8 @@ namespace Rpg.Soundwell
             outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, compact ? 126f : 116f);
             outcomeText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -142f : -126f);
             outcomeText.fontSize = compact ? 15 : 17;
+            sfxRect.sizeDelta = new Vector2(compact ? 300f : 320f, 40f);
+            sfxText.rectTransform.sizeDelta = new Vector2(compact ? 294f : 314f, 36f);
         }
 
         private void Update()

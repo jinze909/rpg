@@ -43,6 +43,8 @@ namespace Rpg.Editor
             ("battle.menu_pending", "Attack selection awaits the ORK UI menu.", "ORK 攻击指令菜单尚未接入。"),
             // Deliberately absent in Chinese for real EN fallback verification.
             ("diagnostic.fallback", "English table fallback", null),
+            ("entry.sfx_mute", "SFX ON  /  MUTE", "音效开启 / 点击静音"),
+            ("entry.sfx_unmute", "SFX MUTED  /  UNMUTE", "音效已静音 / 点击开启"),
         };
 
         public static void Prepare()

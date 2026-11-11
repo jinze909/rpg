@@ -154,6 +154,14 @@ MonoBehaviour:
     m_Localized: "WITHDREW / BEAST CONTACTS: {0}"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267310
+    m_Localized: "SFX ON  /  MUTE"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267311
+    m_Localized: "SFX MUTED  /  UNMUTE"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -150,6 +150,14 @@ MonoBehaviour:
     m_Localized: "撤退 / 遭遇野兽次数：{0}"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267310
+    m_Localized: "音效开启 / 点击静音"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267311
+    m_Localized: "音效已静音 / 点击开启"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.Audio;
 using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
@@ -68,6 +69,60 @@ namespace Rpg.Tests.Editor
             Assert.That(entry.ReturnSummaryText, Does.Contain("遭遇野兽次数：2"));
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             Assert.That(entry.ReturnSummaryText, Does.Contain("WITHDREW / BEAST CONTACTS: 2"));
+
+            // A player must be able to use the same SFX mixer control from
+            // actual UGUI, with the button following EN/zh and the saved mute
+            // choice surviving fresh AudioSource routing.
+            Button sfxButton = entry.GetComponentsInChildren<Button>(true)
+                .Single(button => button.gameObject.name == "Soundwell SFX toggle");
+            Text sfxLabel = sfxButton.GetComponentInChildren<Text>();
+            AudioMixer mixer = Resources.Load<AudioMixer>(SoundwellAudioBus.MixerResource);
+            Assert.That(mixer, Is.Not.Null);
+            Assert.That(sfxLabel, Is.Not.Null);
+            bool hadMutePref = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
+            int oldMutePref = PlayerPrefs.GetInt(SoundwellAudioBus.MutePreferenceKey, 0);
+            try
+            {
+                bool before = SoundwellAudioBus.IsMuted;
+                Assert.That(sfxLabel.text, Is.EqualTo(SoundwellUiLocalization.Get(
+                    before ? "entry.sfx_unmute" : "entry.sfx_mute")));
+                sfxButton.onClick.Invoke();
+                Assert.That(SoundwellAudioBus.IsMuted, Is.EqualTo(!before));
+                Assert.That(SoundwellAudioBus.TryGetVolume(mixer, out float changedDb), Is.True);
+                Assert.That(changedDb, Is.EqualTo(before ? 0f : -80f).Within(0.1f));
+                Assert.That(sfxLabel.text, Is.EqualTo(SoundwellUiLocalization.Get(
+                    before ? "entry.sfx_mute" : "entry.sfx_unmute")));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(sfxLabel.text, Is.EqualTo(SoundwellUiLocalization.Get(
+                    before ? "entry.sfx_mute" : "entry.sfx_unmute")));
+                Assert.That(sfxLabel.font.HasCharacter('音'), Is.True);
+                var bell = new GameObject("SFX button routed bell").AddComponent<AudioSource>();
+                try
+                {
+                    SoundwellAudioBus.Route(bell);
+                    Assert.That(bell.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
+                    Assert.That(SoundwellAudioBus.TryGetVolume(mixer, out float routedDb), Is.True);
+                    Assert.That(routedDb, Is.EqualTo(changedDb).Within(0.1f));
+                }
+                finally
+                {
+                    Object.Destroy(bell.gameObject);
+                }
+
+                sfxButton.onClick.Invoke();
+                Assert.That(SoundwellAudioBus.IsMuted, Is.EqualTo(before));
+                Assert.That(sfxLabel.text, Is.EqualTo(SoundwellUiLocalization.Get(
+                    before ? "entry.sfx_unmute" : "entry.sfx_mute")));
+            }
+            finally
+            {
+                SoundwellAudioBus.SetMuted(mixer, oldMutePref != 0);
+                if (!hadMutePref)
+                    PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                PlayerPrefs.Save();
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            }
             yield return new ExitPlayMode();
         }
 

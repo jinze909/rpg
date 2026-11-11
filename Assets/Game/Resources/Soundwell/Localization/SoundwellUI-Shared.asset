@@ -151,6 +151,14 @@ MonoBehaviour:
     m_Key: entry.withdrawn
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267310
+    m_Key: entry.sfx_mute
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267311
+    m_Key: entry.sfx_unmute
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:
