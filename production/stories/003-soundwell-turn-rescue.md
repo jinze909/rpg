@@ -1,43 +1,28 @@
 # 003 · 三人短回合声井救援
 
-状态：进行中。002 的真人试玩待做；003 已完成三人 ORK 队伍/单场 Turn Based Battle 接线、New Input System 键鼠/手柄路由回归，以及声井摇铃、包铃、撤退、重试自动回归。直接战斗入口与 ORK 死亡/战斗结束后的闸门逻辑已通过自动测试，但 ORK 玩家战斗菜单和实际攻击尚未接通，因此两条独立救援策略仍未完成完整验收。设计依据见[首样本](../../docs/gameplay/FIRST_PLAYABLE.md)。
+状态：进行中。工程基线 `3bbe8b27ef0fed6c3c7071d1d4f64204f45c0422`。已有三人 ORK 战斗接线、引兽开闸、真实护送到安全点及人物回应，战斗取消/重试与胜利后的护送条件也有自动化回归；玩家 Attack/目标选择与完整回合分工尚需补齐。[问题 SW-001](../KNOWN_ISSUES.md#sw-001)。不要求用户参与验收或提交反馈。
 
 ## 玩家得到什么
 
-从现有声井入口进入一次移动版短回合救援。玩家指挥三名占位角色，看到借声兽的下一次威胁，能引兽离开撤离线，也能通过保护和攻击正面牵制，再将测路人带到同一个安全点。
+在现有声井场地指挥三名功能样本，观察威胁，以引兽或正面牵制救出测路人，并获得人物回应。设计范围与对照条件见[首样本](../../docs/gameplay/FIRST_PLAYABLE.md)。
 
-## 实现范围
+## 已有实现与证据边界
 
-- 复用现有声井场地、两处命名铃位、闸门和撤离线。进入遭遇后按回合推进威胁，沿用三人固定个人顺序、移动额度和一次主要行动的原型默认。
-- 先接通真实 ORK 战斗员、回合及行动结算，Makinom 接交互，Unity 和 UGUI 呈现状态。两种方案共用初始队伍、威胁、主要行动预算和救援目标。可撤回并恢复同一起点重试。
-- 本卡交付移动版遭遇。固定阵位对照、成长与持久化留给后续切片，完整样本仍需验收这些结果。
+- 引兽路径：搬铃/侧铃引兽、开闸、询问测路人、加固踏板、实际护送至安全点；NPC拆错路标、玩家可选择告知车的位置、NPC取地图并重标路线。`SoundwellSmokeHost` 通过输入适配层注入/UGUI调用与独立状态/位置断言覆盖此链。
+- 三人玩家和借声兽注册到真实 ORK 队伍与 Turn Based Battle；已有输入焦点、战斗取消与撤退、重载保护。
+- `17ae583ac2a82a442754843c10da92d6b0aa4598` 的 [Run 42935131913](https://github.com/jinze909/rpg/actions/runs/42935131913) 通过 9/9 与 `passed-clean-candidate`，这是当时实现证据，不代表新增代码通过。
+- 最新基线的[候选 Run 42970990120](https://github.com/jinze909/rpg/actions/runs/42970990120)成功，覆盖新增胜利护送及怪物生命周期修复；具体测试列表和产物按该 Run 核对。测试模拟 ORK HP死亡/结束战斗不替代玩家选攻击、目标和正常结算。
+- 更早的 P0、声源与输入证据保留在 [001](001-ork-bootstrap.md)、[002](002-soundwell-signal.md) 和 [技术事实核查](../../docs/technical/MODERNIZATION_VERIFIED_STATUS.md)。
 
-## 工程验收
+## 剩余范围
 
-- 在最终候选的干净检出上，Unity 6000.6.8f1 导入编译通过，002 路径继续可用。
-- Unity Play Mode 从实际入口操作三名角色。分别通过引兽和正面牵制完成救援，验证两条路径从同一起点出发，测路人到安全点才算成功。
-- 验证威胁预告和结算一致，撤回后可从原始角色、威胁与声源状态重试。记录完整 SHA、Actions run 与玩家路径结果。首次玩家的理解和乐趣仍待真人试玩。
+补实际攻击/目标选择、保护/交互和三人回合分工。两种策略从相同起点使用可比较预算，测路人真实到达安全点才成功。移动版先完成；固定阵位、成长与持久化仍属后续切片，不在本卡顺手扩成完整 RPG 系统。
 
+## 工程与智能体验证
 
-## 当前工程进展（2026-11-10）
+- 同最终 SHA 干净 Unity 导入编译、既有路径回归通过。
+- 从真实输入/UI入口选动作与目标，经 ORK 合法性、消耗、回合和胜负结算；不通过测试直接扣HP冒充玩家操作。
+- 分别走引兽与正面牵制到安全点，检查威胁预告/结算、取消、撤退、失败与重试状态一致；保留日志及画面证据。
+- 智能体审查操作反馈和人物回应，并记录 [UX-001](../KNOWN_ISSUES.md#ux-001) 的提示影响；无法观察的内容记证据限制。没有用户/真人反馈不阻止工程验收，不把自动测试宣称为乐趣实证。
 
-- 已在 Unity 6000.6.8f1 的最终 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 上通过 5/5 Editor tests、独立 Bootstrap batch 检查及 `passed-clean-candidate`：[Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793)。
-- 已验证三名场景玩家注册为同一个 ORK PlayerGroup，借声兽注册为 EnemyGroup，三名玩家和敌人进入同一个 ORK Turn Based Battle；声井摇铃、包铃、撤退、重试的自动化路径通过。
-- 未验证/未完成：从同一起点分别通过引兽撤离和正面牵制两条策略完成救援；战术差异、玩家理解与乐趣的真人试玩。不得将上述自动化结果视为整张 003 完成。
-
-
-## 2026-11-10 Direct-combat route increment
-
-- The existing gate-panel interaction now offers a direct route before the player commits to the bell route. The route starts the saved three-member ORK player group against the Soundwell beast in the scene's saved Turn Based battle system.
-- During battle, the Soundwell exploration controls and trial HUD are suspended; the party's follow formation also pauses while its members are in battle. The ORK battle UI is **not yet active**: Makinom UI System Settings are still `NoneUISystem`, and `autoCallBattleMenu` is disabled to avoid invoking an unconfigured menu. Turn state is live, but player action/target selection is not yet playable.
-- The same gate can now be opened by either a confirmed ORK victory or the existing side-bell lure condition. The selected approach is stored in Makinom variables; the ORK beast's `Status.IsDead` state, not a UI flag, is the direct-route victory condition.
-- The editor integration test enters the direct route through the actual gate interaction, checks all four battle participants and a player turn, applies damage through ORK HP status value ID 1 until the configured OnMinimum threshold, resolves `CombatantStatus.CheckDeath`, and ends the test encounter through `ORK.Game.Combatants.EndBattle`. It verifies that the gate stays locked until the ORK beast is dead and the battle has ended. This simulates an ORK status-damage result; it does **not** yet exercise a player-selected Attack action.
-- Still incomplete: configure the Unity UI system, UI Box/button prefabs and default base-attack Ability; implement player-selected Attack/target and protect/guard actions; then run a full player-input play-through of both rescue routes through surveyor escort and retreat. First-time player comprehension and fun still require human playtesting. This increment does not close Story 003.
-
-
-## 2026-11-10 Verified delivery
-
-- Final tested candidate SHA: `2eee996adaec6563fd379416e7ec6fad8e1b9a62`, merged into `codex/dev` by fast-forward from `8c36229e011248d019f0ef4d8a9a162dd6354afe`.
-- [Unity P0 Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) passed on that exact SHA with `passed-clean-candidate`: 8/8 Editor tests, first and second Play Mode initialization, independent Batch check, Soundwell ORK battle and signal markers. [Evidence artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633).
-- The input integration test uses the New Input System action asset and test devices for F2, Gamepad South, gameplay Ring, W movement and UI-focus movement suppression. The ORK integration test validates three player combatants plus the beast in one Turn Based battle and the HP-death/battle-end gate condition.
-- This is an accepted technical increment, not completion of Story 003. The project still has no configured ORK Unity UI system or player-selected base attack, so direct combat action selection remains blocked.
+实现下一步：补最小玩家 Attack/目标选择链。智能体验证下一步：先验证已有引兽护送和撤退，接入真实攻击后补两策略行为回归。角色/技术任务按实际依赖穿插，无固定全局优先级。
