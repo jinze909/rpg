@@ -24,8 +24,13 @@ on:
 permissions:
   contents: read
 
+# GitHub keeps at most one pending run per concurrency group, even when
+# cancel-in-progress is false. A repository-wide group silently cancelled
+# unrelated Story 003 candidates while an earlier dev run occupied the runner.
+# Scope the gate to a branch: successive commits on that SAME branch still
+# supersede stale queued checks, but independent candidates retain their CI.
 concurrency:
-  group: unity-ork-p0
+  group: unity-ork-p0-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
