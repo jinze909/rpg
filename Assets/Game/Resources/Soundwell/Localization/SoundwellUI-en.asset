@@ -114,6 +114,46 @@ MonoBehaviour:
     m_Localized: 'RETREAT  [Esc / B]'
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267300
+    m_Localized: "SOUNDWELL SIGNAL TRIAL"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267301
+    m_Localized: "[F2 / Pad A] Enter the trial"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267302
+    m_Localized: "CLICK / ENTER / PAD A TO BEGIN"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267303
+    m_Localized: "SURVEYOR SAFE / FALSE TRAIL MARKER REMOVED"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267304
+    m_Localized: "SURVEYOR SAFE / ROUTE MARKER STILL NEEDS CORRECTION"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267305
+    m_Localized: "\nMAP KIT RECOVERED"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267306
+    m_Localized: "\nSAFE ROUTE POSTED"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267307
+    m_Localized: "\nBEAST CONTACTS: {0}"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267308
+    m_Localized: "\nCLEAN EVASION: NO BEAST CONTACT"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267309
+    m_Localized: "WITHDREW / BEAST CONTACTS: {0}"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

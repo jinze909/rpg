@@ -110,6 +110,46 @@ MonoBehaviour:
     m_Localized: "\u64A4\u79BB [Esc / B]"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267300
+    m_Localized: "声井 / 信号试炼"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267301
+    m_Localized: "[F2 / 手柄 A] 进入试炼"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267302
+    m_Localized: "点击 / Enter / 手柄 A 开始"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267303
+    m_Localized: "测路人获救 / 错误路标已移除"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267304
+    m_Localized: "测路人获救 / 错误路标仍待纠正"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267305
+    m_Localized: "\n地图工具已取回"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267306
+    m_Localized: "\n安全返程路线已标记"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267307
+    m_Localized: "\n遭遇野兽次数：{0}"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267308
+    m_Localized: "\n无接触撤离：未与野兽接触"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267309
+    m_Localized: "撤退 / 遭遇野兽次数：{0}"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
