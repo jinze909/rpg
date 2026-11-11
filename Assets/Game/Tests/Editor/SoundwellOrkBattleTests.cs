@@ -61,12 +61,11 @@ namespace Rpg.Tests.Editor
             Assert.That(root != null, Is.True,
                 "The saved Soundwell root must be alive after the scene load. Active scene: " +
                 SceneManager.GetActiveScene().name);
-            // Query the live components directly. Unity can transition its
-            // scene-root wrapper during a load in the Editor test runner;
-            // asserting the owning scene makes any missing saved component
-            // a precise acceptance failure rather than a null dereference.
-            SoundwellOrkParty party = Object.FindFirstObjectByType<SoundwellOrkParty>();
-            SoundwellTrial trial = Object.FindFirstObjectByType<SoundwellTrial>();
+            // Read components from the already-confirmed live scene root.
+            // An unscoped object search can encounter ORK objects in transition
+            // during scene activation; this keeps the test on the saved owner.
+            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
+            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
             Assert.That(party != null, Is.True, "The active trial must own a live ORK party.");
             Assert.That(trial != null, Is.True, "The active trial must own a live Makinom controller.");
             Assert.That(party.gameObject.scene.name, Is.EqualTo(SoundwellEntrance.SceneName));
