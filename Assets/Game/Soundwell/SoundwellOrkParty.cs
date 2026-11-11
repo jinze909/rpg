@@ -310,7 +310,11 @@ namespace Rpg.Soundwell
             text.Append(SoundwellUiLocalization.Get("battle.beast")).Append("  ")
                 .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                 .Append(Beast.Status[1].GetValue());
-            if (ReadyBaseAttackerIndex < 0)
+            // A defeated enemy has no further attack choice to present.
+            // A missing next chooser while its HP is positive is different
+            // from a completed action resolving ORK death/victory.
+            if (ReadyBaseAttackerIndex < 0 && !Beast.Status.IsDead &&
+                Beast.Status[1].GetValue() > 0f)
                 text.Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
             return text.ToString();
         }

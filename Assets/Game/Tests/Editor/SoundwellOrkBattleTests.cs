@@ -528,6 +528,35 @@ namespace Rpg.Tests.Editor
                 DescribeBaseAttackState(party.Members[0].Abilities.GetCurrentBaseAttack()));
             Assert.That(attackButton.interactable, Is.True,
                 "The real UGUI action must enable only for the current ORK attack chooser.");
+            // Read the actual live HUD *before* the queued team attacks resolve.
+            // A turn indicator correctly disappears once the beast is defeated.
+            yield return null;
+            var battleHud = GameObject.Find("Soundwell ORK battle HUD");
+            Assert.That(battleHud, Is.Not.Null,
+                "The battle should have a player-visible status HUD.");
+            var battleReadout = GameObject.Find("Soundwell ORK battle readout")?.GetComponent<Text>();
+            Assert.That(battleReadout, Is.Not.Null);
+            Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +
+                party.Members[0].Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Contain("Beast  HP " +
+                party.Beast.Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Contain("< TURN"),
+                "The active ORK chooser must be visible before attacks execute.");
+            Assert.That(battleReadout.raycastTarget, Is.False);
+            Assert.That(battleHud.GetComponent<GraphicRaycaster>(), Is.Null,
+                "A status-only overlay cannot intercept ORK input.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(battleReadout.text, Does.Contain("救援队员 1  生命 " +
+                party.Members[0].Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Contain("野兽  生命 " +
+                party.Beast.Status[1].GetValue()));
+            Assert.That(battleReadout.text, Does.Not.Contain("ORK 攻击指令菜单尚未接入。"),
+                "A ready ORK base attack must not display the pending-menu warning.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +
+                party.Members[0].Status[1].GetValue()));
             float beastHpBeforeAttack = party.Beast.Status[1].GetValue();
             var attackUser = party.Members[party.ReadyBaseAttackerIndex];
             var configuredAttack = ORK.Abilities.Get(0).GetLevel(1).active;
@@ -579,61 +608,18 @@ namespace Rpg.Tests.Editor
                 " battle=" + party.BattleInProgress +
                 " pipeline=" + damagePipelineSnapshot);
 
-            Assert.That(party.BattleInProgress, Is.True,
-                "The ORK encounter must still be active when its enemy is defeated.");
-            // The battle screen cannot be blank: the provisional, non-interactive
-            // readout must show live ORK HP/turn state without a parallel action UI.
-            yield return null;
-            var battleHud = GameObject.Find("Soundwell ORK battle HUD");
-            Assert.That(battleHud, Is.Not.Null,
-                "The battle should have a player-visible status HUD.");
-            var battleReadout = GameObject.Find("Soundwell ORK battle readout")?.GetComponent<Text>();
-            Assert.That(battleReadout, Is.Not.Null);
-            Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +
-                party.Members[0].Status[1].GetValue()));
-            Assert.That(battleReadout.text, Does.Contain("Beast  HP " +
-                party.Beast.Status[1].GetValue()));
-            Assert.That(battleReadout.text, Does.Contain("< TURN"),
-                "The live ORK chooser must be visible to the player.");
-            Assert.That(battleReadout.raycastTarget, Is.False);
-            Assert.That(battleHud.GetComponent<GraphicRaycaster>(), Is.Null,
-                "A status-only overlay cannot intercept ORK input.");
-
-            // This HUD is game-owned UGUI, not ORK battle text. It must
-            // follow the same persisted Unity Localization tables as the
-            // surrounding Soundwell controls, including the active turn.
-            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
-            yield return null;
-            Assert.That(battleReadout.text, Does.Contain("救援队员 1  生命 " +
-                party.Members[0].Status[1].GetValue()));
-            Assert.That(battleReadout.text, Does.Contain("野兽  生命 " +
-                party.Beast.Status[1].GetValue()));
-            Assert.That(battleReadout.text, Does.Not.Contain("ORK 攻击指令菜单尚未接入。"),
-                "A ready ORK base attack should no longer display the pending-menu warning.");
-            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
-            yield return null;
-            Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +
-                party.Members[0].Status[1].GetValue()));
-
-            // HP is ORK status value ID 1 in this project. Apply a real ORK
-            // status change, then ask ORK's death check to resolve OnMinimum.
-            var beastHp = party.Beast.Status[1];
-            beastHp.AddValue(-999, false, false, false, true, true, false, false,
-                default(StatusValueChangeSource));
-            Assert.That(beastHp.GetValue(), Is.EqualTo(0),
-                "The ORK HP status must reach its configured minimum.");
-            Assert.That(party.Beast.Status.CheckDeath(), Is.True,
-                "ORK must resolve the beast's OnMinimum death condition.");
-            Assert.That(party.Beast.Status.IsDead, Is.True,
-                "ORK must record the beast as dead before the rescue gate can unlock.");
-            // The test simulates a completed player attack without a UI menu;
-            // use ORK's battle handler to report the encounter's end.
-            ORK.Game.Combatants.EndBattle();
-            float victoryDeadline = Time.realtimeSinceStartup + 8f;
-            while (!trial.DirectCombatComplete && Time.realtimeSinceStartup < victoryDeadline)
+            // The queued, player-selected ORK attack has already reduced
+            // the beast's real HP. Its configured death check and battle end
+            // must now complete naturally; no test-side HP mutation or
+            // manual Combatants.EndBattle() may manufacture victory.
+            float victoryDeadline = Time.realtimeSinceStartup + 12f;
+            while ((!party.Beast.Status.IsDead || !trial.DirectCombatComplete) &&
+                   Time.realtimeSinceStartup < victoryDeadline)
                 yield return null;
+            Assert.That(party.Beast.Status.IsDead, Is.True,
+                "The actual ORK attack must resolve the beast's OnMinimum death.");
             Assert.That(trial.DirectCombatComplete, Is.True,
-                "The gate must remain locked until ORK reports the beast defeated.");
+                "The actual ORK battle must end and unlock the route without a test-side EndBattle.");
             yield return null;
             Assert.That(battleHud.activeInHierarchy, Is.False,
                 "The battle-only HUD must disappear after ORK ends the encounter.");
