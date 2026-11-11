@@ -243,6 +243,42 @@ def inspect_attack_guard_flow():
                     print("ORK_ATTACK_GUARD_FLOW " + basename + "." + method +
                           " " + repr(guards[:24]))
 
+
+
+def inspect_attack_return_dependencies():
+    """List ORK attack guard dependencies, without publishing source expressions."""
+    import re
+    targets = {"ActiveAbility.cs": ("CanUse", "CanChoose")}
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            filename = Path(name).name
+            if filename not in targets or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for method in targets[filename]:
+                for index, line in enumerate(lines):
+                    if not re.search(r"\bpublic\s+bool\s+" + method + r"\s*\(", line):
+                        continue
+                    # The installed ORK 3.22 method has a multi-line return.
+                    # Report only its referenced API members and predicates,
+                    # not any proprietary implementation lines.
+                    end = min(index + 130, len(lines))
+                    body = "\n".join(lines[index:end])
+                    match = re.search(
+                        r"return\s+!user\.Actions\.BlockActionUse\b(.*?);",
+                        body, flags=re.DOTALL)
+                    if match:
+                        expr = match.group(1)
+                        members = sorted(set(re.findall(
+                            r"\b(?:[A-Za-z_][A-Za-z_0-9]*\.)+"
+                            r"[A-Za-z_][A-Za-z_0-9]*", expr)))
+                        predicates = sorted(set(re.findall(
+                            r"\b(?:Can|Is|Check|Has|Get)[A-Z][A-Za-z_0-9]*(?=\s*\()", expr)))
+                        print("ORK_ATTACK_GUARD_DEPENDENCIES " + method +
+                              " members=" + ",".join(members[:72]) +
+                              " predicates=" + ",".join(predicates[:72]))
+                    break
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
@@ -251,3 +287,4 @@ if __name__ == "__main__":
     inspect_combatant_action_contract()
     inspect_ability_selection_predicates()
     inspect_attack_guard_flow()
+    inspect_attack_return_dependencies()

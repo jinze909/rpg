@@ -506,6 +506,7 @@ namespace Rpg.Tests.Editor
                 return "member " + index +
                     " choosing=" + member.Actions.IsChoosing +
                     " dead=" + member.Status.IsDead +
+                    " blockers=" + DescribeRuntimeActionBlockers(member, baseAttack) +
                     " baseAttack=" + (baseAttack != null) +
                     " canChoose=" + canChoose +
                     " canUse=" + canUse +
@@ -759,6 +760,49 @@ namespace Rpg.Tests.Editor
         // Inspect only PUBLIC runtime data of the saved ORK ability on
         // failure. This keeps licensed ORK source out of CI logs and allows
         // configuration/eligibility faults to be distinguished before edits.
+        // Inspect the saved ORK combatant state at the actual failing turn.
+        // Reflection is read-only and never modifies an ORK action blocker.
+        private static string DescribeRuntimeActionBlockers(Combatant member, object attack)
+        {
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            string ReadFlag(object owner, string name)
+            {
+                if (owner == null)
+                    return "owner missing";
+                var type = owner.GetType();
+                try
+                {
+                    var property = type.GetProperty(name, flags);
+                    if (property != null && property.GetIndexParameters().Length == 0)
+                        return System.Convert.ToString(property.GetValue(owner));
+                    var field = type.GetField(name, flags);
+                    return field != null ? System.Convert.ToString(field.GetValue(owner))
+                        : "not exposed";
+                }
+                catch (System.Exception error)
+                {
+                    return error.GetType().Name;
+                }
+            }
+            string activeLevel = "not exposed";
+            if (attack != null)
+            {
+                var method = attack.GetType().GetMethod("GetActiveLevel", flags);
+                if (method != null && method.GetParameters().Length == 0)
+                {
+                    try { activeLevel = (method.Invoke(attack, null) != null).ToString(); }
+                    catch (System.Exception error) { activeLevel = error.GetType().Name; }
+                }
+            }
+            return "{BlockActionUse=" + ReadFlag(member.Actions, "BlockActionUse") +
+                ", IsChoosing=" + ReadFlag(member.Actions, "IsChoosing") +
+                ", InBattle=" + ReadFlag(member.Battle, "InBattle") +
+                ", ActiveLevelExists=" + activeLevel + "}";
+        }
+
         private static string DescribeBaseAttackState(object attack)
         {
             if (attack == null)
