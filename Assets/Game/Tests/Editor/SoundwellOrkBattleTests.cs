@@ -553,6 +553,77 @@ namespace Rpg.Tests.Editor
             LogAssert.NoUnexpectedReceived();
         }
 
+        [UnityTest]
+        public IEnumerator BattleBackCancelEventRetreatsAndReleasesOrkParticipants()
+        {
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return WaitForFrameworkInitialization();
+
+            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
+            Assert.That(load, Is.Not.Null);
+            while (!load.isDone)
+                yield return null;
+
+            GameObject root = GameObject.Find("Soundwell signal trial");
+            Assert.That(root, Is.Not.Null);
+            var party = root.GetComponent<SoundwellOrkParty>();
+            var trial = root.GetComponent<SoundwellTrial>();
+            Assert.That(party, Is.Not.Null);
+            Assert.That(trial, Is.Not.Null);
+
+            float deadline = Time.realtimeSinceStartup + 12f;
+            while ((!party.IsReady || !trial.IsReady) &&
+                   string.IsNullOrEmpty(party.InitializationError) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(party.IsReady && trial.IsReady, Is.True,
+                "The saved ORK/Makinom rescue scene must initialize: " + party.InitializationError);
+
+            trial.ReadInput = false;
+            Rigidbody2D leaderBody = party.Leader.GetComponent<Rigidbody2D>();
+            Assert.That(leaderBody, Is.Not.Null);
+            leaderBody.position = new Vector2(-0.55f, 0f);
+            Physics2D.SyncTransforms();
+            Assert.That(trial.CanEngageBeast, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+
+            deadline = Time.realtimeSinceStartup + 8f;
+            while (ORK.Game.Combatants.GetInBattle().Count < 4 &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(ORK.Game.Combatants.GetInBattle().Count, Is.EqualTo(4));
+            Assert.That(trial.DirectCombatStarted, Is.True);
+            yield return null; // LateUpdate shows the battle-only Back focus.
+
+            var back = GameObject.Find("Soundwell Back button")?.GetComponent<Button>();
+            Assert.That(back, Is.Not.Null);
+            Assert.That(back.gameObject.activeInHierarchy, Is.True);
+            EventSystem events = EventSystem.current;
+            Assert.That(events, Is.Not.Null);
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(back.gameObject),
+                "The active battle must offer a focusable retreat for keyboard/gamepad users.");
+
+            // The actual EventSystem Cancel route bubbles from its selected
+            // button to the UGUI canvas handler. This is not a direct method
+            // call, button click, or a fabricated ORK battle result.
+            GameObject handler = ExecuteEvents.ExecuteHierarchy(back.gameObject,
+                new BaseEventData(events), ExecuteEvents.cancelHandler);
+            Assert.That(handler, Is.Not.Null,
+                "Cancel must reach the action HUD's active ICancelHandler.");
+            Assert.That(trial.DirectCombatStarted, Is.False,
+                "UGUI Cancel in battle should start a real scene retreat.");
+
+            deadline = Time.realtimeSinceStartup + 8f;
+            while (SceneManager.GetActiveScene().name != SoundwellEntrance.BootstrapSceneName &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(SceneManager.GetActiveScene().name,
+                Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
+            Assert.That(ORK.Game.Combatants.GetInBattle(), Is.Empty,
+                "Cancel retreat must release the ORK global battle registry.");
+        }
+
         private static IEnumerator WaitForFrameworkInitialization()
         {
             double deadline = EditorApplication.timeSinceStartup + 30;
