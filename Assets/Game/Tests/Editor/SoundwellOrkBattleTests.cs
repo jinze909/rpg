@@ -529,6 +529,18 @@ namespace Rpg.Tests.Editor
             Assert.That(attackButton.interactable, Is.True,
                 "The real UGUI action must enable only for the current ORK attack chooser.");
             float beastHpBeforeAttack = party.Beast.Status[1].GetValue();
+            var attackUser = party.Members[party.ReadyBaseAttackerIndex];
+            var configuredAttack = ORK.Abilities.Get(0).GetLevel(1).active;
+            var configuredTarget = configuredAttack.targetChange[0];
+            var configuredStatusChange = configuredTarget.change[0].settings;
+            string damagePipelineSnapshot =
+                "targetChangeEligible=" + configuredTarget.CanUse(attackUser, party.Beast) +
+                " activeHitChance=" + DescribeConfigObject(configuredAttack.hitChance) +
+                " statusChange=" + DescribeConfigObject(configuredStatusChange) +
+                " targetChange=" + DescribeConfigObject(configuredTarget) +
+                " battleAnimation=" + DescribeConfigObject(configuredAttack.battleAnimation) +
+                " systemSchematics=" + DescribeConfigObject(configuredAttack.systemActionSchematics);
+            Debug.Log("RPG_ORK_ATTACK_PIPELINE " + damagePipelineSnapshot);
             attackButton.onClick.Invoke();
             float attackResolutionDeadline = Time.realtimeSinceStartup + 8f;
             while (party.Beast.Status[1].GetValue() >= beastHpBeforeAttack &&
@@ -540,7 +552,8 @@ namespace Rpg.Tests.Editor
                 "ActiveAbility=" + DescribeActiveAttackSetup(
                     party.Members[0].Abilities.GetCurrentBaseAttack()) +
                 " turn=" + party.Members[0].Actions.IsChoosing +
-                " battle=" + party.BattleInProgress);
+                " battle=" + party.BattleInProgress +
+                " pipeline=" + damagePipelineSnapshot);
 
             Assert.That(party.BattleInProgress, Is.True,
                 "The ORK encounter must still be active when its enemy is defeated.");
@@ -770,6 +783,26 @@ namespace Rpg.Tests.Editor
         // sufficient: a real attack must define ORK target status changes.
         // This helps identify the missing public setting without copying
         // proprietary framework method bodies into CI logs.
+        private static string DescribeConfigObject(object value)
+        {
+            if (value == null) return "null";
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance;
+            var parts = value.GetType().GetFields(flags).Take(32).Select(field =>
+            {
+                object current = field.GetValue(value);
+                if (current == null) return field.Name + "=null";
+                if (current is System.Collections.ICollection items)
+                    return field.Name + "=count:" + items.Count;
+                if (current is string || current.GetType().IsPrimitive ||
+                    current.GetType().IsEnum)
+                    return field.Name + "=" + current;
+                return field.Name + "=configured";
+            });
+            return value.GetType().Name + " {" + string.Join(", ", parts) + "}";
+        }
+
         private static string DescribeActiveAttackSetup(object shortcut)
         {
             if (shortcut == null)
