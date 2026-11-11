@@ -166,6 +166,7 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             SOUNDWELL_TESTS,
         )
         self.assertIn("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED", SOUNDWELL_MARKERS)
+        self.assertIn("RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED", SOUNDWELL_MARKERS)
         self.assertIn(
             "Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry",
             SOUNDWELL_TESTS,

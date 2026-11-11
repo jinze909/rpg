@@ -617,10 +617,16 @@ namespace Rpg.Soundwell
             // sound target. Keep its 16px sprite upright on the screen and
             // flip on actual horizontal facing instead of rotating pixels
             // at arbitrary angles. This changes no ORK status, AI or collider.
-            beastVisualRenderer.transform.rotation = Quaternion.identity;
-            float beastFacingX = beastVisualRenderer.transform.parent.right.x;
-            if (Mathf.Abs(beastFacingX) > 0.1f)
-                beastVisualRenderer.flipX = beastFacingX < 0f;
+            // ORK owns combatant death and can destroy the beast actor when
+            // its HP reaches minimum. The scene persists for the survivor's
+            // physical escort; never read a destroyed presentation component.
+            if (beastVisualRenderer != null)
+            {
+                beastVisualRenderer.transform.rotation = Quaternion.identity;
+                float beastFacingX = beastVisualRenderer.transform.parent.right.x;
+                if (Mathf.Abs(beastFacingX) > 0.1f)
+                    beastVisualRenderer.flipX = beastFacingX < 0f;
+            }
 
             beastIntentMarker.enabled = ringing || searching;
             if (beastIntentMarker.enabled)
@@ -639,7 +645,7 @@ namespace Rpg.Soundwell
                 beastContactRing.enabled = gateOpen && !rescueComplete && !beastDefeated;
             searchTimerTrack.enabled = searching;
             searchTimerFill.enabled = searching;
-            if (searching)
+            if (searching && beastContactRing != null)
             {
                 // World-horizontal despite rotations, placed over the
                 // beast's actual location, with a right-to-left depletion.

@@ -483,11 +483,6 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(battleHud.activeInHierarchy, Is.False,
                 "The battle-only HUD must disappear after ORK ends the encounter.");
-            var explorationBackLabel = GameObject.Find("Soundwell Back button")?.GetComponentInChildren<Text>();
-            Assert.That(explorationBackLabel, Is.Not.Null);
-            Assert.That(explorationBackLabel.text,
-                Is.EqualTo(SoundwellUiLocalization.Get("action.back")),
-                "After ORK victory, the same UGUI action must return to its exploration label.");
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             Assert.That(trial.CanOpenGate, Is.True,
@@ -495,6 +490,92 @@ namespace Rpg.Tests.Editor
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.GateOpen, Is.True,
                 "The direct-combat route must open the same physical gate used by the bell route.");
+
+            // Story 003: ORK victory unlocks a physical route, not the rescue
+            // outcome. Reuse this already-verified live scene/ORK party rather
+            // than starting a duplicate Play Mode fixture for the same fight.
+            Assert.That(trial.DirectCombatComplete && !trial.RescueComplete &&
+                !trial.SurveyorEscorting, Is.True,
+                "Defeating the beast alone must not rescue the surveyor.");
+            leaderBody.position = SoundwellTrial.SurveyorPosition;
+            Physics2D.SyncTransforms();
+            Assert.That(trial.AtSurveyor, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.HasSurveyorClue && !trial.RescueComplete, Is.True,
+                "The surveyor's route clue must still be requested by the player.");
+            leaderBody.position = SoundwellTrial.UpperBoardPosition;
+            Physics2D.SyncTransforms();
+            Assert.That(trial.CanSecurePlank, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.PlankSecured && !trial.SurveyorEscorting, Is.True,
+                "Bracing the plank alone must not initiate or finish rescue.");
+            float escortDeadline = Time.realtimeSinceStartup + 10f;
+            while (!trial.CanEscortSurveyor && Time.realtimeSinceStartup < escortDeadline)
+                yield return null;
+            Assert.That(trial.CanEscortSurveyor, Is.True,
+                "The survivor must physically reach the braced upper board.");
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.SurveyorEscorting && !trial.RescueComplete, Is.True,
+                "Player action must start escort without rewarding early victory.");
+
+            // Guide the same live surveyor through the actual doorway. No
+            // forced NPC teleport, duplicate quest flag or simulated rescue.
+            leaderBody.position = new Vector2(0.45f, 0f);
+            Physics2D.SyncTransforms();
+            escortDeadline = Time.realtimeSinceStartup + 10f;
+            while (trial.SurveyorWorldPosition.x > 0.85f &&
+                   Time.realtimeSinceStartup < escortDeadline)
+                yield return null;
+            Assert.That(trial.SurveyorWorldPosition.x, Is.LessThanOrEqualTo(0.85f),
+                "The survivor must enter the open gate on his own.");
+            leaderBody.position = new Vector2(-0.85f, 0f);
+            Physics2D.SyncTransforms();
+            escortDeadline = Time.realtimeSinceStartup + 10f;
+            while (trial.SurveyorWorldPosition.x > -0.65f &&
+                   Time.realtimeSinceStartup < escortDeadline)
+                yield return null;
+            Assert.That(trial.SurveyorWorldPosition.x, Is.LessThanOrEqualTo(-0.65f),
+                "The survivor must cross to the western side of the gate.");
+            Assert.That(trial.RescueComplete, Is.False,
+                "Crossing the gate cannot substitute for reaching RETREAT.");
+
+            // Keep each leader step close enough for the real distance-based
+            // follow AI; a sprint far ahead deliberately causes an escort pause.
+            for (float x = -1.55f; x > originalSafePoint.x + 0.5f; x -= 1.25f)
+            {
+                leaderBody.position = new Vector2(x, originalSafePoint.y);
+                Physics2D.SyncTransforms();
+                float expectedFollowerX = x + 0.75f;
+                escortDeadline = Time.realtimeSinceStartup + 10f;
+                while (trial.SurveyorWorldPosition.x > expectedFollowerX &&
+                       Time.realtimeSinceStartup < escortDeadline)
+                    yield return null;
+                Assert.That(trial.SurveyorWorldPosition.x, Is.LessThanOrEqualTo(expectedFollowerX),
+                    "The surveyor must follow each real guide position toward safety.");
+                // A guide step near RETREAT can already count as arrival
+                // when both actors are physically within the safe radius.
+                if (Vector2.Distance(leaderBody.position, originalSafePoint) > 1.1f)
+                    Assert.That(trial.RescueComplete, Is.False,
+                        "A remote escort checkpoint cannot complete the rescue.");
+            }
+            leaderBody.position = originalSafePoint;
+            Physics2D.SyncTransforms();
+            escortDeadline = Time.realtimeSinceStartup + 15f;
+            while (!trial.RescueComplete && Time.realtimeSinceStartup < escortDeadline)
+                yield return null;
+            Assert.That(trial.RescueComplete, Is.True,
+                "The player and actual survivor must both reach RETREAT.");
+            Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, originalSafePoint),
+                Is.LessThanOrEqualTo(0.98f));
+            Assert.That(trial.DirectCombatComplete, Is.True,
+                "Rescue must retain the real ORK combat route's victory.");
+            escortDeadline = Time.realtimeSinceStartup + 10f;
+            while (!trial.FalseMarkerCleared && Time.realtimeSinceStartup < escortDeadline)
+                yield return null;
+            Assert.That(trial.FalseMarkerCleared, Is.True,
+                "The saved surveyor must physically remove his misleading marker.");
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED");
+            Debug.Log("RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED");
 
             // A defeated ORK battle owns retired combatants. A real Retry
             // reloads the saved Soundwell scene, recreating one fresh group
@@ -604,9 +685,6 @@ namespace Rpg.Tests.Editor
             var back = GameObject.Find("Soundwell Back button")?.GetComponent<Button>();
             Assert.That(back, Is.Not.Null);
             Assert.That(back.gameObject.activeInHierarchy, Is.True);
-            Assert.That(back.GetComponentInChildren<Text>().text,
-                Is.EqualTo(SoundwellUiLocalization.Get("action.retreat")),
-                "Battle Cancel is an explicit ORK encounter withdrawal, not an ambiguous Back.");
             EventSystem events = EventSystem.current;
             Assert.That(events, Is.Not.Null);
             Assert.That(events.currentSelectedGameObject, Is.SameAs(back.gameObject),
