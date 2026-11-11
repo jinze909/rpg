@@ -110,7 +110,66 @@ jobs:
                 "force update, missing baseline, or stale event")
           pr_heads={p["head"]["ref"] for p in pages("/repos/"+REPO+"/pulls?state=open")}
           branches=pages("/repos/"+REPO+"/branches",limit=1000)
+          # Explicit one-time retirements; names, heads and validated
+          # replacement code are SHA-pinned. All other branches remain
+          # subject to the normal newly-merged-only rule.
+          ARCHIVED={
+              "codex/pending/story-003-battle-victory-v2": {
+                  "head":"dcd7351b3461c78aa8957c2c9c19cd017c50ebd2",
+                  "verified":"95d90e3548a599d388def4b6ce72d06f32a8cde8",
+                  "run":43111500532,
+                  "ancestor":True,
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                          "b36d48efdf6616bf5dc1f0c7f4ab0bdfd70f0af7",
+                      "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                          "e75ec9dac66c9766e543f6c88f63d07817a11564",
+                  },
+              },
+              "codex/pending/ci-exact-sha-evidence-reuse-recovered-nov11": {
+                  "head":"f503c588fcd58229020bb7b6e1aadd8d37366893",
+                  "verified":"f503c588fcd58229020bb7b6e1aadd8d37366893",
+                  "run":43112019720,
+                  "ancestor":False,
+                  "blobs":{
+                      ".github/workflows/unity-p0.yml":
+                          "7784f58fdd3d62c58cbdd63fc2045ff9b9276433",
+                      "tools/reuse_unity_evidence.py":
+                          "e347f976fbaa7b3a2d362dadb5026d458b814039",
+                      "tools/test_reuse_unity_evidence.py":
+                          "e62b29221efe1682b2940f861016a2707b8a98eb",
+                  },
+              },
+          }
+          def verified_archived_proof(name,sha):
+              entry=ARCHIVED[name]
+              check(sha==entry["head"],"historical branch moved since audit")
+              check(ancestor("ffc39f9fe1bea122774fd8a54e889083ab78e0e7",dev),
+                    "audited dev baseline is missing")
+              if entry["ancestor"]:
+                  check(ancestor(entry["verified"],dev),"replacement commit not merged")
+              else:
+                  check(ancestor("8e9f7643ff147ef6f26419733c27ecaab38de207",dev),
+                        "evidence workflow integration is missing")
+              for file_path,want in entry["blobs"].items():
+                  check(git("rev-parse",dev+":"+file_path)==want,
+                        "audited replacement changed: "+file_path)
+              proof=api("/repos/"+REPO+"/actions/runs/"+str(entry["run"]))
+              check(proof.get("head_sha")==entry["verified"] and
+                    proof.get("status")=="completed" and
+                    proof.get("conclusion")=="success" and
+                    proof.get("name")=="Unity ORK P0",
+                    "replacement SHA lacks verified Unity CI")
+              artifacts=pages("/repos/"+REPO+"/actions/runs/"+
+                              str(entry["run"])+"/artifacts","artifacts",limit=200)
+              want="unity-ork-p0-verify-"+entry["verified"]+"-attempt-"+str(
+                  proof.get("run_attempt"))
+              check(any(a.get("name")==want and a.get("expired") is False and
+                        a.get("size_in_bytes",0)>0 for a in artifacts),
+                    "replacement verify evidence missing or expired")
+              return proof["html_url"]
           seen=0
+          historical_seen=0
           deleted=[]
           kept=[]
           for b in branches:
@@ -118,14 +177,18 @@ jobs:
               sha=b.get("commit",{}).get("sha","")
               if not PENDING.fullmatch(name):continue
               check(bool(SHARE.fullmatch(sha)),"bad candidate SHA")
-              if not ancestor(sha,after) or ancestor(sha,before):continue
-              seen+=1
+              newly_included=ancestor(sha,after) and not ancestor(sha,before)
+              historical=name in ARCHIVED
+              if not newly_included and not historical:continue
+              if newly_included:seen+=1
+              if historical:historical_seen+=1
               try:
                   check(not b.get("protected"),"protected branch")
                   check(name not in pr_heads,"open PR")
                   check(git("rev-parse","refs/remotes/origin/"+name)==sha,
                         "local HEAD changed")
-                  proof=verify_run(name,sha)
+                  proof=(verified_archived_proof(name,sha) if historical
+                         else verify_run(name,sha))
                   check(proof,"no exact-SHA successful Unity verify artifact")
                   check(api("/repos/"+REPO+"/git/ref/heads/codex/dev")["object"]["sha"]==dev,
                         "dev moved")
@@ -149,7 +212,8 @@ jobs:
               except (RuntimeError,ValueError,KeyError,OSError) as err:
                   kept.append((name,str(err)))
                   print("RETAIN "+name+" : "+str(err),flush=True)
-          print("SUMMARY newly_included="+str(seen)+" deleted="+str(len(deleted))+
+          print("SUMMARY newly_included="+str(seen)+" historical_audited="+
+                str(historical_seen)+" deleted="+str(len(deleted))+
                 " kept="+str(len(kept)),flush=True)
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
               out.write("## Merged pending branch cleanup\n\n")
@@ -160,5 +224,5 @@ jobs:
                   out.write("- Deleted "+name+" at "+sha+"; verify "+proof+"\n")
               for name,why in kept:
                   out.write("- Retained "+name+": "+why+"\n")
-              if not seen:out.write("No newly included pending HEAD; no deletion.\n")
+              if not seen and not historical_seen:out.write("No newly included pending HEAD; no deletion.\n")
           PY
