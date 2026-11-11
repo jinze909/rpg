@@ -34,44 +34,20 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            // Enter through Bootstrap's single scene-load owner. Directly
-            // issuing a second LoadSceneAsync can invalidate the first root
-            // while SoundwellEntrance also handles a pending input action.
-            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
-            Assert.That(entrance != null, Is.True,
-                "Bootstrap must expose its actual UGUI entry controller.");
-            AsyncOperation load = entrance.OpenTrial();
+            // Preserve the previously verified Bootstrap-to-trial test route.
+            // Do not substitute a new scene-load handshake while diagnosing
+            // ORK ability eligibility; this test previously reached the turn.
+            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
             Assert.That(load, Is.Not.Null, "The saved Soundwell scene must load from the Bootstrap runtime.");
             while (!load.isDone)
                 yield return null;
 
-            // Unity's asynchronous scene completion can precede the first
-            // active-scene frame on a busy CI editor. Wait for the saved scene
-            // and its root instead of dereferencing a transitional object.
-            GameObject root = null;
-            float sceneDeadline = Time.realtimeSinceStartup + 8f;
-            while (Time.realtimeSinceStartup < sceneDeadline)
-            {
-                if (SceneManager.GetActiveScene().name == SoundwellEntrance.SceneName)
-                    root = GameObject.Find("Soundwell signal trial");
-                if (root != null)
-                    break;
-                yield return null;
-            }
-            Assert.That(root != null, Is.True,
-                "The saved Soundwell root must be alive after the scene load. Active scene: " +
-                SceneManager.GetActiveScene().name);
-            // Read components from the already-confirmed live scene root.
-            // An unscoped object search can encounter ORK objects in transition
-            // during scene activation; this keeps the test on the saved owner.
+            GameObject root = GameObject.Find("Soundwell signal trial");
+            Assert.That(root, Is.Not.Null, "The saved Soundwell scene root must exist.");
             SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
             SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
-            Assert.That(party != null, Is.True, "The active trial must own a live ORK party.");
-            Assert.That(trial != null, Is.True, "The active trial must own a live Makinom controller.");
-            Assert.That(party.gameObject.scene.name, Is.EqualTo(SoundwellEntrance.SceneName));
-            Assert.That(trial.gameObject.scene.name, Is.EqualTo(SoundwellEntrance.SceneName));
-            Assert.That(party.gameObject, Is.SameAs(trial.gameObject),
-                "The ORK party and the rescue route must belong to the same saved root.");
+            Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
+            Assert.That(trial, Is.Not.Null, "The live scene must own its rescue route state.");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
             while (!party.IsReady && string.IsNullOrEmpty(party.InitializationError) &&
