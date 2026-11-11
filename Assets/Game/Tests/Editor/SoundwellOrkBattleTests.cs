@@ -541,7 +541,31 @@ namespace Rpg.Tests.Editor
                 " battleAnimation=" + DescribeConfigObject(configuredAttack.battleAnimation) +
                 " systemSchematics=" + DescribeConfigObject(configuredAttack.systemActionSchematics);
             Debug.Log("RPG_ORK_ATTACK_PIPELINE " + damagePipelineSnapshot);
+            // The saved Turn Based system can collect the whole team's
+            // choices before it executes any action. A successful Use()
+            // means the first player's attack was queued, not that damage
+            // has already resolved. Complete the remaining real ORK choices
+            // through the same UGUI button, without manufacturing damage.
+            var submittedAttackers = new HashSet<Combatant> { attackUser };
             attackButton.onClick.Invoke();
+            for (int selection = 1; selection < party.Members.Count; selection++)
+            {
+                if (party.Beast.Status.IsDead ||
+                    party.Beast.Status[1].GetValue() < beastHpBeforeAttack)
+                    break;
+                yield return null; // Allow the real ORK chooser and HUD to advance.
+                int nextIndex = party.ReadyBaseAttackerIndex;
+                if (nextIndex < 0)
+                    break; // The battle may already be resolving this turn.
+                var nextAttacker = party.Members[nextIndex];
+                Assert.That(submittedAttackers.Add(nextAttacker), Is.True,
+                    "ORK must not ask the same rescuer to choose twice in one turn.");
+                Assert.That(attackButton.interactable, Is.True,
+                    "UGUI must expose the next ORK-controlled party action.");
+                Debug.Log("RPG_ORK_ATTACK_CHOICE_SUBMITTED rescuer=" + nextIndex +
+                    " total=" + submittedAttackers.Count);
+                attackButton.onClick.Invoke();
+            }
             float attackResolutionDeadline = Time.realtimeSinceStartup + 8f;
             while (party.Beast.Status[1].GetValue() >= beastHpBeforeAttack &&
                    !party.Beast.Status.IsDead &&
