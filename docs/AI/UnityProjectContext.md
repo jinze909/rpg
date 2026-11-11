@@ -1,5 +1,7 @@
 # Unity project context
 
+> 本文是带 SHA 的历史检查记录，不是当前状态。当前状态读 [AI2-STATUS](../../AI2-STATUS.md)，技术事实读[实施核查](../technical/MODERNIZATION_VERIFIED_STATUS.md)。2026-11-11起框架/配置可经充分验证修改；验收由智能体完成，不要求用户试玩或反馈；主观体验未知单独记录。下文历史“未实现/受阻”不指代实时仓库。
+
 Analyzed development baseline: `03c6b954ef9a2bec347564edcdd29485d806d90e` (`codex/dev`).
 Inspection date: 2026-11-07 (America/Los_Angeles).
 
@@ -102,5 +104,5 @@ validation or narrative document checks as current gameplay evidence.
 
 - `Packages/manifest.json` 尚无 URP、Input System、Cinemachine、2D Animation、Tilemap Extras、Pixel Perfect、Localization、Addressables、Memory Profiler；并不证明这些包在所有本地未提交缓存中不存在。
 - `ProjectSettings/GraphicsSettings.asset` 的 `m_CustomRenderPipeline` 是 `{fileID: 0}`，Quality 的渲染管线也均为 `{fileID: 0}`：目前使用 Built-in。自有 Soundwell 仍有旧 `Input.GetAxisRaw`/`GetKeyDown` 和手写相机逻辑，未见动画/图集/混音器的独立已提交资产。
-- **用户最新硬限制：ORK 3.22.0 / Makinom 2.21.0 保持原版，不更新、不碰厂商文件和设置、不新增付费依赖；UGUI 保留，不迁移 UI Toolkit。** 现代化规范见 [现代工作室技术基线](../technical/MODERN_2D_RPG_STACK.md)；这只是规划，任何实际迁移须分支独立验收。
+- **该段冻结规则已于2026-11-11撤销：当前允许经充分验证修改 ORK/Makinom 框架及配置；零新增费用和UGUI继续保留。** 现代化规范见 [现代工作室技术基线](../technical/MODERN_2D_RPG_STACK.md)；这只是规划，任何实际迁移须分支独立验收。
 - 当前 003 的独立候选 `codex/pending/p2-soundwell-party-runtime` 有失败的 [同 SHA CI](https://github.com/jinze909/rpg/actions/runs/42732604423)：Soundwell 现有重载测试报 `Reload must have exactly one player`。此为未解决的玩法/运行回归，不能通过迁移 URP/Input 或写文档掩盖。主线已有 [通过的验收](https://github.com/jinze909/rpg/actions/runs/42728344621)。

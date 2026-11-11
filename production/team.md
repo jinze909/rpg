@@ -26,7 +26,7 @@
 ## 协作
 
 - Producer 每轮以当前 HEAD、状态与清单为输入选任务。**若任一候选 CI queued/in_progress，Producer 必须区分 A 轨待验候选与 B 轨可实际开发的独立候选；只等待、只更新接力文档或反复查询 CI 不算履行本轮开发。** B 轨须检视其他 pending 分支的改动/依赖，避开并发写冲突并提交真实增量；若完全无独立工作，列出逐项证据，不以 CI 排队为唯一理由。结尾记录 A/B 证据和下一步。
-- Creative director 仲裁体验、范围和美术冲突，technical director 仲裁架构和构建冲突。跨域影响由 producer 汇总，冻结项的变更须由用户决定。
+- Creative director 仲裁体验、范围和美术冲突，technical director 仲裁架构和构建冲突。跨域影响由 producer 汇总，按现行方向自主处理可逆实现和验证；不以用户试玩或例行确认为前提。明确未授权的费用、许可或方向变更记录边界并继续范围内工作。
 - 负责人提供约束与审查，专家交付实现和证据。Lead programmer 终审实际差异，QA lead 逐项核验。一个对话承担多角时，按职责顺序完成检查并标明证据来源。
-- 交接最少包括任务、输入基线 SHA、负责领域、改动路径、可复现验收和剩余阻塞。
-- Technical director 与 producer 共同维护 [现代 2D RPG 工作室技术基线](../docs/technical/MODERN_2D_RPG_STACK.md) 中的零新增购买和 ORK/Makinom 冻结；engine-programmer 负责 URP 2D/相机，gameplay-programmer 负责 Input System Both 适配，technical-artist/level-designer 负责 2D 动画与地图，qa-lead 负责各自独立 CI/玩家路径。文档计划不能被当作已通过工程验收。
+- 交接最少包括任务、输入基线 SHA、改动路径、可复现验收、问题链接、实现下一步和智能体验证下一步。角色按需参与；用户无需写反馈，智能体维护问题与证据。
+- Technical director 与 producer 共同维护 [现代 2D RPG 工作室技术基线](../docs/technical/MODERN_2D_RPG_STACK.md) 中的零新增购买和经充分验证可修改 ORK/Makinom 的规则；engine-programmer 负责 URP 2D/相机，gameplay-programmer 负责 Input System Both 适配，technical-artist/level-designer 负责 2D 动画与地图，qa-lead 负责各自独立 CI/玩家路径。文档计划不能被当作已通过工程验收。

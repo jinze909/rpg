@@ -1,5 +1,7 @@
 # Active development session
 
+Current policy (2026-11-11): framework and configuration changes are allowed after sufficient isolated final-SHA validation. Agents own development, verification and issue recording; user playtests, media reviews or GitHub feedback are not prerequisites. Subjective enjoyment remains unknown without evidence. Prefer integrating ready verified work before unrelated governance; reuse equivalent exact-SHA evidence. Historical verification below is not live status. See [known issues](../KNOWN_ISSUES.md).
+
 Current story and next acceptance check are maintained in [AI2-STATUS.md](../../AI2-STATUS.md).
 
 ## Baseline
@@ -13,7 +15,7 @@ Current story and next acceptance check are maintained in [AI2-STATUS.md](../../
 ## Verification
 
 - Verified locally that the pinned archive extracts all 136 files byte for byte. A second install made zero changes. A changed archive and a conflicting local asset were rejected. Static scene links and the build scene GUID were verified.
-- Current native bootstrap and Soundwell acceptance are recorded by exact candidate SHA and CI links in AI2-STATUS.md and stories 001/002. The latest candidate `2eee996adaec6563fd379416e7ec6fad8e1b9a62` passed [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628): 8/8 Editor tests, two Play Mode cycles, independent Batch and `passed-clean-candidate`; [artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633). Story 003 remains in progress because the ORK Unity UI system and player-selected base attack are not yet configured.
+- Current native bootstrap and Soundwell acceptance are recorded by exact candidate SHA and CI links in AI2-STATUS.md and stories 001/002. The historical candidate `2eee996adaec6563fd379416e7ec6fad8e1b9a62` passed [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628): 8/8 Editor tests, two Play Mode cycles, independent Batch and `passed-clean-candidate`; [artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633). Story 003 remains in progress because the ORK Unity UI system and player-selected base attack are not yet configured.
 
 ## Current narrative baseline
 

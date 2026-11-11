@@ -1,41 +1,15 @@
 # AI2 当前状态
 
-**真实进度更正（2026-11-10，`dev` `790266185...`）：** M1–M11 的工程贡献**全部 11/11 已实际进入 dev 提交历史**；不等于全部完成验收。**关闭 Issue：M1/M10/M11（3/11）；仍 open：M2–M9（8/11）**。旧文档的「M3–M11 未实施」「M8 尚未合入/Run 仍在运行」「当前必须先迁移再开发故事」等叙述已失效。各阶段最终 SHA、Unity CI、实际功能与剩余门槛以[逐项事实核查](docs/technical/MODERNIZATION_VERIFIED_STATUS.md)为准；后续须读取实时 HEAD 和最新 CI。
+本页只保留当前接力，不代替实时 GitHub 核对。本轮整合基线：`2656656df182605a3d0461500f227665e9df4e74`；下列已验工程证据各自保留受测 SHA；更早证据见故事卡和[现代化事实核查](docs/technical/MODERNIZATION_VERIFIED_STATUS.md)。
 
+- **当前目标：** [003 三人短回合声井救援](production/stories/003-soundwell-turn-rescue.md)仍进行中；已有引兽、开闸、护送到安全点和人物回应，不要重复建设第一条救援链。
+- **最近工程交付：** `3bbe8b2...` 已进入 dev，[候选 Run 42970990120](https://github.com/jinze909/rpg/actions/runs/42970990120) 成功；该候选补充直接胜利后护送验证与怪物生命周期修复。直接修改 ORK HP 模拟胜利仍不等于玩家已能选择 Attack/目标，具体证据边界见故事卡及 [SW-001](production/KNOWN_ISSUES.md#sw-001)。
+- **基线后续：** `3bbe8b2...` 之后已加入入口语言/声音选项、焦点防误触、语言持久化和威胁预览回归；还已加入零接触撤退结果、内存采样时间戳检查、受击动画和连续按铃动画保护与 EventSystem 焦点修复。本轮保留这些实现及最新精确测试收集规则，不用旧测试数量覆盖新增检查。
+- **技术状态：** M1–M11 均已有工程贡献，部分卡仍有范围/验证缺口；版本和资产以实时配置为准，不按旧“仅计划”重复安装。已有按分支 CI 并发，不恢复全仓单一 pending 组。
+- **本轮规则交付：** 充分验证后允许修改框架及配置；移除必须用户参与的验收步骤；智能体自行登记问题和检查限制。已验候选优先合入，等价同 SHA 证据复用，不新增硬性并行上限或测试重构里程碑。保留远端新增的 CI 等待期间 A/B 双轨独立开发要求与90天验证产物保留期。
+- **活动候选：** 每轮查询未合入候选与对应 Run，不将本文的历史 SHA 当作活动分支。正在验证的 SHA 不改动；独立任务可继续。
+- **问题与证据缺口：** 统一见 [问题记录](production/KNOWN_ISSUES.md)，区分确认缺陷、待验证假设与外部阻塞。真实玩家主观体验没有证据，不要求用户补交，也不据此暂停工程交付。
+- **实现下一步：** 先核对活动候选，补玩家选动作/目标经 ORK 正常结算的最小链路；已存在的护送/撤退路径仅修实际回归。
+- **智能体验证下一步：** 用同 SHA 运行现有引兽护送和战斗取消路径，检查操作可达性、反馈与人物回应；记录直接答案提示带来的结论限制。真实攻击接通后补用户入口到结算的行为测试。
 
-- 工作分支为 `codex/dev`。每轮通过 GitHub 查询实时 HEAD。
-- **最新用户接力选择规则（2026-11-10）：M1–M11 不再优先于剧情/玩法/故事 003。** 依据实时任务价值、依赖、候选 SHA 和 CI 状态选下一独立增量，不必先做完现代化才能推进故事；CI 运行中允许推进独立候选，但不能改动被测 SHA，失败不能跳过修复或验收。原 M2 `codex/pending/m2-ugui-focus`、Run 42777305240 等为历史接力记录，**不得当作当前活跃分支或正在运行的 CI**。最新进度以远端 `codex/dev`、Issue、当前故事卡及 Actions 为准。M1–M11 继续由 [技术索引](docs/technical/MIGRATION_STAGE_BRANCHES.md) 追踪，但不作为强制优先队列；一个候选一次增量，合入后关闭并按规则清理。
-- 用户明确的最高产品原则是“好玩第一，一切都建立在好玩的基础上”，已写入 [开发规则](AGENTS.md) 和 [任务清单](BACKLOG.md)。
-- 用户已同意“归来”主线并要求详细大纲入库。现有[主线大纲](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)、[地区与长期故事](docs/narrative/REGIONAL_STORIES.md) v0.2：采用用户提供的 Claude 文稿，加入白水渡谜线、点名与受限听雾，保留中段救友、后半共同成长与独立地方故事。它们是写作基线，未实现、未试玩；工作标题与具体扩写细节仍可改稿。
-- 用户授权深入讨论并写一页玩法基线，本轮新增[基线v0.1](docs/gameplay/BASELINE.md)：区域探索与队伍短回合为方向，三人、固定个人顺序及镜头等仅作首轮控制；移动/固定阵位须公平对照，仍未实现、未试玩。
-- 先前撤销的游戏设定继续作废。主角外观、美术尺度等未锁定，玩法的已定/暂定/待验证以[玩法基线](docs/gameplay/BASELINE.md)和 [BACKLOG](BACKLOG.md) 为准。
-- **历史 Story 003 基线（不是实时完成状态）**：当时三人 ORK、New Input 的早期增量有成功 CI 并已合入；Story 003 的战斗指令/救援路径/真人试玩是否完成必须据最新故事卡、源码与 CI 另验。旧段落中 UI None / Ability 未接的叙述不能直接视为当前事实。
-- 工程锁定 Unity 6.6（6000.6.8f1）与随编辑器发布的 UGUI（CI 解析为 2.6.0）。当前框架仍用已提供的 ORK 3.22.0 / Makinom 2.21.0 固定包。此前已对安装脚本的 136 个文件做逐字节比对并验证重跑。
-- 框架包已完整整合到开发分支：73 个资源条目、136 个文件与原包逐字节一致，原始 GUID 保留；当时重复安装新增 0 个文件，`python tools/verify_ork.py` 与两个源码 ZIP 的 CRC 检查通过。详见 [整合证据](docs/ork-integration.md)。[P0 已通过 Unity 验收](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)。
-- 启动接线会拒绝空配置、禁用的 Starter 与错误的数据来源。新增 [Unity 批处理检查](README.md#批处理启动验收)，可记录配置验收日志。
-- P0 在 `6ea56a9746106559d32dbcd0456cfec17fce29d2` 的干净检出上通过 Unity 6000.6.8f1 导入、编译、重复接线、两次 Play Mode 和独立批处理。编辑器生成的项目配置和包锁已入库。[验证日志](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800)
-- [任务顺序及冻结范围](BACKLOG.md) · [工作室角色](production/team.md) · [验收与证据规则](production/workflow.md)
-- 剧情文档下一步：打磨已补写的 S00—M00 场景稿，展开一条完整地方线与 M08—M11 连续人物场；文档链接、因果与分支检查不代替真实玩家体验。Unity相关未运行项仍保持待验证。
-- **早期技术接力（历史）**：M1 最终资产 `3a346522...` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 与 M2 Input 早期 `2eee996...` 的 [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 均已成功且进入 dev。其他 M3–M11 的实施证据与后续验收缺口见 [逐项事实核查](docs/technical/MODERNIZATION_VERIFIED_STATUS.md)，不得再把过去「当前 M2 未验/M3 未实施」作为实时指令。
-- 上轮剧情大纲文档验收（`15e35c39faf59a930dca55ca9d323677f14ed80b`）：叙事作者与独立一致性审稿完成；时间地理、重逢后因果、人物离开替代与结局边界审查通过；当时9份Markdown的53处本地链接、16个主线章节和6个地方线编号及空白检查通过，不代表游戏实现通过。
-- 本轮玩法基线文档验收：设计、技术、叙事、UX与QA互评，状态边界及对照口径审查通过；7份Markdown的56处本地链接与空白检查通过。没有运行Unity或游戏测试，未实现、未试玩。
-
-## 每轮更新
-
-- 2026-11-09 声井现有实现 `52bdaa77775cc32439099c435a3077a29157e28e` 在 Unity 6000.6.8f1 干净检出上通过 4/4 测试和独立批处理，结果为 `passed-clean-candidate`。[dev 同 SHA 验证](https://github.com/jinze909/rpg/actions/runs/42671061762/job/129347464989)。这轮推进规则调整只改指令与接力，003 尚无 Unity 结果。
-
-- 2026-11-09 接续确认：`codex/dev` 上声井操作提示、返回入口与重入测试的实现候选 `82d0f99dc167b8425d04306fd685dedf3e2a8daa` 已在 Unity 6000.6.8f1 干净检出中通过 4/4 测试、独立批处理与 `passed-clean-candidate`。[dev 同 SHA Run 42586562395](https://github.com/jinze909/rpg/actions/runs/42586562395)。实体键鼠、扬声器、真人探索理解及乐趣仍待验证。仓库按用户最新指令保持 Public；原生常驻总指令已按任务保存版本纳入 `CHATGPT.md`。
-
-- 002 复查修复了窄视口裁切、清响音效与追索状态脱节、重复加载入口。Unity 6000.6.8f1 在 `cc33cbd8402d7faf80083bc3a17661990128baaf` 的干净检出上通过 4 项测试与独立批处理。实体键盘、扬声器和真人试玩仍待验证。[同 SHA CI](https://github.com/jinze909/rpg/actions/runs/42584125951)
-
-- 剧情 v0.2：整合用户提供的 Claude 文稿，新增[卖点与开场](docs/narrative/PITCH_AND_HOOK.md)、[写作准则](docs/narrative/NARRATIVE_GUIDE.md)，补齐[事实登记](docs/narrative/NARRATIVE_FACTS.md)与[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)。[整合记录](docs/narrative/REVISION_NOTES.md)说明来源与修订。叙事 S00 不等于技术 P0；名册 UI、对账和听雾操作未实现、未验证，现有队伍短回合和声井样本范围不变。本轮为文稿验收，保留下述技术／002 实现与同 SHA 证据。
-
-- 本轮技术P0继续：基于 `21ce4693323552858430f10db69b5ba40d3c1f2f` 准备 [Actions CI 草稿](docs/unity-p0-ci.md)，固定 Unity、GameCI 与测试框架，覆盖重复接线、两次完整 Play 周期和独立批处理进程。首次 `prepare` 仅生成可审查候选；提交生成配置后才可 `verify` 干净 SHA。
-- 网络现已放开并取得实际结果：[run 42520640550](https://github.com/jinze909/rpg/actions/runs/42520640550) 测试候选 `3c9502ad6b86a6c905ee8c5e6bdbc8600ff4347f`，失败于 GameCI CLI 参数 `Unknown argument: noCoverageEnabled`，Unity 尚未启动。当前首错是 Action/CLI 参数兼容，不继续把旧 API 网络拒绝当现状；ULF 沿用用户现有方案。
-- 本轮联网研究并经叙事、战斗、探索、制作、玩家体验与独立创意审查，收敛[声井首样本设计](docs/gameplay/FIRST_PLAYABLE.md)及[002 声源试验](production/stories/002-soundwell-signal.md)。只定可开发范围，未实现、未运行、未真人试玩；移动/阵位和乐趣仍待对照，正式队友及美术未冻结。
-- 002 实作和自动化验收完成。Unity 实测 SHA `e7312010b42c9a29e4bf65badd02a946ddd9381d`，从 Bootstrap 进入场景，验证移动与碰撞、摇铃追索、包铃搜索、回撤重试及场景重载，保存三张截图。[同 SHA CI](https://github.com/jinze909/rpg/actions/runs/42581703947)
-
-Producer 在此更新当前故事、最近交付、证据 SHA 及链接、未完成的检查和一个明确的下一步。项目长期背景见 [基线记录](production/session-state/active.md)。
-
-
-- 2026-11-10 交付：`codex/dev` 从 `8c36229e011248d019f0ef4d8a9a162dd6354afe` 快进至 `2eee996adaec6563fd379416e7ec6fad8e1b9a62`。同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 为 `passed-clean-candidate`；8/8 Editor tests 全部通过：Bootstrap wiring、URP 2D renderer、两次 Play 初始化、键盘/手柄动作上下文、三人 ORK 回合战斗与 Soundwell 信号流程。验收产物：[Unity P0 artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。
+每次合入更新发生变化的条目及 BACKLOG/故事状态，保留实际 SHA 和 Run；历史不在本页重复追加。
