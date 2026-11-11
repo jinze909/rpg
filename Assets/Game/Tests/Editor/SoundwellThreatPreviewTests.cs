@@ -147,6 +147,34 @@ namespace Rpg.Tests.Editor
                 Is.LessThan(0.001f),
                 "A resumed lure must target the same physical side-bell location.");
 
+            // The rearmed lure should create a real, bounded opening, not
+            // only a green UI hint. Keep the player at the saved west-side
+            // panel and wait for the actual beast to clear the escape lane.
+            // Both the decision and the collider belong to the live scene.
+            var gateBlocker = GameObject.Find("PLACEHOLDER soundwell gate")
+                ?.GetComponent<BoxCollider2D>();
+            Assert.That(gateBlocker, Is.Not.Null,
+                "The saved soundwell gate must still own the physical blocker.");
+            Assert.That(gateBlocker.enabled, Is.True,
+                "The gate must remain solid before the player opens it.");
+            body.position = new Vector2(-0.55f, 0f);
+            Physics2D.SyncTransforms();
+            Assert.That(trial.AtGatePanel, Is.True);
+            Assert.That(trial.GateOpen, Is.False);
+            float gateDeadline = Time.realtimeSinceStartup + 8f;
+            while (!trial.CanOpenGate && Time.realtimeSinceStartup < gateDeadline)
+                yield return null;
+            Assert.That(trial.CanOpenGate, Is.True,
+                "An audible side lure must lead the real beast below the gate-lane threshold.");
+            Assert.That(trial.BeastPosition.y, Is.LessThan(-0.95f),
+                "The opening condition must reflect the beast's actual position.");
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.GateOpen, Is.True,
+                "The player's real gate action must open the escape route.");
+            yield return null;
+            Assert.That(gateBlocker.enabled, Is.False,
+                "The opened gate must physically release its collider, not merely change UI copy.");
+
             Debug.Log("RPG_SOUNDWELL_THREAT_PREVIEW_VALIDATED");
             yield return new ExitPlayMode();
         }
