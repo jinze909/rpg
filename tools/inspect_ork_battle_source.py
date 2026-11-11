@@ -345,6 +345,54 @@ def inspect_exact_attack_damage_configuration():
             print("ORK_DAMAGE_SHAPE " + filename +
                   " declarations=" + repr(declarations[:65]))
 
+
+def inspect_attack_execution_pipeline():
+    """Read-only, public-signature audit: why an accepted attack can skip damage.
+
+    Avoid writing or displaying vendor source bodies, private symbols and assets.
+    """
+    import re
+
+    targets = {
+        "BattleAnimationSetting.cs", "BattleAnimation.cs",
+        "AbilityAction.cs", "BaseAction.cs",
+        "BattleSystemActionSchematicsSettings.cs",
+        "ActionCalculationSchematicSettings.cs",
+        "TargetStatusChange.cs", "StatusChange.cs",
+        "StatusValueStatusChangeType.cs",
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if basename not in targets or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            public_api = []
+            for number, line in enumerate(lines, 1):
+                signature = re.sub(r"\\s+", " ", line.strip())
+                if not signature.startswith("public "):
+                    continue
+                if re.search(r"\\b(class|enum|struct)\\b", signature) or (
+                    "(" in signature and not signature.startswith("public if ")
+                ) or ("=" in signature) or signature.endswith(";"):
+                    public_api.append(f"{number}:{signature[:165]}")
+            print(f"ORK_ATTACK_EXEC_API {basename} " +
+                  " || ".join(public_api[:85]))
+            if basename in ("AbilityAction.cs", "BaseAction.cs"):
+                for number, line in enumerate(lines, 1):
+                    if not any(term in line for term in (
+                        "targetChange", "CalculateAction(", "CalculateTarget(",
+                        "StartSchematic(", "battleAnimation", "targetCalculationSchematics",
+                    )):
+                        continue
+                    nearby = [re.sub(r"\\s+", " ", entry.strip())[:135]
+                              for entry in lines[max(0, number-9):number]
+                              if re.match(r"\\s*(public|private|protected|internal)\\s", entry)]
+                    print(f"ORK_ATTACK_EXEC_CALL_SITE {basename}:{number} " +
+                          "nearby_signature=" + (nearby[-1] if nearby else "not nearby") +
+                          " token_category=" + ("target-status" if "targetChange" in line
+                                               else "calculation-or-animation"))
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
@@ -356,3 +404,4 @@ if __name__ == "__main__":
     inspect_attack_return_dependencies()
     inspect_ork_damage_data_contract()
     inspect_exact_attack_damage_configuration()
+    inspect_attack_execution_pipeline()
