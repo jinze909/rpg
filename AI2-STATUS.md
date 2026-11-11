@@ -1,7 +1,7 @@
 # AI2 当前状态
 
 - 工作分支为 `codex/dev`。每轮通过 GitHub 查询实时 HEAD。
-- **当前最高接力指令（2026-11-09）：M1–M11 迁移优先于剧情/故事功能。** 最新规则取消固定阶段头长期保留：每个独立增量一个候选，合入后不复用旧候选，清理范围限本次及直接过时的候选；历史积压另作专项，详见 [阶段分支索引](docs/technical/MIGRATION_STAGE_BRANCHES.md) 和 [Issue #2](https://github.com/jinze909/rpg/issues/2)。M1 URP 2D 已完成；M2 Input System 核心已合入，当前活动候选 `codex/pending/m2-ugui-focus` SHA `4d263e0ce7a3cf9401a1e9dcafb13a74207901c6`，对应 [Run 42777305240](https://github.com/jinze909/rpg/actions/runs/42777305240) 在本次核查时运行中，**需重新查询最终结论，不能按旧绿色运行推断该 SHA 通过**。当前唯一下一步是解决这次 M2 CI 的实际结论并验收/合入，之后转 M3 Cinemachine 3。M3–M11 曾有空预留头，但这段 SHA/CI 属历史接力，不代表今日阶段状态或要求保留旧头。
+- **当前最高接力指令（2026-11-09）：M1–M11 迁移优先于剧情/故事功能。** 最新规则取消固定阶段头长期保留：每个独立增量一个候选，合入后不复用旧候选，清理范围限本次及直接过时的候选，详见 [阶段分支索引](docs/technical/MIGRATION_STAGE_BRANCHES.md) 和 [Issue #2](https://github.com/jinze909/rpg/issues/2)。M1 URP 2D 已完成；M2 Input System 核心已合入，当前活动候选 `codex/pending/m2-ugui-focus` SHA `4d263e0ce7a3cf9401a1e9dcafb13a74207901c6`，对应 [Run 42777305240](https://github.com/jinze909/rpg/actions/runs/42777305240) 在本次核查时运行中，**需重新查询最终结论，不能按旧绿色运行推断该 SHA 通过**。当前唯一下一步是解决这次 M2 CI 的实际结论并验收/合入，之后转 M3 Cinemachine 3。M3–M11 曾有空预留头，但这段 SHA/CI 属历史接力，不代表今日阶段状态或要求保留旧头。
 - 用户明确的最高产品原则是“好玩第一，一切都建立在好玩的基础上”，已写入 [开发规则](AGENTS.md) 和 [任务清单](BACKLOG.md)。
 - 用户已同意“归来”主线并要求详细大纲入库。现有[主线大纲](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)、[地区与长期故事](docs/narrative/REGIONAL_STORIES.md) v0.2：采用用户提供的 Claude 文稿，加入白水渡谜线、点名与受限听雾，保留中段救友、后半共同成长与独立地方故事。它们是写作基线，未实现、未试玩；工作标题与具体扩写细节仍可改稿。
 - 用户授权深入讨论并写一页玩法基线，本轮新增[基线v0.1](docs/gameplay/BASELINE.md)：区域探索与队伍短回合为方向，三人、固定个人顺序及镜头等仅作首轮控制；移动/固定阵位须公平对照，仍未实现、未试玩。
