@@ -426,6 +426,29 @@ namespace Rpg.Tests.Editor
             Assert.That(party.Members.Any(member => member.Actions.IsChoosing), Is.True,
                 "The direct route must enter a real ORK player turn, not only register battle participants.");
 
+            // Attack must be an actual ORK ability from the active combatant,
+            // targeted at the saved beast. Do not treat manual status subtraction
+            // or a mocked battle-end event as proof of a usable player action.
+            var attackButton = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
+            Assert.That(attackButton, Is.Not.Null);
+            Assert.That(attackButton.gameObject.activeInHierarchy, Is.True);
+            float attackReadyDeadline = Time.realtimeSinceStartup + 6f;
+            while (!attackButton.interactable && Time.realtimeSinceStartup < attackReadyDeadline)
+                yield return null;
+            Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
+                "A saved ORK player combatant must have a selectable base attack on its turn.");
+            Assert.That(attackButton.interactable, Is.True,
+                "The real UGUI action must enable only for the current ORK attack chooser.");
+            float beastHpBeforeAttack = party.Beast.Status[1].GetValue();
+            attackButton.onClick.Invoke();
+            float attackResolutionDeadline = Time.realtimeSinceStartup + 8f;
+            while (party.Beast.Status[1].GetValue() >= beastHpBeforeAttack &&
+                   !party.Beast.Status.IsDead &&
+                   Time.realtimeSinceStartup < attackResolutionDeadline)
+                yield return null;
+            Assert.That(party.Beast.Status[1].GetValue(), Is.LessThan(beastHpBeforeAttack),
+                "A player UGUI click must resolve its target and HP through a real ORK base attack.");
+
             Assert.That(party.BattleInProgress, Is.True,
                 "The ORK encounter must still be active when its enemy is defeated.");
             // The battle screen cannot be blank: the provisional, non-interactive
@@ -455,7 +478,8 @@ namespace Rpg.Tests.Editor
                 party.Members[0].Status[1].GetValue()));
             Assert.That(battleReadout.text, Does.Contain("野兽  生命 " +
                 party.Beast.Status[1].GetValue()));
-            Assert.That(battleReadout.text, Does.Contain("ORK 攻击指令菜单尚未接入。"));
+            Assert.That(battleReadout.text, Does.Not.Contain("ORK 攻击指令菜单尚未接入。"),
+                "A ready ORK base attack should no longer display the pending-menu warning.");
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             yield return null;
             Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +

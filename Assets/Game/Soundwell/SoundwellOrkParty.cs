@@ -247,9 +247,46 @@ namespace Rpg.Soundwell
             }
             text.Append(SoundwellUiLocalization.Get("battle.beast")).Append("  ")
                 .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
-                .Append(Beast.Status[1].GetValue())
-                .Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
+                .Append(Beast.Status[1].GetValue());
+            if (ReadyBaseAttackerIndex < 0)
+                text.Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
             return text.ToString();
+        }
+
+        // The current Soundwell encounter has one real enemy. Determine
+        // which ORK combatant has a legal base attack this turn; never choose
+        // turns or maintain a second battle-action queue in the scene.
+        public int ReadyBaseAttackerIndex
+        {
+            get
+            {
+                if (!BattleInProgress || Beast == null || Beast.Status.IsDead)
+                    return -1;
+                for (int i = 0; i < members.Count; i++)
+                {
+                    Combatant member = members[i];
+                    if (member == null || member.Status.IsDead || !member.Actions.IsChoosing)
+                        continue;
+                    AbilityShortcut attack = member.Abilities.GetCurrentBaseAttack();
+                    if (attack != null && attack.CanChoose(member, true, true))
+                        return i;
+                }
+                return -1;
+            }
+        }
+
+        // The only selectable target is ORK's actual beast combatant. Use the
+        // configured ORK base attack, its action costs and its turn processing;
+        // no manual HP subtraction or locally manufactured damage event.
+        public bool TryAttackBeast()
+        {
+            int index = ReadyBaseAttackerIndex;
+            if (index < 0)
+                return false;
+            Combatant attacker = members[index];
+            AbilityShortcut attack = attacker.Abilities.GetCurrentBaseAttack();
+            return attack != null &&
+                attack.Use(attacker, new List<Combatant> { Beast }, true);
         }
 
         public bool TryStartDirectEncounter()
