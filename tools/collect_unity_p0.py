@@ -204,12 +204,18 @@ def validate_memory_phases(report):
         return errors + ["M10 requires five real story-phase memory measurements."]
     expected_scenes = ("Bootstrap", "SoundwellTrial", "SoundwellTrial",
                        "SoundwellTrial", "Bootstrap")
+    previous_frame = -1
     for index, (sample, phase, scene) in enumerate(zip(samples, MEMORY_PHASES, expected_scenes)):
         if not isinstance(sample, dict) or sample.get("phase") != phase or sample.get("scene") != scene:
             errors.append(f"M10 sample {index} must be the real {phase} scene.")
             continue
-        if type(sample.get("unity_frame")) is not int or sample["unity_frame"] < 0:
+        frame = sample.get("unity_frame")
+        if type(frame) is not int or frame < 0:
             errors.append(f"M10 sample {phase} lacks a valid Unity frame.")
+        elif frame <= previous_frame:
+            errors.append(f"M10 sample {phase} must advance the Unity frame since the previous scene phase.")
+        else:
+            previous_frame = frame
         for key in MEMORY_COUNTER_KEYS:
             value = sample.get(key)
             if type(value) is not int or value < 0 or (

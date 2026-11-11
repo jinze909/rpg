@@ -130,8 +130,8 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
             "scenario": "soundwell-enter-rescue-reload-return",
             "environment": "Unity Editor Play Mode (GameCI Linux container; not player hardware)",
             "sample_source": "UnityEngine.Profiling.Profiler + System.GC",
-            "snapshots": [self.sample(phase, scene)
-                          for phase, scene in zip(MEMORY_PHASES, scenes)],
+            "snapshots": [dict(self.sample(phase, scene), unity_frame=100 + 100 * index)
+                          for index, (phase, scene) in enumerate(zip(MEMORY_PHASES, scenes))],
             "bootstrap_managed_gc_heap_delta_bytes": 0,
             "bootstrap_unity_total_allocated_delta_bytes": 0,
         }
@@ -143,7 +143,8 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
         self.assertEqual(validate_memory_phases(data), [])
 
     def test_missing_unreal_or_misordered_samples_are_rejected(self):
-        for mutation in ("empty", "wrong_scene", "negative", "bool", "delta"):
+        for mutation in ("empty", "wrong_scene", "negative", "bool", "delta",
+                         "duplicate_frame", "rewound_frame"):
             with self.subTest(mutation=mutation):
                 data = self.evidence()
                 if mutation == "empty":
@@ -156,6 +157,10 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
                     data["snapshots"][3]["managed_gc_heap_bytes"] = True
                 elif mutation == "delta":
                     data["bootstrap_unity_total_allocated_delta_bytes"] = 999
+                elif mutation == "duplicate_frame":
+                    data["snapshots"][2]["unity_frame"] = data["snapshots"][1]["unity_frame"]
+                elif mutation == "rewound_frame":
+                    data["snapshots"][3]["unity_frame"] = 1
                 self.assertTrue(validate_memory_phases(data), mutation)
 
 
