@@ -157,9 +157,56 @@ def inspect_combatant_action_contract():
         raise RuntimeError("Frozen ORK archive is missing expected action classes")
     print(f"ORK_ACTION_AUDIT_OK classes={len(found_classes)} signatures={method_signatures}")
 
+
+
+def inspect_ability_selection_predicates():
+    """Summarize ORK's attack eligibility guards without publishing licensed code."""
+    import re
+
+    targets = {
+        "AbilityShortcut.cs": ("CanUse", "CanChoose"),
+        "ActiveAbility.cs": ("CanUse", "CanChoose"),
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if basename not in targets or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for method in targets[basename]:
+                starts = [
+                    index for index, line in enumerate(lines)
+                    if re.search(r"\b(?:public|protected)\s+(?:override\s+)?bool\s+" +
+                                 method + r"\s*\(", line)
+                ]
+                for start in starts[:1]:
+                    # Balance braces from the declaration to the method end.
+                    depth, entered, body = 0, False, []
+                    for line in lines[start:]:
+                        depth += line.count("{") - line.count("}")
+                        if "{" in line:
+                            entered = True
+                        body.append(line)
+                        if entered and depth == 0:
+                            break
+                    content = "\n".join(body)
+                    guard_calls = sorted(set(re.findall(
+                        r"\b((?:Can|Check|Has|Is|Get|Try)[A-Z][A-Za-z0-9_]*)\s*\(",
+                        content)))
+                    guard_symbols = sorted(set(re.findall(
+                        r"\b(?:user|ability|settings|action|combatant|status|costs|time|battle)"
+                        r"\.[A-Za-z_][A-Za-z_0-9]*", content)))
+                    print(
+                        "ORK_ATTACK_ELIGIBILITY " + basename + "." + method +
+                        " negative_exits=" + str(len(re.findall(r"\breturn\s+false\s*;", content))) +
+                        " predicate_calls=" + ",".join(guard_calls[:36]) +
+                        " observed_members=" + ",".join(guard_symbols[:50])
+                    )
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
     inspect_ork_battle_types()
     inspect_battle_end_lifecycle()
     inspect_combatant_action_contract()
+    inspect_ability_selection_predicates()
