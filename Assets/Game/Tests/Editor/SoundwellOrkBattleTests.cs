@@ -37,17 +37,14 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            // Single-owner transition: use the same Bootstrap loader as the
-            // independently passing battle-retreat test. Do not dereference
-            // a transient GameObject.Find result during scene activation.
-            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
-            Assert.That(entrance != null, Is.True,
-                "Bootstrap must expose the Soundwell entry UGUI.");
-            Debug.Log("RPG_ORK_ATTACK_STAGE:enter_scene");
-            AsyncOperation load = entrance.OpenTrial();
-            Assert.That(load, Is.Not.Null, "Soundwell entry must start the saved scene load.");
-            while (!load.isDone)
-                yield return null;
+            // The separate BattleBackCancel test already validates Bootstrap's
+            // actual UGUI scene loader and UGUI Cancel path. This long test
+            // focuses on ORK battle choices, victory, escort and replay. Load
+            // the saved trial scene synchronously here so an incomplete
+            // AsyncOperation cannot invalidate the test's coroutine on CI.
+            SceneManager.LoadScene(SoundwellEntrance.SceneName, LoadSceneMode.Single);
+            yield return null;
+            Debug.Log("RPG_ORK_ATTACK_STAGE:trial_scene_loaded");
 
             GameObject root = null;
             SoundwellOrkParty party = null;
@@ -56,8 +53,6 @@ namespace Rpg.Tests.Editor
             string lastScene = string.Empty;
             while (Time.realtimeSinceStartup < sceneDeadline)
             {
-                // The active scene owns both components. A global name search
-                // can select a scene object being unloaded after async loading.
                 Scene active = SceneManager.GetActiveScene();
                 lastScene = active.name;
                 if (active.isLoaded && active.name == SoundwellEntrance.SceneName)
@@ -82,7 +77,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
             }
             Assert.That(root != null && party != null && trial != null, Is.True,
-                "The saved trial scene must expose its live ORK and Makinom components. " +
+                "The saved trial scene must expose live ORK and Makinom components. " +
                 "Active scene: " + lastScene);
             Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
 
