@@ -157,6 +157,41 @@ namespace Rpg.Soundwell
             }
             if (attackLevel.active == null)
                 attackLevel.active = new ActiveAbility();
+            // A selectable ORK base-attack shortcut alone deals no damage:
+            // the frozen starter ability has no target status changes. Give
+            // this Soundwell prototype a small, nonlethal ORK HP change so
+            // the player's UGUI attack uses ORK's real turn/action resolver.
+            // This is game-owned runtime setup, not a second HP authority.
+            if (attackLevel.active.targetChange == null ||
+                attackLevel.active.targetChange.Length == 0)
+            {
+                StatusValueAsset hpAsset = ORK.StatusValues.GetAsset(1);
+                if (hpAsset == null)
+                {
+                    Fail("Soundwell base attack cannot resolve ORK HP asset ID 1.");
+                    yield break;
+                }
+                var hpChange = new StatusValueStatusChangeType
+                {
+                    simpleOperator = SimpleOperator.Add,
+                    changeValue = new FloatValue<GameObjectSelection>(-0.25f)
+                };
+                hpChange.status.SetAsset(hpAsset);
+                attackLevel.active.targetChange = new[]
+                {
+                    new TargetStatusChange
+                    {
+                        change = new[]
+                        {
+                            new StatusChangeType
+                            {
+                                type = typeof(StatusValueStatusChangeType).ToString(),
+                                settings = hpChange
+                            }
+                        }
+                    }
+                };
+            }
 
             placeholderSprite = CreatePixelRescuerSprite(
                 IdlePixels, "PLACEHOLDER 16px Soundwell rescuer idle", out placeholderTexture);
