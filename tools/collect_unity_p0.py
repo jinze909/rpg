@@ -43,6 +43,14 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival":
             "Rpg.Tests.Editor.SoundwellDirectVictoryEscortTests.OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival",
     },
+    "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
+        "ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges":
+            "Rpg.Tests.Editor.SoundwellTrialTests.ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges",
+    },
+    "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
+        "SoundwellAudioMuteSurvivesSceneRerouting":
+            "Rpg.Tests.Editor.P0BootstrapTests.SoundwellAudioMuteSurvivesSceneRerouting",
+    },
 }
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
@@ -69,7 +77,7 @@ def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
             content = path.read_text(encoding="utf-8")
             for method_name, test_name in declared_tests.items():
                 signature = (
-                    r"\[UnityTest\]\s*"
+                    r"\[UnityTest(?:,\s*[^\]]+)?\]\s*"
                     r"(?:\[[^\]]+\]\s*)*"
                     r"public\s+IEnumerator\s+" + re.escape(method_name) + r"\s*\("
                 )
