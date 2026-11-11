@@ -44,10 +44,12 @@ namespace Rpg.Soundwell
 
         public void PlayAction()
         {
-            // An action cannot erase the brief physical-hit cue. Otherwise a
-            // bell interaction immediately after a beast collision hides the
-            // only visual indication that the player was just knocked back.
-            if (Time.time < hitReactionUntil)
+            // Repeated bell/interaction input is allowed, but restarting the
+            // visual one-shot on every press makes its first frame stutter
+            // indefinitely. Preserve the original visual deadline and let
+            // gameplay input continue through the trial as before.
+            if (Time.time < hitReactionUntil ||
+                (activeState == 2 && Time.time < oneShotUntil))
                 return;
             oneShotUntil = Time.time + 0.40f;
             SetState(2, true);

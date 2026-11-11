@@ -167,6 +167,20 @@ namespace Rpg.Tests.Editor
                 visual.PlayAction();
                 Assert.That(visual.CurrentState, Is.EqualTo("Action"),
                     "Retry must clear hit priority and restore legal actions.");
+                // Rapid bell/interaction clicks must not keep rewinding the
+                // same animation. Compare its actual deadline so a slow CI
+                // frame cannot turn this into a timing-dependent test.
+                var deadlineField = typeof(SoundwellPlayerVisualAnimation).GetField(
+                    "oneShotUntil", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(deadlineField, Is.Not.Null);
+                float firstDeadline = (float)deadlineField.GetValue(visual);
+                visual.PlayAction();
+                Assert.That((float)deadlineField.GetValue(visual), Is.EqualTo(firstDeadline),
+                    "Repeated action input must not restart or extend the visual cue.");
+                visual.ResetAnimation();
+                visual.PlayAction();
+                Assert.That((float)deadlineField.GetValue(visual), Is.GreaterThan(0f),
+                    "A new attempt must still start a fresh action cue.");
             }
             finally
             {
