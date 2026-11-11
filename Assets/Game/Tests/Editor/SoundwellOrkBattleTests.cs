@@ -37,20 +37,54 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            // Preserve the previously verified Bootstrap-to-trial test route.
-            // Do not substitute a new scene-load handshake while diagnosing
-            // ORK ability eligibility; this test previously reached the turn.
-            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
-            Assert.That(load, Is.Not.Null, "The saved Soundwell scene must load from the Bootstrap runtime.");
+            // Single-owner transition: use the same Bootstrap loader as the
+            // independently passing battle-retreat test. Do not dereference
+            // a transient GameObject.Find result during scene activation.
+            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance != null, Is.True,
+                "Bootstrap must expose the Soundwell entry UGUI.");
+            Debug.Log("RPG_ORK_ATTACK_STAGE:enter_scene");
+            AsyncOperation load = entrance.OpenTrial();
+            Assert.That(load, Is.Not.Null, "Soundwell entry must start the saved scene load.");
             while (!load.isDone)
                 yield return null;
 
-            GameObject root = GameObject.Find("Soundwell signal trial");
-            Assert.That(root, Is.Not.Null, "The saved Soundwell scene root must exist.");
-            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
-            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
-            Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
-            Assert.That(trial, Is.Not.Null, "The live scene must own its rescue route state.");
+            GameObject root = null;
+            SoundwellOrkParty party = null;
+            SoundwellTrial trial = null;
+            float sceneDeadline = Time.realtimeSinceStartup + 12f;
+            string lastScene = string.Empty;
+            while (Time.realtimeSinceStartup < sceneDeadline)
+            {
+                // The active scene owns both components. A global name search
+                // can select a scene object being unloaded after async loading.
+                Scene active = SceneManager.GetActiveScene();
+                lastScene = active.name;
+                if (active.isLoaded && active.name == SoundwellEntrance.SceneName)
+                {
+                    foreach (GameObject candidate in active.GetRootGameObjects())
+                    {
+                        if (candidate == null || candidate.name != "Soundwell signal trial")
+                            continue;
+                        if (candidate.TryGetComponent(out SoundwellOrkParty candidateParty) &&
+                            candidate.TryGetComponent(out SoundwellTrial candidateTrial) &&
+                            candidateParty != null && candidateTrial != null)
+                        {
+                            root = candidate;
+                            party = candidateParty;
+                            trial = candidateTrial;
+                            break;
+                        }
+                    }
+                }
+                if (root != null && party != null && trial != null)
+                    break;
+                yield return null;
+            }
+            Assert.That(root != null && party != null && trial != null, Is.True,
+                "The saved trial scene must expose its live ORK and Makinom components. " +
+                "Active scene: " + lastScene);
+            Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
             while (!party.IsReady && string.IsNullOrEmpty(party.InitializationError) &&
