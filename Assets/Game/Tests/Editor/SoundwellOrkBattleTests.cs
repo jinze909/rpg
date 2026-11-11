@@ -37,6 +37,15 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
+            // The real attack integration is long-lived and must not be
+            // instantiated as one UnityTest iterator before a Play Mode
+            // domain reload. Construct its independent state machine only
+            // after the framework and saved Bootstrap are live.
+            yield return RunLiveBattleAndRescueAfterInitialization();
+        }
+
+        private static IEnumerator RunLiveBattleAndRescueAfterInitialization()
+        {
             // Enter through the real Bootstrap UI owner, matching the proven
             // Soundwell player path instead of issuing an unrelated scene load.
             // The previous candidate completed LoadSceneAsync but found no live
