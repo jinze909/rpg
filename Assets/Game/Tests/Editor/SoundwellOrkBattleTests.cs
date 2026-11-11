@@ -52,20 +52,33 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(load.isDone, Is.True, "Soundwell entry scene loading timed out.");
 
-            GameObject root = GameObject.Find("Soundwell signal trial");
+            // Resolve the live owner components directly, rather than
+            // dereferencing a name-found GameObject after a scene switch.
+            // Run 43022084673 failed at root.GetComponent before reaching
+            // the attack assertions. Both owners must exist on the SAME
+            // persisted trial root, not a synthetic stand-in.
+            SoundwellTrial trial = Object.FindFirstObjectByType<SoundwellTrial>();
+            SoundwellOrkParty party = Object.FindFirstObjectByType<SoundwellOrkParty>();
             float rootDeadline = Time.realtimeSinceStartup + 8f;
-            while (root == null && Time.realtimeSinceStartup < rootDeadline)
+            while ((trial == null || party == null) &&
+                   Time.realtimeSinceStartup < rootDeadline)
             {
                 yield return null;
-                root = GameObject.Find("Soundwell signal trial");
+                trial = Object.FindFirstObjectByType<SoundwellTrial>();
+                party = Object.FindFirstObjectByType<SoundwellOrkParty>();
             }
-            Assert.That(root != null, Is.True,
-                "The loaded Soundwell trial root is missing; active scene: " +
-                SceneManager.GetActiveScene().name);
-            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
-            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
-            Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
-            Assert.That(trial, Is.Not.Null, "The live scene must own its rescue route state.");
+            if (trial == null || party == null)
+            {
+                Assert.Fail("The saved Soundwell trial/ORK party owner did not load; active scene: " +
+                    SceneManager.GetActiveScene().name);
+                yield break;
+            }
+
+            GameObject root = trial.gameObject;
+            Assert.That(root.name, Is.EqualTo("Soundwell signal trial"),
+                "The trial must run from its persisted scene root.");
+            Assert.That(party.gameObject, Is.SameAs(root),
+                "ORK and Makinom owners must share one saved Soundwell root.");
             Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
