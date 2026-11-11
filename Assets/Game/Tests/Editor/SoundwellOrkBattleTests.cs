@@ -37,54 +37,35 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            // BattleBackCancel separately validates the Bootstrap UGUI scene
-            // loader. Keep the test runner's Bootstrap scene alive while this
-            // long battle test exercises the saved trial scene: replacing it
-            // during an active UnityTest can destroy its coroutine host.
-            SceneManager.LoadScene(SoundwellEntrance.SceneName, LoadSceneMode.Additive);
-            yield return null;
-            Debug.Log("RPG_ORK_ATTACK_STAGE:trial_scene_loaded");
+            // Use the same scene transition and root lookup as the passing
+            // BattleBackCancel regression. Never retain/dereference the
+            // AsyncOperation after a yielded scene activation: its native
+            // operation may already be released when the iterator resumes.
+            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance, Is.Not.Null,
+                "Bootstrap must expose the saved Soundwell entry loader.");
+            Assert.That(entrance.OpenTrial(), Is.Not.Null,
+                "The saved entry must initiate the trial scene transition.");
 
             GameObject root = null;
-            SoundwellOrkParty party = null;
-            SoundwellTrial trial = null;
             float sceneDeadline = Time.realtimeSinceStartup + 12f;
             string lastScene = string.Empty;
             while (Time.realtimeSinceStartup < sceneDeadline)
             {
-                Scene active = SceneManager.GetActiveScene();
-                Scene loadedTrial = SceneManager.GetSceneByName(SoundwellEntrance.SceneName);
-                if (loadedTrial.IsValid() && loadedTrial.isLoaded && active != loadedTrial)
-                {
-                    Assert.That(SceneManager.SetActiveScene(loadedTrial), Is.True,
-                        "The additive trial must become the active gameplay scene.");
-                    active = loadedTrial;
-                }
-                lastScene = active.name;
-                if (active.isLoaded && active.name == SoundwellEntrance.SceneName)
-                {
-                    foreach (GameObject candidate in active.GetRootGameObjects())
-                    {
-                        if (candidate == null || candidate.name != "Soundwell signal trial")
-                            continue;
-                        if (candidate.TryGetComponent(out SoundwellOrkParty candidateParty) &&
-                            candidate.TryGetComponent(out SoundwellTrial candidateTrial) &&
-                            candidateParty != null && candidateTrial != null)
-                        {
-                            root = candidate;
-                            party = candidateParty;
-                            trial = candidateTrial;
-                            break;
-                        }
-                    }
-                }
-                if (root != null && party != null && trial != null)
+                lastScene = SceneManager.GetActiveScene().name;
+                if (lastScene == SoundwellEntrance.SceneName)
+                    root = GameObject.Find("Soundwell signal trial");
+                if (root != null)
                     break;
                 yield return null;
             }
-            Assert.That(root != null && party != null && trial != null, Is.True,
-                "The saved trial scene must expose live ORK and Makinom components. " +
+            Assert.That(root, Is.Not.Null,
+                "The saved trial root must appear after Bootstrap's transition. " +
                 "Active scene: " + lastScene);
+            var party = root.GetComponent<SoundwellOrkParty>();
+            var trial = root.GetComponent<SoundwellTrial>();
+            Assert.That(party, Is.Not.Null);
+            Assert.That(trial, Is.Not.Null);
             Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
