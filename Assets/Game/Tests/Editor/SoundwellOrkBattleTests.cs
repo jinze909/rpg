@@ -34,7 +34,13 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
+            // Enter through Bootstrap's single scene-load owner. Directly
+            // issuing a second LoadSceneAsync can invalidate the first root
+            // while SoundwellEntrance also handles a pending input action.
+            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance != null, Is.True,
+                "Bootstrap must expose its actual UGUI entry controller.");
+            AsyncOperation load = entrance.OpenTrial();
             Assert.That(load, Is.Not.Null, "The saved Soundwell scene must load from the Bootstrap runtime.");
             while (!load.isDone)
                 yield return null;
@@ -52,8 +58,8 @@ namespace Rpg.Tests.Editor
                     break;
                 yield return null;
             }
-            Assert.That(root, Is.Not.Null,
-                "The saved Soundwell root must be active after the scene load. Active scene: " +
+            Assert.That(root != null, Is.True,
+                "The saved Soundwell root must be alive after the scene load. Active scene: " +
                 SceneManager.GetActiveScene().name);
             SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
             SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
@@ -765,7 +771,10 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
+            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance != null, Is.True,
+                "Battle retreat must enter through Bootstrap's single scene loader.");
+            AsyncOperation load = entrance.OpenTrial();
             Assert.That(load, Is.Not.Null);
             while (!load.isDone)
                 yield return null;
@@ -780,7 +789,7 @@ namespace Rpg.Tests.Editor
                     break;
                 yield return null;
             }
-            Assert.That(root, Is.Not.Null,
+            Assert.That(root != null, Is.True,
                 "Battle retreat must enter the saved trial scene before reading its ORK party.");
             var party = root.GetComponent<SoundwellOrkParty>();
             var trial = root.GetComponent<SoundwellTrial>();
