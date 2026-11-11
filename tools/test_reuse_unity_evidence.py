@@ -161,10 +161,10 @@ class EvidenceReuseTests(unittest.TestCase):
                     self.api.runs = [run(), newer]
                     self.assertIsNone(self.result())
 
-    def test_current_dev_run_is_excluded_by_id_even_on_rerun(self):
+    def test_current_first_attempt_dev_run_is_excluded_by_id(self):
         current = run()
         current.update(id=124, head_branch="codex/dev", status="in_progress",
-                       conclusion=None, run_attempt=2, updated_at="2026-11-10T23:59:00Z")
+                       conclusion=None, run_attempt=1, updated_at="2026-11-10T23:59:00Z")
         self.api.runs = [current, run()]
         self.assertEqual(reuse.find_evidence(self.api, context(), NOW, current_run_id=124),
                          f"https://github.com/{reuse.REPO}/actions/runs/{RUN_ID}")
@@ -233,7 +233,7 @@ class ProbeTests(unittest.TestCase):
             ):
                 with self.subTest(event=event, ref=ref, mode=mode):
                     env = {"RUNNER_TEMP": directory, "GITHUB_EVENT_NAME": event, "GITHUB_REF": ref,
-                           "GITHUB_RUN_ID": "456"}
+                           "GITHUB_RUN_ID": "456", "GITHUB_RUN_ATTEMPT": "1"}
                     value = context()
                     value["mode"] = mode
                     with patch.object(reuse, "context_for", return_value=value), \
@@ -244,6 +244,24 @@ class ProbeTests(unittest.TestCase):
                     if eligible:
                         self.assertEqual(lookup.call_args.kwargs, {"current_run_id": 456})
                     self.assertEqual(json.loads((Path(directory) / "unity-reuse-context.json").read_text()), value)
+
+    def test_dev_rerun_cannot_reuse_old_pending_green_after_prior_attempt_failure(self):
+        # The run API exposes only the current attempt; its in-progress row
+        # cannot reveal that attempt 1 fell back to Unity and failed. A rerun
+        # must therefore bypass reuse even when older pending proof is valid.
+        with tempfile.TemporaryDirectory() as directory:
+            for attempt in ("2", "3", None, "invalid"):
+                with self.subTest(attempt=attempt):
+                    env = {"RUNNER_TEMP": directory, "GITHUB_EVENT_NAME": "push",
+                           "GITHUB_REF": "refs/heads/codex/dev", "GITHUB_RUN_ID": "456"}
+                    if attempt is not None:
+                        env["GITHUB_RUN_ATTEMPT"] = attempt
+                    with patch.object(reuse, "context_for", return_value=context()), \
+                         patch.object(reuse, "find_evidence", return_value="older pending proof") as lookup:
+                        self.assertIsNone(reuse.probe(Path(directory), env, FakeGitHub(), NOW))
+                    lookup.assert_not_called()
+                    receipt = json.loads((Path(directory) / "unity-reuse-context.json").read_text())
+                    self.assertEqual(receipt, context())
 
     def test_network_corruption_and_context_errors_emit_false_without_failing_unity(self):
         with tempfile.TemporaryDirectory() as directory:

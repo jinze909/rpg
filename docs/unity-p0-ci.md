@@ -14,9 +14,9 @@
 
 ## 精确证据复用
 
-dev push 若与成功候选具有完全相同的最终 SHA、明确 verify 模式及同等执行条件，可用[证据复用检查](../tools/reuse_unity_evidence.py)验证仍可读取的可信 artifact，记录原始 Run 并跳过重复 Unity 执行。不得仅看 artifact 名称或绿色状态；证据不完整、过期、配置不一致或查询失败时回退正常 Unity。
+dev push 的首次运行（`GITHUB_RUN_ATTEMPT == 1`）若与成功候选具有完全相同的最终 SHA、明确 verify 模式及同等执行条件，可用[证据复用检查](../tools/reuse_unity_evidence.py)验证仍可读取的可信 artifact，记录原始 Run 并跳过重复 Unity 执行。不得仅看 artifact 名称或绿色状态；证据不完整、过期、配置不一致或查询失败时回退正常 Unity。
 
-手动请求、prepare 和候选首次验证照常执行。复用不替代分支独有验收，也不影响独立的分支清理工作流。旧证据缺少复用所需条件记录时保守补跑，不倒填历史验证。
+手动请求、同一 dev Run 的手动重跑（attempt 2 及以后）、prepare 和候选首次验证照常执行 Unity。首次 dev 运行可能在复用查询失败后实际执行 Unity 并失败；重跑不能因排除当前 Run 而借用更早的 pending 绿证据掩盖该失败。缺少有效 attempt 信息同样不复用。复用不替代分支独有验收，也不影响独立的分支清理工作流。旧证据缺少复用所需条件记录时保守补跑，不倒填历史验证。
 
 ## 授权与产物
 

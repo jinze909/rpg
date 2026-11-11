@@ -3,6 +3,7 @@
 
 Only push/verify runs whose head is already the final candidate are eligible.
 Prepare/publish runs and old runs without an execution-context receipt are not.
+Dev reruns always execute Unity: an earlier attempt may have failed after fallback.
 No credentials or downloaded code are written into evidence or executed.
 """
 import datetime as dt
@@ -213,7 +214,8 @@ def probe(root, env, api, now):
     (Path(env["RUNNER_TEMP"]) / "unity-reuse-context.json").write_text(
         json.dumps(context, sort_keys=True) + "\n", encoding="utf-8")
     if (env.get("GITHUB_EVENT_NAME") != "push"
-            or env.get("GITHUB_REF") != "refs/heads/codex/dev" or context["mode"] != "verify"):
+            or env.get("GITHUB_REF") != "refs/heads/codex/dev" or context["mode"] != "verify"
+            or env.get("GITHUB_RUN_ATTEMPT") != "1"):
         return None
     current_run_id = int(env["GITHUB_RUN_ID"])
     if current_run_id <= 0:
