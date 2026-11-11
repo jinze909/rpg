@@ -1,0 +1,138 @@
+name: One-off second-pass verified pending cleanup
+on:
+  push:
+    branches: [codex/dev]
+    paths: ['.github/workflows/prune-diverged-pending-once.yml']
+permissions:
+  contents: read
+jobs:
+  prune:
+    if: github.repository == 'jinze909/rpg' && github.ref == 'refs/heads/codex/dev'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: read
+    concurrency:
+      group: one-off-diverged-pending-cleanup
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Verify patch equivalence and prune only provably redundant refs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, urllib.parse, urllib.request
+          REPO = "jinze909/rpg"
+          TOKEN = os.environ["GH_TOKEN"]
+          ALLOW = {
+              "codex/pending/m1-urp2d": "c3e323a3e18e57396ef39289efb5c125be410481",
+              "codex/pending/m2-input-runtime-tests": "f4b49ef7876b8ae56b79928017a12e776540fda4",
+              "codex/pending/m2-ugui-focus": "4d263e0ce7a3cf9401a1e9dcafb13a74207901c6",
+              "codex/pending/m9-localization": "2339c1c8b31da53a8f9b26dcefe6212a8f28765c",
+              "codex/pending/m9-localization-after-m7": "7df571db882010b45ec361bcd3ccdc9fa0f27b4b",
+              "codex/pending/p2-ork-battle-bootstrap": "59f2283be88699e7b54abc1e1b328156e93619ed",
+              "codex/pending/p2-soundwell-ork-battle": "7e66fca09a9bf9e5c60974ace06074ae03a8a809",
+              "codex/pending/story003-ork-ui": "314dbf380636516022d939f5ac3d9e55d52b8bd3",
+              "codex/pending/story-003-battle-victory": "9dc57730a8d10616ae25668fe47113c80341e0ef",
+              "codex/pending/story-003-battle-victory-v2": "dcd7351b3461c78aa8957c2c9c19cd017c50ebd2",
+              "codex/pending/story-003-combat-retreat": "f4abf8ead63085557e637cddffd2da10df7a9d00",
+              "codex/pending/story-003-combat-retreat-after-m8": "b88dbf43986c91c87c4886ea53bada8f34366f00",
+              "codex/pending/story-003-combat-retreat-hud-integrated": "3b268ae6fff07f472aac63f150bd587c2c8f718d",
+              "codex/pending/story-003-combat-retreat-v2": "894b8e30a57aea343f96b184b8044c08d3e30b9d",
+              "codex/pending/story-003-direct-combat": "3eaa2ea2bb30946b6be0c175c1809de5b39113fc",
+              "codex/pending/story-003-follower-pixel-walk": "d2f18c3f0f21c7345e46bf55af2e3499d07df773",
+              "codex/pending/story-003-ork-action-api": "8d75dee38e7aa61fa9c79b7cc7ee6bd147b51592",
+              "codex/pending/story-003-ork-action-contract-audit": "9efd75076a3e8a95e7561384ed3d63abf4966d85",
+              "codex/pending/story-003-ork-ui-foundation": "d808960b1707a35b296bfa9a03f5b340cb13ce6d",
+              "codex/pending/story-003-ork-ui-foundation-integrated": "7e0d355a52893a9778d9f018d74b1b8e15ebecb2",
+              "codex/pending/story-003-pixel-beast-facing": "4c8ba10794f0f30f0943b70c31e39d261a1bac5a",
+          }
+          ACTIVE = {"queued", "in_progress", "waiting", "requested", "pending"}
+          HEADERS = {"Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+          def get(path):
+              with urllib.request.urlopen(urllib.request.Request("https://api.github.com"+path,headers=HEADERS),timeout=25) as r:
+                  return json.load(r)
+          def all_pages(path):
+              items = []
+              for page in range(1, 11):
+                  d = get(path + ("&" if "?" in path else "?") + "page=" + str(page))
+                  chunk = d.get("workflow_runs", []) if isinstance(d, dict) else d
+                  items.extend(chunk)
+                  if len(chunk) < 100: return items
+              raise RuntimeError("More than 1000 API results; abort")
+          def git(*args):
+              return subprocess.run(["git", *args],capture_output=True,text=True,check=False)
+          def require(ok,why):
+              if not ok: raise RuntimeError("Safety gate: " + why)
+          require(os.environ.get("GITHUB_REPOSITORY")==REPO and os.environ.get("GITHUB_REF")=="refs/heads/codex/dev","unexpected repository/ref")
+          require(len(ALLOW)==21 and all(x.startswith("codex/pending/") and x not in {"codex/pending/story-003-pixel-surveyor-escort","codex/pending/story-003-pixel-surveyor-escort-integrated"} for x in ALLOW),"allowlist invalid")
+          branches = {x["name"]:x for x in all_pages("/repos/"+REPO+"/branches?per_page=100")}
+          pr_heads = {x["head"]["ref"] for x in all_pages("/repos/"+REPO+"/pulls?state=open&per_page=100")}
+          active_runs = []
+          for state in sorted(ACTIVE):
+              active_runs += all_pages("/repos/"+REPO+"/actions/runs?per_page=100&status="+state)
+          running = {x.get("head_branch") for x in active_runs}
+          require(git("fetch","--no-tags","origin","+refs/heads/*:refs/remotes/origin/*").returncode==0,"git fetch failed")
+          dev = get("/repos/"+REPO+"/git/ref/heads/codex/dev")["object"]["sha"]
+          require(git("rev-parse","refs/remotes/origin/codex/dev").stdout.strip()==dev,"dev ref mismatch")
+          dev_tree = git("rev-parse",dev+"^{tree}").stdout.strip()
+          require(len(dev_tree)==40,"dev tree missing")
+          print("START pinned="+str(len(ALLOW))+" dev="+dev+" active="+str(len(running))+" PR="+str(len(pr_heads)),flush=True)
+          deleted, skipped = [], []
+          for name, expected in sorted(ALLOW.items()):
+              why = ""
+              info = branches.get(name)
+              if not info: why="branch missing"
+              elif info["commit"]["sha"]!=expected: why="SHA changed"
+              elif info.get("protected"): why="protected branch"
+              elif name in pr_heads: why="open PR"
+              elif name in running: why="active workflow"
+              if not why:
+                  old = "refs/remotes/origin/"+name
+                  require(git("rev-parse",old).stdout.strip()==expected,"local HEAD mismatch "+name)
+                  cherry = git("cherry","-v","refs/remotes/origin/codex/dev",old)
+                  if cherry.returncode: why="patch-id audit failed"
+                  else:
+                      marks=[line[:1] for line in cherry.stdout.splitlines() if line.strip()]
+                      patchmatch=bool(marks) and all(x=="-" for x in marks)
+                      merge = git("merge-tree","--write-tree",dev,expected)
+                      noop = merge.returncode==0 and merge.stdout.splitlines()[0].strip()==dev_tree if merge.stdout.splitlines() else False
+                      proof = "all_unique_patches_equivalent" if patchmatch else ("merge_tree_no_effect" if noop else "")
+                      if not proof: why="unmatched patch (+) or merge modifies/conflicts"
+              if not why:
+                  newest=get("/repos/"+REPO+"/actions/runs?per_page=100&branch="+urllib.parse.quote(name,safe=""))
+                  if any(x.get("status")!="completed" for x in newest.get("workflow_runs",[])): why="branch CI not complete"
+              if not why:
+                  latest=get("/repos/"+REPO+"/branches/"+urllib.parse.quote(name,safe=""))
+                  if latest["commit"]["sha"]!=expected or latest.get("protected"): why="HEAD/protection moved"
+              if not why:
+                  remote=git("ls-remote","--heads","origin","refs/heads/"+name)
+                  if remote.returncode or remote.stdout.strip().split()[0]!=expected: why="remote lease mismatch"
+              if why:
+                  skipped.append((name,why))
+                  print("KEEP "+name+" :: "+why,flush=True)
+                  continue
+              op=git("push","--force-with-lease=refs/heads/"+name+":"+expected,"origin","--delete","refs/heads/"+name)
+              if op.returncode:
+                  skipped.append((name,"guarded deletion failed"))
+                  print("KEEP "+name+" :: guarded deletion failed",flush=True)
+                  continue
+              verify=git("ls-remote","--heads","origin","refs/heads/"+name)
+              require(verify.returncode==0 and not verify.stdout.strip(),"deletion verification failed "+name)
+              deleted.append((name,expected,proof))
+              print("DELETE "+name+" :: "+proof+" SHA "+expected,flush=True)
+          print("SUMMARY deleted="+str(len(deleted))+" kept="+str(len(skipped)),flush=True)
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as f:
+              f.write("# One-off second-pass merged-patch branch cleanup\n\n")
+              f.write("dev `"+dev+"`; deleted **"+str(len(deleted))+"** / "+str(len(ALLOW))+"; kept **"+str(len(skipped))+"**.\n\n")
+              f.write("Branches under active surveyor escort were **excluded** from this operation.\n\n")
+              if deleted: f.write("## Verified deleted\n" + "\n".join("- `"+n+"` (`"+sha+"`) : "+why for n,sha,why in deleted)+"\n\n")
+              if skipped: f.write("## Kept\n" + "\n".join("- `"+n+"`: "+why for n,why in skipped)+"\n")
+          
+          PY
