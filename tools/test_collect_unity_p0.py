@@ -257,6 +257,19 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertEqual(len(expected_tests_for("verify", True, source_root=source_root)), 12)
+
+            input_file = source_root / "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs"
+            input_file.write_text(
+                "[UnityTest] public IEnumerator "
+                "GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial()"
+                " { yield break; }", encoding="utf-8"
+            )
+            expected = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(len(expected), 13)
+            self.assertIn(
+                "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
+                expected,
+            )
             self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
 
 

@@ -51,6 +51,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "SoundwellAudioMuteSurvivesSceneRerouting":
             "Rpg.Tests.Editor.P0BootstrapTests.SoundwellAudioMuteSurvivesSceneRerouting",
     },
+    "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs": {
+        "GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial":
+            "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
+    },
 }
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
