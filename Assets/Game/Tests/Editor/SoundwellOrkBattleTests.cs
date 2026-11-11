@@ -39,8 +39,22 @@ namespace Rpg.Tests.Editor
             while (!load.isDone)
                 yield return null;
 
-            GameObject root = GameObject.Find("Soundwell signal trial");
-            Assert.That(root, Is.Not.Null, "The saved Soundwell scene root must exist.");
+            // Unity's asynchronous scene completion can precede the first
+            // active-scene frame on a busy CI editor. Wait for the saved scene
+            // and its root instead of dereferencing a transitional object.
+            GameObject root = null;
+            float sceneDeadline = Time.realtimeSinceStartup + 8f;
+            while (Time.realtimeSinceStartup < sceneDeadline)
+            {
+                if (SceneManager.GetActiveScene().name == SoundwellEntrance.SceneName)
+                    root = GameObject.Find("Soundwell signal trial");
+                if (root != null)
+                    break;
+                yield return null;
+            }
+            Assert.That(root, Is.Not.Null,
+                "The saved Soundwell root must be active after the scene load. Active scene: " +
+                SceneManager.GetActiveScene().name);
             SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
             SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
             Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
@@ -756,8 +770,18 @@ namespace Rpg.Tests.Editor
             while (!load.isDone)
                 yield return null;
 
-            GameObject root = GameObject.Find("Soundwell signal trial");
-            Assert.That(root, Is.Not.Null);
+            GameObject root = null;
+            float sceneDeadline = Time.realtimeSinceStartup + 8f;
+            while (Time.realtimeSinceStartup < sceneDeadline)
+            {
+                if (SceneManager.GetActiveScene().name == SoundwellEntrance.SceneName)
+                    root = GameObject.Find("Soundwell signal trial");
+                if (root != null)
+                    break;
+                yield return null;
+            }
+            Assert.That(root, Is.Not.Null,
+                "Battle retreat must enter the saved trial scene before reading its ORK party.");
             var party = root.GetComponent<SoundwellOrkParty>();
             var trial = root.GetComponent<SoundwellTrial>();
             Assert.That(party, Is.Not.Null);
