@@ -1,10 +1,14 @@
 using System.Collections;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
 using UnityEditor.SceneManagement;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using UnityEngine.TestTools;
 
 namespace Rpg.Tests.Editor
@@ -45,6 +49,8 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True,
                     "F2 must activate the real Entry action.");
+                Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.True,
+                    "Only the real F2 binding bypasses a focused UGUI settings button.");
                 input.Release(keyboard.f2Key);
                 yield return null;
 
@@ -52,6 +58,8 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True,
                     "Gamepad South must activate the real Entry action.");
+                Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.False,
+                    "Gamepad South is also UGUI Submit and must respect focused buttons.");
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.False,
                     "Entry input must not also ring the gameplay bell.");
                 input.Release(gamepad.buttonSouth);
@@ -127,6 +135,62 @@ namespace Rpg.Tests.Editor
             }
             finally
             {
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial()
+        {
+            // Exercise the actual EventSystem and real InputAction events
+            // without ORK bootstrapping a parallel trial scene.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var input = new InputTestFixture();
+            input.Setup();
+            bool hadMutePreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
+            int previousMutePreference = PlayerPrefs.GetInt(SoundwellAudioBus.MutePreferenceKey, 0);
+            try
+            {
+                Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
+                var entryRoot = new GameObject("Soundwell Entry UI input regression");
+                var entry = entryRoot.AddComponent<SoundwellEntrance>();
+                yield return null; // Start selects Enter first.
+
+                var sfxButton = entry.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "Soundwell SFX toggle");
+                EventSystem events = EventSystem.current;
+                Assert.That(events, Is.Not.Null);
+                events.SetSelectedGameObject(sfxButton.gameObject);
+                Assert.That(events.currentSelectedGameObject, Is.SameAs(sfxButton.gameObject));
+                string initialScene = SceneManager.GetActiveScene().name;
+                bool mutedBefore = SoundwellAudioBus.IsMuted;
+
+                // UI Submit and the Entry/Interact action receive the SAME pad A.
+                // The UI must toggle mute, not also transition into SoundwellTrial.
+                input.Press(gamepad.buttonSouth);
+                yield return null;
+                yield return null;
+                Assert.That(SoundwellAudioBus.IsMuted, Is.EqualTo(!mutedBefore),
+                    "Gamepad A must actually activate the focused SFX UGUI Button.");
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(initialScene),
+                    "Gamepad Submit on a settings button cannot also enter the trial.");
+                Assert.That(entry, Is.Not.Null,
+                    "The Entry UI must survive a gamepad settings action.");
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+            }
+            finally
+            {
+                var mixer = Resources.Load<UnityEngine.Audio.AudioMixer>(SoundwellAudioBus.MixerResource);
+                if (mixer != null)
+                    SoundwellAudioBus.SetMuted(mixer, previousMutePreference != 0);
+                if (!hadMutePreference)
+                    PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                PlayerPrefs.Save();
                 SoundwellInputAdapter.SetUiContext();
                 input.TearDown();
             }

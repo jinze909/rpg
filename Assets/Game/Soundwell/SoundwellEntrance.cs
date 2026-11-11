@@ -196,7 +196,14 @@ namespace Rpg.Soundwell
             if (!Mathf.Approximately(aspect, layoutAspect))
                 LayoutForViewportAspect(aspect);
 
-            if (SoundwellControlFrame.EnterRequested(SoundwellInputAdapter.InteractPressed(), false))
+            bool entryRequested = SoundwellControlFrame.EnterRequested(
+                SoundwellInputAdapter.InteractPressed(), false);
+            // Pad A is both Entry/Interact and the UGUI Submit button.
+            // When the player selected the SFX setting, let UGUI own A;
+            // only the dedicated F2 shortcut may bypass that focused button.
+            bool sfxFocused = EventSystem.current != null &&
+                EventSystem.current.currentSelectedGameObject == sfxButton.gameObject;
+            if (entryRequested && (!sfxFocused || SoundwellInputAdapter.EntryKeyboardShortcutPressed()))
                 OpenTrial();
         }
 
