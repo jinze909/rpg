@@ -52,24 +52,47 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(load.isDone, Is.True, "Soundwell entry scene loading timed out.");
 
-            // Wait for the active scene and its saved root exactly as the
-            // passing BattleBackCancelEventRetreatsAndReleasesOrkParticipants
-            // test does. A finished AsyncOperation alone does not prove the
-            // active scene's root can already be safely dereferenced here.
+            // Enumerate root objects from the ACTIVE saved Soundwell scene.
+            // A global GameObject.Find can observe an object during a pending
+            // scene transition; the last three failed runs all stopped at the
+            // first GetComponent after that lookup, before the attack was used.
+            // On failure report the actual active scene and its root names.
             GameObject root = null;
             float sceneDeadline = Time.realtimeSinceStartup + 8f;
             while (Time.realtimeSinceStartup < sceneDeadline)
             {
-                if (SceneManager.GetActiveScene().name == SoundwellEntrance.SceneName)
-                    root = GameObject.Find("Soundwell signal trial");
+                Scene active = SceneManager.GetActiveScene();
+                if (active.IsValid() && active.isLoaded &&
+                    active.name == SoundwellEntrance.SceneName)
+                    root = active.GetRootGameObjects()
+                        .FirstOrDefault(item => item != null &&
+                            item.name == "Soundwell signal trial");
                 if (root != null)
                     break;
                 yield return null;
             }
-            Assert.That(root != null, Is.True,
-                "The active Soundwell scene must contain its saved trial root, not a destroyed object.");
-            var party = root.GetComponent<SoundwellOrkParty>();
-            var trial = root.GetComponent<SoundwellTrial>();
+            Scene currentScene = SceneManager.GetActiveScene();
+            if (root == null)
+            {
+                string loadedRoots = currentScene.IsValid() && currentScene.isLoaded
+                    ? string.Join(", ", currentScene.GetRootGameObjects()
+                        .Where(item => item != null).Select(item => item.name))
+                    : "(scene not loaded)";
+                Assert.Fail("Soundwell's saved root was not present in its active scene. " +
+                    "Active scene: " + currentScene.name + "; roots: " + loadedRoots);
+                yield break;
+            }
+
+            // One further player-loop update allows the saved root's Start to
+            // attach its party/view before the expanded combat assertions.
+            yield return null;
+            if (root == null)
+            {
+                Assert.Fail("Soundwell root was destroyed during scene initialization.");
+                yield break;
+            }
+            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
+            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
             Assert.That(party, Is.Not.Null, "The saved scene must own its ORK party.");
             Assert.That(trial, Is.Not.Null, "The saved scene must own its Makinom rescue trial.");
             Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
