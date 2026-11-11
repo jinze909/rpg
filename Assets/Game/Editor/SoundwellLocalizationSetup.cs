@@ -31,6 +31,7 @@ namespace Rpg.Editor
             ("action.unwrap", "UNWRAP  [Q / X]", "解开 [Q / X]"),
             ("action.retry", "RESET  [R / Y]", "重试 [R / Y]"),
             ("action.back", "BACK  [Esc / B]", "返回 [Esc / B]"),
+            ("action.retreat", "RETREAT  [Esc / B]", "撤离 [Esc / B]"),
             ("action.lift", "LIFT  [F / LB]", "拿起 [F / LB]"),
             ("action.drop", "DROP  [F / LB]", "放下 [F / LB]"),
             ("action.language", "中文 / EN", "EN / 中文"),

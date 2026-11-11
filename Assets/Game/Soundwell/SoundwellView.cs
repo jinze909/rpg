@@ -421,6 +421,10 @@ namespace Rpg.Soundwell
                 return;
 
             battleMode = active;
+            // The only battle-specific UGUI action abandons the live ORK
+            // encounter. Name it explicitly; exploration still says Back.
+            backButton.GetComponentInChildren<Text>().text =
+                SoundwellUiLocalization.Get(active ? "action.retreat" : "action.back");
             trialCanvas.gameObject.SetActive(!active);
             battleCanvas.gameObject.SetActive(active);
             // Until Makinom's player-choice UI is wired, combat still needs
@@ -536,6 +540,9 @@ namespace Rpg.Soundwell
                 kv.Key.font = displayFont;
                 kv.Key.text = SoundwellUiLocalization.Get(kv.Value);
             }
+            if (backButton != null && battleMode)
+                backButton.GetComponentInChildren<Text>().text =
+                    SoundwellUiLocalization.Get("action.retreat");
             if (battleReadout != null)
                 battleReadout.font = displayFont;
             if (menuStatus != null)

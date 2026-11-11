@@ -110,6 +110,10 @@ MonoBehaviour:
     m_Localized: Attack selection awaits the ORK UI menu.
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267077
+    m_Localized: 'RETREAT  [Esc / B]'
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

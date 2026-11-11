@@ -107,6 +107,10 @@ MonoBehaviour:
     m_Key: battle.menu_pending
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267077
+    m_Key: action.retreat
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

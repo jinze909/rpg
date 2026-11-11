@@ -106,6 +106,10 @@ MonoBehaviour:
     m_Localized: "ORK \u653B\u51FB\u6307\u4EE4\u83DC\u5355\u5C1A\u672A\u63A5\u5165\u3002"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267077
+    m_Localized: "\u64A4\u79BB [Esc / B]"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
