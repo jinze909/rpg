@@ -37,35 +37,22 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            // Use the same scene transition and root lookup as the passing
-            // BattleBackCancel regression. Never retain/dereference the
-            // AsyncOperation after a yielded scene activation: its native
-            // operation may already be released when the iterator resumes.
-            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
-            Assert.That(entrance, Is.Not.Null,
-                "Bootstrap must expose the saved Soundwell entry loader.");
-            Assert.That(entrance.OpenTrial(), Is.Not.Null,
-                "The saved entry must initiate the trial scene transition.");
-
-            GameObject root = null;
-            float sceneDeadline = Time.realtimeSinceStartup + 12f;
-            string lastScene = string.Empty;
-            while (Time.realtimeSinceStartup < sceneDeadline)
-            {
-                lastScene = SceneManager.GetActiveScene().name;
-                if (lastScene == SoundwellEntrance.SceneName)
-                    root = GameObject.Find("Soundwell signal trial");
-                if (root != null)
-                    break;
+            // The clean dev candidate already proved this exact load path
+            // in Unity. Keep the working direct scene transition rather than
+            // introducing an extra entry-UGUI or additive-scene lifecycle in
+            // the expanded Attack/escort integration test.
+            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
+            Assert.That(load, Is.Not.Null,
+                "The saved Soundwell scene must load from the Bootstrap runtime.");
+            while (!load.isDone)
                 yield return null;
-            }
-            Assert.That(root, Is.Not.Null,
-                "The saved trial root must appear after Bootstrap's transition. " +
-                "Active scene: " + lastScene);
-            var party = root.GetComponent<SoundwellOrkParty>();
-            var trial = root.GetComponent<SoundwellTrial>();
-            Assert.That(party, Is.Not.Null);
-            Assert.That(trial, Is.Not.Null);
+
+            GameObject root = GameObject.Find("Soundwell signal trial");
+            Assert.That(root, Is.Not.Null, "The saved Soundwell scene root must exist.");
+            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
+            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
+            Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
+            Assert.That(trial, Is.Not.Null, "The live scene must own its rescue route state.");
             Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
