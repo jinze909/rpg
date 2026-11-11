@@ -27,7 +27,10 @@ namespace Rpg.Tests.Editor
     /// </summary>
     public sealed class SoundwellOrkBattleTests
     {
-        [UnityTest]
+        // Run the full combat path before the separate retreat test. Returning
+        // through Bootstrap can leave a pending async scene transition while
+        // the next test's fresh Play Mode domain is being initialized.
+        [UnityTest, Order(10)]
         public IEnumerator ThreePlayerCombatantsEnterOneOrkTurnBasedBattle()
         {
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
@@ -767,7 +770,7 @@ namespace Rpg.Tests.Editor
                 "} publicMethods={" + string.Join(", ", usefulMethods) + "}";
         }
 
-        [UnityTest]
+        [UnityTest, Order(20)]
         public IEnumerator BattleBackCancelEventRetreatsAndReleasesOrkParticipants()
         {
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
