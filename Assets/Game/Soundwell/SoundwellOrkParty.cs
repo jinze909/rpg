@@ -159,8 +159,9 @@ namespace Rpg.Soundwell
                 attackLevel.active = new ActiveAbility();
             // A selectable ORK base-attack shortcut alone deals no damage:
             // the frozen starter ability has no target status changes. Give
-            // this Soundwell prototype a small, nonlethal ORK HP change so
-            // the player's UGUI attack uses ORK's real turn/action resolver.
+            // this Soundwell prototype a whole HP status step so that ORK's
+            // integer-valued HP does not round fractional damage to zero.
+            // The player's UGUI action still uses ORK's real turn resolver.
             // This is game-owned runtime setup, not a second HP authority.
             if (attackLevel.active.targetChange == null ||
                 attackLevel.active.targetChange.Length == 0)
@@ -174,7 +175,7 @@ namespace Rpg.Soundwell
                 var hpChange = new StatusValueStatusChangeType
                 {
                     simpleOperator = SimpleOperator.Add,
-                    changeValue = new FloatValue<GameObjectSelection>(-0.25f)
+                    changeValue = new FloatValue<GameObjectSelection>(-1f)
                 };
                 hpChange.status.SetAsset(hpAsset);
                 attackLevel.active.targetChange = new[]
