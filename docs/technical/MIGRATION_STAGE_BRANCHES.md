@@ -1,5 +1,8 @@
 # M1–M11 迁移阶段历史索引（非永久保留的分支）
 
+**真实进度更正（2026-11-10，`dev` `790266185...`）：** M1–M11 的工程贡献**全部 11/11 已实际进入 dev 提交历史**；不等于全部完成验收。**关闭 Issue：M1/M10/M11（3/11）；仍 open：M2–M9（8/11）**。旧文档的「M3–M11 未实施」「M8 尚未合入/Run 仍在运行」「当前必须先迁移再开发故事」等叙述已失效。各阶段最终 SHA、Unity CI、实际功能与剩余门槛以[逐项事实核查](MODERNIZATION_VERIFIED_STATUS.md)为准；后续须读取实时 HEAD 和最新 CI。
+
+
 **仓库：** `jinze909/rpg` · **集成目标：** `codex/dev` · **唯一主追踪：** [GitHub Issue #2](https://github.com/jinze909/rpg/issues/2) · **技术验收规则：** [MODERN_2D_RPG_STACK.md](MODERN_2D_RPG_STACK.md)
 
 2026-11-10 用户已取消 2026-11-09 的“M1–M11 最高优先于故事 003”旧约定。**本索引是历史/技术接力资料，不是必须先完成全部 M 阶段的开发队列。** 可以根据实时依赖和价值选择故事 003、其他玩法/剧情或技术迁移；只有存在真实前置依赖时才需要先完成相应阶段。CI 排队/运行时保持被测 SHA 不变并接续已有运行，仍可推进无依赖的独立候选；失败要查实修复，不能冒用旧绿灯。
@@ -10,17 +13,17 @@
 
 | 阶段 | 历史名称（可能已清理） | 追踪票 | 当时状态 |
 | --- | --- | --- | --- |
-| M1 URP 2D | [`codex/pending/m1-urp2d`](https://github.com/jinze909/rpg/tree/codex/pending/m1-urp2d) | [#3](https://github.com/jinze909/rpg/issues/3) | **已完成并并入 dev**；保留提交历史，允许清理分支 |
-| M2 New Input System | [`codex/pending/m2-new-input-system`](https://github.com/jinze909/rpg/tree/codex/pending/m2-new-input-system) | [#4](https://github.com/jinze909/rpg/issues/4) | **当前阶段**；核心已并入 dev，UGUI/ORK 适配待终验 |
-| M3 Cinemachine 3 | [`codex/pending/m3-cinemachine3`](https://github.com/jinze909/rpg/tree/codex/pending/m3-cinemachine3) | [#5](https://github.com/jinze909/rpg/issues/5) | 预留，未实施 |
-| M4 2D Animation | [`codex/pending/m4-2d-animation`](https://github.com/jinze909/rpg/tree/codex/pending/m4-2d-animation) | [#6](https://github.com/jinze909/rpg/issues/6) | 预留，未实施 |
-| M5 Tilemap Extras | [`codex/pending/m5-tilemap-extras`](https://github.com/jinze909/rpg/tree/codex/pending/m5-tilemap-extras) | [#7](https://github.com/jinze909/rpg/issues/7) | 预留，未实施 |
-| M6 Audio Mixer | [`codex/pending/m6-audio-mixer`](https://github.com/jinze909/rpg/tree/codex/pending/m6-audio-mixer) | [#8](https://github.com/jinze909/rpg/issues/8) | 预留，未实施 |
-| M7 Sprite Atlas V2 | [`codex/pending/m7-sprite-atlas-v2`](https://github.com/jinze909/rpg/tree/codex/pending/m7-sprite-atlas-v2) | [#9](https://github.com/jinze909/rpg/issues/9) | 预留；需要资源/性能证据 |
-| M8 Pixel Perfect | [`codex/pending/m8-pixel-perfect`](https://github.com/jinze909/rpg/tree/codex/pending/m8-pixel-perfect) | [#10](https://github.com/jinze909/rpg/issues/10) | 预留；仅确定像素风后采用 |
-| M9 Localization | [`codex/pending/m9-localization`](https://github.com/jinze909/rpg/tree/codex/pending/m9-localization) | [#11](https://github.com/jinze909/rpg/issues/11) | 预留；先解决文本权威 |
-| M10 Memory Profiler | [`codex/pending/m10-memory-profiler`](https://github.com/jinze909/rpg/tree/codex/pending/m10-memory-profiler) | [#12](https://github.com/jinze909/rpg/issues/12) | 预留；需可复现测量 |
-| M11 Build Profiles | [`codex/pending/m11-build-profiles`](https://github.com/jinze909/rpg/tree/codex/pending/m11-build-profiles) | [#13](https://github.com/jinze909/rpg/issues/13) | 预留；目标平台与构建验证 |
+| M1 URP 2D | [`codex/pending/m1-urp2d`](https://github.com/jinze909/rpg/tree/codex/pending/m1-urp2d) | [#3](https://github.com/jinze909/rpg/issues/3) | **已合入，#3 closed**；同 SHA CI 通过 |
+| M2 New Input System | [`codex/pending/m2-new-input-system`](https://github.com/jinze909/rpg/tree/codex/pending/m2-new-input-system) | [#4](https://github.com/jinze909/rpg/issues/4) | **核心已合入，#4 open**；UI Toggle 整合尚待入 dev |
+| M3 Cinemachine 3 | [`codex/pending/m3-cinemachine3`](https://github.com/jinze909/rpg/tree/codex/pending/m3-cinemachine3) | [#5](https://github.com/jinze909/rpg/issues/5) | **已合入，#5 open**；镜头/截图验收待核 |
+| M4 2D Animation | [`codex/pending/m4-2d-animation`](https://github.com/jinze909/rpg/tree/codex/pending/m4-2d-animation) | [#6](https://github.com/jinze909/rpg/issues/6) | **已合入占位 Clips/Animator，#6 open**；真实动画待验 |
+| M5 Tilemap Extras | [`codex/pending/m5-tilemap-extras`](https://github.com/jinze909/rpg/tree/codex/pending/m5-tilemap-extras) | [#7](https://github.com/jinze909/rpg/issues/7) | **已合入实际墙 RuleTile/Collider，#7 open**；全路径待验 |
+| M6 Audio Mixer | [`codex/pending/m6-audio-mixer`](https://github.com/jinze909/rpg/tree/codex/pending/m6-audio-mixer) | [#8](https://github.com/jinze909/rpg/issues/8) | **已合入 mixer/SFX 路由，#8 open**；真实听感待验 |
+| M7 Sprite Atlas V2 | [`codex/pending/m7-sprite-atlas-v2`](https://github.com/jinze909/rpg/tree/codex/pending/m7-sprite-atlas-v2) | [#9](https://github.com/jinze909/rpg/issues/9) | **已合入原生 V2 图集，#9 open**；性能对照待补 |
+| M8 Pixel Perfect | [`codex/pending/m8-pixel-perfect`](https://github.com/jinze909/rpg/tree/codex/pending/m8-pixel-perfect) | [#10](https://github.com/jinze909/rpg/issues/10) | **已合入像素相机，#10 open**；dev CI 成功，视觉待验 |
+| M9 Localization | [`codex/pending/m9-localization`](https://github.com/jinze909/rpg/tree/codex/pending/m9-localization) | [#11](https://github.com/jinze909/rpg/issues/11) | **已合入 EN/zh 自有 UI，#11 open**；全文案待覆盖 |
+| M10 Memory Profiler | [`codex/pending/m10-memory-profiler`](https://github.com/jinze909/rpg/tree/codex/pending/m10-memory-profiler) | [#12](https://github.com/jinze909/rpg/issues/12) | **已合入 Editor 多阶段指标，#12 closed** |
+| M11 Build Profiles | [`codex/pending/m11-build-profiles`](https://github.com/jinze909/rpg/tree/codex/pending/m11-build-profiles) | [#13](https://github.com/jinze909/rpg/issues/13) | **已合入 Debug/Test Linux Profiles 和构建，#13 closed** |
 
 **历史初始 HEAD（仅供追溯）：** M1 `c3e323a3e18e57396ef39289efb5c125be410481`、M2 `81a6fe97e347aff20cb2d7bc1135b5082b4f098e`；M3–M11 最初从旧 dev SHA `bf2474b455a9756ae8dd41c5a28f198554575bb4` 建立。**历史 SHA 绝不表示分支必须保留，也不是当前验收证据**。继续阶段工作时先核对实时 HEAD：未合入候选可接续，已合入旧头不能再续写，须从最新 dev 新建不同名称的候选。
 

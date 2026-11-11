@@ -1,5 +1,8 @@
 # 现代 2D RPG 工作室技术基线（零付费新增依赖）
 
+**真实进度更正（2026-11-10，`dev` `790266185...`）：** M1–M11 的工程贡献**全部 11/11 已实际进入 dev 提交历史**；不等于全部完成验收。**关闭 Issue：M1/M10/M11（3/11）；仍 open：M2–M9（8/11）**。旧文档的「M3–M11 未实施」「M8 尚未合入/Run 仍在运行」「当前必须先迁移再开发故事」等叙述已失效。各阶段最终 SHA、Unity CI、实际功能与剩余门槛以[逐项事实核查](MODERNIZATION_VERIFIED_STATUS.md)为准；后续须读取实时 HEAD 和最新 CI。
+
+
 > **用户明确决定，2026-11-09。** 这是今后技术选型和升级的约束与实施路线，不是“已安装清单”或本次迁移完成声明。以 `codex/dev` 的实时 HEAD、Unity 实际导入结果和证据为准；首次仓库审查基线为 `790d9486dd8e163c278adefb9c25ae1be5821aa9`。
 
 ## 1. 不可突破的约束
@@ -67,9 +70,9 @@
 **2026-11-10 用户已撤销 M1–M11 必须优先于故事/剧情/玩法的旧顺序。** 现代化阶段仍是可选工程任务，但不作为所有故事开发的前置或全局主线。根据玩家收益、实际缺陷、实时 CI 和技术依赖选题；正在运行的检查不得修改被测 SHA，失败需修复，同期允许推进独立候选。历史上曾为各阶段预留 `codex/pending/*`，参见[历史索引](MIGRATION_STAGE_BRANCHES.md)，但不再永久保留/续写已合入旧头。一个可验收增量一个候选，合入后局部清理。框架冻结、UGUI、零新增付费与同 SHA 验收要求不变。
 
 
-- **已完成：** URP 2D 已独立迁移并通过最终资产 SHA 的 Unity 验收，合入 `codex/dev`。
-- **技术路线历史记录：** New Input System 1.20.1 迁移使用 Both 兼容；现在具体完成状态须查询实时仓库，而非把本条当作当前必须执行的任务。
-- **其他技术候选（按需）：** Cinemachine 3、角色动画、Tilemap 与 Audio Mixer 按真实玩家价值和依赖安排；不要求优先于故事卡或按固定序列做完。每项独立验收，不在同一候选混迁。
+- **已验收关闭：** M1 URP 2D、M10 Editor 多阶段内存采样、M11 Linux Debug/Test Profiles；并非只有 M1 落地。其余 M2–M9 也都有真实工程提交和 Unity 验证，但原票部分验收未完成。
+- **工程状态而非实施队列：** New Input System、Cinemachine、Animation、Tilemap、Mixer、SpriteAtlas、Pixel Perfect、Localization 均已入 dev，相关 open Issue 只代表仍需完成原票验收；核对新 CI 与差异后才补做工作。
+- **后续真实缺口（按需）：** M2 UI Toggle 整合/回归，M3 镜头截图，M4 真实角色动作，M5 完整救援/撤退路径，M6 听感，M7 性能，M8 多分辨率视觉，M9 文案覆盖。不能再把已落地的框架当作初次安装工作。
 - **有充分证据后：** Sprite Atlas V2、Pixel Perfect（取决于美术）、Localization（先确认文本权威）、Memory Profiler、Build Profiles。
 - **不强推：** Addressables、DOTS/ECS、HDRP；没有现阶段需求就不装。
 - 既有用户决定：**ORK/Makinom 不动、无新增花费、UGUI 保留**。这是对任何旧的框架升级建议的明确覆盖。

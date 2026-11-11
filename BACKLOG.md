@@ -1,5 +1,8 @@
 # 开发任务清单
 
+**真实进度更正（2026-11-10，`dev` `790266185...`）：** M1–M11 的工程贡献**全部 11/11 已实际进入 dev 提交历史**；不等于全部完成验收。**关闭 Issue：M1/M10/M11（3/11）；仍 open：M2–M9（8/11）**。旧文档的「M3–M11 未实施」「M8 尚未合入/Run 仍在运行」「当前必须先迁移再开发故事」等叙述已失效。各阶段最终 SHA、Unity CI、实际功能与剩余门槛以[逐项事实核查](docs/technical/MODERNIZATION_VERIFIED_STATUS.md)为准；后续须读取实时 HEAD 和最新 CI。
+
+
 **产品最高原则：好玩第一，一切都建立在好玩的基础上。** 内容体量与叙事追求为玩家体验服务；用玩家实际参与、探索、决策和情感投入评估设计，以试玩检验尚未证实的乐趣。系统数量、文本长度和技术完成不能替代体验验证。
 
 | 阶段 | 本项目交付 | 当前状态 |
@@ -14,7 +17,7 @@
 
 **用户 2026-11-10 新决定：取消 M1–M11 高于玩法、剧情和故事 003 的强制优先级。** M1–M11 技术卡保留为可选择任务，与故事/玩法并列按价值、依赖、活动候选及真实 CI 结果确定开发顺序；任何 M 阶段均非故事开发的统一前置条件。已合入的阶段候选不再永久保留或复用；每次合入 `codex/dev` 后仅复核本次候选及其直接相关已完全取代的旧候选，按[清理规则](production/workflow.md#候选分支清理)及[自动清理 Actions](.github/workflows/close-merged-pending.yml)处理。正在运行的 CI 保持最终候选 SHA 不变并接续，失败时修复，不阻止在无依赖的独立候选上进行玩法、剧情或技术开发；实时任务状态以 [AI2-STATUS](AI2-STATUS.md) 和 GitHub 为准。
 
-## 现代工作室技术路线（已建 GitHub 实施卡；迁移尚未完成）
+## M1–M11 现代化（工程增量已落地；8 个阶段仍待完整验收）
 
 **跨轮现代化任务仍已立项，但不构成强制实施队列：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2) 及子票 [#3—#16](https://github.com/jinze909/rpg/issues/3) 留作独立任务与证据来源。只有技术依赖确实存在时才按依赖排序，并允许故事/玩法增量穿插；不得因为换聊天而丢弃正在接力的候选。原 M1–M11 空预留头只是历史记录，不再永久保留；每个候选只负责一次独立可验收增量，合入后安全关闭，后续内容从最新 dev 新建不同名称候选。开票/建分支不代表阶段完成，也不得混装多项技术或让 ORK 与新系统并行控制同一操作。
 
@@ -25,17 +28,17 @@
 | 技术卡 | 独立增量（只选有实际收益的官方/零新增购买方案） | 状态与门槛 |
 | --- | --- | --- |
 | M0 · 历史前提（已解决） | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 已整合到 `codex/dev`：`0fb1389c9df1e50d41eef73551e25d0c391c1a43`；同 SHA Run 42740645793 通过 5/5、批处理与 `passed-clean-candidate`。003 两条策略仍未完成 |
-| M1 · URP 2D | 单独候选：2D Renderer、项目管线、质量级继承、材质/相机/UGUI/场景回归 | **已合入** `codex/dev`：merge SHA `8c36229e011248d019f0ef4d8a9a162dd6354afe`；最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16`，Run 42744816128 `passed-clean-candidate`，6/6 tests；dev Run 42747121343 成功 |
-| M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **核心适配已合入** `codex/dev`：SHA `2eee996adaec6563fd379416e7ec6fad8e1b9a62`；官方 1.20.1；Run 42766341628 同 SHA 通过 8/8 tests、双次 Play Mode、独立 Batch。Active Input Handling Both 保留供 ORK 兼容，ORK 原厂 Input Key 资产未改。剩余 UGUI 导航/焦点与更广泛 ORK 兼容验收，M2 尚未关闭 |
-| M3 · Cinemachine 3 | 替代唯一自有摄像机控制路径，验证 2D 跟随、边界、各宽高比和战斗镜头 | 仅计划；不得同时运行双摄像机控制器 |
-| M4 · 2D 动画 | 确定逐帧或骨骼方案后做可见角色待机/移动/战斗/受击一条闭环 | 仅计划；不强制骨骼 |
-| M5 · Tilemap Extras | 真实区域的 Rule Tile、Tilemap、碰撞与排序 | 仅计划；地图需求成立再执行 |
-| M6 · Audio Mixer | 音乐/环境/SFX 统一分组、快照、混音与实机检验 | 仅计划；内置免费工具 |
-| M7 · Sprite Atlas V2 | 有足够精灵和实际 Draw Call/内存证据时建图集 | 按需，不是必装 |
-| M8 · Pixel Perfect | 仅选择严格像素风时评估与相机/渲染组合 | 条件性 |
-| M9 · Localization | 先定义与 ORK 既有文本管理不冲突的单一权威，再验证多语言 | 条件性，不改 ORK |
-| M10 · Memory Profiler | 以复现场景/资源峰值/GC 为证据优化内存 | 触发式；CI 趋势不等于玩家设备基准 |
-| M11 · Build Profiles | 有目标平台和复现构建后区分 Debug/Test/Release | 发布准备阶段，避免收费平台 |
+| M1 · URP 2D | 单独候选：2D Renderer、项目管线、质量级继承、材质/相机/UGUI/场景回归 | **工程交付，Issue #3 closed**；最终资产 `3a346522...` [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 同 SHA verify 成功 |
+| M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **核心已合入，#4 open**；UI Toggle 新整合候选 `d667a9f...` [Run 42940261620](https://github.com/jinze909/rpg/actions/runs/42940261620) 成功、核查时尚未合入；焦点/真实路径待验 |
+| M3 · Cinemachine 3 | 替代唯一自有摄像机控制路径，验证 2D 跟随、边界、各宽高比和战斗镜头 | **已合入，#5 open**；唯一相机与跟随边界测试 `ca3652f...` [Run 42785942604](https://github.com/jinze909/rpg/actions/runs/42785942604) 通过，镜头截图/重载证据待关票 |
+| M4 · 2D 动画 | 确定逐帧或骨骼方案后做可见角色待机/移动/战斗/受击一条闭环 | **已合入，#6 open**；保存占位 Animator/Idle/Move/Action/Hit，`f34a180...` [Run 42794568707](https://github.com/jinze909/rpg/actions/runs/42794568707) 通过；真实逐帧表现未完成 |
+| M5 · Tilemap Extras | 真实区域的 Rule Tile、Tilemap、碰撞与排序 | **已合入，#7 open**；真实声井 RuleTile/Collider `44f37f4...` [Run 42802244276](https://github.com/jinze909/rpg/actions/runs/42802244276) 通过；完整玩家路径证据待核 |
+| M6 · Audio Mixer | 音乐/环境/SFX 统一分组、快照、混音与实机检验 | **已合入，#8 open**；原生 mixer、音量 API/SFX 铃声接线 `7c5bb4a...` [Run 42803799190](https://github.com/jinze909/rpg/actions/runs/42803799190) 通过；真实听感未验 |
+| M7 · Sprite Atlas V2 | 有足够精灵和实际 Draw Call/内存证据时建图集 | **已合入，#9 open**；原生 V2 图集 `01d7dda...` [Run 42864872330](https://github.com/jinze909/rpg/actions/runs/42864872330) 同 SHA 通过；缺 Draw Call/内存对照 |
+| M8 · Pixel Perfect | 仅选择严格像素风时评估与相机/渲染组合 | **已合入，#10 open**；16 PPU / 320×180 相机；旧 M8 [Run 42877178888](https://github.com/jinze909/rpg/actions/runs/42877178888) 失败，后续 [dev Run 42935131913](https://github.com/jinze909/rpg/actions/runs/42935131913) 测试通过；视觉验收待审 |
+| M9 · Localization | 先定义与 ORK 既有文本管理不冲突的单一权威，再验证多语言 | **已合入，#11 open**；EN/zh UI 表和运行时切换 [Run 42818630008](https://github.com/jinze909/rpg/actions/runs/42818630008) 与后续 dev CI 成功；全文案/字体截图待验 |
+| M10 · Memory Profiler | 以复现场景/资源峰值/GC 为证据优化内存 | **工程交付，#12 closed**；Editor Profiler/GC 多阶段 JSON 指标 `d913c2d...` [Run 42820333763](https://github.com/jinze909/rpg/actions/runs/42820333763) 同 SHA 通过，非玩家机快照 |
+| M11 · Build Profiles | 有目标平台和复现构建后区分 Debug/Test/Release | **工程交付，#13 closed**；Debug/Test Linux Profiles + Linux Player 构建 `12a94ed...` [Run 42830867419](https://github.com/jinze909/rpg/actions/runs/42830867419) 同 SHA 通过，Release 未验 |
 | M12 · Addressables | 仅大型/远程资源管理需求成立后考虑 | 暂缓；目前保持直接引用 |
 | 不列为必修 | DOTS/ECS、HDRP、付费 Asset Store 工具、商业云服务、ORK 升级 | 不采用，除非用户日后另作明确决定 |
 
