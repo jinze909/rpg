@@ -142,6 +142,34 @@ namespace Rpg.Tests.Editor
             ValidateConfiguration();
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return AssertFrameworkInitialization();
+            // A real saved Animator state must retain the visible beast-hit
+            // cue if a gameplay action arrives before the short flinch ends.
+            // Resetting a scene must clear that priority for the next attempt.
+            var visualRoot = new GameObject("M4 hit-priority regression");
+            try
+            {
+                var visual = visualRoot.AddComponent<SoundwellPlayerVisualAnimation>();
+                visual.Initialize();
+                Assert.That(visual.CurrentState, Is.EqualTo("Idle"));
+                visual.PlayAction();
+                Assert.That(visual.CurrentState, Is.EqualTo("Action"));
+                visual.PlayHit();
+                Assert.That(visual.CurrentState, Is.EqualTo("Hit"),
+                    "An actual hit must interrupt a normal action.");
+                visual.PlayAction();
+                visual.UpdateMotion(true);
+                Assert.That(visual.CurrentState, Is.EqualTo("Hit"),
+                    "An immediate action/move must not erase the hit reaction.");
+                visual.ResetAnimation();
+                Assert.That(visual.CurrentState, Is.EqualTo("Idle"));
+                visual.PlayAction();
+                Assert.That(visual.CurrentState, Is.EqualTo("Action"),
+                    "Retry must clear hit priority and restore legal actions.");
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(visualRoot);
+            }
             Debug.Log("RPG_BOOTSTRAP_PLAY_VALIDATED:first");
             yield return new ExitPlayMode();
             Assert.That(EditorApplication.isPlaying, Is.False);

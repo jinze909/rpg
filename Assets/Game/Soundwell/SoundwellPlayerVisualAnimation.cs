@@ -14,6 +14,7 @@ namespace Rpg.Soundwell
         private Animator animator;
         private int activeState = -1;
         private float oneShotUntil = float.NegativeInfinity;
+        private float hitReactionUntil = float.NegativeInfinity;
 
         public Animator Controller => animator;
         public string CurrentState => activeState < 0 ? string.Empty : States[activeState];
@@ -43,19 +44,26 @@ namespace Rpg.Soundwell
 
         public void PlayAction()
         {
+            // An action cannot erase the brief physical-hit cue. Otherwise a
+            // bell interaction immediately after a beast collision hides the
+            // only visual indication that the player was just knocked back.
+            if (Time.time < hitReactionUntil)
+                return;
             oneShotUntil = Time.time + 0.40f;
             SetState(2, true);
         }
 
         public void PlayHit()
         {
-            oneShotUntil = Time.time + 0.32f;
+            hitReactionUntil = Time.time + 0.32f;
+            oneShotUntil = hitReactionUntil;
             SetState(3, true);
         }
 
         public void ResetAnimation()
         {
             oneShotUntil = float.NegativeInfinity;
+            hitReactionUntil = float.NegativeInfinity;
             SetState(0, true);
         }
 
