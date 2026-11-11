@@ -87,6 +87,7 @@ namespace Rpg.Soundwell
         // exclusively handled by the saved Soundwell 2D Input System adapter.
         private bool playerAssignedToOrk;
         private bool battleObservedActive;
+        private bool battleEndRequested;
         private float battleStartedAt;
         private const float BattleStartTimeout = 8f;
 
@@ -272,6 +273,7 @@ namespace Rpg.Soundwell
 
             battleStarted = true;
             battleObservedActive = false;
+            battleEndRequested = false;
             battleStartedAt = Time.realtimeSinceStartup;
             battle.StartGroup(EnemyGroup, null);
             return true;
@@ -301,6 +303,7 @@ namespace Rpg.Soundwell
 
             battleStarted = false;
             battleObservedActive = false;
+            battleEndRequested = false;
             battleStartedAt = 0f;
         }
 
@@ -323,6 +326,26 @@ namespace Rpg.Soundwell
                     return true;
             }
             return false;
+        }
+
+        // Recover the retired victory candidate's valid battle-end logic,
+        // using the real ORK 3.22 Status.IsDead API (Combatant.Dead does
+        // not exist in this pinned framework).
+        private bool AreAllBattleEnemiesDefeated()
+        {
+            if (EnemyGroup == null)
+                return false;
+
+            List<Combatant> enemies = EnemyGroup.GetBattle();
+            if (enemies.Count == 0)
+                return Beast != null && Beast.Status.IsDead;
+
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                if (enemies[i] != null && !enemies[i].Status.IsDead)
+                    return false;
+            }
+            return true;
         }
 
         // A real 16-PPU, point-filtered pixel silhouette, not a stretched
@@ -412,6 +435,17 @@ namespace Rpg.Soundwell
         {
             if (battleStarted && IsBattleRunning())
                 battleObservedActive = true;
+
+            // The ORK death check, not a test or a parallel combat UI,
+            // authoritatively decides whether the whole enemy group fell.
+            // End the encounter once, then let the existing gate readout
+            // consume ORK's result. Never finish an unfinished battle.
+            if (battleStarted && battleObservedActive && !battleEndRequested &&
+                IsBattleRunning() && AreAllBattleEnemiesDefeated())
+            {
+                battleEndRequested = true;
+                ORK.Game.Combatants.EndBattle();
+            }
 
             if (!IsReady || leader == null)
                 return;
