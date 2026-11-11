@@ -203,6 +203,46 @@ def inspect_ability_selection_predicates():
                         " observed_members=" + ",".join(guard_symbols[:50])
                     )
 
+
+
+def inspect_attack_guard_flow():
+    """Report short conditional guard expressions, not ORK implementation bodies."""
+    import re
+
+    wanted = {
+        "AbilityShortcut.cs": ("CanUse", "CanChoose", "GetSelectedData", "GetActiveLevel"),
+        "ActiveAbility.cs": ("CanUse", "CanChoose"),
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if basename not in wanted or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for method in wanted[basename]:
+                found = [i for i, line in enumerate(lines)
+                         if re.search(r"\b(?:public|protected|private|internal)\s+"
+                                      r"(?:override\s+|virtual\s+|static\s+)*"
+                                      r"(?:bool|[A-Za-z_][A-Za-z_0-9<>]*)\s+"
+                                      + method + r"\s*\(", line)]
+                for start in found[:1]:
+                    depth = 0
+                    entered = False
+                    guards = []
+                    for line in lines[start:]:
+                        depth += line.count("{") - line.count("}")
+                        if "{" in line:
+                            entered = True
+                        trimmed = line.strip().split("//", 1)[0].strip()
+                        if re.match(r"^(?:if\s*\(|else\s+if\s*\(|return\s+)", trimmed):
+                            # Print only concise control-flow guards and exits,
+                            # never the neighboring proprietary method body.
+                            guards.append(trimmed[:200])
+                        if entered and depth == 0:
+                            break
+                    print("ORK_ATTACK_GUARD_FLOW " + basename + "." + method +
+                          " " + repr(guards[:24]))
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
@@ -210,3 +250,4 @@ if __name__ == "__main__":
     inspect_battle_end_lifecycle()
     inspect_combatant_action_contract()
     inspect_ability_selection_predicates()
+    inspect_attack_guard_flow()
