@@ -31,6 +31,8 @@ namespace Rpg.Soundwell
         private const string DirectCombatCompleteKey = "rpg.soundwell.signal-trial.direct-combat-complete";
         // Scene-to-scene handoff only: ORK still owns quests, rewards, and saves.
         public const string EntryOutcomeKey = "rpg.soundwell.signal-trial.last-return-outcome";
+        // Distinguish a real zero-contact retreat from the untouched first-launch default.
+        public const string EntryOutcomeRecordedKey = "rpg.soundwell.signal-trial.last-return-recorded";
         // Additional scene-to-scene outcome, not an ORK item or persistent save.
         public const string EntryCartKitKey = "rpg.soundwell.signal-trial.last-return-cart-kit";
         public const string EntrySafeRouteKey = "rpg.soundwell.signal-trial.last-return-safe-route";
@@ -432,6 +434,7 @@ namespace Rpg.Soundwell
             if (variables != null)
             {
                 variables.Set(EntryOutcomeKey, FalseMarkerCleared ? 2 : RescueComplete ? 1 : 0);
+                variables.Set(EntryOutcomeRecordedKey, 1);
                 // Overwrite this every exit, including an incomplete replay.
                 // Merely finding or telling about the cart does not count.
                 variables.Set(EntryCartKitKey,

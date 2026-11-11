@@ -70,6 +70,21 @@ namespace Rpg.Tests.Editor
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             Assert.That(entry.ReturnSummaryText, Does.Contain("WITHDREW / BEAST CONTACTS: 2"));
 
+            // A first launch with no return history must stay quiet; a real
+            // retreat with no beast contact must still acknowledge the exit.
+            variables.Set(SoundwellTrial.EntryBeastContactsKey, 0);
+            variables.Set(SoundwellTrial.EntryOutcomeRecordedKey, 0);
+            entry.RefreshReturnOutcome();
+            Assert.That(entry.ReturnSummaryText, Is.Empty,
+                "A fresh entry cannot be misreported as a retreat.");
+            variables.Set(SoundwellTrial.EntryOutcomeRecordedKey, 1);
+            entry.RefreshReturnOutcome();
+            Assert.That(entry.ReturnSummaryText, Does.Contain("WITHDREW / BEAST CONTACTS: 0"),
+                "Returning safely without encountering the beast still needs a visible result.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(entry.ReturnSummaryText, Does.Contain("撤退"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+
             // A player must be able to use the same SFX mixer control from
             // actual UGUI, with the button following EN/zh and the saved mute
             // choice surviving fresh AudioSource routing.

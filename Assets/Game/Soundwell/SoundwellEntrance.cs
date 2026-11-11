@@ -28,6 +28,7 @@ namespace Rpg.Soundwell
         private Font englishFont;
         private float layoutAspect = -1f;
         private int shownOutcome = -1;
+        private bool shownOutcomeRecorded;
         private bool shownCartKitRecovered;
         private bool shownSafeRouteMarked;
         private int shownBeastContacts = -1;
@@ -242,17 +243,20 @@ namespace Rpg.Soundwell
                 return;
 
             int result = variables.GetInt(SoundwellTrial.EntryOutcomeKey);
+            bool outcomeRecorded = variables.GetInt(SoundwellTrial.EntryOutcomeRecordedKey) != 0;
             bool cartKitRecovered = result == 2 &&
                 variables.GetInt(SoundwellTrial.EntryCartKitKey) != 0;
             bool safeRouteMarked = cartKitRecovered &&
                 variables.GetInt(SoundwellTrial.EntrySafeRouteKey) != 0;
             int contacts = Mathf.Clamp(
                 variables.GetInt(SoundwellTrial.EntryBeastContactsKey), 0, 999);
-            if (!force && result == shownOutcome && cartKitRecovered == shownCartKitRecovered &&
+            if (!force && result == shownOutcome && outcomeRecorded == shownOutcomeRecorded &&
+                cartKitRecovered == shownCartKitRecovered &&
                 safeRouteMarked == shownSafeRouteMarked && contacts == shownBeastContacts)
                 return;
 
             shownOutcome = result;
+            shownOutcomeRecorded = outcomeRecorded;
             shownCartKitRecovered = cartKitRecovered;
             shownSafeRouteMarked = safeRouteMarked;
             shownBeastContacts = contacts;
@@ -266,7 +270,7 @@ namespace Rpg.Soundwell
                     encounterReport
                 : result == 1 ? SoundwellUiLocalization.Get("entry.safe_pending") +
                     encounterReport
-                : contacts > 0
+                : contacts > 0 || outcomeRecorded
                     ? string.Format(SoundwellUiLocalization.Get("entry.withdrawn"), contacts)
                     : "";
         }
