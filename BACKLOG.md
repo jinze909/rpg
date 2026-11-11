@@ -10,10 +10,10 @@
 | N0 | 建立“归来”[详细主线](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)与[地区故事](docs/narrative/REGIONAL_STORIES.md) v0.2，含点名、渡口谜线、五张归途中的脸及开场场景稿，供编剧与任务分解。 | 文档审查通过；未实现、未试玩 |
 | D0 | 深度讨论并写成[一页玩法基线](docs/gameplay/BASELINE.md)，区分已定、暂定与待验证，供后续任务读取。 | 文档审查通过；未实现、未试玩 |
 | P0 | 验证 Unity 工程和 ORK 启动。[001 · ORK 启动验证](production/stories/001-ork-bootstrap.md) | Unity 6000.6.8f1 干净提交验收通过。[CI](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800) |
-| P0-b | 建立脚本化冒烟、同 SHA 验证和基础帧时间、P95、GC 趋势采样。 | 待开发 |
-| G1 | 标题、菜单和 HUD 使用 UGUI，验证键鼠与手柄焦点及分辨率适配。世界渲染走 SpriteRenderer / Tilemap，并检查排序层。 | 待开发 |
+| P0-b | 建立脚本化冒烟、同 SHA 验证和基础帧时间、P95、GC 趋势采样。 | 已有声井冒烟、同 SHA 验证和 Editor 趋势采样；按场景补覆盖，不等同玩家设备性能验收 |
+| G1 | 标题、菜单和 HUD 使用 UGUI，验证键鼠与手柄焦点及分辨率适配。世界渲染走 SpriteRenderer / Tilemap，并检查排序层。 | 已有入口/操作/HUD、输入焦点与 SpriteRenderer/Tilemap；完整菜单、各设备/分辨率覆盖按实际缺口补验 |
 | N1 | 打磨已有[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)，写完一条独立地区线及 M08—M11 连续人物场；检查具体行动、对白与因果。 | 开场初稿已整理，后续待编剧；剧情演出未实现、未试玩 |
-| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，真人试玩待做。故事 003 与现代化可按实时依赖、玩家收益和验证条件选择；不再为 M2–M11 强制延后。 |
+| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，主观体验证据未知，不设用户参与门槛。故事 003 与现代化可按实时依赖、玩家收益和验证条件选择；不再为 M2–M11 强制延后。 |
 
 **用户 2026-11-10 新决定：取消 M1–M11 高于玩法、剧情和故事 003 的强制优先级。** M1–M11 技术卡保留为可选择任务，与故事/玩法并列按价值、依赖、活动候选及真实 CI 结果确定开发顺序；任何 M 阶段均非故事开发的统一前置条件。已合入的阶段候选不再永久保留或复用；每次合入 `codex/dev` 后仅复核本次候选及其直接相关已完全取代的旧候选，按[清理规则](production/workflow.md#候选分支清理)及[自动清理 Actions](.github/workflows/close-merged-pending.yml)处理。正在运行的 CI 保持最终候选 SHA 不变并接续，失败时修复，不阻止在无依赖的独立候选上进行玩法、剧情或技术开发；实时任务状态以 [AI2-STATUS](AI2-STATUS.md) 和 GitHub 为准。
 
@@ -21,15 +21,15 @@
 
 **跨轮现代化任务仍已立项，但不构成强制实施队列：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2) 及子票 [#3—#16](https://github.com/jinze909/rpg/issues/3) 留作独立任务与证据来源。只有技术依赖确实存在时才按依赖排序，并允许故事/玩法增量穿插；不得因为换聊天而丢弃正在接力的候选。原 M1–M11 空预留头只是历史记录，不再永久保留；每个候选只负责一次独立可验收增量，合入后安全关闭，后续内容从最新 dev 新建不同名称候选。开票/建分支不代表阶段完成，也不得混装多项技术或让 ORK 与新系统并行控制同一操作。
 
-**本轮技术先行证据：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。M2 Soundwell New Input System gameplay adapter 已在 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 合入 `codex/dev`，同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；[artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。003 的玩家战斗菜单/攻击、两种完整救援策略与真人试玩仍是后续验收，不可冒充整卡完成。
+**历史技术证据（不代表当前候选）：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。M2 Soundwell New Input System gameplay adapter 已在 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 合入 `codex/dev`，同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；[artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。003 的玩家战斗菜单/攻击、两种完整救援策略仍需按当前实现补验；主观体验无实证记为限制，不要求用户补验，不可冒充整卡完成。
 
-**硬限制：** 现有 ORK 3.22.0 / Makinom 2.21.0 **保持不变**，不升级/重购/改厂商文件或设置；UGUI 保留，不迁移 UI Toolkit；禁止未经另行授权的新付费插件、订阅、云服务和 CI 费用。统一执行规则与官方链接见 [现代 2D RPG 技术基线](docs/technical/MODERN_2D_RPG_STACK.md)。
+**现行边界（2026-11-11）：** ORK/Makinom 框架和配置允许为明确需求修改，经隔离候选充分验证后合入，旧全面冻结撤销；UGUI 保留，零新增付费，单一 RPG 权威与许可约束继续有效。统一执行规则与官方链接见 [现代 2D RPG 技术基线](docs/technical/MODERN_2D_RPG_STACK.md)。
 
 | 技术卡 | 独立增量（只选有实际收益的官方/零新增购买方案） | 状态与门槛 |
 | --- | --- | --- |
 | M0 · 历史前提（已解决） | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 已整合到 `codex/dev`：`0fb1389c9df1e50d41eef73551e25d0c391c1a43`；同 SHA Run 42740645793 通过 5/5、批处理与 `passed-clean-candidate`。003 两条策略仍未完成 |
 | M1 · URP 2D | 单独候选：2D Renderer、项目管线、质量级继承、材质/相机/UGUI/场景回归 | **工程交付，Issue #3 closed**；最终资产 `3a346522...` [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 同 SHA verify 成功 |
-| M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **核心已合入，#4 open**；UI Toggle 新整合候选 `d667a9f...` [Run 42940261620](https://github.com/jinze909/rpg/actions/runs/42940261620) 成功、核查时尚未合入；焦点/真实路径待验 |
+| M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **核心已合入，#4 open**；UI Toggle 及后续入口焦点修复已进入 dev；剩余设备/实际路径按最新代码与 Run 核对，不重做旧候选 |
 | M3 · Cinemachine 3 | 替代唯一自有摄像机控制路径，验证 2D 跟随、边界、各宽高比和战斗镜头 | **已合入，#5 open**；唯一相机与跟随边界测试 `ca3652f...` [Run 42785942604](https://github.com/jinze909/rpg/actions/runs/42785942604) 通过，镜头截图/重载证据待关票 |
 | M4 · 2D 动画 | 确定逐帧或骨骼方案后做可见角色待机/移动/战斗/受击一条闭环 | **已合入，#6 open**；保存占位 Animator/Idle/Move/Action/Hit，`f34a180...` [Run 42794568707](https://github.com/jinze909/rpg/actions/runs/42794568707) 通过；真实逐帧表现未完成 |
 | M5 · Tilemap Extras | 真实区域的 Rule Tile、Tilemap、碰撞与排序 | **已合入，#7 open**；真实声井 RuleTile/Collider `44f37f4...` [Run 42802244276](https://github.com/jinze909/rpg/actions/runs/42802244276) 通过；完整玩家路径证据待核 |
@@ -40,7 +40,7 @@
 | M10 · Memory Profiler | 以复现场景/资源峰值/GC 为证据优化内存 | **工程交付，#12 closed**；Editor Profiler/GC 多阶段 JSON 指标 `d913c2d...` [Run 42820333763](https://github.com/jinze909/rpg/actions/runs/42820333763) 同 SHA 通过，非玩家机快照 |
 | M11 · Build Profiles | 有目标平台和复现构建后区分 Debug/Test/Release | **工程交付，#13 closed**；Debug/Test Linux Profiles + Linux Player 构建 `12a94ed...` [Run 42830867419](https://github.com/jinze909/rpg/actions/runs/42830867419) 同 SHA 通过，Release 未验 |
 | M12 · Addressables | 仅大型/远程资源管理需求成立后考虑 | 暂缓；目前保持直接引用 |
-| 不列为必修 | DOTS/ECS、HDRP、付费 Asset Store 工具、商业云服务、ORK 升级 | 不采用，除非用户日后另作明确决定 |
+| 不列为必修 | DOTS/ECS、HDRP、付费 Asset Store 工具、商业云服务 | 未证明需求的技术暂缓；不新增费用。ORK 版本调整单独按框架验证规则判断 |
 
 **选题原则（不再迁移优先）:** 结合实际玩家收益、当前故障、可独立验收条件选择 M1–M11、故事 003 或其他任务；技术迁移仅按确有必要的依赖顺序执行，不要求先全部迁移完再开发剧情或玩法。对正在受测的候选保持 SHA 不变，CI 失败须修复、通过须验收；同时允许推进独立候选。完成每个技术或玩法增量均按 [同 SHA 验收](production/workflow.md#同-sha-验收) 验证。技术清单不等于一次安装所有包的授权，文档完成也不等于技术卡通过。
 
@@ -51,4 +51,6 @@
 - 先前撤销的游戏设定不得从旧提交恢复。主角自定义范围、性别外观、美术尺度、恋爱系统及最终内容时长等未锁定；不得将工作人名地名理解为已完成的游戏资产。
 - G1 的 UI 固定使用 UGUI。世界渲染采用 SpriteRenderer / Tilemap。框架职责见 [AGENTS](AGENTS.md)。
 - 占位素材标注 `PLACEHOLDER`。需美术复核时标注 `ART_REVIEW_REQUIRED`，由 art-director 判断。美术规格随新方向制定。
-- 影响冻结项的设计或迁移提案由对应总监记录影响和建议，经用户决定后再写入本清单。
+- 智能体记录设计/迁移影响、证据与可逆决定，依现行产品方向推进；不把例行确认或用户反馈设为开发前提。框架修改按[验证规则](production/workflow.md#框架修改与验证)，实际问题写入[问题记录](production/KNOWN_ISSUES.md)。
+
+当前接力分别维护实现与智能体验证下一步；已验且可合入候选优先交付，无关治理随后。未得到真人反馈不阻止工程验收，也不等于乐趣已被证实。

@@ -12,3 +12,5 @@ model: inherit
 提交审查所需的配置和证据，避免在文件、日志或回复中输出 secret。仓库设置、标签或发布操作按本轮授权执行。
 
 [上游角色定义](https://github.com/Donchitos/Claude-Code-Game-Studios/blob/05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418/.claude/agents/devops-engineer.md)
+
+按 [当前自主交付规则](../../production/workflow.md) 执行：充分验证后可修改框架及配置；不要求用户试玩、评审或写 GitHub 反馈。自行执行可用验证，记录问题和证据缺口，不把自动通过当作乐趣实证。角色仅按需使用，已验可合入候选优先交付，同 SHA 等价证据按规则复用。

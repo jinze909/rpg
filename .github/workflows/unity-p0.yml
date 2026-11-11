@@ -12,6 +12,8 @@ on:
       - 'tools/test_collect_unity_p0.py'
       - 'tools/restore_unity_p0.py'
       - 'tools/inspect_ork_battle_source.py'
+      - 'tools/reuse_unity_evidence.py'
+      - 'tools/test_reuse_unity_evidence.py'
       - '.github/workflows/unity-p0*.yml'
   workflow_dispatch:
     inputs:
@@ -34,7 +36,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      reused: ${{ steps.probe.outcome == 'success' && steps.probe.outputs.reused || 'false' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Test strict evidence reuse and fallback
+        run: python3 -m unittest discover -s tools -p 'test_reuse_unity_evidence.py' -v
+      - name: Reuse only equivalent successful pending verification on dev
+        id: probe
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_MODE: ${{ inputs.mode || '' }}
+          LICENSE_METHOD: ${{ vars.UNITY_LICENSE_METHOD || 'personal' }}
+        run: python3 tools/reuse_unity_evidence.py
+      # A receipt describes inputs, not success. It is usable only together
+      # with this run's successful verify artifact and matching test XML.
+      - name: Record candidate execution conditions for future same-SHA reuse
+        if: >-
+          steps.probe.outcome == 'success'
+          && github.event_name == 'push'
+          && startsWith(github.ref, 'refs/heads/codex/pending/')
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unity-reuse-context-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unity-reuse-context.json
+          if-no-files-found: error
+          retention-days: 14
+
   bootstrap:
+    needs: evidence
+    # A failed/unavailable optimization must never suppress normal validation.
+    if: ${{ !cancelled() && needs.evidence.outputs.reused != 'true' }}
     uses: ./.github/workflows/unity-p0-editor.yml
     with:
       revision: ${{ github.sha }}
