@@ -458,7 +458,9 @@ namespace Rpg.Tests.Editor
                 .Distinct().Take(24));
             Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
                 "A saved ORK player combatant must have a selectable base attack on its turn. " +
-                attackAvailability + " | public ORK API: " + baseAttackApi);
+                attackAvailability + " | public ORK API: " + baseAttackApi +
+                " | current base attack: " +
+                DescribeBaseAttackState(party.Members[0].Abilities.GetCurrentBaseAttack()));
             Assert.That(attackButton.interactable, Is.True,
                 "The real UGUI action must enable only for the current ORK attack chooser.");
             float beastHpBeforeAttack = party.Beast.Status[1].GetValue();
@@ -688,6 +690,46 @@ namespace Rpg.Tests.Editor
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             LogAssert.NoUnexpectedReceived();
+        }
+
+        // Inspect only PUBLIC runtime data of the saved ORK ability on
+        // failure. This keeps licensed ORK source out of CI logs and allows
+        // configuration/eligibility faults to be distinguished before edits.
+        private static string DescribeBaseAttackState(object attack)
+        {
+            if (attack == null)
+                return "null";
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public;
+            var type = attack.GetType();
+            var properties = type.GetProperties(flags)
+                .Where(property => property.GetIndexParameters().Length == 0 &&
+                    (property.PropertyType.IsPrimitive || property.PropertyType.IsEnum ||
+                     property.PropertyType == typeof(string)))
+                .Take(32)
+                .Select(property =>
+                {
+                    try { return property.Name + "=" + property.GetValue(attack); }
+                    catch (System.Exception) { return property.Name + "=<unreadable>"; }
+                });
+            var fields = type.GetFields(flags)
+                .Where(field => field.FieldType.IsPrimitive || field.FieldType.IsEnum ||
+                    field.FieldType == typeof(string))
+                .Take(32)
+                .Select(field =>
+                {
+                    try { return field.Name + "=" + field.GetValue(attack); }
+                    catch (System.Exception) { return field.Name + "=<unreadable>"; }
+                });
+            var usefulMethods = type.GetMethods(flags)
+                .Where(method => method.Name.Contains("Can") || method.Name.Contains("Use") ||
+                    method.Name.Contains("Ability") || method.Name.Contains("Attack"))
+                .Select(method => method.ToString()).Distinct().Take(36);
+            return "type=" + type.FullName +
+                " scalarProperties={" + string.Join(", ", properties) +
+                "} scalarFields={" + string.Join(", ", fields) +
+                "} publicMethods={" + string.Join(", ", usefulMethods) + "}";
         }
 
         [UnityTest]
