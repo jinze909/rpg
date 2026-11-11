@@ -10,12 +10,24 @@ namespace Rpg.Soundwell
     {
         public const string English = "en";
         public const string Chinese = "zh-Hans";
+        public const string LanguagePreferenceKey = "rpg.soundwell.ui.language.v1";
         private const string Folder = "Soundwell/Localization/SoundwellUI-";
         private static string language = English;
         public static string Language => language;
         public static event Action Changed;
         private const string CjkFontPath = "Soundwell/Fonts/SoundwellChinese";
         private static Font cjkFont;
+
+        // Apply the last player-selected locale before the first scene Awake,
+        // so the entry screen and trial HUD never flash the wrong language.
+        // Only the two shipped StringTables are accepted; a stale/unknown
+        // preference gracefully falls back to English.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RestoreSavedLanguage()
+        {
+            string saved = PlayerPrefs.GetString(LanguagePreferenceKey, English);
+            language = saved == Chinese ? Chinese : English;
+        }
 
         // M9: use one pinned, game-owned OFL typeface imported by Unity.
         // The previous OS-font fallback advertised HasCharacter(true), yet
@@ -63,6 +75,13 @@ namespace Rpg.Soundwell
             Changed?.Invoke();
         }
 
-        public static void Toggle() => SetLanguage(language == English ? Chinese : English);
+        // Persist only an intentional player UI toggle, not programmatic
+        // language changes used for diagnostics or isolated Unity tests.
+        public static void Toggle()
+        {
+            SetLanguage(language == English ? Chinese : English);
+            PlayerPrefs.SetString(LanguagePreferenceKey, language);
+            PlayerPrefs.Save();
+        }
     }
 }

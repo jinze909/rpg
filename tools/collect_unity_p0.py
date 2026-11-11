@@ -46,6 +46,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
         "ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges":
             "Rpg.Tests.Editor.SoundwellTrialTests.ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges",
+        "PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi":
+            "Rpg.Tests.Editor.SoundwellTrialTests.PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi",
     },
     "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
         "SoundwellAudioMuteSurvivesSceneRerouting":

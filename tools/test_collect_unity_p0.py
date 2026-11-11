@@ -284,6 +284,21 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 "Rpg.Tests.Editor.SoundwellThreatPreviewTests.SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping",
                 expected,
             )
+            # Newly declared M9 Play Mode tests must be required by the
+            # same-SHA collector; 15/15 Unity success cannot be rejected by
+            # an outdated expected-test registry.
+            localized_file.write_text(
+                localized_file.read_text(encoding="utf-8") +
+                "\n[UnityTest] public IEnumerator "
+                "PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi()"
+                " { yield break; }", encoding="utf-8"
+            )
+            expected = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(len(expected), 15)
+            self.assertIn(
+                "Rpg.Tests.Editor.SoundwellTrialTests.PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi",
+                expected,
+            )
             self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
 
 
