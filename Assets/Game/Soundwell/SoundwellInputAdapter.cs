@@ -36,11 +36,14 @@ namespace Rpg.Soundwell
             gameplayMap.Enable();
         }
 
-        // UGUI owns navigation, Submit and Cancel while gameplay actions are disabled.
+        // UGUI owns navigation, Submit and Cancel while world actions are
+        // disabled. Keep ONLY ToggleMenu enabled so Tab / Gamepad Start can
+        // close the focus menu; otherwise it can open but cannot close.
         public static void SetUiContext()
         {
             EnsureLoaded();
             actions.Disable();
+            toggleMenu.Enable();
         }
 
         public static bool InteractPressed() { EnsureLoaded(); return interact.WasPressedThisFrame(); }
@@ -53,12 +56,14 @@ namespace Rpg.Soundwell
 
         public static bool IsGameplayContextActive
         {
-            get { EnsureLoaded(); return gameplayMap.enabled && !entryMap.enabled; }
+            get { EnsureLoaded(); return move.enabled && gameplayMap.enabled && !entryMap.enabled; }
         }
 
         public static bool IsUiContextActive
         {
-            get { EnsureLoaded(); return !entryMap.enabled && !gameplayMap.enabled; }
+            // Enabling a single action also marks its map enabled. Check the
+            // world Move action, rather than the map, to distinguish focus mode.
+            get { EnsureLoaded(); return !entryMap.enabled && !move.enabled && toggleMenu.enabled; }
         }
 
         public static SoundwellControlFrame ReadGameplay()

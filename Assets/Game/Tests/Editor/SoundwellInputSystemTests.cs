@@ -80,6 +80,9 @@ namespace Rpg.Tests.Editor
                     "W must drive the real Gameplay Move action.");
 
                 SoundwellInputAdapter.SetUiContext();
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True,
+                    "Focus mode may enable only the menu toggle, not world movement.");
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.False);
                 input.Release(keyboard.wKey);
                 yield return null;
                 input.Press(keyboard.sKey);
@@ -88,6 +91,39 @@ namespace Rpg.Tests.Editor
                     "UI focus must disable gameplay movement rather than moving behind a focused menu.");
                 input.Release(keyboard.sKey);
                 yield return null;
+
+                // The same physical key/button must be able to close the menu
+                // after gameplay actions are suspended. Previously ToggleMenu
+                // was disabled with the rest of Gameplay: the menu trapped focus.
+                input.Press(keyboard.tabKey);
+                // WasPressedThisFrame is scoped to an Input System update. In
+                // Editor UnityTests a coroutine yield can advance past that
+                // update before the assertion; process the queued event and
+                // inspect the action in the SAME update, as with Move above.
+                InputSystem.Update();
+                Assert.That(keyboard.tabKey.isPressed, Is.True,
+                    "The test runtime must receive the Tab key-down event.");
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.True,
+                    "Tab must remain available to close the currently focused UGUI menu.");
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.False);
+                input.Release(keyboard.tabKey);
+                InputSystem.Update();
+
+                input.Press(gamepad.startButton);
+                InputSystem.Update();
+                Assert.That(gamepad.startButton.isPressed, Is.True,
+                    "The test runtime must receive Gamepad Start.");
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.True,
+                    "Gamepad Start must close the UGUI menu without enabling world controls.");
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                input.Release(gamepad.startButton);
+                InputSystem.Update();
+
+                SoundwellInputAdapter.SetGameplayContext();
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                    "Closing focus mode must restore Gameplay input.");
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.False);
             }
             finally
             {
