@@ -449,7 +449,7 @@ namespace Rpg.Tests.Editor
                     " canUse=" + (baseAttack != null && baseAttack.CanUse(member, true, true)) +
                     " canChooseNoCost=" + (baseAttack != null && baseAttack.CanChoose(member, false, false));
             }));
-            string baseAttackApi = string.Join("; ", typeof(CombatantAbilities)
+            string baseAttackApi = string.Join("; ", party.Members[0].Abilities.GetType()
                 .GetMethods(System.Reflection.BindingFlags.Public |
                     System.Reflection.BindingFlags.Instance)
                 .Where(method => method.Name.Contains("BaseAttack") ||
