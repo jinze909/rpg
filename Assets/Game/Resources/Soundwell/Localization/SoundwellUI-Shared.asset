@@ -111,6 +111,46 @@ MonoBehaviour:
     m_Key: action.retreat
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267300
+    m_Key: entry.title
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267301
+    m_Key: entry.action
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267302
+    m_Key: entry.footer
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267303
+    m_Key: entry.safe_corrected
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267304
+    m_Key: entry.safe_pending
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267305
+    m_Key: entry.kit_recovered
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267306
+    m_Key: entry.route_posted
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267307
+    m_Key: entry.contacts
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267308
+    m_Key: entry.clean_evasion
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267309
+    m_Key: entry.withdrawn
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

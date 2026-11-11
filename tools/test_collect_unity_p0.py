@@ -242,6 +242,23 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
             )
             self.assertEqual(len(expected_tests_for("verify", True, source_root=source_root)), 10)
 
+            localized_file = source_root / "Assets/Game/Tests/Editor/SoundwellTrialTests.cs"
+            localized_file.write_text(
+                "[UnityTest] public IEnumerator "
+                "ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges()"
+                " { yield break; }", encoding="utf-8"
+            )
+            self.assertEqual(len(expected_tests_for("verify", True, source_root=source_root)), 11)
+
+            audio_file = source_root / "Assets/Game/Tests/Editor/P0BootstrapTests.cs"
+            audio_file.write_text(
+                "[UnityTest, Order(30)] public IEnumerator "
+                "SoundwellAudioMuteSurvivesSceneRerouting() { yield break; }",
+                encoding="utf-8"
+            )
+            self.assertEqual(len(expected_tests_for("verify", True, source_root=source_root)), 12)
+            self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
+
 
 class CompilerLogTests(unittest.TestCase):
     def test_successful_editor_updater_notice_is_not_compilation_failure(self):
