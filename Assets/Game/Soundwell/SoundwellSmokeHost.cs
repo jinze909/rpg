@@ -1420,7 +1420,7 @@ namespace Rpg.Soundwell
                 !returnedEntrance.LastReturnCartKitRecovered &&
                 !returnedEntrance.LastReturnSafeRouteMarked &&
                 returnedEntrance.LastReturnBeastContacts == 0 &&
-                !ShowsPrompt(returnedEntrance, "BEAST CONTACTS:") &&
+                ShowsPrompt(returnedEntrance, "WITHDREW / BEAST CONTACTS: 0") &&
                 !ShowsPrompt(returnedEntrance, "SURVEYOR SAFE") &&
                 !ShowsPrompt(returnedEntrance, "MAP KIT RECOVERED") &&
                 !ShowsPrompt(returnedEntrance, "SAFE ROUTE POSTED"),
