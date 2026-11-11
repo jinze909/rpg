@@ -435,8 +435,30 @@ namespace Rpg.Tests.Editor
             float attackReadyDeadline = Time.realtimeSinceStartup + 6f;
             while (!attackButton.interactable && Time.realtimeSinceStartup < attackReadyDeadline)
                 yield return null;
+            // Diagnose ORK's SAVED, real combatant ability state when the
+            // configured base attack is missing or unselectable. Keep the
+            // failure strict: no synthetic combat damage or action bypass.
+            string attackAvailability = string.Join("; ", party.Members.Select((member, index) =>
+            {
+                var baseAttack = member.Abilities.GetCurrentBaseAttack();
+                return "member " + index +
+                    " choosing=" + member.Actions.IsChoosing +
+                    " dead=" + member.Status.IsDead +
+                    " baseAttack=" + (baseAttack != null) +
+                    " canChoose=" + (baseAttack != null && baseAttack.CanChoose(member, true, true)) +
+                    " canUse=" + (baseAttack != null && baseAttack.CanUse(member, true, true)) +
+                    " canChooseNoCost=" + (baseAttack != null && baseAttack.CanChoose(member, false, false));
+            }));
+            string baseAttackApi = string.Join("; ", typeof(CombatantAbilities)
+                .GetMethods(System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.Instance)
+                .Where(method => method.Name.Contains("BaseAttack") ||
+                    method.Name.Contains("Ability"))
+                .Select(method => method.ToString())
+                .Distinct().Take(24));
             Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
-                "A saved ORK player combatant must have a selectable base attack on its turn.");
+                "A saved ORK player combatant must have a selectable base attack on its turn. " +
+                attackAvailability + " | public ORK API: " + baseAttackApi);
             Assert.That(attackButton.interactable, Is.True,
                 "The real UGUI action must enable only for the current ORK attack chooser.");
             float beastHpBeforeAttack = party.Beast.Status[1].GetValue();
