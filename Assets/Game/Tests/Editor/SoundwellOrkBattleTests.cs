@@ -472,14 +472,16 @@ namespace Rpg.Tests.Editor
                 "ORK must resolve the beast's OnMinimum death condition.");
             Assert.That(party.Beast.Status.IsDead, Is.True,
                 "ORK must record the beast as dead before the rescue gate can unlock.");
-            // The test simulates a completed player attack without a UI menu;
-            // use ORK's battle handler to report the encounter's end.
-            ORK.Game.Combatants.EndBattle();
+            // The ORK status transition must now be sufficient to close the
+            // encounter. The test must not manufacture victory by invoking
+            // Combatants.EndBattle() itself.
             float victoryDeadline = Time.realtimeSinceStartup + 8f;
             while (!trial.DirectCombatComplete && Time.realtimeSinceStartup < victoryDeadline)
                 yield return null;
             Assert.That(trial.DirectCombatComplete, Is.True,
-                "The gate must remain locked until ORK reports the beast defeated.");
+                "A real ORK HP death must end the battle without a test-side EndBattle.");
+            Assert.That(party.BattleInProgress, Is.False,
+                "The defeated encounter must release ORK battle participants.");
             yield return null;
             Assert.That(battleHud.activeInHierarchy, Is.False,
                 "The battle-only HUD must disappear after ORK ends the encounter.");
