@@ -191,7 +191,16 @@ namespace Rpg.Soundwell
                 () => { ReturnToBootstrap(); },
                 () => ApplyInput(movement, false, false, false, true),
                 () => ApplyInput(movement, false, false, false, false, true),
-                () => SetActionMenuOpen(false));
+                () =>
+                {
+                    // UGUI Cancel closes the exploration focus menu, but in the
+                    // currently unconfigured ORK battle menu it must provide a
+                    // reachable retreat instead of trapping the player in a turn.
+                    if (DirectCombatStarted)
+                        ReturnToBootstrap();
+                    else
+                        SetActionMenuOpen(false);
+                });
             ResetTrial();
             initialized = true;
         }
