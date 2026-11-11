@@ -37,18 +37,31 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            // The clean dev candidate already proved this exact load path
-            // in Unity. Keep the working direct scene transition rather than
-            // introducing an extra entry-UGUI or additive-scene lifecycle in
-            // the expanded Attack/escort integration test.
-            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
+            // Enter through the real Bootstrap UI owner, matching the proven
+            // Soundwell player path instead of issuing an unrelated scene load.
+            // The previous candidate completed LoadSceneAsync but found no live
+            // trial root at the next statement (CI run 43016048935).
+            SoundwellEntrance entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance, Is.Not.Null,
+                "Bootstrap must have its saved Soundwell entry component.");
+            AsyncOperation load = entrance.OpenTrial();
             Assert.That(load, Is.Not.Null,
-                "The saved Soundwell scene must load from the Bootstrap runtime.");
-            while (!load.isDone)
+                "The real Bootstrap entry must begin loading Soundwell.");
+            float loadDeadline = Time.realtimeSinceStartup + 12f;
+            while (!load.isDone && Time.realtimeSinceStartup < loadDeadline)
                 yield return null;
+            Assert.That(load.isDone, Is.True, "Soundwell entry scene loading timed out.");
 
             GameObject root = GameObject.Find("Soundwell signal trial");
-            Assert.That(root, Is.Not.Null, "The saved Soundwell scene root must exist.");
+            float rootDeadline = Time.realtimeSinceStartup + 8f;
+            while (root == null && Time.realtimeSinceStartup < rootDeadline)
+            {
+                yield return null;
+                root = GameObject.Find("Soundwell signal trial");
+            }
+            Assert.That(root != null, Is.True,
+                "The loaded Soundwell trial root is missing; active scene: " +
+                SceneManager.GetActiveScene().name);
             SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
             SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
             Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
