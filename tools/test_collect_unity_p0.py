@@ -270,6 +270,20 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
                 expected,
             )
+            # An independent Story 003 test also becomes a required real
+            # UnityTest when its source file exists in the final candidate.
+            threat_file = source_root / "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs"
+            threat_file.write_text(
+                "[UnityTest] public IEnumerator "
+                "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping()"
+                " { yield break; }", encoding="utf-8"
+            )
+            expected = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(len(expected), 14)
+            self.assertIn(
+                "Rpg.Tests.Editor.SoundwellThreatPreviewTests.SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping",
+                expected,
+            )
             self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
 
 

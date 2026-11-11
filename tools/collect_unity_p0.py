@@ -55,6 +55,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial":
             "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
     },
+    "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs": {
+        "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":
+            "Rpg.Tests.Editor.SoundwellThreatPreviewTests.SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping",
+    },
 }
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
