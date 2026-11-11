@@ -10,13 +10,13 @@
 | P0-b | 建立脚本化冒烟、同 SHA 验证和基础帧时间、P95、GC 趋势采样。 | 待开发 |
 | G1 | 标题、菜单和 HUD 使用 UGUI，验证键鼠与手柄焦点及分辨率适配。世界渲染走 SpriteRenderer / Tilemap，并检查排序层。 | 待开发 |
 | N1 | 打磨已有[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)，写完一条独立地区线及 M08—M11 连续人物场；检查具体行动、对白与因果。 | 开场初稿已整理，后续待编剧；剧情演出未实现、未试玩 |
-| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，真人试玩待做。当前根据用户最新优先级先推进 M2–M11 迁移，003 后续开发保留为待续接。 |
+| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，真人试玩待做。故事 003 与现代化可按实时依赖、玩家收益和验证条件选择；不再为 M2–M11 强制延后。 |
 
-**用户新决定：当前必须优先持续完成 M1–M11 技术迁移；不得再默认转去推进剧情/故事 003。** M1–M11 仍按实际需求使用 `codex/pending/*` 候选，但**已完成阶段不再永久保留任何分支头**。每次候选实际成功合入 `codex/dev` 后，按[清理规则](production/workflow.md#候选分支清理)仅检查本次候选和直接相关、已完全取代的旧候选，不做全量扫描；日常删除由[自动清理 Actions](.github/workflows/close-merged-pending.yml)核验本次新合入 HEAD 与同 SHA verify 后执行；同一阶段/故事后续从最新 dev 新建不同名称候选，绝不复用已合入旧头（见[历史索引](docs/technical/MIGRATION_STAGE_BRANCHES.md)）。先处理当前 CI/故障，再按 M 编号推进；当前任务状态见 [AI2-STATUS](AI2-STATUS.md)。
+**用户 2026-11-10 新决定：取消 M1–M11 高于玩法、剧情和故事 003 的强制优先级。** M1–M11 技术卡保留为可选择任务，与故事/玩法并列按价值、依赖、活动候选及真实 CI 结果确定开发顺序；任何 M 阶段均非故事开发的统一前置条件。已合入的阶段候选不再永久保留或复用；每次合入 `codex/dev` 后仅复核本次候选及其直接相关已完全取代的旧候选，按[清理规则](production/workflow.md#候选分支清理)及[自动清理 Actions](.github/workflows/close-merged-pending.yml)处理。正在运行的 CI 保持最终候选 SHA 不变并接续，失败时修复，不阻止在无依赖的独立候选上进行玩法、剧情或技术开发；实时任务状态以 [AI2-STATUS](AI2-STATUS.md) 和 GitHub 为准。
 
 ## 现代工作室技术路线（已建 GitHub 实施卡；迁移尚未完成）
 
-**跨轮迁移接力已经立项：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2)，下设 14 张独立执行票 [#3—#16](https://github.com/jinze909/rpg/issues/3)。按总票与下表逐张实施：**先在当前 dev 上整合 Soundwell 的已通过候选，再做 [URP 2D #3](https://github.com/jinze909/rpg/issues/3)，然后做 [New Input System #4](https://github.com/jinze909/rpg/issues/4)**。其余有实际意义的迁移已分别开票，后续 AI 应沿同一编号推进，**不得因为换聊天就丢弃**。用户此前曾提前建立 M1–M11 空预留分支，但现已明确**取消永久保留要求**；阶段候选按独立可验收增量创建/延续，成功合入 dev 后安全关闭并清理；同一阶段后续工作由新名称候选接续。开票或开分支不等于迁移完成，也不得在一个候选中混装多项技术。ORK 原有输入文件保留，但游戏自有输入动作最终只允许 New Input System 一个运行执行者；内核 ORK 兼容由实际 Unity 结果决定。
+**跨轮现代化任务仍已立项，但不构成强制实施队列：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2) 及子票 [#3—#16](https://github.com/jinze909/rpg/issues/3) 留作独立任务与证据来源。只有技术依赖确实存在时才按依赖排序，并允许故事/玩法增量穿插；不得因为换聊天而丢弃正在接力的候选。原 M1–M11 空预留头只是历史记录，不再永久保留；每个候选只负责一次独立可验收增量，合入后安全关闭，后续内容从最新 dev 新建不同名称候选。开票/建分支不代表阶段完成，也不得混装多项技术或让 ORK 与新系统并行控制同一操作。
 
 **本轮技术先行证据：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。M2 Soundwell New Input System gameplay adapter 已在 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 合入 `codex/dev`，同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；[artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。003 的玩家战斗菜单/攻击、两种完整救援策略与真人试玩仍是后续验收，不可冒充整卡完成。
 
@@ -39,7 +39,7 @@
 | M12 · Addressables | 仅大型/远程资源管理需求成立后考虑 | 暂缓；目前保持直接引用 |
 | 不列为必修 | DOTS/ECS、HDRP、付费 Asset Store 工具、商业云服务、ORK 升级 | 不采用，除非用户日后另作明确决定 |
 
-**顺序（用户新优先级）:** 先处理阻塞当前迁移的 P2/003 编译、测试或关键玩家路径故障，然后优先完成 M2→M3→…→M11；独立剧情功能暂不抢占迁移主线。完成每个独立技术增量时按 [同 SHA 验收](production/workflow.md#同-sha-验收) 和新技术文档验证。文档清单不是授权一次安装上述全部包，更不能因文档完成而把技术卡标成绿色。
+**选题原则（不再迁移优先）:** 结合实际玩家收益、当前故障、可独立验收条件选择 M1–M11、故事 003 或其他任务；技术迁移仅按确有必要的依赖顺序执行，不要求先全部迁移完再开发剧情或玩法。对正在受测的候选保持 SHA 不变，CI 失败须修复、通过须验收；同时允许推进独立候选。完成每个技术或玩法增量均按 [同 SHA 验收](production/workflow.md#同-sha-验收) 验证。技术清单不等于一次安装所有包的授权，文档完成也不等于技术卡通过。
 
 ## 冻结范围
 
