@@ -20,6 +20,9 @@ namespace Rpg.Soundwell
         private Text footerText;
         private Text outcomeText;
         private Button sfxButton;
+        private Button languageButton;
+        private RectTransform languageRect;
+        private Text languageText;
         private RectTransform sfxRect;
         private Text sfxText;
         private Font englishFont;
@@ -95,6 +98,23 @@ namespace Rpg.Soundwell
             sfxButton.onClick.AddListener(ToggleSfx);
             sfxText = SoundwellView.AddLabel(sfxRect, "", 16,
                 new Color(0.80f, 0.91f, 0.93f), Vector2.zero, new Vector2(314f, 36f));
+
+            // Let keyboard and gamepad users select their language BEFORE
+            // entering the trial. This uses the same saved StringTables and
+            // PlayerPrefs-backed toggle as the trial's existing UGUI button.
+            var languageObject = new GameObject("Soundwell entry Language button",
+                typeof(RectTransform), typeof(Image), typeof(Button));
+            languageObject.transform.SetParent(canvas.transform, false);
+            languageRect = (RectTransform)languageObject.transform;
+            languageRect.anchorMin = languageRect.anchorMax = new Vector2(0.5f, 0.5f);
+            languageRect.anchoredPosition = new Vector2(0f, 160f);
+            languageRect.sizeDelta = new Vector2(204f, 40f);
+            languageObject.GetComponent<Image>().color = new Color(0.15f, 0.24f, 0.30f);
+            languageButton = languageObject.GetComponent<Button>();
+            languageButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
+            languageButton.onClick.AddListener(SoundwellUiLocalization.Toggle);
+            languageText = SoundwellView.AddLabel(languageRect, "", 16,
+                new Color(0.80f, 0.91f, 0.93f), Vector2.zero, new Vector2(198f, 36f));
             titleText.resizeTextForBestFit = true;
             titleText.resizeTextMinSize = 18;
             titleText.resizeTextMaxSize = 32;
@@ -135,6 +155,8 @@ namespace Rpg.Soundwell
             footerText.text = SoundwellUiLocalization.Get("entry.footer");
             RefreshReturnOutcome(true);
             RefreshSfxText();
+            languageText.font = font;
+            languageText.text = SoundwellUiLocalization.Get("action.language");
         }
 
         private void ToggleSfx()
@@ -185,6 +207,9 @@ namespace Rpg.Soundwell
             outcomeText.fontSize = compact ? 15 : 17;
             sfxRect.sizeDelta = new Vector2(compact ? 300f : 320f, 40f);
             sfxText.rectTransform.sizeDelta = new Vector2(compact ? 294f : 314f, 36f);
+            languageRect.anchoredPosition = new Vector2(0f, compact ? 181f : 160f);
+            languageRect.sizeDelta = new Vector2(compact ? 186f : 204f, 40f);
+            languageText.rectTransform.sizeDelta = new Vector2(compact ? 180f : 198f, 36f);
         }
 
         private void Update()
@@ -199,11 +224,14 @@ namespace Rpg.Soundwell
             bool entryRequested = SoundwellControlFrame.EnterRequested(
                 SoundwellInputAdapter.InteractPressed(), false);
             // Pad A is both Entry/Interact and the UGUI Submit button.
-            // When the player selected the SFX setting, let UGUI own A;
-            // only the dedicated F2 shortcut may bypass that focused button.
-            bool sfxFocused = EventSystem.current != null &&
-                EventSystem.current.currentSelectedGameObject == sfxButton.gameObject;
-            if (entryRequested && (!sfxFocused || SoundwellInputAdapter.EntryKeyboardShortcutPressed()))
+            // When an entry setting has UGUI focus, Pad A is Submit and
+            // must NEVER also load the trial. The dedicated F2 shortcut may
+            // still enter directly regardless of the current selection.
+            GameObject selected = EventSystem.current != null
+                ? EventSystem.current.currentSelectedGameObject : null;
+            bool settingFocused = selected == sfxButton.gameObject ||
+                selected == languageButton.gameObject;
+            if (entryRequested && (!settingFocused || SoundwellInputAdapter.EntryKeyboardShortcutPressed()))
                 OpenTrial();
         }
 

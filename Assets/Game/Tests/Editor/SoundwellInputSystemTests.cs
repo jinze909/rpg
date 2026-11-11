@@ -153,6 +153,10 @@ namespace Rpg.Tests.Editor
             input.Setup();
             bool hadMutePreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
             int previousMutePreference = PlayerPrefs.GetInt(SoundwellAudioBus.MutePreferenceKey, 0);
+            bool hadLanguagePreference = PlayerPrefs.HasKey(SoundwellUiLocalization.LanguagePreferenceKey);
+            string previousLanguagePreference = PlayerPrefs.GetString(
+                SoundwellUiLocalization.LanguagePreferenceKey, string.Empty);
+            string previousLanguage = SoundwellUiLocalization.Language;
             try
             {
                 Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
@@ -182,9 +186,47 @@ namespace Rpg.Tests.Editor
                     "The Entry UI must survive a gamepad settings action.");
                 input.Release(gamepad.buttonSouth);
                 yield return null;
+
+                // This is a second REAL focused UGUI setting, rather than a
+                // synthetic locale setter. Gamepad A must toggle the saved
+                // language without simultaneously activating Entry/Interact.
+                var languageButton = entry.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "Soundwell entry Language button");
+                Assert.That(languageButton.navigation.mode, Is.EqualTo(Navigation.Mode.Automatic));
+                events.SetSelectedGameObject(languageButton.gameObject);
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(languageButton.gameObject));
+                string languageBefore = SoundwellUiLocalization.Language;
+                input.Press(gamepad.buttonSouth);
+                yield return null;
+                yield return null;
+                string languageAfter = languageBefore == SoundwellUiLocalization.English
+                    ? SoundwellUiLocalization.Chinese : SoundwellUiLocalization.English;
+                Assert.That(SoundwellUiLocalization.Language, Is.EqualTo(languageAfter),
+                    "Gamepad Submit must toggle the actual entry-screen locale button.");
+                Assert.That(PlayerPrefs.GetString(SoundwellUiLocalization.LanguagePreferenceKey),
+                    Is.EqualTo(languageAfter), "The player choice must persist.");
+                Assert.That(languageButton.GetComponentInChildren<Text>().text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("action.language")));
+                Assert.That(entry.GetComponentsInChildren<Text>(true).Any(label =>
+                    label.text == SoundwellUiLocalization.Get("entry.title")), Is.True,
+                    "The entry heading must refresh without reloading the scene.");
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(initialScene),
+                    "Gamepad Submit on Language must not also start the trial.");
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(languageButton.gameObject),
+                    "Changing language must keep focus on its setting button.");
+                input.Release(gamepad.buttonSouth);
+                yield return null;
             }
             finally
             {
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                if (hadLanguagePreference)
+                    PlayerPrefs.SetString(SoundwellUiLocalization.LanguagePreferenceKey,
+                        previousLanguagePreference);
+                else
+                    PlayerPrefs.DeleteKey(SoundwellUiLocalization.LanguagePreferenceKey);
                 var mixer = Resources.Load<UnityEngine.Audio.AudioMixer>(SoundwellAudioBus.MixerResource);
                 if (mixer != null)
                     SoundwellAudioBus.SetMuted(mixer, previousMutePreference != 0);
