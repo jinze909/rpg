@@ -124,12 +124,18 @@ namespace Rpg.Soundwell
         {
             var systems = UnityEngine.Object.FindObjectsByType<EventSystem>();
             EventSystem current = EventSystem.current;
-            EventSystem eventSystem = current != null &&
-                current.GetComponent<InputSystemUIInputModule>() != null
-                    ? current
-                    : systems.FirstOrDefault(system =>
-                        system.GetComponent<InputSystemUIInputModule>() != null) ??
-                      current ?? systems.FirstOrDefault();
+            // Keep the Soundwell-owned module when a later ORK/Makinom
+            // EventSystem temporarily becomes EventSystem.current. Picking
+            // current first would destroy our own UI input owner and could
+            // lose UGUI button selection during an encounter transition.
+            EventSystem eventSystem = systems.FirstOrDefault(system =>
+                    system.name == "Soundwell EventSystem" &&
+                    system.GetComponent<InputSystemUIInputModule>() != null) ??
+                (current != null && current.GetComponent<InputSystemUIInputModule>() != null
+                    ? current : null) ??
+                systems.FirstOrDefault(system =>
+                    system.GetComponent<InputSystemUIInputModule>() != null) ??
+                current ?? systems.FirstOrDefault();
 
             if (eventSystem == null)
             {

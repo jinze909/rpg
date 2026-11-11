@@ -12,6 +12,8 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering;
 using UnityEngine.TestTools;
 
@@ -181,6 +183,36 @@ namespace Rpg.Tests.Editor
             ValidateConfiguration();
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return AssertFrameworkInitialization();
+            // ORK can bring a second EventSystem to the foreground. Keep the
+            // existing Soundwell-owned UGUI input owner, even when the later
+            // EventSystem claims EventSystem.current during a battle transition.
+            var canonical = UnityEngine.Object.FindObjectsByType<EventSystem>()
+                .FirstOrDefault(system => system.name == "Soundwell EventSystem");
+            if (canonical == null)
+            {
+                var root = new GameObject("Soundwell EventSystem", typeof(EventSystem),
+                    typeof(InputSystemUIInputModule));
+                canonical = root.GetComponent<EventSystem>();
+            }
+            Assert.That(SoundwellInputAdapter.EnsureEventSystem(null), Is.SameAs(canonical));
+            var rival = new GameObject("ORK late EventSystem",
+                typeof(EventSystem), typeof(InputSystemUIInputModule))
+                .GetComponent<EventSystem>();
+            try
+            {
+                EventSystem.current = rival;
+                Assert.That(EventSystem.current, Is.SameAs(rival));
+                Assert.That(SoundwellInputAdapter.EnsureEventSystem(null), Is.SameAs(canonical),
+                    "A late ORK UI EventSystem must not replace the Soundwell UI owner.");
+                Assert.That(EventSystem.current, Is.SameAs(canonical));
+                Assert.That(canonical.GetComponent<InputSystemUIInputModule>().enabled, Is.True);
+                Assert.That(rival.enabled, Is.False,
+                    "The conflicting ORK EventSystem must be retired.");
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(rival.gameObject);
+            }
             Debug.Log("RPG_BOOTSTRAP_PLAY_VALIDATED:second");
             yield return new ExitPlayMode();
             Assert.That(EditorApplication.isPlaying, Is.False);
