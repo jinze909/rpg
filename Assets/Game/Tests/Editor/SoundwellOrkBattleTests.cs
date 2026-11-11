@@ -61,10 +61,18 @@ namespace Rpg.Tests.Editor
             Assert.That(root != null, Is.True,
                 "The saved Soundwell root must be alive after the scene load. Active scene: " +
                 SceneManager.GetActiveScene().name);
-            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
-            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
-            Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
-            Assert.That(trial, Is.Not.Null, "The live scene must own its rescue route state.");
+            // Query the live components directly. Unity can transition its
+            // scene-root wrapper during a load in the Editor test runner;
+            // asserting the owning scene makes any missing saved component
+            // a precise acceptance failure rather than a null dereference.
+            SoundwellOrkParty party = Object.FindFirstObjectByType<SoundwellOrkParty>();
+            SoundwellTrial trial = Object.FindFirstObjectByType<SoundwellTrial>();
+            Assert.That(party != null, Is.True, "The active trial must own a live ORK party.");
+            Assert.That(trial != null, Is.True, "The active trial must own a live Makinom controller.");
+            Assert.That(party.gameObject.scene.name, Is.EqualTo(SoundwellEntrance.SceneName));
+            Assert.That(trial.gameObject.scene.name, Is.EqualTo(SoundwellEntrance.SceneName));
+            Assert.That(party.gameObject, Is.SameAs(trial.gameObject),
+                "The ORK party and the rescue route must belong to the same saved root.");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
             while (!party.IsReady && string.IsNullOrEmpty(party.InitializationError) &&
