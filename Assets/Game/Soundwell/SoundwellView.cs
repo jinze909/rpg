@@ -18,10 +18,15 @@ namespace Rpg.Soundwell
         private readonly Sprite leaderWalkPixelSprite;
         private readonly SpriteRenderer leaderVisualRenderer;
         private readonly Sprite beastPixelSprite;
+        private readonly Sprite surveyorPixelSprite;
+        private readonly Sprite surveyorWalkPixelSprite;
+        private readonly SpriteRenderer surveyorPixelRenderer;
         private readonly SpriteRenderer beastVisualRenderer;
         private readonly Texture2D leaderPixelTexture;
         private readonly Texture2D leaderWalkPixelTexture;
         private readonly Texture2D beastPixelTexture;
+        private readonly Texture2D surveyorPixelTexture;
+        private readonly Texture2D surveyorWalkPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
@@ -96,6 +101,10 @@ namespace Rpg.Soundwell
                 LeaderWalkPixels, out leaderWalkPixelTexture);
             beastPixelSprite = CreatePixelSprite("PLACEHOLDER 16px beast",
                 BeastPixels, out beastPixelTexture);
+            surveyorPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor idle",
+                SurveyorPixels, out surveyorPixelTexture);
+            surveyorWalkPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor walk",
+                SurveyorWalkPixels, out surveyorWalkPixelTexture);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
 
@@ -180,10 +189,11 @@ namespace Rpg.Soundwell
             surveyorFigure = new GameObject("Surveyor figure").transform;
             surveyorFigure.SetParent(root, false);
             surveyorFigure.position = SoundwellTrial.SurveyorPosition;
-            Plate(surveyorFigure, "PLACEHOLDER trapped surveyor", Vector2.zero,
-                new Vector2(0.58f, 0.74f), Ink, 3);
-            Plate(surveyorFigure, "Surveyor face", new Vector2(0f, 0.14f),
-                new Vector2(0.25f, 0.15f), Gold, 4);
+            // The actual survivor is one transparent, point-filtered 16px
+            // character, not scaled whiteTexture plates plus a separate face.
+            surveyorPixelRenderer = Plate(surveyorFigure, "PLACEHOLDER trapped surveyor",
+                Vector2.zero, Vector2.one, Ink, 3);
+            surveyorPixelRenderer.sprite = surveyorPixelSprite;
             upperBoardMarker = Plate(root, "PLACEHOLDER upper load-bearing plank",
                 SoundwellTrial.UpperBoardPosition, new Vector2(1.65f, 0.3f),
                 new Color(0.30f, 0.37f, 0.40f), 1);
@@ -571,6 +581,8 @@ namespace Rpg.Soundwell
         public void ResetSurveyor()
         {
             surveyorFigure.position = SoundwellTrial.SurveyorPosition;
+            surveyorPixelRenderer.sprite = surveyorPixelSprite;
+            surveyorPixelRenderer.flipX = false;
             waitingForEscortLeader = false;
             escortLine.enabled = false;
             falseTrailMarker.enabled = true;
@@ -726,8 +738,18 @@ namespace Rpg.Soundwell
             else
                 routeTarget = plankSecured ? SoundwellTrial.UpperBoardPosition
                     : SoundwellTrial.SurveyorPosition;
-            surveyorFigure.position = Vector3.MoveTowards(surveyorFigure.position,
+            Vector3 previousSurveyorPosition = surveyorFigure.position;
+            surveyorFigure.position = Vector3.MoveTowards(previousSurveyorPosition,
                 new Vector3(routeTarget.x, routeTarget.y, 0f), 2.25f * Time.deltaTime);
+            // Render only: use the *actual* escort displacement for both facing
+            // and the pixel-step frame; no second NPC motor or route state.
+            Vector3 surveyorStep = surveyorFigure.position - previousSurveyorPosition;
+            if (Mathf.Abs(surveyorStep.x) > 0.001f)
+                surveyorPixelRenderer.flipX = surveyorStep.x < 0f;
+            bool surveyorMoving = surveyorStep.sqrMagnitude > 0.000001f;
+            surveyorPixelRenderer.sprite = surveyorMoving &&
+                Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1
+                ? surveyorWalkPixelSprite : surveyorPixelSprite;
             escortLine.enabled = surveyorLineTied && surveyorEscorting && !rescueComplete;
             if (escortLine.enabled)
             {
@@ -940,9 +962,13 @@ namespace Rpg.Soundwell
             Object.Destroy(leaderPixelSprite);
             Object.Destroy(leaderWalkPixelSprite);
             Object.Destroy(beastPixelSprite);
+            Object.Destroy(surveyorPixelSprite);
+            Object.Destroy(surveyorWalkPixelSprite);
             Object.Destroy(leaderPixelTexture);
             Object.Destroy(leaderWalkPixelTexture);
             Object.Destroy(beastPixelTexture);
+            Object.Destroy(surveyorPixelTexture);
+            Object.Destroy(surveyorWalkPixelTexture);
             Object.Destroy(ringMaterial);
             Object.Destroy(clearBell);
             Object.Destroy(mutedBell);
@@ -1025,6 +1051,47 @@ namespace Rpg.Soundwell
             ".####......####.",
             ".###........###.",
             "................",
+            "................",
+        };
+
+        // Worn cap, map-satchel coat, and boots: one whole 16px silhouette.
+        private static readonly string[] SurveyorPixels =
+        {
+            "................",
+            ".....######.....",
+            "....###++###....",
+            "....##++++##....",
+            "....##++++##....",
+            ".....######.....",
+            "......####......",
+            "....########....",
+            "...###++++###...",
+            "...###+##+###...",
+            "....########....",
+            ".....######.....",
+            ".....##..##.....",
+            ".....##..##.....",
+            "....###..###....",
+            "................",
+        };
+
+        private static readonly string[] SurveyorWalkPixels =
+        {
+            "................",
+            ".....######.....",
+            "....###++###....",
+            "....##++++##....",
+            "....##++++##....",
+            ".....######.....",
+            "......####......",
+            "....########....",
+            "...###++++###...",
+            "...###+##+###...",
+            "....########....",
+            ".....######.....",
+            ".....##..##.....",
+            "....###...##....",
+            "...###.....###..",
             "................",
         };
 

@@ -255,6 +255,25 @@ namespace Rpg.Tests.Editor
             }
             Assert.That(pixelLeader.transform.parent, Is.SameAs(visual.transform));
             Assert.That(pixelBeast.transform.parent, Is.SameAs(party.Beast.GameObject.transform));
+            // Story 003's person to rescue must use the same authored 16px
+            // character grammar, not whiteTexture rectangles and a floating face.
+            var surveyorFigure = GameObject.Find("Surveyor figure");
+            var pixelSurveyor = GameObject.Find("PLACEHOLDER trapped surveyor")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(surveyorFigure, Is.Not.Null);
+            Assert.That(pixelSurveyor, Is.Not.Null);
+            Assert.That(pixelSurveyor.transform.parent, Is.SameAs(surveyorFigure.transform));
+            Assert.That(pixelSurveyor.sprite, Is.Not.Null);
+            Assert.That(pixelSurveyor.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(pixelSurveyor.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(pixelSurveyor.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(pixelSurveyor.sprite.texture.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
+            Assert.That(pixelSurveyor.transform.localScale, Is.EqualTo(Vector3.one));
+            var surveyorPixels = pixelSurveyor.sprite.texture.GetPixels32();
+            Assert.That(surveyorPixels.Count(pixel => pixel.a > 0), Is.GreaterThan(65));
+            Assert.That(surveyorPixels.Count(pixel => pixel.a == 0), Is.GreaterThan(40));
+            Assert.That(GameObject.Find("Surveyor face"), Is.Null,
+                "The surveyor's face is embedded in his one strict pixel silhouette.");
             // Point-filtered pixels must not spin diagonally when the real
             // beast actor aims toward its sound target. Verify both world
             // headings in the running saved scene; no second AI transform.
