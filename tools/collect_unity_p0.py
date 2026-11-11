@@ -31,6 +31,19 @@ ORK_UI_TESTS = {
     "Rpg.Tests.Editor.MakinomUiIntegrationSurfaceTests.UnityUiModuleExposesItsSystemSettingsAndCreationCommands",
 }
 ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
+# Additional end-to-end tests are introduced in separate Story 003 candidates.
+# Require every test actually declared in the clean candidate; never accept
+# partial/skipped results or silently disregard a new UnityTest.
+ADDITIONAL_SOUNDWELL_TESTS = {
+    "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
+        "BattleBackCancelEventRetreatsAndReleasesOrkParticipants":
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleBackCancelEventRetreatsAndReleasesOrkParticipants",
+    },
+    "Assets/Game/Tests/Editor/SoundwellDirectVictoryEscortTests.cs": {
+        "OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival":
+            "Rpg.Tests.Editor.SoundwellDirectVictoryEscortTests.OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival",
+    },
+}
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
     "RPG_SOUNDWELL_LOCALIZATION_PLAY_VALIDATED",
@@ -41,13 +54,26 @@ SOUNDWELL_MARKERS = (
 SOURCE_PATHS = ("Assets", "Packages", "ProjectSettings")
 
 
-def expected_tests_for(mode, has_soundwell_scene):
-    """Match the exact test filter used by prepare versus full clean verify."""
+def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
+    """Match the actual candidate's declared UnityTest cases, not a stale fixed count."""
     expected = set(EXPECTED_TESTS)
     if mode == "verify" and has_soundwell_scene:
         expected.update(SOUNDWELL_TESTS)
         expected.update(INPUT_SYSTEM_TESTS)
         expected.update(ORK_UI_TESTS)
+        for relative_path, declared_tests in ADDITIONAL_SOUNDWELL_TESTS.items():
+            path = source_root / relative_path
+            if not path.is_file():
+                continue
+            content = path.read_text(encoding="utf-8")
+            for method_name, test_name in declared_tests.items():
+                signature = (
+                    r"\[UnityTest\]\s*"
+                    r"(?:\[[^\]]+\]\s*)*"
+                    r"public\s+IEnumerator\s+" + re.escape(method_name) + r"\s*\("
+                )
+                if re.search(signature, content):
+                    expected.add(test_name)
     return expected
 
 

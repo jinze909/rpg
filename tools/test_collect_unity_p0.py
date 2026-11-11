@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Regression checks for Unity P0 log acceptance and compiler failures."""
 import unittest
+import tempfile
+from pathlib import Path
 
 from collect_unity_p0 import (
     EXPECTED_TESTS,
@@ -199,9 +201,45 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
     def test_prepare_and_verify_expect_only_the_tests_the_workflow_runs(self):
         self.assertEqual(len(EXPECTED_TESTS), 4)
         self.assertEqual(expected_tests_for("prepare", True), EXPECTED_TESTS)
-        verify_tests = expected_tests_for("verify", True)
-        self.assertEqual(verify_tests, EXPECTED_TESTS | SOUNDWELL_TESTS | INPUT_SYSTEM_TESTS | ORK_UI_TESTS)
-        self.assertEqual(len(verify_tests), 9)
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            baseline = EXPECTED_TESTS | SOUNDWELL_TESTS | INPUT_SYSTEM_TESTS | ORK_UI_TESTS
+            verify_tests = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(verify_tests, baseline)
+            self.assertEqual(len(verify_tests), 9)
+
+            battle_file = source_root / "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs"
+            battle_file.parent.mkdir(parents=True)
+            battle_file.write_text(
+                "[UnityTest] public IEnumerator "
+                "BattleBackCancelEventRetreatsAndReleasesOrkParticipants() { yield break; }",
+                encoding="utf-8",
+            )
+            added = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(
+                added,
+                baseline | {
+                    "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleBackCancelEventRetreatsAndReleasesOrkParticipants",
+                },
+            )
+            self.assertEqual(len(added), 10)
+
+            direct_file = source_root / "Assets/Game/Tests/Editor/SoundwellDirectVictoryEscortTests.cs"
+            direct_file.write_text(
+                "[UnityTest] public IEnumerator "
+                "OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival() { yield break; }",
+                encoding="utf-8",
+            )
+            self.assertEqual(len(expected_tests_for("verify", True, source_root=source_root)), 11)
+            self.assertEqual(
+                expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS
+            )
+            # A method without UnityTest cannot satisfy the acceptance contract.
+            direct_file.write_text(
+                "public IEnumerator OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival()"
+                " { yield break; }", encoding="utf-8"
+            )
+            self.assertEqual(len(expected_tests_for("verify", True, source_root=source_root)), 10)
 
 
 class CompilerLogTests(unittest.TestCase):
