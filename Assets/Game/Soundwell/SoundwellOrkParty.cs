@@ -157,6 +157,13 @@ namespace Rpg.Soundwell
             }
             if (attackLevel.active == null)
                 attackLevel.active = new ActiveAbility();
+            // The vendor starter battle system can route actions through
+            // system-wide schematics that never calculate their outcomes.
+            // Override those for this one unanimated test attack: ORK's
+            // built-in no-animation path calculates user/target changes.
+            // Do not change vendor settings or apply HP directly.
+            attackLevel.active.replaceSystemActionSchematics = true;
+            attackLevel.active.systemActionSchematics = new BattleSystemActionSchematicsSettings();
             // A selectable ORK base-attack shortcut alone deals no damage:
             // the frozen starter ability has no target status changes. Give
             // this Soundwell prototype a whole HP status step so that ORK's
