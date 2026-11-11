@@ -52,49 +52,32 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(load.isDone, Is.True, "Soundwell entry scene loading timed out.");
 
-            // Enumerate root objects from the ACTIVE saved Soundwell scene.
-            // A global GameObject.Find can observe an object during a pending
-            // scene transition; the last three failed runs all stopped at the
-            // first GetComponent after that lookup, before the attack was used.
-            // On failure report the actual active scene and its root names.
+            // Resolve scene root and both required components synchronously,
+            // within the same player-loop iteration. Earlier CI attempts
+            // retained a GameObject local across a UnityTest yield and then
+            // failed on GetComponent before any attack assertion could run.
             GameObject root = null;
+            SoundwellOrkParty party = null;
+            SoundwellTrial trial = null;
             float sceneDeadline = Time.realtimeSinceStartup + 8f;
             while (Time.realtimeSinceStartup < sceneDeadline)
             {
-                Scene active = SceneManager.GetActiveScene();
-                if (active.IsValid() && active.isLoaded &&
-                    active.name == SoundwellEntrance.SceneName)
-                    root = active.GetRootGameObjects()
-                        .FirstOrDefault(item => item != null &&
-                            item.name == "Soundwell signal trial");
-                if (root != null)
+                if (TryFindLiveTrialOwners(out root, out party, out trial))
                     break;
                 yield return null;
             }
-            Scene currentScene = SceneManager.GetActiveScene();
-            if (root == null)
+            if (root == null || party == null || trial == null)
             {
-                string loadedRoots = currentScene.IsValid() && currentScene.isLoaded
-                    ? string.Join(", ", currentScene.GetRootGameObjects()
+                Scene activeScene = SceneManager.GetActiveScene();
+                string names = activeScene.IsValid() && activeScene.isLoaded
+                    ? string.Join(", ", activeScene.GetRootGameObjects()
                         .Where(item => item != null).Select(item => item.name))
-                    : "(scene not loaded)";
-                Assert.Fail("Soundwell's saved root was not present in its active scene. " +
-                    "Active scene: " + currentScene.name + "; roots: " + loadedRoots);
+                    : "(unloaded)";
+                Assert.Fail("No active Soundwell trial with its two real owner components; " +
+                    "scene=" + activeScene.name + ", roots=" + names +
+                    ", trial=" + (trial != null) + ", party=" + (party != null));
                 yield break;
             }
-
-            // One further player-loop update allows the saved root's Start to
-            // attach its party/view before the expanded combat assertions.
-            yield return null;
-            if (root == null)
-            {
-                Assert.Fail("Soundwell root was destroyed during scene initialization.");
-                yield break;
-            }
-            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
-            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
-            Assert.That(party, Is.Not.Null, "The saved scene must own its ORK party.");
-            Assert.That(trial, Is.Not.Null, "The saved scene must own its Makinom rescue trial.");
             Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
@@ -813,6 +796,36 @@ namespace Rpg.Tests.Editor
                 " scalarProperties={" + string.Join(", ", properties) +
                 "} scalarFields={" + string.Join(", ", fields) +
                 "} publicMethods={" + string.Join(", ", usefulMethods) + "}";
+        }
+
+        // Keep Unity component lookup outside the large UnityTest iterator.
+        // No Unity Object reference is carried across the wait's yield before
+        // its components are resolved. This also prevents a stale Bootstrap
+        // object from masquerading as the live persisted Soundwell scene.
+        private static bool TryFindLiveTrialOwners(
+            out GameObject root, out SoundwellOrkParty party, out SoundwellTrial trial)
+        {
+            root = null;
+            party = null;
+            trial = null;
+            Scene active = SceneManager.GetActiveScene();
+            if (!active.IsValid() || !active.isLoaded ||
+                active.name != SoundwellEntrance.SceneName)
+                return false;
+            foreach (GameObject candidate in active.GetRootGameObjects())
+            {
+                if (candidate == null || candidate.name != "Soundwell signal trial")
+                    continue;
+                SoundwellOrkParty liveParty = candidate.GetComponent<SoundwellOrkParty>();
+                SoundwellTrial liveTrial = candidate.GetComponent<SoundwellTrial>();
+                if (liveParty == null || liveTrial == null)
+                    continue;
+                root = candidate;
+                party = liveParty;
+                trial = liveTrial;
+                return true;
+            }
+            return false;
         }
 
         [UnityTest, Order(20)]
