@@ -92,8 +92,18 @@ namespace Rpg.Tests.Editor
             yield return new WaitForSeconds(0.5f);
             Assert.That(countdown.transform.localScale.x, Is.LessThan(initialWidth),
                 "The drawn countdown must shrink with the real search clock.");
-            yield return new WaitForSeconds(SoundwellTrial.SearchDurationSeconds);
-            Assert.That(trial.IsSearching, Is.False);
+            // A fixed WaitForSeconds can resume on the same player-loop
+            // update as the final countdown frame. Give the real scene's
+            // LateUpdate a bounded chance to expire the actual Makinom state,
+            // but fail if the search never ends (rather than faking completion).
+            float expiryDeadline = Time.realtimeSinceStartup +
+                SoundwellTrial.SearchDurationSeconds + 5f;
+            while (trial.IsSearching && Time.realtimeSinceStartup < expiryDeadline)
+                yield return null;
+            Assert.That(trial.IsSearching, Is.False,
+                "The real beast must stop searching after the bell is wrapped; " +
+                "remaining fraction: " + trial.SearchRemainingFraction);
+            yield return null; // UI refresh consumes the resolved Makinom state.
             Assert.That(trial.IsWrapped, Is.True);
             Assert.That(intent.enabled, Is.False,
                 "The beast must stop advertising an expired search target.");
