@@ -286,6 +286,22 @@ MonoBehaviour:
     m_Localized: "先穿过打开的闸门，测路人正等你带路。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267344
+    m_Localized: "测路人：停下！下面那块木板撑不住你！"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267345
+    m_Localized: "测路人：上面那块木板能承受两个人。我的路标误导了你，我会把它拆掉。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267346
+    m_Localized: "测路人：上面的木板固定好了，我现在能过去——别把我丢在这里。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267347
+    m_Localized: "测路人：下面的木板断了！来问我上面哪条路安全。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

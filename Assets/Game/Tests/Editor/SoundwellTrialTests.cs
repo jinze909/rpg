@@ -240,10 +240,37 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.AtSurveyor, Is.True);
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.HasSurveyorClue, Is.True);
+            // The actual survivor's warning changes language without
+            // rewriting Makinom's plank evidence or advancing the rescue.
+            var plankSpeech = GameObject.Find("Soundwell surveyor response")?.GetComponent<Text>();
+            Assert.That(plankSpeech, Is.Not.Null);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(plankSpeech.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.plank_clue")));
+            Assert.That(plankSpeech.text, Does.Contain("路标"));
+            Assert.That(SoundwellUiLocalization.Get("surveyor.plank_unsafe"),
+                Does.Contain("撑不住"));
+            Assert.That(SoundwellUiLocalization.Get("surveyor.plank_snapped"),
+                Does.Contain("木板断了"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(plankSpeech.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.plank_clue")));
             MoveTestLeader(playerBody, SoundwellTrial.UpperBoardPosition);
             Assert.That(trial.CanSecurePlank, Is.True);
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.PlankSecured, Is.True);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(plankSpeech.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.plank_braced")));
+            Assert.That(plankSpeech.text, Does.Contain("固定好了"));
+            Assert.That(trial.PlankSecured, Is.True);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(plankSpeech.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.plank_braced")));
 
             deadline = Time.realtimeSinceStartup + 10f;
             while (!trial.CanEscortSurveyor && Time.realtimeSinceStartup < deadline)

@@ -290,6 +290,22 @@ MonoBehaviour:
     m_Localized: "Lead through the open gate first. The surveyor is waiting for you."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267344
+    m_Localized: "SURVEYOR: Stop! The lower plank won't hold you."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267345
+    m_Localized: "SURVEYOR: That upper board holds two. My marker misled you; I'll take it down."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267346
+    m_Localized: "SURVEYOR: The upper plank holds. I can cross now—don't leave me here."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267347
+    m_Localized: "SURVEYOR: The lower plank snapped! Ask me about the safe upper route."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

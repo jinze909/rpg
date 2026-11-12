@@ -991,12 +991,12 @@ namespace Rpg.Soundwell
                                 ? SoundwellUiLocalization.Get("surveyor.wait_at_plank")
                                 : SoundwellUiLocalization.Get("surveyor.following")
                 : plankSecured
-                    ? "SURVEYOR: The upper plank holds. I can cross now—don't leave me here."
+                    ? SoundwellUiLocalization.Get("surveyor.plank_braced")
                     : hasSurveyorClue
-                        ? "SURVEYOR: That upper board holds two. My marker misled you; I'll take it down."
-                        : atSurveyor ? "SURVEYOR: Stop! The lower plank won't hold you." : "";
+                        ? SoundwellUiLocalization.Get("surveyor.plank_clue")
+                        : atSurveyor ? SoundwellUiLocalization.Get("surveyor.plank_unsafe") : "";
             if (lowerPlankBroken && !hasSurveyorClue && !surveyorEscorting && !rescueComplete)
-                speech = "SURVEYOR: The lower plank snapped! Ask me about the safe upper route.";
+                speech = SoundwellUiLocalization.Get("surveyor.plank_snapped");
             if (speech.Length == 0 && atCartEvidence && cartObserved)
                 speech = "OBSERVED: The abandoned cart was dragged to the gate; its tracks lead inside.";
             else if (speech.Length == 0 && atRopeEvidence && ropeObserved)
