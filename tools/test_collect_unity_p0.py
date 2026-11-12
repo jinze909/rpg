@@ -190,6 +190,27 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             self.assertIn(full_name, expected_tests_for("verify", True, source_root))
             self.assertNotIn(full_name, expected_tests_for("prepare", True, source_root))
 
+    def test_real_carried_bell_knockback_is_an_exact_candidate_unitytest(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case_file = source_root / "Assets/Game/Tests/Editor/SoundwellTrialTests.cs"
+            case_file.parent.mkdir(parents=True)
+            method = "BeastKnockbackKeepsCarriedBellWithRescuerOnContactFrame"
+            case_file.write_text(
+                "[UnityTest] public IEnumerator " + method +
+                "() { yield break; }", encoding="utf-8",
+            )
+            full_name = "Rpg.Tests.Editor.SoundwellTrialTests." + method
+            self.assertIn(full_name, expected_tests_for("verify", True, source_root))
+            self.assertNotIn(full_name, expected_tests_for("prepare", True, source_root))
+            # Removing the real UnityTest attribute cannot satisfy the
+            # manifest merely by leaving the method name in source text.
+            case_file.write_text(
+                "public IEnumerator " + method + "() { yield break; }",
+                encoding="utf-8",
+            )
+            self.assertNotIn(full_name, expected_tests_for("verify", True, source_root))
+
     def test_ork_battle_test_and_runtime_marker_are_required(self):
         self.assertIn(
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.ThreePlayerCombatantsEnterOneOrkTurnBasedBattle",
