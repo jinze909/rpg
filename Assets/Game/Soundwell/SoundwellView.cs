@@ -24,6 +24,8 @@ namespace Rpg.Soundwell
         private readonly Sprite bellStandPixelSprite;
         private readonly Sprite attackTargetPixelSprite;
         private readonly Sprite activeRescuerPixelSprite;
+        private readonly Sprite lowerPlankIntactPixelSprite;
+        private readonly Sprite lowerPlankBrokenPixelSprite;
         private readonly SpriteRenderer surveyorPixelRenderer;
         private readonly SpriteRenderer beastVisualRenderer;
         private readonly Texture2D leaderPixelTexture;
@@ -35,6 +37,8 @@ namespace Rpg.Soundwell
         private readonly Texture2D bellStandPixelTexture;
         private readonly Texture2D attackTargetPixelTexture;
         private readonly Texture2D activeRescuerPixelTexture;
+        private readonly Texture2D lowerPlankIntactPixelTexture;
+        private readonly Texture2D lowerPlankBrokenPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
@@ -136,6 +140,10 @@ namespace Rpg.Soundwell
                 AttackTargetPixels, out attackTargetPixelTexture);
             activeRescuerPixelSprite = CreatePixelSprite("PLACEHOLDER 16px ORK active rescuer cue",
                 ActiveRescuerPixels, out activeRescuerPixelTexture);
+            lowerPlankIntactPixelSprite = CreatePixelSprite("PLACEHOLDER 26x6 intact weak plank",
+                LowerPlankIntactPixels, out lowerPlankIntactPixelTexture);
+            lowerPlankBrokenPixelSprite = CreatePixelSprite("PLACEHOLDER 26x6 broken weak plank",
+                LowerPlankBrokenPixels, out lowerPlankBrokenPixelTexture);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
 
@@ -236,9 +244,14 @@ namespace Rpg.Soundwell
                 new Color(0.30f, 0.37f, 0.40f), 1);
             // A visible weak lower route and its collapsed state make the
             // surveyor's warning consequential without a hidden timer.
+            // Fixed 26x6 source pixels at 16 PPU: no smooth-scaled whiteTexture
+            // rectangle. The fractured contour tells players the lower crossing
+            // is broken even without relying on transparency or a red tint.
+            // This is visual-only and never modifies collision or gate state.
             lowerBoardMarker = Plate(root, "PLACEHOLDER unsafe lower plank",
-                SoundwellTrial.LowerBoardPosition, new Vector2(1.65f, 0.34f),
+                SoundwellTrial.LowerBoardPosition, Vector2.one,
                 new Color(0.67f, 0.39f, 0.27f), 1);
+            lowerBoardMarker.sprite = lowerPlankIntactPixelSprite;
 
             // Both silhouette and face animate under one visual-only Animator;
             // the ORK leader's physics/transform is never animated.
@@ -899,8 +912,10 @@ namespace Rpg.Soundwell
                 gateButtonLabel.text = interactCaption;
             upperBoardMarker.color = plankSecured ? new Color(0.45f, 0.92f, 0.74f)
                 : hasSurveyorClue ? Cloth : new Color(0.30f, 0.37f, 0.40f);
+            lowerBoardMarker.sprite = lowerPlankBroken
+                ? lowerPlankBrokenPixelSprite : lowerPlankIntactPixelSprite;
             lowerBoardMarker.color = lowerPlankBroken
-                ? new Color(0.90f, 0.24f, 0.24f, 0.22f)
+                ? new Color(0.90f, 0.32f, 0.30f)
                 : new Color(0.67f, 0.39f, 0.27f);
             Vector2 npc = surveyorFigure.position;
             Vector2 routeTarget;
@@ -1214,6 +1229,8 @@ namespace Rpg.Soundwell
             Object.Destroy(bellStandPixelSprite);
             Object.Destroy(attackTargetPixelSprite);
             Object.Destroy(activeRescuerPixelSprite);
+            Object.Destroy(lowerPlankIntactPixelSprite);
+            Object.Destroy(lowerPlankBrokenPixelSprite);
             Object.Destroy(leaderPixelTexture);
             Object.Destroy(leaderWalkPixelTexture);
             Object.Destroy(leaderGuardPixelTexture);
@@ -1223,6 +1240,8 @@ namespace Rpg.Soundwell
             Object.Destroy(bellStandPixelTexture);
             Object.Destroy(attackTargetPixelTexture);
             Object.Destroy(activeRescuerPixelTexture);
+            Object.Destroy(lowerPlankIntactPixelTexture);
+            Object.Destroy(lowerPlankBrokenPixelTexture);
             Object.Destroy(ringMaterial);
             Object.Destroy(clearBell);
             Object.Destroy(mutedBell);
@@ -1429,29 +1448,52 @@ namespace Rpg.Soundwell
             "................",
         };
 
+        // Hand-authored whole pixels: an intact crossing and a visibly split
+        // crossing share identical bounds and never scale with world transform.
+        private static readonly string[] LowerPlankIntactPixels =
+        {
+            "..........................",
+            "..######################..",
+            ".#++++++++++++++++++++++#.",
+            ".#++++++++++++++++++++++#.",
+            "..######################..",
+            "..........................",
+        };
+
+        private static readonly string[] LowerPlankBrokenPixels =
+        {
+            "..........................",
+            "..#######.......######....",
+            ".#++++++#........#++++#...",
+            "..######.........#######..",
+            "....####...........####...",
+            "..........................",
+        };
+
         private static Sprite CreatePixelSprite(string name, string[] rows,
             out Texture2D texture)
         {
-            const int size = 16;
-            if (rows.Length != size)
-                throw new System.InvalidOperationException("Expected 16 character rows.");
-            texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            int height = rows.Length;
+            int width = height > 0 ? rows[0].Length : 0;
+            if (!((width == 16 && height == 16) || (width == 26 && height == 6)))
+                throw new System.InvalidOperationException("Invalid source pixel grid dimensions.");
+            texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
             {
                 name = name,
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,
                 anisoLevel = 0
             };
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
+            var pixels = new Color32[width * height];
+            for (int y = 0; y < height; y++)
             {
-                string row = rows[size - 1 - y];
-                if (row.Length != size)
-                    throw new System.InvalidOperationException("Expected a 16-pixel row.");
-                for (int x = 0; x < size; x++)
+                string row = rows[height - 1 - y];
+                if (row.Length != width)
+                    throw new System.InvalidOperationException("Inconsistent source pixel row width.");
+                for (int x = 0; x < width; x++)
                 {
                     char value = row[x];
-                    pixels[y * size + x] = value == '#'
+                    pixels[y * width + x] = value == '#'
                         ? new Color32(255, 255, 255, 255)
                         : value == '+'
                             ? new Color32(175, 175, 175, 255)
@@ -1460,7 +1502,7 @@ namespace Rpg.Soundwell
             }
             texture.SetPixels32(pixels);
             texture.Apply(false, false);
-            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height),
                 new Vector2(0.5f, 0.5f), 16f, 0, SpriteMeshType.FullRect);
             // Sprite.Create does not inherit Texture2D.name; unnamed visual
             // assets make combat-pose diagnostics and regressions ambiguous.

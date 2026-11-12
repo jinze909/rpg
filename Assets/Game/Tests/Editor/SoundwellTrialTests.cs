@@ -265,10 +265,25 @@ namespace Rpg.Tests.Editor
             var plankHitVisual = GameObject.Find("PLACEHOLDER animated player")
                 ?.GetComponent<SoundwellPlayerVisualAnimation>();
             Assert.That(plankHitVisual, Is.Not.Null);
+            var weakPlank = GameObject.Find("PLACEHOLDER unsafe lower plank")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(weakPlank, Is.Not.Null);
+            var intactPlankSprite = weakPlank.sprite;
+            Assert.That(intactPlankSprite, Is.Not.Null);
+            Assert.That(intactPlankSprite.texture.width, Is.EqualTo(26));
+            Assert.That(intactPlankSprite.texture.height, Is.EqualTo(6));
+            Assert.That(intactPlankSprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(intactPlankSprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(weakPlank.transform.localScale, Is.EqualTo(Vector3.one),
+                "The weak plank must be authored in whole source pixels, not stretched.");
             Assert.That(trial.LowerPlankBroken, Is.False);
             MoveTestLeader(playerBody, SoundwellTrial.LowerBoardPosition);
             yield return null;
             Assert.That(trial.LowerPlankBroken, Is.True);
+            Assert.That(weakPlank.sprite, Is.Not.SameAs(intactPlankSprite),
+                "The collapse must open a visible crack, not just fade a solid board.");
+            Assert.That(weakPlank.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(weakPlank.transform.localScale, Is.EqualTo(Vector3.one));
             Assert.That(plankHitVisual.CurrentState, Is.EqualTo("Hit"),
                 "The actual first collapse must play the saved hit reaction.");
             Assert.That(Vector2.Distance(trial.PlayerPosition,
@@ -518,6 +533,8 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.PlankSecured, Is.False);
             Assert.That(trial.LowerPlankBroken, Is.False,
                 "Retry must restore the physical weak plank for a fresh attempt.");
+            Assert.That(weakPlank.sprite, Is.SameAs(intactPlankSprite),
+                "Retry must restore the intact pixel silhouette as well as collision.");
             Assert.That(trial.HasSurveyorClue, Is.False);
             Assert.That(trial.IsCarrying || trial.HasBellTarget ||
                 trial.IsSearching || trial.IsWrapped, Is.False,
