@@ -117,6 +117,34 @@ namespace Rpg.Editor
             Debug.Log("RPG_SOUNDWELL_BUILD_PROFILES_VALIDATED");
         }
 
+        // The file extension and BuildReport are not enough to prove that
+        // the saved Test profile produced a Linux x86-64 executable. Read only
+        // the fixed ELF identification header; never load the full Player
+        // binary into managed memory in CI.
+        private static void ValidateLinuxX64Binary(string executable)
+        {
+            var header = new byte[20];
+            using (var stream = File.OpenRead(executable))
+            {
+                int offset = 0;
+                while (offset < header.Length)
+                {
+                    int count = stream.Read(header, offset, header.Length - offset);
+                    if (count == 0)
+                        throw new InvalidOperationException("M11 Player is shorter than the ELF header.");
+                    offset += count;
+                }
+            }
+
+            // ELF magic, ELFCLASS64, little endian, and EM_X86_64 (62).
+            if (header[0] != 0x7f || header[1] != (byte)'E' ||
+                header[2] != (byte)'L' || header[3] != (byte)'F' ||
+                header[4] != 2 || header[5] != 1 ||
+                header[18] != 62 || header[19] != 0)
+                throw new InvalidOperationException(
+                    "M11 saved Linux Test profile did not produce an ELF64 x86-64 executable.");
+        }
+
         public static void ValidateAndBuild()
         {
             Validate();
@@ -138,6 +166,7 @@ namespace Rpg.Editor
             var playerFile = new FileInfo(executable);
             if (!playerFile.Exists || playerFile.Length <= 1024)
                 throw new InvalidOperationException("Successful BuildReport produced no Linux Player executable.");
+            ValidateLinuxX64Binary(executable);
             bool dataFound = Directory.Exists(BuildDirectory + "/Soundwell_Data");
             if (!dataFound)
                 throw new InvalidOperationException("The real built Player has no scene data directory.");
