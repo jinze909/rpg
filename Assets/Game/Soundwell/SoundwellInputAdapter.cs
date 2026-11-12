@@ -251,8 +251,7 @@ namespace Rpg.Soundwell
                 {
                     InputAction action = target.FindActionMap(required.Map, true)
                         .FindAction(required.Action, true);
-                    if (!action.bindings.Any(binding => !binding.isComposite &&
-                            !string.IsNullOrWhiteSpace(binding.effectivePath)))
+                    if (!HasUsableBinding(action))
                         throw new InvalidOperationException(
                             "Saved input overrides disabled all bindings for " +
                             required.Map + "/" + required.Action + ".");
@@ -266,6 +265,34 @@ namespace Rpg.Soundwell
                 Debug.LogWarning("Soundwell binding overrides are invalid; restored default controls (" +
                     error.GetType().Name + ").");
             }
+        }
+
+        // Movement uses 2DVector composite roots followed by individual
+        // direction parts. A saved override may disable the composite root
+        // and both direct gamepad paths while leaving the orphaned W/A/S/D
+        // parts with nonempty effectivePath. Those parts cannot move the player.
+        // Require either a direct binding or an enabled composite with a
+        // still-bound child; keep legitimate partial keyboard remaps usable.
+        private static bool HasUsableBinding(InputAction action)
+        {
+            var bindings = action.bindings;
+            for (int i = 0; i < bindings.Count; i++)
+            {
+                var binding = bindings[i];
+                if (string.IsNullOrWhiteSpace(binding.effectivePath))
+                    continue;
+                if (!binding.isComposite && !binding.isPartOfComposite)
+                    return true;
+                if (!binding.isComposite)
+                    continue;
+                for (int part = i + 1; part < bindings.Count &&
+                    bindings[part].isPartOfComposite; part++)
+                {
+                    if (!string.IsNullOrWhiteSpace(bindings[part].effectivePath))
+                        return true;
+                }
+            }
+            return false;
         }
 
         private static void RequireBinding(InputAction action, string path)

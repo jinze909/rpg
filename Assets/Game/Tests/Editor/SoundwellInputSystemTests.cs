@@ -85,6 +85,40 @@ namespace Rpg.Tests.Editor
                 Assert.That(menu.bindings.Any(binding =>
                     binding.effectivePath == "<Gamepad>/start"), Is.True);
 
+                // A 2DVector's W/A/S/D child entries retain effective paths
+                // even when their composite root is overridden to empty. With
+                // both gamepad paths also disabled, no movement remains. This
+                // is valid Input System JSON, so ensure the restore rejects it
+                // rather than accepting orphaned keyboard composite parts.
+                var move = isolatedAsset.FindActionMap("Gameplay", true)
+                    .FindAction("Move", true);
+                Assert.That(move.bindings.Any(binding => binding.isComposite), Is.True);
+                Assert.That(move.bindings.Any(binding =>
+                    binding.isPartOfComposite), Is.True);
+                for (int i = 0; i < move.bindings.Count; i++)
+                {
+                    if (!move.bindings[i].isPartOfComposite)
+                        move.ApplyBindingOverride(i, string.Empty);
+                }
+                Assert.That(move.bindings.Where(binding =>
+                    !binding.isPartOfComposite).All(binding =>
+                    string.IsNullOrEmpty(binding.effectivePath)), Is.True);
+                Assert.That(move.bindings.Any(binding =>
+                    binding.isPartOfComposite && !string.IsNullOrEmpty(binding.effectivePath)),
+                    Is.True, "Orphaned direction parts reproduce the ignored composite-root failure.");
+                string noMoveJson = isolatedAsset.SaveBindingOverridesAsJson();
+                isolatedAsset.RemoveAllBindingOverrides();
+                PlayerPrefs.SetString(key, noMoveJson);
+                LogAssert.Expect(LogType.Warning,
+                    "Soundwell binding overrides are invalid; restored default controls (InvalidOperationException).");
+                restore.Invoke(null, new object[] { isolatedAsset });
+                Assert.That(PlayerPrefs.HasKey(key), Is.False,
+                    "A saved composite-root override must not strand all movement.");
+                Assert.That(move.bindings.Any(binding =>
+                    binding.isComposite && binding.effectivePath == "2DVector"), Is.True);
+                Assert.That(move.bindings.Any(binding =>
+                    binding.effectivePath == "<Gamepad>/leftStick"), Is.True);
+
                 // Do not erase a usable preference merely because it differs
                 // from the authored default keyboard key.
                 menu.ApplyBindingOverride(0, "<Keyboard>/f10");

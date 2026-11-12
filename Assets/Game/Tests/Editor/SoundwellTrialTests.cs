@@ -202,6 +202,8 @@ namespace Rpg.Tests.Editor
             var playerBody = party.Leader.GetComponent<Rigidbody2D>();
             Assert.That(playerBody, Is.Not.Null);
             Vector2 safe = playerBody.position;
+            Vector2 initialBell = trial.BellPosition;
+            Vector2 initialBeast = trial.BeastPosition;
             RecordRescueRouteStart("BELL", trial, party);
 
             // Only the real carry/place/ring actions and the two named stands
@@ -342,6 +344,31 @@ namespace Rpg.Tests.Editor
                 Is.LessThanOrEqualTo(0.98f));
             Assert.That(trial.RopeRecovered || trial.CartKitReclaimed ||
                 trial.DirectCombatComplete, Is.False);
+
+            // A successful sound-only rescue can be replayed in-place.
+            // Invoke the normal Retry input at the real retreat mark: no
+            // test-side Makinom variable reset or fake ORK victory.
+            Assert.That(trial.PlayerPosition, Is.EqualTo(safe));
+            trial.ApplyInput(Vector2.zero, false, false, true);
+            yield return null;
+            Assert.That(trial.RescueComplete, Is.False,
+                "Retry must clear the earned rescue outcome for another attempt.");
+            Assert.That(trial.GateOpen, Is.False,
+                "The noncombat latch must be closed for a fresh route choice.");
+            Assert.That(trial.SurveyorEscorting, Is.False,
+                "The previous guide cannot remain attached to the next attempt.");
+            Assert.That(trial.PlankSecured, Is.False);
+            Assert.That(trial.HasSurveyorClue, Is.False);
+            Assert.That(trial.IsCarrying || trial.HasBellTarget ||
+                trial.IsSearching || trial.IsWrapped, Is.False,
+                "Retry must clear the old bell lure, wrap and carry state.");
+            Assert.That(Vector2.Distance(trial.BellPosition, initialBell),
+                Is.LessThan(0.1f), "The physical bell must return to its saved stand.");
+            Assert.That(Vector2.Distance(trial.BeastPosition, initialBeast),
+                Is.LessThan(0.1f), "The beast must restart at the original encounter.");
+            MoveTestLeader(playerBody, new Vector2(-0.55f, 0f));
+            Assert.That(trial.CanEngageBeast, Is.True,
+                "After a bell-route replay, the real ORK combat route must be available again.");
 
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ROUTE_COST:BELL:world=4:turn=0:escort=3");
             Debug.Log("RPG_SOUNDWELL_ROUTE_COST:BELL:world=4:turn=0:escort=3");
