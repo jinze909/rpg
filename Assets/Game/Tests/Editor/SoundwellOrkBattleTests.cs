@@ -498,6 +498,24 @@ namespace Rpg.Tests.Editor
                 Is.EqualTo(party.Beast.GameObject.transform.position.x).Within(0.01f));
             Assert.That(targetCue.transform.position.y,
                 Is.EqualTo(party.Beast.GameObject.transform.position.y + 1.12f).Within(0.01f));
+            // The paired visual cue must sit over ORK's currently legal
+            // attacker's real GameObject, not a duplicate turn queue.
+            var turnCue = GameObject.Find("PLACEHOLDER ORK current rescuer")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(turnCue, Is.Not.Null);
+            Assert.That(turnCue.enabled, Is.True);
+            Assert.That(turnCue.sprite.texture.width, Is.EqualTo(16));
+            Assert.That(turnCue.sprite.texture.height, Is.EqualTo(16));
+            Assert.That(turnCue.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(turnCue.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(turnCue.transform.localScale, Is.EqualTo(Vector3.one));
+            Assert.That(turnCue.GetComponent<Collider2D>(), Is.Null);
+            int actualAttacker = party.ReadyBaseAttackerIndex;
+            Assert.That(actualAttacker, Is.InRange(0, party.Actors.Count - 1));
+            Assert.That(turnCue.transform.position.x,
+                Is.EqualTo(party.Actors[actualAttacker].transform.position.x).Within(0.01f));
+            Assert.That(turnCue.transform.position.y,
+                Is.EqualTo(party.Actors[actualAttacker].transform.position.y + 1.12f).Within(0.01f));
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(attackButton.gameObject),
                 "First legal attack must take default Submit focus instead of retreating.");
@@ -650,6 +668,8 @@ namespace Rpg.Tests.Editor
                 "The battle-only HUD must disappear after ORK ends the encounter.");
             Assert.That(targetCue.enabled, Is.False,
                 "The target cue must vanish on real ORK victory, not linger over the rescue route.");
+            Assert.That(turnCue.enabled, Is.False,
+                "The active rescuer cue must also disappear on ORK victory.");
             var explorationBackLabel = GameObject.Find("Soundwell Back button")?.GetComponentInChildren<Text>();
             Assert.That(explorationBackLabel, Is.Not.Null);
             Assert.That(explorationBackLabel.text,

@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
         private readonly Sprite surveyorWalkPixelSprite;
         private readonly Sprite bellStandPixelSprite;
         private readonly Sprite attackTargetPixelSprite;
+        private readonly Sprite activeRescuerPixelSprite;
         private readonly SpriteRenderer surveyorPixelRenderer;
         private readonly SpriteRenderer beastVisualRenderer;
         private readonly Texture2D leaderPixelTexture;
@@ -31,11 +32,13 @@ namespace Rpg.Soundwell
         private readonly Texture2D surveyorWalkPixelTexture;
         private readonly Texture2D bellStandPixelTexture;
         private readonly Texture2D attackTargetPixelTexture;
+        private readonly Texture2D activeRescuerPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
         private readonly SpriteRenderer beastIntentMarker;
         private readonly SpriteRenderer attackTargetMarker;
+        private readonly SpriteRenderer activeRescuerMarker;
         private readonly Transform beastActor;
         private readonly SpriteRenderer searchTimerTrack;
         private readonly SpriteRenderer searchTimerFill;
@@ -121,6 +124,8 @@ namespace Rpg.Soundwell
                 BellStandPixels, out bellStandPixelTexture);
             attackTargetPixelSprite = CreatePixelSprite("PLACEHOLDER 16px ORK target cue",
                 AttackTargetPixels, out attackTargetPixelTexture);
+            activeRescuerPixelSprite = CreatePixelSprite("PLACEHOLDER 16px ORK active rescuer cue",
+                ActiveRescuerPixels, out activeRescuerPixelTexture);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
 
@@ -252,6 +257,13 @@ namespace Rpg.Soundwell
                 (Vector2)beast.position + new Vector2(0f, 1.12f), Vector2.one, Gold, 7);
             attackTargetMarker.sprite = attackTargetPixelSprite;
             attackTargetMarker.enabled = false;
+            // A separate cyan 16px chevron follows only the actual ORK
+            // combatant currently allowed to attack. Visual-only: no input,
+            // collider, invented actor choice or second battle state.
+            activeRescuerMarker = Plate(root, "PLACEHOLDER ORK current rescuer",
+                Vector2.zero, Vector2.one, new Color(0.40f, 0.90f, 0.90f), 7);
+            activeRescuerMarker.sprite = activeRescuerPixelSprite;
+            activeRescuerMarker.enabled = false;
             // A horned pixel silhouette on the same authoritative ORK beast.
             beastVisualRenderer = Plate(beast, "PLACEHOLDER beast", Vector2.zero,
                 Vector2.one, new Color(0.95f, 0.41f, 0.42f), 3);
@@ -474,6 +486,7 @@ namespace Rpg.Soundwell
             battleMode = active;
             focusAttackWhenReady = active;
             attackTargetMarker.enabled = false;
+            activeRescuerMarker.enabled = false;
             // The only battle-specific UGUI action abandons the live ORK
             // encounter. Name it explicitly; exploration still says Back.
             backButton.GetComponentInChildren<Text>().text =
@@ -505,7 +518,7 @@ namespace Rpg.Soundwell
 
         // The input comes from ORK's live action chooser, not a local timer or
         // invented per-character turn state. The active target is the one beast.
-        public void SetBattleAttackChoice(int readyAttackerIndex)
+        public void SetBattleAttackChoice(int readyAttackerIndex, Transform activeActor)
         {
             if (!battleMode)
                 return;
@@ -517,6 +530,10 @@ namespace Rpg.Soundwell
             if (attackTargetMarker.enabled)
                 attackTargetMarker.transform.position =
                     beastActor.position + new Vector3(0f, 1.12f, 0f);
+            activeRescuerMarker.enabled = attackButton.interactable && activeActor != null;
+            if (activeRescuerMarker.enabled)
+                activeRescuerMarker.transform.position =
+                    activeActor.position + new Vector3(0f, 1.12f, 0f);
             attackButtonLabel.text = readyAttackerIndex >= 0
                 ? SoundwellUiLocalization.Get("battle.rescuer") + " " +
                     (readyAttackerIndex + 1) + "  >  " +
@@ -1092,6 +1109,7 @@ namespace Rpg.Soundwell
             Object.Destroy(surveyorWalkPixelSprite);
             Object.Destroy(bellStandPixelSprite);
             Object.Destroy(attackTargetPixelSprite);
+            Object.Destroy(activeRescuerPixelSprite);
             Object.Destroy(leaderPixelTexture);
             Object.Destroy(leaderWalkPixelTexture);
             Object.Destroy(beastPixelTexture);
@@ -1099,6 +1117,7 @@ namespace Rpg.Soundwell
             Object.Destroy(surveyorWalkPixelTexture);
             Object.Destroy(bellStandPixelTexture);
             Object.Destroy(attackTargetPixelTexture);
+            Object.Destroy(activeRescuerPixelTexture);
             Object.Destroy(ringMaterial);
             Object.Destroy(clearBell);
             Object.Destroy(mutedBell);
@@ -1265,6 +1284,27 @@ namespace Rpg.Soundwell
             "..#..........#..",
             "...#........#...",
             "....##....##....",
+            "................",
+        };
+
+        // Current legal ORK actor, visibly distinct from beast target brackets.
+        private static readonly string[] ActiveRescuerPixels =
+        {
+            "................",
+            ".......##.......",
+            "......####......",
+            ".....######.....",
+            "....########....",
+            "...###....###...",
+            "..##........##..",
+            "................",
+            "................",
+            "................",
+            "................",
+            "................",
+            "................",
+            "................",
+            "................",
             "................",
         };
 

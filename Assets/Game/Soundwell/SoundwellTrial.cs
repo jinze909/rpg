@@ -308,7 +308,11 @@ namespace Rpg.Soundwell
                 // The view reads a live ORK snapshot; it never resolves attacks
                 // or maintains a second copy of combat state.
                 view.SetBattleReadout(orkParty != null ? orkParty.BuildBattleReadout() : string.Empty);
-                view.SetBattleAttackChoice(orkParty != null ? orkParty.ReadyBaseAttackerIndex : -1);
+                int activeRescuer = orkParty != null ? orkParty.ReadyBaseAttackerIndex : -1;
+                Transform activeActor = activeRescuer >= 0 && orkParty != null &&
+                    activeRescuer < orkParty.Actors.Count
+                    ? orkParty.Actors[activeRescuer].transform : null;
+                view.SetBattleAttackChoice(activeRescuer, activeActor);
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
             }
