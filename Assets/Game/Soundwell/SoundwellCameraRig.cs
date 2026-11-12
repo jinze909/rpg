@@ -86,11 +86,12 @@ namespace Rpg.Soundwell
             float availablePan = Mathf.Max(0f, desiredSize * aspect - trialHalfWidth - edgeMargin);
             float horizontalPan = Mathf.Min(0.85f, availablePan);
             // Quantize the visual framing target, not player/ORK positions.
-            float x = Mathf.Clamp(player.position.x * 0.14f, -horizontalPan, horizontalPan);
+            // Rounding after a float clamp can place the camera one pixel
+            // outside its safe pan budget and clip the opposite trial exit.
+            float x = PixelSafeHorizontalPan(player.position.x * 0.14f, horizontalPan);
             float y = Mathf.Clamp(player.position.y * 0.15f, -0.5f, 0.5f);
             framingTarget.position = new Vector3(
-                Mathf.Round(x * PixelsPerUnit) / PixelsPerUnit,
-                Mathf.Round(y * PixelsPerUnit) / PixelsPerUnit, 0f);
+                x, Mathf.Round(y * PixelsPerUnit) / PixelsPerUnit, 0f);
 
             if (virtualCamera == null)
                 return;
@@ -99,6 +100,16 @@ namespace Rpg.Soundwell
                 return;
             lens.OrthographicSize = desiredSize;
             virtualCamera.Lens = lens;
+        }
+
+        // Keep camera framing on whole 16-PPU pixels AND inside the lens's
+        // available world-space pan at arbitrary aspect ratios.
+        internal static float PixelSafeHorizontalPan(float target, float maxPan)
+        {
+            int maxPixels = Mathf.Max(0, Mathf.FloorToInt(maxPan * PixelsPerUnit));
+            int pixels = Mathf.Clamp(Mathf.RoundToInt(target * PixelsPerUnit),
+                -maxPixels, maxPixels);
+            return (float)pixels / PixelsPerUnit;
         }
 
         private void LateUpdate()
