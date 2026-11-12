@@ -194,6 +194,18 @@ MonoBehaviour:
     m_Localized: "撤离通道 / 畅通"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267321
+    m_Localized: "\u81ea\u6211\u9632\u5b88"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267322
+    m_Localized: "\u5f00\u542f\u95f8\u95e8"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267323
+    m_Localized: "\u9632\u5b88\u4e2d"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

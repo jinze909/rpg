@@ -198,6 +198,18 @@ MonoBehaviour:
     m_Localized: "ESCAPE LANE  /  CLEAR"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267321
+    m_Localized: "Guard self"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267322
+    m_Localized: "Open gate"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267323
+    m_Localized: "GUARDING"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

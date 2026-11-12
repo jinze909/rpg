@@ -304,6 +304,18 @@ def validate_build_profile_player(report):
     return errors
 
 
+def validate_soundwell_route_starts(log):
+    snapshots = {}
+    for route in ("BELL", "COMBAT"):
+        matches = re.findall(rf"^RPG_SOUNDWELL_ROUTE_START:{route}:(.+)$", log, re.MULTILINE)
+        if len(matches) != 1:
+            return ["Expected one fresh Soundwell route snapshot for " + route]
+        snapshots[route] = matches[0].strip()
+    if snapshots["BELL"] != snapshots["COMBAT"]:
+        return ["Soundwell routes must start from the same positions, HP, and rescue flags."]
+    return []
+
+
 def collect(mode):
     root = Path(__file__).resolve().parents[1]
     os.chdir(root)
@@ -440,6 +452,11 @@ def collect(mode):
         try:
             log = (evidence / filename).read_text(errors="replace")
             errors.extend(f"Missing {marker} in {filename}." for marker in markers if marker not in log)
+            if filename == "editmode.log" and soundwell:
+                errors.extend(validate_soundwell_route_starts(log))
+                for cost in ("BELL:world=4:turn=0:escort=3", "COMBAT:world=1:turn=3:escort=3"):
+                    if "RPG_SOUNDWELL_ROUTE_COST:" + cost not in log:
+                        errors.append("Missing verified Soundwell route cost: " + cost)
             import_error = UNITY_COMPILER_ERROR.search(log)
             if import_error:
                 errors.append(f"Unity import or compile error in {filename}: {import_error.group(0)}")

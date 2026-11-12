@@ -188,6 +188,7 @@ namespace Rpg.Tests.Editor
             var playerBody = party.Leader.GetComponent<Rigidbody2D>();
             Assert.That(playerBody, Is.Not.Null);
             Vector2 safe = playerBody.position;
+            RecordRescueRouteStart("BELL", trial, party);
 
             // Only the real carry/place/ring actions and the two named stands
             // establish the lure. Do not set Makinom or ORK state in the test.
@@ -289,6 +290,8 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.RopeRecovered || trial.CartKitReclaimed ||
                 trial.DirectCombatComplete, Is.False);
 
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ROUTE_COST:BELL:world=4:turn=0:escort=3");
+            Debug.Log("RPG_SOUNDWELL_ROUTE_COST:BELL:world=4:turn=0:escort=3");
             Debug.Log("RPG_SOUNDWELL_BELL_ONLY_RESCUE_VALIDATED");
         }
 
@@ -296,6 +299,20 @@ namespace Rpg.Tests.Editor
         // Attack path, not a synthetic scene or a second camera controller.
         // Cover both extreme player positions and narrow viewports without
         // changing the player physics or committing a viewport preference.
+        internal static void RecordRescueRouteStart(string route, SoundwellTrial trial, SoundwellOrkParty party)
+        {
+            Vector2 leader = trial.PlayerPosition;
+            Vector2 bell = trial.BellPosition;
+            Vector2 beast = trial.BeastPosition;
+            string hp = string.Join(",", party.Members.Select(member =>
+                System.FormattableString.Invariant($"{member.Status[1].GetValue():F2}")));
+            string state = System.FormattableString.Invariant(
+                $"{leader.x:F2},{leader.y:F2}|{bell.x:F2},{bell.y:F2}|{beast.x:F2},{beast.y:F2}|{hp}|{party.Beast.Status[1].GetValue():F2}|{trial.GateOpen}|{trial.IsCarrying}|{trial.RescueComplete}");
+            string marker = $"RPG_SOUNDWELL_ROUTE_START:{route}:{state}";
+            LogAssert.Expect(UnityEngine.LogType.Log, marker);
+            Debug.Log(marker);
+        }
+
         private static void VerifyBattleCameraKeepsBothExitsVisible(Rigidbody2D leader)
         {
             var rig = Object.FindFirstObjectByType<SoundwellCameraRig>();

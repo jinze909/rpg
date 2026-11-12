@@ -73,6 +73,9 @@ namespace Rpg.Soundwell
         private readonly Button retryButton;
         private readonly Button backButton;
         private readonly Button attackButton;
+        private readonly Button guardButton;
+        private readonly Button openGateButton;
+        private readonly Text openGateLabel;
         private readonly Text attackButtonLabel;
         // Default Submit follows the next legal ORK action, not an accidental retreat.
         // Explicitly choosing Retreat remains respected during an unchanged turn.
@@ -101,7 +104,7 @@ namespace Rpg.Soundwell
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
-            Action carry, Action gate, Action attackBeast, Action cancelActionMenu)
+            Action carry, Action gate, Action attackBeast, Action guard, Action openGate, Action cancelActionMenu)
         {
             this.camera = camera;
             beastActor = beast;
@@ -419,6 +422,25 @@ namespace Rpg.Soundwell
             attackButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
             attackButton.interactable = false;
             attackButton.gameObject.SetActive(false);
+            guardButton = CreateActionButton(actionCanvas.transform, "Guard", "", 7, () =>
+            {
+                focusAttackWhenReady = true;
+                guard();
+            });
+            openGateButton = CreateActionButton(actionCanvas.transform, "Battle Gate", "", 8, () =>
+            {
+                focusAttackWhenReady = true;
+                openGate();
+            });
+            Localize(guardButton.GetComponentInChildren<Text>(), "battle.guard");
+            openGateLabel = openGateButton.GetComponentInChildren<Text>();
+            Localize(openGateLabel, "battle.open_gate");
+            foreach (var button in new[] { guardButton, openGateButton })
+            {
+                button.navigation = new Navigation { mode = Navigation.Mode.Automatic };
+                button.interactable = false;
+                button.gameObject.SetActive(false);
+            }
             carryButton = CreateActionButton(actionCanvas.transform, "Carry", "", 4, carry);
             carryButtonLabel = carryButton.GetComponentInChildren<Text>();
             gateButton = CreateActionButton(actionCanvas.transform, "Gate", "OPEN GATE [G / RB]", 5, gate);
@@ -489,12 +511,12 @@ namespace Rpg.Soundwell
                 SoundwellUiLocalization.Get(active ? "action.retreat" : "action.back");
             trialCanvas.gameObject.SetActive(!active);
             battleCanvas.gameObject.SetActive(active);
-            attackButton.gameObject.SetActive(active);
-            if (!active)
-                attackButton.interactable = false;
-            // Until the full ORK player-choice UI is wired, combat still needs
-            // a genuine, reachable way to abandon an otherwise stalled turn.
-            // This is the existing scene-exit action, not a second battle UI.
+            foreach (var button in new[] { attackButton, guardButton, openGateButton })
+            {
+                button.gameObject.SetActive(active);
+                if (!active)
+                    button.interactable = false;
+            }
             foreach (var button in new[] { ringButton, wrapButton, retryButton,
                 carryButton, gateButton, languageButton })
                 button.gameObject.SetActive(!active);
@@ -514,11 +536,17 @@ namespace Rpg.Soundwell
 
         // The input comes from ORK's live action chooser, not a local timer or
         // invented per-character turn state. The active target is the one beast.
-        public void SetBattleAttackChoice(int readyAttackerIndex, Transform activeActor)
+        public void SetBattleChoices(int activeRescuerIndex, Transform activeActor,
+            bool canAttack, bool canGuard, bool canOpenGate, bool gateOpen)
         {
             if (!battleMode)
                 return;
-            attackButton.interactable = readyAttackerIndex >= 0;
+            attackButton.interactable = canAttack;
+            guardButton.interactable = canGuard;
+            openGateButton.interactable = canOpenGate;
+            string gateCaption = SoundwellUiLocalization.Get(gateOpen ? "status.gate_open" : "battle.open_gate");
+            if (openGateLabel.text != gateCaption)
+                openGateLabel.text = gateCaption;
             // Match the visible world marker to the SAME ORK target and
             // legal action as the existing UGUI button. Follow the moving
             // beast in world space, but never inherit its rotation.
@@ -526,17 +554,19 @@ namespace Rpg.Soundwell
             if (attackTargetMarker.enabled)
                 attackTargetMarker.transform.position =
                     beastActor.position + new Vector3(0f, 1.12f, 0f);
-            activeRescuerMarker.enabled = attackButton.interactable && activeActor != null;
+            activeRescuerMarker.enabled = activeActor != null;
             if (activeRescuerMarker.enabled)
                 activeRescuerMarker.transform.position =
                     activeActor.position + new Vector3(0f, 1.12f, 0f);
-            attackButtonLabel.text = readyAttackerIndex >= 0
+            attackButtonLabel.text = canAttack
                 ? SoundwellUiLocalization.Get("battle.rescuer") + " " +
-                    (readyAttackerIndex + 1) + "  >  " +
+                    (activeRescuerIndex + 1) + "  >  " +
                     SoundwellUiLocalization.Get("battle.beast")
                 : SoundwellUiLocalization.Get("battle.menu_pending");
-            if (actionEventSystem.currentSelectedGameObject == attackButton.gameObject &&
-                !attackButton.interactable)
+            GameObject focused = actionEventSystem.currentSelectedGameObject;
+            if ((focused == attackButton.gameObject && !canAttack) ||
+                (focused == guardButton.gameObject && !canGuard) ||
+                (focused == openGateButton.gameObject && !canOpenGate))
                 actionEventSystem.SetSelectedGameObject(backButton.gameObject);
             // During startup Retreat is the only available button. As soon as
             // ORK exposes a legal action, keyboard/gamepad Submit should attack,
@@ -574,18 +604,21 @@ namespace Rpg.Soundwell
             // not cover the beast or its target cue in the right-hand room.
             if (battleMode)
             {
-                float width = compact ? 190f : 230f;
-                float offset = (width + 16f) / 2f;
-                var attackRect = (RectTransform)attackButton.transform;
-                var retreatRect = (RectTransform)backButton.transform;
-                foreach (var rect in new[] { attackRect, retreatRect })
+                float width = compact ? 100f : 155f;
+                var commands = new[] { attackButton, guardButton, openGateButton, backButton };
+                for (int i = 0; i < commands.Length; i++)
                 {
+                    var rect = (RectTransform)commands[i].transform;
                     rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
                     rect.pivot = new Vector2(0.5f, 0f);
                     rect.sizeDelta = new Vector2(width, 44f);
+                    rect.anchoredPosition = new Vector2((i - 1.5f) * (width + 8f), 12f);
+                    var label = commands[i].GetComponentInChildren<Text>();
+                    label.rectTransform.sizeDelta = new Vector2(width - 8f, 38f);
+                    label.resizeTextForBestFit = true;
+                    label.resizeTextMinSize = 10;
+                    label.resizeTextMaxSize = 15;
                 }
-                attackRect.anchoredPosition = new Vector2(-offset, 12f);
-                retreatRect.anchoredPosition = new Vector2(offset, 12f);
                 return;
             }
 
@@ -611,6 +644,9 @@ namespace Rpg.Soundwell
                 }
             }
 
+            var backLabel = backButton.GetComponentInChildren<Text>();
+            backLabel.rectTransform.sizeDelta = new Vector2(190f, 38f);
+            backLabel.resizeTextForBestFit = false;
             var statusRect = menuStatus.rectTransform;
             if (compact)
             {

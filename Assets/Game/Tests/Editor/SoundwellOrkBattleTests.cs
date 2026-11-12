@@ -99,6 +99,7 @@ namespace Rpg.Tests.Editor
             while (!trial.IsReady && Time.realtimeSinceStartup < trialDeadline)
                 yield return null;
             Assert.That(trial.IsReady, Is.True, "The live rescue trial must initialize its Makinom state.");
+            SoundwellTrialTests.RecordRescueRouteStart("COMBAT", trial, party);
             // M5: the saved scene, rather than transient Wall() objects, owns
             // the static stone boundary. No duplicate BoxCollider2D may exist
             // for a wall already blocked by the TilemapCollider2D.
@@ -627,29 +628,38 @@ namespace Rpg.Tests.Editor
                 " targetChange=" + DescribeConfigObject(configuredTarget) +
                 " battleAnimation=" + DescribeConfigObject(configuredAttack.battleAnimation) +
                 " systemSchematics=" + DescribeConfigObject(configuredAttack.systemActionSchematics);
-            // The saved Turn Based system can collect the whole team's
-            // choices before it executes any action. A successful Use()
-            // means the first player's attack was queued, not that damage
-            // has already resolved. Complete the remaining real ORK choices
-            // through the same UGUI button, without manufacturing damage.
-            var submittedAttackers = new HashSet<Combatant> { attackUser };
+            var gateAction = GameObject.Find("Soundwell Battle Gate button")?.GetComponent<Button>();
+            var guardAction = GameObject.Find("Soundwell Guard button")?.GetComponent<Button>();
+            Assert.That(gateAction, Is.Not.Null);
+            Assert.That(guardAction, Is.Not.Null);
+            Assert.That(trial.GateOpen, Is.False);
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
+            Assert.That(gateAction.interactable, Is.True,
+                "The rescuer next to the latch can spend the turn opening it.");
+            gateAction.onClick.Invoke();
+
+            float choiceDeadline = Time.realtimeSinceStartup + 6f;
+            while (party.ChoosingRescuerIndex <= 0 && Time.realtimeSinceStartup < choiceDeadline)
+                yield return null;
+            int guardIndex = party.ChoosingRescuerIndex;
+            Assert.That(guardIndex, Is.InRange(1, 2));
+            var guard = party.Members[guardIndex];
+            Assert.That(guardAction.interactable, Is.True);
+            Assert.That(gateAction.interactable, Is.False,
+                "The latch is already queued or open and cannot consume a second turn.");
+            bool guardingResolved = false;
+            guard.Events.DefendingStateChangedSimple += () => guardingResolved |= guard.Battle.Defending;
+            guardAction.onClick.Invoke();
+
+            choiceDeadline = Time.realtimeSinceStartup + 6f;
+            while ((party.ReadyBaseAttackerIndex < 0 ||
+                    party.ReadyBaseAttackerIndex == guardIndex ||
+                    party.ReadyBaseAttackerIndex == 0) && Time.realtimeSinceStartup < choiceDeadline)
+                yield return null;
+            Assert.That(party.ReadyBaseAttackerIndex, Is.EqualTo(3 - guardIndex),
+                "Opening, guarding and attacking must spend three distinct ORK turns.");
+            Assert.That(attackButton.interactable, Is.True);
             attackButton.onClick.Invoke();
-            for (int selection = 1; selection < party.Members.Count; selection++)
-            {
-                if (party.Beast.Status.IsDead ||
-                    party.Beast.Status[1].GetValue() < beastHpBeforeAttack)
-                    break;
-                yield return null; // Allow the real ORK chooser and HUD to advance.
-                int nextIndex = party.ReadyBaseAttackerIndex;
-                if (nextIndex < 0)
-                    break; // The battle may already be resolving this turn.
-                var nextAttacker = party.Members[nextIndex];
-                Assert.That(submittedAttackers.Add(nextAttacker), Is.True,
-                    "ORK must not ask the same rescuer to choose twice in one turn.");
-                Assert.That(attackButton.interactable, Is.True,
-                    "UGUI must expose the next ORK-controlled party action.");
-                attackButton.onClick.Invoke();
-            }
             float attackResolutionDeadline = Time.realtimeSinceStartup + 8f;
             while (party.Beast.Status[1].GetValue() >= beastHpBeforeAttack &&
                    !party.Beast.Status.IsDead &&
@@ -694,11 +704,9 @@ namespace Rpg.Tests.Editor
                 "The reused Retreat button must return to the exploration layout.");
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
-            Assert.That(trial.CanOpenGate, Is.True,
-                "A confirmed ORK victory must unlock the same gate without a bell lure.");
-            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(guardingResolved, Is.True, "ORK must resolve the guard action before victory.");
             Assert.That(trial.GateOpen, Is.True,
-                "The direct-combat route must open the same physical gate used by the bell route.");
+                "The queued battle interaction must open the real gate and survive victory.");
 
             // Story 003: ORK victory unlocks a physical route, not the rescue
             // outcome. Reuse this already-verified live scene/ORK party rather
@@ -783,6 +791,8 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.FalseMarkerCleared, Is.True,
                 "The saved surveyor must physically remove his misleading marker.");
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ROUTE_COST:COMBAT:world=1:turn=3:escort=3");
+            Debug.Log("RPG_SOUNDWELL_ROUTE_COST:COMBAT:world=1:turn=3:escort=3");
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED");
 
