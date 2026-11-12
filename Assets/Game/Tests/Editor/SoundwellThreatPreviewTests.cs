@@ -46,6 +46,33 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.IsReady, Is.True);
             trial.ReadInput = false;
 
+            // A strict 16px leader must face its actual travel direction;
+            // moving west may not look like backpedalling. This changes only
+            // SpriteRenderer.flipX, never the ORK actor/physics direction.
+            var playerSprite = GameObject.Find("PLACEHOLDER player silhouette")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(playerSprite, Is.Not.Null);
+            trial.ApplyInput(Vector2.right, false, false, false);
+            yield return null;
+            Assert.That(playerSprite.flipX, Is.False,
+                "Walking east must face east on the actual player sprite.");
+            trial.ApplyInput(Vector2.left, false, false, false);
+            yield return null;
+            Assert.That(playerSprite.flipX, Is.True,
+                "Walking west must flip the player sprite, not the actor.");
+            trial.ApplyInput(Vector2.up, false, false, false);
+            yield return null;
+            Assert.That(playerSprite.flipX, Is.True,
+                "Walking vertically must retain the last horizontal facing.");
+            trial.ApplyInput(Vector2.zero, false, false, false);
+            yield return null;
+            Assert.That(playerSprite.flipX, Is.True,
+                "Stopping must not snap the player back east.");
+            trial.ApplyInput(Vector2.zero, false, false, true);
+            yield return null;
+            Assert.That(playerSprite.flipX, Is.False,
+                "Retry must restore the deterministic starting facing.");
+
             var body = trial.PlayerActor.GetComponent<Rigidbody2D>();
             Assert.That(body, Is.Not.Null);
             // Use actual carry/drop controls, not a manufactured Makinom flag.

@@ -203,8 +203,11 @@ namespace Rpg.Soundwell
             footerText.rectTransform.sizeDelta = new Vector2(compact ? 320f : 440f, 30f);
             footerText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -80f : -65f);
             footerText.fontSize = compact ? 13 : 15;
-            outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, compact ? 126f : 116f);
-            outcomeText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -142f : -126f);
+            // The return summary sits BETWEEN the footer and SFX button.
+            // Its previous top overlapped the footer by 12-16 canvas units,
+            // obscuring the rescue result on both wide and narrow screens.
+            outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, compact ? 102f : 116f);
+            outcomeText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -153f : -145f);
             outcomeText.fontSize = compact ? 15 : 17;
             sfxRect.sizeDelta = new Vector2(compact ? 300f : 320f, 40f);
             sfxText.rectTransform.sizeDelta = new Vector2(compact ? 294f : 314f, 36f);

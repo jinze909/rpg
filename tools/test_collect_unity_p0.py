@@ -305,6 +305,21 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 expected,
             )
             self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
+            # A newly declared bell-only rescue must be included in the exact
+            # same-SHA acceptance set, not treated as an unexpected extra test.
+            localized_file.write_text(
+                localized_file.read_text(encoding="utf-8") +
+                "\n[UnityTest] public IEnumerator "
+                "BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope()"
+                " { yield break; }", encoding="utf-8"
+            )
+            with_bell = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(len(with_bell), 16)
+            self.assertIn(
+                "Rpg.Tests.Editor.SoundwellTrialTests.BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope",
+                with_bell,
+            )
+            self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
 
 
 class CompilerLogTests(unittest.TestCase):

@@ -25,6 +25,165 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope()
+        {
+            // The full smoke path already tests collecting rope and cart clues.
+            // This separate live-scene regression protects the *optional* branch:
+            // the sound-only rescue must stay achievable with neither pickup.
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return RunBellOnlyRescueAfterInitialization();
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator RunBellOnlyRescueAfterInitialization()
+        {
+            float deadline = Time.realtimeSinceStartup + 30f;
+            while ((!Maki.Initialized || !ORK.Initialized) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(Maki.Initialized && ORK.Initialized, Is.True);
+
+            var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entry, Is.Not.Null);
+            var load = entry.OpenTrial();
+            Assert.That(load, Is.Not.Null);
+            deadline = Time.realtimeSinceStartup + 12f;
+            while (!load.isDone && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(load.isDone, Is.True);
+
+            SoundwellTrial trial = null;
+            SoundwellOrkParty party = null;
+            deadline = Time.realtimeSinceStartup + 15f;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                trial = Object.FindFirstObjectByType<SoundwellTrial>();
+                party = Object.FindFirstObjectByType<SoundwellOrkParty>();
+                if (trial != null && party != null && trial.IsReady && party.IsReady)
+                    break;
+                yield return null;
+            }
+            Assert.That(trial != null && trial.IsReady && party != null && party.IsReady,
+                Is.True, "Use real saved Soundwell and three-member ORK group.");
+            trial.ReadInput = false;
+            var playerBody = party.Leader.GetComponent<Rigidbody2D>();
+            Assert.That(playerBody, Is.Not.Null);
+            Vector2 safe = playerBody.position;
+
+            // Only the real carry/place/ring actions and the two named stands
+            // establish the lure. Do not set Makinom or ORK state in the test.
+            MoveTestLeader(playerBody, trial.BellPosition);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True);
+            MoveTestLeader(playerBody, SoundwellTrial.SideBellStand);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.False);
+            Assert.That(Vector2.Distance(trial.BellPosition,
+                SoundwellTrial.SideBellStand), Is.LessThan(0.1f));
+            trial.ApplyInput(Vector2.zero, true, false, false);
+            Assert.That(trial.HasBellTarget, Is.True);
+            deadline = Time.realtimeSinceStartup + 8f;
+            while (trial.BeastPosition.y >= -0.95f && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.BeastPosition.y, Is.LessThan(-0.95f),
+                "The beast must really follow the moved bell before the gate unlocks.");
+
+            MoveTestLeader(playerBody, new Vector2(-0.55f, 0f));
+            Assert.That(trial.CanOpenGate, Is.True,
+                "A placed side bell and real diverted beast must allow the noncombat route.");
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.GateOpen, Is.True);
+            Assert.That(trial.DirectCombatStarted || trial.DirectCombatComplete, Is.False,
+                "The bell route must not fake an ORK battle victory.");
+
+            // Optional exploration must remain optional, including the guide rope.
+            Assert.That(trial.RopeObserved || trial.RopeRecovered ||
+                trial.CartObserved || trial.CartKitReclaimed ||
+                trial.ClawsObserved, Is.False);
+            MoveTestLeader(playerBody, SoundwellTrial.SurveyorPosition);
+            Assert.That(trial.AtSurveyor, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.HasSurveyorClue, Is.True);
+            MoveTestLeader(playerBody, SoundwellTrial.UpperBoardPosition);
+            Assert.That(trial.CanSecurePlank, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.PlankSecured, Is.True);
+
+            deadline = Time.realtimeSinceStartup + 10f;
+            while (!trial.CanEscortSurveyor && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.CanEscortSurveyor, Is.True);
+            Assert.That(trial.CanTieEscortLine, Is.False,
+                "No rope must disable only the optional tied-guide action.");
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.SurveyorEscorting, Is.True);
+            Assert.That(trial.SurveyorLineTied, Is.False);
+
+            // Only the test-controlled leader moves in small increments. The
+            // survivor must follow under his actual scene-local movement logic;
+            // no NPC teleport, direct reward flag or forced route completion.
+            // The saved escort route deliberately waits on the braced plank
+            // until the player first crosses the gate (leader.x <= 0.85).
+            // Do not demand close following while the survivor is waiting.
+            MoveTestLeader(playerBody, new Vector2(1.4f, 0.7f));
+            yield return null;
+            Assert.That(Vector2.Distance(trial.SurveyorWorldPosition,
+                SoundwellTrial.UpperBoardPosition), Is.LessThan(0.18f),
+                "The surveyor must wait on the proven plank until the guide crosses the gate.");
+            var firstSteps = new[]
+            {
+                new Vector2(0.6f, 0.0f), new Vector2(-0.3f, 0.0f)
+            };
+            foreach (Vector2 step in firstSteps)
+            {
+                MoveTestLeader(playerBody, step);
+                deadline = Time.realtimeSinceStartup + 8f;
+                while (Vector2.Distance(trial.SurveyorWorldPosition, step) > 1.35f &&
+                       Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, step),
+                    Is.LessThanOrEqualTo(1.35f),
+                    "Without a rope, the actual surveyor must remain close to the guide.");
+            }
+            for (float x = -1.15f; x > safe.x + 0.4f; x -= 0.9f)
+            {
+                Vector2 step = new Vector2(x, safe.y);
+                MoveTestLeader(playerBody, step);
+                deadline = Time.realtimeSinceStartup + 8f;
+                while (Vector2.Distance(trial.SurveyorWorldPosition, step) > 1.35f &&
+                       Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, step),
+                    Is.LessThanOrEqualTo(1.35f),
+                    "The survivor must physically follow each return waypoint.");
+            }
+            Assert.That(trial.RescueComplete, Is.False,
+                "Near the exit is not equivalent to bringing the survivor all the way home.");
+            MoveTestLeader(playerBody, safe);
+            deadline = Time.realtimeSinceStartup + 15f;
+            while (!trial.RescueComplete && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.RescueComplete, Is.True,
+                "The noncombat route must complete only when the actual survivor reaches RETREAT.");
+            Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, safe),
+                Is.LessThanOrEqualTo(0.98f));
+            Assert.That(trial.RopeRecovered || trial.CartKitReclaimed ||
+                trial.DirectCombatComplete, Is.False);
+
+            Debug.Log("RPG_SOUNDWELL_BELL_ONLY_RESCUE_VALIDATED");
+        }
+
+        private static void MoveTestLeader(Rigidbody2D body, Vector2 position)
+        {
+            // Teleport *only* the player during this focused branching test.
+            // The full smoke path separately verifies real walking/input.
+            body.linearVelocity = Vector2.zero;
+            body.position = position;
+            Physics2D.SyncTransforms();
+        }
+
+        [UnityTest]
         public IEnumerator ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges()
         {
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);

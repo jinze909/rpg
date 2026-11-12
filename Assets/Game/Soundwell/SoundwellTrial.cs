@@ -372,7 +372,8 @@ namespace Rpg.Soundwell
             bool returning = !DirectCombatStarted && !DirectCombatComplete &&
                 !HasBellTarget && !IsSearching && beast != null &&
                 Vector2.Distance(beast.position, beastHome) > 0.15f;
-            view.AnimatePlayerMotion(movement.sqrMagnitude > 0.0001f && !battleMode && !ActionMenuOpen);
+            view.AnimatePlayerMotion(movement.sqrMagnitude > 0.0001f && !battleMode && !ActionMenuOpen,
+                movement.x);
             view.Refresh(HasBellTarget, IsSearching, returning, IsWrapped, AtBell, AtSafePoint,
                 IsCarrying, CanPlaceBell, GateOpen, AtGatePanel, CanOpenGate,
                 CanEngageBeast, DirectCombatComplete, AtSurveyor,

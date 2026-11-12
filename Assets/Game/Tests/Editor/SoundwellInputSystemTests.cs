@@ -166,6 +166,29 @@ namespace Rpg.Tests.Editor
 
                 var sfxButton = entry.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "Soundwell SFX toggle");
+                // The visible retry/result summary must never overlap either
+                // the entry footer or the SFX control at 4:3/narrow and 16:9.
+                // Verify the actual UGUI RectTransforms, not just hardcoded text.
+                foreach (float aspect in new[] { 1f, 16f / 9f })
+                {
+                    entry.LayoutForViewportAspect(aspect);
+                    var labels = entry.GetComponentsInChildren<Text>(true);
+                    var footer = labels.Single(t =>
+                        t.text == SoundwellUiLocalization.Get("entry.footer")).rectTransform;
+                    var result = labels.Single(t =>
+                        t.text == entry.ReturnSummaryText &&
+                        t.rectTransform.sizeDelta.y >= 100f).rectTransform;
+                    var sfxRect = (RectTransform)sfxButton.transform;
+                    float footerBottom = footer.anchoredPosition.y - footer.sizeDelta.y * 0.5f;
+                    float resultTop = result.anchoredPosition.y + result.sizeDelta.y * 0.5f;
+                    float resultBottom = result.anchoredPosition.y - result.sizeDelta.y * 0.5f;
+                    float sfxTop = sfxRect.anchoredPosition.y + sfxRect.sizeDelta.y * 0.5f;
+                    Assert.That(footerBottom - resultTop, Is.GreaterThanOrEqualTo(4f),
+                        "The return result must not cover the entry instructions at aspect " + aspect);
+                    Assert.That(resultBottom - sfxTop, Is.GreaterThanOrEqualTo(4f),
+                        "The return result must not cover the SFX button at aspect " + aspect);
+                }
+                entry.LayoutForViewportAspect((float)Screen.width / Mathf.Max(Screen.height, 1));
                 EventSystem events = EventSystem.current;
                 Assert.That(events, Is.Not.Null);
                 events.SetSelectedGameObject(sfxButton.gameObject);

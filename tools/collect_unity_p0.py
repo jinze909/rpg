@@ -44,6 +44,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellDirectVictoryEscortTests.OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival",
     },
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
+        "BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope":
+            "Rpg.Tests.Editor.SoundwellTrialTests.BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope",
         "ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges":
             "Rpg.Tests.Editor.SoundwellTrialTests.ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges",
         "PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi":
@@ -391,6 +393,8 @@ def collect(mode):
                         "RPG_SOUNDWELL_LOCALIZATION_VALIDATED")
     if soundwell:
         editmode_markers += SOUNDWELL_MARKERS + (ORK_UI_MARKER,)
+    if "Rpg.Tests.Editor.SoundwellTrialTests.BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope" in expected_tests:
+        editmode_markers += ("RPG_SOUNDWELL_BELL_ONLY_RESCUE_VALIDATED",)
     for filename, markers in {
         "editmode.log": editmode_markers,
         "batch.log": ("RPG_BOOTSTRAP_VALIDATED",),

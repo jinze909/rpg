@@ -925,9 +925,14 @@ namespace Rpg.Soundwell
 
         // Reuse M4's sole presentation Animator; only the sprite image changes.
         // The rendered leader is still a child of the authoritative ORK/2D actor.
-        public void AnimatePlayerMotion(bool moving)
+        public void AnimatePlayerMotion(bool moving, float horizontalMotion)
         {
             playerAnimation.UpdateMotion(moving);
+            // This is renderer-only pixel facing. Preserve the last direction
+            // while idle or moving vertically so the character does not flicker
+            // between left and right; never flip the physics/ORK actor itself.
+            if (moving && Mathf.Abs(horizontalMotion) > 0.01f)
+                leaderVisualRenderer.flipX = horizontalMotion < 0f;
             bool walkFrame = playerAnimation.CurrentState == "Move" &&
                 Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1;
             leaderVisualRenderer.sprite = walkFrame ? leaderWalkPixelSprite : leaderPixelSprite;
@@ -948,6 +953,7 @@ namespace Rpg.Soundwell
         public void ResetPlayerAnimation()
         {
             playerAnimation.ResetAnimation();
+            leaderVisualRenderer.flipX = false;
             leaderVisualRenderer.sprite = leaderPixelSprite;
         }
 
