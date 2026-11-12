@@ -1279,6 +1279,58 @@ namespace Rpg.Tests.Editor
             Assert.That(events.currentSelectedGameObject, Is.SameAs(attack.gameObject),
                 "The next ORK chooser must keep a legal Submit target.");
 
+            // A second rescuer can spend an actual ORK turn to step eight
+            // world pixels. The destination is previewed and can be cancelled
+            // without changing actor position or consuming the ORK choice.
+            int movingRescuer = party.ChoosingRescuerIndex;
+            Vector2 beforeStep = party.Actors[movingRescuer].transform.position;
+            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.True,
+                "The westward step from the live guard follow-up must be reachable.");
+            Assert.That(party.CanStep(movingRescuer, Vector2.one), Is.False,
+                "A diagonal command cannot bypass the one-cardinal-step limit.");
+            var moveButton = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+            var westButton = GameObject.Find("Soundwell Move West button")?.GetComponent<Button>();
+            var commitMove = GameObject.Find("Soundwell Confirm Move button")?.GetComponent<Button>();
+            var cancelMove = GameObject.Find("Soundwell Cancel Move button")?.GetComponent<Button>();
+            var stepPreview = GameObject.Find("PLACEHOLDER ORK step destination")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(moveButton, Is.Not.Null);
+            Assert.That(westButton, Is.Not.Null);
+            Assert.That(commitMove, Is.Not.Null);
+            Assert.That(cancelMove, Is.Not.Null);
+            Assert.That(stepPreview, Is.Not.Null);
+            Assert.That(moveButton.interactable, Is.True);
+            Assert.That(stepPreview.enabled, Is.False);
+            moveButton.onClick.Invoke();
+            Assert.That(westButton.gameObject.activeInHierarchy, Is.True);
+            westButton.onClick.Invoke();
+            Assert.That(stepPreview.enabled, Is.True);
+            Assert.That((Vector2)stepPreview.transform.position,
+                Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance));
+            cancelMove.onClick.Invoke();
+            Assert.That(stepPreview.enabled, Is.False);
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
+            Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
+                Is.EqualTo(beforeStep),
+                "Cancel cannot secretly move the ORK actor or spend its turn.");
+
+            moveButton.onClick.Invoke();
+            westButton.onClick.Invoke();
+            Assert.That(commitMove.interactable, Is.True);
+            commitMove.onClick.Invoke();
+            float moveDeadline = Time.realtimeSinceStartup + 8f;
+            while (party.ChoosingRescuerIndex == movingRescuer &&
+                   Time.realtimeSinceStartup < moveDeadline)
+                yield return null;
+            Assert.That(party.ChoosingRescuerIndex, Is.Not.EqualTo(movingRescuer),
+                "The confirmed step must advance ORK's real turn.");
+            Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
+                Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance),
+                "The real actor must arrive at the previewed grid position.");
+            Assert.That(trial.GateOpen, Is.False,
+                "A movement action cannot silently open the gate.");
+            yield return null;
+
             // Feed Gamepad B through the live input module. The selected
             // Attack button must receive Cancel without a hierarchy dispatch.
             Gamepad gamepad = InputSystem.AddDevice<Gamepad>();

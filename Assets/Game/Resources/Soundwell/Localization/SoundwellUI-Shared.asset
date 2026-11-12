@@ -355,6 +355,34 @@ MonoBehaviour:
     m_Key: hint.claw_observed
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267361
+    m_Key: battle.move
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267362
+    m_Key: battle.move_north
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267363
+    m_Key: battle.move_east
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267364
+    m_Key: battle.move_south
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267365
+    m_Key: battle.move_west
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267366
+    m_Key: battle.move_confirm
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267367
+    m_Key: battle.move_cancel
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:
