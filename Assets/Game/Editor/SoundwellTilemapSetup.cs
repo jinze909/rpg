@@ -24,6 +24,21 @@ namespace Rpg.Editor
         private const string GridName = "Soundwell solid Tilemap";
         private const float Cell = 0.2f;
 
+        // The authored eight wall segments are the single map footprint contract.
+        // The saved scene is independently checked against every occupied cell;
+        // a few successful sample cells cannot prove the gate/corridors are clear.
+        private static readonly (Vector2 Center, Vector2 Size)[] WallSegments =
+        {
+            (new Vector2(0.25f, 2f), new Vector2(0.32f, 2.4f)),
+            (new Vector2(0.25f, -2f), new Vector2(0.32f, 2.4f)),
+            (new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f)),
+            (new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f)),
+            (new Vector2(-3.4f, -3.2f), new Vector2(7.3f, 0.28f)),
+            (new Vector2(7f, 0f), new Vector2(0.32f, 6.4f)),
+            (new Vector2(3.625f, 3.2f), new Vector2(6.75f, 0.28f)),
+            (new Vector2(3.625f, -3.2f), new Vector2(6.75f, 0.28f)),
+        };
+
         public static void Prepare()
         {
             var existing = AssetDatabase.LoadAssetAtPath<RuleTile>(RulePath);
@@ -86,14 +101,8 @@ namespace Rpg.Editor
 
                 // These are the eight existing physical wall rectangles.
                 // The controlled central gate is intentionally NOT tiled.
-                Fill(map, tile, new Vector2(0.25f, 2f), new Vector2(0.32f, 2.4f));
-                Fill(map, tile, new Vector2(0.25f, -2f), new Vector2(0.32f, 2.4f));
-                Fill(map, tile, new Vector2(-7f, 0f), new Vector2(0.32f, 6.4f));
-                Fill(map, tile, new Vector2(-3.4f, 3.2f), new Vector2(7.3f, 0.28f));
-                Fill(map, tile, new Vector2(-3.4f, -3.2f), new Vector2(7.3f, 0.28f));
-                Fill(map, tile, new Vector2(7f, 0f), new Vector2(0.32f, 6.4f));
-                Fill(map, tile, new Vector2(3.625f, 3.2f), new Vector2(6.75f, 0.28f));
-                Fill(map, tile, new Vector2(3.625f, -3.2f), new Vector2(6.75f, 0.28f));
+                foreach (var wall in WallSegments)
+                    Fill(map, tile, wall.Center, wall.Size);
                 map.CompressBounds();
                 EditorSceneManager.MarkSceneDirty(scene);
                 if (!EditorSceneManager.SaveScene(scene))
@@ -128,16 +137,33 @@ namespace Rpg.Editor
                 var map = roots[0].GetComponentInChildren<Tilemap>();
                 var render = map != null ? map.GetComponent<TilemapRenderer>() : null;
                 var collider = map != null ? map.GetComponent<TilemapCollider2D>() : null;
+                var grid = roots[0].GetComponent<Grid>();
                 if (map == null || render == null || collider == null ||
+                    !collider.enabled || collider.isTrigger ||
                     render.sortingLayerName != "Default" ||
-                    Mathf.Abs(roots[0].GetComponent<Grid>().cellSize.x - Cell) > 0.001f)
-                    throw new InvalidOperationException("M5 wall Tilemap renderer/collider is invalid.");
+                    Mathf.Abs(grid.cellSize.x - Cell) > 0.001f ||
+                    Mathf.Abs(grid.cellSize.y - Cell) > 0.001f)
+                    throw new InvalidOperationException("M5 wall Tilemap renderer/solid collider is invalid.");
 
-                Check(map, new Vector3Int(-35, 0, 0), rule, true);
-                Check(map, new Vector3Int(35, 0, 0), rule, true);
-                Check(map, new Vector3Int(1, 9, 0), rule, true);
-                Check(map, new Vector3Int(1, -10, 0), rule, true);
-                Check(map, new Vector3Int(1, 0, 0), rule, false);
+                // Compare every saved cell with the intended physical footprint.
+                // This rejects holes, stray walls across the gate or escape lane,
+                // and swapped tiles outside the five legacy sample positions.
+                var missing = new HashSet<Vector3Int>();
+                foreach (var wall in WallSegments)
+                    foreach (var position in Cells(wall.Center, wall.Size))
+                        missing.Add(position);
+                foreach (var position in map.cellBounds.allPositionsWithin)
+                {
+                    var saved = map.GetTile(position);
+                    if (saved == null)
+                        continue;
+                    if (saved != rule || !missing.Remove(position))
+                        throw new InvalidOperationException(
+                            "M5 saved Tilemap contains an unexpected solid cell at " + position);
+                }
+                if (missing.Count != 0)
+                    throw new InvalidOperationException(
+                        "M5 saved Tilemap is missing authored solid cells, first: " + missing.First());
                 if (map.GetUsedTilesCount() != 1)
                     throw new InvalidOperationException("Only the authored M5 Rule Tile may occupy solid walls.");
             }
@@ -148,14 +174,7 @@ namespace Rpg.Editor
             Debug.Log("RPG_SOUNDWELL_TILEMAP_VALIDATED");
         }
 
-        private static void Check(Tilemap map, Vector3Int cell, RuleTile rule, bool occupied)
-        {
-            bool matches = map.GetTile(cell) == rule;
-            if (matches != occupied)
-                throw new InvalidOperationException("M5 solid wall or controlled opening differs at " + cell);
-        }
-
-        private static void Fill(Tilemap map, RuleTile tile, Vector2 center, Vector2 size)
+        private static IEnumerable<Vector3Int> Cells(Vector2 center, Vector2 size)
         {
             int left = Mathf.CeilToInt((center.x - size.x / 2f) / Cell - 0.5f);
             int right = Mathf.FloorToInt((center.x + size.x / 2f) / Cell - 0.5f);
@@ -163,7 +182,13 @@ namespace Rpg.Editor
             int top = Mathf.FloorToInt((center.y + size.y / 2f) / Cell - 0.5f);
             for (int x = left; x <= right; x++)
                 for (int y = bottom; y <= top; y++)
-                    map.SetTile(new Vector3Int(x, y, 0), tile);
+                    yield return new Vector3Int(x, y, 0);
+        }
+
+        private static void Fill(Tilemap map, RuleTile tile, Vector2 center, Vector2 size)
+        {
+            foreach (var cell in Cells(center, size))
+                map.SetTile(cell, tile);
         }
 
         private static Sprite CreateSprite(string name, bool joined)
