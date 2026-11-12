@@ -193,6 +193,7 @@ namespace Rpg.Soundwell
                 () => { ReturnToBootstrap(); },
                 () => ApplyInput(movement, false, false, false, true),
                 () => ApplyInput(movement, false, false, false, false, true),
+                () => { orkParty?.TryAttackBeast(); },
                 () =>
                 {
                     // UGUI Cancel closes the exploration focus menu, but in the
@@ -296,6 +297,7 @@ namespace Rpg.Soundwell
                 // The view reads a live ORK snapshot; it never resolves attacks
                 // or maintains a second copy of combat state.
                 view.SetBattleReadout(orkParty != null ? orkParty.BuildBattleReadout() : string.Empty);
+                view.SetBattleAttackChoice(orkParty != null ? orkParty.ReadyBaseAttackerIndex : -1);
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
             }

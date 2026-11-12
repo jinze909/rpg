@@ -140,6 +140,68 @@ namespace Rpg.Soundwell
                 yield break;
             }
 
+            // ORK's installed default ability asset has an AbilityLevel 1
+            // without an ActiveAbility payload. A base-attack shortcut alone
+            // is not an attack: CanChoose/CanUse always return false when its
+            // active level is null (confirmed by Unity run 43050554632).
+            // Configure the missing active definition on ORK's own ability,
+            // before any Soundwell combatants are registered. The real ORK
+            // ability and action resolver still own targeting, costs, turns,
+            // damage and victory; this never writes HP or fabricates an action.
+            Ability soundwellAttack = ORK.Abilities.Get(0);
+            AbilityLevel attackLevel = soundwellAttack != null
+                ? soundwellAttack.GetLevel(1) : null;
+            if (attackLevel == null)
+            {
+                Fail("Soundwell ORK base attack is missing its saved level 1.");
+                yield break;
+            }
+            if (attackLevel.active == null)
+                attackLevel.active = new ActiveAbility();
+            // The vendor starter battle system can route actions through
+            // system-wide schematics that never calculate their outcomes.
+            // Override those for this one unanimated test attack: ORK's
+            // built-in no-animation path calculates user/target changes.
+            // Do not change vendor settings or apply HP directly.
+            attackLevel.active.replaceSystemActionSchematics = true;
+            attackLevel.active.systemActionSchematics = new BattleSystemActionSchematicsSettings();
+            // A selectable ORK base-attack shortcut alone deals no damage:
+            // the frozen starter ability has no target status changes. Give
+            // this Soundwell prototype a whole HP status step so that ORK's
+            // integer-valued HP does not round fractional damage to zero.
+            // The player's UGUI action still uses ORK's real turn resolver.
+            // This is game-owned runtime setup, not a second HP authority.
+            if (attackLevel.active.targetChange == null ||
+                attackLevel.active.targetChange.Length == 0)
+            {
+                StatusValueAsset hpAsset = ORK.StatusValues.GetAsset(1);
+                if (hpAsset == null)
+                {
+                    Fail("Soundwell base attack cannot resolve ORK HP asset ID 1.");
+                    yield break;
+                }
+                var hpChange = new StatusValueStatusChangeType
+                {
+                    simpleOperator = SimpleOperator.Add,
+                    changeValue = new FloatValue<GameObjectSelection>(-1f)
+                };
+                hpChange.status.SetAsset(hpAsset);
+                attackLevel.active.targetChange = new[]
+                {
+                    new TargetStatusChange
+                    {
+                        change = new[]
+                        {
+                            new StatusChangeType
+                            {
+                                type = typeof(StatusValueStatusChangeType).ToString(),
+                                settings = hpChange
+                            }
+                        }
+                    }
+                };
+            }
+
             placeholderSprite = CreatePixelRescuerSprite(
                 IdlePixels, "PLACEHOLDER 16px Soundwell rescuer idle", out placeholderTexture);
             walkingSprite = CreatePixelRescuerSprite(
@@ -248,9 +310,53 @@ namespace Rpg.Soundwell
             }
             text.Append(SoundwellUiLocalization.Get("battle.beast")).Append("  ")
                 .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
-                .Append(Beast.Status[1].GetValue())
-                .Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
+                .Append(Beast.Status[1].GetValue());
+            // A defeated enemy has no further attack choice to present.
+            // A missing next chooser while its HP is positive is different
+            // from a completed action resolving ORK death/victory.
+            if (ReadyBaseAttackerIndex < 0 && !Beast.Status.IsDead &&
+                Beast.Status[1].GetValue() > 0f)
+                text.Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
             return text.ToString();
+        }
+
+        // The current Soundwell encounter has one real enemy. Determine
+        // which ORK combatant has a legal base attack this turn; never choose
+        // turns or maintain a second battle-action queue in the scene.
+        public int ReadyBaseAttackerIndex
+        {
+            get
+            {
+                if (!BattleInProgress || Beast == null || Beast.Status.IsDead)
+                    return -1;
+                for (int i = 0; i < members.Count; i++)
+                {
+                    Combatant member = members[i];
+                    if (member == null || member.Status.IsDead || !member.Actions.IsChoosing)
+                        continue;
+                    AbilityShortcut attack = member.Abilities.GetCurrentBaseAttack();
+                    if (attack != null && attack.CanChoose(member, true, true) &&
+                        attack.CanTarget(member, Beast))
+                        return i;
+                }
+                return -1;
+            }
+        }
+
+        // The only selectable target is ORK's actual beast combatant. Use the
+        // configured ORK base attack, its action costs and its turn processing;
+        // no manual HP subtraction or locally manufactured damage event.
+        public bool TryAttackBeast()
+        {
+            int index = ReadyBaseAttackerIndex;
+            if (index < 0)
+                return false;
+            Combatant attacker = members[index];
+            AbilityShortcut attack = attacker.Abilities.GetCurrentBaseAttack();
+            bool targetAllowed = attack != null && attack.CanTarget(attacker, Beast);
+            bool accepted = targetAllowed &&
+                attack.Use(attacker, new List<Combatant> { Beast }, true);
+            return accepted;
         }
 
         public bool TryStartDirectEncounter()

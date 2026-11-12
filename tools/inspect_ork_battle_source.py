@@ -157,9 +157,311 @@ def inspect_combatant_action_contract():
         raise RuntimeError("Frozen ORK archive is missing expected action classes")
     print(f"ORK_ACTION_AUDIT_OK classes={len(found_classes)} signatures={method_signatures}")
 
+
+
+def inspect_ability_selection_predicates():
+    """Summarize ORK's attack eligibility guards without publishing licensed code."""
+    import re
+
+    targets = {
+        "AbilityShortcut.cs": ("CanUse", "CanChoose"),
+        "ActiveAbility.cs": ("CanUse", "CanChoose"),
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if basename not in targets or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for method in targets[basename]:
+                starts = [
+                    index for index, line in enumerate(lines)
+                    if re.search(r"\b(?:public|protected)\s+(?:override\s+)?bool\s+" +
+                                 method + r"\s*\(", line)
+                ]
+                for start in starts[:1]:
+                    # Balance braces from the declaration to the method end.
+                    depth, entered, body = 0, False, []
+                    for line in lines[start:]:
+                        depth += line.count("{") - line.count("}")
+                        if "{" in line:
+                            entered = True
+                        body.append(line)
+                        if entered and depth == 0:
+                            break
+                    content = "\n".join(body)
+                    guard_calls = sorted(set(re.findall(
+                        r"\b((?:Can|Check|Has|Is|Get|Try)[A-Z][A-Za-z0-9_]*)\s*\(",
+                        content)))
+                    guard_symbols = sorted(set(re.findall(
+                        r"\b(?:user|ability|settings|action|combatant|status|costs|time|battle)"
+                        r"\.[A-Za-z_][A-Za-z_0-9]*", content)))
+                    print(
+                        "ORK_ATTACK_ELIGIBILITY " + basename + "." + method +
+                        " negative_exits=" + str(len(re.findall(r"\breturn\s+false\s*;", content))) +
+                        " predicate_calls=" + ",".join(guard_calls[:36]) +
+                        " observed_members=" + ",".join(guard_symbols[:50])
+                    )
+
+
+
+def inspect_attack_guard_flow():
+    """Report short conditional guard expressions, not ORK implementation bodies."""
+    import re
+
+    wanted = {
+        "AbilityShortcut.cs": ("CanUse", "CanChoose", "GetSelectedData", "GetActiveLevel"),
+        "ActiveAbility.cs": ("CanUse", "CanChoose"),
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if basename not in wanted or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for method in wanted[basename]:
+                found = [i for i, line in enumerate(lines)
+                         if re.search(r"\b(?:public|protected|private|internal)\s+"
+                                      r"(?:override\s+|virtual\s+|static\s+)*"
+                                      r"(?:bool|[A-Za-z_][A-Za-z_0-9<>]*)\s+"
+                                      + method + r"\s*\(", line)]
+                for start in found[:1]:
+                    depth = 0
+                    entered = False
+                    guards = []
+                    for line in lines[start:]:
+                        depth += line.count("{") - line.count("}")
+                        if "{" in line:
+                            entered = True
+                        trimmed = line.strip().split("//", 1)[0].strip()
+                        if re.match(r"^(?:if\s*\(|else\s+if\s*\(|return\s+)", trimmed):
+                            # Print only concise control-flow guards and exits,
+                            # never the neighboring proprietary method body.
+                            guards.append(trimmed[:200])
+                        if entered and depth == 0:
+                            break
+                    print("ORK_ATTACK_GUARD_FLOW " + basename + "." + method +
+                          " " + repr(guards[:24]))
+
+
+
+def inspect_attack_return_dependencies():
+    """List ORK attack guard dependencies, without publishing source expressions."""
+    import re
+    targets = {"ActiveAbility.cs": ("CanUse", "CanChoose")}
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            filename = Path(name).name
+            if filename not in targets or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            for method in targets[filename]:
+                for index, line in enumerate(lines):
+                    if not re.search(r"\bpublic\s+bool\s+" + method + r"\s*\(", line):
+                        continue
+                    # The installed ORK 3.22 method has a multi-line return.
+                    # Report only its referenced API members and predicates,
+                    # not any proprietary implementation lines.
+                    end = min(index + 130, len(lines))
+                    body = "\n".join(lines[index:end])
+                    match = re.search(
+                        r"return\s+!user\.Actions\.BlockActionUse\b(.*?);",
+                        body, flags=re.DOTALL)
+                    if match:
+                        expr = match.group(1)
+                        members = sorted(set(re.findall(
+                            r"\b(?:[A-Za-z_][A-Za-z_0-9]*\.)+"
+                            r"[A-Za-z_][A-Za-z_0-9]*", expr)))
+                        predicates = sorted(set(re.findall(
+                            r"\b(?:Can|Is|Check|Has|Get)[A-Z][A-Za-z_0-9]*(?=\s*\()", expr)))
+                        print("ORK_ATTACK_GUARD_DEPENDENCIES " + method +
+                              " members=" + ",".join(members[:72]) +
+                              " predicates=" + ",".join(predicates[:72]))
+                    break
+
+
+
+def inspect_ork_damage_data_contract():
+    """List fields/classes for a real ORK ability status change, not source bodies."""
+    import re
+
+    basenames = {
+        "ActiveAbility.cs", "AbilityLevel.cs", "TargetChanges.cs", "TargetChange.cs",
+        "StatusChange.cs", "StatusChangeValue.cs", "StatusValueChange.cs",
+        "StatusChangeSettings.cs", "Ability.cs", "ActionSettings.cs",
+        "StatusValueChangeSetting.cs", "StatusChangeType.cs",
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if not name.endswith(".cs"):
+                continue
+            if basename not in basenames and not (
+                "TargetChange" in basename or "StatusValueChange" in basename
+            ):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            classes = [re.sub(r"\s+", " ", line.strip())[:180]
+                       for line in lines
+                       if re.match(r"^\s*(?:public|internal)\s+"
+                                   r"(?:(?:partial|sealed|abstract)\s+)?"
+                                   r"(?:class|struct|enum)\s+", line)]
+            declarations = [re.sub(r"\s+", " ", line.strip())[:190]
+                            for line in lines
+                            if re.match(r"^\s*public\s+"
+                                        r"(?!class\b|struct\b|enum\b)"
+                                        r"(?!override\b)"
+                                        r"[A-Za-z0-9_<>,?.\[\] ]+\s+"
+                                        r"[A-Za-z_][A-Za-z0-9_]*\s*(?:=|;|\{)", line)]
+            print("ORK_DAMAGE_DATA_API " + basename +
+                  " types=" + repr(classes[:10]) +
+                  " fields=" + repr(declarations[:55]))
+
+def inspect_exact_attack_damage_configuration():
+    """Report type declarations needed to finish the real ORK attack payload.
+
+    The public API shapes are sufficient; no vendor method bodies are logged.
+    """
+    import re
+
+    targets = {
+        "TargetStatusChange.cs", "StatusValueStatusChangeType.cs",
+        "StatusValueChange.cs", "FloatValue.cs", "AssetSelection.cs",
+        "StatusValueAsset.cs", "SimpleOperator.cs", "ValueSetter.cs",
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            filename = Path(name).name
+            if filename not in targets:
+                continue
+            source = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            declarations = [
+                line.strip()[:230] for line in source
+                if re.match(r"^\s*public\s+", line)
+                and (" class " in line or " enum " in line or " struct " in line
+                     or "=" in line or line.strip().endswith(";")
+                     or "(" in line)
+            ]
+            print("ORK_DAMAGE_SHAPE " + filename +
+                  " declarations=" + repr(declarations[:65]))
+
+
+def inspect_attack_execution_pipeline():
+    """Read-only, public-signature audit: why an accepted attack can skip damage.
+
+    Avoid writing or displaying vendor source bodies, private symbols and assets.
+    """
+    import re
+
+    targets = {
+        "BattleAnimationSetting.cs", "BattleAnimation.cs",
+        "AbilityAction.cs", "BaseAction.cs",
+        "BattleSystemActionSchematicsSettings.cs",
+        "ActionCalculationSchematicSettings.cs",
+        "TargetStatusChange.cs", "StatusChange.cs",
+        "StatusValueStatusChangeType.cs",
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for name in sorted(archive.namelist()):
+            basename = Path(name).name
+            if basename not in targets or not name.endswith(".cs"):
+                continue
+            lines = archive.read(name).decode("utf-8-sig", errors="replace").splitlines()
+            public_api = []
+            for number, line in enumerate(lines, 1):
+                signature = re.sub(r"\\s+", " ", line.strip())
+                if not signature.startswith("public "):
+                    continue
+                if re.search(r"\\b(class|enum|struct)\\b", signature) or (
+                    "(" in signature and not signature.startswith("public if ")
+                ) or ("=" in signature) or signature.endswith(";"):
+                    public_api.append(f"{number}:{signature[:165]}")
+            print(f"ORK_ATTACK_EXEC_API {basename} " +
+                  " || ".join(public_api[:85]))
+            if basename in ("AbilityAction.cs", "BaseAction.cs"):
+                for number, line in enumerate(lines, 1):
+                    if not any(term in line for term in (
+                        "targetChange", "CalculateAction(", "CalculateTarget(",
+                        "StartSchematic(", "battleAnimation", "targetCalculationSchematics",
+                    )):
+                        continue
+                    nearby = [re.sub(r"\\s+", " ", entry.strip())[:135]
+                              for entry in lines[max(0, number-9):number]
+                              if re.match(r"\\s*(public|private|protected|internal)\\s", entry)]
+                    print(f"ORK_ATTACK_EXEC_CALL_SITE {basename}:{number} " +
+                          "nearby_signature=" + (nearby[-1] if nearby else "not nearby") +
+                          " token_category=" + ("target-status" if "targetChange" in line
+                                               else "calculation-or-animation"))
+
+
+def inspect_attack_orchestration_contract():
+    """Expose framework-owned action lifecycle names, never licensed method bodies."""
+    import re
+    sought = {
+        "CombatantActions.cs": ("GetCurrent", "GetAction", "AddAction", "Action", "Perform", "Start"),
+        "AbilityShortcut.cs": ("Use",),
+        "ActiveAbility.cs": ("Use",),
+        "BaseAction.cs": ("PerformAction", "CalculateSimple", "SetActionFinished"),
+        "AbilityAction.cs": ("Calculate", "ActionAdded"),
+        "BattleActionHandler.cs": ("Perform", "Action", "Calculate"),
+    }
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        for filename, patterns in sought.items():
+            found = [n for n in archive.namelist() if Path(n).name == filename]
+            if not found:
+                print("ORK_ATTACK_LIFECYCLE_MISSING " + filename)
+                continue
+            lines = archive.read(found[0]).decode("utf-8-sig", errors="replace").splitlines()
+            if filename == "CombatantActions.cs":
+                for number, line in enumerate(lines, 1):
+                    stripped = line.strip()
+                    if stripped.startswith("public ") and any(
+                        marker.lower() in stripped.lower() for marker in patterns
+                    ):
+                        print(f"ORK_COMBATANT_ACTION_API {filename}:{number} {stripped[:195]}")
+            signatures = []
+            for index, line in enumerate(lines):
+                normalized = re.sub(r"\\s+", " ", line.strip())
+                if not re.match(r"^(?:public|protected|private|internal)\\s", normalized):
+                    continue
+                if not any(re.search(r"\\b" + marker + r"\\s*\\(", normalized)
+                           for marker in patterns if marker != "Action"):
+                    continue
+                if "(" not in normalized:
+                    continue
+                signatures.append((index, normalized[:180]))
+            for index, signature in signatures[:14]:
+                depth, begun, body = 0, False, []
+                for line in lines[index:index + 220]:
+                    depth += line.count("{") - line.count("}")
+                    if "{" in line:
+                        begun = True
+                    body.append(line)
+                    if begun and depth == 0:
+                        break
+                source = "\\n".join(body)
+                calls = re.findall(r"(?<![A-Za-z0-9_])([A-Za-z_][A-Za-z_0-9]*)\\s*\\(", source)
+                relevant = [name for name in dict.fromkeys(calls)
+                            if name in ("Calculate", "CalculateSimple", "Use", "PerformAction",
+                                        "Perform", "Start", "ActionAdded", "UseAbility",
+                                        "PlayAction", "GetBattleAnimation", "GetActiveLevel",
+                                        "AddAction", "CreateAbility", "ConsumeCosts",
+                                        "UseTarget", "UseStatus", "SetActionFinished",
+                                        "StartSchematic", "PlaySchematic")]
+                print(f"ORK_ATTACK_LIFECYCLE {filename}:{index+1} {signature} calls=" +
+                      ",".join(relevant) + " branches=" + str(len(re.findall(
+                          r"\\b(?:if|switch)\\s*\\(", source))))
+
 if __name__ == "__main__":
     main()
     inspect_battle_system_selection()
     inspect_ork_battle_types()
     inspect_battle_end_lifecycle()
     inspect_combatant_action_contract()
+    inspect_ability_selection_predicates()
+    inspect_attack_guard_flow()
+    inspect_attack_return_dependencies()
+    inspect_ork_damage_data_contract()
+    inspect_exact_attack_damage_configuration()
+    inspect_attack_execution_pipeline()
+    inspect_attack_orchestration_contract()

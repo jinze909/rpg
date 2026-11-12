@@ -63,6 +63,8 @@ namespace Rpg.Soundwell
         private readonly Button wrapButton;
         private readonly Button retryButton;
         private readonly Button backButton;
+        private readonly Button attackButton;
+        private readonly Text attackButtonLabel;
         private readonly Button carryButton;
         private readonly Button gateButton;
         private readonly Text gateButtonLabel;
@@ -87,7 +89,7 @@ namespace Rpg.Soundwell
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
-            Action carry, Action gate, Action cancelActionMenu)
+            Action carry, Action gate, Action attackBeast, Action cancelActionMenu)
         {
             this.camera = camera;
             escortLeader = player;
@@ -361,6 +363,18 @@ namespace Rpg.Soundwell
             Localize(retryButton.GetComponentInChildren<Text>(), "action.retry");
             backButton = CreateActionButton(actionCanvas.transform, "Back", "", 3, back);
             Localize(backButton.GetComponentInChildren<Text>(), "action.back");
+            // A view-only adapter into ORK's selected base attack. This button
+            // never calculates damage or selects an unauthorized combatant.
+            attackButton = CreateActionButton(actionCanvas.transform, "Attack", "", 6, attackBeast);
+            attackButtonLabel = attackButton.GetComponentInChildren<Text>();
+            var attackRect = (RectTransform)attackButton.transform;
+            attackRect.anchorMin = attackRect.anchorMax = new Vector2(0.5f, 0f);
+            attackRect.pivot = new Vector2(0.5f, 0f);
+            attackRect.anchoredPosition = new Vector2(0f, 34f);
+            attackRect.sizeDelta = new Vector2(265f, 48f);
+            attackButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
+            attackButton.interactable = false;
+            attackButton.gameObject.SetActive(false);
             carryButton = CreateActionButton(actionCanvas.transform, "Carry", "", 4, carry);
             carryButtonLabel = carryButton.GetComponentInChildren<Text>();
             gateButton = CreateActionButton(actionCanvas.transform, "Gate", "OPEN GATE [G / RB]", 5, gate);
@@ -427,7 +441,10 @@ namespace Rpg.Soundwell
                 SoundwellUiLocalization.Get(active ? "action.retreat" : "action.back");
             trialCanvas.gameObject.SetActive(!active);
             battleCanvas.gameObject.SetActive(active);
-            // Until Makinom's player-choice UI is wired, combat still needs
+            attackButton.gameObject.SetActive(active);
+            if (!active)
+                attackButton.interactable = false;
+            // Until the full ORK player-choice UI is wired, combat still needs
             // a genuine, reachable way to abandon an otherwise stalled turn.
             // This is the existing scene-exit action, not a second battle UI.
             foreach (var button in new[] { ringButton, wrapButton, retryButton,
@@ -445,6 +462,25 @@ namespace Rpg.Soundwell
                 actionEventSystem.SetSelectedGameObject(backButton.gameObject);
             else if (actionEventSystem.currentSelectedGameObject == backButton.gameObject)
                 actionEventSystem.SetSelectedGameObject(null);
+        }
+
+        // The input comes from ORK's live action chooser, not a local timer or
+        // invented per-character turn state. The active target is the one beast.
+        public void SetBattleAttackChoice(int readyAttackerIndex)
+        {
+            if (!battleMode)
+                return;
+            attackButton.interactable = readyAttackerIndex >= 0;
+            attackButtonLabel.text = readyAttackerIndex >= 0
+                ? SoundwellUiLocalization.Get("battle.rescuer") + " " +
+                    (readyAttackerIndex + 1) + "  >  " +
+                    SoundwellUiLocalization.Get("battle.beast")
+                : SoundwellUiLocalization.Get("battle.menu_pending");
+            if (actionEventSystem.currentSelectedGameObject == attackButton.gameObject &&
+                !attackButton.interactable)
+                actionEventSystem.SetSelectedGameObject(backButton.gameObject);
+            attackButtonLabel.font = SoundwellUiLocalization.PresentationFont(
+                Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
         }
 
         public void SetBattleReadout(string summary)

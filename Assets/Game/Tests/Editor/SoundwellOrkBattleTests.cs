@@ -27,24 +27,66 @@ namespace Rpg.Tests.Editor
     /// </summary>
     public sealed class SoundwellOrkBattleTests
     {
-        [UnityTest]
+        // Run the full combat path before the separate retreat test. Returning
+        // through Bootstrap can leave a pending async scene transition while
+        // the next test's fresh Play Mode domain is being initialized.
+        [UnityTest, Order(10)]
         public IEnumerator ThreePlayerCombatantsEnterOneOrkTurnBasedBattle()
         {
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
-            Assert.That(load, Is.Not.Null, "The saved Soundwell scene must load from the Bootstrap runtime.");
-            while (!load.isDone)
-                yield return null;
+            // The real attack integration is long-lived and must not be
+            // instantiated as one UnityTest iterator before a Play Mode
+            // domain reload. Construct its independent state machine only
+            // after the framework and saved Bootstrap are live.
+            yield return RunLiveBattleAndRescueAfterInitialization();
+        }
 
-            GameObject root = GameObject.Find("Soundwell signal trial");
-            Assert.That(root, Is.Not.Null, "The saved Soundwell scene root must exist.");
-            SoundwellOrkParty party = root.GetComponent<SoundwellOrkParty>();
-            SoundwellTrial trial = root.GetComponent<SoundwellTrial>();
-            Assert.That(party, Is.Not.Null, "The live scene must own its ORK party setup.");
-            Assert.That(trial, Is.Not.Null, "The live scene must own its rescue route state.");
+        private static IEnumerator RunLiveBattleAndRescueAfterInitialization()
+        {
+            // Enter through the real Bootstrap UI owner, matching the proven
+            // Soundwell player path instead of issuing an unrelated scene load.
+            // The previous candidate completed LoadSceneAsync but found no live
+            // trial root at the next statement (CI run 43016048935).
+            SoundwellEntrance entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance, Is.Not.Null,
+                "Bootstrap must have its saved Soundwell entry component.");
+            AsyncOperation load = entrance.OpenTrial();
+            Assert.That(load, Is.Not.Null,
+                "The real Bootstrap entry must begin loading Soundwell.");
+            float loadDeadline = Time.realtimeSinceStartup + 12f;
+            while (!load.isDone && Time.realtimeSinceStartup < loadDeadline)
+                yield return null;
+            Assert.That(load.isDone, Is.True, "Soundwell entry scene loading timed out.");
+
+            // Resolve scene root and both required components synchronously,
+            // within the same player-loop iteration. Earlier CI attempts
+            // retained a GameObject local across a UnityTest yield and then
+            // failed on GetComponent before any attack assertion could run.
+            GameObject root = null;
+            SoundwellOrkParty party = null;
+            SoundwellTrial trial = null;
+            float sceneDeadline = Time.realtimeSinceStartup + 8f;
+            while (Time.realtimeSinceStartup < sceneDeadline)
+            {
+                if (TryFindLiveTrialOwners(out root, out party, out trial))
+                    break;
+                yield return null;
+            }
+            if (root == null || party == null || trial == null)
+            {
+                Scene activeScene = SceneManager.GetActiveScene();
+                string names = activeScene.IsValid() && activeScene.isLoaded
+                    ? string.Join(", ", activeScene.GetRootGameObjects()
+                        .Where(item => item != null).Select(item => item.name))
+                    : "(unloaded)";
+                Assert.Fail("No active Soundwell trial with its two real owner components; " +
+                    "scene=" + activeScene.name + ", roots=" + names +
+                    ", trial=" + (trial != null) + ", party=" + (party != null));
+                yield break;
+            }
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
             while (!party.IsReady && string.IsNullOrEmpty(party.InitializationError) &&
@@ -426,10 +468,64 @@ namespace Rpg.Tests.Editor
             Assert.That(party.Members.Any(member => member.Actions.IsChoosing), Is.True,
                 "The direct route must enter a real ORK player turn, not only register battle participants.");
 
-            Assert.That(party.BattleInProgress, Is.True,
-                "The ORK encounter must still be active when its enemy is defeated.");
-            // The battle screen cannot be blank: the provisional, non-interactive
-            // readout must show live ORK HP/turn state without a parallel action UI.
+            // Attack must be an actual ORK ability from the active combatant,
+            // targeted at the saved beast. Do not treat manual status subtraction
+            // or a mocked battle-end event as proof of a usable player action.
+            var attackButton = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
+            Assert.That(attackButton, Is.Not.Null);
+            Assert.That(attackButton.gameObject.activeInHierarchy, Is.True);
+            float attackReadyDeadline = Time.realtimeSinceStartup + 6f;
+            while (!attackButton.interactable && Time.realtimeSinceStartup < attackReadyDeadline)
+                yield return null;
+            // Diagnose ORK's SAVED, real combatant ability state when the
+            // configured base attack is missing or unselectable. Keep the
+            // failure strict: no synthetic combat damage or action bypass.
+            string attackAvailability = string.Join("; ", party.Members.Select((member, index) =>
+            {
+                var baseAttack = member.Abilities.GetCurrentBaseAttack();
+                // Diagnostic probes must never replace a strict NUnit failure
+                // with an unrelated NullReference from an unusable ORK ability.
+                string canChoose, canUse, noCost, canTarget;
+                try
+                {
+                    bool choose = baseAttack != null && baseAttack.CanChoose(member, true, true);
+                    canChoose = choose.ToString();
+                    canUse = (baseAttack != null && baseAttack.CanUse(member, true, true)).ToString();
+                    noCost = (baseAttack != null && baseAttack.CanChoose(member, false, false)).ToString();
+                    canTarget = !choose ? "not evaluated (cannot choose)" :
+                        baseAttack.CanTarget(member, party.Beast).ToString();
+                }
+                catch (System.Exception error)
+                {
+                    return "member " + index + " ability probe threw " +
+                        error.GetType().Name + ": " + error.Message;
+                }
+                return "member " + index +
+                    " choosing=" + member.Actions.IsChoosing +
+                    " dead=" + member.Status.IsDead +
+                    " blockers=" + DescribeRuntimeActionBlockers(member, baseAttack) +
+                    " baseAttack=" + (baseAttack != null) +
+                    " canChoose=" + canChoose +
+                    " canUse=" + canUse +
+                    " canChooseNoCost=" + noCost +
+                    " canTargetBeast=" + canTarget;
+            }));
+            string baseAttackApi = string.Join("; ", party.Members[0].Abilities.GetType()
+                .GetMethods(System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.Instance)
+                .Where(method => method.Name.Contains("BaseAttack") ||
+                    method.Name.Contains("Ability"))
+                .Select(method => method.ToString())
+                .Distinct().Take(24));
+            Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
+                "A saved ORK player combatant must have a selectable base attack on its turn. " +
+                attackAvailability + " | public ORK API: " + baseAttackApi +
+                " | current base attack: " +
+                DescribeBaseAttackState(party.Members[0].Abilities.GetCurrentBaseAttack()));
+            Assert.That(attackButton.interactable, Is.True,
+                "The real UGUI action must enable only for the current ORK attack chooser.");
+            // Read the actual live HUD *before* the queued team attacks resolve.
+            // A turn indicator correctly disappears once the beast is defeated.
             yield return null;
             var battleHud = GameObject.Find("Soundwell ORK battle HUD");
             Assert.That(battleHud, Is.Not.Null,
@@ -441,47 +537,84 @@ namespace Rpg.Tests.Editor
             Assert.That(battleReadout.text, Does.Contain("Beast  HP " +
                 party.Beast.Status[1].GetValue()));
             Assert.That(battleReadout.text, Does.Contain("< TURN"),
-                "The live ORK chooser must be visible to the player.");
+                "The active ORK chooser must be visible before attacks execute.");
             Assert.That(battleReadout.raycastTarget, Is.False);
             Assert.That(battleHud.GetComponent<GraphicRaycaster>(), Is.Null,
                 "A status-only overlay cannot intercept ORK input.");
-
-            // This HUD is game-owned UGUI, not ORK battle text. It must
-            // follow the same persisted Unity Localization tables as the
-            // surrounding Soundwell controls, including the active turn.
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             yield return null;
             Assert.That(battleReadout.text, Does.Contain("救援队员 1  生命 " +
                 party.Members[0].Status[1].GetValue()));
             Assert.That(battleReadout.text, Does.Contain("野兽  生命 " +
                 party.Beast.Status[1].GetValue()));
-            Assert.That(battleReadout.text, Does.Contain("ORK 攻击指令菜单尚未接入。"));
+            Assert.That(battleReadout.text, Does.Not.Contain("ORK 攻击指令菜单尚未接入。"),
+                "A ready ORK base attack must not display the pending-menu warning.");
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             yield return null;
             Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +
                 party.Members[0].Status[1].GetValue()));
-
-            // HP is ORK status value ID 1 in this project. Apply a real ORK
-            // status change, then ask ORK's death check to resolve OnMinimum.
-            var beastHp = party.Beast.Status[1];
-            beastHp.AddValue(-999, false, false, false, true, true, false, false,
-                default(StatusValueChangeSource));
-            Assert.That(beastHp.GetValue(), Is.EqualTo(0),
-                "The ORK HP status must reach its configured minimum.");
-            Assert.That(party.Beast.Status.CheckDeath(), Is.True,
-                "ORK must resolve the beast's OnMinimum death condition.");
-            Assert.That(party.Beast.Status.IsDead, Is.True,
-                "ORK must record the beast as dead before the rescue gate can unlock.");
-            // The ORK status transition must now be sufficient to close the
-            // encounter. The test must not manufacture victory by invoking
-            // Combatants.EndBattle() itself.
-            float victoryDeadline = Time.realtimeSinceStartup + 8f;
-            while (!trial.DirectCombatComplete && Time.realtimeSinceStartup < victoryDeadline)
+            float beastHpBeforeAttack = party.Beast.Status[1].GetValue();
+            var attackUser = party.Members[party.ReadyBaseAttackerIndex];
+            var configuredAttack = ORK.Abilities.Get(0).GetLevel(1).active;
+            var configuredTarget = configuredAttack.targetChange[0];
+            var configuredStatusChange = configuredTarget.change[0].settings;
+            string damagePipelineSnapshot =
+                "targetChangeEligible=" + configuredTarget.CanUse(attackUser, party.Beast) +
+                " activeHitChance=" + DescribeConfigObject(configuredAttack.hitChance) +
+                " statusChange=" + DescribeConfigObject(configuredStatusChange) +
+                " targetChange=" + DescribeConfigObject(configuredTarget) +
+                " battleAnimation=" + DescribeConfigObject(configuredAttack.battleAnimation) +
+                " systemSchematics=" + DescribeConfigObject(configuredAttack.systemActionSchematics);
+            // The saved Turn Based system can collect the whole team's
+            // choices before it executes any action. A successful Use()
+            // means the first player's attack was queued, not that damage
+            // has already resolved. Complete the remaining real ORK choices
+            // through the same UGUI button, without manufacturing damage.
+            var submittedAttackers = new HashSet<Combatant> { attackUser };
+            attackButton.onClick.Invoke();
+            for (int selection = 1; selection < party.Members.Count; selection++)
+            {
+                if (party.Beast.Status.IsDead ||
+                    party.Beast.Status[1].GetValue() < beastHpBeforeAttack)
+                    break;
+                yield return null; // Allow the real ORK chooser and HUD to advance.
+                int nextIndex = party.ReadyBaseAttackerIndex;
+                if (nextIndex < 0)
+                    break; // The battle may already be resolving this turn.
+                var nextAttacker = party.Members[nextIndex];
+                Assert.That(submittedAttackers.Add(nextAttacker), Is.True,
+                    "ORK must not ask the same rescuer to choose twice in one turn.");
+                Assert.That(attackButton.interactable, Is.True,
+                    "UGUI must expose the next ORK-controlled party action.");
+                attackButton.onClick.Invoke();
+            }
+            float attackResolutionDeadline = Time.realtimeSinceStartup + 8f;
+            while (party.Beast.Status[1].GetValue() >= beastHpBeforeAttack &&
+                   !party.Beast.Status.IsDead &&
+                   Time.realtimeSinceStartup < attackResolutionDeadline)
                 yield return null;
+            Assert.That(party.Beast.Status[1].GetValue(), Is.LessThan(beastHpBeforeAttack),
+                "A player UGUI click must resolve its target and HP through a real ORK base attack. " +
+                "ActiveAbility=" + DescribeActiveAttackSetup(
+                    party.Members[0].Abilities.GetCurrentBaseAttack()) +
+                " turn=" + party.Members[0].Actions.IsChoosing +
+                " battle=" + party.BattleInProgress +
+                " pipeline=" + damagePipelineSnapshot);
+
+            // The queued, player-selected ORK attack has already reduced
+            // the beast's real HP. Its configured death check and battle end
+            // must now complete naturally; no test-side HP mutation or
+            // manual Combatants.EndBattle() may manufacture victory.
+            float victoryDeadline = Time.realtimeSinceStartup + 12f;
+            while ((!party.Beast.Status.IsDead || !trial.DirectCombatComplete) &&
+                   Time.realtimeSinceStartup < victoryDeadline)
+                yield return null;
+            Assert.That(party.Beast.Status.IsDead, Is.True,
+                "The actual ORK attack must resolve the beast's OnMinimum death.");
             Assert.That(trial.DirectCombatComplete, Is.True,
-                "A real ORK HP death must end the battle without a test-side EndBattle.");
+                "The actual ORK battle must end and unlock the route without a test-side EndBattle.");
             Assert.That(party.BattleInProgress, Is.False,
-                "The defeated encounter must release ORK battle participants.");
+                "The natural ORK attack must release all battle participants.");
             yield return null;
             Assert.That(battleHud.activeInHierarchy, Is.False,
                 "The battle-only HUD must disappear after ORK ends the encounter.");
@@ -646,20 +779,213 @@ namespace Rpg.Tests.Editor
             LogAssert.NoUnexpectedReceived();
         }
 
-        [UnityTest]
+        // Inspect only PUBLIC runtime data of the saved ORK ability on
+        // failure. This keeps licensed ORK source out of CI logs and allows
+        // configuration/eligibility faults to be distinguished before edits.
+        // Inspect the saved ORK combatant state at the actual failing turn.
+        // Reflection is read-only and never modifies an ORK action blocker.
+        // Read-only ORK configuration snapshot. A selectable attack is not
+        // sufficient: a real attack must define ORK target status changes.
+        // This helps identify the missing public setting without copying
+        // proprietary framework method bodies into CI logs.
+        private static string DescribeConfigObject(object value)
+        {
+            if (value == null) return "null";
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance;
+            var parts = value.GetType().GetFields(flags).Take(32).Select(field =>
+            {
+                object current = field.GetValue(value);
+                if (current == null) return field.Name + "=null";
+                if (current is System.Collections.ICollection items)
+                    return field.Name + "=count:" + items.Count;
+                if (current is string || current.GetType().IsPrimitive ||
+                    current.GetType().IsEnum)
+                    return field.Name + "=" + current;
+                return field.Name + "=configured";
+            });
+            return value.GetType().Name + " {" + string.Join(", ", parts) + "}";
+        }
+
+        private static string DescribeActiveAttackSetup(object shortcut)
+        {
+            if (shortcut == null)
+                return "no shortcut";
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var get = shortcut.GetType().GetMethod("GetActiveLevel", flags);
+            object active = null;
+            try { active = get?.Invoke(shortcut, null); }
+            catch (System.Exception error) { return "GetActiveLevel failed: " + error.GetType().Name; }
+            if (active == null)
+                return "no active level";
+            var members = active.GetType().GetFields(flags)
+                .Where(field => !field.IsStatic)
+                .Select(field =>
+                {
+                    string kind = "unreadable";
+                    try
+                    {
+                        object value = field.GetValue(active);
+                        kind = value == null ? "null" :
+                            value is System.Collections.ICollection collection
+                                ? "count=" + collection.Count : "set";
+                    }
+                    catch (System.Exception error) { kind = error.GetType().Name; }
+                    return field.Name + ":" + field.FieldType.Name + "=" + kind;
+                }).Take(50);
+            return active.GetType().Name + " {" + string.Join(", ", members) + "}";
+        }
+
+        private static string DescribeRuntimeActionBlockers(Combatant member, object attack)
+        {
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            string ReadFlag(object owner, string name)
+            {
+                if (owner == null)
+                    return "owner missing";
+                var type = owner.GetType();
+                try
+                {
+                    var property = type.GetProperty(name, flags);
+                    if (property != null && property.GetIndexParameters().Length == 0)
+                        return System.Convert.ToString(property.GetValue(owner));
+                    var field = type.GetField(name, flags);
+                    return field != null ? System.Convert.ToString(field.GetValue(owner))
+                        : "not exposed";
+                }
+                catch (System.Exception error)
+                {
+                    return error.GetType().Name;
+                }
+            }
+            string activeLevel = "not exposed";
+            if (attack != null)
+            {
+                var method = attack.GetType().GetMethod("GetActiveLevel", flags);
+                if (method != null && method.GetParameters().Length == 0)
+                {
+                    try { activeLevel = (method.Invoke(attack, null) != null).ToString(); }
+                    catch (System.Exception error) { activeLevel = error.GetType().Name; }
+                }
+            }
+            return "{BlockActionUse=" + ReadFlag(member.Actions, "BlockActionUse") +
+                ", IsChoosing=" + ReadFlag(member.Actions, "IsChoosing") +
+                ", InBattle=" + ReadFlag(member.Battle, "InBattle") +
+                ", ActiveLevelExists=" + activeLevel + "}";
+        }
+
+        private static string DescribeBaseAttackState(object attack)
+        {
+            if (attack == null)
+                return "null";
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public;
+            var type = attack.GetType();
+            var properties = type.GetProperties(flags)
+                .Where(property => property.GetIndexParameters().Length == 0 &&
+                    (property.PropertyType.IsPrimitive || property.PropertyType.IsEnum ||
+                     property.PropertyType == typeof(string)))
+                .Take(32)
+                .Select(property =>
+                {
+                    try { return property.Name + "=" + property.GetValue(attack); }
+                    catch (System.Exception) { return property.Name + "=<unreadable>"; }
+                });
+            var fields = type.GetFields(flags)
+                .Where(field => field.FieldType.IsPrimitive || field.FieldType.IsEnum ||
+                    field.FieldType == typeof(string))
+                .Take(32)
+                .Select(field =>
+                {
+                    try { return field.Name + "=" + field.GetValue(attack); }
+                    catch (System.Exception) { return field.Name + "=<unreadable>"; }
+                });
+            var usefulMethods = type.GetMethods(flags)
+                .Where(method => method.Name.Contains("Can") || method.Name.Contains("Use") ||
+                    method.Name.Contains("Ability") || method.Name.Contains("Attack"))
+                .Select(method => method.ToString()).Distinct().Take(36);
+            var useableMethod = type.GetMethods(flags).FirstOrDefault(method =>
+                method.Name == "IsUseable" && method.GetParameters().Length == 1 &&
+                method.GetParameters()[0].ParameterType.IsEnum);
+            var useableStates = useableMethod == null ? "unavailable" :
+                string.Join(", ", System.Enum.GetValues(useableMethod.GetParameters()[0].ParameterType)
+                    .Cast<object>().Select(option =>
+                    {
+                        try { return option + "=" + useableMethod.Invoke(attack, new[] { option }); }
+                        catch (System.Exception) { return option + "=<unreadable>"; }
+                    }));
+            return "type=" + type.FullName +
+                " useableIn={" + useableStates + "}" +
+                " scalarProperties={" + string.Join(", ", properties) +
+                "} scalarFields={" + string.Join(", ", fields) +
+                "} publicMethods={" + string.Join(", ", usefulMethods) + "}";
+        }
+
+        // Keep Unity component lookup outside the large UnityTest iterator.
+        // No Unity Object reference is carried across the wait's yield before
+        // its components are resolved. This also prevents a stale Bootstrap
+        // object from masquerading as the live persisted Soundwell scene.
+        private static bool TryFindLiveTrialOwners(
+            out GameObject root, out SoundwellOrkParty party, out SoundwellTrial trial)
+        {
+            root = null;
+            party = null;
+            trial = null;
+            Scene active = SceneManager.GetActiveScene();
+            if (!active.IsValid() || !active.isLoaded ||
+                active.name != SoundwellEntrance.SceneName)
+                return false;
+            foreach (GameObject candidate in active.GetRootGameObjects())
+            {
+                if (candidate == null || candidate.name != "Soundwell signal trial")
+                    continue;
+                SoundwellOrkParty liveParty = candidate.GetComponent<SoundwellOrkParty>();
+                SoundwellTrial liveTrial = candidate.GetComponent<SoundwellTrial>();
+                if (liveParty == null || liveTrial == null)
+                    continue;
+                root = candidate;
+                party = liveParty;
+                trial = liveTrial;
+                return true;
+            }
+            return false;
+        }
+
+        [UnityTest, Order(20)]
         public IEnumerator BattleBackCancelEventRetreatsAndReleasesOrkParticipants()
         {
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            AsyncOperation load = SceneManager.LoadSceneAsync(SoundwellEntrance.SceneName);
+            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance != null, Is.True,
+                "Battle retreat must enter through Bootstrap's single scene loader.");
+            AsyncOperation load = entrance.OpenTrial();
             Assert.That(load, Is.Not.Null);
             while (!load.isDone)
                 yield return null;
 
-            GameObject root = GameObject.Find("Soundwell signal trial");
-            Assert.That(root, Is.Not.Null);
+            GameObject root = null;
+            float sceneDeadline = Time.realtimeSinceStartup + 8f;
+            while (Time.realtimeSinceStartup < sceneDeadline)
+            {
+                if (SceneManager.GetActiveScene().name == SoundwellEntrance.SceneName)
+                    root = GameObject.Find("Soundwell signal trial");
+                if (root != null)
+                    break;
+                yield return null;
+            }
+            Assert.That(root != null, Is.True,
+                "Battle retreat must enter the saved trial scene before reading its ORK party.");
             var party = root.GetComponent<SoundwellOrkParty>();
             var trial = root.GetComponent<SoundwellTrial>();
             Assert.That(party, Is.Not.Null);
