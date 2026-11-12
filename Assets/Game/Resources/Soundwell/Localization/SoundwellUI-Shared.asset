@@ -319,6 +319,14 @@ MonoBehaviour:
     m_Key: hint.beast_defeated
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267352
+    m_Key: hint.carry_at_stand
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267353
+    m_Key: hint.carry_find_stand
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

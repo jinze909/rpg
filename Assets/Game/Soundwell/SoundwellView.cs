@@ -1078,9 +1078,8 @@ namespace Rpg.Soundwell
             else if (surveyorEscorting && waitingForEscortLeader)
                 prompt = SoundwellUiLocalization.Get("hint.escort_paused");
             else if (carrying)
-                prompt = canPlaceBell
-                    ? "[F / LB] Place the bell onto this marked stand to set its sound source."
-                    : "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops.";
+                prompt = SoundwellUiLocalization.Get(canPlaceBell
+                    ? "hint.carry_at_stand" : "hint.carry_find_stand");
             else if (atRopeEvidence)
                 prompt = canRecoverRope
                     ? "[G / RB] Recover the usable cord for a guide line."

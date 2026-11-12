@@ -151,9 +151,29 @@ namespace Rpg.Tests.Editor
             Assert.That(Vector2.Distance(trial.BellPosition,
                 body.position + new Vector2(0.35f, 0f)), Is.LessThan(0.05f),
                 "The carried bell must follow the player after a blocked drop.");
+            // The real carried-bell HUD must explain where a legal drop can
+            // happen in the selected language, without changing Makinom state.
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.carry_find_stand")));
+            Assert.That(hint.text, Does.Contain("铃架"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.carry_find_stand")));
             body.position = SoundwellTrial.SideBellStand;
             Physics2D.SyncTransforms();
             Assert.That(trial.CanPlaceBell, Is.True);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.carry_at_stand")));
+            Assert.That(hint.text, Does.Contain("放下"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.carry_at_stand")));
             trial.ApplyInput(Vector2.zero, false, false, false, true);
             Assert.That(trial.IsCarrying, Is.False);
             Assert.That(trial.BellPosition, Is.EqualTo(SoundwellTrial.SideBellStand));

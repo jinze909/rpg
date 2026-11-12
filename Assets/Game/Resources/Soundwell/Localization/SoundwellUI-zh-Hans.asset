@@ -318,6 +318,14 @@ MonoBehaviour:
     m_Localized: "野兽已被击败：三名队员清理了内侧通道。现在可以打开闸门。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267352
+    m_Localized: "[F / LB] 在此铃架放下铜铃，确定铃声来源。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267353
+    m_Localized: "将铜铃搬到入口铃架或侧廊铃架。只能在标记的铃架放下。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

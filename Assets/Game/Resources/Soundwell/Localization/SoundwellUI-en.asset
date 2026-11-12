@@ -322,6 +322,14 @@ MonoBehaviour:
     m_Localized: "BEAST DEFEATED: The three-member ORK party cleared the inner lane. Open the gate."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267352
+    m_Localized: "[F / LB] Place the bell on this marked stand to set its sound source."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267353
+    m_Localized: "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
