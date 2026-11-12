@@ -934,6 +934,12 @@ namespace Rpg.Soundwell
             surveyorPixelRenderer.sprite = surveyorMoving &&
                 Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1
                 ? surveyorWalkPixelSprite : surveyorPixelSprite;
+            // When the guide runs too far ahead, mark the actual waiting NPC
+            // amber instead of relying on a distant text-only warning. This
+            // is presentation of the existing escort hysteresis, not a second
+            // escort timer, movement authority or quest-state transition.
+            surveyorPixelRenderer.color = surveyorEscorting && waitingForEscortLeader
+                ? new Color(1f, 0.73f, 0.42f) : Ink;
             escortLine.enabled = surveyorLineTied && surveyorEscorting && !rescueComplete;
             if (escortLine.enabled)
             {

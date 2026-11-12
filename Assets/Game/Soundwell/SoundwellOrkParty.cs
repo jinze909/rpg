@@ -182,8 +182,31 @@ namespace Rpg.Soundwell
             "...###....###...",
             "................",
         };
+        // Retain the distinct hood and torso of each rescuer while raising a
+        // pixel-size shield. Only ORK's live Battle.Defending selects this pose.
+        // No separate combat state or additional controller is introduced.
+        private static string[] WithGuardShield(string[] idleRows)
+        {
+            var guarded = (string[])idleRows.Clone();
+            for (int y = 6; y <= 10; y++)
+            {
+                char[] pixels = guarded[y].ToCharArray();
+                pixels[0] = y == 6 || y == 10 ? '.' : '#';
+                pixels[1] = '#';
+                pixels[2] = y >= 7 && y <= 9 ? '+' : '#';
+                pixels[3] = '#';
+                guarded[y] = new string(pixels);
+            }
+            return guarded;
+        }
+
         private const float CompanionAttackPoseSeconds = 0.30f;
+        // Readable feedback after ORK has already resolved a real defend turn.
+        // This timer affects only the sprite and never Combatant.Battle.Defending.
+        private const float CompanionGuardPoseSeconds = 0.80f;
         private readonly float[] companionAttackUntil = new float[3];
+        private readonly float[] companionGuardUntil = new float[3];
+        private readonly Notify[] guardEventHandlers = new Notify[3];
         private const float FrameworkTimeout = 30f;
         private const float RegistrationTimeout = 8f;
 
@@ -202,12 +225,16 @@ namespace Rpg.Soundwell
         private Texture2D walkingTexture;
         private Sprite attackSprite;
         private Texture2D attackTexture;
+        private Sprite guardSprite;
+        private Texture2D guardTexture;
         private Sprite hoodIdleSprite;
         private Texture2D hoodIdleTexture;
         private Sprite hoodWalkingSprite;
         private Texture2D hoodWalkingTexture;
         private Sprite hoodAttackSprite;
         private Texture2D hoodAttackTexture;
+        private Sprite hoodGuardSprite;
+        private Texture2D hoodGuardTexture;
         private bool battleStarted;
         // The party remains ORK-owned for battles, but its exploration input is
         // exclusively handled by the saved Soundwell 2D Input System adapter.
@@ -334,12 +361,17 @@ namespace Rpg.Soundwell
                 WalkPixels, "PLACEHOLDER 16px Soundwell rescuer walking", out walkingTexture);
             attackSprite = CreatePixelRescuerSprite(
                 AttackPixels, "PLACEHOLDER 16px Soundwell rescuer attack", out attackTexture);
+            guardSprite = CreatePixelRescuerSprite(
+                WithGuardShield(IdlePixels), "PLACEHOLDER 16px rescuer guard shield", out guardTexture);
             hoodIdleSprite = CreatePixelRescuerSprite(
                 HoodIdlePixels, "PLACEHOLDER 16px hooded rescuer idle", out hoodIdleTexture);
             hoodWalkingSprite = CreatePixelRescuerSprite(
                 HoodWalkPixels, "PLACEHOLDER 16px hooded rescuer walking", out hoodWalkingTexture);
             hoodAttackSprite = CreatePixelRescuerSprite(
                 HoodAttackPixels, "PLACEHOLDER 16px hooded rescuer attack", out hoodAttackTexture);
+            hoodGuardSprite = CreatePixelRescuerSprite(
+                WithGuardShield(HoodIdlePixels), "PLACEHOLDER 16px hooded rescuer guard shield",
+                out hoodGuardTexture);
 
             EnsureInvisibleActorRenderer(leader.gameObject);
             EnsureInvisibleActorRenderer(beast.gameObject);
@@ -375,6 +407,16 @@ namespace Rpg.Soundwell
             {
                 Fail("ORK Add Combatant did not register all three rescuers and the Soundwell beast.");
                 yield break;
+            }
+
+            // ORK may clear Defending as soon as the next rescuer's turn
+            // begins. Listen to its *resolved* state transition so the
+            // graphical shield remains visible for at least one frame.
+            for (int i = 1; i < members.Count; i++)
+            {
+                int index = i;
+                guardEventHandlers[i] = () => OnOrkDefendingStateChanged(index);
+                members[i].Events.DefendingStateChangedSimple += guardEventHandlers[i];
             }
 
             PlayerGroup = new Group(ORK.Factions.Get(0));
@@ -477,7 +519,37 @@ namespace Rpg.Soundwell
             if (!CanGuard(index))
                 return false;
             Combatant member = members[index];
-            return member.Shortcuts.DefendShortcut.Use(member, new List<Combatant> { member }, true);
+            bool accepted = member.Shortcuts.DefendShortcut.Use(
+                member, new List<Combatant> { member }, true);
+            // This presentation follows a legitimately accepted ORK shortcut.
+            // The pinned starter battle does not guarantee a Defending=true
+            // notification even though the command spends the real turn.
+            if (accepted)
+                ShowGuardPose(index);
+            return accepted;
+        }
+
+        private void OnOrkDefendingStateChanged(int index)
+        {
+            if (index > 0 && index < members.Count && members[index] != null &&
+                members[index].Battle.Defending)
+                ShowGuardPose(index);
+        }
+
+        private void ShowGuardPose(int index)
+        {
+            if (index <= 0 || index >= actors.Count)
+                return;
+            // Only visuals are extended, never ORK's actual defense status,
+            // action cost, target selection or turn progression.
+            companionGuardUntil[index] =
+                Time.unscaledTime + CompanionGuardPoseSeconds;
+            if (battleStarted)
+            {
+                var renderer = actors[index].GetComponent<SpriteRenderer>();
+                if (renderer != null)
+                    renderer.sprite = index == 2 ? hoodGuardSprite : guardSprite;
+            }
         }
 
         public bool CanOperateGate(int index, Func<Combatant, bool> canReach)
@@ -619,7 +691,10 @@ namespace Rpg.Soundwell
             battleEndRequested = false;
             battleStartedAt = 0f;
             for (int i = 1; i < companionAttackUntil.Length; i++)
+            {
                 companionAttackUntil[i] = 0f;
+                companionGuardUntil[i] = 0f;
+            }
         }
 
         public void ReleaseFailedEncounter()
@@ -697,9 +772,14 @@ namespace Rpg.Soundwell
             }
             texture.SetPixels32(pixels);
             texture.Apply(false, false);
-            return Sprite.Create(texture,
+            Sprite sprite = Sprite.Create(texture,
                 new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f),
                 16f, 0, SpriteMeshType.FullRect);
+            // Texture.name does not propagate to Sprite.Create. Keep each
+            // visible pose identifiable for the guard-action regression and
+            // for artifact inspection without changing ORK battle state.
+            sprite.name = name;
+            return sprite;
         }
 
         private GameObject CreateFollower(string objectName, Vector2 offset, Color tint,
@@ -778,8 +858,15 @@ namespace Rpg.Soundwell
                 Sprite attacking = i == 2 ? hoodAttackSprite : attackSprite;
                 if (inBattle)
                 {
+                    // ORK's live status or a short visual echo of its *real*
+                    // Defending=true event drives the shield. Neither the
+                    // button click nor this timer affects defensive gameplay.
+                    bool defending = i < members.Count && members[i] != null &&
+                        (members[i].Battle.Defending ||
+                         Time.unscaledTime < companionGuardUntil[i]);
+                    Sprite guarding = i == 2 ? hoodGuardSprite : guardSprite;
                     renderer.sprite = Time.unscaledTime < companionAttackUntil[i]
-                        ? attacking : idle;
+                        ? attacking : defending ? guarding : idle;
                     continue;
                 }
 
@@ -806,6 +893,12 @@ namespace Rpg.Soundwell
 
         private void OnDestroy()
         {
+            for (int i = 1; i < guardEventHandlers.Length; i++)
+            {
+                if (guardEventHandlers[i] != null && i < members.Count &&
+                    members[i] != null)
+                    members[i].Events.DefendingStateChangedSimple -= guardEventHandlers[i];
+            }
             if (placeholderSprite != null)
                 Destroy(placeholderSprite);
             if (placeholderTexture != null)
@@ -818,6 +911,10 @@ namespace Rpg.Soundwell
                 Destroy(attackSprite);
             if (attackTexture != null)
                 Destroy(attackTexture);
+            if (guardSprite != null)
+                Destroy(guardSprite);
+            if (guardTexture != null)
+                Destroy(guardTexture);
             if (hoodIdleSprite != null)
                 Destroy(hoodIdleSprite);
             if (hoodIdleTexture != null)
@@ -830,6 +927,10 @@ namespace Rpg.Soundwell
                 Destroy(hoodAttackSprite);
             if (hoodAttackTexture != null)
                 Destroy(hoodAttackTexture);
+            if (hoodGuardSprite != null)
+                Destroy(hoodGuardSprite);
+            if (hoodGuardTexture != null)
+                Destroy(hoodGuardTexture);
         }
     }
 }
