@@ -210,7 +210,17 @@ namespace Rpg.Soundwell
                     if (orkParty.TryAttackBeast() && attacker == 0)
                         view.AnimatePlayerAction();
                 },
-                () => orkParty?.TryGuard(),
+                () =>
+                {
+                    if (orkParty == null)
+                        return;
+                    int defender = orkParty.ChoosingRescuerIndex;
+                    // ORK alone accepts Guard and advances the combat turn.
+                    // The leader's pixel shield is feedback for that real
+                    // acceptance; companions use their own existing renderer.
+                    if (orkParty.TryGuard() && defender == 0)
+                        view.AnimatePlayerGuard();
+                },
                 () => orkParty?.TryOperateGate(canReachBattleGate, () => variables.Set(GateKey, 1)),
                 () =>
                 {

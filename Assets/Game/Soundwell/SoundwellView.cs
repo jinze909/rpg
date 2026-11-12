@@ -16,6 +16,7 @@ namespace Rpg.Soundwell
         private readonly Sprite square;
         private readonly Sprite leaderPixelSprite;
         private readonly Sprite leaderWalkPixelSprite;
+        private readonly Sprite leaderGuardPixelSprite;
         private readonly SpriteRenderer leaderVisualRenderer;
         private readonly Sprite beastPixelSprite;
         private readonly Sprite surveyorPixelSprite;
@@ -27,6 +28,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer beastVisualRenderer;
         private readonly Texture2D leaderPixelTexture;
         private readonly Texture2D leaderWalkPixelTexture;
+        private readonly Texture2D leaderGuardPixelTexture;
         private readonly Texture2D beastPixelTexture;
         private readonly Texture2D surveyorPixelTexture;
         private readonly Texture2D surveyorWalkPixelTexture;
@@ -101,6 +103,9 @@ namespace Rpg.Soundwell
         private bool compactHud;
         private float pulseStarted = float.NegativeInfinity;
         private bool mutedPulse;
+        // Purely visual: ORK owns whether Guard is legal and whether the turn was spent.
+        private const float LeaderGuardPoseSeconds = 0.8f;
+        private float leaderGuardUntil = float.NegativeInfinity;
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
@@ -117,6 +122,8 @@ namespace Rpg.Soundwell
                 LeaderPixels, out leaderPixelTexture);
             leaderWalkPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader walk",
                 LeaderWalkPixels, out leaderWalkPixelTexture);
+            leaderGuardPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader guard shield",
+                WithLeaderGuardShield(), out leaderGuardPixelTexture);
             beastPixelSprite = CreatePixelSprite("PLACEHOLDER 16px beast",
                 BeastPixels, out beastPixelTexture);
             surveyorPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor idle",
@@ -1126,23 +1133,38 @@ namespace Rpg.Soundwell
                 leaderVisualRenderer.flipX = horizontalMotion < 0f;
             bool walkFrame = playerAnimation.CurrentState == "Move" &&
                 Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1;
-            leaderVisualRenderer.sprite = walkFrame ? leaderWalkPixelSprite : leaderPixelSprite;
+            // A successful ORK Guard must not disappear on the very next
+            // LateUpdate when normal movement presentation refreshes the sprite.
+            leaderVisualRenderer.sprite = Time.unscaledTime < leaderGuardUntil
+                ? leaderGuardPixelSprite : walkFrame ? leaderWalkPixelSprite : leaderPixelSprite;
         }
 
         public void AnimatePlayerAction()
         {
+            leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.PlayAction();
             leaderVisualRenderer.sprite = leaderPixelSprite;
         }
 
+        public void AnimatePlayerGuard()
+        {
+            // Called only after the live ORK Guard shortcut accepted the turn.
+            // No second defense flag, combat timer or HP mutation is created.
+            playerAnimation.PlayAction();
+            leaderGuardUntil = Time.unscaledTime + LeaderGuardPoseSeconds;
+            leaderVisualRenderer.sprite = leaderGuardPixelSprite;
+        }
+
         public void AnimatePlayerHit()
         {
+            leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.PlayHit();
             leaderVisualRenderer.sprite = leaderPixelSprite;
         }
 
         public void ResetPlayerAnimation()
         {
+            leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.ResetAnimation();
             leaderVisualRenderer.flipX = false;
             leaderVisualRenderer.sprite = leaderPixelSprite;
@@ -1171,6 +1193,7 @@ namespace Rpg.Soundwell
             Object.Destroy(square);
             Object.Destroy(leaderPixelSprite);
             Object.Destroy(leaderWalkPixelSprite);
+            Object.Destroy(leaderGuardPixelSprite);
             Object.Destroy(beastPixelSprite);
             Object.Destroy(surveyorPixelSprite);
             Object.Destroy(surveyorWalkPixelSprite);
@@ -1179,6 +1202,7 @@ namespace Rpg.Soundwell
             Object.Destroy(activeRescuerPixelSprite);
             Object.Destroy(leaderPixelTexture);
             Object.Destroy(leaderWalkPixelTexture);
+            Object.Destroy(leaderGuardPixelTexture);
             Object.Destroy(beastPixelTexture);
             Object.Destroy(surveyorPixelTexture);
             Object.Destroy(surveyorWalkPixelTexture);
@@ -1208,6 +1232,22 @@ namespace Rpg.Soundwell
         }
 
         // Render only: no collider, movement or ORK status depends on pixels.
+        // Retain the leader's authored 16px silhouette; add a left-hand
+        // shield on the same texture grid without resizing or moving its actor.
+        private static string[] WithLeaderGuardShield()
+        {
+            var guarded = (string[])LeaderPixels.Clone();
+            for (int y = 6; y <= 10; y++)
+            {
+                char[] row = guarded[y].ToCharArray();
+                row[1] = '#';
+                row[2] = y >= 7 && y <= 9 ? '+' : '#';
+                row[3] = '#';
+                guarded[y] = new string(row);
+            }
+            return guarded;
+        }
+
         private static readonly string[] LeaderPixels =
         {
             "................",
