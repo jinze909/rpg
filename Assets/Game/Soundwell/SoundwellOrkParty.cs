@@ -394,7 +394,20 @@ namespace Rpg.Soundwell
                 companionAttackUntil[index] = Time.unscaledTime + CompanionAttackPoseSeconds;
                 SpriteRenderer follower = actors[index].GetComponent<SpriteRenderer>();
                 if (follower != null)
+                {
                     follower.sprite = attackSprite;
+                    // The ORK-accepted target is the real beast. Face the
+                    // companion's visual attack pose toward that combatant,
+                    // rather than retaining the last exploration walk direction.
+                    // Never rotate or move the ORK actor or change its attack.
+                    if (Beast != null && Beast.GameObject != null)
+                    {
+                        float towardBeastX = Beast.GameObject.transform.position.x -
+                            actors[index].transform.position.x;
+                        if (Mathf.Abs(towardBeastX) > 0.01f)
+                            follower.flipX = towardBeastX < 0f;
+                    }
+                }
             }
             return accepted;
         }

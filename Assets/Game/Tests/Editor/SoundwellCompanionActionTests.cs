@@ -85,8 +85,20 @@ namespace Rpg.Tests.Editor
             Assert.That(party.ReadyBaseAttackerIndex, Is.EqualTo(1),
                 "The live turn must reach rescuer 2 before checking its pose.");
             Assert.That(second.sprite, Is.SameAs(baseline));
+            float beastHorizontalOffset = party.Beast.GameObject.transform.position.x -
+                party.Actors[1].transform.position.x;
+            Assert.That(Mathf.Abs(beastHorizontalOffset), Is.GreaterThan(0.1f),
+                "The test needs a distinct horizontal ORK target to verify facing.");
+            // Recreate the real defect: an exploring follower can face away
+            // from the beast when its ORK attack becomes legal.
+            second.flipX = beastHorizontalOffset > 0f;
+            bool thirdFacingBefore = third.flipX;
             Assert.That(party.TryAttackBeast(), Is.True,
                 "Only a genuine ORK-accepted action may animate its rescuer.");
+            Assert.That(second.flipX, Is.EqualTo(beastHorizontalOffset < 0f),
+                "The attacking companion must face ORK's real beast target.");
+            Assert.That(third.flipX, Is.EqualTo(thirdFacingBefore),
+                "One accepted attack must not turn an inactive companion.");
             Assert.That(second.sprite, Is.Not.SameAs(baseline),
                 "Rescuer 2 needs a visible attack silhouette, not a frozen idle frame.");
             Assert.That(second.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
