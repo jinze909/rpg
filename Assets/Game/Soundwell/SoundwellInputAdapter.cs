@@ -243,7 +243,10 @@ namespace Rpg.Soundwell
                     (Map: "Gameplay", Action: "Ring"),
                     (Map: "Gameplay", Action: "Wrap"),
                     (Map: "Gameplay", Action: "Carry"),
-                    (Map: "Gameplay", Action: "Gate")
+                    (Map: "Gameplay", Action: "Gate"),
+                    // Retry is the only input route back to a failed trial.
+                    // A saved unbound override must not strand the player.
+                    (Map: "Gameplay", Action: "Retry")
                 })
                 {
                     InputAction action = target.FindActionMap(required.Map, true)

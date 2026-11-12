@@ -56,7 +56,8 @@ namespace Rpg.Tests.Editor
                     (Name: "Ring", DefaultPath: "<Keyboard>/e"),
                     (Name: "Wrap", DefaultPath: "<Keyboard>/q"),
                     (Name: "Carry", DefaultPath: "<Keyboard>/f"),
-                    (Name: "Gate", DefaultPath: "<Keyboard>/g")
+                    (Name: "Gate", DefaultPath: "<Keyboard>/g"),
+                    (Name: "Retry", DefaultPath: "<Keyboard>/r")
                 })
                 {
                     var action = isolatedAsset.FindActionMap("Gameplay", true)
