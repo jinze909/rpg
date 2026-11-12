@@ -234,6 +234,14 @@ namespace Rpg.Soundwell
             SoundwellMemoryProbe.Capture("soundwell_entered");
             RequireInputSystemEventSystem("SoundwellTrial");
             var camera = trial.TrialCamera;
+            // At an aspect where the room has 0.85 world units of pan room,
+            // naïve pixel rounding would yield 0.875 and crop the far edge.
+            float safeFollow = SoundwellCameraRig.PixelSafeHorizontalPan(10f, 0.85f);
+            Require(safeFollow <= 0.85f && safeFollow * SoundwellCameraRig.PixelsPerUnit ==
+                Mathf.Round(safeFollow * SoundwellCameraRig.PixelsPerUnit),
+                "Cinemachine framing must never round beyond the available pixel-safe pan.");
+            Require(Mathf.Abs(SoundwellCameraRig.PixelSafeHorizontalPan(-10f, 0.28f) + 0.25f) < 0.0001f,
+                "Square framing must clamp to the last complete pixel inside the safe margin.");
             // URP PixelPerfectCamera calculates its orthographic pixel grid from the
             // actual render target, not Camera.aspect alone. A headless Editor
             // GameView can be 16:9 even when the simulated viewport is square;
