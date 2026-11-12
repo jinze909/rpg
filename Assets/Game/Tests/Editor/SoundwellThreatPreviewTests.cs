@@ -47,6 +47,29 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.IsReady, Is.True);
             trial.ReadInput = false;
 
+            // Both named source positions must be visually distinguishable
+            // authored pixel objects, not smooth-scaled rectangles. The
+            // visuals do not move the bell or add any alternate sound target.
+            var entranceStand = GameObject.Find("PLACEHOLDER entrance bell stand")
+                ?.GetComponent<SpriteRenderer>();
+            var sideStand = GameObject.Find("PLACEHOLDER side bell stand")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(entranceStand, Is.Not.Null);
+            Assert.That(sideStand, Is.Not.Null);
+            Assert.That(entranceStand.sprite, Is.SameAs(sideStand.sprite));
+            Assert.That(entranceStand.sprite.texture.width, Is.EqualTo(16));
+            Assert.That(entranceStand.sprite.texture.height, Is.EqualTo(16));
+            Assert.That(entranceStand.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(entranceStand.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(entranceStand.transform.localScale, Is.EqualTo(Vector3.one));
+            Assert.That(sideStand.transform.localScale, Is.EqualTo(Vector3.one));
+            Assert.That((Vector2)sideStand.transform.position,
+                Is.EqualTo(SoundwellTrial.SideBellStand));
+            Assert.That(entranceStand.GetComponent<Collider2D>(), Is.Null);
+            Assert.That(sideStand.GetComponent<Collider2D>(), Is.Null);
+            Assert.That(entranceStand.color, Is.Not.EqualTo(sideStand.color),
+                "The two true source positions need distinct readable pixel colors.");
+
             // UX-001: visiting the locked gate alone cannot reveal the side
             // bell stand solution. The optional claw evidence offers the
             // precise clue only after the player chooses to inspect it.

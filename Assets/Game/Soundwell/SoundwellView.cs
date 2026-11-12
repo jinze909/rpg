@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private readonly Sprite beastPixelSprite;
         private readonly Sprite surveyorPixelSprite;
         private readonly Sprite surveyorWalkPixelSprite;
+        private readonly Sprite bellStandPixelSprite;
         private readonly SpriteRenderer surveyorPixelRenderer;
         private readonly SpriteRenderer beastVisualRenderer;
         private readonly Texture2D leaderPixelTexture;
@@ -27,6 +28,7 @@ namespace Rpg.Soundwell
         private readonly Texture2D beastPixelTexture;
         private readonly Texture2D surveyorPixelTexture;
         private readonly Texture2D surveyorWalkPixelTexture;
+        private readonly Texture2D bellStandPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
@@ -110,16 +112,24 @@ namespace Rpg.Soundwell
                 SurveyorPixels, out surveyorPixelTexture);
             surveyorWalkPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor walk",
                 SurveyorWalkPixels, out surveyorWalkPixelTexture);
+            bellStandPixelSprite = CreatePixelSprite("PLACEHOLDER 16px copper bell stand",
+                BellStandPixels, out bellStandPixelTexture);
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
 
             Plate(root, "Trial floor", Vector2.zero, new Vector2(14f, 6.4f), new Color(0.11f, 0.19f, 0.23f), -4);
             Plate(root, "Beast lane", new Vector2(3.7f, 0f), new Vector2(6.55f, 6.4f), new Color(0.22f, 0.16f, 0.18f), -3);
             Plate(safe, "Retreat mark", Vector2.zero, new Vector2(1.75f, 1.75f), new Color(0.16f, 0.38f, 0.36f), -1);
-            Plate(root, "PLACEHOLDER entrance bell stand", bell.position,
-                new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
-            Plate(root, "PLACEHOLDER side bell stand", SoundwellTrial.SideBellStand,
-                new Vector2(0.8f, 0.35f), new Color(0.24f, 0.43f, 0.48f), -1);
+            // Two genuine 16x16 point-filtered pedestals instead of stretched
+            // solid rectangles. Both remain visual only: the bell may be
+            // placed at the same two authored world positions, and there is
+            // no extra collider, lure source, or secret interactable.
+            var entranceStand = Plate(root, "PLACEHOLDER entrance bell stand", bell.position,
+                Vector2.one, new Color(0.55f, 0.84f, 0.88f), -1);
+            entranceStand.sprite = bellStandPixelSprite;
+            var sideStand = Plate(root, "PLACEHOLDER side bell stand", SoundwellTrial.SideBellStand,
+                Vector2.one, new Color(0.97f, 0.76f, 0.40f), -1);
+            sideStand.sprite = bellStandPixelSprite;
             // Two optional pieces of physical evidence at the entrance.
             // Inspection changes their visual status but never gates ringing
             // or grants an automatic solution to the sound lure.
@@ -1048,11 +1058,13 @@ namespace Rpg.Soundwell
             Object.Destroy(beastPixelSprite);
             Object.Destroy(surveyorPixelSprite);
             Object.Destroy(surveyorWalkPixelSprite);
+            Object.Destroy(bellStandPixelSprite);
             Object.Destroy(leaderPixelTexture);
             Object.Destroy(leaderWalkPixelTexture);
             Object.Destroy(beastPixelTexture);
             Object.Destroy(surveyorPixelTexture);
             Object.Destroy(surveyorWalkPixelTexture);
+            Object.Destroy(bellStandPixelTexture);
             Object.Destroy(ringMaterial);
             Object.Destroy(clearBell);
             Object.Destroy(mutedBell);
@@ -1176,6 +1188,28 @@ namespace Rpg.Soundwell
             ".....##..##.....",
             "....###...##....",
             "...###.....###..",
+            "................",
+        };
+
+        // Silhouette for both actual named sound-source stands.
+        // Square pixels, one world unit, no non-uniform stretching.
+        private static readonly string[] BellStandPixels =
+        {
+            "................",
+            "................",
+            ".....######.....",
+            "....########....",
+            "...##++++++##...",
+            "...##++++++##...",
+            "....########....",
+            "......####......",
+            "......####......",
+            "......####......",
+            ".....######.....",
+            "....###..###....",
+            "...###....###...",
+            "..###......###..",
+            "..###......###..",
             "................",
         };
 
