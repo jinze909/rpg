@@ -330,6 +330,34 @@ MonoBehaviour:
     m_Localized: "Carry the bell to the ENTRANCE or SIDE BELL STAND. No free drops."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267354
+    m_Localized: "[G / RB] Inspect the torn bell cord."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267355
+    m_Localized: "[G / RB] Recover the usable cord for a guide line."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267356
+    m_Localized: "You recovered the usable cord for the surveyor."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267357
+    m_Localized: "[G / RB] Inspect the abandoned mule cart."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267358
+    m_Localized: "The cart tracks point toward the inner gate."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267359
+    m_Localized: "[G / RB] Inspect the beast's claw tracks."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267360
+    m_Localized: "The revealed claw trail runs toward the SIDE BELL STAND. The beast still needs a sound to follow."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

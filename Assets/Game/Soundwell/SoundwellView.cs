@@ -1081,18 +1081,15 @@ namespace Rpg.Soundwell
                 prompt = SoundwellUiLocalization.Get(canPlaceBell
                     ? "hint.carry_at_stand" : "hint.carry_find_stand");
             else if (atRopeEvidence)
-                prompt = canRecoverRope
-                    ? "[G / RB] Recover the usable cord for a guide line."
-                    : ropeRecovered ? "You recovered the usable cord for the surveyor."
-                    : "[G / RB] Inspect the torn bell cord.";
+                prompt = SoundwellUiLocalization.Get(canRecoverRope
+                    ? "hint.rope_recover"
+                    : ropeRecovered ? "hint.rope_recovered" : "hint.rope_inspect");
             else if (atCartEvidence)
-                prompt = cartObserved
-                    ? "The cart tracks point toward the inner gate."
-                    : "[G / RB] Inspect the abandoned mule cart.";
+                prompt = SoundwellUiLocalization.Get(cartObserved
+                    ? "hint.cart_observed" : "hint.cart_inspect");
             else if (atClawEvidence)
-                prompt = clawsObserved
-                    ? "The revealed claw trail runs toward the SIDE BELL STAND. The beast still needs a sound to follow."
-                    : "[G / RB] Inspect the beast's claw tracks.";
+                prompt = SoundwellUiLocalization.Get(clawsObserved
+                    ? "hint.claw_observed" : "hint.claw_inspect");
             else if (atUpperPlank)
                 prompt = canTieEscortLine ? "[G / RB] Tie the recovered cord to guide the surveyor. Rescue not complete."
                     : canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."

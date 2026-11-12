@@ -81,6 +81,33 @@ namespace Rpg.Tests.Editor
             Vector2 startingPosition = clueBody.position;
             Vector2 startingBellPosition = trial.BellPosition;
             Assert.That(trial.ClawsObserved, Is.False);
+            // Exercise actual Makinom evidence transitions in both locales.
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            clueBody.position = SoundwellTrial.RopeEvidencePosition;
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(trial.CanInspectRope, Is.True);
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.rope_inspect")));
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.RopeObserved, Is.True);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.rope_recover")));
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.RopeRecovered, Is.True);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.rope_recovered")));
+            clueBody.position = SoundwellTrial.CartEvidencePosition;
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(trial.CanInspectCart, Is.True);
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.cart_inspect")));
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.CartObserved, Is.True);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.cart_observed")));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.cart_observed")));
             clueBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             yield return null;
@@ -92,9 +119,22 @@ namespace Rpg.Tests.Editor
             clueBody.position = SoundwellTrial.ClawEvidencePosition;
             Physics2D.SyncTransforms();
             Assert.That(trial.CanInspectClaws, Is.True);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.claw_inspect")));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.claw_inspect")));
+            Assert.That(hint.text, Does.Not.Contain("侧铃架"),
+                "The full side-bell answer must be earned by inspecting the claw trail.");
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.ClawsObserved, Is.True,
                 "The precise hint requires inspecting the real clue.");
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.claw_observed")));
+            Assert.That(hint.text, Does.Contain("侧铃架"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.claw_observed")));
             clueBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             yield return null;

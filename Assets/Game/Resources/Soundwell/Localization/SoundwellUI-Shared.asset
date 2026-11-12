@@ -327,6 +327,34 @@ MonoBehaviour:
     m_Key: hint.carry_find_stand
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267354
+    m_Key: hint.rope_inspect
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267355
+    m_Key: hint.rope_recover
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267356
+    m_Key: hint.rope_recovered
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267357
+    m_Key: hint.cart_inspect
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267358
+    m_Key: hint.cart_observed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267359
+    m_Key: hint.claw_inspect
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267360
+    m_Key: hint.claw_observed
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

@@ -326,6 +326,34 @@ MonoBehaviour:
     m_Localized: "将铜铃搬到入口铃架或侧廊铃架。只能在标记的铃架放下。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267354
+    m_Localized: "[G / RB] 查看断裂的铃绳。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267355
+    m_Localized: "[G / RB] 收起可用的绳段，留作护送引绳。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267356
+    m_Localized: "你已找回可用的绳段，可以交给测路人。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267357
+    m_Localized: "[G / RB] 检查被遗弃的骡车。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267358
+    m_Localized: "车辙通向内室闸门。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267359
+    m_Localized: "[G / RB] 检查野兽留下的爪痕。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267360
+    m_Localized: "爪痕通向侧铃架，但野兽仍需要听见铃声才会追过去。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
