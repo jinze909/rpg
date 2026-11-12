@@ -116,6 +116,7 @@ namespace Rpg.Soundwell
             languageButton.onClick.AddListener(SoundwellUiLocalization.Toggle);
             languageText = SoundwellView.AddLabel(languageRect, "", 16,
                 new Color(0.80f, 0.91f, 0.93f), Vector2.zero, new Vector2(198f, 36f));
+            ConfigureEntrySettingsNavigation();
             titleText.resizeTextForBestFit = true;
             titleText.resizeTextMinSize = 18;
             titleText.resizeTextMaxSize = 32;
@@ -158,6 +159,37 @@ namespace Rpg.Soundwell
             RefreshSfxText();
             languageText.font = font;
             languageText.text = SoundwellUiLocalization.Get("action.language");
+        }
+
+        // Use the actual UGUI navigation graph for D-pad and keyboard arrows:
+        // Language (top) -> Enter (middle) -> SFX (bottom), wrapping at the ends.
+        // Automatic spatial navigation can skip the small settings controls on
+        // narrow layouts. Reuse the Entry button's selected/highlight palette so
+        // all three focus targets have the same visible feedback.
+        private void ConfigureEntrySettingsNavigation()
+        {
+            entryButton.navigation = new Navigation
+            {
+                mode = Navigation.Mode.Explicit,
+                selectOnUp = languageButton,
+                selectOnDown = sfxButton
+            };
+            languageButton.navigation = new Navigation
+            {
+                mode = Navigation.Mode.Explicit,
+                selectOnUp = sfxButton,
+                selectOnDown = entryButton
+            };
+            sfxButton.navigation = new Navigation
+            {
+                mode = Navigation.Mode.Explicit,
+                selectOnUp = entryButton,
+                selectOnDown = languageButton
+            };
+            sfxButton.transition = Selectable.Transition.ColorTint;
+            languageButton.transition = Selectable.Transition.ColorTint;
+            sfxButton.colors = entryButton.colors;
+            languageButton.colors = entryButton.colors;
         }
 
         private void ToggleSfx()

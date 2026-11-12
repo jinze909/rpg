@@ -215,7 +215,27 @@ namespace Rpg.Tests.Editor
                 // language without simultaneously activating Entry/Interact.
                 var languageButton = entry.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "Soundwell entry Language button");
-                Assert.That(languageButton.navigation.mode, Is.EqualTo(Navigation.Mode.Automatic));
+                // The actual UGUI navigation graph must keep every setting
+                // reachable with D-pad arrows and show the same selection tint.
+                var enterButton = entry.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "Enter Soundwell button");
+                Assert.That(enterButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(languageButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(sfxButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(enterButton.navigation.selectOnUp, Is.SameAs(languageButton));
+                Assert.That(enterButton.navigation.selectOnDown, Is.SameAs(sfxButton));
+                Assert.That(languageButton.navigation.selectOnDown, Is.SameAs(enterButton));
+                Assert.That(sfxButton.navigation.selectOnUp, Is.SameAs(enterButton));
+                Assert.That(languageButton.navigation.selectOnUp, Is.SameAs(sfxButton));
+                Assert.That(sfxButton.navigation.selectOnDown, Is.SameAs(languageButton));
+                Assert.That(languageButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
+                Assert.That(sfxButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
+                Assert.That(enterButton.colors.selectedColor,
+                    Is.Not.EqualTo(enterButton.colors.normalColor));
+                Assert.That(sfxButton.colors.selectedColor,
+                    Is.EqualTo(enterButton.colors.selectedColor));
+                Assert.That(languageButton.colors.selectedColor,
+                    Is.EqualTo(enterButton.colors.selectedColor));
                 events.SetSelectedGameObject(languageButton.gameObject);
                 Assert.That(events.currentSelectedGameObject,
                     Is.SameAs(languageButton.gameObject));
