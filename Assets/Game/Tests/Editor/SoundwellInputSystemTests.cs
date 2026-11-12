@@ -143,6 +143,42 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator InactiveForeignEventSystemCannotReappearAfterFocusHandoff()
+        {
+            // ORK can park a UI owner on an inactive GameObject. It must not
+            // become a second active UI authority after scene handoff.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var owner = new GameObject("Soundwell UI EventSystem regression owner");
+            var parked = new GameObject("Parked ORK input owner",
+                typeof(EventSystem), typeof(StandaloneInputModule));
+            parked.SetActive(false);
+
+            var selected = SoundwellInputAdapter.EnsureEventSystem(owner.transform);
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected.gameObject.activeInHierarchy, Is.True);
+            Assert.That(selected.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>(),
+                Is.Not.Null);
+
+            yield return null; // Unity completes the deferred duplicate removal.
+            parked.SetActive(true);
+            yield return null;
+
+            var live = UnityEngine.Object.FindObjectsByType<EventSystem>(
+                FindObjectsSortMode.None);
+            Assert.That(live, Has.Length.EqualTo(1),
+                "A reactivated ORK UI owner cannot duplicate Soundwell's EventSystem.");
+            Assert.That(live[0], Is.SameAs(selected));
+            Assert.That(parked.GetComponent<EventSystem>(), Is.Null,
+                "The parked foreign EventSystem must be retired before reactivation.");
+
+            UnityEngine.Object.Destroy(owner);
+            UnityEngine.Object.Destroy(parked);
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial()
         {
             // Exercise the actual EventSystem and real InputAction events

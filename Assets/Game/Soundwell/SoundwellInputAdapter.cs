@@ -122,20 +122,25 @@ namespace Rpg.Soundwell
 
         public static EventSystem EnsureEventSystem(Transform owner)
         {
-            var systems = UnityEngine.Object.FindObjectsByType<EventSystem>();
+            // ORK/Makinom may park an inactive UI owner and reactivate it
+            // later. Excluding inactive objects here leaves a duplicate
+            // EventSystem able to steal focus after scene handoff.
+            var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
             EventSystem current = EventSystem.current;
-            // Keep the Soundwell-owned module when a later ORK/Makinom
-            // EventSystem temporarily becomes EventSystem.current. Picking
-            // current first would destroy our own UI input owner and could
-            // lose UGUI button selection during an encounter transition.
+            // Prefer an ACTIVE Soundwell UI owner, never one on an inactive
+            // GameObject. Enabling its component cannot activate the host.
             EventSystem eventSystem = systems.FirstOrDefault(system =>
+                    system.gameObject.activeInHierarchy &&
                     system.name == "Soundwell EventSystem" &&
                     system.GetComponent<InputSystemUIInputModule>() != null) ??
-                (current != null && current.GetComponent<InputSystemUIInputModule>() != null
-                    ? current : null) ??
+                (current != null && current.gameObject.activeInHierarchy &&
+                    current.GetComponent<InputSystemUIInputModule>() != null ? current : null) ??
                 systems.FirstOrDefault(system =>
+                    system.gameObject.activeInHierarchy &&
                     system.GetComponent<InputSystemUIInputModule>() != null) ??
-                current ?? systems.FirstOrDefault();
+                (current != null && current.gameObject.activeInHierarchy ? current : null) ??
+                systems.FirstOrDefault(system => system.gameObject.activeInHierarchy);
 
             if (eventSystem == null)
             {
