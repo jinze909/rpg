@@ -1206,6 +1206,14 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(leadPixel.sprite.name, Does.Contain("leader guard shield"),
                 "LateUpdate must not overwrite the accepted shield pose immediately.");
+            // ORK can pause the scaled clock while other turns resolve. Guard
+            // feedback is only a short pose: the leader cannot remain frozen
+            // behind a shield after the accepted ORK turn has moved on.
+            yield return new WaitForSecondsRealtime(0.95f);
+            Assert.That(leadPixel.sprite, Is.Not.Null);
+            Assert.That(leadPixel.sprite.name, Does.Not.Contain("leader guard shield"),
+                "The accepted leader Guard pose must expire on unscaled time without " +
+                "holding the character in a permanent shield animation.");
             deadline = Time.realtimeSinceStartup + 8f;
             while ((party.ChoosingRescuerIndex == 0 || !attack.interactable) &&
                    Time.realtimeSinceStartup < deadline)

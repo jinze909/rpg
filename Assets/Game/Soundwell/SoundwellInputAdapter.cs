@@ -235,7 +235,15 @@ namespace Rpg.Soundwell
                     (Map: "Entry", Action: "Interact"),
                     (Map: "Gameplay", Action: "Move"),
                     (Map: "Gameplay", Action: "Back"),
-                    (Map: "Gameplay", Action: "ToggleMenu")
+                    (Map: "Gameplay", Action: "ToggleMenu"),
+                    // Soundwell's existing bell/escort puzzle is controlled
+                    // through these actual game-owned world input actions.
+                    // A valid JSON override that unbinds one of them must
+                    // not silently make the authored trial controls unusable.
+                    (Map: "Gameplay", Action: "Ring"),
+                    (Map: "Gameplay", Action: "Wrap"),
+                    (Map: "Gameplay", Action: "Carry"),
+                    (Map: "Gameplay", Action: "Gate")
                 })
                 {
                     InputAction action = target.FindActionMap(required.Map, true)

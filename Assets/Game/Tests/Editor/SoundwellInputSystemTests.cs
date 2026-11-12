@@ -42,27 +42,45 @@ namespace Rpg.Tests.Editor
                 var menu = isolatedAsset.FindActionMap("Gameplay", true)
                     .FindAction("ToggleMenu", true);
                 Assert.That(menu.bindings.Count, Is.GreaterThanOrEqualTo(2));
-                for (int i = 0; i < menu.bindings.Count; i++)
-                    menu.ApplyBindingOverride(i, string.Empty);
-                Assert.That(menu.bindings.All(binding =>
-                    string.IsNullOrEmpty(binding.effectivePath)), Is.True);
-
-                string disabledJson = isolatedAsset.SaveBindingOverridesAsJson();
-                Assert.That(disabledJson, Is.Not.Empty);
-                isolatedAsset.RemoveAllBindingOverrides();
-                PlayerPrefs.SetString(key, disabledJson);
                 var restore = typeof(SoundwellInputAdapter).GetMethod(
                     "RestoreSavedBindingOverrides",
                     System.Reflection.BindingFlags.NonPublic |
                     System.Reflection.BindingFlags.Static);
                 Assert.That(restore, Is.Not.Null);
-                LogAssert.Expect(LogType.Warning,
-                    "Soundwell binding overrides are invalid; restored default controls (InvalidOperationException).");
-                restore.Invoke(null, new object[] { isolatedAsset });
-                Assert.That(PlayerPrefs.HasKey(key), Is.False,
-                    "A well-formed but unplayable binding preference must be cleared.");
-                Assert.That(menu.bindings.Any(binding =>
-                    binding.effectivePath == "<Keyboard>/tab"), Is.True);
+                // Test each mission-critical input in isolation. All disable
+                // cases use valid Input System JSON, not malformed text, and
+                // are restored through the same production PlayerPrefs path.
+                foreach (var required in new[]
+                {
+                    (Name: "ToggleMenu", DefaultPath: "<Keyboard>/tab"),
+                    (Name: "Ring", DefaultPath: "<Keyboard>/e"),
+                    (Name: "Wrap", DefaultPath: "<Keyboard>/q"),
+                    (Name: "Carry", DefaultPath: "<Keyboard>/f"),
+                    (Name: "Gate", DefaultPath: "<Keyboard>/g")
+                })
+                {
+                    var action = isolatedAsset.FindActionMap("Gameplay", true)
+                        .FindAction(required.Name, true);
+                    Assert.That(action.bindings.Count, Is.GreaterThanOrEqualTo(1));
+                    for (int i = 0; i < action.bindings.Count; i++)
+                        action.ApplyBindingOverride(i, string.Empty);
+                    Assert.That(action.bindings.All(binding =>
+                        string.IsNullOrEmpty(binding.effectivePath)), Is.True,
+                        required.Name + " must really lose every effective binding.");
+
+                    string disabledJson = isolatedAsset.SaveBindingOverridesAsJson();
+                    Assert.That(disabledJson, Is.Not.Empty);
+                    isolatedAsset.RemoveAllBindingOverrides();
+                    PlayerPrefs.SetString(key, disabledJson);
+                    LogAssert.Expect(LogType.Warning,
+                        "Soundwell binding overrides are invalid; restored default controls (InvalidOperationException).");
+                    restore.Invoke(null, new object[] { isolatedAsset });
+                    Assert.That(PlayerPrefs.HasKey(key), Is.False,
+                        required.Name + " must reject a valid-JSON but unplayable preference.");
+                    Assert.That(action.bindings.Any(binding =>
+                        binding.effectivePath == required.DefaultPath), Is.True,
+                        "Restore the saved default input for " + required.Name);
+                }
                 Assert.That(menu.bindings.Any(binding =>
                     binding.effectivePath == "<Gamepad>/start"), Is.True);
 
