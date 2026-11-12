@@ -322,6 +322,40 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.GateOpen, Is.True,
                 "Lifting the bell must not undo a gate the player already opened.");
 
+            // Reuse the same lifted bell to recreate a REAL wrap/search state.
+            // Picking it up during the beast's search must end both the
+            // countdown and wrapped-bell audio, not merely clear pursuit.
+            // The already-open physical gate remains open throughout.
+            Assert.That(trial.CanPlaceBell, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.False);
+            Assert.That(trial.BellPosition, Is.EqualTo(SoundwellTrial.SideBellStand));
+            trial.ApplyInput(Vector2.zero, true, false, false);
+            Assert.That(trial.HasBellTarget, Is.True);
+            trial.ApplyInput(Vector2.zero, false, true, false);
+            Assert.That(trial.IsSearching, Is.True);
+            yield return null;
+            Assert.That(intent.enabled, Is.True);
+            Assert.That(countdown.enabled, Is.True,
+                "Wrapping must start the same live beast search timer.");
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True);
+            Assert.That(trial.IsSearching, Is.False,
+                "Picking up the wrapped bell must clear the live search state.");
+            Assert.That(trial.IsWrapped, Is.False);
+            Assert.That(trial.HasBellTarget, Is.False);
+            Assert.That(bellAudio.isPlaying, Is.False);
+            Assert.That(bellAudio.loop, Is.False);
+            Assert.That(bellAudio.clip, Is.Null,
+                "The collected wrapped bell must not retain its muted audio cue.");
+            yield return null;
+            Assert.That(intent.enabled, Is.False,
+                "The world-space last-heard marker must clear when the bell is recovered.");
+            Assert.That(countdown.enabled, Is.False,
+                "Search countdown cannot survive a real bell pickup.");
+            Assert.That(trial.GateOpen, Is.True);
+            Assert.That(gateBlocker.enabled, Is.False);
+
             body.position = new Vector2(-4f, 0f);
             Physics2D.SyncTransforms();
             yield return null;
