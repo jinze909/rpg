@@ -195,6 +195,18 @@ MonoBehaviour:
     m_Key: status.escape_clear
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267321
+    m_Key: "battle.guard"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267322
+    m_Key: "battle.open_gate"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267323
+    m_Key: "battle.defending"
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

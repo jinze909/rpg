@@ -16,10 +16,21 @@ from collect_unity_p0 import (
     expected_tests_for,
     format_performance_summary,
     validate_memory_phases,
+    validate_soundwell_route_starts,
     validate_build_profile_player,
     MEMORY_PHASES,
 )
 
+
+
+class SoundwellRouteComparisonTests(unittest.TestCase):
+    def test_both_routes_must_have_exactly_one_equal_fresh_start(self):
+        bell = "RPG_SOUNDWELL_ROUTE_START:BELL:shared"
+        combat = "RPG_SOUNDWELL_ROUTE_START:COMBAT:shared"
+        self.assertEqual(validate_soundwell_route_starts(bell + "\n" + combat), [])
+        for invalid in (bell, bell + "\n" + combat + "\n" + combat,
+                        bell + "\n" + combat.replace("shared", "different")):
+            self.assertTrue(validate_soundwell_route_starts(invalid))
 
 
 class PerformanceSummaryTests(unittest.TestCase):
