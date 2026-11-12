@@ -1424,6 +1424,8 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(trial.CanEngageBeast, Is.True);
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.DirectCombatStarted, Is.True,
+                "Both visits must start a new ORK encounter through the gate.");
 
             deadline = Time.realtimeSinceStartup + 8f;
             while (party.ChoosingRescuerIndex < 0 && Time.realtimeSinceStartup < deadline)
@@ -1522,6 +1524,8 @@ namespace Rpg.Tests.Editor
             Assert.That(returnLoad.isDone, Is.True, "The first route must finish loading Bootstrap before replay.");
             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
             Assert.That(ORK.Game.Combatants.GetInBattle(), Is.Empty);
+            Assert.That(ORK.Control.InBattle, Is.False,
+                "Returning after victory must release ORK's battle control before replay.");
             yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
         }
 

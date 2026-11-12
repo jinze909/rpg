@@ -481,10 +481,9 @@ namespace Rpg.Soundwell
                 return bootstrapLoad;
 
             SetActionMenuOpen(false);
-            // Leaving mid-battle must clear ORK's live participant registry and
-            // restore combatant HP before the next Bootstrap/scene entry.
-            // Merely unloading the scene leaves the framework's battle global.
-            if (DirectCombatStarted && orkParty != null && orkParty.IsReady)
+            // Both retreat and victory can leave ORK's encounter owner alive
+            // after the scene unloads. Release it before opening a fresh trial.
+            if (combatStartedInThisScene && orkParty != null && orkParty.IsReady)
             {
                 orkParty.ResetEncounter();
                 variables.Set(DirectCombatStartedKey, 0);
