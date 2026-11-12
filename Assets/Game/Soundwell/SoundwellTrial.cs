@@ -234,7 +234,7 @@ namespace Rpg.Soundwell
                     else
                         SetActionMenuOpen(false);
                 },
-                direction => orkParty != null && orkParty.TryStep(direction));
+                (actor, direction) => orkParty != null && orkParty.TryStep(actor, direction));
             ResetTrial();
             initialized = true;
         }

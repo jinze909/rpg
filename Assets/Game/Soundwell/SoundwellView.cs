@@ -88,7 +88,7 @@ namespace Rpg.Soundwell
         private readonly Button[] moveDirectionButtons = new Button[4];
         private static readonly Vector2[] MoveDirections = { Vector2.up, Vector2.right, Vector2.down, Vector2.left };
         private readonly bool[] moveLegal = new bool[4];
-        private readonly System.Func<Vector2, bool> submitBattleMove;
+        private readonly System.Func<int, Vector2, bool> submitBattleMove;
         private bool movePreviewOpen;
         private int movePreviewIndex = -1;
         private int movePreviewActor = -1;
@@ -124,7 +124,7 @@ namespace Rpg.Soundwell
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
             Action carry, Action gate, Action attackBeast, Action guard, Action openGate, Action cancelActionMenu,
-            System.Func<Vector2, bool> submitBattleMove)
+            System.Func<int, Vector2, bool> submitBattleMove)
         {
             this.camera = camera;
             this.submitBattleMove = submitBattleMove;
@@ -729,7 +729,7 @@ namespace Rpg.Soundwell
             if (!movePreviewOpen || !moveLegal[movePreviewIndex] ||
                 submitBattleMove == null)
                 return;
-            if (!submitBattleMove(MoveDirections[movePreviewIndex]))
+            if (!submitBattleMove(movePreviewActor, MoveDirections[movePreviewIndex]))
                 return;
             CloseBattleMovePreview();
             moveButton.interactable = false;

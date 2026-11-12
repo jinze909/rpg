@@ -1456,9 +1456,11 @@ namespace Rpg.Tests.Editor
             yield return WaitForNextGateComparisonTurn(party, 0);
             int companion = party.ChoosingRescuerIndex;
             Assert.That(companion, Is.InRange(1, 2));
-            Assert.That(trial.GateOpen, Is.EqualTo(!useStep));
             if (useStep)
             {
+                Assert.That(trial.GateOpen, Is.False);
+                Assert.That(party.TryStep(0, Vector2.right), Is.False,
+                    "A confirmation from the previous chooser cannot move the current one.");
                 Assert.That(gate.interactable, Is.False,
                     "The companion's fixed position cannot reach the closed gate.");
                 Assert.That(party.CanStep(companion, Vector2.right), Is.True);
@@ -1487,7 +1489,6 @@ namespace Rpg.Tests.Editor
 
             yield return WaitForNextGateComparisonTurn(party, companion);
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(3 - companion));
-            Assert.That(trial.GateOpen, Is.True);
             Assert.That(attack.interactable, Is.True);
             attack.onClick.Invoke();
             deadline = Time.realtimeSinceStartup + 8f;
@@ -1495,6 +1496,10 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.DirectCombatComplete, Is.True,
                 "Both assignments must win after the same three primary actions.");
+            // ORK can present the next choice while an earlier action is queued.
+            // Inspect the latch after real action resolution, not during selection.
+            Assert.That(trial.GateOpen, Is.True,
+                "The assigned rescuer's queued action must open the actual gate.");
             Assert.That(trial.RescueComplete, Is.False,
                 "The survivor still needs an escort after either gate assignment.");
 

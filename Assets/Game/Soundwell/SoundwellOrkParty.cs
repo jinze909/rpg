@@ -625,9 +625,8 @@ namespace Rpg.Soundwell
         public bool CanStep(int index, Vector2 direction) =>
             CanSpendStep(index) && TryStepDestination(members[index], direction, out _);
 
-        public bool TryStep(Vector2 direction)
+        public bool TryStep(int index, Vector2 direction)
         {
-            int index = ChoosingRescuerIndex;
             if (!CanSpendStep(index) || !TryStepDestination(members[index], direction, out Vector2 destination))
                 return false;
 
