@@ -1026,23 +1026,35 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(ORK.Game.Combatants.GetInBattle().Count, Is.EqualTo(4));
             Assert.That(trial.DirectCombatStarted, Is.True);
-            yield return null; // LateUpdate shows the battle-only Back focus.
+            yield return null; // LateUpdate enters the battle-only action UI.
 
             var back = GameObject.Find("Soundwell Back button")?.GetComponent<Button>();
+            var attack = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
             Assert.That(back, Is.Not.Null);
+            Assert.That(attack, Is.Not.Null);
             Assert.That(back.gameObject.activeInHierarchy, Is.True);
+            Assert.That(back.interactable, Is.True,
+                "Retreat must remain a reachable, legal battle action.");
             Assert.That(back.GetComponentInChildren<Text>().text,
                 Is.EqualTo(SoundwellUiLocalization.Get("action.retreat")),
                 "Battle Cancel is an explicit ORK encounter withdrawal, not an ambiguous Back.");
+            // A newly legal attack becomes the default Submit action, so this
+            // regression must not expect Retreat to hold focus forever.
+            // Cancel must also work while the legal Attack button is focused.
+            float chooseDeadline = Time.realtimeSinceStartup + 6f;
+            while (!attack.interactable && Time.realtimeSinceStartup < chooseDeadline)
+                yield return null;
+            Assert.That(attack.interactable, Is.True,
+                "The battle must expose a real ORK attack before testing Cancel.");
             EventSystem events = EventSystem.current;
             Assert.That(events, Is.Not.Null);
-            Assert.That(events.currentSelectedGameObject, Is.SameAs(back.gameObject),
-                "The active battle must offer a focusable retreat for keyboard/gamepad users.");
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(attack.gameObject),
+                "A legal attack should be the default Submit focus, not an accidental retreat.");
 
-            // The actual EventSystem Cancel route bubbles from its selected
-            // button to the UGUI canvas handler. This is not a direct method
-            // call, button click, or a fabricated ORK battle result.
-            GameObject handler = ExecuteEvents.ExecuteHierarchy(back.gameObject,
+            // Route Cancel from the ACTUAL selected action through the HUD
+            // hierarchy. No direct trial method, synthetic HP or battle result.
+            GameObject handler = ExecuteEvents.ExecuteHierarchy(
+                events.currentSelectedGameObject,
                 new BaseEventData(events), ExecuteEvents.cancelHandler);
             Assert.That(handler, Is.Not.Null,
                 "Cancel must reach the action HUD's active ICancelHandler.");
