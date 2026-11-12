@@ -79,6 +79,7 @@ namespace Rpg.Tests.Editor
             var clueBody = trial.PlayerActor.GetComponent<Rigidbody2D>();
             Assert.That(clueBody, Is.Not.Null);
             Vector2 startingPosition = clueBody.position;
+            Vector2 startingBellPosition = trial.BellPosition;
             Assert.That(trial.ClawsObserved, Is.False);
             clueBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
@@ -281,6 +282,31 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(gateBlocker.enabled, Is.False,
                 "The opened gate must physically release its collider, not merely change UI copy.");
+
+            // Retrying a successful lure from the real RETREAT control must
+            // atomically clear the previous sound source, threat and opened
+            // passage. Otherwise the next run can inherit an audible phantom
+            // bell or an already-unlocked gate despite a reset Makinom signal.
+            body.position = startingPosition;
+            Physics2D.SyncTransforms();
+            trial.ApplyInput(Vector2.zero, false, false, true);
+            Assert.That(trial.HasBellTarget, Is.False);
+            Assert.That(trial.IsSearching, Is.False);
+            Assert.That(trial.IsWrapped, Is.False);
+            Assert.That(trial.IsCarrying, Is.False);
+            Assert.That(trial.BellPosition, Is.EqualTo(startingBellPosition));
+            Assert.That(trial.GateOpen, Is.False);
+            Assert.That(trial.ClawsObserved, Is.False,
+                "Retry must clear even previously inspected optional evidence.");
+            Assert.That(bellAudio.isPlaying, Is.False,
+                "Retry must stop the old looping bell in the actual AudioSource.");
+            Assert.That(bellAudio.loop, Is.False);
+            Assert.That(bellAudio.clip, Is.Null);
+            yield return null;
+            Assert.That(intent.enabled, Is.False);
+            Assert.That(countdown.enabled, Is.False);
+            Assert.That(gateBlocker.enabled, Is.True,
+                "Retry must restore the real physical gate, not just its caption.");
 
             Debug.Log("RPG_SOUNDWELL_THREAT_PREVIEW_VALIDATED");
             yield return new ExitPlayMode();
