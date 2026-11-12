@@ -87,7 +87,6 @@ namespace Rpg.Tests.Editor
                     ", trial=" + (trial != null) + ", party=" + (party != null));
                 yield break;
             }
-            Debug.Log("RPG_ORK_ATTACK_STAGE:scene_components_ready");
 
             float partyDeadline = Time.realtimeSinceStartup + 12f;
             while (!party.IsReady && string.IsNullOrEmpty(party.InitializationError) &&
@@ -469,7 +468,6 @@ namespace Rpg.Tests.Editor
             Assert.That(party.Members.Any(member => member.Actions.IsChoosing), Is.True,
                 "The direct route must enter a real ORK player turn, not only register battle participants.");
 
-            Debug.Log("RPG_ORK_ATTACK_STAGE:pre_select");
             // Attack must be an actual ORK ability from the active combatant,
             // targeted at the saved beast. Do not treat manual status subtraction
             // or a mocked battle-end event as proof of a usable player action.
@@ -482,7 +480,6 @@ namespace Rpg.Tests.Editor
             // Diagnose ORK's SAVED, real combatant ability state when the
             // configured base attack is missing or unselectable. Keep the
             // failure strict: no synthetic combat damage or action bypass.
-            Debug.Log("RPG_ORK_ATTACK_STAGE:readiness_probe");
             string attackAvailability = string.Join("; ", party.Members.Select((member, index) =>
             {
                 var baseAttack = member.Abilities.GetCurrentBaseAttack();
@@ -520,7 +517,6 @@ namespace Rpg.Tests.Editor
                     method.Name.Contains("Ability"))
                 .Select(method => method.ToString())
                 .Distinct().Take(24));
-            Debug.Log("RPG_ORK_ATTACK_STAGE:assert_readiness");
             Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
                 "A saved ORK player combatant must have a selectable base attack on its turn. " +
                 attackAvailability + " | public ORK API: " + baseAttackApi +
@@ -569,7 +565,6 @@ namespace Rpg.Tests.Editor
                 " targetChange=" + DescribeConfigObject(configuredTarget) +
                 " battleAnimation=" + DescribeConfigObject(configuredAttack.battleAnimation) +
                 " systemSchematics=" + DescribeConfigObject(configuredAttack.systemActionSchematics);
-            Debug.Log("RPG_ORK_ATTACK_PIPELINE " + damagePipelineSnapshot);
             // The saved Turn Based system can collect the whole team's
             // choices before it executes any action. A successful Use()
             // means the first player's attack was queued, not that damage
@@ -591,8 +586,6 @@ namespace Rpg.Tests.Editor
                     "ORK must not ask the same rescuer to choose twice in one turn.");
                 Assert.That(attackButton.interactable, Is.True,
                     "UGUI must expose the next ORK-controlled party action.");
-                Debug.Log("RPG_ORK_ATTACK_CHOICE_SUBMITTED rescuer=" + nextIndex +
-                    " total=" + submittedAttackers.Count);
                 attackButton.onClick.Invoke();
             }
             float attackResolutionDeadline = Time.realtimeSinceStartup + 8f;

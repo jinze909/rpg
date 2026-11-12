@@ -355,10 +355,6 @@ namespace Rpg.Soundwell
             bool targetAllowed = attack != null && attack.CanTarget(attacker, Beast);
             bool accepted = targetAllowed &&
                 attack.Use(attacker, new List<Combatant> { Beast }, true);
-            Debug.Log("RPG_ORK_ATTACK_USE_RESULT accepted=" + accepted +
-                " targetAllowed=" + targetAllowed +
-                " attackerChoosing=" + attacker.Actions.IsChoosing +
-                " beastHp=" + Beast.Status[1].GetValue());
             return accepted;
         }
 
