@@ -569,16 +569,21 @@ namespace Rpg.Soundwell
                 (focused == guardButton.gameObject && !canGuard) ||
                 (focused == openGateButton.gameObject && !canOpenGate))
                 actionEventSystem.SetSelectedGameObject(backButton.gameObject);
-            // During startup Retreat is the only available button. As soon as
-            // ORK exposes a legal action, keyboard/gamepad Submit should attack,
-            // not immediately leave the encounter. Do not steal focus if the
-            // player has navigated to a different UGUI control deliberately.
-            if (attackButton.interactable && focusAttackWhenReady)
+            // Retreat is initially the only enabled control. Once ORK offers a
+            // legal action, default Submit must prefer Attack, Guard, or Gate
+            // (in that order), rather than unexpectedly retreating when only
+            // a non-attack action is available. Respect subsequent manual focus.
+            if (focusAttackWhenReady)
             {
-                GameObject selected = actionEventSystem.currentSelectedGameObject;
-                if (selected == null || selected == backButton.gameObject)
-                    actionEventSystem.SetSelectedGameObject(attackButton.gameObject);
-                focusAttackWhenReady = false;
+                Button firstLegal = canAttack ? attackButton :
+                    canGuard ? guardButton : canOpenGate ? openGateButton : null;
+                if (firstLegal != null)
+                {
+                    GameObject selected = actionEventSystem.currentSelectedGameObject;
+                    if (selected == null || selected == backButton.gameObject)
+                        actionEventSystem.SetSelectedGameObject(firstLegal.gameObject);
+                    focusAttackWhenReady = false;
+                }
             }
             attackButtonLabel.font = SoundwellUiLocalization.PresentationFont(
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));

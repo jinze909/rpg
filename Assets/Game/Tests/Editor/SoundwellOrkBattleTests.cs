@@ -520,6 +520,61 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(attackButton.gameObject),
                 "First legal attack must take default Submit focus instead of retreating.");
+            // UI-only availability matrix on the ACTUAL battle canvas and
+            // EventSystem. Do not manufacture ORK turns or hit points: this
+            // tests which action Gamepad Submit would activate on startup.
+            var viewField = typeof(SoundwellTrial).GetField(
+                "view", System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.NonPublic);
+            Assert.That(viewField, Is.Not.Null);
+            object liveView = viewField.GetValue(trial);
+            Assert.That(liveView, Is.Not.Null);
+            var setBattleMode = liveView.GetType().GetMethod("SetBattleMode");
+            var setBattleChoices = liveView.GetType().GetMethod("SetBattleChoices");
+            Assert.That(setBattleMode, Is.Not.Null);
+            Assert.That(setBattleChoices, Is.Not.Null);
+            var focusGuardButton = GameObject.Find("Soundwell Guard button")?.GetComponent<Button>();
+            var focusGateButton = GameObject.Find("Soundwell Battle Gate button")?.GetComponent<Button>();
+            Assert.That(focusGuardButton, Is.Not.Null);
+            Assert.That(focusGateButton, Is.Not.Null);
+            System.Action<bool, bool, bool> presentLegalChoices = (legalAttack, legalGuard, legalGate) =>
+            {
+                setBattleMode.Invoke(liveView, new object[] { false });
+                setBattleMode.Invoke(liveView, new object[] { true });
+                setBattleChoices.Invoke(liveView, new object[]
+                {
+                    actualAttacker, party.Actors[actualAttacker].transform,
+                    legalAttack, legalGuard, legalGate, false
+                });
+            };
+            presentLegalChoices(false, true, false);
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(focusGuardButton.gameObject),
+                "Guard-only ORK choice must not default gamepad Submit to Retreat.");
+            EventSystem.current.SetSelectedGameObject(battleRetreat.gameObject);
+            setBattleChoices.Invoke(liveView, new object[]
+            {
+                actualAttacker, party.Actors[actualAttacker].transform,
+                false, true, false, false
+            });
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(battleRetreat.gameObject),
+                "After initial focus handoff, a deliberately selected Retreat must remain selected.");
+            presentLegalChoices(false, false, true);
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(focusGateButton.gameObject),
+                "Gate-only ORK choice must not default Submit to Retreat.");
+            presentLegalChoices(false, false, false);
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(battleRetreat.gameObject),
+                "Without any legal ORK choice Retreat must remain available.");
+            presentLegalChoices(true, true, true);
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(attackButton.gameObject),
+                "When an attack is legal it remains the default choice.");
+            // The subsequent frame restores the live ORK-computed choice matrix.
+            yield return null;
+
             var attackRect = (RectTransform)attackButton.transform;
             var retreatRect = (RectTransform)battleRetreat.transform;
             Assert.That(attackRect.anchorMin, Is.EqualTo(new Vector2(0.5f, 0f)));
