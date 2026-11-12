@@ -23,6 +23,69 @@ namespace Rpg.Tests.Editor
             Assert.That(playerSettings, Does.Match(@"(?m)^\s*activeInputHandler:\s*2\s*$"),
                 "Both keeps ORK's legacy backend available while game-owned actions move to the New Input System.");
             Assert.That(File.Exists("Assets/Game/Resources/Input/SoundwellControls.inputactions"), Is.True);
+            AssertSavedMenuBindingsCannotBeDisabled();
+        }
+
+        // Existing exact-test manifest keeps its count. Exercise both the
+        // broken persisted-json case and a legitimate rebound key against a
+        // cloned SAVED InputActionAsset, leaving the running adapter alone.
+        private static void AssertSavedMenuBindingsCannotBeDisabled()
+        {
+            const string key = "rpg.soundwell.input.binding-overrides.v1";
+            bool hadPreference = PlayerPrefs.HasKey(key);
+            string priorPreference = PlayerPrefs.GetString(key, string.Empty);
+            var savedAsset = Resources.Load<InputActionAsset>("Input/SoundwellControls");
+            Assert.That(savedAsset, Is.Not.Null);
+            var isolatedAsset = Object.Instantiate(savedAsset);
+            try
+            {
+                var menu = isolatedAsset.FindActionMap("Gameplay", true)
+                    .FindAction("ToggleMenu", true);
+                Assert.That(menu.bindings.Count, Is.GreaterThanOrEqualTo(2));
+                for (int i = 0; i < menu.bindings.Count; i++)
+                    menu.ApplyBindingOverride(i, string.Empty);
+                Assert.That(menu.bindings.All(binding =>
+                    string.IsNullOrEmpty(binding.effectivePath)), Is.True);
+
+                string disabledJson = isolatedAsset.SaveBindingOverridesAsJson();
+                Assert.That(disabledJson, Is.Not.Empty);
+                isolatedAsset.RemoveAllBindingOverrides();
+                PlayerPrefs.SetString(key, disabledJson);
+                var restore = typeof(SoundwellInputAdapter).GetMethod(
+                    "RestoreSavedBindingOverrides",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Static);
+                Assert.That(restore, Is.Not.Null);
+                LogAssert.Expect(LogType.Warning,
+                    "Soundwell binding overrides are invalid; restored default controls (InvalidOperationException).");
+                restore.Invoke(null, new object[] { isolatedAsset });
+                Assert.That(PlayerPrefs.HasKey(key), Is.False,
+                    "A well-formed but unplayable binding preference must be cleared.");
+                Assert.That(menu.bindings.Any(binding =>
+                    binding.effectivePath == "<Keyboard>/tab"), Is.True);
+                Assert.That(menu.bindings.Any(binding =>
+                    binding.effectivePath == "<Gamepad>/start"), Is.True);
+
+                // Do not erase a usable preference merely because it differs
+                // from the authored default keyboard key.
+                menu.ApplyBindingOverride(0, "<Keyboard>/f10");
+                string validJson = isolatedAsset.SaveBindingOverridesAsJson();
+                isolatedAsset.RemoveAllBindingOverrides();
+                PlayerPrefs.SetString(key, validJson);
+                restore.Invoke(null, new object[] { isolatedAsset });
+                Assert.That(menu.bindings[0].effectivePath, Is.EqualTo("<Keyboard>/f10"));
+                Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(validJson),
+                    "Legitimate remapping must remain persisted.");
+            }
+            finally
+            {
+                if (hadPreference)
+                    PlayerPrefs.SetString(key, priorPreference);
+                else
+                    PlayerPrefs.DeleteKey(key);
+                PlayerPrefs.Save();
+                Object.DestroyImmediate(isolatedAsset);
+            }
         }
 
         [UnityTest]

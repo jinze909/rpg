@@ -225,6 +225,27 @@ namespace Rpg.Soundwell
                     trimmed[trimmed.Length - 1] != '}')
                     throw new FormatException("Saved input binding overrides are not JSON.");
                 target.LoadBindingOverridesFromJson(saved);
+                // Well-formed override JSON can silently disable every path
+                // for a required action. In UI mode the game enables only
+                // ToggleMenu, so losing all its bindings strands keyboard/pad
+                // players in the focus menu. Preserve genuine remaps, but
+                // reject a preference that removes every usable control.
+                foreach (var required in new[]
+                {
+                    (Map: "Entry", Action: "Interact"),
+                    (Map: "Gameplay", Action: "Move"),
+                    (Map: "Gameplay", Action: "Back"),
+                    (Map: "Gameplay", Action: "ToggleMenu")
+                })
+                {
+                    InputAction action = target.FindActionMap(required.Map, true)
+                        .FindAction(required.Action, true);
+                    if (!action.bindings.Any(binding => !binding.isComposite &&
+                            !string.IsNullOrWhiteSpace(binding.effectivePath)))
+                        throw new InvalidOperationException(
+                            "Saved input overrides disabled all bindings for " +
+                            required.Map + "/" + required.Action + ".");
+                }
             }
             catch (Exception error)
             {
