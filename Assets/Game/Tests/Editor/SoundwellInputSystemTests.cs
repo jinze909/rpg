@@ -248,6 +248,38 @@ namespace Rpg.Tests.Editor
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
                     "Closing focus mode must restore Gameplay input.");
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.False);
+
+                // Gamepad South is both Entry/UGUI Submit and the gameplay
+                // Ring action. Holding the physical button across a context
+                // handoff must not manufacture an additional bell action.
+                SoundwellInputAdapter.SetEntryContext();
+                input.Press(gamepad.buttonSouth);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True);
+                SoundwellInputAdapter.SetGameplayContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.False,
+                    "Holding Entry Submit across the handoff must not ring the bell.");
+                input.Release(gamepad.buttonSouth);
+                InputSystem.Update();
+                input.Press(gamepad.buttonSouth);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.True,
+                    "Releasing and pressing again must still ring the bell.");
+                input.Release(gamepad.buttonSouth);
+                InputSystem.Update();
+
+                SoundwellInputAdapter.SetUiContext();
+                input.Press(gamepad.buttonSouth);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.False,
+                    "Focused UGUI Submit cannot trigger a gameplay action.");
+                SoundwellInputAdapter.SetGameplayContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.False,
+                    "Returning from focused UGUI with South held cannot auto-ring.");
+                input.Release(gamepad.buttonSouth);
+                InputSystem.Update();
             }
             finally
             {
