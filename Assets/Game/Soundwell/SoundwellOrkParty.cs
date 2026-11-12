@@ -57,6 +57,45 @@ namespace Rpg.Soundwell
             }
         }
 
+        // Each accepted step is a real ORK no-target action, not an extra
+        // scene-local turn or a free teleport that can follow an attack.
+        private sealed class BattleStepAction : NoneAction
+        {
+            private readonly Func<Combatant, Vector2, bool> canStep;
+            private readonly Action<Combatant, Vector2> applyStep;
+            private readonly Vector2 direction;
+
+            public BattleStepAction(Combatant user, Vector2 direction,
+                Func<Combatant, Vector2, bool> canStep,
+                Action<Combatant, Vector2> applyStep) : base(user, false)
+            {
+                this.direction = direction;
+                this.canStep = canStep;
+                this.applyStep = applyStep;
+            }
+
+            public override string GetName() => SoundwellUiLocalization.Get("battle.move");
+
+            protected override void ActionStartSetup() { }
+
+            public override bool CanUse() => base.CanUse() && canStep(User, direction);
+
+            public override void Calculate(List<Combatant> targets, float damageFactor,
+                ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
+            {
+                // ORK already accepted this action and entered its resolution
+                // state. Rechecking base.CanUse() here can return false *after*
+                // the turn is spent, silently discarding the actual movement.
+                // ApplyBattleStep revalidates physical walls and occupants.
+                applyStep(User, direction);
+                base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
+            }
+        }
+
+        public const float BattleStepDistance = 0.5f;
+        private List<BaseAction> stepActions = new List<BaseAction>(1);
+        private static readonly CheckAction IsStepAction = action => action is BattleStepAction;
+
         private const float FollowSpeed = 4.5f;
         private const float WalkFrameSeconds = 0.15f;
 
@@ -563,6 +602,94 @@ namespace Rpg.Soundwell
                     }
                 }
             }
+        }
+
+        // The scene's saved 2D colliders arbitrate access to space. ORK
+        // continues to arbitrate which rescuer can spend an action. A step
+        // moves exactly eight source pixels and consumes that rescuer's
+        // current ORK turn; there is no independent movement-points pool.
+        private bool TryStepDestination(Combatant member, Vector2 direction, out Vector2 destination)
+        {
+            destination = default;
+            if (member == null || member.GameObject == null ||
+                !(direction == Vector2.up || direction == Vector2.down ||
+                  direction == Vector2.left || direction == Vector2.right))
+                return false;
+
+            Vector2 from = member.GameObject.transform.position;
+            destination = from + direction * BattleStepDistance;
+            // Keep the whole one-unit pixel actor inside the Soundwell room.
+            if (Mathf.Abs(destination.x) > 6.7f || Mathf.Abs(destination.y) > 2.85f)
+                return false;
+
+            // Sweep the full step: endpoints alone would tunnel through the
+            // saved M5 Tilemap wall or the Makinom-controlled gate collider.
+            Physics2D.SyncTransforms();
+            foreach (RaycastHit2D hit in Physics2D.CircleCastAll(
+                from, 0.19f, direction, BattleStepDistance))
+            {
+                Collider2D obstacle = hit.collider;
+                if (obstacle == null || obstacle.isTrigger ||
+                    obstacle.transform.IsChildOf(member.GameObject.transform))
+                    continue;
+                return false;
+            }
+            // ORK combatants are not all equipped with Rigidbody2D, so the
+            // preview must reject overlap with their actual live transforms.
+            foreach (GameObject actor in actors)
+                if (actor != null && actor != member.GameObject &&
+                    Vector2.Distance(actor.transform.position, destination) < 0.40f)
+                    return false;
+            if (Beast != null && Beast.GameObject != null &&
+                Vector2.Distance(Beast.GameObject.transform.position, destination) < 0.50f)
+                return false;
+            return true;
+        }
+
+        public bool CanStep(int index, Vector2 direction)
+        {
+            if (!IsReady || !BattleInProgress || index < 0 || index >= members.Count ||
+                index != ChoosingRescuerIndex)
+                return false;
+            Combatant member = members[index];
+            if (member == null || member.Actions.BlockActionUse ||
+                member.Actions.ActionState != CombatantActionState.Available ||
+                member.Status.Effects.BlockAllActions ||
+                !member.Battle.CanUse(ORK.Battle.GetNoneActionCost(member, false)) ||
+                !TryStepDestination(member, direction, out _))
+                return false;
+            stepActions.Clear();
+            ORK.Battle.Actions.GetActions(ref stepActions, true, true, true, false, 1, IsStepAction, null);
+            return stepActions.Count == 0;
+        }
+
+        public bool TryStep(Vector2 direction)
+        {
+            int index = ChoosingRescuerIndex;
+            if (!CanStep(index, direction))
+                return false;
+            Combatant member = members[index];
+            member.Actions.AddAccess(new BattleStepAction(member, direction,
+                (actor, step) => TryStepDestination(actor, step, out _),
+                ApplyBattleStep), false);
+            return true;
+        }
+
+        private void ApplyBattleStep(Combatant actor, Vector2 direction)
+        {
+            if (!TryStepDestination(actor, direction, out Vector2 destination))
+                return;
+            // The leader's saved Rigidbody2D is the same actor ORK owns.
+            // Companions are moved directly only after ORK resolves the action.
+            Rigidbody2D body = actor.GameObject.GetComponent<Rigidbody2D>();
+            if (body != null)
+            {
+                body.linearVelocity = Vector2.zero;
+                body.position = destination;
+            }
+            else
+                actor.GameObject.transform.position = destination;
+            Physics2D.SyncTransforms();
         }
 
         public bool CanOperateGate(int index, Func<Combatant, bool> canReach)

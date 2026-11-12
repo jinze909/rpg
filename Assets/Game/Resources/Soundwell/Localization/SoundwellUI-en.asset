@@ -358,6 +358,34 @@ MonoBehaviour:
     m_Localized: "The revealed claw trail runs toward the SIDE BELL STAND. The beast still needs a sound to follow."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267361
+    m_Localized: "MOVE"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267362
+    m_Localized: "NORTH"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267363
+    m_Localized: "EAST"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267364
+    m_Localized: "SOUTH"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267365
+    m_Localized: "WEST"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267366
+    m_Localized: "STEP (1 TURN)"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267367
+    m_Localized: "CANCEL STEP"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

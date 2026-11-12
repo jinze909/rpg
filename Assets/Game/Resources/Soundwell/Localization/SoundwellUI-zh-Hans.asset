@@ -354,6 +354,34 @@ MonoBehaviour:
     m_Localized: "爪痕通向侧铃架，但野兽仍需要听见铃声才会追过去。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267361
+    m_Localized: "移动"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267362
+    m_Localized: "上"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267363
+    m_Localized: "右"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267364
+    m_Localized: "下"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267365
+    m_Localized: "左"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267366
+    m_Localized: "移动（耗一回合）"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267367
+    m_Localized: "取消移动"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
