@@ -345,7 +345,13 @@ namespace Rpg.Soundwell
             if (GateOpen && Vector2.Distance(playerBody.position, LowerBoardPosition) <= 0.48f)
             {
                 if (!LowerPlankBroken)
+                {
                     variables.Set(LowerPlankBrokenKey, 1);
+                    // The weak board has a real physical consequence.
+                    // Reuse the existing M4 Hit clip on its first collapse;
+                    // no ORK damage or second physics state is manufactured.
+                    view.AnimatePlayerHit();
+                }
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
                 playerBody.position = LowerBoardRecovery;

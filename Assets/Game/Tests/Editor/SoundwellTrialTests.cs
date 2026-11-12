@@ -258,6 +258,38 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.DirectCombatStarted || trial.DirectCombatComplete, Is.False,
                 "The bell route must not fake an ORK battle victory.");
 
+            // The lower plank really collapses under the player, shows the
+            // saved M4 Hit animation and pushes the leader to the existing
+            // lower-board recovery tile. It must not grant rescue/ORK victory
+            // or silently close the already earned gate.
+            var plankHitVisual = GameObject.Find("PLACEHOLDER animated player")
+                ?.GetComponent<SoundwellPlayerVisualAnimation>();
+            Assert.That(plankHitVisual, Is.Not.Null);
+            Assert.That(trial.LowerPlankBroken, Is.False);
+            MoveTestLeader(playerBody, SoundwellTrial.LowerBoardPosition);
+            yield return null;
+            Assert.That(trial.LowerPlankBroken, Is.True);
+            Assert.That(plankHitVisual.CurrentState, Is.EqualTo("Hit"),
+                "The actual first collapse must play the saved hit reaction.");
+            Assert.That(Vector2.Distance(trial.PlayerPosition,
+                SoundwellTrial.LowerBoardPosition), Is.GreaterThan(0.48f),
+                "The player cannot stand on the collapsed weak board.");
+            Assert.That(trial.GateOpen, Is.True);
+            Assert.That(trial.RescueComplete || trial.DirectCombatComplete, Is.False);
+            Vector2 plankRecovery = trial.PlayerPosition;
+            MoveTestLeader(playerBody, SoundwellTrial.LowerBoardPosition);
+            yield return null;
+            Assert.That(trial.PlayerPosition, Is.EqualTo(plankRecovery),
+                "Walking onto an already broken plank must remain impassable.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            var plankWarning = GameObject.Find("Soundwell surveyor response")?.GetComponent<Text>();
+            Assert.That(plankWarning, Is.Not.Null);
+            Assert.That(plankWarning.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.plank_snapped")));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+
             // Optional exploration must remain optional, including the guide rope.
             Assert.That(trial.RopeObserved || trial.RopeRecovered ||
                 trial.CartObserved || trial.CartKitReclaimed ||
@@ -484,6 +516,8 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.SurveyorEscorting, Is.False,
                 "The previous guide cannot remain attached to the next attempt.");
             Assert.That(trial.PlankSecured, Is.False);
+            Assert.That(trial.LowerPlankBroken, Is.False,
+                "Retry must restore the physical weak plank for a fresh attempt.");
             Assert.That(trial.HasSurveyorClue, Is.False);
             Assert.That(trial.IsCarrying || trial.HasBellTarget ||
                 trial.IsSearching || trial.IsWrapped, Is.False,
