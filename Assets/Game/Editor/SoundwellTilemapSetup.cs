@@ -134,16 +134,36 @@ namespace Rpg.Editor
                 var roots = scene.GetRootGameObjects().Where(go => go.name == GridName).ToArray();
                 if (roots.Length != 1 || roots[0].GetComponent<Grid>() == null)
                     throw new InvalidOperationException("The saved Soundwell scene lacks one Grid.");
-                var map = roots[0].GetComponentInChildren<Tilemap>();
+                var maps = roots[0].GetComponentsInChildren<Tilemap>(true);
+                var map = maps.Length == 1 ? maps[0] : null;
                 var render = map != null ? map.GetComponent<TilemapRenderer>() : null;
                 var collider = map != null ? map.GetComponent<TilemapCollider2D>() : null;
                 var grid = roots[0].GetComponent<Grid>();
                 if (map == null || render == null || collider == null ||
-                    !collider.enabled || collider.isTrigger ||
-                    render.sortingLayerName != "Default" ||
+                    !roots[0].activeSelf || !map.gameObject.activeSelf ||
+                    !render.enabled || !collider.enabled || collider.isTrigger ||
+                    render.sortingLayerName != "Default" || render.sortingOrder != 0 ||
                     Mathf.Abs(grid.cellSize.x - Cell) > 0.001f ||
-                    Mathf.Abs(grid.cellSize.y - Cell) > 0.001f)
+                    Mathf.Abs(grid.cellSize.y - Cell) > 0.001f ||
+                    Mathf.Abs(grid.cellSize.z - 1f) > 0.001f ||
+                    grid.cellGap.sqrMagnitude > 0.000001f ||
+                    collider.offset.sqrMagnitude > 0.000001f)
                     throw new InvalidOperationException("M5 wall Tilemap renderer/solid collider is invalid.");
+
+                // Cell occupancy is not enough: moving the Grid or child
+                // Tilemap leaves all cells intact but moves walls and their
+                // collisions across the rescue gate/escape lane.
+                var rootTransform = roots[0].transform;
+                var mapTransform = map.transform;
+                if (rootTransform.position.sqrMagnitude > 0.000001f ||
+                    Quaternion.Angle(rootTransform.rotation, Quaternion.identity) > 0.01f ||
+                    (rootTransform.localScale - Vector3.one).sqrMagnitude > 0.000001f ||
+                    mapTransform.localPosition.sqrMagnitude > 0.000001f ||
+                    Quaternion.Angle(mapTransform.localRotation, Quaternion.identity) > 0.01f ||
+                    (mapTransform.localScale - Vector3.one).sqrMagnitude > 0.000001f ||
+                    (map.tileAnchor - new Vector3(0.5f, 0.5f, 0f)).sqrMagnitude > 0.000001f)
+                    throw new InvalidOperationException(
+                        "M5 wall Grid/Tilemap transform or tile anchor shifts saved collision geometry.");
 
                 // Compare every saved cell with the intended physical footprint.
                 // This rejects holes, stray walls across the gate or escape lane,
