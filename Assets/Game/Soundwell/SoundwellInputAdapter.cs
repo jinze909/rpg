@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.UI;
 
 namespace Rpg.Soundwell
@@ -21,10 +22,12 @@ namespace Rpg.Soundwell
         private static InputActionMap gameplayMap;
         private static InputAction interact, move, ring, wrap, retry, back, carry, gate, toggleMenu;
         private static bool initialized;
+        private static bool ignoreHeldToggleUntilRelease;
 
         public static void SetEntryContext()
         {
             EnsureLoaded();
+            ignoreHeldToggleUntilRelease = false;
             actions.Disable();
             entryMap.Enable();
         }
@@ -32,6 +35,9 @@ namespace Rpg.Soundwell
         public static void SetGameplayContext()
         {
             EnsureLoaded();
+            // Re-enabling an InputAction while Tab/Start is held may treat
+            // its initial state as another press, reopening a just-closed menu.
+            ignoreHeldToggleUntilRelease |= ToggleControlHeld();
             actions.Disable();
             gameplayMap.Enable();
         }
@@ -42,6 +48,9 @@ namespace Rpg.Soundwell
         public static void SetUiContext()
         {
             EnsureLoaded();
+            // A held opening press must not immediately close the newly
+            // focused menu when this action is disabled and enabled again.
+            ignoreHeldToggleUntilRelease |= ToggleControlHeld();
             actions.Disable();
             toggleMenu.Enable();
         }
@@ -58,7 +67,30 @@ namespace Rpg.Soundwell
                 Keyboard.current != null && interact.activeControl == Keyboard.current.f2Key;
         }
 
-        public static bool ToggleMenuPressed() { EnsureLoaded(); return toggleMenu.WasPressedThisFrame(); }
+        // Both the action's button state and its physical bound controls are
+        // checked so a held Start/Tab remains suppressed across re-enables.
+        // Releasing it rearms the next intentional menu-toggle press.
+        public static bool ToggleMenuPressed()
+        {
+            EnsureLoaded();
+            if (ignoreHeldToggleUntilRelease)
+            {
+                if (!ToggleControlHeld())
+                    ignoreHeldToggleUntilRelease = false;
+                return false;
+            }
+            return toggleMenu.WasPressedThisFrame();
+        }
+
+        private static bool ToggleControlHeld()
+        {
+            foreach (InputControl control in toggleMenu.controls)
+            {
+                if (control is ButtonControl button && button.isPressed)
+                    return true;
+            }
+            return toggleMenu.IsPressed();
+        }
 
         public static bool IsEntryContextActive
         {

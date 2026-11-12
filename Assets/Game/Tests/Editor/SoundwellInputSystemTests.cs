@@ -280,6 +280,55 @@ namespace Rpg.Tests.Editor
                     "Returning from focused UGUI with South held cannot auto-ring.");
                 input.Release(gamepad.buttonSouth);
                 InputSystem.Update();
+
+                // Tab/Start is the SAME action in both Gameplay and focused
+                // UGUI. Do not open and immediately close a menu when the
+                // player holds the physical key across the map re-enable.
+                input.Press(gamepad.startButton);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.True);
+                SoundwellInputAdapter.SetUiContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.False,
+                    "Holding Start across Gameplay→UGUI cannot toggle again.");
+                input.Release(gamepad.startButton);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.False);
+                input.Press(gamepad.startButton);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.True,
+                    "Releasing and pressing Start again must still close UGUI.");
+                SoundwellInputAdapter.SetGameplayContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.False,
+                    "Holding Start across UGUI→Gameplay cannot reopen the menu.");
+                input.Release(gamepad.startButton);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.False);
+                input.Press(gamepad.startButton);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.True,
+                    "A fresh Start press must reopen the menu after release.");
+                input.Release(gamepad.startButton);
+                InputSystem.Update();
+
+                SoundwellInputAdapter.SetGameplayContext();
+                input.Press(keyboard.tabKey);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.True);
+                SoundwellInputAdapter.SetUiContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.False,
+                    "Held Tab cannot double-toggle on entry into UGUI.");
+                input.Release(keyboard.tabKey);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.False);
+                input.Press(keyboard.tabKey);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ToggleMenuPressed(), Is.True,
+                    "Tab must work again on its next intentional press.");
+                input.Release(keyboard.tabKey);
+                InputSystem.Update();
             }
             finally
             {
