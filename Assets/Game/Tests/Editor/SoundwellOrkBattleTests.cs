@@ -449,9 +449,11 @@ namespace Rpg.Tests.Editor
             Assert.That(battleRetreat.interactable, Is.True);
             Assert.That(ringButton.gameObject.activeInHierarchy, Is.False,
                 "Exploration ring/interaction must remain suspended during combat.");
-            Assert.That(EventSystem.current.currentSelectedGameObject,
-                Is.SameAs(battleRetreat.gameObject),
-                "Keyboard/gamepad Submit must reach the only scene-level retreat action.");
+            var battleAttackButton = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
+            Assert.That(battleAttackButton, Is.Not.Null);
+            Assert.That(new[] { battleRetreat.gameObject, battleAttackButton.gameObject },
+                Does.Contain(EventSystem.current.currentSelectedGameObject),
+                "Combat setup must focus a visible battle action, not a hidden world button.");
             foreach (Combatant member in party.Members)
             {
                 Assert.That(participants, Does.Contain(member));
@@ -471,12 +473,23 @@ namespace Rpg.Tests.Editor
             // Attack must be an actual ORK ability from the active combatant,
             // targeted at the saved beast. Do not treat manual status subtraction
             // or a mocked battle-end event as proof of a usable player action.
-            var attackButton = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
+            var attackButton = battleAttackButton;
             Assert.That(attackButton, Is.Not.Null);
             Assert.That(attackButton.gameObject.activeInHierarchy, Is.True);
             float attackReadyDeadline = Time.realtimeSinceStartup + 6f;
             while (!attackButton.interactable && Time.realtimeSinceStartup < attackReadyDeadline)
                 yield return null;
+            Assert.That(attackButton.interactable, Is.True,
+                "ORK must expose a legal player attack before testing default focus.");
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(attackButton.gameObject),
+                "First legal attack must take default Submit focus instead of retreating.");
+            EventSystem.current.SetSelectedGameObject(battleRetreat.gameObject);
+            yield return null;
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(battleRetreat.gameObject),
+                "A deliberate Retreat selection must keep focus during the same ORK turn.");
+            EventSystem.current.SetSelectedGameObject(attackButton.gameObject);
             // Diagnose ORK's SAVED, real combatant ability state when the
             // configured base attack is missing or unselectable. Keep the
             // failure strict: no synthetic combat damage or action bypass.

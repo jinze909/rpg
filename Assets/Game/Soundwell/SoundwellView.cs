@@ -65,6 +65,9 @@ namespace Rpg.Soundwell
         private readonly Button backButton;
         private readonly Button attackButton;
         private readonly Text attackButtonLabel;
+        // Default Submit follows the next legal ORK action, not an accidental retreat.
+        // Explicitly choosing Retreat remains respected during an unchanged turn.
+        private bool focusAttackWhenReady;
         private readonly Button carryButton;
         private readonly Button gateButton;
         private readonly Text gateButtonLabel;
@@ -365,7 +368,13 @@ namespace Rpg.Soundwell
             Localize(backButton.GetComponentInChildren<Text>(), "action.back");
             // A view-only adapter into ORK's selected base attack. This button
             // never calculates damage or selects an unauthorized combatant.
-            attackButton = CreateActionButton(actionCanvas.transform, "Attack", "", 6, attackBeast);
+            attackButton = CreateActionButton(actionCanvas.transform, "Attack", "", 6, () =>
+            {
+                // ORK may request another party member after this submitted action.
+                // Re-arm focus for that future real choice without inventing a turn.
+                focusAttackWhenReady = true;
+                attackBeast();
+            });
             attackButtonLabel = attackButton.GetComponentInChildren<Text>();
             var attackRect = (RectTransform)attackButton.transform;
             attackRect.anchorMin = attackRect.anchorMax = new Vector2(0.5f, 0f);
@@ -435,6 +444,7 @@ namespace Rpg.Soundwell
                 return;
 
             battleMode = active;
+            focusAttackWhenReady = active;
             // The only battle-specific UGUI action abandons the live ORK
             // encounter. Name it explicitly; exploration still says Back.
             backButton.GetComponentInChildren<Text>().text =
@@ -479,6 +489,17 @@ namespace Rpg.Soundwell
             if (actionEventSystem.currentSelectedGameObject == attackButton.gameObject &&
                 !attackButton.interactable)
                 actionEventSystem.SetSelectedGameObject(backButton.gameObject);
+            // During startup Retreat is the only available button. As soon as
+            // ORK exposes a legal action, keyboard/gamepad Submit should attack,
+            // not immediately leave the encounter. Do not steal focus if the
+            // player has navigated to a different UGUI control deliberately.
+            if (attackButton.interactable && focusAttackWhenReady)
+            {
+                GameObject selected = actionEventSystem.currentSelectedGameObject;
+                if (selected == null || selected == backButton.gameObject)
+                    actionEventSystem.SetSelectedGameObject(attackButton.gameObject);
+                focusAttackWhenReady = false;
+            }
             attackButtonLabel.font = SoundwellUiLocalization.PresentationFont(
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
         }
