@@ -105,8 +105,12 @@ namespace Rpg.Soundwell
         {
             if (Data.snapshots.Count != Phases.Length ||
                 Data.snapshots.Any(s => s.managed_gc_heap_bytes <= 0 ||
-                    s.loaded_game_objects <= 0 || s.loaded_textures < 0 ||
-                    s.loaded_audio_clips < 0 || s.loaded_texture2d_memory_bytes < 0 ||
+                    s.loaded_game_objects <= 0 || s.loaded_textures <= 0 ||
+                    // M7 texture footprint is part of the measured phase,
+                    // not a placeholder zero. The Editor loads real source
+                    // sprites, so empty totals mean capture was incomplete.
+                    s.loaded_texture2d_memory_bytes <= 0 ||
+                    s.loaded_audio_clips < 0 ||
                     s.unity_total_allocated_bytes < 0 ||
                     s.unity_total_reserved_bytes < 0 || s.unity_managed_used_bytes < 0 ||
                     s.unity_managed_reserved_bytes < 0 || s.unity_unused_reserved_bytes < 0))

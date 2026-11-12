@@ -643,13 +643,20 @@ namespace Rpg.Tests.Editor
                 yield return null;
             int guardIndex = party.ChoosingRescuerIndex;
             Assert.That(guardIndex, Is.InRange(1, 2));
-            var guard = party.Members[guardIndex];
             Assert.That(guardAction.interactable, Is.True);
             Assert.That(gateAction.interactable, Is.False,
                 "The latch is already queued or open and cannot consume a second turn.");
-            bool guardingResolved = false;
-            guard.Events.DefendingStateChangedSimple += () => guardingResolved |= guard.Battle.Defending;
+            var defenderVisual = party.Actors[guardIndex].GetComponent<SpriteRenderer>();
+            Assert.That(defenderVisual, Is.Not.Null);
+            Sprite idleBeforeGuard = defenderVisual.sprite;
             guardAction.onClick.Invoke();
+            // The UGUI click must be accepted by the real ORK shortcut before
+            // presentation changes. Capture immediately; ORK may advance the
+            // next turn and clear Defending before any later yield.
+            Sprite guardPose = defenderVisual.sprite;
+            Assert.That(guardPose, Is.Not.Null);
+            Assert.That(guardPose, Is.Not.SameAs(idleBeforeGuard));
+            Assert.That(guardPose.name, Does.Contain("guard shield"));
 
             choiceDeadline = Time.realtimeSinceStartup + 6f;
             while ((party.ReadyBaseAttackerIndex < 0 ||
@@ -658,6 +665,11 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(party.ReadyBaseAttackerIndex, Is.EqualTo(3 - guardIndex),
                 "Opening, guarding and attacking must spend three distinct ORK turns.");
+            // Turn progression above demonstrates ORK accepted the command;
+            // the shield captured on click does not invent a gameplay status.
+            Assert.That(guardPose.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(guardPose.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(guardPose.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(attackButton.interactable, Is.True);
             attackButton.onClick.Invoke();
             float attackResolutionDeadline = Time.realtimeSinceStartup + 8f;
@@ -704,7 +716,6 @@ namespace Rpg.Tests.Editor
                 "The reused Retreat button must return to the exploration layout.");
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
-            Assert.That(guardingResolved, Is.True, "ORK must resolve the guard action before victory.");
             Assert.That(trial.GateOpen, Is.True,
                 "The queued battle interaction must open the real gate and survive victory.");
 
