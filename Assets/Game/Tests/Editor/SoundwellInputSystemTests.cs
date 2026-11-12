@@ -183,6 +183,52 @@ namespace Rpg.Tests.Editor
                 input.Release(gamepad.buttonSouth);
                 yield return null;
 
+                // Entry's user-remapped keyboard shortcut is still a keyboard
+                // action, not a hardcoded F2. Verify the actual Input System
+                // event after changing the saved action asset's effective path;
+                // Gamepad South must never bypass focused UGUI settings.
+                var entryAction = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                    .FindActionMap("Entry", true).FindAction("Interact", true);
+                int entryKeyboardBinding = Enumerable.Range(0, entryAction.bindings.Count)
+                    .Single(i => entryAction.bindings[i].path == "<Keyboard>/f2");
+                string priorEntryOverride = entryAction.bindings[entryKeyboardBinding].overridePath;
+                SoundwellInputAdapter.SetUiContext();
+                entryAction.ApplyBindingOverride(entryKeyboardBinding, "<Keyboard>/f3");
+                SoundwellInputAdapter.SetEntryContext();
+                try
+                {
+                    input.Press(keyboard.f2Key);
+                    InputSystem.Update();
+                    Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.False,
+                        "The superseded F2 key cannot enter after remapping.");
+                    input.Release(keyboard.f2Key);
+                    InputSystem.Update();
+
+                    input.Press(keyboard.f3Key);
+                    InputSystem.Update();
+                    Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True);
+                    Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.True,
+                        "The saved F3 keyboard shortcut must enter without requiring a pointer.");
+                    input.Release(keyboard.f3Key);
+                    InputSystem.Update();
+
+                    input.Press(gamepad.buttonSouth);
+                    InputSystem.Update();
+                    Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.False,
+                        "Remapping the keyboard must never turn Gamepad Submit into an entry bypass.");
+                    input.Release(gamepad.buttonSouth);
+                    InputSystem.Update();
+                }
+                finally
+                {
+                    SoundwellInputAdapter.SetUiContext();
+                    if (priorEntryOverride == null)
+                        entryAction.RemoveBindingOverride(entryKeyboardBinding);
+                    else
+                        entryAction.ApplyBindingOverride(entryKeyboardBinding, priorEntryOverride);
+                    SoundwellInputAdapter.SetEntryContext();
+                }
+
                 SoundwellInputAdapter.SetGameplayContext();
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 

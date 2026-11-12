@@ -57,14 +57,14 @@ namespace Rpg.Soundwell
 
         public static bool InteractPressed() { EnsureLoaded(); return interact.WasPressedThisFrame(); }
 
-        // F2 is the explicit entry shortcut. Gamepad South is also UGUI
-        // Submit; identify the active binding so a focused settings button
-        // cannot accidentally enter the trial when the player presses A.
+        // The entry shortcut follows the player's saved keyboard remap.
+        // Gamepad South is also UGUI Submit, so it must still respect a
+        // focused settings button rather than entering the trial.
         public static bool EntryKeyboardShortcutPressed()
         {
             EnsureLoaded();
             return interact.WasPressedThisFrame() &&
-                Keyboard.current != null && interact.activeControl == Keyboard.current.f2Key;
+                interact.activeControl != null && interact.activeControl.device is Keyboard;
         }
 
         // Both the action's button state and its physical bound controls are
