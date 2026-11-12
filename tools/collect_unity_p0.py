@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Collect P0 evidence; preparation is never clean-commit acceptance."""
 import argparse
+from collections import Counter
 import hashlib
 import json
 import math
@@ -36,6 +37,8 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
+        "LeaderActionAndHitFeedbackExpireDuringPausedOrkClock":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.LeaderActionAndHitFeedbackExpireDuringPausedOrkClock",
         "OrkAcceptedCompanionAttackChangesOnlyItsPixelPose":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkAcceptedCompanionAttackChangesOnlyItsPixelPose",
     },
@@ -402,9 +405,15 @@ def collect(mode):
     try:
         result = ET.parse(evidence / "editmode-results.xml").getroot()
         cases = list(result.iter("test-case"))
-        names = [case.get("fullname") for case in cases]
-        if len(names) != len(expected_tests) or set(names) != expected_tests:
-            errors.append("Expected exactly the configured Unity tests; empty/partial test runs are invalid.")
+        names = Counter(case.get("fullname") or "<unnamed test>" for case in cases)
+        missing = sorted(expected_tests.difference(names))
+        unexpected = sorted(names.keys() - expected_tests)
+        duplicates = sorted(name for name, count in names.items() if count > 1)
+        for label, differences in (
+            ("Missing", missing), ("Unexpected", unexpected), ("Duplicate", duplicates)
+        ):
+            if differences:
+                errors.append(f"{label} Unity tests: " + ", ".join(differences))
         if result.get("result") != "Passed" or any(case.get("result") != "Passed" for case in cases):
             errors.append("All configured Unity tests must pass; skipped/inconclusive tests are invalid.")
     except (OSError, ET.ParseError) as error:

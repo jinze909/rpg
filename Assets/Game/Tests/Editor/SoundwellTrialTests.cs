@@ -138,6 +138,7 @@ namespace Rpg.Tests.Editor
                 "Submitting a legal ORK leader attack must play M4's authored Action clip.");
             Assert.That(party.Members[0].Actions.IsChoosing, Is.False,
                 "The feedback must accompany an ORK-accepted action, not a fake UI attack.");
+            SoundwellSmokeHost.Capture(trial, "16-ork-leader-action");
         }
 
         [UnityTest]

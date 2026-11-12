@@ -1663,7 +1663,7 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException(message);
         }
 
-        private static byte[] Capture(SoundwellTrial trial, string stage,
+        public static byte[] Capture(SoundwellTrial trial, string stage,
             int width = 960, int height = 540)
         {
             var camera = trial.TrialCamera;

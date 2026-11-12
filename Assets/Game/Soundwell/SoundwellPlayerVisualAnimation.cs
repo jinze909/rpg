@@ -31,13 +31,17 @@ namespace Rpg.Soundwell
             animator = gameObject.AddComponent<Animator>();
             animator.runtimeAnimatorController = controller;
             animator.applyRootMotion = false;
+            // ORK may suspend Time.timeScale while a turn resolves. The
+            // placeholder's short action/hit clips are feedback, not combat
+            // timing, so keep them playing during a paused battle clock.
+            animator.updateMode = AnimatorUpdateMode.UnscaledTime;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             ResetAnimation();
         }
 
         public void UpdateMotion(bool moving)
         {
-            if (Time.time < oneShotUntil)
+            if (Time.unscaledTime < oneShotUntil)
                 return;
             SetState(moving ? 1 : 0);
         }
@@ -48,16 +52,16 @@ namespace Rpg.Soundwell
             // visual one-shot on every press makes its first frame stutter
             // indefinitely. Preserve the original visual deadline and let
             // gameplay input continue through the trial as before.
-            if (Time.time < hitReactionUntil ||
-                (activeState == 2 && Time.time < oneShotUntil))
+            if (Time.unscaledTime < hitReactionUntil ||
+                (activeState == 2 && Time.unscaledTime < oneShotUntil))
                 return;
-            oneShotUntil = Time.time + 0.40f;
+            oneShotUntil = Time.unscaledTime + 0.40f;
             SetState(2, true);
         }
 
         public void PlayHit()
         {
-            hitReactionUntil = Time.time + 0.32f;
+            hitReactionUntil = Time.unscaledTime + 0.32f;
             oneShotUntil = hitReactionUntil;
             SetState(3, true);
         }

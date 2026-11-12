@@ -135,6 +135,47 @@ namespace Rpg.Tests.Editor
                     "During battle the action must return to the idle combat pose.");
         }
 
+        [UnityTest]
+        public IEnumerator LeaderActionAndHitFeedbackExpireDuringPausedOrkClock()
+        {
+            // Model ORK's scaled-time pause without invoking a fake action or
+            // changing battle state. The real M4 Animator must still finish
+            // its strictly visual one-shots in wall-clock time.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var actor = new GameObject("Soundwell paused-time visual test");
+            actor.AddComponent<SpriteRenderer>();
+            var visual = actor.AddComponent<SoundwellPlayerVisualAnimation>();
+            float originalTimeScale = Time.timeScale;
+            try
+            {
+                visual.Initialize();
+                Assert.That(visual.Controller, Is.Not.Null);
+                Assert.That(visual.Controller.updateMode, Is.EqualTo(AnimatorUpdateMode.UnscaledTime));
+                Time.timeScale = 0f;
+
+                visual.PlayAction();
+                Assert.That(visual.CurrentState, Is.EqualTo("Action"));
+                yield return new WaitForSecondsRealtime(0.47f);
+                visual.UpdateMotion(false);
+                Assert.That(visual.CurrentState, Is.EqualTo("Idle"),
+                    "Leader's action must not be trapped when ORK pauses scaled time.");
+
+                visual.PlayHit();
+                Assert.That(visual.CurrentState, Is.EqualTo("Hit"));
+                yield return new WaitForSecondsRealtime(0.38f);
+                visual.UpdateMotion(false);
+                Assert.That(visual.CurrentState, Is.EqualTo("Idle"),
+                    "A hit reaction must also expire without scaled-time progress.");
+            }
+            finally
+            {
+                Time.timeScale = originalTimeScale;
+                Object.Destroy(actor);
+            }
+            yield return new ExitPlayMode();
+        }
+
         [UnityTearDown]
         public IEnumerator RestoreEditMode()
         {
