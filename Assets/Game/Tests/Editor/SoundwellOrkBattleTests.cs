@@ -596,8 +596,9 @@ namespace Rpg.Tests.Editor
                 party.Members[0].Status[1].GetValue()));
             Assert.That(battleReadout.text, Does.Contain("野兽  生命 " +
                 party.Beast.Status[1].GetValue()));
-            Assert.That(battleReadout.text, Does.Not.Contain("ORK 攻击指令菜单尚未接入。"),
-                "A ready ORK base attack must not display the pending-menu warning.");
+            Assert.That(battleReadout.text, Does.Not.Contain(
+                SoundwellUiLocalization.Get("battle.menu_pending")),
+                "A ready ORK base attack must not display the unavailable-attack message.");
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             yield return null;
             Assert.That(battleReadout.text, Does.Contain("Rescuer 1  HP " +

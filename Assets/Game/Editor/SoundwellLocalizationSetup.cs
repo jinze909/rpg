@@ -40,7 +40,7 @@ namespace Rpg.Editor
             ("battle.beast", "Beast", "野兽"),
             ("battle.hp", "HP", "生命"),
             ("battle.turn", "< TURN", "< 行动"),
-            ("battle.menu_pending", "Attack selection awaits the ORK UI menu.", "ORK 攻击指令菜单尚未接入。"),
+            ("battle.menu_pending", "No attack available right now.", "当前没有可用的攻击指令。"),
             // Deliberately absent in Chinese for real EN fallback verification.
             ("diagnostic.fallback", "English table fallback", null),
             ("entry.sfx_mute", "SFX ON  /  MUTE", "音效开启 / 点击静音"),

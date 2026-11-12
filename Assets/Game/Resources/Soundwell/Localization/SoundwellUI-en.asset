@@ -107,7 +107,7 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267076
-    m_Localized: Attack selection awaits the ORK UI menu.
+    m_Localized: No attack available right now.
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267077
