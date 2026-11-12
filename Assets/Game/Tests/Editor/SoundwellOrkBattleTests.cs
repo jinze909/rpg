@@ -519,6 +519,14 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(attackButton.gameObject),
                 "First legal attack must take default Submit focus instead of retreating.");
+            var attackRect = (RectTransform)attackButton.transform;
+            var retreatRect = (RectTransform)battleRetreat.transform;
+            Assert.That(attackRect.anchorMin, Is.EqualTo(new Vector2(0.5f, 0f)));
+            Assert.That(retreatRect.anchorMin, Is.EqualTo(attackRect.anchorMin));
+            Assert.That(retreatRect.anchoredPosition.y, Is.EqualTo(attackRect.anchoredPosition.y));
+            Assert.That(retreatRect.anchoredPosition.x - attackRect.anchoredPosition.x,
+                Is.GreaterThan((attackRect.rect.width + retreatRect.rect.width) / 2f),
+                "Battle controls must share a clear bottom row without overlapping.");
             Bounds battleFraming = turnCue.bounds;
             battleFraming.Encapsulate(targetCue.bounds);
             battleFraming.Encapsulate(pixelBeast.bounds);
@@ -681,6 +689,9 @@ namespace Rpg.Tests.Editor
             Assert.That(explorationBackLabel.text,
                 Is.EqualTo(SoundwellUiLocalization.Get("action.back")),
                 "After ORK victory, the same UGUI action must return to its exploration label.");
+            Assert.That(retreatRect.anchoredPosition.y,
+                Is.Not.EqualTo(attackRect.anchoredPosition.y),
+                "The reused Retreat button must return to the exploration layout.");
             leaderBody.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             Assert.That(trial.CanOpenGate, Is.True,

@@ -416,11 +416,6 @@ namespace Rpg.Soundwell
                 attackBeast();
             });
             attackButtonLabel = attackButton.GetComponentInChildren<Text>();
-            var attackRect = (RectTransform)attackButton.transform;
-            attackRect.anchorMin = attackRect.anchorMax = new Vector2(0.5f, 0f);
-            attackRect.pivot = new Vector2(0.5f, 0f);
-            attackRect.anchoredPosition = new Vector2(0f, 34f);
-            attackRect.sizeDelta = new Vector2(265f, 48f);
             attackButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
             attackButton.interactable = false;
             attackButton.gameObject.SetActive(false);
@@ -484,6 +479,7 @@ namespace Rpg.Soundwell
                 return;
 
             battleMode = active;
+            layoutReady = false;
             focusAttackWhenReady = active;
             attackTargetMarker.enabled = false;
             activeRescuerMarker.enabled = false;
@@ -573,6 +569,25 @@ namespace Rpg.Soundwell
                 return;
             layoutReady = true;
             compactHud = compact;
+
+            // Reserve the bottom row for combat so the retreat button does
+            // not cover the beast or its target cue in the right-hand room.
+            if (battleMode)
+            {
+                float width = compact ? 190f : 230f;
+                float offset = (width + 16f) / 2f;
+                var attackRect = (RectTransform)attackButton.transform;
+                var retreatRect = (RectTransform)backButton.transform;
+                foreach (var rect in new[] { attackRect, retreatRect })
+                {
+                    rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+                    rect.pivot = new Vector2(0.5f, 0f);
+                    rect.sizeDelta = new Vector2(width, 44f);
+                }
+                attackRect.anchoredPosition = new Vector2(-offset, 12f);
+                retreatRect.anchoredPosition = new Vector2(offset, 12f);
+                return;
+            }
 
             var buttons = new[] { ringButton, wrapButton, retryButton, backButton,
                 carryButton, gateButton };
