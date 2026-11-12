@@ -52,15 +52,17 @@ namespace Rpg.Tests.Editor
                 // are restored through the same production PlayerPrefs path.
                 foreach (var required in new[]
                 {
-                    (Name: "ToggleMenu", DefaultPath: "<Keyboard>/tab"),
-                    (Name: "Ring", DefaultPath: "<Keyboard>/e"),
-                    (Name: "Wrap", DefaultPath: "<Keyboard>/q"),
-                    (Name: "Carry", DefaultPath: "<Keyboard>/f"),
-                    (Name: "Gate", DefaultPath: "<Keyboard>/g"),
-                    (Name: "Retry", DefaultPath: "<Keyboard>/r")
+                    (Map: "Entry", Name: "Interact", DefaultPath: "<Keyboard>/f2"),
+                    (Map: "Gameplay", Name: "Back", DefaultPath: "<Keyboard>/escape"),
+                    (Map: "Gameplay", Name: "ToggleMenu", DefaultPath: "<Keyboard>/tab"),
+                    (Map: "Gameplay", Name: "Ring", DefaultPath: "<Keyboard>/e"),
+                    (Map: "Gameplay", Name: "Wrap", DefaultPath: "<Keyboard>/q"),
+                    (Map: "Gameplay", Name: "Carry", DefaultPath: "<Keyboard>/f"),
+                    (Map: "Gameplay", Name: "Gate", DefaultPath: "<Keyboard>/g"),
+                    (Map: "Gameplay", Name: "Retry", DefaultPath: "<Keyboard>/r")
                 })
                 {
-                    var action = isolatedAsset.FindActionMap("Gameplay", true)
+                    var action = isolatedAsset.FindActionMap(required.Map, true)
                         .FindAction(required.Name, true);
                     Assert.That(action.bindings.Count, Is.GreaterThanOrEqualTo(1));
                     for (int i = 0; i < action.bindings.Count; i++)
