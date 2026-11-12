@@ -367,6 +367,7 @@ namespace Rpg.Soundwell
             escapeStatus.gameObject.name = "Soundwell escape status";
             surveyorStatus = AddLabel(rect, "", 15, Cloth,
                 new Vector2(0, -148), new Vector2(760, 32));
+            surveyorStatus.gameObject.name = "Soundwell surveyor response";
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
             hint.gameObject.name = "Soundwell trial hint";
             Localize(AddLabel(rect, "", 14, Cloth,
@@ -733,7 +734,8 @@ namespace Rpg.Soundwell
                 battleReadout.font = displayFont;
             // Dynamic exploration state text is also localized. A Chinese
             // StringTable entry without the pinned CJK font is not readable.
-            foreach (Text statusLabel in new[] { beastStatus, gateStatus, escapeStatus })
+            foreach (Text statusLabel in new[] { beastStatus, gateStatus, escapeStatus,
+                surveyorStatus, hint })
                 if (statusLabel != null)
                     statusLabel.font = displayFont;
             if (menuStatus != null)
@@ -979,7 +981,7 @@ namespace Rpg.Soundwell
                         ? "SURVEYOR: I've taken down that false trail sign. You found my cart; I'll get my map kit."
                         : "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
                 : rescueComplete
-                    ? "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
+                    ? SoundwellUiLocalization.Get("surveyor.rescued")
                     : surveyorEscorting
                         ? beastBlocksEscape && npc.x > -0.65f
                             ? "SURVEYOR: Beast at the gate! Draw it toward the SIDE BELL STAND."
@@ -1055,7 +1057,7 @@ namespace Rpg.Soundwell
                     ? "DIRECT ROUTE: Engage the ORK party, or lure the beast toward the SIDE BELL STAND."
                     : "DIRECT ROUTE: Engage the beast with the ORK party, or inspect nearby tracks for another approach.";
             else if (rescueComplete)
-                prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
+                prompt = SoundwellUiLocalization.Get("hint.rescue_complete");
             else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)
                 prompt = "ESCAPE BLOCKED: Lure the beast away from the gate with the SIDE BELL STAND.";
             else if (surveyorEscorting && waitingForEscortLeader)

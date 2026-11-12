@@ -520,6 +520,10 @@ namespace Rpg.Soundwell
             movement = Vector2.ClampMagnitude(direction, 1f);
             if (retry && AtSafePoint)
             {
+                // A Retry submitted from focused UGUI must hand control back
+                // to exploration. Resetting Makinom state alone otherwise
+                // leaves the UI action map enabled and movement suppressed.
+                SetActionMenuOpen(false);
                 if (combatStartedInThisScene)
                 {
                     // Restart the live scene to create fresh ORK combatants,

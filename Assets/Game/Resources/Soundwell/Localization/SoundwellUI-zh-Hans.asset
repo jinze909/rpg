@@ -250,6 +250,14 @@ MonoBehaviour:
     m_Localized: "开启闸门 [G / RB]"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267335
+    m_Localized: "测路人：终于安全了。我放错了路标，我会亲手拆掉。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267336
+    m_Localized: "救援成功：测路人已到达撤离点。他会拆除误导人的旧路标。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

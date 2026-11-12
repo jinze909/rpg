@@ -345,6 +345,33 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.RopeRecovered || trial.CartKitReclaimed ||
                 trial.DirectCombatComplete, Is.False);
 
+            // The survivor's first response and rescue completion hint must
+            // both follow the selected EN/zh UI locale on the *live* scene,
+            // without rewriting Makinom's rescue state or ORK battle data.
+            var rescueHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
+            var survivorResponse = GameObject.Find("Soundwell surveyor response")?.GetComponent<Text>();
+            Assert.That(rescueHint, Is.Not.Null);
+            Assert.That(survivorResponse, Is.Not.Null);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(trial.RescueComplete, Is.True);
+            Assert.That(rescueHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.rescue_complete")));
+            Assert.That(survivorResponse.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.rescued")));
+            Assert.That(rescueHint.text, Does.Contain("救援成功"));
+            Assert.That(survivorResponse.text, Does.Contain("测路人"));
+            var chineseFont = SoundwellUiLocalization.PresentationFont(
+                Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+            Assert.That(rescueHint.font, Is.SameAs(chineseFont));
+            Assert.That(survivorResponse.font, Is.SameAs(chineseFont));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(rescueHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.rescue_complete")));
+            Assert.That(survivorResponse.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.rescued")));
+
             // A successful sound-only rescue can be replayed in-place.
             // Invoke the normal Retry input at the real retreat mark: no
             // test-side Makinom variable reset or fake ORK victory.

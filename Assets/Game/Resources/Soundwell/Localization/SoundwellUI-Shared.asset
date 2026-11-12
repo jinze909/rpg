@@ -251,6 +251,14 @@ MonoBehaviour:
     m_Key: "action.open_gate_focus"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267335
+    m_Key: surveyor.rescued
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267336
+    m_Key: hint.rescue_complete
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

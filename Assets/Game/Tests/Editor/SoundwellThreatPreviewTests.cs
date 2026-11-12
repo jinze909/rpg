@@ -392,6 +392,27 @@ namespace Rpg.Tests.Editor
             Assert.That(gateBlocker.enabled, Is.True,
                 "Retry must restore the real physical gate, not just its caption.");
 
+            // Retry is also available through the player's focused UGUI
+            // action menu. Clicking it must reset and return controls to
+            // gameplay without leaving an invisible Submit target selected.
+            var retryButton = GameObject.Find("Soundwell Retry button")?.GetComponent<Button>();
+            Assert.That(retryButton, Is.Not.Null);
+            trial.SetActionMenuOpen(true);
+            yield return null;
+            Assert.That(retryButton.interactable, Is.True);
+            Assert.That(trial.ActionMenuOpen, Is.True);
+            Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+            retryButton.onClick.Invoke();
+            Assert.That(trial.ActionMenuOpen, Is.False,
+                "UI Retry must close the exploration action menu.");
+            Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                "The saved gameplay action map must resume after UI Retry.");
+            var eventSystem = UnityEngine.EventSystems.EventSystem.current;
+            Assert.That(eventSystem, Is.Not.Null);
+            Assert.That(eventSystem.sendNavigationEvents, Is.False);
+            Assert.That(eventSystem.currentSelectedGameObject, Is.Null,
+                "Retry must not keep a stale focused UGUI Submit target.");
+
             Debug.Log("RPG_SOUNDWELL_THREAT_PREVIEW_VALIDATED");
             yield return new ExitPlayMode();
         }

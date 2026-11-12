@@ -254,6 +254,14 @@ MonoBehaviour:
     m_Localized: "OPEN GATE [G / RB]"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267335
+    m_Localized: "SURVEYOR: Safe at last. My marker was wrong; I'll take it down myself."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267336
+    m_Localized: "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
