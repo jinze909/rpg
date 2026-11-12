@@ -233,7 +233,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 
                 input.Press(gamepad.buttonSouth);
-                yield return null;
+                // The expanded remap test drove manual InputSystem updates
+                // before this assertion. Read WasPressedThisFrame in the
+                // same update as the queued press, not after a coroutine yield.
+                InputSystem.Update();
                 Assert.That(SoundwellInputAdapter.ReadGameplay().Ring, Is.True,
                     "Gamepad South must ring only after the Gameplay map is active.");
                 Assert.That(SoundwellInputAdapter.InteractPressed(), Is.False,

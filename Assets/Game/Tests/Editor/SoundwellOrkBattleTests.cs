@@ -1279,6 +1279,73 @@ namespace Rpg.Tests.Editor
             Assert.That(events.currentSelectedGameObject, Is.SameAs(attack.gameObject),
                 "The next ORK chooser must keep a legal Submit target.");
 
+            // A second rescuer can preview an eight-pixel step and cancel
+            // without spending the movement allowance or primary action.
+            int movingRescuer = party.ChoosingRescuerIndex;
+            Vector2 beforeStep = party.Actors[movingRescuer].transform.position;
+            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.True,
+                "The westward step from the live guard follow-up must be reachable.");
+            Assert.That(party.CanStep(movingRescuer, Vector2.one), Is.False,
+                "A diagonal command cannot bypass the one-cardinal-step limit.");
+            var moveButton = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+            // GameObject.Find omits inactive UGUI preview controls. They
+            // exist in the same HUD before Move opens; resolve them through
+            // their parent Transform so this assertion tests the real UI.
+            var westButton = moveButton?.transform.parent
+                .Find("Soundwell Move West button")?.GetComponent<Button>();
+            var commitMove = moveButton?.transform.parent
+                .Find("Soundwell Confirm Move button")?.GetComponent<Button>();
+            var cancelMove = moveButton?.transform.parent
+                .Find("Soundwell Cancel Move button")?.GetComponent<Button>();
+            var stepPreview = GameObject.Find("PLACEHOLDER ORK step destination")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(moveButton, Is.Not.Null);
+            Assert.That(westButton, Is.Not.Null);
+            Assert.That(commitMove, Is.Not.Null);
+            Assert.That(cancelMove, Is.Not.Null);
+            Assert.That(stepPreview, Is.Not.Null);
+            Assert.That(moveButton.interactable, Is.True);
+            Assert.That(stepPreview.enabled, Is.False);
+            moveButton.onClick.Invoke();
+            Assert.That(westButton.gameObject.activeInHierarchy, Is.True);
+            westButton.onClick.Invoke();
+            Assert.That(stepPreview.enabled, Is.True);
+            Assert.That((Vector2)stepPreview.transform.position,
+                Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance));
+            cancelMove.onClick.Invoke();
+            Assert.That(stepPreview.enabled, Is.False);
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
+            Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
+                Is.EqualTo(beforeStep),
+                "Cancel cannot secretly move the ORK actor or spend its turn.");
+
+            // A collider appearing along the sweep must invalidate the step
+            // without moving the chooser or spending its allowance.
+            var obstruction = new GameObject("Step sweep regression obstruction");
+            obstruction.transform.position = beforeStep + Vector2.left * 0.30f;
+            obstruction.AddComponent<BoxCollider2D>().size = Vector2.one * 0.10f;
+            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.False);
+            Object.Destroy(obstruction);
+            yield return null;
+            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.True);
+
+            moveButton.onClick.Invoke();
+            westButton.onClick.Invoke();
+            Assert.That(commitMove.interactable, Is.True);
+            commitMove.onClick.Invoke();
+            yield return null;
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer),
+                "The confirmed step preserves the same rescuer's primary action.");
+            Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
+                Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance),
+                "The real actor must arrive at the previewed position.");
+            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.False,
+                "The same ORK turn cannot spend a second step.");
+            Assert.That(moveButton.interactable, Is.False);
+            Assert.That(attack.interactable, Is.True);
+            Assert.That(trial.GateOpen, Is.False);
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(attack.gameObject));
+
             // Feed Gamepad B through the live input module. The selected
             // Attack button must receive Cancel without a hierarchy dispatch.
             Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
@@ -1304,6 +1371,171 @@ namespace Rpg.Tests.Editor
                 Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
             Assert.That(ORK.Game.Combatants.GetInBattle(), Is.Empty,
                 "Cancel retreat must release the ORK global battle registry.");
+        }
+
+        [UnityTest, Order(30)]
+        public IEnumerator BattleStepChangesGateAssignmentFromSameOpening()
+        {
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return WaitForFrameworkInitialization();
+
+            var opening = new Vector2[5];
+            var openingHealth = new float[4];
+            yield return CompareGateAssignment(false, opening, openingHealth);
+            yield return CompareGateAssignment(true, opening, openingHealth);
+        }
+
+        private static IEnumerator CompareGateAssignment(bool useStep, Vector2[] opening, float[] openingHealth)
+        {
+            var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance, Is.Not.Null);
+            AsyncOperation load = entrance.OpenTrial();
+            Assert.That(load, Is.Not.Null);
+            float deadline = Time.realtimeSinceStartup + 12f;
+            while (!load.isDone && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(load.isDone, Is.True, "The comparison must enter a fresh Soundwell scene.");
+
+            SoundwellOrkParty party = null;
+            SoundwellTrial trial = null;
+            deadline = Time.realtimeSinceStartup + 12f;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                if (TryFindLiveTrialOwners(out _, out party, out trial) && party.IsReady && trial.IsReady)
+                    break;
+                yield return null;
+            }
+            Assert.That(party != null && party.IsReady && trial != null && trial.IsReady, Is.True,
+                "Both variants must initialize the same live rescue scene.");
+            trial.ReadInput = false;
+
+            // Approach the gate at the same point in each run. Followers settle
+            // through the normal exploration formation before ORK starts.
+            var start = new Vector2(-0.90f, 0f);
+            var leaderBody = party.Leader.GetComponent<Rigidbody2D>();
+            leaderBody.position = start;
+            Physics2D.SyncTransforms();
+            deadline = Time.realtimeSinceStartup + 6f;
+            while (party.Actors.Skip(1).Any(actor => actor.transform.position.x < -1.36f) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            // Allow LateUpdate to finish the last fraction of the formation move.
+            yield return null;
+            Assert.That(trial.CanEngageBeast, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.DirectCombatStarted, Is.True,
+                "Both visits must start a new ORK encounter through the gate.");
+
+            deadline = Time.realtimeSinceStartup + 8f;
+            while (party.ChoosingRescuerIndex < 0 && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            yield return null;
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
+            Assert.That(trial.GateOpen, Is.False);
+            Assert.That(trial.RescueComplete, Is.False);
+
+            Vector2[] positions = party.Actors.Select(actor => (Vector2)actor.transform.position)
+                .Concat(new[] { trial.BeastPosition, trial.BellPosition }).ToArray();
+            float[] health = party.Members.Select(member => (float)member.Status[1].GetValue())
+                .Append((float)party.Beast.Status[1].GetValue()).ToArray();
+            if (useStep)
+            {
+                for (int i = 0; i < positions.Length; i++)
+                    Assert.That(Vector2.Distance(positions[i], opening[i]), Is.LessThan(0.015f),
+                        "The formation, beast and bell must start in the same places.");
+                Assert.That(health, Is.EqualTo(openingHealth));
+            }
+            else
+            {
+                positions.CopyTo(opening, 0);
+                health.CopyTo(openingHealth, 0);
+            }
+
+            var gate = GameObject.Find("Soundwell Battle Gate button").GetComponent<Button>();
+            var guard = GameObject.Find("Soundwell Guard button").GetComponent<Button>();
+            var attack = GameObject.Find("Soundwell Attack button").GetComponent<Button>();
+            Assert.That(gate.interactable && guard.interactable, Is.True);
+            (useStep ? guard : gate).onClick.Invoke();
+
+            yield return WaitForNextGateComparisonTurn(party, 0);
+            int companion = party.ChoosingRescuerIndex;
+            Assert.That(companion, Is.InRange(1, 2));
+            if (useStep)
+            {
+                Assert.That(trial.GateOpen, Is.False);
+                Assert.That(party.TryStep(0, Vector2.right), Is.False,
+                    "A confirmation from the previous chooser cannot move the current one.");
+                Assert.That(gate.interactable, Is.False,
+                    "The companion's fixed position cannot reach the closed gate.");
+                Assert.That(party.CanStep(companion, Vector2.right), Is.True);
+                var move = GameObject.Find("Soundwell Move button").GetComponent<Button>();
+                Assert.That(move.interactable, Is.True);
+                move.onClick.Invoke();
+                var east = move.transform.parent.Find("Soundwell Move East button").GetComponent<Button>();
+                var confirm = move.transform.parent.Find("Soundwell Confirm Move button").GetComponent<Button>();
+                Assert.That(east.interactable, Is.True);
+                east.onClick.Invoke();
+                Assert.That(confirm.interactable, Is.True);
+                SoundwellSmokeHost.Capture(trial, "17-ork-step-gate-preview");
+                confirm.onClick.Invoke();
+                yield return null;
+                Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(companion));
+                Assert.That(gate.interactable, Is.True,
+                    "The same companion can now use its primary action on the gate.");
+                SoundwellSmokeHost.Capture(trial, "18-ork-step-companion-gate");
+                gate.onClick.Invoke();
+            }
+            else
+            {
+                Assert.That(guard.interactable, Is.True);
+                guard.onClick.Invoke();
+            }
+
+            yield return WaitForNextGateComparisonTurn(party, companion);
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(3 - companion));
+            Assert.That(attack.interactable, Is.True);
+            attack.onClick.Invoke();
+            deadline = Time.realtimeSinceStartup + 8f;
+            while (!trial.DirectCombatComplete && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.DirectCombatComplete, Is.True,
+                "Both assignments must win after the same three primary actions.");
+            // ORK can present the next choice while an earlier action is queued.
+            // Inspect the latch after real action resolution, not during selection.
+            Assert.That(trial.GateOpen, Is.True,
+                "The assigned rescuer's queued action must open the actual gate.");
+            Assert.That(trial.RescueComplete, Is.False,
+                "The survivor still needs an escort after either gate assignment.");
+
+            string result = useStep
+                ? $"RPG_SOUNDWELL_GATE_COMPARISON:STEP:gate={companion + 1}:guard=1:attack={4 - companion}:primary=3:steps=1"
+                : $"RPG_SOUNDWELL_GATE_COMPARISON:FIXED:gate=1:guard={companion + 1}:attack={4 - companion}:primary=3:steps=0";
+            LogAssert.Expect(UnityEngine.LogType.Log, result);
+            Debug.Log(result);
+
+            AsyncOperation returnLoad = trial.ReturnToBootstrap();
+            Assert.That(returnLoad, Is.Not.Null);
+            deadline = Time.realtimeSinceStartup + 12f;
+            while ((!returnLoad.isDone ||
+                    SceneManager.GetActiveScene().name != SoundwellEntrance.BootstrapSceneName) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(returnLoad.isDone, Is.True, "The first route must finish loading Bootstrap before replay.");
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
+            Assert.That(ORK.Game.Combatants.GetInBattle(), Is.Empty);
+            Assert.That(ORK.Control.InBattle, Is.False,
+                "Returning after victory must release ORK's battle control before replay.");
+            yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
+        }
+
+        private static IEnumerator WaitForNextGateComparisonTurn(SoundwellOrkParty party, int previous)
+        {
+            float deadline = Time.realtimeSinceStartup + 8f;
+            while ((party.ChoosingRescuerIndex < 0 || party.ChoosingRescuerIndex == previous) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            yield return null;
         }
 
         private static IEnumerator WaitForFrameworkInitialization()
