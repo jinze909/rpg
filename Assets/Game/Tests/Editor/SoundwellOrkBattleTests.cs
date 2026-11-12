@@ -10,6 +10,8 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.InputSystem.UI;
 using Unity.Cinemachine;
 using UnityEngine.Rendering.Universal;
@@ -564,10 +566,22 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(focusGateButton.gameObject),
                 "Gate-only ORK choice must not default Submit to Retreat.");
-            presentLegalChoices(false, false, false);
-            Assert.That(EventSystem.current.currentSelectedGameObject,
-                Is.SameAs(battleRetreat.gameObject),
-                "Without any legal ORK choice Retreat must remain available.");
+            setBattleChoices.Invoke(liveView, new object[] { -1, null, false, false, false, false });
+            EventSystem battleEvents = EventSystem.current;
+            Assert.That(battleEvents.currentSelectedGameObject, Is.SameAs(attackButton.gameObject),
+                "Losing the selected choice during resolution must leave a safe Submit target.");
+            Assert.That(attackButton.interactable, Is.False);
+            Assert.That(battleRetreat.interactable, Is.True);
+            ExecuteEvents.Execute(battleEvents.currentSelectedGameObject,
+                new BaseEventData(battleEvents), ExecuteEvents.submitHandler);
+            Assert.That(trial.DirectCombatStarted, Is.True,
+                "Submit while ORK has no legal choice must leave the encounter running.");
+            setBattleChoices.Invoke(liveView, new object[]
+            {
+                actualAttacker, party.Actors[actualAttacker].transform, false, true, false, false
+            });
+            Assert.That(battleEvents.currentSelectedGameObject, Is.SameAs(focusGuardButton.gameObject),
+                "A new legal choice must take focus after resolution.");
             presentLegalChoices(true, true, true);
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(attackButton.gameObject),
@@ -1262,17 +1276,25 @@ namespace Rpg.Tests.Editor
             Assert.That(party.ChoosingRescuerIndex, Is.InRange(1, 2),
                 "Leader Guard must actually consume one ORK turn, not just draw a shield.");
             Assert.That(attack.interactable, Is.True);
-            events.SetSelectedGameObject(attack.gameObject);
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(attack.gameObject),
+                "The next ORK chooser must keep a legal Submit target.");
 
-            // Route Cancel from the ACTUAL selected action through the HUD
-            // hierarchy. No direct trial method, synthetic HP or battle result.
-            GameObject handler = ExecuteEvents.ExecuteHierarchy(
-                events.currentSelectedGameObject,
-                new BaseEventData(events), ExecuteEvents.cancelHandler);
-            Assert.That(handler, Is.Not.Null,
-                "Cancel must reach the action HUD's active ICancelHandler.");
-            Assert.That(trial.DirectCombatStarted, Is.False,
-                "UGUI Cancel in battle should start a real scene retreat.");
+            // Feed Gamepad B through the live input module. The selected
+            // Attack button must receive Cancel without a hierarchy dispatch.
+            Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                InputSystem.QueueStateEvent(gamepad, new GamepadState().WithButton(GamepadButton.East));
+                deadline = Time.realtimeSinceStartup + 2f;
+                while (trial != null && trial.DirectCombatStarted && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(trial == null || !trial.DirectCombatStarted, Is.True,
+                    "Gamepad B on the focused Attack must start a real ORK retreat.");
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(gamepad);
+            }
 
             deadline = Time.realtimeSinceStartup + 8f;
             while (SceneManager.GetActiveScene().name != SoundwellEntrance.BootstrapSceneName &&

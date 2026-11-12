@@ -83,9 +83,6 @@ namespace Rpg.Soundwell
         private readonly Button openGateButton;
         private readonly Text openGateLabel;
         private readonly Text attackButtonLabel;
-        // Default Submit follows the next legal ORK action, not an accidental retreat.
-        // Explicitly choosing Retreat remains respected during an unchanged turn.
-        private bool focusAttackWhenReady;
         private readonly Button carryButton;
         private readonly Button gateButton;
         private readonly Text gateButtonLabel;
@@ -432,27 +429,13 @@ namespace Rpg.Soundwell
             Localize(backButton.GetComponentInChildren<Text>(), "action.back");
             // A view-only adapter into ORK's selected base attack. This button
             // never calculates damage or selects an unauthorized combatant.
-            attackButton = CreateActionButton(actionCanvas.transform, "Attack", "", 6, () =>
-            {
-                // ORK may request another party member after this submitted action.
-                // Re-arm focus for that future real choice without inventing a turn.
-                focusAttackWhenReady = true;
-                attackBeast();
-            });
+            attackButton = CreateActionButton(actionCanvas.transform, "Attack", "", 6, attackBeast);
             attackButtonLabel = attackButton.GetComponentInChildren<Text>();
             attackButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
             attackButton.interactable = false;
             attackButton.gameObject.SetActive(false);
-            guardButton = CreateActionButton(actionCanvas.transform, "Guard", "", 7, () =>
-            {
-                focusAttackWhenReady = true;
-                guard();
-            });
-            openGateButton = CreateActionButton(actionCanvas.transform, "Battle Gate", "", 8, () =>
-            {
-                focusAttackWhenReady = true;
-                openGate();
-            });
+            guardButton = CreateActionButton(actionCanvas.transform, "Guard", "", 7, guard);
+            openGateButton = CreateActionButton(actionCanvas.transform, "Battle Gate", "", 8, openGate);
             Localize(guardButton.GetComponentInChildren<Text>(), "battle.guard");
             openGateLabel = openGateButton.GetComponentInChildren<Text>();
             Localize(openGateLabel, "battle.open_gate");
@@ -485,10 +468,12 @@ namespace Rpg.Soundwell
             SoundwellUiLocalization.Changed += RefreshLocalizedLabels;
             RefreshLocalizedLabels();
 
-            var cancelHandler = actionCanvas.gameObject.AddComponent<SoundwellActionMenuCancelHandler>();
-            // Route Cancel through the trial owner so it restores the gameplay map,
-            // not just the view's local focus state.
-            cancelHandler.Initialize(cancelActionMenu);
+            // The Input System sends Cancel directly to the selected object.
+            // Let the trial owner restore the input context or withdraw from ORK.
+            foreach (var button in new[] { ringButton, wrapButton, retryButton,
+                backButton, carryButton, gateButton, attackButton, guardButton, openGateButton })
+                button.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
+                    .Initialize(cancelActionMenu);
 
             actionEventSystem = SoundwellInputAdapter.EnsureEventSystem(root);
             if (actionEventSystem == null)
@@ -524,7 +509,6 @@ namespace Rpg.Soundwell
 
             battleMode = active;
             layoutReady = false;
-            focusAttackWhenReady = active;
             attackTargetMarker.enabled = false;
             activeRescuerMarker.enabled = false;
             // The only battle-specific UGUI action abandons the live ORK
@@ -551,7 +535,7 @@ namespace Rpg.Soundwell
             };
             actionEventSystem.sendNavigationEvents = active || actionMenuOpen;
             if (active)
-                actionEventSystem.SetSelectedGameObject(backButton.gameObject);
+                actionEventSystem.SetSelectedGameObject(attackButton.gameObject);
             else
             {
                 // Combat buttons just became inactive. The EventSystem can
@@ -598,25 +582,17 @@ namespace Rpg.Soundwell
                     SoundwellUiLocalization.Get("battle.beast")
                 : SoundwellUiLocalization.Get("battle.menu_pending");
             GameObject focused = actionEventSystem.currentSelectedGameObject;
-            if ((focused == attackButton.gameObject && !canAttack) ||
-                (focused == guardButton.gameObject && !canGuard) ||
-                (focused == openGateButton.gameObject && !canOpenGate))
-                actionEventSystem.SetSelectedGameObject(backButton.gameObject);
-            // Retreat is initially the only enabled control. Once ORK offers a
-            // legal action, default Submit must prefer Attack, Guard, or Gate
-            // (in that order), rather than unexpectedly retreating when only
-            // a non-attack action is available. Respect subsequent manual focus.
-            if (focusAttackWhenReady)
+            bool keepFocus = focused == backButton.gameObject ||
+                (focused == attackButton.gameObject && canAttack) ||
+                (focused == guardButton.gameObject && canGuard) ||
+                (focused == openGateButton.gameObject && canOpenGate);
+            if (!keepFocus)
             {
-                Button firstLegal = canAttack ? attackButton :
-                    canGuard ? guardButton : canOpenGate ? openGateButton : null;
-                if (firstLegal != null)
-                {
-                    GameObject selected = actionEventSystem.currentSelectedGameObject;
-                    if (selected == null || selected == backButton.gameObject)
-                        actionEventSystem.SetSelectedGameObject(firstLegal.gameObject);
-                    focusAttackWhenReady = false;
-                }
+                // While ORK resolves, the disabled Attack button ignores Submit
+                // but still receives Cancel and directional navigation to Retreat.
+                Button target = canAttack ? attackButton : canGuard ? guardButton :
+                    canOpenGate ? openGateButton : attackButton;
+                actionEventSystem.SetSelectedGameObject(target.gameObject);
             }
             attackButtonLabel.font = SoundwellUiLocalization.PresentationFont(
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
@@ -1547,6 +1523,10 @@ namespace Rpg.Soundwell
     {
         private System.Action cancel;
         public void Initialize(System.Action callback) => cancel = callback;
-        public void OnCancel(BaseEventData eventData) => cancel?.Invoke();
+        public void OnCancel(BaseEventData eventData)
+        {
+            eventData.Use();
+            cancel?.Invoke();
+        }
     }
 }

@@ -595,8 +595,8 @@ namespace Rpg.Soundwell
             Capture(trial, "00-focused-actions");
             var focusedAction = EventSystem.current.currentSelectedGameObject;
             Require(focusedAction != null, "The focused action menu must have a selected control before Cancel.");
-            ExecuteEvents.ExecuteHierarchy<ICancelHandler>(focusedAction,
-                new BaseEventData(EventSystem.current), ExecuteEvents.cancelHandler);
+            Require(ExecuteEvents.Execute(focusedAction, new BaseEventData(EventSystem.current),
+                ExecuteEvents.cancelHandler), "The selected action must receive Cancel directly.");
             Require(!trial.ActionMenuOpen && !EventSystem.current.sendNavigationEvents &&
                 EventSystem.current.currentSelectedGameObject == null &&
                 SoundwellInputAdapter.IsGameplayContextActive,
