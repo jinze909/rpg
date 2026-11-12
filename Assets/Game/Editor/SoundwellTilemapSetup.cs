@@ -128,6 +128,18 @@ namespace Rpg.Editor
                 AssetDatabase.GetAssetPath(rule.m_TilingRules[0].m_Sprites[0]) != Root + "/GratingJoined.png")
                 throw new InvalidOperationException("Rule Tile references an unsaved or foreign sprite.");
 
+            // A saved wall can contain every correct cell yet become
+            // non-solid or blurry when its joined rule/sprite import drifts.
+            // Verify the actual authored M5 visuals/collision settings in
+            // clean import, not only the rule's outer asset reference.
+            var joinedRule = rule.m_TilingRules[0];
+            if (joinedRule.m_ColliderType != Tile.ColliderType.Grid ||
+                joinedRule.m_Output != RuleTile.TilingRuleOutput.OutputSprite.Single)
+                throw new InvalidOperationException(
+                    "M5 joined wall rule must remain one solid sprite.");
+            VerifyPixelWallSprite(rule.m_DefaultSprite, Root + "/GratingBase.png");
+            VerifyPixelWallSprite(joinedRule.m_Sprites[0], Root + "/GratingJoined.png");
+
             Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
             try
             {
@@ -192,6 +204,23 @@ namespace Rpg.Editor
                 EditorSceneManager.CloseScene(scene, true);
             }
             Debug.Log("RPG_SOUNDWELL_TILEMAP_VALIDATED");
+        }
+
+        private static void VerifyPixelWallSprite(Sprite sprite, string assetPath)
+        {
+            TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+            if (sprite == null || importer == null ||
+                sprite.rect.size != new Vector2(16f, 16f) ||
+                Mathf.Abs(sprite.pixelsPerUnit - 16f) > 0.001f ||
+                sprite.texture == null || sprite.texture.filterMode != FilterMode.Point ||
+                importer.textureType != TextureImporterType.Sprite ||
+                importer.spritePixelsPerUnit != 16f ||
+                importer.filterMode != FilterMode.Point ||
+                importer.textureCompression != TextureImporterCompression.Uncompressed ||
+                importer.mipmapEnabled)
+                throw new InvalidOperationException(
+                    "M5 wall sprites must remain authored 16px point-filtered, no-mipmap assets: " +
+                    assetPath);
         }
 
         private static IEnumerable<Vector3Int> Cells(Vector2 center, Vector2 size)
