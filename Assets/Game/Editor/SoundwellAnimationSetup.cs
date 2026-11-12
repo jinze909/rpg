@@ -70,8 +70,21 @@ namespace Rpg.Editor
                     states[0].state.motion != clip)
                     throw new InvalidOperationException("Missing or mismatched M4 clip: " + name);
 
+                // The authored clips use continuous Idle/Move but finite
+                // Action/Hit cues. A bad saved loop flag can leave the hero
+                // stuck attacking or freeze exploration even if curves exist.
+                var loop = new SerializedObject(clip)
+                    .FindProperty("m_AnimationClipSettings.m_LoopTime");
+                bool shouldLoop = name == "Idle" || name == "Move";
+                if (loop == null || loop.boolValue != shouldLoop ||
+                    !Mathf.Approximately(clip.frameRate, 30f) ||
+                    !Mathf.Approximately(states[0].state.speed, 1f))
+                    throw new InvalidOperationException(
+                        "M4 saved animation playback settings changed: " + name);
+
                 var bindings = AnimationUtility.GetCurveBindings(clip);
-                if (!bindings.Any(binding => binding.propertyName == "m_LocalPosition.y") ||
+                if (!bindings.Any(binding => binding.propertyName == "m_LocalPosition.x") ||
+                    !bindings.Any(binding => binding.propertyName == "m_LocalPosition.y") ||
                     !bindings.Any(binding => binding.propertyName == "m_LocalScale.x") ||
                     !bindings.Any(binding => binding.propertyName == "m_LocalScale.y"))
                     throw new InvalidOperationException("M4 clip has no authored transform motion: " + name);

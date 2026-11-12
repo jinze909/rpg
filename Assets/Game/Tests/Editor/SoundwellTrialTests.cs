@@ -291,6 +291,45 @@ namespace Rpg.Tests.Editor
                     Is.LessThanOrEqualTo(1.35f),
                     "The survivor must physically follow each return waypoint.");
             }
+            // The real escort hysteresis must be readable on the actual
+            // 16px surveyor, not only in a HUD message. Keep the NPC's route
+            // and state under the scene's own movement/refresh logic.
+            var surveyorSprite = GameObject.Find("PLACEHOLDER trapped surveyor")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(surveyorSprite, Is.Not.Null);
+            yield return null;
+            Color followingColor = surveyorSprite.color;
+            Vector2 pausePosition = trial.SurveyorWorldPosition;
+            Assert.That(pausePosition.x, Is.LessThan(-0.65f),
+                "The leader-distance pause begins only after the surveyor crosses the gate.");
+            // Move to the real open gateway, well beyond the 3.15-unit
+            // no-rope breakaway threshold, not a guessed offset that can
+            // land inside geometry. Wait for the live LateUpdate to publish
+            // its escort hysteresis before asserting the display state.
+            MoveTestLeader(playerBody, new Vector2(1.4f, 0f));
+            deadline = Time.realtimeSinceStartup + 3f;
+            while (!trial.SurveyorWaitingForLeader && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.SurveyorWaitingForLeader, Is.True,
+                "The NPC must actually pause when the guide leaves; NPC=" +
+                trial.SurveyorWorldPosition + ", leader=" + playerBody.position +
+                ", completed=" + trial.RescueComplete);
+            yield return null;
+            Assert.That(surveyorSprite.color,
+                Is.EqualTo(new Color(1f, 0.73f, 0.42f)),
+                "Abandoning the guide must visibly amber-mark the waiting surveyor.");
+            Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, pausePosition),
+                Is.LessThan(0.05f),
+                "The waiting surveyor must not teleport to the distant guide.");
+            MoveTestLeader(playerBody, pausePosition);
+            deadline = Time.realtimeSinceStartup + 3f;
+            while (trial.SurveyorWaitingForLeader && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.SurveyorWaitingForLeader, Is.False,
+                "Returning to the NPC must clear the same escort pause state.");
+            yield return null;
+            Assert.That(surveyorSprite.color, Is.EqualTo(followingColor),
+                "Returning to the surveyor must restore the normal follow sprite.");
             Assert.That(trial.RescueComplete, Is.False,
                 "Near the exit is not equivalent to bringing the survivor all the way home.");
             MoveTestLeader(playerBody, safe);
