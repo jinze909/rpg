@@ -336,10 +336,13 @@ namespace Rpg.Soundwell
             Localize(AddLabel(rect, "", 13, Gold, new Vector2(-88, -43), new Vector2(120, 22)), "hud.copper_bell");
             Localize(AddLabel(rect, "", 13, Cloth, new Vector2(-92, -122), new Vector2(180, 24)), "hud.side_stand");
             beastStatus = AddLabel(rect, "", 17, Ink, new Vector2(170, -100), new Vector2(290, 30));
+            beastStatus.gameObject.name = "Soundwell beast status";
             gateStatus = AddLabel(rect, "GATE  /  LOCKED", 16, Ink,
                 new Vector2(0, -102), new Vector2(220, 30));
+            gateStatus.gameObject.name = "Soundwell gate status";
             escapeStatus = AddLabel(rect, "ESCAPE LANE  /  CLEAR", 13, Cloth,
                 new Vector2(-260, -104), new Vector2(240, 28));
+            escapeStatus.gameObject.name = "Soundwell escape status";
             surveyorStatus = AddLabel(rect, "", 15, Cloth,
                 new Vector2(0, -148), new Vector2(760, 32));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
@@ -635,6 +638,11 @@ namespace Rpg.Soundwell
                     SoundwellUiLocalization.Get("action.retreat");
             if (battleReadout != null)
                 battleReadout.font = displayFont;
+            // Dynamic exploration state text is also localized. A Chinese
+            // StringTable entry without the pinned CJK font is not readable.
+            foreach (Text statusLabel in new[] { beastStatus, gateStatus, escapeStatus })
+                if (statusLabel != null)
+                    statusLabel.font = displayFont;
             if (menuStatus != null)
             {
                 menuStatus.font = displayFont;
@@ -749,8 +757,8 @@ namespace Rpg.Soundwell
                     new Vector3(1.12f * remaining, 0.11f, 1f);
             }
             escapeDangerMarker.enabled = beastBlocksEscape;
-            string escapeCaption = beastBlocksEscape
-                ? "ESCAPE LANE  /  BLOCKED" : "ESCAPE LANE  /  CLEAR";
+            string escapeCaption = SoundwellUiLocalization.Get(
+                beastBlocksEscape ? "status.escape_blocked" : "status.escape_clear");
             if (escapeStatus.text != escapeCaption)
                 escapeStatus.text = escapeCaption;
             escapeStatus.color = beastBlocksEscape ? new Color(1f, 0.56f, 0.47f) : Cloth;
@@ -895,7 +903,8 @@ namespace Rpg.Soundwell
             gateBlocker.enabled = !gateOpen;
             gateMarker.color = gateOpen ? new Color(0.30f, 0.84f, 0.65f, 0.16f)
                 : new Color(0.32f, 0.43f, 0.48f);
-            string gateCaption = gateOpen ? "GATE  /  OPEN" : "GATE  /  LOCKED";
+            string gateCaption = SoundwellUiLocalization.Get(
+                gateOpen ? "status.gate_open" : "status.gate_locked");
             if (gateStatus.text != gateCaption)
                 gateStatus.text = gateCaption;
             gateStatus.color = gateOpen ? Cloth : Ink;
@@ -908,9 +917,10 @@ namespace Rpg.Soundwell
             if (wrapButtonLabel.text != wrapCaption)
                 wrapButtonLabel.text = wrapCaption;
             bellMarker.color = wrapped ? Cloth : Gold;
-            string status = beastDefeated ? "BEAST  /  DEFEATED"
-                : ringing ? "BEAST  /  TRACKING" : searching ? "BEAST  /  SEARCHING"
-                : returning ? "BEAST  /  RETURNING" : "BEAST  /  LISTENING";
+            string status = SoundwellUiLocalization.Get(
+                beastDefeated ? "status.beast_defeated"
+                : ringing ? "status.beast_tracking" : searching ? "status.beast_searching"
+                : returning ? "status.beast_returning" : "status.beast_listening");
             if (beastStatus.text != status)
             {
                 beastStatus.text = status;

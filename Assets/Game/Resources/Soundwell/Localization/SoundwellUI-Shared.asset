@@ -159,6 +159,42 @@ MonoBehaviour:
     m_Key: entry.sfx_unmute
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267312
+    m_Key: status.beast_defeated
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267313
+    m_Key: status.beast_tracking
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267314
+    m_Key: status.beast_searching
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267315
+    m_Key: status.beast_returning
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267316
+    m_Key: status.beast_listening
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267317
+    m_Key: status.gate_open
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267318
+    m_Key: status.gate_locked
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267319
+    m_Key: status.escape_blocked
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267320
+    m_Key: status.escape_clear
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

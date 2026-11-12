@@ -162,6 +162,42 @@ MonoBehaviour:
     m_Localized: "SFX MUTED  /  UNMUTE"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267312
+    m_Localized: "BEAST  /  DEFEATED"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267313
+    m_Localized: "BEAST  /  TRACKING"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267314
+    m_Localized: "BEAST  /  SEARCHING"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267315
+    m_Localized: "BEAST  /  RETURNING"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267316
+    m_Localized: "BEAST  /  LISTENING"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267317
+    m_Localized: "GATE  /  OPEN"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267318
+    m_Localized: "GATE  /  LOCKED"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267319
+    m_Localized: "ESCAPE LANE  /  BLOCKED"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267320
+    m_Localized: "ESCAPE LANE  /  CLEAR"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -64,6 +64,32 @@ namespace Rpg.Tests.Editor
             Assert.That(trial != null && trial.IsReady && party != null && party.IsReady,
                 Is.True, "The saved Soundwell and three ORK combatants must load.");
 
+            // M9: the scene's dynamic threat, gate and escape labels must
+            // translate from saved StringTables, not stay English when the
+            // player switches language. No duplicate UI/state is instantiated.
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            var beastStatus = GameObject.Find("Soundwell beast status")?.GetComponent<Text>();
+            var gateStatus = GameObject.Find("Soundwell gate status")?.GetComponent<Text>();
+            var escapeStatus = GameObject.Find("Soundwell escape status")?.GetComponent<Text>();
+            Assert.That(beastStatus, Is.Not.Null);
+            Assert.That(gateStatus, Is.Not.Null);
+            Assert.That(escapeStatus, Is.Not.Null);
+            Assert.That(beastStatus.text, Is.EqualTo("BEAST  /  LISTENING"));
+            Assert.That(gateStatus.text, Is.EqualTo("GATE  /  LOCKED"));
+            Assert.That(escapeStatus.text, Is.EqualTo("ESCAPE LANE  /  CLEAR"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(beastStatus.text, Is.EqualTo("野兽 / 监听中"));
+            Assert.That(gateStatus.text, Is.EqualTo("闸门 / 已锁定"));
+            Assert.That(escapeStatus.text, Is.EqualTo("撤离通道 / 畅通"));
+            Assert.That(gateStatus.font, Is.Not.Null);
+            Assert.That(gateStatus.font.HasCharacter('闸'), Is.True,
+                "The dynamic Chinese state text needs a font with actual CJK glyphs.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(gateStatus.text, Is.EqualTo("GATE  /  LOCKED"));
+
             trial.ReadInput = false;
             var leader = party.Leader.GetComponent<Rigidbody2D>();
             MoveTestLeader(leader, new Vector2(-0.55f, 0f));

@@ -158,6 +158,42 @@ MonoBehaviour:
     m_Localized: "音效已静音 / 点击开启"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267312
+    m_Localized: "野兽 / 已击败"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267313
+    m_Localized: "野兽 / 追踪声源"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267314
+    m_Localized: "野兽 / 搜寻中"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267315
+    m_Localized: "野兽 / 返回中"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267316
+    m_Localized: "野兽 / 监听中"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267317
+    m_Localized: "闸门 / 已开启"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267318
+    m_Localized: "闸门 / 已锁定"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267319
+    m_Localized: "撤离通道 / 已阻断"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267320
+    m_Localized: "撤离通道 / 畅通"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
