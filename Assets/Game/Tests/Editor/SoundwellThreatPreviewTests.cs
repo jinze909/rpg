@@ -138,8 +138,22 @@ namespace Rpg.Tests.Editor
             Physics2D.SyncTransforms();
             trial.ApplyInput(Vector2.zero, false, false, false, true);
             Assert.That(trial.IsCarrying, Is.True);
+            // Carry cannot place a third bell sound source into arbitrary
+            // geometry. The same physical bell follows the carrier; only a
+            // marked stand permits Place.
+            body.position = new Vector2(-4f, 0f);
+            Physics2D.SyncTransforms();
+            Assert.That(trial.CanPlaceBell, Is.False);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True,
+                "An invalid off-stand drop must leave the actual bell carried.");
+            yield return null;
+            Assert.That(Vector2.Distance(trial.BellPosition,
+                body.position + new Vector2(0.35f, 0f)), Is.LessThan(0.05f),
+                "The carried bell must follow the player after a blocked drop.");
             body.position = SoundwellTrial.SideBellStand;
             Physics2D.SyncTransforms();
+            Assert.That(trial.CanPlaceBell, Is.True);
             trial.ApplyInput(Vector2.zero, false, false, false, true);
             Assert.That(trial.IsCarrying, Is.False);
             Assert.That(trial.BellPosition, Is.EqualTo(SoundwellTrial.SideBellStand));
