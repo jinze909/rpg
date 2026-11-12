@@ -25,6 +25,95 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator AcceptedOrkLeaderAttackShowsActualPlayerActionClip()
+        {
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return VerifyAttackVisualInLiveBattle();
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator VerifyAttackVisualInLiveBattle()
+        {
+            float deadline = Time.realtimeSinceStartup + 30f;
+            while ((!Maki.Initialized || !ORK.Initialized) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(Maki.Initialized && ORK.Initialized, Is.True);
+
+            var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entry, Is.Not.Null);
+            var loading = entry.OpenTrial();
+            Assert.That(loading, Is.Not.Null);
+            deadline = Time.realtimeSinceStartup + 20f;
+            while (!loading.isDone && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(loading.isDone, Is.True);
+
+            SoundwellTrial trial = null;
+            SoundwellOrkParty party = null;
+            deadline = Time.realtimeSinceStartup + 20f;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                trial = Object.FindFirstObjectByType<SoundwellTrial>();
+                party = Object.FindFirstObjectByType<SoundwellOrkParty>();
+                if (trial != null && trial.IsReady && party != null && party.IsReady)
+                    break;
+                yield return null;
+            }
+            Assert.That(trial != null && trial.IsReady && party != null && party.IsReady,
+                Is.True, "The saved Soundwell and three ORK combatants must load.");
+
+            trial.ReadInput = false;
+            var leader = party.Leader.GetComponent<Rigidbody2D>();
+            MoveTestLeader(leader, new Vector2(-0.55f, 0f));
+            Assert.That(trial.CanEngageBeast, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.DirectCombatStarted, Is.True);
+
+            var attack = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
+            var visual = GameObject.Find("PLACEHOLDER animated player")
+                ?.GetComponent<SoundwellPlayerVisualAnimation>();
+            Assert.That(attack, Is.Not.Null);
+            Assert.That(visual, Is.Not.Null);
+            // Battle entry itself animates the player. Wait for the *actual*
+            // animation controller to return to Idle instead of assuming a
+            // single 0.5-second frame delay is enough in GameCI Play Mode.
+            // If the visual genuinely gets stuck, fail rather than resetting
+            // animation in the test and masking the gameplay regression.
+            float settleDeadline = Time.realtimeSinceStartup + 4f;
+            while (visual.CurrentState != "Idle" &&
+                   Time.realtimeSinceStartup < settleDeadline)
+                yield return null;
+            Assert.That(visual.CurrentState, Is.EqualTo("Idle"),
+                "The battle-entry one-shot must settle before an ORK attack.");
+            deadline = Time.realtimeSinceStartup + 10f;
+            while (party.ReadyBaseAttackerIndex < 0 &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
+                "The real ORK turn must present an actionable rescuer.");
+            // The party can have other legal selectors first. Submit through
+            // the same UGUI button; only the actual leader animates.
+            for (int choice = 0; choice < 3 && party.ReadyBaseAttackerIndex != 0; choice++)
+            {
+                Assert.That(attack.interactable, Is.True);
+                attack.onClick.Invoke();
+                Assert.That(visual.CurrentState, Is.EqualTo("Idle"),
+                    "A companion cannot cause the leader's attack animation.");
+                yield return null;
+            }
+            Assert.That(party.ReadyBaseAttackerIndex, Is.EqualTo(0),
+                "This test must cover the leader's own legal action.");
+            Assert.That(attack.interactable, Is.True);
+            attack.onClick.Invoke();
+            Assert.That(visual.CurrentState, Is.EqualTo("Action"),
+                "Submitting a legal ORK leader attack must play M4's authored Action clip.");
+            Assert.That(party.Members[0].Actions.IsChoosing, Is.False,
+                "The feedback must accompany an ORK-accepted action, not a fake UI attack.");
+        }
+
+        [UnityTest]
         public IEnumerator BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope()
         {
             // The full smoke path already tests collecting rope and cart clues.

@@ -325,6 +325,39 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 with_bell,
             )
             self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
+            # An ORK attack-animation UnityTest must also be part of the
+            # strict same-SHA manifest; actual Unity success alone is insufficient.
+            localized_file.write_text(
+                localized_file.read_text(encoding="utf-8") +
+                "\n[UnityTest] public IEnumerator "
+                "AcceptedOrkLeaderAttackShowsActualPlayerActionClip()"
+                " { yield break; }", encoding="utf-8",
+            )
+            expected_attack = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(len(expected_attack), 17)
+            self.assertIn(
+                "Rpg.Tests.Editor.SoundwellTrialTests.AcceptedOrkLeaderAttackShowsActualPlayerActionClip",
+                expected_attack,
+            )
+
+            # Both actor animation regressions must be independently present
+            # in the exact manifest for the combined attack-visual build.
+            companion_file = source_root / "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs"
+            companion_file.write_text(
+                "[UnityTest] public IEnumerator "
+                "OrkAcceptedCompanionAttackChangesOnlyItsPixelPose()"
+                " { yield break; }", encoding="utf-8",
+            )
+            combined = expected_tests_for("verify", True, source_root=source_root)
+            self.assertEqual(len(combined), 18)
+            self.assertIn(
+                "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkAcceptedCompanionAttackChangesOnlyItsPixelPose",
+                combined,
+            )
+            self.assertIn(
+                "Rpg.Tests.Editor.SoundwellTrialTests.AcceptedOrkLeaderAttackShowsActualPlayerActionClip",
+                combined,
+            )
 
             # A new regular NUnit [Test] must count toward the exact
             # Unity acceptance set, including its prepare-mode subset.

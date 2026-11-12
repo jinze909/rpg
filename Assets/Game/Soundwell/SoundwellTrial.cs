@@ -193,7 +193,18 @@ namespace Rpg.Soundwell
                 () => { ReturnToBootstrap(); },
                 () => ApplyInput(movement, false, false, false, true),
                 () => ApplyInput(movement, false, false, false, false, true),
-                () => { orkParty?.TryAttackBeast(); },
+                () =>
+                {
+                    if (orkParty == null)
+                        return;
+                    // ORK alone decides eligibility, actor and target. Animate
+                    // only the displayed leader after ORK accepts that actor's
+                    // action; the other two rescuers must not borrow her sprite.
+                    // This is feedback for submitting an action, not fake damage.
+                    int attacker = orkParty.ReadyBaseAttackerIndex;
+                    if (orkParty.TryAttackBeast() && attacker == 0)
+                        view.AnimatePlayerAction();
+                },
                 () =>
                 {
                     // UGUI Cancel closes the exploration focus menu, but in the

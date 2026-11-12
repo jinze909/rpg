@@ -35,6 +35,10 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # Require every test actually declared in the clean candidate; never accept
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
+    "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
+        "OrkAcceptedCompanionAttackChangesOnlyItsPixelPose":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkAcceptedCompanionAttackChangesOnlyItsPixelPose",
+    },
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
         "BattleBackCancelEventRetreatsAndReleasesOrkParticipants":
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleBackCancelEventRetreatsAndReleasesOrkParticipants",
@@ -50,6 +54,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellTrialTests.ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges",
         "PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi":
             "Rpg.Tests.Editor.SoundwellTrialTests.PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi",
+        "AcceptedOrkLeaderAttackShowsActualPlayerActionClip":
+            "Rpg.Tests.Editor.SoundwellTrialTests.AcceptedOrkLeaderAttackShowsActualPlayerActionClip",
     },
     "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
         "SoundwellAudioMuteSurvivesSceneRerouting":

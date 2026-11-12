@@ -66,6 +66,29 @@ namespace Rpg.Soundwell
             "..##........##..",
             "................",
         };
+        // Distinct 16-pixel attack silhouette: a forward-reaching arm, not
+        // a stretched rectangle or a gameplay-position change.
+        private static readonly string[] AttackPixels =
+        {
+            "................",
+            ".....######.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            ".....#++++#.....",
+            "......####......",
+            "...#############",
+            "...#+######++++#",
+            "...#+######++++#",
+            ".....######.....",
+            ".....######.....",
+            ".....##..##.....",
+            ".....##..##.....",
+            "....###..###....",
+            "....###..###....",
+            "................",
+        };
+        private const float CompanionAttackPoseSeconds = 0.30f;
+        private readonly float[] companionAttackUntil = new float[3];
         private const float FrameworkTimeout = 30f;
         private const float RegistrationTimeout = 8f;
 
@@ -82,6 +105,8 @@ namespace Rpg.Soundwell
         private Texture2D placeholderTexture;
         private Sprite walkingSprite;
         private Texture2D walkingTexture;
+        private Sprite attackSprite;
+        private Texture2D attackTexture;
         private bool battleStarted;
         // The party remains ORK-owned for battles, but its exploration input is
         // exclusively handled by the saved Soundwell 2D Input System adapter.
@@ -206,6 +231,8 @@ namespace Rpg.Soundwell
                 IdlePixels, "PLACEHOLDER 16px Soundwell rescuer idle", out placeholderTexture);
             walkingSprite = CreatePixelRescuerSprite(
                 WalkPixels, "PLACEHOLDER 16px Soundwell rescuer walking", out walkingTexture);
+            attackSprite = CreatePixelRescuerSprite(
+                AttackPixels, "PLACEHOLDER 16px Soundwell rescuer attack", out attackTexture);
 
             EnsureInvisibleActorRenderer(leader.gameObject);
             EnsureInvisibleActorRenderer(beast.gameObject);
@@ -356,6 +383,19 @@ namespace Rpg.Soundwell
             bool targetAllowed = attack != null && attack.CanTarget(attacker, Beast);
             bool accepted = targetAllowed &&
                 attack.Use(attacker, new List<Combatant> { Beast }, true);
+            if (accepted && index > 0 && index < actors.Count)
+            {
+                // Presentation only. ORK has already accepted the real turn
+                // action; show which companion acted without touching status,
+                // damage, Combatant placement, or the battle action queue.
+                // ORK can slow/pause scaled gameplay time while resolving a
+                // turn. Action feedback uses unscaled presentation time so it
+                // expires even while a battle transition owns the clock.
+                companionAttackUntil[index] = Time.unscaledTime + CompanionAttackPoseSeconds;
+                SpriteRenderer follower = actors[index].GetComponent<SpriteRenderer>();
+                if (follower != null)
+                    follower.sprite = attackSprite;
+            }
             return accepted;
         }
 
@@ -411,6 +451,8 @@ namespace Rpg.Soundwell
             battleObservedActive = false;
             battleEndRequested = false;
             battleStartedAt = 0f;
+            for (int i = 1; i < companionAttackUntil.Length; i++)
+                companionAttackUntil[i] = 0f;
         }
 
         public void ReleaseFailedEncounter()
@@ -565,7 +607,8 @@ namespace Rpg.Soundwell
                 SpriteRenderer renderer = actors[i].GetComponent<SpriteRenderer>();
                 if (inBattle)
                 {
-                    renderer.sprite = placeholderSprite;
+                    renderer.sprite = Time.unscaledTime < companionAttackUntil[i]
+                        ? attackSprite : placeholderSprite;
                     continue;
                 }
 
@@ -600,6 +643,10 @@ namespace Rpg.Soundwell
                 Destroy(walkingSprite);
             if (walkingTexture != null)
                 Destroy(walkingTexture);
+            if (attackSprite != null)
+                Destroy(attackSprite);
+            if (attackTexture != null)
+                Destroy(attackTexture);
         }
     }
 }
