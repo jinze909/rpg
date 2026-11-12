@@ -300,7 +300,20 @@ namespace Rpg.Tests.Editor
             yield return null;
             Color followingColor = surveyorSprite.color;
             Vector2 pausePosition = trial.SurveyorWorldPosition;
-            MoveTestLeader(playerBody, pausePosition + new Vector2(3.7f, 0f));
+            Assert.That(pausePosition.x, Is.LessThan(-0.65f),
+                "The leader-distance pause begins only after the surveyor crosses the gate.");
+            // Move to the real open gateway, well beyond the 3.15-unit
+            // no-rope breakaway threshold, not a guessed offset that can
+            // land inside geometry. Wait for the live LateUpdate to publish
+            // its escort hysteresis before asserting the display state.
+            MoveTestLeader(playerBody, new Vector2(1.4f, 0f));
+            deadline = Time.realtimeSinceStartup + 3f;
+            while (!trial.SurveyorWaitingForLeader && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.SurveyorWaitingForLeader, Is.True,
+                "The NPC must actually pause when the guide leaves; NPC=" +
+                trial.SurveyorWorldPosition + ", leader=" + playerBody.position +
+                ", completed=" + trial.RescueComplete);
             yield return null;
             Assert.That(surveyorSprite.color,
                 Is.EqualTo(new Color(1f, 0.73f, 0.42f)),
@@ -309,6 +322,11 @@ namespace Rpg.Tests.Editor
                 Is.LessThan(0.05f),
                 "The waiting surveyor must not teleport to the distant guide.");
             MoveTestLeader(playerBody, pausePosition);
+            deadline = Time.realtimeSinceStartup + 3f;
+            while (trial.SurveyorWaitingForLeader && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.SurveyorWaitingForLeader, Is.False,
+                "Returning to the NPC must clear the same escort pause state.");
             yield return null;
             Assert.That(surveyorSprite.color, Is.EqualTo(followingColor),
                 "Returning to the surveyor must restore the normal follow sprite.");
