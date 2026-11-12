@@ -81,6 +81,40 @@ namespace Rpg.Tests.Editor
             Vector2 startingPosition = clueBody.position;
             Vector2 startingBellPosition = trial.BellPosition;
             Assert.That(trial.ClawsObserved, Is.False);
+            // The optional clue is a world-space breadcrumb earned by a real
+            // inspection, not a permanent solution spoiler in the scene.
+            var clawSite = GameObject.Find("PLACEHOLDER claw marks")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(clawSite, Is.Not.Null);
+            Color originalClawTint = clawSite.color;
+            var clawTrail = new SpriteRenderer[3];
+            for (int i = 0; i < clawTrail.Length; i++)
+            {
+                clawTrail[i] = GameObject.Find("PLACEHOLDER revealed claw trail " +
+                    (i + 1))?.GetComponent<SpriteRenderer>();
+                Assert.That(clawTrail[i], Is.Not.Null);
+                Assert.That(clawTrail[i].enabled, Is.False,
+                    "The hidden route must not reveal the lure solution before inspection.");
+                Vector2 expectedClawPosition = Vector2.Lerp(
+                    SoundwellTrial.ClawEvidencePosition,
+                    SoundwellTrial.SideBellStand, (i + 1f) / 4f);
+                Assert.That(Vector2.Distance(clawTrail[i].transform.position,
+                    expectedClawPosition), Is.LessThan(0.001f));
+                Assert.That(clawTrail[i].GetComponent<Collider2D>(), Is.Null,
+                    "Claw breadcrumbs are presentation only, never physical blockers.");
+            }
+            var beastContactRing = GameObject.Find("PLACEHOLDER beast contact radius")
+                ?.GetComponent<LineRenderer>();
+            Assert.That(beastContactRing, Is.Not.Null);
+            Assert.That(beastContactRing.enabled, Is.False,
+                "The locked gate protects the west side; don't advertise an active collision yet.");
+            Assert.That(beastContactRing.positionCount, Is.EqualTo(40));
+            Assert.That(beastContactRing.useWorldSpace, Is.False);
+            Assert.That(Mathf.Sqrt(beastContactRing.GetPosition(0).x *
+                beastContactRing.GetPosition(0).x +
+                beastContactRing.GetPosition(0).y *
+                beastContactRing.GetPosition(0).y),
+                Is.EqualTo(SoundwellTrial.BeastContactRadius).Within(0.001f));
             // Exercise actual Makinom evidence transitions in both locales.
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             clueBody.position = SoundwellTrial.RopeEvidencePosition;
@@ -130,6 +164,11 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.ClawsObserved, Is.True,
                 "The precise hint requires inspecting the real clue.");
             yield return null;
+            Assert.That(clawSite.color, Is.Not.EqualTo(originalClawTint),
+                "The physical scratch site must change when the clue is actually observed.");
+            foreach (var breadcrumb in clawTrail)
+                Assert.That(breadcrumb.enabled, Is.True,
+                    "Only a real inspected trail may reveal the path toward the side stand.");
             Assert.That(hint.text, Is.EqualTo(SoundwellUiLocalization.Get("hint.claw_observed")));
             Assert.That(hint.text, Does.Contain("侧铃架"));
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
@@ -356,6 +395,12 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(gateBlocker.enabled, Is.False,
                 "The opened gate must physically release its collider, not merely change UI copy.");
+            Assert.That(beastContactRing.enabled, Is.True,
+                "Opening the gate must also reveal the actual beast's contact radius.");
+            Assert.That(beastContactRing.transform.parent, Is.Not.Null);
+            Assert.That(Vector2.Distance(beastContactRing.transform.parent.position,
+                trial.BeastPosition), Is.LessThan(0.001f),
+                "The warning must track the live beast, not a second threat model.");
 
             // Taking the already-ringing bell is not a new sound source:
             // the physical lift must silence the continuous SFX and clear the
@@ -442,6 +487,13 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.GateOpen, Is.False);
             Assert.That(trial.ClawsObserved, Is.False,
                 "Retry must clear even previously inspected optional evidence.");
+            yield return null;
+            Assert.That(clawSite.color, Is.EqualTo(originalClawTint));
+            foreach (var breadcrumb in clawTrail)
+                Assert.That(breadcrumb.enabled, Is.False,
+                    "A fresh attempt must not inherit the last run's revealed solution.");
+            Assert.That(beastContactRing.enabled, Is.False,
+                "The locked gate must also clear the previous contact danger cue.");
             Assert.That(bellAudio.isPlaying, Is.False,
                 "Retry must stop the old looping bell in the actual AudioSource.");
             Assert.That(bellAudio.loop, Is.False);
