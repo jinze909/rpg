@@ -159,6 +159,17 @@ namespace Rpg.Tests.Editor
             Assert.That(beforeDistance, Is.GreaterThan(0.1f));
             trial.ApplyInput(Vector2.zero, true, false, false);
             Assert.That(trial.HasBellTarget, Is.True);
+            // The physical lure must use its single routed SFX source. A
+            // continuous audible strike may loop, but the wrapped bell must
+            // never leave that loud loop playing underneath the rescue.
+            var bellAudio = System.Array.Find(
+                Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None),
+                source => source.clip != null && source.clip.name == "Copper bell");
+            Assert.That(bellAudio, Is.Not.Null,
+                "Ringing the live bell must produce the audible copper-bell clip.");
+            Assert.That(bellAudio.loop, Is.True);
+            Assert.That(bellAudio.outputAudioMixerGroup, Is.Not.Null);
+            Assert.That(bellAudio.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
             yield return new WaitForSeconds(0.2f);
             Assert.That(intent.enabled, Is.True);
             Assert.That(Vector2.Distance((Vector2)intent.transform.position, lureTarget),
@@ -170,6 +181,11 @@ namespace Rpg.Tests.Editor
             // searches around the last heard position for its real timer.
             trial.ApplyInput(Vector2.zero, false, true, false);
             Assert.That(trial.IsSearching, Is.True);
+            Assert.That(bellAudio.clip, Is.Not.Null);
+            Assert.That(bellAudio.clip.name, Is.EqualTo("Wrapped bell"),
+                "Wrapping must replace the audible loop with the short muted cue.");
+            Assert.That(bellAudio.loop, Is.False,
+                "The muted cue must not continue looping while the beast searches.");
             yield return new WaitForSeconds(0.2f);
             Assert.That(intent.enabled && countdown.enabled, Is.True);
             float initialWidth = countdown.transform.localScale.x;
@@ -221,10 +237,17 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.IsWrapped, Is.False,
                 "Removing the cloth must restore a ready, not already-ringing bell.");
             Assert.That(trial.HasBellTarget, Is.False);
+            Assert.That(bellAudio.clip, Is.Null,
+                "Unwrapping must stop and clear the previous muffled cue.");
+            Assert.That(bellAudio.isPlaying, Is.False);
             trial.ApplyInput(Vector2.zero, true, false, false);
             yield return null;
             Assert.That(trial.HasBellTarget, Is.True,
                 "A fresh audible strike must resume the real lure.");
+            Assert.That(bellAudio.clip, Is.Not.Null);
+            Assert.That(bellAudio.clip.name, Is.EqualTo("Copper bell"));
+            Assert.That(bellAudio.loop, Is.True,
+                "Rearming the same bell must restore its audible continuous signal.");
             Assert.That(intent.enabled, Is.True,
                 "The resumed pursuit must once again have a visible target.");
             Assert.That(Vector2.Distance((Vector2)intent.transform.position, lureTarget),
