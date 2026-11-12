@@ -481,6 +481,23 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(attackButton.interactable, Is.True,
                 "ORK must expose a legal player attack before testing default focus.");
+            // The world-space cue identifies the actual current ORK beast
+            // target, but has no collider, input or alternative combat authority.
+            var targetCue = GameObject.Find("PLACEHOLDER ORK selected beast target")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(targetCue, Is.Not.Null);
+            Assert.That(targetCue.enabled, Is.True,
+                "Only a legal ORK attack should reveal the target cue.");
+            Assert.That(targetCue.sprite.texture.width, Is.EqualTo(16));
+            Assert.That(targetCue.sprite.texture.height, Is.EqualTo(16));
+            Assert.That(targetCue.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(targetCue.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(targetCue.transform.localScale, Is.EqualTo(Vector3.one));
+            Assert.That(targetCue.GetComponent<Collider2D>(), Is.Null);
+            Assert.That(targetCue.transform.position.x,
+                Is.EqualTo(party.Beast.GameObject.transform.position.x).Within(0.01f));
+            Assert.That(targetCue.transform.position.y,
+                Is.EqualTo(party.Beast.GameObject.transform.position.y + 1.12f).Within(0.01f));
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(attackButton.gameObject),
                 "First legal attack must take default Submit focus instead of retreating.");
@@ -631,6 +648,8 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(battleHud.activeInHierarchy, Is.False,
                 "The battle-only HUD must disappear after ORK ends the encounter.");
+            Assert.That(targetCue.enabled, Is.False,
+                "The target cue must vanish on real ORK victory, not linger over the rescue route.");
             var explorationBackLabel = GameObject.Find("Soundwell Back button")?.GetComponentInChildren<Text>();
             Assert.That(explorationBackLabel, Is.Not.Null);
             Assert.That(explorationBackLabel.text,
