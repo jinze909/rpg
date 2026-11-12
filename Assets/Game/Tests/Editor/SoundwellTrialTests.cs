@@ -25,6 +25,94 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator BeastKnockbackKeepsCarriedBellWithRescuerOnContactFrame()
+        {
+            // Reproduce the real non-combat opening: move the single saved
+            // bell, lure the beast, open the physical gate, lift the bell
+            // again and step into its actual live contact radius.
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return VerifyCarriedBellFollowsBeastKnockback();
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator VerifyCarriedBellFollowsBeastKnockback()
+        {
+            float deadline = Time.realtimeSinceStartup + 30f;
+            while ((!Maki.Initialized || !ORK.Initialized) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(Maki.Initialized && ORK.Initialized, Is.True);
+
+            var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entry, Is.Not.Null);
+            AsyncOperation loading = entry.OpenTrial();
+            Assert.That(loading, Is.Not.Null);
+            deadline = Time.realtimeSinceStartup + 20f;
+            while (!loading.isDone && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(loading.isDone, Is.True);
+
+            SoundwellTrial trial = null;
+            deadline = Time.realtimeSinceStartup + 25f;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                trial = Object.FindFirstObjectByType<SoundwellTrial>();
+                if (trial != null && trial.IsReady)
+                    break;
+                yield return null;
+            }
+            Assert.That(trial != null && trial.IsReady, Is.True);
+            trial.ReadInput = false;
+            Rigidbody2D body = trial.PlayerActor.GetComponent<Rigidbody2D>();
+            Assert.That(body, Is.Not.Null);
+            Vector2 retreat = trial.PlayerPosition;
+
+            MoveTestLeader(body, trial.BellPosition);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True);
+            MoveTestLeader(body, SoundwellTrial.SideBellStand);
+            Assert.That(trial.CanPlaceBell, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.False);
+            trial.ApplyInput(Vector2.zero, true, false, false);
+            Assert.That(trial.HasBellTarget, Is.True);
+            MoveTestLeader(body, new Vector2(-0.55f, 0f));
+            deadline = Time.realtimeSinceStartup + 8f;
+            while (!trial.CanOpenGate && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.CanOpenGate, Is.True,
+                "Only the actual ringing side stand can divert the beast.");
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.GateOpen, Is.True);
+
+            MoveTestLeader(body, SoundwellTrial.SideBellStand);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True);
+            Assert.That(trial.HasBellTarget, Is.False,
+                "Picking up the same bell silences the lure.");
+            Vector2 beastAtContact = trial.BeastPosition;
+            Assert.That(beastAtContact.x, Is.GreaterThan(0.55f),
+                "Only actual contact east of the gate triggers the knockback.");
+            int priorContacts = trial.BeastContacts;
+            MoveTestLeader(body, beastAtContact);
+            yield return null;
+            Assert.That(trial.BeastContacts, Is.EqualTo(priorContacts + 1),
+                "The real beast, not a manually raised state, must cause the hit.");
+            Assert.That(Vector2.Distance(trial.PlayerPosition, retreat),
+                Is.LessThan(0.05f),
+                "The player must be physically knocked back to RETREAT.");
+            Assert.That(trial.IsCarrying, Is.True,
+                "Knockback must not silently drop or duplicate the only bell.");
+            Assert.That(Vector2.Distance(trial.BellPosition,
+                trial.PlayerPosition + new Vector2(0.35f, 0f)),
+                Is.LessThan(0.001f),
+                "On the very same contact frame, the bell must follow the relocated player.");
+            Assert.That(trial.GateOpen, Is.True,
+                "The earned gate opening remains intact after the collision.");
+        }
+
+        [UnityTest]
         public IEnumerator AcceptedOrkLeaderAttackShowsActualPlayerActionClip()
         {
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);

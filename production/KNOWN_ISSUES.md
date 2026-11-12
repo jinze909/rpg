@@ -6,7 +6,7 @@
 
 - 类型与状态。最小真实普攻入口已修复。
 - 证据。[`9f130460` 的 Run 43169901831](https://github.com/jinze909/rpg/actions/runs/43169901831) 覆盖 UGUI 攻击、ORK 合法目标、自然胜利、开闸与护送。当前遭遇的攻击目标为唯一借声兽。
-- 剩余工作。保护、战中交互和回合分工见[故事 003](stories/003-soundwell-turn-rescue.md)。
+- 后续证据。[Run 43305859565](https://github.com/jinze909/rpg/actions/runs/43305859565) 覆盖三人分别执行 ORK 开闸、保护、攻击后继续护送。剩余工作为战中移动及策略对照，见[故事 003](stories/003-soundwell-turn-rescue.md)。
 
 ## UX-001
 
