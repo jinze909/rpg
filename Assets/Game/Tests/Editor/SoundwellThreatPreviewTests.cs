@@ -297,6 +297,42 @@ namespace Rpg.Tests.Editor
             Assert.That(gateBlocker.enabled, Is.False,
                 "The opened gate must physically release its collider, not merely change UI copy.");
 
+            // Taking the already-ringing bell is not a new sound source:
+            // the physical lift must silence the continuous SFX and clear the
+            // beast's live pursuit target. Verify the game-owned input route,
+            // not a direct Makinom signal or AudioSource mutation in the test.
+            body.position = SoundwellTrial.SideBellStand;
+            Physics2D.SyncTransforms();
+            Assert.That(trial.HasBellTarget, Is.True);
+            Assert.That(bellAudio.loop, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True);
+            Assert.That(trial.HasBellTarget, Is.False,
+                "Lifting a ringing bell must not leave an invisible monster lure.");
+            Assert.That(trial.IsSearching, Is.False,
+                "Lifting the bell must not fabricate a wrapped-bell search.");
+            Assert.That(bellAudio.isPlaying, Is.False,
+                "Carried bell must stop the actual continuous SFX.");
+            Assert.That(bellAudio.loop, Is.False);
+            Assert.That(bellAudio.clip, Is.Null);
+            yield return null; // Let the visual read the new Makinom signal.
+            Assert.That(intent.enabled, Is.False,
+                "The world-space beast target must disappear with the live lure.");
+            Assert.That(countdown.enabled, Is.False);
+            Assert.That(trial.GateOpen, Is.True,
+                "Lifting the bell must not undo a gate the player already opened.");
+
+            body.position = new Vector2(-4f, 0f);
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(Vector2.Distance(trial.BellPosition,
+                body.position + new Vector2(0.35f, 0f)), Is.LessThan(0.05f),
+                "The single physical bell must follow the rescuer after its sound stops.");
+            Assert.That(trial.CanPlaceBell, Is.False,
+                "The silent carried bell still cannot be dropped off a marked stand.");
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True);
+
             // Retrying a successful lure from the real RETREAT control must
             // atomically clear the previous sound source, threat and opened
             // passage. Otherwise the next run can inherit an audible phantom
