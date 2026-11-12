@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer beastIntentMarker;
         private readonly SpriteRenderer attackTargetMarker;
         private readonly SpriteRenderer activeRescuerMarker;
+        private readonly SpriteRenderer movePreviewMarker;
         private readonly Transform beastActor;
         private readonly SpriteRenderer searchTimerTrack;
         private readonly SpriteRenderer searchTimerFill;
@@ -81,6 +82,18 @@ namespace Rpg.Soundwell
         private readonly Button attackButton;
         private readonly Button guardButton;
         private readonly Button openGateButton;
+        private readonly Button moveButton;
+        private readonly Button confirmMoveButton;
+        private readonly Button cancelMoveButton;
+        private readonly Button[] moveDirectionButtons = new Button[4];
+        private static readonly Vector2[] MoveDirections = { Vector2.up, Vector2.right, Vector2.down, Vector2.left };
+        private readonly bool[] moveLegal = new bool[4];
+        private readonly System.Func<int, Vector2, bool> submitBattleMove;
+        private bool movePreviewOpen;
+        private int movePreviewIndex = -1;
+        private int movePreviewActor = -1;
+        private Transform movePreviewTransform;
+        public bool MovePreviewOpen => movePreviewOpen;
         private readonly Text openGateLabel;
         private readonly Text attackButtonLabel;
         private readonly Button carryButton;
@@ -110,9 +123,11 @@ namespace Rpg.Soundwell
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
-            Action carry, Action gate, Action attackBeast, Action guard, Action openGate, Action cancelActionMenu)
+            Action carry, Action gate, Action attackBeast, Action guard, Action openGate, Action cancelActionMenu,
+            System.Func<int, Vector2, bool> submitBattleMove)
         {
             this.camera = camera;
+            this.submitBattleMove = submitBattleMove;
             beastActor = beast;
             escortLeader = player;
             retreatMarker = safe;
@@ -284,6 +299,12 @@ namespace Rpg.Soundwell
                 Vector2.zero, Vector2.one, new Color(0.40f, 0.90f, 0.90f), 7);
             activeRescuerMarker.sprite = activeRescuerPixelSprite;
             activeRescuerMarker.enabled = false;
+            // The same 16 PPU arrow shows only the physical destination
+            // preview. It never moves an actor or grants a free ORK turn.
+            movePreviewMarker = Plate(root, "PLACEHOLDER ORK step destination",
+                Vector2.zero, Vector2.one, new Color(0.43f, 0.91f, 0.72f), 8);
+            movePreviewMarker.sprite = activeRescuerPixelSprite;
+            movePreviewMarker.enabled = false;
             // A horned pixel silhouette on the same authoritative ORK beast.
             beastVisualRenderer = Plate(beast, "PLACEHOLDER beast", Vector2.zero,
                 Vector2.one, new Color(0.95f, 0.41f, 0.42f), 3);
@@ -445,6 +466,36 @@ namespace Rpg.Soundwell
                 button.interactable = false;
                 button.gameObject.SetActive(false);
             }
+            moveButton = CreateActionButton(actionCanvas.transform, "Move", "", 9,
+                OpenBattleMovePreview);
+            Localize(moveButton.GetComponentInChildren<Text>(), "battle.move");
+            moveButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
+            moveButton.interactable = false;
+            moveButton.gameObject.SetActive(false);
+            var moveNames = new[] { "North", "East", "South", "West" };
+            var moveKeys = new[] { "battle.move_north", "battle.move_east",
+                "battle.move_south", "battle.move_west" };
+            for (int i = 0; i < moveDirectionButtons.Length; i++)
+            {
+                int chosen = i;
+                moveDirectionButtons[i] = CreateActionButton(actionCanvas.transform,
+                    "Move " + moveNames[i], "", 10 + i, () => ChooseBattleMove(chosen));
+                Localize(moveDirectionButtons[i].GetComponentInChildren<Text>(), moveKeys[i]);
+                moveDirectionButtons[i].navigation =
+                    new Navigation { mode = Navigation.Mode.Automatic };
+                moveDirectionButtons[i].gameObject.SetActive(false);
+            }
+            confirmMoveButton = CreateActionButton(actionCanvas.transform,
+                "Confirm Move", "", 14, CommitBattleMovePreview);
+            cancelMoveButton = CreateActionButton(actionCanvas.transform,
+                "Cancel Move", "", 15, CloseBattleMovePreview);
+            Localize(confirmMoveButton.GetComponentInChildren<Text>(), "battle.move_confirm");
+            Localize(cancelMoveButton.GetComponentInChildren<Text>(), "battle.move_cancel");
+            foreach (var button in new[] { confirmMoveButton, cancelMoveButton })
+            {
+                button.navigation = new Navigation { mode = Navigation.Mode.Automatic };
+                button.gameObject.SetActive(false);
+            }
             carryButton = CreateActionButton(actionCanvas.transform, "Carry", "", 4, carry);
             carryButtonLabel = carryButton.GetComponentInChildren<Text>();
             gateButton = CreateActionButton(actionCanvas.transform, "Gate",
@@ -471,7 +522,12 @@ namespace Rpg.Soundwell
             // The Input System sends Cancel directly to the selected object.
             // Let the trial owner restore the input context or withdraw from ORK.
             foreach (var button in new[] { ringButton, wrapButton, retryButton,
-                backButton, carryButton, gateButton, attackButton, guardButton, openGateButton })
+                backButton, carryButton, gateButton, attackButton, guardButton, openGateButton,
+                moveButton, confirmMoveButton, cancelMoveButton })
+                button.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
+                    .Initialize(cancelActionMenu);
+
+            foreach (Button button in moveDirectionButtons)
                 button.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
                     .Initialize(cancelActionMenu);
 
@@ -507,6 +563,8 @@ namespace Rpg.Soundwell
             if (battleMode == active)
                 return;
 
+            if (!active)
+                CloseBattleMovePreview();
             battleMode = active;
             layoutReady = false;
             attackTargetMarker.enabled = false;
@@ -517,7 +575,7 @@ namespace Rpg.Soundwell
                 SoundwellUiLocalization.Get(active ? "action.retreat" : "action.back");
             trialCanvas.gameObject.SetActive(!active);
             battleCanvas.gameObject.SetActive(active);
-            foreach (var button in new[] { attackButton, guardButton, openGateButton })
+            foreach (var button in new[] { attackButton, guardButton, openGateButton, moveButton })
             {
                 button.gameObject.SetActive(active);
                 if (!active)
@@ -547,6 +605,9 @@ namespace Rpg.Soundwell
                     selected == attackButton.gameObject ||
                     selected == guardButton.gameObject ||
                     selected == openGateButton.gameObject ||
+                    selected == moveButton.gameObject ||
+                    selected == confirmMoveButton.gameObject ||
+                    selected == cancelMoveButton.gameObject ||
                     (selected != null && !selected.activeInHierarchy))
                     actionEventSystem.SetSelectedGameObject(null);
             }
@@ -585,8 +646,9 @@ namespace Rpg.Soundwell
             bool keepFocus = focused == backButton.gameObject ||
                 (focused == attackButton.gameObject && canAttack) ||
                 (focused == guardButton.gameObject && canGuard) ||
-                (focused == openGateButton.gameObject && canOpenGate);
-            if (!keepFocus)
+                (focused == openGateButton.gameObject && canOpenGate) ||
+                (focused == moveButton.gameObject && moveButton.interactable);
+            if (!keepFocus && !movePreviewOpen)
             {
                 // While ORK resolves, the disabled Attack button ignores Submit
                 // but still receives Cancel and directional navigation to Retreat.
@@ -596,6 +658,94 @@ namespace Rpg.Soundwell
             }
             attackButtonLabel.font = SoundwellUiLocalization.PresentationFont(
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+        }
+
+        // Preview the destination before spending the current ORK chooser's
+        // independent movement allowance.
+        public void SetBattleMoveChoices(int actorIndex, Transform actor,
+            bool north, bool east, bool south, bool west)
+        {
+            moveLegal[0] = north;
+            moveLegal[1] = east;
+            moveLegal[2] = south;
+            moveLegal[3] = west;
+            if (movePreviewOpen && (actorIndex != movePreviewActor ||
+                actor == null || !moveLegal[movePreviewIndex]))
+                CloseBattleMovePreview();
+            movePreviewActor = actorIndex;
+            movePreviewTransform = actor;
+            bool any = north || east || south || west;
+            moveButton.interactable = battleMode && any;
+            for (int i = 0; i < moveDirectionButtons.Length; i++)
+                moveDirectionButtons[i].interactable = moveLegal[i];
+            if (movePreviewOpen)
+            {
+                movePreviewMarker.enabled = true;
+                movePreviewMarker.transform.position =
+                    actor.position + (Vector3)(MoveDirections[movePreviewIndex] *
+                        SoundwellOrkParty.BattleStepDistance);
+                confirmMoveButton.interactable = moveLegal[movePreviewIndex];
+            }
+        }
+
+        private void OpenBattleMovePreview()
+        {
+            if (!battleMode || !moveButton.interactable || movePreviewTransform == null)
+                return;
+            movePreviewOpen = true;
+            for (int i = 0; i < moveDirectionButtons.Length; i++)
+                moveDirectionButtons[i].gameObject.SetActive(true);
+            confirmMoveButton.gameObject.SetActive(true);
+            cancelMoveButton.gameObject.SetActive(true);
+            int first = 0;
+            while (first < moveLegal.Length && !moveLegal[first])
+                first++;
+            if (first >= moveLegal.Length)
+            {
+                CloseBattleMovePreview();
+                return;
+            }
+            ChooseBattleMove(first);
+            // Focus the direction first so confirming the step is deliberate.
+            actionEventSystem.SetSelectedGameObject(moveDirectionButtons[first].gameObject);
+        }
+
+        private void ChooseBattleMove(int index)
+        {
+            if (!movePreviewOpen || index < 0 || index >= moveLegal.Length ||
+                !moveLegal[index] || movePreviewTransform == null)
+                return;
+            movePreviewIndex = index;
+            movePreviewMarker.enabled = true;
+            movePreviewMarker.transform.position =
+                movePreviewTransform.position + (Vector3)(MoveDirections[index] *
+                    SoundwellOrkParty.BattleStepDistance);
+            confirmMoveButton.interactable = true;
+            actionEventSystem.SetSelectedGameObject(confirmMoveButton.gameObject);
+        }
+
+        private void CommitBattleMovePreview()
+        {
+            if (!movePreviewOpen || !moveLegal[movePreviewIndex] ||
+                submitBattleMove == null)
+                return;
+            if (!submitBattleMove(movePreviewActor, MoveDirections[movePreviewIndex]))
+                return;
+            CloseBattleMovePreview();
+            moveButton.interactable = false;
+        }
+
+        public void CloseBattleMovePreview()
+        {
+            movePreviewOpen = false;
+            movePreviewMarker.enabled = false;
+            foreach (Button button in moveDirectionButtons)
+                button.gameObject.SetActive(false);
+            confirmMoveButton.gameObject.SetActive(false);
+            cancelMoveButton.gameObject.SetActive(false);
+            if (battleMode && moveButton.interactable &&
+                actionEventSystem != null)
+                actionEventSystem.SetSelectedGameObject(moveButton.gameObject);
         }
 
         public void SetBattleReadout(string summary)
@@ -619,20 +769,48 @@ namespace Rpg.Soundwell
             // not cover the beast or its target cue in the right-hand room.
             if (battleMode)
             {
-                float width = compact ? 100f : 155f;
-                var commands = new[] { attackButton, guardButton, openGateButton, backButton };
+                float width = compact ? 116f : 146f;
+                var commands = new[] { attackButton, guardButton, openGateButton,
+                    moveButton, backButton };
                 for (int i = 0; i < commands.Length; i++)
                 {
                     var rect = (RectTransform)commands[i].transform;
                     rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
                     rect.pivot = new Vector2(0.5f, 0f);
                     rect.sizeDelta = new Vector2(width, 44f);
-                    rect.anchoredPosition = new Vector2((i - 1.5f) * (width + 8f), 12f);
+                    rect.anchoredPosition = compact
+                        ? new Vector2((i < 3 ? i - 1f : i - 3.5f) * (width + 8f),
+                            i < 3 ? 12f : 60f)
+                        : new Vector2((i - 2f) * (width + 8f), 12f);
                     var label = commands[i].GetComponentInChildren<Text>();
                     label.rectTransform.sizeDelta = new Vector2(width - 8f, 38f);
                     label.resizeTextForBestFit = true;
                     label.resizeTextMinSize = 10;
                     label.resizeTextMaxSize = 15;
+                }
+                float selectWidth = compact ? 88f : 115f;
+                float selectY = compact ? 112f : 64f;
+                for (int i = 0; i < moveDirectionButtons.Length; i++)
+                {
+                    var rect = (RectTransform)moveDirectionButtons[i].transform;
+                    rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+                    rect.pivot = new Vector2(0.5f, 0f);
+                    rect.sizeDelta = new Vector2(selectWidth, 39f);
+                    rect.anchoredPosition = new Vector2(
+                        (i - 1.5f) * (selectWidth + 6f), selectY);
+                }
+                foreach (var button in new[] { confirmMoveButton, cancelMoveButton })
+                {
+                    var rect = (RectTransform)button.transform;
+                    rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+                    rect.pivot = new Vector2(0.5f, 0f);
+                    rect.sizeDelta = new Vector2(compact ? 151f : 172f, 38f);
+                    rect.anchoredPosition = new Vector2(
+                        button == confirmMoveButton ? -91f : 91f, selectY + 43f);
+                    var label = button.GetComponentInChildren<Text>();
+                    label.resizeTextForBestFit = true;
+                    label.resizeTextMinSize = 10;
+                    label.resizeTextMaxSize = 14;
                 }
                 return;
             }
