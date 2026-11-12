@@ -357,11 +357,6 @@ namespace Rpg.Soundwell
                 playerBody.position = LowerBoardRecovery;
             }
 
-            // While lifted, the single saved bell object follows the player;
-            // it is silent until placed, so no mobile infinite decoy is created.
-            if (IsCarrying)
-                bell.position = new Vector3(playerBody.position.x + 0.35f, playerBody.position.y, 0f);
-
             Vector2 destination = beast != null ? (Vector2)beast.position : beastHome;
             if (!DirectCombatStarted && !DirectCombatComplete && beast != null)
             {
@@ -411,6 +406,14 @@ namespace Rpg.Soundwell
                 playerBody.linearVelocity = Vector2.zero;
                 playerBody.position = safePoint.position;
             }
+
+            // Keep the ONE physical bell attached to its actual carrier after
+            // *all* scene-owned relocations, including the weak plank recovery
+            // and beast knockback. Updating before contact leaves the bell at
+            // the old location for a frame and advertises a false drop point.
+            // Only Makinom's existing carrying variable owns this decision.
+            if (IsCarrying)
+                bell.position = new Vector3(playerBody.position.x + 0.35f, playerBody.position.y, 0f);
 
             // The drawn intent marker receives exactly the destination already
             // used by the beast, never a separate visual guess.
