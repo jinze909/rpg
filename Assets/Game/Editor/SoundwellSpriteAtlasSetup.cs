@@ -111,8 +111,25 @@ namespace Rpg.Editor
         private static Sprite[] LoadSources()
         {
             var sprites = TexturePaths.Select(path => AssetDatabase.LoadAssetAtPath<Sprite>(path)).ToArray();
-            if (sprites.Any(sprite => sprite == null || sprite.rect.width != 16 || sprite.rect.height != 16))
-                throw new InvalidOperationException("M7 only packs the two existing 16x16 M5 wall sprites.");
+            for (int i = 0; i < TexturePaths.Length; i++)
+            {
+                string path = TexturePaths[i];
+                var sprite = sprites[i];
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                // The V2 atlas filter alone cannot repair a source imported at
+                // the wrong PPU, with lossy compression, or with mipmaps.
+                // Reject these changes before the trial builds an unreadable
+                // or incorrectly scaled pixel-art wall.
+                if (sprite == null || sprite.rect.width != 16 || sprite.rect.height != 16 ||
+                    Mathf.Abs(sprite.pixelsPerUnit - 16f) > 0.001f ||
+                    importer == null || importer.textureType != TextureImporterType.Sprite ||
+                    Mathf.Abs(importer.spritePixelsPerUnit - 16f) > 0.001f ||
+                    importer.filterMode != FilterMode.Point ||
+                    importer.textureCompression != TextureImporterCompression.Uncompressed ||
+                    importer.mipmapEnabled)
+                    throw new InvalidOperationException(
+                        "M7 source sprite must remain 16x16, 16 PPU, point-filtered, uncompressed and mip-free: " + path);
+            }
             return sprites;
         }
     }
