@@ -1289,9 +1289,15 @@ namespace Rpg.Tests.Editor
             Assert.That(party.CanStep(movingRescuer, Vector2.one), Is.False,
                 "A diagonal command cannot bypass the one-cardinal-step limit.");
             var moveButton = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
-            var westButton = GameObject.Find("Soundwell Move West button")?.GetComponent<Button>();
-            var commitMove = GameObject.Find("Soundwell Confirm Move button")?.GetComponent<Button>();
-            var cancelMove = GameObject.Find("Soundwell Cancel Move button")?.GetComponent<Button>();
+            // GameObject.Find omits inactive UGUI preview controls. They
+            // exist in the same HUD before Move opens; resolve them through
+            // their parent Transform so this assertion tests the real UI.
+            var westButton = moveButton?.transform.parent
+                .Find("Soundwell Move West button")?.GetComponent<Button>();
+            var commitMove = moveButton?.transform.parent
+                .Find("Soundwell Confirm Move button")?.GetComponent<Button>();
+            var cancelMove = moveButton?.transform.parent
+                .Find("Soundwell Cancel Move button")?.GetComponent<Button>();
             var stepPreview = GameObject.Find("PLACEHOLDER ORK step destination")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(moveButton, Is.Not.Null);
@@ -1319,13 +1325,19 @@ namespace Rpg.Tests.Editor
             Assert.That(commitMove.interactable, Is.True);
             commitMove.onClick.Invoke();
             float moveDeadline = Time.realtimeSinceStartup + 8f;
-            while (party.ChoosingRescuerIndex == movingRescuer &&
+            Vector2 expectedStep = beforeStep +
+                Vector2.left * SoundwellOrkParty.BattleStepDistance;
+            // ORK may enter its resolution phase (chooser -1) before
+            // Calculate applies the physical step. Require BOTH outcomes.
+            while ((party.ChoosingRescuerIndex == movingRescuer ||
+                    Vector2.Distance(party.Actors[movingRescuer].transform.position,
+                        expectedStep) > 0.01f) &&
                    Time.realtimeSinceStartup < moveDeadline)
                 yield return null;
             Assert.That(party.ChoosingRescuerIndex, Is.Not.EqualTo(movingRescuer),
                 "The confirmed step must advance ORK's real turn.");
             Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
-                Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance),
+                Is.EqualTo(expectedStep),
                 "The real actor must arrive at the previewed grid position.");
             Assert.That(trial.GateOpen, Is.False,
                 "A movement action cannot silently open the gate.");
