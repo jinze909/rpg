@@ -1,4 +1,5 @@
 using GamingIsLove.Makinom;
+using GamingIsLove.ORKFramework;
 using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -72,6 +73,9 @@ namespace Rpg.Soundwell
         private Vector2 lastHeard;
         private float searchStarted;
         private bool actionMenuOpen;
+        private static readonly Vector2 GatePanelPosition = new Vector2(-0.55f, 0f);
+        private const float GatePanelReach = 0.8f;
+        private Func<Combatant, bool> canReachBattleGate;
         // ORK's BattleComponent is a one-encounter runtime owner; a fresh scene
         // is required to re-register a defeated combatant and start a new battle.
         private bool combatStartedInThisScene;
@@ -102,7 +106,7 @@ namespace Rpg.Soundwell
         public bool CanPlaceBell => IsCarrying && FindBellStand(playerBody.position, out _);
         public bool GateOpen => variables != null && variables.GetInt(GateKey) != 0;
         public bool AtGatePanel => IsReady &&
-            Vector2.Distance(playerBody.position, new Vector2(-0.55f, 0f)) <= 0.8f;
+            Vector2.Distance(playerBody.position, GatePanelPosition) <= GatePanelReach;
         public bool CanOpenGate => AtGatePanel && !GateOpen &&
             (DirectCombatComplete || (variables != null &&
                 variables.GetInt(RescueApproachKey) == 1 && HasBellTarget &&
@@ -186,6 +190,7 @@ namespace Rpg.Soundwell
             // CinemachineCamera for the trial. SoundwellView never drives its lens.
             var cameraRig = trialCamera.gameObject.AddComponent<SoundwellCameraRig>();
             cameraRig.Initialize(trialCamera, player, transform);
+            canReachBattleGate = CanReachBattleGate;
             view = new SoundwellView(transform, trialCamera, player, bell, beast, safePoint,
                 () => ApplyInput(movement, true, false, false),
                 () => ApplyInput(movement, false, true, false),
@@ -205,6 +210,8 @@ namespace Rpg.Soundwell
                     if (orkParty.TryAttackBeast() && attacker == 0)
                         view.AnimatePlayerAction();
                 },
+                () => orkParty?.TryGuard(),
+                () => orkParty?.TryOperateGate(canReachBattleGate, () => variables.Set(GateKey, 1)),
                 () =>
                 {
                     // UGUI Cancel closes the exploration focus menu, but in the
@@ -296,6 +303,7 @@ namespace Rpg.Soundwell
                 {
                     variables.Set(DirectCombatStartedKey, 0);
                     variables.Set(RescueApproachKey, 0);
+                    variables.Set(GateKey, 0);
                     orkParty.ReleaseFailedEncounter();
                     SoundwellInputAdapter.SetGameplayContext();
                 }
@@ -308,11 +316,15 @@ namespace Rpg.Soundwell
                 // The view reads a live ORK snapshot; it never resolves attacks
                 // or maintains a second copy of combat state.
                 view.SetBattleReadout(orkParty != null ? orkParty.BuildBattleReadout() : string.Empty);
-                int activeRescuer = orkParty != null ? orkParty.ReadyBaseAttackerIndex : -1;
+                int activeRescuer = orkParty != null ? orkParty.ChoosingRescuerIndex : -1;
                 Transform activeActor = activeRescuer >= 0 && orkParty != null &&
                     activeRescuer < orkParty.Actors.Count
                     ? orkParty.Actors[activeRescuer].transform : null;
-                view.SetBattleAttackChoice(activeRescuer, activeActor);
+                view.SetBattleChoices(activeRescuer, activeActor,
+                    orkParty != null && orkParty.ReadyBaseAttackerIndex == activeRescuer && activeRescuer >= 0,
+                    orkParty != null && orkParty.CanGuard(activeRescuer),
+                    orkParty != null && orkParty.CanOperateGate(activeRescuer, canReachBattleGate),
+                    GateOpen);
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
             }
@@ -431,6 +443,10 @@ namespace Rpg.Soundwell
                 Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
                 variables.Set(SafeRouteMarkedKey, 1);
         }
+
+        private bool CanReachBattleGate(Combatant member) =>
+            DirectCombatStarted && !GateOpen && member.GameObject != null &&
+            Vector2.Distance(member.GameObject.transform.position, GatePanelPosition) <= GatePanelReach;
 
         public AsyncOperation ReturnToBootstrap()
         {

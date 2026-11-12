@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -23,6 +24,38 @@ namespace Rpg.Soundwell
             new Vector2(-0.45f, -0.48f),
             new Vector2(-0.45f, 0.48f)
         };
+
+        private List<BaseAction> gateActions = new List<BaseAction>(1);
+        private static readonly CheckAction IsGateAction = action => action is OpenGateAction;
+
+        private sealed class OpenGateAction : NoneAction
+        {
+            private readonly Func<Combatant, bool> canReach;
+            private readonly Action openGate;
+
+            public OpenGateAction(Combatant user, Func<Combatant, bool> canReach, Action openGate)
+                : base(user, false)
+            {
+                this.canReach = canReach;
+                this.openGate = openGate;
+            }
+
+            public override string GetName() => SoundwellUiLocalization.Get("battle.open_gate");
+
+            // Use ORK's ordinary no-target action resolution and turn cost.
+            // The starter animation is optional and cannot own the scene latch.
+            protected override void ActionStartSetup() { }
+
+            public override bool CanUse() => base.CanUse() && canReach(User);
+
+            public override void Calculate(List<Combatant> targets, float damageFactor,
+                ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
+            {
+                if (CanUse())
+                    openGate();
+                base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
+            }
+        }
 
         private const float FollowSpeed = 4.5f;
         private const float WalkFrameSeconds = 0.15f;
@@ -405,6 +438,8 @@ namespace Rpg.Soundwell
                 text.Append(SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
                     .Append("  ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                     .Append(member.Status[1].GetValue());
+                if (member.Battle.Defending)
+                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.defending"));
                 if (member.Actions.IsChoosing)
                     text.Append("  ").Append(SoundwellUiLocalization.Get("battle.turn"));
                 text.Append('\n');
@@ -421,6 +456,57 @@ namespace Rpg.Soundwell
             return text.ToString();
         }
 
+        public int ChoosingRescuerIndex
+        {
+            get
+            {
+                if (BattleInProgress && Beast != null && !Beast.Status.IsDead)
+                    for (int i = 0; i < members.Count; i++)
+                        if (!members[i].Status.IsDead && members[i].Actions.IsChoosing)
+                            return i;
+                return -1;
+            }
+        }
+
+        public bool CanGuard(int index) => index >= 0 &&
+            members[index].Shortcuts.DefendShortcut.CanUse(members[index], true, true);
+
+        public bool TryGuard()
+        {
+            int index = ChoosingRescuerIndex;
+            if (!CanGuard(index))
+                return false;
+            Combatant member = members[index];
+            return member.Shortcuts.DefendShortcut.Use(member, new List<Combatant> { member }, true);
+        }
+
+        public bool CanOperateGate(int index, Func<Combatant, bool> canReach)
+        {
+            if (index < 0)
+                return false;
+            Combatant member = members[index];
+            if (!canReach(member) || member.Actions.BlockActionUse ||
+                member.Actions.ActionState != CombatantActionState.Available ||
+                member.Status.Effects.BlockAllActions ||
+                !member.Battle.CanUse(ORK.Battle.GetNoneActionCost(member, false)))
+                return false;
+
+            // A queued interaction reserves the latch until ORK resolves or cancels it.
+            gateActions.Clear();
+            ORK.Battle.Actions.GetActions(ref gateActions, true, true, true, false, 1, IsGateAction, null);
+            return gateActions.Count == 0;
+        }
+
+        public bool TryOperateGate(Func<Combatant, bool> canReach, Action openGate)
+        {
+            int index = ChoosingRescuerIndex;
+            if (!CanOperateGate(index, canReach))
+                return false;
+            Combatant member = members[index];
+            member.Actions.AddAccess(new OpenGateAction(member, canReach, openGate), false);
+            return true;
+        }
+
         // The current Soundwell encounter has one real enemy. Determine
         // which ORK combatant has a legal base attack this turn; never choose
         // turns or maintain a second battle-action queue in the scene.
@@ -428,19 +514,13 @@ namespace Rpg.Soundwell
         {
             get
             {
-                if (!BattleInProgress || Beast == null || Beast.Status.IsDead)
+                int index = ChoosingRescuerIndex;
+                if (index < 0)
                     return -1;
-                for (int i = 0; i < members.Count; i++)
-                {
-                    Combatant member = members[i];
-                    if (member == null || member.Status.IsDead || !member.Actions.IsChoosing)
-                        continue;
-                    AbilityShortcut attack = member.Abilities.GetCurrentBaseAttack();
-                    if (attack != null && attack.CanChoose(member, true, true) &&
-                        attack.CanTarget(member, Beast))
-                        return i;
-                }
-                return -1;
+                Combatant member = members[index];
+                AbilityShortcut attack = member.Abilities.GetCurrentBaseAttack();
+                return attack != null && attack.CanChoose(member, true, true) &&
+                    attack.CanTarget(member, Beast) ? index : -1;
             }
         }
 
