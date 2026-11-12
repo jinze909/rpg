@@ -323,6 +323,32 @@ namespace Rpg.Tests.Editor
             Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, pausePosition),
                 Is.LessThan(0.05f),
                 "The waiting surveyor must not teleport to the distant guide.");
+            // Language changes while the NPC is genuinely waiting must update
+            // both instructions without moving the NPC or changing escort state.
+            var pausedHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
+            var pausedResponse = GameObject.Find("Soundwell surveyor response")?.GetComponent<Text>();
+            Assert.That(pausedHint, Is.Not.Null);
+            Assert.That(pausedResponse, Is.Not.Null);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(trial.SurveyorWaitingForLeader, Is.True);
+            Assert.That(pausedHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.escort_paused")));
+            Assert.That(pausedResponse.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.wait_for_leader")));
+            Assert.That(pausedHint.text, Does.Contain("护送暂停"));
+            Assert.That(pausedResponse.text, Does.Contain("走得太远"));
+            Assert.That(SoundwellUiLocalization.Get("hint.escape_blocked"),
+                Does.Contain("撤离受阻"));
+            Assert.That(SoundwellUiLocalization.Get("surveyor.beast_gate"),
+                Does.Contain("野兽"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(trial.SurveyorWaitingForLeader, Is.True);
+            Assert.That(pausedHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.escort_paused")));
+            Assert.That(pausedResponse.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.wait_for_leader")));
             MoveTestLeader(playerBody, pausePosition);
             deadline = Time.realtimeSinceStartup + 3f;
             while (trial.SurveyorWaitingForLeader && Time.realtimeSinceStartup < deadline)

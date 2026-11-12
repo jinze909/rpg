@@ -262,6 +262,22 @@ MonoBehaviour:
     m_Localized: "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267337
+    m_Localized: "SURVEYOR: Beast at the gate! Draw it toward the SIDE BELL STAND."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267338
+    m_Localized: "SURVEYOR: Too far ahead! Come back and lead me to RETREAT."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267339
+    m_Localized: "ESCAPE BLOCKED: Lure the beast away from the gate with the SIDE BELL STAND."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267340
+    m_Localized: "ESCORT PAUSED: Return to the surveyor, then lead him toward RETREAT."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -259,6 +259,22 @@ MonoBehaviour:
     m_Key: hint.rescue_complete
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267337
+    m_Key: surveyor.beast_gate
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267338
+    m_Key: surveyor.wait_for_leader
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267339
+    m_Key: hint.escape_blocked
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267340
+    m_Key: hint.escort_paused
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

@@ -984,9 +984,9 @@ namespace Rpg.Soundwell
                     ? SoundwellUiLocalization.Get("surveyor.rescued")
                     : surveyorEscorting
                         ? beastBlocksEscape && npc.x > -0.65f
-                            ? "SURVEYOR: Beast at the gate! Draw it toward the SIDE BELL STAND."
+                            ? SoundwellUiLocalization.Get("surveyor.beast_gate")
                             : waitingForEscortLeader
-                                ? "SURVEYOR: Too far ahead! Come back and lead me to RETREAT."
+                                ? SoundwellUiLocalization.Get("surveyor.wait_for_leader")
                             : escortLeader.position.x > 0.85f && npc.x > 0.85f
                                 ? "SURVEYOR: Show me the way through the gate. I'll wait on this plank."
                                 : "SURVEYOR: Keep the gate open. I'm right behind you."
@@ -1059,9 +1059,9 @@ namespace Rpg.Soundwell
             else if (rescueComplete)
                 prompt = SoundwellUiLocalization.Get("hint.rescue_complete");
             else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)
-                prompt = "ESCAPE BLOCKED: Lure the beast away from the gate with the SIDE BELL STAND.";
+                prompt = SoundwellUiLocalization.Get("hint.escape_blocked");
             else if (surveyorEscorting && waitingForEscortLeader)
-                prompt = "ESCORT PAUSED: Return to the surveyor, then lead him toward RETREAT.";
+                prompt = SoundwellUiLocalization.Get("hint.escort_paused");
             else if (carrying)
                 prompt = canPlaceBell
                     ? "[F / LB] Place the bell onto this marked stand to set its sound source."

@@ -258,6 +258,22 @@ MonoBehaviour:
     m_Localized: "救援成功：测路人已到达撤离点。他会拆除误导人的旧路标。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267337
+    m_Localized: "测路人：野兽堵在闸门口！把它引向侧铃架。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267338
+    m_Localized: "测路人：你走得太远了！回来带我去撤离点。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267339
+    m_Localized: "撤离受阻：把野兽引向侧铃架，远离闸门。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267340
+    m_Localized: "护送暂停：返回测路人身边，再带他前往撤离点。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
