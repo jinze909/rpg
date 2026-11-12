@@ -41,6 +41,9 @@ namespace Rpg.Editor
             ("battle.hp", "HP", "生命"),
             ("battle.turn", "< TURN", "< 行动"),
             ("battle.menu_pending", "No attack available right now.", "当前没有可用的攻击指令。"),
+            ("battle.guard", "Guard self", "自我防守"),
+            ("battle.open_gate", "Open gate", "开启闸门"),
+            ("battle.defending", "GUARDING", "防守中"),
             // Deliberately absent in Chinese for real EN fallback verification.
             ("diagnostic.fallback", "English table fallback", null),
             ("entry.sfx_mute", "SFX ON  /  MUTE", "音效开启 / 点击静音"),
