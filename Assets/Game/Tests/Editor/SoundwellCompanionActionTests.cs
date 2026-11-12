@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using GamingIsLove.Makinom;
 using GamingIsLove.ORKFramework;
 using NUnit.Framework;
@@ -71,7 +72,17 @@ namespace Rpg.Tests.Editor
             Assert.That(second, Is.Not.Null);
             Assert.That(third, Is.Not.Null);
             Sprite baseline = second.sprite;
+            Sprite hoodedBaseline = third.sprite;
             Assert.That(baseline, Is.Not.Null);
+            Assert.That(hoodedBaseline, Is.Not.Null);
+            Assert.That(hoodedBaseline, Is.Not.SameAs(baseline),
+                "Rescuer 3 must not be a recolored copy of rescuer 2.");
+            Assert.That(baseline.texture.GetPixels32().SequenceEqual(
+                hoodedBaseline.texture.GetPixels32()), Is.False,
+                "Hooded rescuer 3 must have authored 16x16 outline differences.");
+            Assert.That(hoodedBaseline.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(hoodedBaseline.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(hoodedBaseline.texture.filterMode, Is.EqualTo(FilterMode.Point));
 
             // Submit other party members only when ORK really chooses them.
             // No manual HP damage, synthetic target or fabricated turn.
@@ -104,7 +115,7 @@ namespace Rpg.Tests.Editor
             Assert.That(second.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
             Assert.That(second.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(second.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
-            Assert.That(third.sprite, Is.SameAs(baseline),
+            Assert.That(third.sprite, Is.SameAs(hoodedBaseline),
                 "Rescuer 2 cannot animate an ally who did not attack.");
 
             // ORK can finish the final action and release the party before this

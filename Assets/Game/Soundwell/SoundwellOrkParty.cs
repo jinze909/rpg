@@ -87,6 +87,68 @@ namespace Rpg.Soundwell
             "....###..###....",
             "................",
         };
+        // Rescuer 3's hood and asymmetric kit remain visible even with
+        // identical team colors. Three authored strict 16x16 poses match the
+        // existing idle/walk/attack cadence without changing ORK abilities.
+        private static readonly string[] HoodIdlePixels =
+        {
+            "................",
+            "....########....",
+            "....##++++##....",
+            "....##++++##....",
+            "....###++###....",
+            ".....######.....",
+            "...##########...",
+            "...##+####+##...",
+            "...##+####+##...",
+            "...##########...",
+            "....#######.....",
+            "....###..##.....",
+            "....###..##.....",
+            "...####..###....",
+            "...###....###...",
+            "................",
+        };
+
+        private static readonly string[] HoodWalkPixels =
+        {
+            "................",
+            "....########....",
+            "....##++++##....",
+            "....##++++##....",
+            "....###++###....",
+            ".....######.....",
+            "...##########...",
+            "..###+####+##...",
+            "..###+####+##...",
+            "...##########...",
+            "....#######.....",
+            "...###...##.....",
+            "..###....###....",
+            ".###......###...",
+            ".##........##...",
+            "................",
+        };
+
+        private static readonly string[] HoodAttackPixels =
+        {
+            "................",
+            "....########....",
+            "....##++++##....",
+            "....##++++##....",
+            "....###++###....",
+            ".....######.....",
+            "...#############",
+            "...##+####++++##",
+            "...##+####++++##",
+            "...##########...",
+            "....#######.....",
+            "....###..##.....",
+            "....###..##.....",
+            "...####..###....",
+            "...###....###...",
+            "................",
+        };
         private const float CompanionAttackPoseSeconds = 0.30f;
         private readonly float[] companionAttackUntil = new float[3];
         private const float FrameworkTimeout = 30f;
@@ -107,6 +169,12 @@ namespace Rpg.Soundwell
         private Texture2D walkingTexture;
         private Sprite attackSprite;
         private Texture2D attackTexture;
+        private Sprite hoodIdleSprite;
+        private Texture2D hoodIdleTexture;
+        private Sprite hoodWalkingSprite;
+        private Texture2D hoodWalkingTexture;
+        private Sprite hoodAttackSprite;
+        private Texture2D hoodAttackTexture;
         private bool battleStarted;
         // The party remains ORK-owned for battles, but its exploration input is
         // exclusively handled by the saved Soundwell 2D Input System adapter.
@@ -233,6 +301,12 @@ namespace Rpg.Soundwell
                 WalkPixels, "PLACEHOLDER 16px Soundwell rescuer walking", out walkingTexture);
             attackSprite = CreatePixelRescuerSprite(
                 AttackPixels, "PLACEHOLDER 16px Soundwell rescuer attack", out attackTexture);
+            hoodIdleSprite = CreatePixelRescuerSprite(
+                HoodIdlePixels, "PLACEHOLDER 16px hooded rescuer idle", out hoodIdleTexture);
+            hoodWalkingSprite = CreatePixelRescuerSprite(
+                HoodWalkPixels, "PLACEHOLDER 16px hooded rescuer walking", out hoodWalkingTexture);
+            hoodAttackSprite = CreatePixelRescuerSprite(
+                HoodAttackPixels, "PLACEHOLDER 16px hooded rescuer attack", out hoodAttackTexture);
 
             EnsureInvisibleActorRenderer(leader.gameObject);
             EnsureInvisibleActorRenderer(beast.gameObject);
@@ -242,7 +316,7 @@ namespace Rpg.Soundwell
             GameObject second = CreateFollower("PLACEHOLDER Rescuer 2",
                 FollowOffsets[0], new Color(0.95f, 0.72f, 0.34f));
             GameObject third = CreateFollower("PLACEHOLDER Rescuer 3",
-                FollowOffsets[1], new Color(0.43f, 0.72f, 0.96f));
+                FollowOffsets[1], new Color(0.43f, 0.72f, 0.96f), hoodIdleSprite);
             actors.Add(second);
             actors.Add(third);
 
@@ -395,7 +469,7 @@ namespace Rpg.Soundwell
                 SpriteRenderer follower = actors[index].GetComponent<SpriteRenderer>();
                 if (follower != null)
                 {
-                    follower.sprite = attackSprite;
+                    follower.sprite = index == 2 ? hoodAttackSprite : attackSprite;
                     // The ORK-accepted target is the real beast. Face the
                     // companion's visual attack pose toward that combatant,
                     // rather than retaining the last exploration walk direction.
@@ -548,7 +622,8 @@ namespace Rpg.Soundwell
                 16f, 0, SpriteMeshType.FullRect);
         }
 
-        private GameObject CreateFollower(string objectName, Vector2 offset, Color tint)
+        private GameObject CreateFollower(string objectName, Vector2 offset, Color tint,
+            Sprite idle = null)
         {
             var actor = new GameObject(objectName);
             actor.SetActive(false);
@@ -557,7 +632,7 @@ namespace Rpg.Soundwell
             actor.transform.localScale = Vector3.one; // 16 pixels at 16 PPU = one world unit.
 
             var renderer = actor.AddComponent<SpriteRenderer>();
-            renderer.sprite = placeholderSprite;
+            renderer.sprite = idle != null ? idle : placeholderSprite;
             renderer.color = tint;
             renderer.sortingOrder = 3;
 
@@ -618,10 +693,13 @@ namespace Rpg.Soundwell
             {
                 Transform follower = actors[i].transform;
                 SpriteRenderer renderer = actors[i].GetComponent<SpriteRenderer>();
+                Sprite idle = i == 2 ? hoodIdleSprite : placeholderSprite;
+                Sprite walking = i == 2 ? hoodWalkingSprite : walkingSprite;
+                Sprite attacking = i == 2 ? hoodAttackSprite : attackSprite;
                 if (inBattle)
                 {
                     renderer.sprite = Time.unscaledTime < companionAttackUntil[i]
-                        ? attackSprite : placeholderSprite;
+                        ? attacking : idle;
                     continue;
                 }
 
@@ -636,7 +714,7 @@ namespace Rpg.Soundwell
                     renderer.flipX = displacement.x < 0f;
                 renderer.sprite = moving &&
                     Mathf.FloorToInt(Time.time / WalkFrameSeconds) % 2 == 1
-                    ? walkingSprite : placeholderSprite;
+                    ? walking : idle;
             }
         }
 
@@ -660,6 +738,18 @@ namespace Rpg.Soundwell
                 Destroy(attackSprite);
             if (attackTexture != null)
                 Destroy(attackTexture);
+            if (hoodIdleSprite != null)
+                Destroy(hoodIdleSprite);
+            if (hoodIdleTexture != null)
+                Destroy(hoodIdleTexture);
+            if (hoodWalkingSprite != null)
+                Destroy(hoodWalkingSprite);
+            if (hoodWalkingTexture != null)
+                Destroy(hoodWalkingTexture);
+            if (hoodAttackSprite != null)
+                Destroy(hoodAttackSprite);
+            if (hoodAttackTexture != null)
+                Destroy(hoodAttackTexture);
         }
     }
 }
