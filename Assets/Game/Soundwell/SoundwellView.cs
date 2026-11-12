@@ -1446,8 +1446,12 @@ namespace Rpg.Soundwell
             }
             texture.SetPixels32(pixels);
             texture.Apply(false, false);
-            return Sprite.Create(texture, new Rect(0f, 0f, size, size),
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
                 new Vector2(0.5f, 0.5f), 16f, 0, SpriteMeshType.FullRect);
+            // Sprite.Create does not inherit Texture2D.name; unnamed visual
+            // assets make combat-pose diagnostics and regressions ambiguous.
+            sprite.name = name;
+            return sprite;
         }
 
         private SpriteRenderer Plate(Transform parent, string name, Vector2 position, Vector2 size, Color color, int order)
