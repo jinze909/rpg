@@ -123,7 +123,7 @@ namespace Rpg.Editor
         // binary into managed memory in CI.
         private static void ValidateLinuxX64Binary(string executable)
         {
-            var header = new byte[20];
+            var header = new byte[24];
             using (var stream = File.OpenRead(executable))
             {
                 int offset = 0;
@@ -136,13 +136,19 @@ namespace Rpg.Editor
                 }
             }
 
-            // ELF magic, ELFCLASS64, little endian, and EM_X86_64 (62).
+            // ELF magic, 64-bit little-endian ELFv1, ET_EXEC or ET_DYN
+            // (modern PIE), x86-64 machine 62, and current ELF header version.
+            // An ELF64 x86-64 relocatable object has the same magic/machine
+            // but is not a runnable Linux Player; do not accept ET_REL.
             if (header[0] != 0x7f || header[1] != (byte)'E' ||
                 header[2] != (byte)'L' || header[3] != (byte)'F' ||
-                header[4] != 2 || header[5] != 1 ||
-                header[18] != 62 || header[19] != 0)
+                header[4] != 2 || header[5] != 1 || header[6] != 1 ||
+                (header[16] != 2 && header[16] != 3) || header[17] != 0 ||
+                header[18] != 62 || header[19] != 0 ||
+                header[20] != 1 || header[21] != 0 ||
+                header[22] != 0 || header[23] != 0)
                 throw new InvalidOperationException(
-                    "M11 saved Linux Test profile did not produce an ELF64 x86-64 executable.");
+                    "M11 saved Linux Test profile did not produce an executable ELF64 x86-64 Player.");
         }
 
         public static void ValidateAndBuild()
