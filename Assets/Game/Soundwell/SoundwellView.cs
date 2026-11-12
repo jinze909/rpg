@@ -319,6 +319,7 @@ namespace Rpg.Soundwell
             surveyorStatus = AddLabel(rect, "", 15, Cloth,
                 new Vector2(0, -148), new Vector2(760, 32));
             hint = AddLabel(rect, "", 18, Ink, new Vector2(0, -194), new Vector2(790, 34));
+            hint.gameObject.name = "Soundwell trial hint";
             Localize(AddLabel(rect, "", 14, Cloth,
                 new Vector2(0, -222), new Vector2(760, 26)), "hud.controls");
 
@@ -902,7 +903,12 @@ namespace Rpg.Soundwell
             else if (beastDefeated && !gateOpen)
                 prompt = "BEAST DEFEATED: The three-member ORK party cleared the inner lane. Open the gate.";
             else if (canEngageBeast)
-                prompt = "DIRECT ROUTE: Engage the beast with the three-member ORK party, or lure it away with the bell.";
+                // UX-001: an unsolicited gate prompt must not solve the lure.
+                // Inspecting the actual claw trail earns the precise side-stand
+                // clue; combat remains a valid option without inspecting it.
+                prompt = clawsObserved
+                    ? "DIRECT ROUTE: Engage the ORK party, or lure the beast toward the SIDE BELL STAND."
+                    : "DIRECT ROUTE: Engage the beast with the ORK party, or inspect nearby tracks for another approach.";
             else if (rescueComplete)
                 prompt = "RESCUED: The surveyor reached RETREAT. He'll remove his false trail marker.";
             else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)
@@ -941,7 +947,9 @@ namespace Rpg.Soundwell
                 prompt = surveyorEscorting ? "Escort the surveyor through the open gate to RETREAT."
                     : gateOpen ? "Gate open: cross into the soundwell inner room."
                     : canOpenGate ? "[G / RB] Open the gate while the beast follows the side bell."
-                    : "Move the bell to the SIDE STAND and draw the beast away to open this gate.";
+                    : clawsObserved
+                        ? "Move the bell to the SIDE STAND and draw the beast away to open this gate."
+                        : "The beast guards this gate. Look for evidence of what draws its attention.";
             else if (atBell)
                 prompt = wrapped ? "[E / Pad A] Try the wrapped bell   [Q / Pad X] Remove the cloth"
                     : "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth   [F / LB] Lift";

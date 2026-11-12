@@ -8,6 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -45,6 +46,39 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.IsReady, Is.True);
             trial.ReadInput = false;
+
+            // UX-001: visiting the locked gate alone cannot reveal the side
+            // bell stand solution. The optional claw evidence offers the
+            // precise clue only after the player chooses to inspect it.
+            // This never gates the already-verified clue-free bell-only rescue.
+            var hint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
+            Assert.That(hint, Is.Not.Null);
+            var clueBody = trial.PlayerActor.GetComponent<Rigidbody2D>();
+            Assert.That(clueBody, Is.Not.Null);
+            Vector2 startingPosition = clueBody.position;
+            Assert.That(trial.ClawsObserved, Is.False);
+            clueBody.position = new Vector2(-0.55f, 0f);
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(trial.AtGatePanel, Is.True);
+            Assert.That(hint.text, Does.Not.Contain("SIDE BELL STAND"));
+            Assert.That(hint.text, Does.Not.Contain("SIDE STAND"),
+                "Approaching the gate must not hand out the complete lure solution.");
+
+            clueBody.position = SoundwellTrial.ClawEvidencePosition;
+            Physics2D.SyncTransforms();
+            Assert.That(trial.CanInspectClaws, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.ClawsObserved, Is.True,
+                "The precise hint requires inspecting the real clue.");
+            clueBody.position = new Vector2(-0.55f, 0f);
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(hint.text, Does.Contain("SIDE BELL STAND").Or.Contain("SIDE STAND"),
+                "The physical claw clue must unlock the specific side-stand advice.");
+            clueBody.position = startingPosition;
+            Physics2D.SyncTransforms();
+            yield return null;
 
             // A strict 16px leader must face its actual travel direction;
             // moving west may not look like backpedalling. This changes only
