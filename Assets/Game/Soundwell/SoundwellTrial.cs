@@ -227,11 +227,14 @@ namespace Rpg.Soundwell
                     // UGUI Cancel closes the exploration focus menu, but in the
                     // currently unconfigured ORK battle menu it must provide a
                     // reachable retreat instead of trapping the player in a turn.
-                    if (DirectCombatStarted)
+                    if (view.MovePreviewOpen)
+                        view.CloseBattleMovePreview();
+                    else if (DirectCombatStarted)
                         ReturnToBootstrap();
                     else
                         SetActionMenuOpen(false);
-                });
+                },
+                direction => orkParty != null && orkParty.TryStep(direction));
             ResetTrial();
             initialized = true;
         }
@@ -335,6 +338,11 @@ namespace Rpg.Soundwell
                     orkParty != null && orkParty.CanGuard(activeRescuer),
                     orkParty != null && orkParty.CanOperateGate(activeRescuer, canReachBattleGate),
                     GateOpen);
+                view.SetBattleMoveChoices(activeRescuer, activeActor,
+                    orkParty != null && orkParty.CanStep(activeRescuer, Vector2.up),
+                    orkParty != null && orkParty.CanStep(activeRescuer, Vector2.right),
+                    orkParty != null && orkParty.CanStep(activeRescuer, Vector2.down),
+                    orkParty != null && orkParty.CanStep(activeRescuer, Vector2.left));
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
             }

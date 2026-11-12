@@ -57,6 +57,10 @@ namespace Rpg.Soundwell
             }
         }
 
+        public const float BattleStepDistance = 0.5f;
+        private readonly int?[] lastStepTurn = new int?[3];
+        private readonly List<RaycastHit2D> stepHits = new List<RaycastHit2D>(8);
+
         private const float FollowSpeed = 4.5f;
         private const float WalkFrameSeconds = 0.15f;
 
@@ -565,6 +569,84 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool TryStepDestination(Combatant member, Vector2 direction, out Vector2 destination)
+        {
+            destination = default;
+            if (member.GameObject == null ||
+                !(direction == Vector2.up || direction == Vector2.down ||
+                  direction == Vector2.left || direction == Vector2.right))
+                return false;
+
+            Transform actor = member.GameObject.transform;
+            Vector2 from = actor.position;
+            destination = from + direction * BattleStepDistance;
+            if (Mathf.Abs(destination.x) > 6.7f || Mathf.Abs(destination.y) > 2.85f)
+                return false;
+
+            // The leader has a real circle collider. Use a two-pixel radius for
+            // the companions, whose normal formation fits alongside that collider.
+            CircleCollider2D bodyCollider = actor.GetComponent<CircleCollider2D>();
+            float radius = bodyCollider != null ? bodyCollider.radius : 0.125f;
+            Physics2D.SyncTransforms();
+            Physics2D.CircleCast(from, radius, direction,
+                new ContactFilter2D { useTriggers = false }, stepHits, BattleStepDistance);
+            foreach (RaycastHit2D hit in stepHits)
+                if (!hit.collider.transform.IsChildOf(actor))
+                    return false;
+
+            // Some ORK actors have no 2D collider. Check their clearance along
+            // the whole step, including between the start and destination.
+            foreach (GameObject other in actors)
+                if (other != null && other != member.GameObject &&
+                    BlocksBattleStep(other.transform.position, from, direction, 0.40f))
+                    return false;
+            return Beast == null || Beast.GameObject == null ||
+                !BlocksBattleStep(Beast.GameObject.transform.position, from, direction, 0.50f);
+        }
+
+        private static bool BlocksBattleStep(Vector2 obstacle, Vector2 from, Vector2 direction, float clearance)
+        {
+            float along = Mathf.Clamp(Vector2.Dot(obstacle - from, direction), 0f, BattleStepDistance);
+            return Vector2.Distance(obstacle, from + direction * along) < clearance;
+        }
+
+        private bool CanSpendStep(int index)
+        {
+            if (index < 0 || index != ChoosingRescuerIndex)
+                return false;
+
+            Combatant member = members[index];
+            return lastStepTurn[index] != member.Battle.Turn &&
+                !member.Actions.BlockActionUse &&
+                member.Actions.ActionState == CombatantActionState.Available &&
+                !member.Status.Effects.BlockAllActions;
+        }
+
+        public bool CanStep(int index, Vector2 direction) =>
+            CanSpendStep(index) && TryStepDestination(members[index], direction, out _);
+
+        public bool TryStep(Vector2 direction)
+        {
+            int index = ChoosingRescuerIndex;
+            if (!CanSpendStep(index) || !TryStepDestination(members[index], direction, out Vector2 destination))
+                return false;
+
+            // The extra allowance belongs to ORK's current turn. Keep its
+            // chooser open for the same single primary action as fixed formation.
+            Combatant actor = members[index];
+            lastStepTurn[index] = actor.Battle.Turn;
+            Rigidbody2D body = actor.GameObject.GetComponent<Rigidbody2D>();
+            if (body != null)
+            {
+                body.linearVelocity = Vector2.zero;
+                body.position = destination;
+            }
+            else
+                actor.GameObject.transform.position = destination;
+            Physics2D.SyncTransforms();
+            return true;
+        }
+
         public bool CanOperateGate(int index, Func<Combatant, bool> canReach)
         {
             if (index < 0)
@@ -703,6 +785,7 @@ namespace Rpg.Soundwell
             battleObservedActive = false;
             battleEndRequested = false;
             battleStartedAt = 0f;
+            Array.Clear(lastStepTurn, 0, lastStepTurn.Length);
             for (int i = 1; i < companionAttackUntil.Length; i++)
             {
                 companionAttackUntil[i] = 0f;

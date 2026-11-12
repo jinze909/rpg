@@ -43,6 +43,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkAcceptedCompanionAttackChangesOnlyItsPixelPose",
     },
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
+        "BattleStepChangesGateAssignmentFromSameOpening":
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleStepChangesGateAssignmentFromSameOpening",
         "BattleBackCancelEventRetreatsAndReleasesOrkParticipants":
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleBackCancelEventRetreatsAndReleasesOrkParticipants",
     },
