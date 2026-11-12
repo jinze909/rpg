@@ -1392,11 +1392,14 @@ namespace Rpg.Tests.Editor
             Assert.That(entrance, Is.Not.Null);
             AsyncOperation load = entrance.OpenTrial();
             Assert.That(load, Is.Not.Null);
-            yield return load;
+            float deadline = Time.realtimeSinceStartup + 12f;
+            while (!load.isDone && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(load.isDone, Is.True, "The comparison must enter a fresh Soundwell scene.");
 
             SoundwellOrkParty party = null;
             SoundwellTrial trial = null;
-            float deadline = Time.realtimeSinceStartup + 12f;
+            deadline = Time.realtimeSinceStartup + 12f;
             while (Time.realtimeSinceStartup < deadline)
             {
                 if (TryFindLiveTrialOwners(out _, out party, out trial) && party.IsReady && trial.IsReady)
@@ -1509,9 +1512,17 @@ namespace Rpg.Tests.Editor
             LogAssert.Expect(UnityEngine.LogType.Log, result);
             Debug.Log(result);
 
-            yield return trial.ReturnToBootstrap();
+            AsyncOperation returnLoad = trial.ReturnToBootstrap();
+            Assert.That(returnLoad, Is.Not.Null);
+            deadline = Time.realtimeSinceStartup + 12f;
+            while ((!returnLoad.isDone ||
+                    SceneManager.GetActiveScene().name != SoundwellEntrance.BootstrapSceneName) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(returnLoad.isDone, Is.True, "The first route must finish loading Bootstrap before replay.");
             Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
             Assert.That(ORK.Game.Combatants.GetInBattle(), Is.Empty);
+            yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
         }
 
         private static IEnumerator WaitForNextGateComparisonTurn(SoundwellOrkParty party, int previous)
