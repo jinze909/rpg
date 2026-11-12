@@ -379,7 +379,7 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267366
-    m_Localized: "STEP (1 TURN)"
+    m_Localized: "Confirm step"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267367

@@ -660,8 +660,8 @@ namespace Rpg.Soundwell
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
         }
 
-        // Selecting the step does not spend a turn. A separate confirmation
-        // submits the current, collision-checked cardinal choice to ORK.
+        // Preview the destination before spending the current ORK chooser's
+        // independent movement allowance.
         public void SetBattleMoveChoices(int actorIndex, Transform actor,
             bool north, bool east, bool south, bool west)
         {
@@ -697,7 +697,6 @@ namespace Rpg.Soundwell
                 moveDirectionButtons[i].gameObject.SetActive(true);
             confirmMoveButton.gameObject.SetActive(true);
             cancelMoveButton.gameObject.SetActive(true);
-            movePreviewActor = movePreviewActor < 0 ? -1 : movePreviewActor;
             int first = 0;
             while (first < moveLegal.Length && !moveLegal[first])
                 first++;
@@ -707,8 +706,7 @@ namespace Rpg.Soundwell
                 return;
             }
             ChooseBattleMove(first);
-            // First Submit chooses a destination; a second distinct Submit
-            // on Confirm is required to spend the real ORK movement turn.
+            // Focus the direction first so confirming the step is deliberate.
             actionEventSystem.SetSelectedGameObject(moveDirectionButtons[first].gameObject);
         }
 
@@ -731,8 +729,10 @@ namespace Rpg.Soundwell
             if (!movePreviewOpen || !moveLegal[movePreviewIndex] ||
                 submitBattleMove == null)
                 return;
-            if (submitBattleMove(MoveDirections[movePreviewIndex]))
-                CloseBattleMovePreview();
+            if (!submitBattleMove(MoveDirections[movePreviewIndex]))
+                return;
+            CloseBattleMovePreview();
+            moveButton.interactable = false;
         }
 
         public void CloseBattleMovePreview()

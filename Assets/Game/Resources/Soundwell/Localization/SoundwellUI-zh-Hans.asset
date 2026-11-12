@@ -375,7 +375,7 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267366
-    m_Localized: "移动（耗一回合）"
+    m_Localized: "确认移动"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267367
