@@ -306,6 +306,22 @@ MonoBehaviour:
     m_Localized: "SURVEYOR: The lower plank snapped! Ask me about the safe upper route."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267348
+    m_Localized: "BEAST CONTACT: Pushed back to RETREAT. The gate remains open; choose a safer route."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267349
+    m_Localized: "DIRECT ROUTE: Engage the ORK party, or lure the beast toward the SIDE BELL STAND."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267350
+    m_Localized: "DIRECT ROUTE: Engage the beast with the ORK party, or inspect nearby tracks for another approach."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267351
+    m_Localized: "BEAST DEFEATED: The three-member ORK party cleared the inner lane. Open the gate."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

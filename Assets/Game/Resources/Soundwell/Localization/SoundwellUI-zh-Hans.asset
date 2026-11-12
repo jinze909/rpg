@@ -302,6 +302,22 @@ MonoBehaviour:
     m_Localized: "测路人：下面的木板断了！来问我上面哪条路安全。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267348
+    m_Localized: "野兽撞击：你被击退到撤离点。闸门仍开着，请选择更安全的路线。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267349
+    m_Localized: "正面路线：指挥 ORK 小队迎战，或把野兽引到侧铃架。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267350
+    m_Localized: "正面路线：指挥 ORK 小队迎战，也可以检查附近足迹寻找其他方案。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267351
+    m_Localized: "野兽已被击败：三名队员清理了内侧通道。现在可以打开闸门。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

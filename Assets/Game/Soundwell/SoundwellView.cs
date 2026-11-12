@@ -1034,7 +1034,7 @@ namespace Rpg.Soundwell
 
             string prompt;
             if (beastContacted && atSafePoint && !surveyorEscorting && !rescueComplete)
-                prompt = "BEAST CONTACT: Pushed back to RETREAT. The gate remains open; choose a safer route.";
+                prompt = SoundwellUiLocalization.Get("hint.beast_contact");
             else if (falseMarkerCleared)
                 prompt = safeRouteMarked
                     ? "SAFE ROUTE POSTED: The surveyor replaced his false marker with a verified route."
@@ -1048,14 +1048,14 @@ namespace Rpg.Soundwell
                             ? "ROUTE CORRECTED: The surveyor is returning to the cart for his map kit."
                             : "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
             else if (beastDefeated && !gateOpen)
-                prompt = "BEAST DEFEATED: The three-member ORK party cleared the inner lane. Open the gate.";
+                prompt = SoundwellUiLocalization.Get("hint.beast_defeated");
             else if (canEngageBeast)
                 // UX-001: an unsolicited gate prompt must not solve the lure.
                 // Inspecting the actual claw trail earns the precise side-stand
                 // clue; combat remains a valid option without inspecting it.
                 prompt = clawsObserved
-                    ? "DIRECT ROUTE: Engage the ORK party, or lure the beast toward the SIDE BELL STAND."
-                    : "DIRECT ROUTE: Engage the beast with the ORK party, or inspect nearby tracks for another approach.";
+                    ? SoundwellUiLocalization.Get("hint.direct_with_claw")
+                    : SoundwellUiLocalization.Get("hint.direct_unknown");
             else if (rescueComplete)
                 prompt = SoundwellUiLocalization.Get("hint.rescue_complete");
             else if (surveyorEscorting && beastBlocksEscape && npc.x > -0.65f)

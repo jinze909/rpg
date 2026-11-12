@@ -303,6 +303,22 @@ MonoBehaviour:
     m_Key: surveyor.plank_snapped
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267348
+    m_Key: hint.beast_contact
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267349
+    m_Key: hint.direct_with_claw
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267350
+    m_Key: hint.direct_unknown
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267351
+    m_Key: hint.beast_defeated
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

@@ -206,6 +206,32 @@ namespace Rpg.Tests.Editor
             Vector2 initialBeast = trial.BeastPosition;
             RecordRescueRouteStart("BELL", trial, party);
 
+            // The current live route-choice hint must switch EN/zh without
+            // auto-entering ORK combat, opening the gate or granting a clue.
+            MoveTestLeader(playerBody, new Vector2(-0.55f, 0f));
+            Assert.That(trial.CanEngageBeast, Is.True);
+            var choiceHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
+            Assert.That(choiceHint, Is.Not.Null);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(choiceHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.direct_unknown")));
+            Assert.That(choiceHint.text, Does.Contain("正面路线"));
+            Assert.That(SoundwellUiLocalization.Get("hint.direct_with_claw"),
+                Does.Contain("侧铃架"));
+            Assert.That(SoundwellUiLocalization.Get("hint.beast_contact"),
+                Does.Contain("击退"));
+            Assert.That(SoundwellUiLocalization.Get("hint.beast_defeated"),
+                Does.Contain("三名队员"));
+            Assert.That(trial.DirectCombatStarted || trial.GateOpen, Is.False,
+                "Changing locale cannot select battle, open the gate or spend a turn.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(choiceHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.direct_unknown")));
+            MoveTestLeader(playerBody, safe);
+            yield return null;
+
             // Only the real carry/place/ring actions and the two named stands
             // establish the lure. Do not set Makinom or ORK state in the test.
             MoveTestLeader(playerBody, trial.BellPosition);
