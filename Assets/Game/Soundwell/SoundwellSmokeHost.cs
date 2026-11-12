@@ -9,6 +9,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.Tilemaps;
 using UnityEngine.UI;
 
@@ -1664,7 +1665,7 @@ namespace Rpg.Soundwell
         }
 
         public static byte[] Capture(SoundwellTrial trial, string stage,
-            int width = 960, int height = 540)
+            int width = 960, int height = 540, params Vector3[] visiblePoints)
         {
             var camera = trial.TrialCamera;
             var actionHud = trial.GetComponentsInChildren<Canvas>(true).SingleOrDefault(
@@ -1673,6 +1674,7 @@ namespace Rpg.Soundwell
                 "The live action HUD must use Screen Space Overlay before evidence capture.");
 
             var previousTarget = camera.targetTexture;
+            float previousOrthoSize = camera.orthographicSize;
             var previousActive = RenderTexture.active;
             var previousMode = actionHud.renderMode;
             var previousHudCamera = actionHud.worldCamera;
@@ -1689,6 +1691,24 @@ namespace Rpg.Soundwell
                 // same camera and assert that the final pixels actually changed.
                 Canvas.ForceUpdateCanvases();
                 camera.Render();
+                if (visiblePoints.Length > 0)
+                {
+                    // The first render sizes the pixel grid for this framebuffer.
+                    // Cinemachine's last lens correction used the Editor backbuffer.
+                    var rig = camera.GetComponent<SoundwellCameraRig>();
+                    var pixelCamera = camera.GetComponent<PixelPerfectCamera>();
+                    camera.orthographicSize = pixelCamera.CorrectCinemachineOrthoSize(
+                        rig.VirtualCamera.Lens.OrthographicSize);
+                    camera.Render();
+                    foreach (Vector3 point in visiblePoints)
+                    {
+                        Vector3 viewport = camera.WorldToViewportPoint(point);
+                        Require(viewport.z > 0f && viewport.x > 0f && viewport.x < 1f &&
+                                viewport.y > 0f && viewport.y < 1f,
+                            $"The captured battle crops {point}: viewport={viewport}, " +
+                            $"ortho={camera.orthographicSize:F3}, stage={stage}.");
+                    }
+                }
                 RenderTexture.active = target;
                 frame.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 frame.Apply();
@@ -1749,6 +1769,7 @@ namespace Rpg.Soundwell
                 actionHud.worldCamera = previousHudCamera;
                 actionHud.planeDistance = previousPlaneDistance;
                 camera.targetTexture = previousTarget;
+                camera.orthographicSize = previousOrthoSize;
                 RenderTexture.active = previousActive;
                 Canvas.ForceUpdateCanvases();
                 RenderTexture.ReleaseTemporary(target);

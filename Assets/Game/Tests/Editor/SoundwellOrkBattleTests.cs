@@ -519,7 +519,11 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(attackButton.gameObject),
                 "First legal attack must take default Submit focus instead of retreating.");
-            SoundwellSmokeHost.Capture(trial, "15-ork-current-rescuer");
+            Bounds battleFraming = turnCue.bounds;
+            battleFraming.Encapsulate(targetCue.bounds);
+            battleFraming.Encapsulate(pixelBeast.bounds);
+            SoundwellSmokeHost.Capture(trial, "15-ork-current-rescuer",
+                visiblePoints: new[] { battleFraming.min, battleFraming.max });
             EventSystem.current.SetSelectedGameObject(battleRetreat.gameObject);
             yield return null;
             Assert.That(EventSystem.current.currentSelectedGameObject,
