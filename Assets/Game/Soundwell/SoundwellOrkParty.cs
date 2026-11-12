@@ -90,7 +90,7 @@ namespace Rpg.Soundwell
         }
 
         public const float BattleStepDistance = 0.5f;
-        private readonly List<BaseAction> stepActions = new List<BaseAction>(1);
+        private List<BaseAction> stepActions = new List<BaseAction>(1);
         private static readonly CheckAction IsStepAction = action => action is BattleStepAction;
 
         private const float FollowSpeed = 4.5f;
