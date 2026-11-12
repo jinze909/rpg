@@ -206,6 +206,50 @@ MonoBehaviour:
     m_Localized: "\u9632\u5b88\u4e2d"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267324
+    m_Localized: "迎战野兽 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267325
+    m_Localized: "检查绳索 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267326
+    m_Localized: "收回绳索 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267327
+    m_Localized: "检查货车 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267328
+    m_Localized: "告知货车位置 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267329
+    m_Localized: "查看爪痕 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267330
+    m_Localized: "系好引导绳 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267331
+    m_Localized: "带测路人撤离 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267332
+    m_Localized: "加固木板 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267333
+    m_Localized: "询问测路人 [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267334
+    m_Localized: "开启闸门 [G / RB]"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -95,6 +95,20 @@ namespace Rpg.Tests.Editor
             MoveTestLeader(leader, new Vector2(-0.55f, 0f));
             VerifyBattleCameraKeepsBothExitsVisible(leader);
             Assert.That(trial.CanEngageBeast, Is.True);
+            // The action that actually launches the ORK encounter must show
+            // its caption in both shipped languages, not fixed English.
+            var encounterChoice = GameObject.Find("Soundwell Gate button")
+                ?.GetComponentInChildren<Text>();
+            Assert.That(encounterChoice, Is.Not.Null);
+            yield return null;
+            Assert.That(encounterChoice.text, Is.EqualTo("ENGAGE BEAST [G / RB]"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(encounterChoice.text, Is.EqualTo("迎战野兽 [G / RB]"));
+            Assert.That(encounterChoice.font.HasCharacter('兽'), Is.True);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(encounterChoice.text, Is.EqualTo("ENGAGE BEAST [G / RB]"));
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.DirectCombatStarted, Is.True);
 

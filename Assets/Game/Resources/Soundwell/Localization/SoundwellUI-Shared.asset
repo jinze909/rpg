@@ -207,6 +207,50 @@ MonoBehaviour:
     m_Key: "battle.defending"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267324
+    m_Key: "action.engage_beast"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267325
+    m_Key: "action.inspect_rope"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267326
+    m_Key: "action.recover_cord"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267327
+    m_Key: "action.inspect_cart"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267328
+    m_Key: "action.tell_cart"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267329
+    m_Key: "action.inspect_claws"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267330
+    m_Key: "action.tie_guide_line"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267331
+    m_Key: "action.lead_surveyor"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267332
+    m_Key: "action.brace_plank"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267333
+    m_Key: "action.ask_surveyor"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267334
+    m_Key: "action.open_gate_focus"
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

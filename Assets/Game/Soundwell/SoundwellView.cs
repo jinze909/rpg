@@ -443,7 +443,8 @@ namespace Rpg.Soundwell
             }
             carryButton = CreateActionButton(actionCanvas.transform, "Carry", "", 4, carry);
             carryButtonLabel = carryButton.GetComponentInChildren<Text>();
-            gateButton = CreateActionButton(actionCanvas.transform, "Gate", "OPEN GATE [G / RB]", 5, gate);
+            gateButton = CreateActionButton(actionCanvas.transform, "Gate",
+                SoundwellUiLocalization.Get("action.open_gate_focus"), 5, gate);
             gateButtonLabel = gateButton.GetComponentInChildren<Text>();
             menuStatus = AddLabel(actionCanvas.transform, "",
                 14, Cloth, new Vector2(-270f, 220f), new Vector2(360f, 32f));
@@ -853,17 +854,21 @@ namespace Rpg.Soundwell
             // targeting a disabled button; return focus to an available action.
             if (actionMenuOpen)
                 EnsureActionSelection();
-            string interactCaption = canEngageBeast ? "ENGAGE BEAST [G / RB]"
-                : canInspectRope ? "INSPECT ROPE [G / RB]"
-                : canRecoverRope ? "RECOVER CORD [G / RB]"
-                : canInspectCart ? "INSPECT CART [G / RB]"
-                : canShareCartClue ? "TELL ABOUT CART [G / RB]"
-                : canInspectClaws ? "INSPECT CLAWS [G / RB]"
-                : canTieEscortLine ? "TIE GUIDE LINE [G / RB]"
-                : canEscortSurveyor ? "LEAD SURVEYOR [G / RB]"
-                : canSecurePlank ? "BRACE PLANK [G / RB]"
-                : atSurveyor && !hasSurveyorClue ? "ASK SURVEYOR [G / RB]"
-                : "OPEN GATE [G / RB]";
+            // The player's contextual G/RB choice follows the same authored
+            // EN/zh StringTables as other Soundwell UGUI controls. Selecting
+            // a translation cannot change the interaction's legal action.
+            string interactKey = canEngageBeast ? "action.engage_beast"
+                : canInspectRope ? "action.inspect_rope"
+                : canRecoverRope ? "action.recover_cord"
+                : canInspectCart ? "action.inspect_cart"
+                : canShareCartClue ? "action.tell_cart"
+                : canInspectClaws ? "action.inspect_claws"
+                : canTieEscortLine ? "action.tie_guide_line"
+                : canEscortSurveyor ? "action.lead_surveyor"
+                : canSecurePlank ? "action.brace_plank"
+                : atSurveyor && !hasSurveyorClue ? "action.ask_surveyor"
+                : "action.open_gate_focus";
+            string interactCaption = SoundwellUiLocalization.Get(interactKey);
             if (gateButtonLabel.text != interactCaption)
                 gateButtonLabel.text = interactCaption;
             upperBoardMarker.color = plankSecured ? new Color(0.45f, 0.92f, 0.74f)

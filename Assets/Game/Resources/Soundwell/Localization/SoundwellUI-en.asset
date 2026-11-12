@@ -210,6 +210,50 @@ MonoBehaviour:
     m_Localized: "GUARDING"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267324
+    m_Localized: "ENGAGE BEAST [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267325
+    m_Localized: "INSPECT ROPE [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267326
+    m_Localized: "RECOVER CORD [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267327
+    m_Localized: "INSPECT CART [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267328
+    m_Localized: "TELL ABOUT CART [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267329
+    m_Localized: "INSPECT CLAWS [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267330
+    m_Localized: "TIE GUIDE LINE [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267331
+    m_Localized: "LEAD SURVEYOR [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267332
+    m_Localized: "BRACE PLANK [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267333
+    m_Localized: "ASK SURVEYOR [G / RB]"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267334
+    m_Localized: "OPEN GATE [G / RB]"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
