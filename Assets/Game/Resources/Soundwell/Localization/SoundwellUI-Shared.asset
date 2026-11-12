@@ -275,6 +275,18 @@ MonoBehaviour:
     m_Key: hint.escort_paused
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267341
+    m_Key: surveyor.wait_at_plank
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267342
+    m_Key: surveyor.following
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267343
+    m_Key: hint.escort_gate_first
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

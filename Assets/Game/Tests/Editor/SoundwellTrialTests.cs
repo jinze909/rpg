@@ -266,6 +266,26 @@ namespace Rpg.Tests.Editor
             Assert.That(Vector2.Distance(trial.SurveyorWorldPosition,
                 SoundwellTrial.UpperBoardPosition), Is.LessThan(0.18f),
                 "The surveyor must wait on the proven plank until the guide crosses the gate.");
+            // The *live* trapped surveyor's gate instruction must be readable
+            // in the selected language while he waits on the real plank;
+            // changing language must not advance the escort or gate.
+            var plankResponse = GameObject.Find("Soundwell surveyor response")?.GetComponent<Text>();
+            Assert.That(plankResponse, Is.Not.Null);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(trial.SurveyorEscorting, Is.True);
+            Assert.That(trial.RescueComplete, Is.False);
+            Assert.That(plankResponse.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.wait_at_plank")));
+            Assert.That(plankResponse.text, Does.Contain("踏板"));
+            Assert.That(SoundwellUiLocalization.Get("surveyor.following"),
+                Does.Contain("身后"));
+            Assert.That(SoundwellUiLocalization.Get("hint.escort_gate_first"),
+                Does.Contain("闸门"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(plankResponse.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("surveyor.wait_at_plank")));
             var firstSteps = new[]
             {
                 new Vector2(0.6f, 0.0f), new Vector2(-0.3f, 0.0f)

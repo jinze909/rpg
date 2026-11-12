@@ -278,6 +278,18 @@ MonoBehaviour:
     m_Localized: "ESCORT PAUSED: Return to the surveyor, then lead him toward RETREAT."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267341
+    m_Localized: "SURVEYOR: Show me the way through the gate. I'll wait on this plank."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267342
+    m_Localized: "SURVEYOR: Keep the gate open. I'm right behind you."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267343
+    m_Localized: "Lead through the open gate first. The surveyor is waiting for you."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

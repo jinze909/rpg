@@ -988,8 +988,8 @@ namespace Rpg.Soundwell
                             : waitingForEscortLeader
                                 ? SoundwellUiLocalization.Get("surveyor.wait_for_leader")
                             : escortLeader.position.x > 0.85f && npc.x > 0.85f
-                                ? "SURVEYOR: Show me the way through the gate. I'll wait on this plank."
-                                : "SURVEYOR: Keep the gate open. I'm right behind you."
+                                ? SoundwellUiLocalization.Get("surveyor.wait_at_plank")
+                                : SoundwellUiLocalization.Get("surveyor.following")
                 : plankSecured
                     ? "SURVEYOR: The upper plank holds. I can cross now—don't leave me here."
                     : hasSurveyorClue
@@ -1082,7 +1082,7 @@ namespace Rpg.Soundwell
             else if (atUpperPlank)
                 prompt = canTieEscortLine ? "[G / RB] Tie the recovered cord to guide the surveyor. Rescue not complete."
                     : canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
-                    : surveyorEscorting ? "Lead through the open gate first. The surveyor is waiting for you."
+                    : surveyorEscorting ? SoundwellUiLocalization.Get("hint.escort_gate_first")
                     : plankSecured ? "Upper plank braced; surveyor can stand on it. Rescue not complete."
                     : canSecurePlank ? "[G / RB] Brace the upper plank for the surveyor."
                     : "Ask the surveyor which plank is safe before bracing anything.";

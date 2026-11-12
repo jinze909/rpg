@@ -274,6 +274,18 @@ MonoBehaviour:
     m_Localized: "护送暂停：返回测路人身边，再带他前往撤离点。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267341
+    m_Localized: "测路人：请带我穿过闸门。我会在这块踏板上等你。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267342
+    m_Localized: "测路人：保持闸门敞开，我就在你身后。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267343
+    m_Localized: "先穿过打开的闸门，测路人正等你带路。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
