@@ -164,6 +164,29 @@ namespace Rpg.Tests.Editor
                 var entry = entryRoot.AddComponent<SoundwellEntrance>();
                 yield return null; // Start selects Enter first.
 
+                // An inactive ORK/Makinom EventSystem must be retired
+                // before scene handoff can reactivate it as a second UI owner.
+                // Keep this regression inside the existing tracked real-input
+                // UnityTest so exact-test evidence collection remains strict.
+                var parkedUi = new GameObject("Parked ORK input owner");
+                parkedUi.SetActive(false);
+                parkedUi.AddComponent<EventSystem>();
+                parkedUi.AddComponent<StandaloneInputModule>();
+                EventSystem ownedUi = SoundwellInputAdapter.EnsureEventSystem(entryRoot.transform);
+                Assert.That(ownedUi, Is.Not.Null);
+                Assert.That(ownedUi.gameObject.activeInHierarchy, Is.True);
+                yield return null; // Complete deferred removal.
+                parkedUi.SetActive(true);
+                yield return null;
+                var liveUiOwners = UnityEngine.Object.FindObjectsByType<EventSystem>(
+                    FindObjectsSortMode.None);
+                Assert.That(liveUiOwners, Has.Length.EqualTo(1),
+                    "Reactivated ORK UI must not add a second EventSystem.");
+                Assert.That(liveUiOwners[0], Is.SameAs(ownedUi));
+                Assert.That(parkedUi.GetComponent<EventSystem>(), Is.Null,
+                    "Inactive foreign input owner must be removed before reactivation.");
+                UnityEngine.Object.Destroy(parkedUi);
+
                 var sfxButton = entry.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "Soundwell SFX toggle");
                 // The visible retry/result summary must never overlap either
