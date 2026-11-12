@@ -791,9 +791,9 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.FalseMarkerCleared, Is.True,
                 "The saved surveyor must physically remove his misleading marker.");
-            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED");
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ROUTE_COST:COMBAT:world=1:turn=3:escort=3");
             Debug.Log("RPG_SOUNDWELL_ROUTE_COST:COMBAT:world=1:turn=3:escort=3");
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_DIRECT_RESCUE_VALIDATED");
 
             // A defeated ORK battle owns retired combatants. A real Retry
