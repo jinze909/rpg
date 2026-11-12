@@ -1183,6 +1183,38 @@ namespace Rpg.Tests.Editor
             Assert.That(events.currentSelectedGameObject, Is.SameAs(attack.gameObject),
                 "A legal attack should be the default Submit focus, not an accidental retreat.");
 
+            // The lead rescuer must show a distinct shield on a REAL ORK
+            // guard submission, just as the two companions already do. This
+            // tests the shipped battle button, not a manufactured defense flag.
+            var guard = GameObject.Find("Soundwell Guard button")?.GetComponent<Button>();
+            var leadPixel = GameObject.Find("PLACEHOLDER player silhouette")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(guard, Is.Not.Null);
+            Assert.That(leadPixel, Is.Not.Null);
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
+            Assert.That(guard.interactable, Is.True,
+                "The first ORK rescuer must have a legal Guard choice.");
+            Sprite idleLeader = leadPixel.sprite;
+            guard.onClick.Invoke();
+            Assert.That(leadPixel.sprite, Is.Not.SameAs(idleLeader),
+                "An ORK-accepted leader Guard must change the actual actor silhouette.");
+            Assert.That(leadPixel.sprite.name, Does.Contain("leader guard shield"));
+            Assert.That(leadPixel.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(leadPixel.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(leadPixel.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(leadPixel.transform.localScale, Is.EqualTo(Vector3.one));
+            yield return null;
+            Assert.That(leadPixel.sprite.name, Does.Contain("leader guard shield"),
+                "LateUpdate must not overwrite the accepted shield pose immediately.");
+            deadline = Time.realtimeSinceStartup + 8f;
+            while ((party.ChoosingRescuerIndex == 0 || !attack.interactable) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(party.ChoosingRescuerIndex, Is.InRange(1, 2),
+                "Leader Guard must actually consume one ORK turn, not just draw a shield.");
+            Assert.That(attack.interactable, Is.True);
+            events.SetSelectedGameObject(attack.gameObject);
+
             // Route Cancel from the ACTUAL selected action through the HUD
             // hierarchy. No direct trial method, synthetic HP or battle result.
             GameObject handler = ExecuteEvents.ExecuteHierarchy(
