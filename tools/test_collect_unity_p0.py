@@ -206,9 +206,14 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
 
     def test_prepare_and_verify_expect_only_the_tests_the_workflow_runs(self):
         self.assertEqual(len(EXPECTED_TESTS), 4)
-        self.assertEqual(expected_tests_for("prepare", True), EXPECTED_TESTS)
         with tempfile.TemporaryDirectory() as root:
             source_root = Path(root)
+            # Test manifest discovery must be isolated from the actual
+            # checked-out candidate. The live M2 NUnit test is intentional.
+            self.assertEqual(
+                expected_tests_for("prepare", True, source_root=source_root),
+                EXPECTED_TESTS,
+            )
             baseline = EXPECTED_TESTS | SOUNDWELL_TESTS | INPUT_SYSTEM_TESTS | ORK_UI_TESTS
             verify_tests = expected_tests_for("verify", True, source_root=source_root)
             self.assertEqual(verify_tests, baseline)
@@ -320,6 +325,29 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 with_bell,
             )
             self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
+
+            # A new regular NUnit [Test] must count toward the exact
+            # Unity acceptance set, including its prepare-mode subset.
+            bootstrap = source_root / "Assets/Game/Tests/Editor/P0BootstrapTests.cs"
+            bootstrap.write_text(
+                bootstrap.read_text(encoding="utf-8") +
+                "\n[Test, Order(8)] public void "
+                "InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps() {}",
+                encoding="utf-8",
+            )
+            added_test = (
+                "Rpg.Tests.Editor.P0BootstrapTests."
+                "InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps"
+            )
+            self.assertIn(added_test, expected_tests_for("verify", True, source_root))
+            self.assertIn(added_test, expected_tests_for("prepare", True, source_root))
+            bootstrap.write_text(
+                bootstrap.read_text(encoding="utf-8").replace(
+                    "[Test, Order(8)]", "// deleted Test attribute"
+                ),
+                encoding="utf-8",
+            )
+            self.assertNotIn(added_test, expected_tests_for("verify", True, source_root))
 
 
 class CompilerLogTests(unittest.TestCase):

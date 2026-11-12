@@ -64,6 +64,16 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellThreatPreviewTests.SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping",
     },
 }
+# Standalone editor [Test] methods must be included in the exact test
+# manifest too. The UnityTest registry below only recognizes IEnumerator,
+# so new NUnit void tests otherwise compile and pass but fail evidence.
+ADDITIONAL_EDITOR_TESTS = {
+    "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
+        "InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps":
+            "Rpg.Tests.Editor.P0BootstrapTests.InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps",
+    },
+}
+
 SOUNDWELL_MARKERS = (
     "RPG_SOUNDWELL_SIGNAL_VALIDATED",
     "RPG_SOUNDWELL_LOCALIZATION_PLAY_VALIDATED",
@@ -78,6 +88,19 @@ SOURCE_PATHS = ("Assets", "Packages", "ProjectSettings")
 def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
     """Match the actual candidate's declared UnityTest cases, not a stale fixed count."""
     expected = set(EXPECTED_TESTS)
+    for relative_path, declared_tests in ADDITIONAL_EDITOR_TESTS.items():
+        path = source_root / relative_path
+        if not path.is_file():
+            continue
+        content = path.read_text(encoding="utf-8")
+        for method_name, test_name in declared_tests.items():
+            signature = (
+                r"\[Test(?:,\s*[^\]]+)?\]\s*"
+                r"(?:\[[^\]]+\]\s*)*"
+                r"public\s+void\s+" + re.escape(method_name) + r"\s*\("
+            )
+            if re.search(signature, content):
+                expected.add(test_name)
     if mode == "verify" and has_soundwell_scene:
         expected.update(SOUNDWELL_TESTS)
         expected.update(INPUT_SYSTEM_TESTS)

@@ -13,6 +13,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering;
 using UnityEngine.TestTools;
@@ -134,6 +135,54 @@ namespace Rpg.Tests.Editor
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_URP2D_VALIDATED");
             Debug.Log("RPG_URP2D_VALIDATED");
             LogAssert.NoUnexpectedReceived();
+        }
+
+        [Test, Order(8)]
+        public void InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps()
+        {
+            // Isolated copies: never mutate the game's cached action asset.
+            // A damaged PlayerPrefs entry must not block the real entry UI.
+            const string key = "rpg.soundwell.input.binding-overrides.v1";
+            bool hadSetting = PlayerPrefs.HasKey(key);
+            string previous = PlayerPrefs.GetString(key, string.Empty);
+            var savedAsset = Resources.Load<InputActionAsset>("Input/SoundwellControls");
+            Assert.That(savedAsset, Is.Not.Null);
+            var broken = UnityEngine.Object.Instantiate(savedAsset);
+            var remapped = UnityEngine.Object.Instantiate(savedAsset);
+            var restored = UnityEngine.Object.Instantiate(savedAsset);
+            try
+            {
+                var load = typeof(SoundwellInputAdapter).GetMethod(
+                    "RestoreSavedBindingOverrides", BindingFlags.NonPublic | BindingFlags.Static);
+                Assert.That(load, Is.Not.Null);
+                PlayerPrefs.SetString(key, "not-json");
+                LogAssert.Expect(UnityEngine.LogType.Warning,
+                    "Soundwell binding overrides are invalid; restored default controls (FormatException).");
+                load.Invoke(null, new object[] { broken });
+                Assert.That(PlayerPrefs.HasKey(key), Is.False,
+                    "A corrupt local preference must not strand input initialization.");
+                Assert.That(broken.FindActionMap("Gameplay").FindAction("Ring")
+                    .bindings[0].overridePath, Is.Null);
+
+                remapped.FindActionMap("Gameplay").FindAction("Ring")
+                    .ApplyBindingOverride(0, "<Keyboard>/h");
+                string valid = remapped.SaveBindingOverridesAsJson();
+                PlayerPrefs.SetString(key, valid);
+                load.Invoke(null, new object[] { restored });
+                Assert.That(restored.FindActionMap("Gameplay").FindAction("Ring")
+                    .bindings[0].overridePath, Is.EqualTo("<Keyboard>/h"),
+                    "A valid player's custom Ring key must be restored untouched.");
+                Assert.That(PlayerPrefs.GetString(key), Is.EqualTo(valid));
+            }
+            finally
+            {
+                if (hadSetting) PlayerPrefs.SetString(key, previous);
+                else PlayerPrefs.DeleteKey(key);
+                PlayerPrefs.Save();
+                UnityEngine.Object.DestroyImmediate(broken);
+                UnityEngine.Object.DestroyImmediate(remapped);
+                UnityEngine.Object.DestroyImmediate(restored);
+            }
         }
 
         // UTF restores iterator position across reload, not ordinary local variables.

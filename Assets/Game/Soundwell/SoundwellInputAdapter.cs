@@ -201,9 +201,34 @@ namespace Rpg.Soundwell
             carry = gameplayMap.FindAction("Carry", true);
             gate = gameplayMap.FindAction("Gate", true);
             toggleMenu = gameplayMap.FindAction("ToggleMenu", true);
-            string overrides = PlayerPrefs.GetString(BindingOverridesKey, string.Empty);
-            if (!string.IsNullOrEmpty(overrides)) actions.LoadBindingOverridesFromJson(overrides);
+            RestoreSavedBindingOverrides(actions);
             initialized = true;
+        }
+
+        // A malformed or obsolete local binding file must never prevent the
+        // game from reaching its Entry/Gameplay action maps. Preserve valid
+        // player rebinding data; only a proven invalid preference is cleared.
+        private static void RestoreSavedBindingOverrides(InputActionAsset target)
+        {
+            string saved = PlayerPrefs.GetString(BindingOverridesKey, string.Empty);
+            if (string.IsNullOrEmpty(saved))
+                return;
+            try
+            {
+                string trimmed = saved.Trim();
+                if (trimmed.Length < 2 || trimmed[0] != '{' ||
+                    trimmed[trimmed.Length - 1] != '}')
+                    throw new FormatException("Saved input binding overrides are not JSON.");
+                target.LoadBindingOverridesFromJson(saved);
+            }
+            catch (Exception error)
+            {
+                target.RemoveAllBindingOverrides();
+                PlayerPrefs.DeleteKey(BindingOverridesKey);
+                PlayerPrefs.Save();
+                Debug.LogWarning("Soundwell binding overrides are invalid; restored default controls (" +
+                    error.GetType().Name + ").");
+            }
         }
 
         private static void RequireBinding(InputAction action, string path)
