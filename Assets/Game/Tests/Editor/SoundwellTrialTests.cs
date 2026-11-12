@@ -67,6 +67,7 @@ namespace Rpg.Tests.Editor
             trial.ReadInput = false;
             var leader = party.Leader.GetComponent<Rigidbody2D>();
             MoveTestLeader(leader, new Vector2(-0.55f, 0f));
+            VerifyBattleCameraKeepsBothExitsVisible(leader);
             Assert.That(trial.CanEngageBeast, Is.True);
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.DirectCombatStarted, Is.True);
@@ -261,6 +262,55 @@ namespace Rpg.Tests.Editor
                 trial.DirectCombatComplete, Is.False);
 
             Debug.Log("RPG_SOUNDWELL_BELL_ONLY_RESCUE_VALIDATED");
+        }
+
+        // M3/M8: exercise the *live battle camera* through the existing ORK
+        // Attack path, not a synthetic scene or a second camera controller.
+        // Cover both extreme player positions and narrow viewports without
+        // changing the player physics or committing a viewport preference.
+        private static void VerifyBattleCameraKeepsBothExitsVisible(Rigidbody2D leader)
+        {
+            var rig = Object.FindFirstObjectByType<SoundwellCameraRig>();
+            Assert.That(rig, Is.Not.Null, "Live Soundwell requires the one saved Cinemachine rig.");
+            Assert.That(rig.VirtualCamera, Is.Not.Null);
+            Assert.That(rig.FramingTarget, Is.Not.Null);
+            var camera = rig.GetComponent<Camera>();
+            Assert.That(camera, Is.Not.Null);
+            Assert.That(camera.orthographic, Is.True);
+
+            Vector2 originalPosition = leader.position;
+            float originalAspect = camera.aspect;
+            try
+            {
+                foreach (float aspect in new[] { 16f / 9f, 4f / 3f, 1f, 3f / 4f })
+                {
+                    camera.aspect = aspect;
+                    foreach (float playerX in new[] { -7f, 7f })
+                    {
+                        MoveTestLeader(leader, new Vector2(playerX, originalPosition.y));
+                        rig.RefreshFraming();
+                        float halfWidth = rig.VirtualCamera.Lens.OrthographicSize * aspect;
+                        float centerX = rig.FramingTarget.position.x;
+                        // Both authored source/retreat ends at +/-8.1 require
+                        // 0.12 world-unit breathing space. Allow half a source
+                        // pixel because the framing target is quantized at 16 PPU.
+                        const float requiredEdge = 8.1f + 0.12f - 1f / 32f;
+                        Assert.That(halfWidth - Mathf.Abs(centerX),
+                            Is.GreaterThanOrEqualTo(requiredEdge),
+                            "Cinemachine may follow, but cannot crop either Soundwell exit at aspect " + aspect);
+                        Assert.That(centerX * SoundwellCameraRig.PixelsPerUnit,
+                            Is.EqualTo(Mathf.Round(centerX * SoundwellCameraRig.PixelsPerUnit))
+                                .Within(0.001f),
+                            "The live framing target must stay on the pixel grid.");
+                    }
+                }
+            }
+            finally
+            {
+                camera.aspect = originalAspect;
+                MoveTestLeader(leader, originalPosition);
+                rig.RefreshFraming();
+            }
         }
 
         private static void MoveTestLeader(Rigidbody2D body, Vector2 position)
