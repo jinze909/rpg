@@ -548,7 +548,20 @@ namespace Rpg.Soundwell
             {
                 var renderer = actors[index].GetComponent<SpriteRenderer>();
                 if (renderer != null)
+                {
                     renderer.sprite = index == 2 ? hoodGuardSprite : guardSprite;
+                    // The authored shield occupies the LEFT pixel columns.
+                    // Face that shield toward the real ORK beast instead of
+                    // retaining an unrelated exploration-walk direction.
+                    // This is presentation only: ORK still owns defense.
+                    if (Beast != null && Beast.GameObject != null)
+                    {
+                        float towardThreat = Beast.GameObject.transform.position.x -
+                            actors[index].transform.position.x;
+                        if (Mathf.Abs(towardThreat) > 0.01f)
+                            renderer.flipX = towardThreat > 0f;
+                    }
+                }
             }
         }
 

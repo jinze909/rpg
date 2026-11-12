@@ -723,6 +723,16 @@ namespace Rpg.Tests.Editor
             Assert.That(guardPose, Is.Not.Null);
             Assert.That(guardPose, Is.Not.SameAs(idleBeforeGuard));
             Assert.That(guardPose.name, Does.Contain("guard shield"));
+            // The shield is drawn on the left edge of its 16px sprite.
+            // During the REAL accepted ORK guard action it must face the
+            // living beast, regardless of the follower's last walk heading.
+            Assert.That(party.Beast.GameObject, Is.Not.Null);
+            float guardThreatX = party.Beast.GameObject.transform.position.x -
+                party.Actors[guardIndex].transform.position.x;
+            Assert.That(Mathf.Abs(guardThreatX), Is.GreaterThan(0.01f),
+                "Guard facing requires a non-overlapping live threat and defender.");
+            Assert.That(defenderVisual.flipX, Is.EqualTo(guardThreatX > 0f),
+                "The guard shield must face the real ORK enemy, not an earlier walk direction.");
 
             choiceDeadline = Time.realtimeSinceStartup + 6f;
             while ((party.ReadyBaseAttackerIndex < 0 ||
