@@ -698,6 +698,17 @@ namespace Rpg.Tests.Editor
                 yield return null;
             int guardIndex = party.ChoosingRescuerIndex;
             Assert.That(guardIndex, Is.InRange(1, 2));
+            // After the real ORK gate interaction spends the leader's turn,
+            // the visible world marker must follow the *new* chooser rather
+            // than continuing to identify the prior leader at the latch.
+            yield return null;
+            Assert.That(turnCue.enabled, Is.True,
+                "A guard-only turn still needs a visible active-rescuer marker.");
+            Assert.That(turnCue.transform.position.x,
+                Is.EqualTo(party.Actors[guardIndex].transform.position.x).Within(0.01f));
+            Assert.That(turnCue.transform.position.y,
+                Is.EqualTo(party.Actors[guardIndex].transform.position.y + 1.12f).Within(0.01f),
+                "The marker must follow the actual ORK guard chooser.");
             Assert.That(guardAction.interactable, Is.True);
             Assert.That(gateAction.interactable, Is.False,
                 "The latch is already queued or open and cannot consume a second turn.");
@@ -720,6 +731,17 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(party.ReadyBaseAttackerIndex, Is.EqualTo(3 - guardIndex),
                 "Opening, guarding and attacking must spend three distinct ORK turns.");
+            // A completed Guard must also transfer the HUD/world cue to the
+            // remaining live ORK attacker, not leave it above the defender.
+            yield return null;
+            int finishingAttacker = party.ReadyBaseAttackerIndex;
+            Assert.That(finishingAttacker, Is.EqualTo(3 - guardIndex));
+            Assert.That(turnCue.enabled, Is.True);
+            Assert.That(turnCue.transform.position.x,
+                Is.EqualTo(party.Actors[finishingAttacker].transform.position.x).Within(0.01f));
+            Assert.That(turnCue.transform.position.y,
+                Is.EqualTo(party.Actors[finishingAttacker].transform.position.y + 1.12f).Within(0.01f),
+                "The turn marker must switch after an ORK-accepted Guard.");
             // Turn progression above demonstrates ORK accepted the command;
             // the shield captured on click does not invent a gameplay status.
             Assert.That(guardPose.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
