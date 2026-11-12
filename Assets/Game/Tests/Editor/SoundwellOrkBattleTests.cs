@@ -779,6 +779,15 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(battleHud.activeInHierarchy, Is.False,
                 "The battle-only HUD must disappear after ORK ends the encounter.");
+            // The real attack was submitted through a focused UGUI button.
+            // When that button is hidden on victory, no stale battle-only
+            // selection may capture the next gamepad/keyboard Submit.
+            GameObject victoryFocus = EventSystem.current.currentSelectedGameObject;
+            Assert.That(victoryFocus == null || victoryFocus.activeInHierarchy, Is.True,
+                "ORK victory must not leave EventSystem focused on a hidden button.");
+            Assert.That(victoryFocus, Is.Not.SameAs(attackButton.gameObject));
+            Assert.That(victoryFocus, Is.Not.SameAs(guardAction.gameObject));
+            Assert.That(victoryFocus, Is.Not.SameAs(gateAction.gameObject));
             Assert.That(targetCue.enabled, Is.False,
                 "The target cue must vanish on real ORK victory, not linger over the rescue route.");
             Assert.That(turnCue.enabled, Is.False,

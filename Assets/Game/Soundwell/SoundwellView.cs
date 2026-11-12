@@ -538,8 +538,20 @@ namespace Rpg.Soundwell
             actionEventSystem.sendNavigationEvents = active || actionMenuOpen;
             if (active)
                 actionEventSystem.SetSelectedGameObject(backButton.gameObject);
-            else if (actionEventSystem.currentSelectedGameObject == backButton.gameObject)
-                actionEventSystem.SetSelectedGameObject(null);
+            else
+            {
+                // Combat buttons just became inactive. The EventSystem can
+                // retain a selected hidden attack/guard/gate object after ORK
+                // victory, stranding the next navigation/Submit handoff.
+                // Keep any unrelated, still-active UI selection intact.
+                GameObject selected = actionEventSystem.currentSelectedGameObject;
+                if (selected == backButton.gameObject ||
+                    selected == attackButton.gameObject ||
+                    selected == guardButton.gameObject ||
+                    selected == openGateButton.gameObject ||
+                    (selected != null && !selected.activeInHierarchy))
+                    actionEventSystem.SetSelectedGameObject(null);
+            }
         }
 
         // The input comes from ORK's live action chooser, not a local timer or
