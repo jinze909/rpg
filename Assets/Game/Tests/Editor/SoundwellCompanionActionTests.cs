@@ -132,6 +132,11 @@ namespace Rpg.Tests.Editor
                 "Guard must not be offered to a non-choosing ORK rescuer.");
             Assert.That(party.CanOperateGate(offTurnRescuer, _ => true), Is.False,
                 "Gate must not be offered to a non-choosing ORK rescuer.");
+            Assert.That(party.TryOperateGate(_ => true, null), Is.False,
+                "A missing gate callback must not enqueue an ORK action or consume the turn.");
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(choosing));
+            Assert.That(party.ReadyBaseAttackerIndex, Is.EqualTo(choosing),
+                "Rejecting the invalid gate must leave the real ORK primary action available.");
             var memberField = typeof(SoundwellOrkParty).GetField("members", flags);
             Assert.That(memberField, Is.Not.Null);
             var memberRoster = (IList)memberField.GetValue(party);

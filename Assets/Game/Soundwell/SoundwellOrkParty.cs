@@ -778,6 +778,10 @@ namespace Rpg.Soundwell
 
         public bool TryOperateGate(Func<Combatant, bool> canReach, Action openGate)
         {
+            // A missing scene latch callback must never queue a no-op ORK
+            // action that spends a real rescuer turn without opening the gate.
+            if (openGate == null)
+                return false;
             int index = ChoosingRescuerIndex;
             if (!CanOperateGate(index, canReach))
                 return false;
