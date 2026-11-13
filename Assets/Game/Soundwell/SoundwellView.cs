@@ -716,9 +716,7 @@ namespace Rpg.Soundwell
             if (movePreviewOpen)
             {
                 movePreviewMarker.enabled = true;
-                movePreviewMarker.transform.position =
-                    actor.position + (Vector3)(MoveDirections[movePreviewIndex] *
-                        SoundwellOrkParty.BattleStepDistance);
+                UpdateBattleMovePreviewMarker();
                 confirmMoveButton.interactable = moveLegal[movePreviewIndex];
             }
         }
@@ -758,11 +756,28 @@ namespace Rpg.Soundwell
                 return;
             movePreviewIndex = index;
             movePreviewMarker.enabled = true;
-            movePreviewMarker.transform.position =
-                movePreviewTransform.position + (Vector3)(MoveDirections[index] *
-                    SoundwellOrkParty.BattleStepDistance);
+            UpdateBattleMovePreviewMarker();
             confirmMoveButton.interactable = true;
             actionEventSystem.SetSelectedGameObject(confirmMoveButton.gameObject);
+        }
+
+        private void UpdateBattleMovePreviewMarker()
+        {
+            // A destination arrow alone conceals which of the three distinct
+            // ORK rescuers will move. Preview the actual current 16px sprite
+            // at the candidate position without moving its physics/ORK actor.
+            if (movePreviewTransform == null || movePreviewIndex < 0 ||
+                movePreviewIndex >= MoveDirections.Length)
+                return;
+            SpriteRenderer source = movePreviewActor == 0
+                ? leaderVisualRenderer : movePreviewTransform.GetComponent<SpriteRenderer>();
+            movePreviewMarker.sprite = source != null && source.sprite != null
+                ? source.sprite : activeRescuerPixelSprite;
+            Vector2 direction = MoveDirections[movePreviewIndex];
+            movePreviewMarker.flipX = Mathf.Abs(direction.x) > 0.01f
+                ? direction.x < 0f : source != null && source.flipX;
+            movePreviewMarker.transform.position = movePreviewTransform.position +
+                (Vector3)(direction * SoundwellOrkParty.BattleStepDistance);
         }
 
         private void CommitBattleMovePreview()
