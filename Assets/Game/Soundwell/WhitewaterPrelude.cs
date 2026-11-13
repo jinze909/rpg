@@ -18,6 +18,8 @@ namespace Rpg.Soundwell
         public const string HanQiaoRescueKey = "rpg.return.s00.hanqiao-rescue";
         public const string EvacueeEscortedKey = "rpg.return.s00.last-evacuee-escorted";
         public const string SpareRopeCallKey = "rpg.return.s00.spare-rope-call";
+        public const string BridgePostKey = "rpg.return.s00.bridge-post";
+        private const float BridgePostX = 105f;
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
@@ -35,6 +37,7 @@ namespace Rpg.Soundwell
         private RectTransform evacuee;
         private RectTransform evacueeSafeLine;
         private RectTransform spareRope;
+        private RectTransform bridgePost;
         private AudioSource bellAudio;
         private AudioClip firstBellClip;
         private Image cable;
@@ -53,8 +56,8 @@ namespace Rpg.Soundwell
         // 4: workshop promise choice; 5: its response; 6: man overboard;
         // 7: rescue station; 8: Han Qiao boards the last boat;
         // 9: reach the stranded evacuee; 10: escort west; 11: confirm safe crossing;
-        // 12: voluntary rope call and first-bell cue. The defence is still pending.
-        // The ORK defence encounter and fixed third-bell cable break are still pending.
+        // 12: voluntary rope call, first bell and physical guard-post approach;
+        // 13: reached bridge post. ORK defence and the fixed third-bell break remain pending.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
@@ -71,6 +74,9 @@ namespace Rpg.Soundwell
         public bool CanDeliverEvacuee => phase == 10 && evacuee != null &&
             walker.x <= EvacueeSafeX &&
             evacuee.anchoredPosition.x <= EvacueeSafeX + 30f &&
+            Mathf.Abs(walker.y) <= RepairReach;
+        public bool CanTakeBridgePost => phase == 12 && bridgePost != null &&
+            Mathf.Abs(walker.x - BridgePostX) <= RepairReach &&
             Mathf.Abs(walker.y) <= RepairReach;
 
         private static float RescueStationX(int choice) =>
@@ -156,6 +162,10 @@ namespace Rpg.Soundwell
             spareRope = Panel(canvas.transform, "PLACEHOLDER S00 spare rope at clamp",
                 new Vector2(ClampX + 30f, 51f), new Vector2(32f, 11f), Brass).rectTransform;
             spareRope.gameObject.SetActive(false);
+            bridgePost = Panel(canvas.transform, "S00 bridge defence post",
+                new Vector2(BridgePostX, 12f), new Vector2(35f, 40f),
+                new Color(0.87f, 0.67f, 0.29f)).rectTransform;
+            bridgePost.gameObject.SetActive(false);
             marker = Panel(canvas.transform, "PLACEHOLDER player",
                 new Vector2(walker.x, 12f), new Vector2(22f, 31f),
                 new Color(0.64f, 0.85f, 0.93f)).rectTransform;
@@ -453,6 +463,7 @@ namespace Rpg.Soundwell
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(SpareRopeCallKey, 1);
             spareRope.gameObject.SetActive(true);
+            bridgePost.gameObject.SetActive(true);
             cable.color = new Color(0.78f, 0.43f, 0.28f);
             firstBellClip = CreateFirstBellCue();
             bellAudio.clip = firstBellClip;
@@ -461,8 +472,29 @@ namespace Rpg.Soundwell
                 "You shout, 'Who has spare rope?' A coil reaches Shen Li at the clamp. The first bell sounds; she turns toward the strained cable.",
                 "你喊：“谁带了多余的绳子？”一卷绳索送到缆桩边的沈砾手里。第一声号钟响起，她转头望向吃紧的缆索。");
             instructions.text = Copy(
-                "The first bell warns of danger. The ORK defence and fixed third-bell break are not yet playable. Return to entry.",
-                "第一声钟是警讯。ORK 防守战与第三声钟后的既定断缆仍待实现；可返回入口。");
+                "Reach the amber bridge post near Shen Li; press E / Pad A to take position. ORK defence remains pending.",
+                "走到沈砾附近金色桥头守位，按 E／手柄 A 就位。ORK 防守战仍待实现。");
+            SoundwellInputAdapter.SetGameplayContext();
+        }
+
+        private void TakeBridgePost()
+        {
+            // Reachability uses the same movement and physical proximity as
+            // earlier rescues. A dialogue click or the first bell alone cannot
+            // mark the player as posted or pretend an ORK battle was won.
+            if (!CanTakeBridgePost)
+                return;
+            phase = 13;
+            bridgePost.GetComponent<Image>().color = new Color(0.42f, 0.82f, 0.66f);
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(BridgePostKey, 1);
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                "You take the bridge post beside Shen Li. The evacuee is safe; you face the approaching troops together.",
+                "你在沈砾身旁站定桥头守位。伤者已撤离，你们一起望向逼近的敌军。");
+            instructions.text = Copy(
+                "Bridge post secured. The ORK defence and fixed second/third bell sequence remain unimplemented. Return to entry.",
+                "已到桥头守位。ORK 防守战及既定的第二、第三声钟仍待实现；可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
@@ -537,7 +569,7 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (phase != 1 && phase != 7 && phase != 9 && phase != 10)
+            if (phase != 1 && phase != 7 && phase != 9 && phase != 10 && phase != 12)
                 return;
             SoundwellControlFrame frame = SoundwellInputAdapter.ReadGameplay();
             // In world-movement context UGUI Submit/Cancel is not active.
@@ -552,6 +584,12 @@ namespace Rpg.Soundwell
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
             marker.anchoredPosition = new Vector2(walker.x, 12f + walker.y);
+            if (phase == 12)
+            {
+                if (frame.Ring)
+                    TakeBridgePost();
+                return;
+            }
             if (phase == 7)
             {
                 if (frame.Ring && CanRescue)

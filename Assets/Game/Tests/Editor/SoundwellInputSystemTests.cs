@@ -788,6 +788,11 @@ namespace Rpg.Tests.Editor
                 Assert.That(bellAudio.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
                 var rope = prelude.transform.Find(
                     "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
+                var bridgePost = prelude.transform.Find(
+                    "S00 Whitewater playable canvas/S00 bridge defence post");
+                Assert.That(bridgePost, Is.Not.Null);
+                Assert.That(bridgePost.gameObject.activeInHierarchy, Is.False,
+                    "No battle position may be awarded before the first warning bell.");
                 Assert.That(rope, Is.Not.Null);
                 Assert.That(rope.gameObject.activeInHierarchy, Is.False,
                     "No rope response before the player reaches the safe line.");
@@ -813,7 +818,39 @@ namespace Rpg.Tests.Editor
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
                         ? "第一声号钟" : "first bell"));
+                Assert.That(bridgePost.gameObject.activeInHierarchy, Is.True);
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                    "The first bell returns the player to movement for the bridge post.");
+                Assert.That(prelude.CanTakeBridgePost, Is.False,
+                    "The player is still west of the post after the real evacuation.");
+                float oldWalkerX = prelude.WalkerPosition.x;
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(12),
+                    "No automatic defence credit may be granted while waiting.");
+                input.Press(walker.dKey);
+                float postDeadline = Time.realtimeSinceStartup + 6f;
+                while (!prelude.CanTakeBridgePost && Time.realtimeSinceStartup < postDeadline)
+                    yield return null;
+                input.Release(walker.dKey);
+                yield return null;
+                Assert.That(prelude.CanTakeBridgePost, Is.True,
+                    "The player must physically reach the amber bridge post.");
+                Assert.That(prelude.WalkerPosition.x, Is.GreaterThan(oldWalkerX + 150f));
+                Assert.That(prelude.Phase, Is.EqualTo(12),
+                    "Walking into range alone cannot grant the guard-post interaction.");
+                input.Press(walker.eKey);
+                yield return null;
+                input.Release(walker.eKey);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(13));
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                Assert.That(bridgePost.GetComponent<Image>().color.g, Is.GreaterThan(0.8f),
+                    "The held post must visibly change after the accepted interaction.");
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "桥头守位" : "bridge post"));
+                Assert.That(bellAudio.clip.name, Does.Contain("first warning bell"),
+                    "Reaching the post must not invent the pending second/third-bell events.");
 
                 var backToEntry = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 return to Bootstrap");
