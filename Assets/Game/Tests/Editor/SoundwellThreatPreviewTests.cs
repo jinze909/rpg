@@ -611,6 +611,24 @@ namespace Rpg.Tests.Editor
             Assert.That(eventSystem.currentSelectedGameObject,
                 Is.SameAs(battleAttackButton.gameObject),
                 "Automatic preview cancellation must focus the remaining legal action, not disabled Move.");
+            // ORK can revoke the chooser between its step query and HUD
+            // presentation. A direction flag alone must not expose a dead
+            // Move action when the actor is absent or its index is stale.
+            setBattleMoveChoices.Invoke(trialView, new object[]
+                { 1, null, false, false, false, true });
+            Assert.That(battleMoveButton.interactable, Is.False,
+                "A missing ORK actor cannot offer a clickable movement preview.");
+            battleMoveButton.onClick.Invoke();
+            Assert.That(previewOpen.GetValue(trialView), Is.EqualTo(false),
+                "Clicking a stale Move target must never create a ghost preview.");
+            setBattleMoveChoices.Invoke(trialView, new object[]
+                { -1, trial.PlayerActor, false, false, false, true });
+            Assert.That(battleMoveButton.interactable, Is.False,
+                "A missing ORK chooser must not expose Move even with a Transform.");
+            setBattleMoveChoices.Invoke(trialView, new object[]
+                { 3, trial.PlayerActor, false, false, false, true });
+            Assert.That(battleMoveButton.interactable, Is.False,
+                "Out-of-range rescuer indices must not offer an invalid Move action.");
             setBattleMode.Invoke(trialView, new object[] { false });
             Assert.That(eventSystem.currentSelectedGameObject, Is.Null,
                 "The temporary battle-only UGUI state must release focus on exit.");
