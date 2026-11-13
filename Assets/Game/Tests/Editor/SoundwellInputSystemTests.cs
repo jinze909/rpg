@@ -789,7 +789,7 @@ namespace Rpg.Tests.Editor
                 var rope = prelude.transform.Find(
                     "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
                 var bridgePost = prelude.transform.Find(
-                    "S00 Whitewater playable canvas/S00 bridge defence post");
+                    "S00 Whitewater playable canvas/S00 bridge defence post") as RectTransform;
                 Assert.That(bridgePost, Is.Not.Null);
                 Assert.That(bridgePost.gameObject.activeInHierarchy, Is.False,
                     "No battle position may be awarded before the first warning bell.");
