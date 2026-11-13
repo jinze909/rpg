@@ -124,6 +124,14 @@ namespace Rpg.Tests.Editor
                 "Live ORK must offer an actual player turn.");
             int choosing = party.ChoosingRescuerIndex;
             Assert.That(choosing, Is.InRange(0, 2));
+            // A delayed UGUI refresh can still ask about yesterday's ORK
+            // chooser after a different rescuer receives the live turn.
+            // Never offer Guard or Gate to that stale actor index.
+            int offTurnRescuer = (choosing + 1) % party.Members.Count;
+            Assert.That(party.CanGuard(offTurnRescuer), Is.False,
+                "Guard must not be offered to a non-choosing ORK rescuer.");
+            Assert.That(party.CanOperateGate(offTurnRescuer, _ => true), Is.False,
+                "Gate must not be offered to a non-choosing ORK rescuer.");
             var memberField = typeof(SoundwellOrkParty).GetField("members", flags);
             Assert.That(memberField, Is.Not.Null);
             var memberRoster = (IList)memberField.GetValue(party);
