@@ -125,6 +125,11 @@ namespace Rpg.Tests.Editor
                 "Only the actual ringing side stand can divert the beast.");
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.GateOpen, Is.True);
+            yield return null;
+            var escapeAfterGate = GameObject.Find("Soundwell escape status")?.GetComponent<Text>();
+            Assert.That(escapeAfterGate, Is.Not.Null);
+            Assert.That(escapeAfterGate.enabled, Is.True,
+                "Opening the real gate must reveal the live escape-lane warning again.");
 
             MoveTestLeader(body, SoundwellTrial.SideBellStand);
             trial.ApplyInput(Vector2.zero, false, false, false, true);
@@ -203,6 +208,8 @@ namespace Rpg.Tests.Editor
             Assert.That(beastStatus, Is.Not.Null);
             Assert.That(gateStatus, Is.Not.Null);
             Assert.That(escapeStatus, Is.Not.Null);
+            Assert.That(escapeStatus.enabled, Is.False,
+                "A locked gate must not advertise a clear exit before an actual route exists.");
             Assert.That(beastStatus.text, Is.EqualTo("BEAST  /  LISTENING"));
             Assert.That(gateStatus.text, Is.EqualTo("GATE  /  LOCKED"));
             Assert.That(escapeStatus.text, Is.EqualTo("ESCAPE LANE  /  CLEAR"));
