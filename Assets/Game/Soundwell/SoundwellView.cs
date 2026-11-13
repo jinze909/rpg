@@ -666,7 +666,10 @@ namespace Rpg.Soundwell
             if (activeRescuerMarker.enabled)
                 activeRescuerMarker.transform.position =
                     activeActor.position + new Vector3(0f, 1.12f, 0f);
-            attackButtonLabel.text = attackButton.interactable
+            // A disabled Attack is not a pending ORK chooser: Guard, Gate
+            // or Move may still be available to this real rescuer. Reserve
+            // the waiting caption for a genuinely unresolved ORK turn.
+            attackButtonLabel.text = liveChooser
                 ? SoundwellUiLocalization.Get("battle.rescuer") + " " +
                     (activeRescuerIndex + 1) + "  >  " +
                     SoundwellUiLocalization.Get("battle.beast")
