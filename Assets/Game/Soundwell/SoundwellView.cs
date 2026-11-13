@@ -1245,32 +1245,32 @@ namespace Rpg.Soundwell
                 prompt = SoundwellUiLocalization.Get(clawsObserved
                     ? "hint.claw_observed" : "hint.claw_inspect");
             else if (atUpperPlank)
-                prompt = canTieEscortLine ? "[G / RB] Tie the recovered cord to guide the surveyor. Rescue not complete."
-                    : canEscortSurveyor ? "[G / RB] Lead the surveyor through the gate. Rescue not complete."
+                prompt = canTieEscortLine ? SoundwellUiLocalization.Get("hint.plank_tie")
+                    : canEscortSurveyor ? SoundwellUiLocalization.Get("hint.plank_lead")
                     : surveyorEscorting ? SoundwellUiLocalization.Get("hint.escort_gate_first")
-                    : plankSecured ? "Upper plank braced; surveyor can stand on it. Rescue not complete."
-                    : canSecurePlank ? "[G / RB] Brace the upper plank for the surveyor."
-                    : "Ask the surveyor which plank is safe before bracing anything.";
+                    : plankSecured ? SoundwellUiLocalization.Get("hint.plank_braced")
+                    : canSecurePlank ? SoundwellUiLocalization.Get("hint.plank_brace")
+                    : SoundwellUiLocalization.Get("hint.plank_ask_first");
             else if (atSurveyor)
                 prompt = hasSurveyorClue
-                    ? "Upper plank marked. The surveyor is still trapped; brace it before he can cross."
-                    : "[G / RB] Ask the surveyor which plank can carry someone.";
+                    ? SoundwellUiLocalization.Get("hint.surveyor_marked")
+                    : SoundwellUiLocalization.Get("hint.surveyor_ask");
             else if (atGatePanel)
-                prompt = surveyorEscorting ? "Escort the surveyor through the open gate to RETREAT."
-                    : gateOpen ? "Gate open: cross into the soundwell inner room."
-                    : canOpenGate ? "[G / RB] Open the gate while the beast follows the side bell."
+                prompt = surveyorEscorting ? SoundwellUiLocalization.Get("hint.gate_escort")
+                    : gateOpen ? SoundwellUiLocalization.Get("hint.gate_open")
+                    : canOpenGate ? SoundwellUiLocalization.Get("hint.gate_lure_open")
                     : clawsObserved
-                        ? "Move the bell to the SIDE STAND and draw the beast away to open this gate."
-                        : "The beast guards this gate. Look for evidence of what draws its attention.";
+                        ? SoundwellUiLocalization.Get("hint.gate_claw_route")
+                        : SoundwellUiLocalization.Get("hint.gate_search");
             else if (atBell)
-                prompt = wrapped ? "[E / Pad A] Try the wrapped bell   [Q / Pad X] Remove the cloth"
-                    : "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth   [F / LB] Lift";
+                prompt = wrapped ? SoundwellUiLocalization.Get("hint.bell_wrapped")
+                    : SoundwellUiLocalization.Get("hint.bell_ready");
             else if (ringing || wrapped)
-                prompt = atSafePoint ? "[R / Pad Y] Reset the experiment"
-                    : surveyorEscorting ? "Lead the surveyor to RETREAT. Do not leave him behind."
-                    : "Return to RETREAT to reset the experiment.";
+                prompt = atSafePoint ? SoundwellUiLocalization.Get("hint.reset_here")
+                    : surveyorEscorting ? SoundwellUiLocalization.Get("hint.escort_to_retreat")
+                    : SoundwellUiLocalization.Get("hint.return_to_reset");
             else
-                prompt = "Walk to the copper bell. Watch the beast beyond the grate.";
+                prompt = SoundwellUiLocalization.Get("hint.approach_bell");
 
             if (hint.text != prompt)
                 hint.text = prompt;

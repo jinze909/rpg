@@ -434,6 +434,78 @@ MonoBehaviour:
     m_Localized: "路线已纠正：测路人亲手拆掉了错误的方向标记。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267381
+    m_Localized: "[G / RB] 系好找回的绳索引导测路人。救援尚未完成。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267382
+    m_Localized: "[G / RB] 带测路人穿过闸门。救援尚未完成。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267383
+    m_Localized: "上层踏板已加固，测路人可以踏上去。救援尚未完成。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267384
+    m_Localized: "[G / RB] 为测路人加固上层踏板。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267385
+    m_Localized: "先问测路人哪块踏板安全，再动手加固。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267386
+    m_Localized: "上层踏板已经标明，但测路人仍被困住；先加固才能通过。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267387
+    m_Localized: "[G / RB] 问测路人哪块踏板能够承重。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267388
+    m_Localized: "带测路人穿过已开启的闸门，前往撤退点。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267389
+    m_Localized: "闸门已开：进入声井内室。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267390
+    m_Localized: "野兽追着侧铃时，[G / RB] 开启闸门。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267391
+    m_Localized: "将铜铃搬到侧边铃架，引开野兽后再开启闸门。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267392
+    m_Localized: "野兽守着这道闸门。找找能引起它注意的线索。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267393
+    m_Localized: "[E / 手柄 A] 试着摇包好的铜铃   [Q / 手柄 X] 解开布料"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267394
+    m_Localized: "[E / 手柄 A] 摇铃   [Q / 手柄 X] 用湿布包铃   [F / LB] 拿起"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267395
+    m_Localized: "[R / 手柄 Y] 重置试验"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267396
+    m_Localized: "带测路人走到撤退点，别把他落在身后。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267397
+    m_Localized: "回到撤退点才能重置试验。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267398
+    m_Localized: "走近铜铃，观察铁栅另一侧的野兽。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
