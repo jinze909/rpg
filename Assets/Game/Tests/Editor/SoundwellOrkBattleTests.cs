@@ -1673,7 +1673,19 @@ namespace Rpg.Tests.Editor
             var gate = GameObject.Find("Soundwell Battle Gate button").GetComponent<Button>();
             var guard = GameObject.Find("Soundwell Guard button").GetComponent<Button>();
             var attack = GameObject.Find("Soundwell Attack button").GetComponent<Button>();
+            var gateCue = GameObject.Find("PLACEHOLDER ORK legal gate target")
+                ?.GetComponent<SpriteRenderer>();
+            var gateControl = GameObject.Find("PLACEHOLDER gate control");
+            Assert.That(gateCue, Is.Not.Null);
+            Assert.That(gateControl, Is.Not.Null);
+            Assert.That(gateCue.transform.IsChildOf(gateControl.transform), Is.True,
+                "The legal-interaction cue must remain attached to the physical gate control.");
+            Assert.That(gateCue.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(gateCue.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(gateCue.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(gate.interactable && guard.interactable, Is.True);
+            Assert.That(gateCue.enabled, Is.True,
+                "A live ORK chooser in reach must visibly mark the real gate.");
             (useStep ? guard : gate).onClick.Invoke();
 
             yield return WaitForNextGateComparisonTurn(party, 0);
@@ -1686,6 +1698,8 @@ namespace Rpg.Tests.Editor
                     "A confirmation from the previous chooser cannot move the current one.");
                 Assert.That(gate.interactable, Is.False,
                     "The companion's fixed position cannot reach the closed gate.");
+                Assert.That(gateCue.enabled, Is.False,
+                    "The gate marker must disappear when the current ORK actor is out of reach.");
                 Assert.That(party.CanStep(companion, Vector2.right), Is.True);
                 var move = GameObject.Find("Soundwell Move button").GetComponent<Button>();
                 Assert.That(move.interactable, Is.True);
@@ -1701,6 +1715,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(companion));
                 Assert.That(gate.interactable, Is.True,
                     "The same companion can now use its primary action on the gate.");
+                Assert.That(gateCue.enabled, Is.True,
+                    "After the accepted ORK step, the physical gate must be marked as usable.");
                 SoundwellSmokeHost.Capture(trial, "18-ork-step-companion-gate");
                 gate.onClick.Invoke();
             }
@@ -1711,6 +1727,9 @@ namespace Rpg.Tests.Editor
             }
 
             yield return WaitForNextGateComparisonTurn(party, companion);
+            yield return null; // Publish the resolved gate and live ORK menu.
+            Assert.That(gateCue.enabled, Is.False,
+                "A resolved gate action or an out-of-range chooser must clear its target cue.");
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(3 - companion));
             Assert.That(attack.interactable, Is.True);
             attack.onClick.Invoke();
