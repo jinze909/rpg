@@ -691,6 +691,19 @@ namespace Rpg.Soundwell
             moveButton.interactable = any;
             for (int i = 0; i < moveDirectionButtons.Length; i++)
                 moveDirectionButtons[i].interactable = moveLegal[i];
+            if (movePreviewOpen && actionEventSystem != null)
+            {
+                // Gamepad/keyboard navigation changes the focused direction
+                // before Submit. Show that legal destination immediately,
+                // without spending an ORK step or forcing a Confirm click.
+                GameObject focused = actionEventSystem.currentSelectedGameObject;
+                for (int i = 0; i < moveDirectionButtons.Length; i++)
+                    if (moveLegal[i] && focused == moveDirectionButtons[i].gameObject)
+                    {
+                        movePreviewIndex = i;
+                        break;
+                    }
+            }
             if (movePreviewOpen && (actorIndex != movePreviewActor ||
                 actor == null || !moveLegal[movePreviewIndex]))
                 CloseBattleMovePreview();
