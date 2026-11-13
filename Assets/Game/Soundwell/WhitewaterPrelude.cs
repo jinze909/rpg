@@ -540,8 +540,10 @@ namespace Rpg.Soundwell
                 return;
             phase = 14;
             next.gameObject.SetActive(false);
-            farBankLanternLeft.gameObject.SetActive(false);
-            farBankLanternRight.gameObject.SetActive(false);
+            // The narration says the far-bank lamps disappear one by one.
+            // Make the retreat legible on two visual beats; this is only
+            // presentation, not a new battle timer or quest authority.
+            StartCoroutine(ExtinguishFarBankLamps());
             secondBellClip = CreateSecondBellCue();
             bellAudio.clip = secondBellClip;
             bellAudio.Play();
@@ -555,6 +557,16 @@ namespace Rpg.Soundwell
                 "第二声号钟已响。ORK 防守战与既定的第三声断桥仍属后续可玩段落；可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        private IEnumerator ExtinguishFarBankLamps()
+        {
+            farBankLanternLeft.gameObject.SetActive(false);
+            // ORK can pause scaled time; the historical scene cue must still
+            // finish without waiting for the battle clock.
+            yield return new WaitForSecondsRealtime(0.35f);
+            if (farBankLanternRight != null)
+                farBankLanternRight.gameObject.SetActive(false);
         }
 
         private static AudioClip CreateFirstBellCue() =>

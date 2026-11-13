@@ -951,10 +951,12 @@ namespace Rpg.Tests.Editor
                     "Waiting at the guard post must not silently trigger the second bell.");
                 Assert.That(bellAudio.clip.name, Does.Contain("first warning bell"));
                 watchBank.onClick.Invoke();
-                yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(14));
-                Assert.That(farLamps.All(lamp => !lamp.gameObject.activeInHierarchy), Is.True,
-                    "The second bell must physically extinguish the opposite-bank lamps.");
+                Assert.That(farLamps[0].gameObject.activeInHierarchy, Is.False,
+                    "The first opposite-bank lamp must go dark at the second bell.");
+                Assert.That(farLamps[1].gameObject.activeInHierarchy, Is.True,
+                    "The other lamp must remain visible for a separate retreat beat.");
+                yield return null;
                 Assert.That(bellAudio.clip.name, Does.Contain("second warning bell"),
                     "The second bell must have its own real routed audio clip.");
                 float[] secondBellSamples = new float[bellAudio.clip.samples];
@@ -972,9 +974,11 @@ namespace Rpg.Tests.Editor
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
                         ? "第二声号钟" : "second bell"));
                 watchBank.onClick.Invoke();
-                yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(14),
                     "A stale UGUI Submit must not replay the historical second bell.");
+                yield return new WaitForSecondsRealtime(0.45f);
+                Assert.That(farLamps.All(lamp => !lamp.gameObject.activeInHierarchy), Is.True,
+                    "Both lamps must actually go dark in sequence even if gameplay time is paused.");
 
                 var backToEntry = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 return to Bootstrap");
