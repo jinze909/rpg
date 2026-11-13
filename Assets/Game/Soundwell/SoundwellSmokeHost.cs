@@ -615,14 +615,20 @@ namespace Rpg.Soundwell
                 "the beast turns and advances toward the bell"); wait.MoveNext();)
                 yield return null;
             Require(trial.BeastPosition.y < home.y, "The beast must approach the bell's lane.");
-            for (var wait = Until(() => trial.BeastBlocksEscape,
-                "clear bell draws the beast across the real escape lane"); wait.MoveNext();)
-                yield return null;
-            yield return null;
-            Require(escapeWarning.enabled && ShowsPrompt(trial, "ESCAPE LANE  /  BLOCKED") &&
+            // The real beast must still cross the escape lane during the
+            // audible lure, but an unopened physical gate protects the player:
+            // do not claim an accessible exit is blocked before gate opening.
+            for (var wait = Until(() =>
                 Vector2.Distance(trial.BeastPosition, SoundwellTrial.EscapeLanePosition) <
                     SoundwellTrial.EscapeLaneDangerRadius,
-                "The danger cue must be driven by the beast physically crossing the same lane.");
+                "clear bell draws the real beast across the closed escape lane"); wait.MoveNext();)
+                yield return null;
+            yield return null;
+            Require(!trial.GateOpen && !trial.BeastBlocksEscape &&
+                !escapeWarning.enabled && ShowsPrompt(trial, "ESCAPE LANE  /  CLEAR") &&
+                Vector2.Distance(trial.BeastPosition, SoundwellTrial.EscapeLanePosition) <
+                    SoundwellTrial.EscapeLaneDangerRadius,
+                "The closed gate must suppress the warning, while the real beast still crosses the lane.");
             Vector2 pursued = trial.BeastPosition;
             var clear = Capture(trial, "01-ringing");
 
