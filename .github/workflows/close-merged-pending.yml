@@ -194,6 +194,44 @@ jobs:
           snapshot_deadline=time.monotonic()+540
           # Explicit one-time retirements stay SHA-pinned. Ordinary merged
           # historical heads require their own exact-SHA verify evidence.
+          # The old rescue/guard branches used different ORK UI wiring.
+          # Their accepted behavior now resides in the verified turn/gate/
+          # guard/attack/escort path, including the real Play Mode battle.
+          # Pin the entire touched replacement surface, not just a label.
+          LEGACY_ROLE_BLOBS={
+              "Assets/Game/Editor/SoundwellLocalizationSetup.cs":
+                  "6d2d03d10b56b4d1832efbe977e8f5bc20ee7ce9",
+              "Assets/Game/Resources/Soundwell/Localization/SoundwellUI-Shared.asset":
+                  "7a7441a0981858308e9f610918da8670ace8dab5",
+              "Assets/Game/Resources/Soundwell/Localization/SoundwellUI-en.asset":
+                  "05101562a41e5795ef0ce855e361e2e49ff129d6",
+              "Assets/Game/Resources/Soundwell/Localization/SoundwellUI-zh-Hans.asset":
+                  "93d53e856e2f73ea6d071b6ad9f582fd78b221b3",
+              "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                  "4cab8c26568cb0f426307d272699ffeceea89811",
+              "Assets/Game/Soundwell/SoundwellTrial.cs":
+                  "c47416e6253b3398a70098bce45ab880c6b2269d",
+              "Assets/Game/Soundwell/SoundwellView.cs":
+                  "1f4ebd3db1f26e4eaca7d54230d5297e5cedc424",
+              "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                  "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
+              "Assets/Game/Tests/Editor/SoundwellTrialTests.cs":
+                  "0539f8f8048f623a4d80547b54860ed2dce5bc90",
+              "tools/collect_unity_p0.py":
+                  "3fbd2169d1c1e4c74ae8fd99fc252ba1da0da8a1",
+              "tools/test_collect_unity_p0.py":
+                  "297b81a0c2f7523e680a53efc7a990e0aa7dbb28",
+          }
+          LEGACY_GUARD_M4_M10_BLOBS={
+              "Assets/Game/Editor/SoundwellAnimationSetup.cs":
+                  "2be25f614b88eeec34a0739a2d8c098e235b4895",
+              "Assets/Game/Soundwell/SoundwellMemoryProbe.cs":
+                  "cfca327191f3426894a2a83043e39c66fa7b113a",
+              "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                  "4cab8c26568cb0f426307d272699ffeceea89811",
+              "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                  "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
+          }
           ARCHIVED={
               "codex/pending/story-003-battle-victory-v2": {
                   "head":"dcd7351b3461c78aa8957c2c9c19cd017c50ebd2",
@@ -424,6 +462,56 @@ jobs:
                   "workflow_only":True,
                   "run":43523760012,
                   "reason":"merged cleanup-only commit passed its exact-SHA branch pruning run",
+              },
+              # Verified replacement keeps the three *different* ORK
+              # actions (latch/gate, accepted Guard, and target attack),
+              # physical rescue/escort, HUD chooser focus, localized labels,
+              # and the full live battle tests; legacy button plumbing was
+              # intentionally replaced by that newer verified implementation.
+              "codex/pending/story-003-guard-gate-turn-roles": {
+                  "head":"4f3c15e0bf7253ae2423a00b3c6a8eaf3757252f",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"real ORK gate/guard/attack roles and gamepad/UGUI chooser validated in replacement",
+                  "blobs":LEGACY_ROLE_BLOBS,
+              },
+              "codex/pending/story-003-rescue-turn-and-route-validation": {
+                  "head":"6d7c0a8373ad1a4e79b24cd5077fcf5578c079a2",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"failed old route assertion superseded by live physical gate, combat, escort and reward tests",
+                  "blobs":LEGACY_ROLE_BLOBS,
+              },
+              "codex/pending/story-003-turn-roles-after-m6": {
+                  "head":"74cede75da5f852b5de94f8f30c11d861f968821",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"early turn role buttons replaced by tested ORK action choices and physical gate reach",
+                  "blobs":LEGACY_ROLE_BLOBS,
+              },
+              "codex/pending/story-003-verified-rescue-roles": {
+                  "head":"123b99d7a97590250fe08fd7169fdeea830cf6ae",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"old failing rescue-role test superseded by successful live gate, guard, attack and escort",
+                  "blobs":LEGACY_ROLE_BLOBS,
+              },
+              "codex/pending/story003-guard-m4-m10-integrated-nov12": {
+                  "head":"0522622b6ad901dec69a31b357795e9ffb7d2bb6",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"guard sprite/animation and memory probe retained; old ORK guard event test replaced by accepted shield turn",
+                  "blobs":LEGACY_GUARD_M4_M10_BLOBS,
               },
           }
           def verified_archived_proof(name,sha):
