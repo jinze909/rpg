@@ -669,15 +669,19 @@ namespace Rpg.Soundwell
             moveLegal[1] = east;
             moveLegal[2] = south;
             moveLegal[3] = west;
+            // Publish the new move eligibility *before* closing a preview
+            // invalidated by a new ORK chooser or an obstructed destination.
+            // CloseBattleMovePreview restores EventSystem focus; using the
+            // old button state can focus Move after it just became disabled.
+            bool any = north || east || south || west;
+            moveButton.interactable = battleMode && any;
+            for (int i = 0; i < moveDirectionButtons.Length; i++)
+                moveDirectionButtons[i].interactable = moveLegal[i];
             if (movePreviewOpen && (actorIndex != movePreviewActor ||
                 actor == null || !moveLegal[movePreviewIndex]))
                 CloseBattleMovePreview();
             movePreviewActor = actorIndex;
             movePreviewTransform = actor;
-            bool any = north || east || south || west;
-            moveButton.interactable = battleMode && any;
-            for (int i = 0; i < moveDirectionButtons.Length; i++)
-                moveDirectionButtons[i].interactable = moveLegal[i];
             if (movePreviewOpen)
             {
                 movePreviewMarker.enabled = true;
