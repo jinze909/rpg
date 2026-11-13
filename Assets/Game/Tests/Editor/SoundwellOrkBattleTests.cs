@@ -1391,6 +1391,20 @@ namespace Rpg.Tests.Editor
             Assert.That(back.gameObject.activeInHierarchy, Is.False,
                 "Retreat is reached by Cancel after the destination preview closes.");
             Assert.That(moveButton.gameObject.activeInHierarchy, Is.False);
+            // Focus navigation alone previews a different legal destination.
+            // The first direction is preselected by the modal, but the
+            // player must see the westward landing point before pressing Submit.
+            events.SetSelectedGameObject(westButton.gameObject);
+            yield return null;
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(westButton.gameObject));
+            Assert.That(stepPreview.enabled, Is.True);
+            Assert.That((Vector2)stepPreview.transform.position,
+                Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance),
+                "Gamepad focus must preview a valid step without a first Submit.");
+            Assert.That((Vector2)party.Actors[movingRescuer].transform.position, Is.EqualTo(beforeStep),
+                "Inspecting a direction cannot move the live ORK combatant.");
+            Assert.That(party.BuildBattleReadout(), Does.Contain(stepLabel + " 1/1"),
+                "Focus-only movement preview cannot consume the ORK movement budget.");
             westButton.onClick.Invoke();
             Assert.That(stepPreview.enabled, Is.True);
             Assert.That((Vector2)stepPreview.transform.position,
