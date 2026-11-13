@@ -52,7 +52,7 @@ namespace Rpg.Soundwell
         private Func<Combatant, bool> canReachBattleGate;
         // ORK's BattleComponent is a one-encounter runtime owner; a fresh scene
         // is required to re-register a defeated combatant and start a new battle.
-        private bool combatStartedInThisScene;
+        protected bool combatStartedInThisScene;
         [NonSerialized] private bool initialized;
         private float nextEventSystemAuditAt;
 
