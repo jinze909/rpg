@@ -674,7 +674,12 @@ namespace Rpg.Soundwell
             // CloseBattleMovePreview restores EventSystem focus; using the
             // old button state can focus Move after it just became disabled.
             bool any = north || east || south || west;
-            moveButton.interactable = battleMode && any;
+            // A stale ORK chooser can publish directional eligibility after
+            // its actor was destroyed or before the next valid rescuer exists.
+            // Never advertise an actionable Move button without a live
+            // three-rescuer actor to preview and submit that step.
+            bool hasLiveChooser = actor != null && actorIndex >= 0 && actorIndex < 3;
+            moveButton.interactable = battleMode && hasLiveChooser && any;
             for (int i = 0; i < moveDirectionButtons.Length; i++)
                 moveDirectionButtons[i].interactable = moveLegal[i];
             if (movePreviewOpen && (actorIndex != movePreviewActor ||
