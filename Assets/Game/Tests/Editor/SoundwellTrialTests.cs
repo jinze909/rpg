@@ -672,26 +672,37 @@ namespace Rpg.Tests.Editor
             float originalAspect = camera.aspect;
             try
             {
-                foreach (float aspect in new[] { 16f / 9f, 4f / 3f, 1f, 3f / 4f })
+                // 21:9 monitors and portrait windows must preserve the same
+                // authored exits and pixel framing as the usual desktop ratios.
+                foreach (float aspect in new[] { 21f / 9f, 16f / 9f, 4f / 3f, 1f, 3f / 4f, 9f / 16f })
                 {
                     camera.aspect = aspect;
                     foreach (float playerX in new[] { -7f, 7f })
+                    foreach (float playerY in new[] { -3f, 3f })
                     {
-                        MoveTestLeader(leader, new Vector2(playerX, originalPosition.y));
+                        MoveTestLeader(leader, new Vector2(playerX, playerY));
                         rig.RefreshFraming();
-                        float halfWidth = rig.VirtualCamera.Lens.OrthographicSize * aspect;
-                        float centerX = rig.FramingTarget.position.x;
+                        float halfHeight = rig.VirtualCamera.Lens.OrthographicSize;
+                        float halfWidth = halfHeight * aspect;
+                        Vector3 center = rig.FramingTarget.position;
                         // Both authored source/retreat ends at +/-8.1 require
                         // 0.12 world-unit breathing space. Allow half a source
                         // pixel because the framing target is quantized at 16 PPU.
                         const float requiredEdge = 8.1f + 0.12f - 1f / 32f;
-                        Assert.That(halfWidth - Mathf.Abs(centerX),
+                        Assert.That(halfWidth - Mathf.Abs(center.x),
                             Is.GreaterThanOrEqualTo(requiredEdge),
                             "Cinemachine may follow, but cannot crop either Soundwell exit at aspect " + aspect);
-                        Assert.That(centerX * SoundwellCameraRig.PixelsPerUnit,
-                            Is.EqualTo(Mathf.Round(centerX * SoundwellCameraRig.PixelsPerUnit))
+                        Assert.That(halfHeight - Mathf.Abs(center.y),
+                            Is.GreaterThanOrEqualTo(3.2f + 0.12f),
+                            "Camera follow must keep the trial's upper and lower edges visible.");
+                        Assert.That(center.x * SoundwellCameraRig.PixelsPerUnit,
+                            Is.EqualTo(Mathf.Round(center.x * SoundwellCameraRig.PixelsPerUnit))
                                 .Within(0.001f),
-                            "The live framing target must stay on the pixel grid.");
+                            "Horizontal framing must stay on the 16-PPU pixel grid.");
+                        Assert.That(center.y * SoundwellCameraRig.PixelsPerUnit,
+                            Is.EqualTo(Mathf.Round(center.y * SoundwellCameraRig.PixelsPerUnit))
+                                .Within(0.001f),
+                            "Vertical framing must stay on the 16-PPU pixel grid.");
                     }
                 }
             }
