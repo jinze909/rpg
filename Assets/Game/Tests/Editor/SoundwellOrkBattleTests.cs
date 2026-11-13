@@ -718,9 +718,16 @@ namespace Rpg.Tests.Editor
             // leader behind the turn/movement budget. Probe the real lower
             // plank for a rendered frame, then restore the battle formation.
             Assert.That(trial.DirectCombatStarted, Is.True);
-            // The latch was submitted through ORK, but its action calculation
-            // may still be queued. The safety rule must work *regardless*
-            // of whether that real gate action has finished this frame.
+            // ORK's turn chooser can advance before its queued no-target
+            // action has calculated. Wait for the real latch result *before*
+            // moving the leader to probe the weak plank; otherwise this test
+            // itself can move the actor out of reach while ORK is resolving.
+            float gateCompletionDeadline = Time.realtimeSinceStartup + 6f;
+            while (!trial.GateOpen && Time.realtimeSinceStartup < gateCompletionDeadline)
+                yield return null;
+            Assert.That(trial.GateOpen, Is.True,
+                "The ORK-accepted gate turn must open the physical latch before plank probing.");
+            // Even with an open gate, ORK combat keeps ownership of placement.
             Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
                 true, true, SoundwellTrial.LowerBoardPosition), Is.False,
                 "Even an opened gate cannot make exploration physics teleport an ORK combatant.");
