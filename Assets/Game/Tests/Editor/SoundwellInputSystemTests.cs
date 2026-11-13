@@ -183,6 +183,45 @@ namespace Rpg.Tests.Editor
                 input.Release(gamepad.buttonSouth);
                 yield return null;
 
+                // S00 uses the same gamepad A for UGUI Submit. Holding it
+                // while the prologue returns to Entry cannot trigger a new
+                // Soundwell load. A fresh intentional press must still work.
+                input.Press(gamepad.buttonSouth);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True);
+                SoundwellInputAdapter.SetUiContext();
+                SoundwellInputAdapter.SetEntryContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.InteractPressed(), Is.False,
+                    "The held S00 Submit cannot also enter the trial on return.");
+                input.Release(gamepad.buttonSouth);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.InteractPressed(), Is.False);
+                input.Press(gamepad.buttonSouth);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True,
+                    "Releasing A must rearm the next real Entry Submit.");
+                input.Release(gamepad.buttonSouth);
+                InputSystem.Update();
+
+                // A re-enabled keyboard shortcut follows the same rule.
+                input.Press(keyboard.f2Key);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.True);
+                SoundwellInputAdapter.SetUiContext();
+                SoundwellInputAdapter.SetEntryContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.False,
+                    "One held F2 press must not be replayed by a context handoff.");
+                input.Release(keyboard.f2Key);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.False);
+                input.Press(keyboard.f2Key);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.True);
+                input.Release(keyboard.f2Key);
+                InputSystem.Update();
+
                 // Entry's user-remapped keyboard shortcut is still a keyboard
                 // action, not a hardcoded F2. Verify the actual Input System
                 // event after changing the saved action asset's effective path;
