@@ -399,6 +399,15 @@ namespace Rpg.Tests.Editor
                 trial.ClawsObserved, Is.False);
             MoveTestLeader(playerBody, SoundwellTrial.SurveyorPosition);
             Assert.That(trial.AtSurveyor, Is.True);
+            var contextualHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
+            Assert.That(contextualHint, Is.Not.Null);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(contextualHint.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("hint.surveyor_ask")),
+                "The live unasked surveyor prompt must switch into Chinese.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.HasSurveyorClue, Is.True);
             // The actual survivor's warning changes language without
@@ -420,6 +429,13 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.Get("surveyor.plank_clue")));
             MoveTestLeader(playerBody, SoundwellTrial.UpperBoardPosition);
             Assert.That(trial.CanSecurePlank, Is.True);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(contextualHint.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("hint.plank_brace")),
+                "The actual brace-plank instruction must be localized before taking the action.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.PlankSecured, Is.True);
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);

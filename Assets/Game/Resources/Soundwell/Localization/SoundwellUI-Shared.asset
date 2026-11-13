@@ -435,6 +435,78 @@ MonoBehaviour:
     m_Key: hint.sign_removed
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267381
+    m_Key: hint.plank_tie
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267382
+    m_Key: hint.plank_lead
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267383
+    m_Key: hint.plank_braced
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267384
+    m_Key: hint.plank_brace
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267385
+    m_Key: hint.plank_ask_first
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267386
+    m_Key: hint.surveyor_marked
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267387
+    m_Key: hint.surveyor_ask
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267388
+    m_Key: hint.gate_escort
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267389
+    m_Key: hint.gate_open
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267390
+    m_Key: hint.gate_lure_open
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267391
+    m_Key: hint.gate_claw_route
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267392
+    m_Key: hint.gate_search
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267393
+    m_Key: hint.bell_wrapped
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267394
+    m_Key: hint.bell_ready
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267395
+    m_Key: hint.reset_here
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267396
+    m_Key: hint.escort_to_retreat
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267397
+    m_Key: hint.return_to_reset
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267398
+    m_Key: hint.approach_bell
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

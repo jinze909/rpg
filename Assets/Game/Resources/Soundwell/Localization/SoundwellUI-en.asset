@@ -438,6 +438,78 @@ MonoBehaviour:
     m_Localized: "ROUTE CORRECTED: The surveyor removed the false trail marker himself."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267381
+    m_Localized: "[G / RB] Tie the recovered cord to guide the surveyor. Rescue not complete."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267382
+    m_Localized: "[G / RB] Lead the surveyor through the gate. Rescue not complete."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267383
+    m_Localized: "Upper plank braced; surveyor can stand on it. Rescue not complete."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267384
+    m_Localized: "[G / RB] Brace the upper plank for the surveyor."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267385
+    m_Localized: "Ask the surveyor which plank is safe before bracing anything."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267386
+    m_Localized: "Upper plank marked. The surveyor is still trapped; brace it before he can cross."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267387
+    m_Localized: "[G / RB] Ask the surveyor which plank can carry someone."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267388
+    m_Localized: "Escort the surveyor through the open gate to RETREAT."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267389
+    m_Localized: "Gate open: cross into the soundwell inner room."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267390
+    m_Localized: "[G / RB] Open the gate while the beast follows the side bell."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267391
+    m_Localized: "Move the bell to the SIDE STAND and draw the beast away to open this gate."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267392
+    m_Localized: "The beast guards this gate. Look for evidence of what draws its attention."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267393
+    m_Localized: "[E / Pad A] Try the wrapped bell   [Q / Pad X] Remove the cloth"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267394
+    m_Localized: "[E / Pad A] Ring the bell   [Q / Pad X] Wrap with the wet cloth   [F / LB] Lift"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267395
+    m_Localized: "[R / Pad Y] Reset the experiment"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267396
+    m_Localized: "Lead the surveyor to RETREAT. Do not leave him behind."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267397
+    m_Localized: "Return to RETREAT to reset the experiment."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267398
+    m_Localized: "Walk to the copper bell. Watch the beast beyond the grate."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
