@@ -67,6 +67,25 @@ namespace Rpg.Soundwell
                 interact.activeControl != null && interact.activeControl.device is Keyboard;
         }
 
+        // Read the effective keyboard binding (including saved overrides) for
+        // the actual Entry button hint. Do not tell players to press F2 when
+        // they intentionally rebound it, or advertise a keyboard key if none
+        // remains. The entry's focused UGUI Submit route is separate.
+        public static string EntryKeyboardShortcutLabel()
+        {
+            EnsureLoaded();
+            for (int i = 0; i < interact.bindings.Count; i++)
+            {
+                var binding = interact.bindings[i];
+                if (!binding.isComposite && !binding.isPartOfComposite &&
+                    !string.IsNullOrEmpty(binding.effectivePath) &&
+                    binding.effectivePath.StartsWith("<Keyboard>/",
+                        StringComparison.OrdinalIgnoreCase))
+                    return interact.GetBindingDisplayString(i);
+            }
+            return string.Empty;
+        }
+
         // Both the action's button state and its physical bound controls are
         // checked so a held Start/Tab remains suppressed across re-enables.
         // Releasing it rearms the next intentional menu-toggle press.

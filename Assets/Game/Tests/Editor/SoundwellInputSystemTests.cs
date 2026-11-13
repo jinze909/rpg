@@ -209,6 +209,9 @@ namespace Rpg.Tests.Editor
                     Assert.That(SoundwellInputAdapter.InteractPressed(), Is.True);
                     Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutPressed(), Is.True,
                         "The saved F3 keyboard shortcut must enter without requiring a pointer.");
+                    Assert.That(SoundwellInputAdapter.EntryKeyboardShortcutLabel(),
+                        Is.EqualTo("F3"),
+                        "Entry instructions must follow the effective keyboard remap.");
                     input.Release(keyboard.f3Key);
                     InputSystem.Update();
 
@@ -434,6 +437,34 @@ namespace Rpg.Tests.Editor
                 Assert.That(parkedUi.GetComponent<EventSystem>(), Is.Null,
                     "Inactive foreign input owner must be removed before reactivation.");
                 UnityEngine.Object.Destroy(parkedUi);
+
+                // Verify the player-visible localized Entry button follows a
+                // live keyboard remap, rather than falsely advertising F2.
+                var entryAction = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                    .FindActionMap("Entry", true).FindAction("Interact", true);
+                int entryBinding = Enumerable.Range(0, entryAction.bindings.Count)
+                    .Single(i => entryAction.bindings[i].path == "<Keyboard>/f2");
+                string originalEntryOverride = entryAction.bindings[entryBinding].overridePath;
+                try
+                {
+                    entryAction.ApplyBindingOverride(entryBinding, "<Keyboard>/f3");
+                    yield return null;
+                    var enterHint = entry.GetComponentsInChildren<Text>(true)
+                        .Single(label => label.transform.parent != null &&
+                            label.transform.parent.name == "Enter Soundwell button");
+                    Assert.That(enterHint.text, Does.Contain("[F3 /"),
+                        "The real entry screen must show the player's active shortcut.");
+                    Assert.That(enterHint.text, Does.Not.Contain("[F2 /"),
+                        "Never leave the default F2 instruction after rebinding.");
+                }
+                finally
+                {
+                    if (originalEntryOverride == null)
+                        entryAction.RemoveBindingOverride(entryBinding);
+                    else
+                        entryAction.ApplyBindingOverride(entryBinding, originalEntryOverride);
+                }
+                yield return null;
 
                 var sfxButton = entry.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "Soundwell SFX toggle");
