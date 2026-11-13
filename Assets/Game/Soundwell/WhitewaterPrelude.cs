@@ -49,6 +49,10 @@ namespace Rpg.Soundwell
         private AudioSource bellAudio;
         private AudioClip firstBellClip;
         private AudioClip secondBellClip;
+        private Sprite playerPixelSprite;
+        private Sprite shenLiPixelSprite;
+        private Texture2D playerPixelTexture;
+        private Texture2D shenLiPixelTexture;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -140,9 +144,13 @@ namespace Rpg.Soundwell
             cable = Panel(canvas.transform, "Loose cable clamp",
                 new Vector2(ClampX, 12f), new Vector2(28f, 36f),
                 new Color(0.69f, 0.30f, 0.27f));
-            Panel(canvas.transform, "PLACEHOLDER Shen Li",
-                new Vector2(ClampX + 58f, 18f), new Vector2(24f, 34f),
-                Brass);
+            var shenLiFigure = Panel(canvas.transform, "PLACEHOLDER Shen Li",
+                new Vector2(ClampX + 58f, 18f), new Vector2(32f, 32f),
+                Color.white);
+            shenLiPixelSprite = MakeActorSprite("PLACEHOLDER 16px Shen Li",
+                ShenLiPixels, new Color32(190, 133, 62, 255),
+                out shenLiPixelTexture);
+            shenLiFigure.sprite = shenLiPixelSprite;
             stretcher = Panel(canvas.transform, "PLACEHOLDER stretcher wagon",
                 new Vector2(-320f, 23f), new Vector2(52f, 27f),
                 new Color(0.82f, 0.78f, 0.63f)).rectTransform;
@@ -186,9 +194,15 @@ namespace Rpg.Soundwell
                 new Vector2(-256f, 90f), new Vector2(14f, 15f), Brass).rectTransform;
             farBankLanternLeft.gameObject.SetActive(false);
             farBankLanternRight.gameObject.SetActive(false);
-            marker = Panel(canvas.transform, "PLACEHOLDER player",
-                new Vector2(walker.x, 12f), new Vector2(22f, 31f),
-                new Color(0.64f, 0.85f, 0.93f)).rectTransform;
+            var playerFigure = Panel(canvas.transform, "PLACEHOLDER player",
+                new Vector2(walker.x, 12f), new Vector2(32f, 32f),
+                Color.white);
+            playerPixelSprite = MakeActorSprite("PLACEHOLDER 16px player",
+                PlayerPixels, new Color32(72, 151, 183, 255),
+                out playerPixelTexture);
+            playerFigure.sprite = playerPixelSprite;
+            marker = playerFigure.rectTransform;
+
 
             narration = Label(canvas.transform, "", 21,
                 new Vector2(0f, -100f), new Vector2(840f, 83f), Ink);
@@ -619,6 +633,87 @@ namespace Rpg.Soundwell
             return clip;
         }
 
+        // Scene-local 16x16 nearest-neighbour sprites. S00 is an existing UGUI
+        // overlay, so its two character Images use pixel-perfect texture input
+        // without adding a second world renderer, Animator or combat owner.
+        private static readonly string[] PlayerPixels =
+        {
+            "................",
+            ".....kkkkkk.....",
+            "....khhhhkkk....",
+            "....khffffhk....",
+            "....khffffhk....",
+            ".....kffffk.....",
+            "......kkkk......",
+            ".....kcccck.....",
+            "...ggkcccckgg...",
+            "...ggkcccckgg...",
+            ".....kbbbbk.....",
+            ".....kcccck.....",
+            ".....kk..kk.....",
+            ".....kk..kk.....",
+            "....kkk..kkk....",
+            "................",
+        };
+
+        // The ponytail and wrench distinguish Shen Li from the player at 2x.
+        private static readonly string[] ShenLiPixels =
+        {
+            "................",
+            "....kkkkkkkh....",
+            "....khhhhkkh....",
+            "....khffffkh....",
+            "....khffffkh....",
+            ".....kffffkh....",
+            "......kkkk.h....",
+            ".....kcccck.....",
+            "...ggkcccckgw...",
+            "...ggkcccckgw...",
+            ".....kbbbbk.w...",
+            ".....kcccck.w...",
+            ".....kk..kk.w...",
+            ".....kk..kk.w...",
+            "....kkk..kkk....",
+            "................",
+        };
+
+        private static Sprite MakeActorSprite(string name, string[] art,
+            Color32 coat, out Texture2D texture)
+        {
+            const int size = 16;
+            texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = name + " texture",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    // Pattern rows are top to bottom; Unity pixels are bottom to top.
+                    switch (art[size - 1 - y][x])
+                    {
+                        case 'k': pixels[y * size + x] = new Color32(24, 32, 41, 255); break;
+                        case 'h': pixels[y * size + x] = new Color32(82, 51, 43, 255); break;
+                        case 'f': pixels[y * size + x] = new Color32(226, 180, 136, 255); break;
+                        case 'c': pixels[y * size + x] = coat; break;
+                        case 'g': pixels[y * size + x] = new Color32(195, 181, 151, 255); break;
+                        case 'b': pixels[y * size + x] = new Color32(67, 70, 75, 255); break;
+                        case 'w': pixels[y * size + x] = new Color32(181, 202, 207, 255); break;
+                        default: pixels[y * size + x] = new Color32(0, 0, 0, 0); break;
+                    }
+                }
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, false);
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f), size);
+            sprite.name = name;
+            return sprite;
+        }
+
         private void OnDestroy()
         {
             // AudioSource belongs to the scene canvas and stops with it.
@@ -627,6 +722,14 @@ namespace Rpg.Soundwell
                 Destroy(firstBellClip);
             if (secondBellClip != null)
                 Destroy(secondBellClip);
+            if (playerPixelSprite != null)
+                Destroy(playerPixelSprite);
+            if (shenLiPixelSprite != null)
+                Destroy(shenLiPixelSprite);
+            if (playerPixelTexture != null)
+                Destroy(playerPixelTexture);
+            if (shenLiPixelTexture != null)
+                Destroy(shenLiPixelTexture);
         }
 
         private void ShowWorkshopPromise()

@@ -621,6 +621,25 @@ namespace Rpg.Tests.Editor
                 var prelude = entry.GetComponentInChildren<WhitewaterPrelude>(true);
                 Assert.That(prelude, Is.Not.Null, "Pad A must open the S00 bridge scene.");
                 Assert.That(prelude.Phase, Is.EqualTo(0));
+                // Two scene characters must be actual point-filtered 16px
+                // sprites, not featureless UGUI color rectangles. Keep their
+                // original GameObject names for existing interaction tests.
+                foreach (string actorName in new[] { "PLACEHOLDER player", "PLACEHOLDER Shen Li" })
+                {
+                    var actorTransform = prelude.transform.Find(
+                        "S00 Whitewater playable canvas/" + actorName);
+                    Assert.That(actorTransform, Is.Not.Null);
+                    var actorImage = actorTransform.GetComponent<Image>();
+                    Assert.That(actorImage.sprite, Is.Not.Null,
+                        actorName + " must have a pixel-art sprite.");
+                    Assert.That(actorImage.sprite.texture.width, Is.EqualTo(16));
+                    Assert.That(actorImage.sprite.texture.height, Is.EqualTo(16));
+                    Assert.That(actorImage.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                    Assert.That(actorImage.rectTransform.sizeDelta, Is.EqualTo(new Vector2(32f, 32f)),
+                        "A 16px source must be enlarged by an exact 2x scale.");
+                    Assert.That(actorImage.raycastTarget, Is.False,
+                        "Decorative characters must never steal UGUI input.");
+                }
                 Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(initialScene),
                     "S00 must preserve the existing Bootstrap and Soundwell entry.");
                 Assert.That(entry.OpenTrial(), Is.Null,
