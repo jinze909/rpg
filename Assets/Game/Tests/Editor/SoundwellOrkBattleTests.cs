@@ -553,6 +553,15 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(focusGuardButton.gameObject),
                 "Guard-only ORK choice must not default gamepad Submit to Retreat.");
+            var disabledAttackCaption = attackButton.GetComponentInChildren<Text>();
+            Assert.That(disabledAttackCaption, Is.Not.Null);
+            Assert.That(attackButton.interactable, Is.False);
+            Assert.That(disabledAttackCaption.text,
+                Does.Not.Contain(SoundwellUiLocalization.Get("battle.menu_pending")),
+                "A real Guard-only ORK turn must not advertise the whole chooser as pending.");
+            Assert.That(disabledAttackCaption.text,
+                Does.Contain(SoundwellUiLocalization.Get("battle.rescuer")),
+                "The disabled Attack should still identify ORK's live rescuer.");
             EventSystem.current.SetSelectedGameObject(battleRetreat.gameObject);
             setBattleChoices.Invoke(liveView, new object[]
             {
@@ -614,6 +623,9 @@ namespace Rpg.Tests.Editor
             });
             presentLegalChoices(false, false, true);
             setBattleChoices.Invoke(liveView, new object[] { -1, null, false, false, false, false });
+            Assert.That(disabledAttackCaption.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("battle.menu_pending")),
+                "Only a missing live ORK chooser may show the waiting caption.");
             EventSystem battleEvents = EventSystem.current;
             Assert.That(battleEvents.currentSelectedGameObject, Is.SameAs(attackButton.gameObject),
                 "Losing the selected choice during resolution must leave a safe Submit target.");
