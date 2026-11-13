@@ -537,6 +537,12 @@ namespace Rpg.Soundwell
             for (int i = 0; i < members.Count; i++)
             {
                 Combatant member = members[i];
+                // The ORK roster can retire a combatant a frame before the
+                // world-owned visual disappears (or vice versa) on retreat.
+                // Never dereference or advertise an orphan in the live HUD.
+                if (member == null || member.GameObject == null ||
+                    i >= actors.Count || actors[i] == null)
+                    continue;
                 text.Append(SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
                     .Append("  ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                     .Append(member.Status[1].GetValue());
