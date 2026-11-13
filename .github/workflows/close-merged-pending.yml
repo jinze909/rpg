@@ -1,4 +1,4 @@
-name: Close verified merged pending branches
+name: Close fully delivered pending branches
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - name: Audit historical merged pending HEADs with same-SHA Unity evidence
+      - name: Audit ancestor and SHA-equivalent snapshots before safe deletion
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,22 +75,81 @@ jobs:
                          "workflow_runs")
               check(all(r.get("status")=="completed" for r in runs),"active or queued CI")
               return runs
-          def verify_run(name,sha):
-              runs=runs_for(name)
-              for r in runs:
-                  if r.get("name")!="Unity ORK P0" or r.get("conclusion")!="success":continue
-                  attempt=r.get("run_attempt")
-                  want="unity-ork-p0-verify-"+sha+"-attempt-"+str(attempt)
-                  artifacts=pages("/repos/"+REPO+"/actions/runs/"+str(r["id"])+"/artifacts",
-                                  "artifacts",limit=200)
-                  if not any(a.get("name")==want and a.get("expired") is False and
-                             a.get("size_in_bytes",0)>0 for a in artifacts):continue
-                  # A later failed run of this exact SHA invalidates the old green result.
-                  stamp=r.get("created_at","")
-                  if any(x.get("name")=="Unity ORK P0" and x.get("head_sha")==sha and
-                         x.get("created_at","")>stamp and x.get("conclusion")!="success"
-                         for x in runs):return None
-                  return r.get("html_url")
+          # The same-SHA artifact remains the acceptance criterion. For branch
+          # retirement ONLY, a verified descendant may certify a failed/old
+          # ancestor, and an exactly matching verified file snapshot may prove
+          # that a divergent candidate was incorporated by a different SHA.
+          VERIFIED_CACHE={}
+          VERIFIED_ANCESTORS=None
+          def verified_artifact(run,sha,runs):
+              if not (SHARE.fullmatch(sha) and run.get("head_sha")==sha and
+                      run.get("name")=="Unity ORK P0" and
+                      run.get("status")=="completed" and
+                      run.get("conclusion")=="success"):return None
+              if any(x.get("head_sha")==sha and x.get("name")=="Unity ORK P0" and
+                     x.get("created_at","")>run.get("created_at","") and
+                     x.get("conclusion")!="success" for x in runs):return None
+              key=(run["id"],run.get("run_attempt"),sha)
+              if key not in VERIFIED_CACHE:
+                  artifacts=pages("/repos/"+REPO+"/actions/runs/"+
+                                  str(run["id"])+"/artifacts","artifacts",limit=200)
+                  want="unity-ork-p0-verify-"+sha+"-attempt-"+str(run.get("run_attempt"))
+                  VERIFIED_CACHE[key]=(run.get("html_url") if any(
+                      a.get("name")==want and a.get("expired") is False and
+                      a.get("size_in_bytes",0)>0 for a in artifacts) else None)
+              return VERIFIED_CACHE[key]
+          def verify_run(name,sha,runs):
+              for run in runs:
+                  proof=verified_artifact(run,sha,runs)
+                  if proof:return proof
+              return None
+          def verified_ancestors():
+              global VERIFIED_ANCESTORS
+              if VERIFIED_ANCESTORS is None:
+                  # One repository-wide read; no fresh CI or extra schedules.
+                  all_runs=pages("/repos/"+REPO+"/actions/runs","workflow_runs",
+                                 limit=2000)
+                  valid=[r for r in all_runs
+                         if r.get("name")=="Unity ORK P0" and
+                         r.get("status")=="completed" and
+                         r.get("conclusion")=="success" and
+                         SHARE.fullmatch(r.get("head_sha","")) and
+                         ancestor(r["head_sha"],dev)]
+                  VERIFIED_ANCESTORS=(all_runs,valid)
+              return VERIFIED_ANCESTORS
+          def descendant_proof(sha):
+              all_runs,valid=verified_ancestors()
+              for r in valid:
+                  if not ancestor(sha,r["head_sha"]):continue
+                  proof=verified_artifact(r,r["head_sha"],all_runs)
+                  if proof:return proof
+              return None
+          def changed_paths_since_base(sha):
+              base=git("merge-base",sha,dev)
+              result=subprocess.run(["git","diff","--name-only","-z",base,sha],
+                                    capture_output=True)
+              check(result.returncode==0,"candidate diff failed")
+              paths=[os.fsdecode(p) for p in result.stdout.split(b"\0") if p]
+              # Large, ambiguous branch snapshots need a separate audit.
+              check(len(paths)<=150,"candidate diff too broad for snapshot proof")
+              return base,paths
+          def same_changed_files(sha,verified_sha,paths):
+              proc=subprocess.run(["git","diff","--quiet","--no-ext-diff",
+                                   sha,verified_sha,"--",*paths],
+                                  capture_output=True,text=True)
+              check(proc.returncode in (0,1),"snapshot diff failed: "+proc.stderr[-240:])
+              return proc.returncode==0
+          def snapshot_proof(sha):
+              base,paths=changed_paths_since_base(sha)
+              all_runs,valid=verified_ancestors()
+              for r in valid:
+                  verified_sha=r["head_sha"]
+                  if not ancestor(base,verified_sha):continue
+                  # ALL net changed files must be byte/mode identical in ONE
+                  # actual verified dev-history commit; names alone are never proof.
+                  if not same_changed_files(sha,verified_sha,paths):continue
+                  proof=verified_artifact(r,verified_sha,all_runs)
+                  if proof:return proof
               return None
           check(os.environ.get("GITHUB_REPOSITORY")==REPO,"wrong repository")
           check(os.environ.get("GITHUB_REF")==REF,"wrong branch")
@@ -170,7 +229,9 @@ jobs:
           merged_seen=0
           newly_merged=0
           historical_seen=0
-          diverged_skipped=0
+          diverged_seen=0
+          descendant_proven=0
+          snapshot_proven=0
           deleted=[]
           kept=[]
           for b in branches:
@@ -178,26 +239,36 @@ jobs:
               sha=b.get("commit",{}).get("sha","")
               if not PENDING.fullmatch(name):continue
               check(bool(SHARE.fullmatch(sha)),"bad candidate SHA")
-              # A preexisting ancestor of dev is just as merged as a newly
-              # included one. Diverged/cherry-picked refs are NOT assumed
-              # merged; their unique work must be audited separately.
               merged=ancestor(sha,dev)
               historical=name in ARCHIVED
-              if not merged and not historical:
-                  diverged_skipped+=1
-                  continue
               if merged:
                   merged_seen+=1
                   if not ancestor(sha,before):newly_merged+=1
+              else:diverged_seen+=1
               if historical:historical_seen+=1
               try:
                   check(not b.get("protected"),"protected branch")
                   check(name not in pr_heads,"open PR")
                   check(git("rev-parse","refs/remotes/origin/"+name)==sha,
                         "local HEAD changed")
-                  proof=(verified_archived_proof(name,sha) if historical
-                         else verify_run(name,sha))
-                  check(proof,"no exact-SHA successful Unity verify artifact")
+                  # Never delete a branch with any CI still queued or running,
+                  # even when other branches contain an identical snapshot.
+                  branch_runs=runs_for(name)
+                  if historical:
+                      proof=verified_archived_proof(name,sha)
+                      method="SHA-pinned audited replacement"
+                  elif merged:
+                      proof=verify_run(name,sha,branch_runs)
+                      method="exact candidate SHA"
+                      if not proof:
+                          proof=descendant_proof(sha)
+                          method="verified descendant in dev history"
+                          if proof:descendant_proven+=1
+                  else:
+                      proof=snapshot_proof(sha)
+                      method="exact changed-file snapshot in verified dev history"
+                      if proof:snapshot_proven+=1
+                  check(proof,"no validated ancestor or exact snapshot replacement")
                   check(api("/repos/"+REPO+"/git/ref/heads/codex/dev")["object"]["sha"]==dev,
                         "dev moved")
                   check(name not in {p["head"]["ref"] for p in
@@ -215,28 +286,33 @@ jobs:
                       "origin","--delete",ref)
                   check(not git("ls-remote","--heads","origin",ref),
                         "deletion not confirmed")
-                  deleted.append((name,sha,proof))
-                  print("DELETED "+name+" at "+sha+" verified "+proof,flush=True)
+                  deleted.append((name,sha,proof,method))
+                  print("DELETED "+name+" at "+sha+" via "+method+
+                        " verified "+proof,flush=True)
               except (RuntimeError,ValueError,KeyError,OSError) as err:
                   kept.append((name,str(err)))
                   print("RETAIN "+name+" : "+str(err),flush=True)
           print("SUMMARY merged_seen="+str(merged_seen)+
                 " newly_merged="+str(newly_merged)+
                 " historical_audited="+str(historical_seen)+
-                " diverged_skipped="+str(diverged_skipped)+
+                " diverged_seen="+str(diverged_seen)+
+                " descendant_proven="+str(descendant_proven)+
+                " snapshot_proven="+str(snapshot_proven)+
                 " deleted="+str(len(deleted))+
                 " kept="+str(len(kept)),flush=True)
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
-              out.write("## Verified merged pending branch cleanup\n\n")
-              out.write("Event "+before[:12]+".."+after[:12]+
-                        "; merged heads "+str(merged_seen)+
+              out.write("## Audited pending branch cleanup\n\n")
+              out.write("Dev "+dev+"; event "+before[:12]+".."+after[:12]+
+                        "; merged "+str(merged_seen)+
                         " (new "+str(newly_merged)+")"+
-                        "; unmerged/diverged skipped "+str(diverged_skipped)+
+                        "; divergent examined "+str(diverged_seen)+
+                        "; descendant verified "+str(descendant_proven)+
+                        "; snapshot verified "+str(snapshot_proven)+
                         "; deleted "+str(len(deleted))+
                         "; retained "+str(len(kept))+".\n\n")
-              for name,sha,proof in deleted:
-                  out.write("- Deleted "+name+" at "+sha+"; verify "+proof+"\n")
+              for name,sha,proof,method in deleted:
+                  out.write("- Deleted "+name+" at "+sha+" via "+method+
+                            "; verify "+proof+"\n")
               for name,why in kept:
                   out.write("- Retained "+name+": "+why+"\n")
-              if not merged_seen and not historical_seen:out.write("No merged pending head eligible for audit.\n")
           PY
