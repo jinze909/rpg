@@ -709,6 +709,10 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(trial.RescueComplete, Is.False,
                 "Retry must clear the earned rescue outcome for another attempt.");
+            // Retry resets the Makinom encounter, not the completed ORK quest
+            // or the earned group experience. A replay must not erase or farm
+            // the reward from the first physical escort to safety.
+            AssertRescueReward(party);
             Assert.That(trial.GateOpen, Is.False,
                 "The noncombat latch must be closed for a fresh route choice.");
             Assert.That(trial.SurveyorEscorting, Is.False,
