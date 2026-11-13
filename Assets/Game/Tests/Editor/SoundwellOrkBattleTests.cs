@@ -1019,6 +1019,33 @@ namespace Rpg.Tests.Editor
             Assert.That(ORK.Game.Combatants.GetInBattle(), Is.Empty,
                 "Leaving during a live fight must not strand any ORK battle participants.");
 
+            // Next-stage progress handoff: the rescue reward must survive a
+            // scene retry, a second ORK battle and an actual Bootstrap return.
+            // The entry report may read only the live ORK group/quest: never
+            // count the scene replay as another earned reward.
+            var progressEntry = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(progressEntry, Is.Not.Null);
+            progressEntry.RefreshReturnOutcome(true);
+            Assert.That(SoundwellOrkParty.RescueSettled, Is.True);
+            var returningGroup = ORK.Game.PlayerHandler.GetGroup(0);
+            Assert.That(returningGroup, Is.Not.Null);
+            var returningMembers = returningGroup.GetGroup();
+            Assert.That(returningMembers.Count, Is.EqualTo(3));
+            foreach (var member in returningMembers)
+                Assert.That(member.Status[SoundwellOrkParty.ExperienceStatus].GetValue(),
+                    Is.EqualTo(SoundwellOrkParty.RescueExperience),
+                    "Revisiting the rescue must not lose or duplicate ORK experience.");
+            string progressLine = SoundwellUiLocalization.Get("battle.rescuer") +
+                " 1-3: 10 / 10 / 10";
+            Assert.That(progressEntry.ReturnSummaryText, Does.Contain(progressLine),
+                "The Bootstrap must show the actual ORK banked experience for all three rescuers.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            progressEntry.RefreshReturnOutcome(true);
+            Assert.That(progressEntry.ReturnSummaryText, Does.Contain(
+                SoundwellUiLocalization.Get("battle.rescuer") + " 1-3: 10 / 10 / 10"),
+                "A language change must not lose the persistent ORK progress report.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_ORK_BATTLE_VALIDATED");
             LogAssert.NoUnexpectedReceived();

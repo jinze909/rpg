@@ -1,4 +1,5 @@
 using GamingIsLove.Makinom;
+using GamingIsLove.ORKFramework;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -34,6 +35,7 @@ namespace Rpg.Soundwell
         private bool shownSafeRouteMarked;
         private int shownBeastContacts = -1;
         private bool shownRescueSettled;
+        private string shownRescuerExperience = string.Empty;
 
         public int LastReturnOutcome => shownOutcome;
         public string ReturnSummaryText => outcomeText != null ? outcomeText.text : string.Empty;
@@ -308,13 +310,20 @@ namespace Rpg.Soundwell
             int contacts = Mathf.Clamp(
                 variables.GetInt(SoundwellTrial.EntryBeastContactsKey), 0, 999);
             bool rescueSettled = SoundwellOrkParty.RescueSettled;
-            if (!force && rescueSettled == shownRescueSettled && result == shownOutcome && outcomeRecorded == shownOutcomeRecorded &&
+            // Read the banked progress from the actual ORK player group.
+            // The result screen may outlive a replay or scene transition:
+            // never invent a duplicate UI experience balance.
+            string rescuerExperience = rescueSettled ? ReadRescuerExperience() : string.Empty;
+            if (!force && rescueSettled == shownRescueSettled &&
+                rescuerExperience == shownRescuerExperience &&
+                result == shownOutcome && outcomeRecorded == shownOutcomeRecorded &&
                 cartKitRecovered == shownCartKitRecovered &&
                 safeRouteMarked == shownSafeRouteMarked && contacts == shownBeastContacts)
                 return;
 
             shownOutcome = result;
             shownRescueSettled = rescueSettled;
+            shownRescuerExperience = rescuerExperience;
             shownOutcomeRecorded = outcomeRecorded;
             shownCartKitRecovered = cartKitRecovered;
             shownSafeRouteMarked = safeRouteMarked;
@@ -333,9 +342,37 @@ namespace Rpg.Soundwell
                     ? string.Format(SoundwellUiLocalization.Get("entry.withdrawn"), contacts)
                     : "";
             if (rescueSettled)
+            {
                 outcomeText.text += (outcomeText.text.Length > 0 ? "\n" : "") +
                     string.Format(SoundwellUiLocalization.Get("entry.rescue_experience"),
                         SoundwellOrkParty.RescueExperience);
+                if (rescuerExperience.Length > 0)
+                    outcomeText.text += "\n" + rescuerExperience;
+            }
+        }
+
+        private static string ReadRescuerExperience()
+        {
+            if (!ORK.Initialized || ORK.Game?.PlayerHandler == null)
+                return string.Empty;
+            Group group = ORK.Game.PlayerHandler.GetGroup(0);
+            var members = group?.GetGroup();
+            if (members == null || members.Count != 3)
+                return string.Empty;
+
+            var amount = new string[members.Count];
+            for (int i = 0; i < members.Count; i++)
+            {
+                if (members[i] == null)
+                    return string.Empty;
+                amount[i] = members[i].Status[SoundwellOrkParty.ExperienceStatus].GetValue()
+                    .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            // "Rescuer" is already authored in the single saved EN/zh UI
+            // StringTables. Numbers come directly from ORK, not an extra
+            // wallet, Makinom flag, or PlayerPrefs shadow-save.
+            return SoundwellUiLocalization.Get("battle.rescuer") +
+                " 1-3: " + string.Join(" / ", amount);
         }
 
         public AsyncOperation OpenTrial()
