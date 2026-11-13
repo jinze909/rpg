@@ -14,6 +14,32 @@ namespace Rpg.Tests.Editor
 {
     public sealed class SoundwellCompanionActionTests
     {
+        [Test]
+        public void OrkStepMustKeepWholeCombatantInsideSavedBattleBounds()
+        {
+            // The previous centre-only check allowed a character's 2D
+            // footprint to hang over a boundary despite a legal centre.
+            // These examples cover leader/companion radii on both axes.
+            Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
+                new Vector2(6.5f, 0f), 0.125f), Is.True);
+            Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
+                new Vector2(6.6f, 0f), 0.125f), Is.False,
+                "A companion near the east edge cannot walk its pixels outside the arena.");
+            Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
+                new Vector2(-6.55f, 0f), 0.30f), Is.False,
+                "The real leader collider must fit inside the west edge.");
+            Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
+                new Vector2(0f, 2.65f), 0.125f), Is.True);
+            Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
+                new Vector2(0f, 2.74f), 0.125f), Is.False,
+                "A northbound step must reject a character whose centre is inside " +
+                "but whose collider crosses the upper edge.");
+            Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
+                new Vector2(0f, -2.70f), 0.30f), Is.False,
+                "Scaled and leader-sized colliders need real southern clearance.");
+            Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
+                Vector2.zero, 0.30f), Is.True);
+        }
         [UnityTest]
         public IEnumerator OrkAcceptedCompanionAttackChangesOnlyItsPixelPose()
         {
