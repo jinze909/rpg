@@ -712,6 +712,25 @@ namespace Rpg.Tests.Editor
                 yield return null;
             int guardIndex = party.ChoosingRescuerIndex;
             Assert.That(guardIndex, Is.InRange(1, 2));
+
+            // Opening the same physical gate during ORK combat cannot let
+            // exploration's weak-plank recovery teleport the active party
+            // leader behind the turn/movement budget. Probe the real lower
+            // plank for a rendered frame, then restore the battle formation.
+            Assert.That(trial.GateOpen, Is.True,
+                "The queued ORK gate action must actually open the lower-route hazard.");
+            Assert.That(trial.LowerPlankBroken, Is.False);
+            Vector2 battleLeaderPosition = leaderBody.position;
+            leaderBody.position = SoundwellTrial.LowerBoardPosition;
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(Vector2.Distance(trial.PlayerPosition,
+                SoundwellTrial.LowerBoardPosition), Is.LessThan(0.03f),
+                "Exploration plank recovery must not override ORK-owned combatant positioning.");
+            Assert.That(trial.LowerPlankBroken, Is.False,
+                "Combat movement must not silently trigger a second exploration plank outcome.");
+            leaderBody.position = battleLeaderPosition;
+            Physics2D.SyncTransforms();
             // After the real ORK gate interaction spends the leader's turn,
             // the visible world marker must follow the *new* chooser rather
             // than continuing to identify the prior leader at the latch.

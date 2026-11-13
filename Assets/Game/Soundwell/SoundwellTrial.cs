@@ -351,7 +351,12 @@ namespace Rpg.Soundwell
             // The lower route is physically unsafe, rather than a fake
             // dialogue lock. Any attempt to walk over its weak section drops
             // the player back inside. A broken plank remains impassable.
-            if (GateOpen && Vector2.Distance(playerBody.position, LowerBoardPosition) <= 0.48f)
+            // The lower plank is an exploration hazard. During the
+            // turn-based ORK encounter, a scripted LateUpdate knockback
+            // would silently override a combatant's authorized position,
+            // bypassing the one-step movement budget and its collision check.
+            if (!DirectCombatStarted && GateOpen &&
+                Vector2.Distance(playerBody.position, LowerBoardPosition) <= 0.48f)
             {
                 if (!LowerPlankBroken)
                 {
