@@ -898,7 +898,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(firstBellSamples.Any(sample => Mathf.Abs(sample) > 0.01f),
                     Is.True, "The generated first-bell audio cannot be silent.");
                 Assert.That(rope.gameObject.activeInHierarchy, Is.True,
-                    "Shen Li's received coil must be visible at the repaired cable.");
+                    "The spare coil must appear only after the player calls out.");
+                var movingRope = (RectTransform)rope;
+                Assert.That(movingRope.anchoredPosition.x, Is.LessThan(-200f),
+                    "The coil must visibly approach from the far side rather than teleport to Shen Li.");
                 Assert.That(callForRope.gameObject.activeInHierarchy, Is.False,
                     "The player cannot issue the same rope call twice.");
                 Assert.That(prelude.CurrentNarration, Does.Contain(
@@ -921,6 +924,10 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(prelude.CanTakeBridgePost, Is.True,
                     "The player must physically reach the amber bridge post.");
+                Assert.That(movingRope.anchoredPosition.x, Is.EqualTo(208f).Within(0.1f),
+                    "The delivered rope must physically reach the saved clamp position.");
+                Assert.That(prelude.Phase, Is.EqualTo(12),
+                    "A completed visual rope handoff must never count as an ORK defence.");
                 Assert.That(prelude.WalkerPosition.x, Is.GreaterThan(oldWalkerX + 150f));
                 Assert.That(prelude.Phase, Is.EqualTo(12),
                     "Walking into range alone cannot grant the guard-post interaction.");

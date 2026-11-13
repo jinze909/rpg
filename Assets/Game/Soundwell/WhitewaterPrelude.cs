@@ -28,6 +28,9 @@ namespace Rpg.Soundwell
         private const float RepairReach = 44f;
         private const float EvacueeStartX = -72f;
         private const float EvacueeSafeX = -265f;
+        private const float SpareRopeTravelSeconds = 0.55f;
+        private static readonly Vector2 SpareRopeDispatch = new Vector2(-290f, 51f);
+        private static readonly Vector2 SpareRopeDock = new Vector2(ClampX + 30f, 51f);
         private static readonly Color Ink = new Color(0.87f, 0.90f, 0.88f);
         private static readonly Color Brass = new Color(0.91f, 0.72f, 0.40f);
         private readonly Button[] choices = new Button[3];
@@ -487,7 +490,11 @@ namespace Rpg.Soundwell
             next.gameObject.SetActive(false);
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(SpareRopeCallKey, 1);
+            spareRope.anchoredPosition = SpareRopeDispatch;
             spareRope.gameObject.SetActive(true);
+            // The coil travels across the visible bridge to Shen Li's clamp.
+            // Its presentation never advances the ORK battle or awards a quest.
+            StartCoroutine(DeliverSpareRope());
             bridgePost.gameObject.SetActive(true);
             cable.color = new Color(0.78f, 0.43f, 0.28f);
             firstBellClip = CreateFirstBellCue();
@@ -500,6 +507,20 @@ namespace Rpg.Soundwell
                 "Reach the amber bridge post near Shen Li; press E / Pad A to take position. ORK defence remains pending.",
                 "走到沈砾附近金色桥头守位，按 E／手柄 A 就位。ORK 防守战仍待实现。");
             SoundwellInputAdapter.SetGameplayContext();
+        }
+
+        private IEnumerator DeliverSpareRope()
+        {
+            float elapsed = 0f;
+            while (elapsed < SpareRopeTravelSeconds && spareRope != null)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                spareRope.anchoredPosition = Vector2.Lerp(SpareRopeDispatch,
+                    SpareRopeDock, Mathf.Clamp01(elapsed / SpareRopeTravelSeconds));
+                yield return null;
+            }
+            if (spareRope != null)
+                spareRope.anchoredPosition = SpareRopeDock;
         }
 
         private void TakeBridgePost()
