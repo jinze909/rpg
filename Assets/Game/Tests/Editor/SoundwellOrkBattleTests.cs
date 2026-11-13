@@ -1308,6 +1308,14 @@ namespace Rpg.Tests.Editor
             Assert.That(stepPreview.enabled, Is.False);
             moveButton.onClick.Invoke();
             Assert.That(westButton.gameObject.activeInHierarchy, Is.True);
+            Assert.That(commitMove.gameObject.activeInHierarchy, Is.True);
+            Assert.That(cancelMove.gameObject.activeInHierarchy, Is.True);
+            Assert.That(attack.gameObject.activeInHierarchy, Is.False,
+                "Choosing a destination must hide the clickable ORK primary action.");
+            Assert.That(guard.gameObject.activeInHierarchy, Is.False);
+            Assert.That(back.gameObject.activeInHierarchy, Is.False,
+                "Retreat is reached by Cancel after the destination preview closes.");
+            Assert.That(moveButton.gameObject.activeInHierarchy, Is.False);
             westButton.onClick.Invoke();
             Assert.That(stepPreview.enabled, Is.True);
             Assert.That((Vector2)stepPreview.transform.position,
@@ -1334,6 +1342,12 @@ namespace Rpg.Tests.Editor
                 InputSystem.RemoveDevice(previewCancelPad);
             }
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
+            Assert.That(attack.gameObject.activeInHierarchy, Is.True);
+            Assert.That(guard.gameObject.activeInHierarchy, Is.True);
+            Assert.That(back.gameObject.activeInHierarchy, Is.True);
+            Assert.That(moveButton.gameObject.activeInHierarchy, Is.True);
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(moveButton.gameObject),
+                "Cancel returns Submit to a live Move target without spending the step.");
             Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
                 Is.EqualTo(beforeStep),
                 "Cancel cannot secretly move the ORK actor or spend its turn.");
@@ -1384,6 +1398,11 @@ namespace Rpg.Tests.Editor
             westButton.onClick.Invoke();
             Assert.That(commitMove.interactable, Is.True);
             commitMove.onClick.Invoke();
+            Assert.That(attack.gameObject.activeInHierarchy, Is.True);
+            Assert.That(moveButton.gameObject.activeInHierarchy, Is.True);
+            Assert.That(moveButton.interactable, Is.False);
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(attack.gameObject),
+                "A confirmed step must immediately restore the still-legal ORK primary action.");
             yield return null;
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer),
                 "The confirmed step preserves the same rescuer's primary action.");

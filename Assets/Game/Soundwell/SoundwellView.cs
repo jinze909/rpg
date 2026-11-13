@@ -690,7 +690,8 @@ namespace Rpg.Soundwell
 
         private void OpenBattleMovePreview()
         {
-            if (!battleMode || !moveButton.interactable || movePreviewTransform == null)
+            if (!battleMode || movePreviewOpen || !moveButton.interactable ||
+                movePreviewTransform == null)
                 return;
             movePreviewOpen = true;
             for (int i = 0; i < moveDirectionButtons.Length; i++)
@@ -705,6 +706,11 @@ namespace Rpg.Soundwell
                 CloseBattleMovePreview();
                 return;
             }
+            // Treat destination selection as a modal battle action. Until the
+            // actor confirms or cancels, the background Attack/Guard/Gate
+            // and Retreat targets must not accept accidental pointer clicks.
+            // ORK's action eligibility remains intact; only UGUI is hidden.
+            SetPrimaryBattleCommandsVisible(false);
             ChooseBattleMove(first);
             // Focus the direction first so confirming the step is deliberate.
             actionEventSystem.SetSelectedGameObject(moveDirectionButtons[first].gameObject);
@@ -738,21 +744,42 @@ namespace Rpg.Soundwell
                 CloseBattleMovePreview();
                 return;
             }
-            CloseBattleMovePreview();
+            // ORK has just spent this actor's single movement allowance.
+            // Disable the obsolete Move target *before* focus restoration so
+            // the next Submit cannot land on a disabled preview command.
             moveButton.interactable = false;
+            CloseBattleMovePreview();
+        }
+
+        private void SetPrimaryBattleCommandsVisible(bool visible)
+        {
+            foreach (Button button in new[]
+                { attackButton, guardButton, openGateButton, moveButton, backButton })
+                button.gameObject.SetActive(visible);
         }
 
         public void CloseBattleMovePreview()
         {
+            bool wasOpen = movePreviewOpen;
             movePreviewOpen = false;
             movePreviewMarker.enabled = false;
             foreach (Button button in moveDirectionButtons)
                 button.gameObject.SetActive(false);
             confirmMoveButton.gameObject.SetActive(false);
             cancelMoveButton.gameObject.SetActive(false);
-            if (battleMode && moveButton.interactable &&
-                actionEventSystem != null)
-                actionEventSystem.SetSelectedGameObject(moveButton.gameObject);
+            if (battleMode)
+                SetPrimaryBattleCommandsVisible(true);
+            if (wasOpen && battleMode && actionEventSystem != null)
+            {
+                // Cancel restores Move; a confirmed step restores the same
+                // ORK actor's legal primary action or, while the chooser is
+                // resolving, the still-cancellable retreat focus.
+                Button target = moveButton.interactable ? moveButton :
+                    attackButton.interactable ? attackButton :
+                    guardButton.interactable ? guardButton :
+                    openGateButton.interactable ? openGateButton : backButton;
+                actionEventSystem.SetSelectedGameObject(target.gameObject);
+            }
         }
 
         public void SetBattleReadout(string summary)
