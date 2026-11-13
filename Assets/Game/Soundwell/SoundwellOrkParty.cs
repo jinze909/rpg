@@ -584,13 +584,21 @@ namespace Rpg.Soundwell
             Transform actor = member.GameObject.transform;
             Vector2 from = actor.position;
             destination = from + direction * BattleStepDistance;
-            if (Mathf.Abs(destination.x) > 6.7f || Mathf.Abs(destination.y) > 2.85f)
+
+            // A centre inside the arena is not enough: a leader's 2D circle
+            // can protrude beyond the edge after an otherwise legal half-tile
+            // step. Compare the entire world-space footprint, including scale,
+            // with the same authored playable boundary before sweeping walls.
+            CircleCollider2D bodyCollider = actor.GetComponent<CircleCollider2D>();
+            float worldScale = Mathf.Max(Mathf.Abs(actor.lossyScale.x),
+                Mathf.Abs(actor.lossyScale.y));
+            float radius = (bodyCollider != null ? bodyCollider.radius : 0.125f) *
+                worldScale;
+            if (!FitsBattleStepInArena(destination, radius))
                 return false;
 
             // The leader has a real circle collider. Use a two-pixel radius for
             // the companions, whose normal formation fits alongside that collider.
-            CircleCollider2D bodyCollider = actor.GetComponent<CircleCollider2D>();
-            float radius = bodyCollider != null ? bodyCollider.radius : 0.125f;
             Physics2D.SyncTransforms();
             Physics2D.CircleCast(from, radius, direction,
                 new ContactFilter2D { useTriggers = false }, stepHits, BattleStepDistance);
@@ -613,6 +621,14 @@ namespace Rpg.Soundwell
             float along = Mathf.Clamp(Vector2.Dot(obstacle - from, direction), 0f, BattleStepDistance);
             return Vector2.Distance(obstacle, from + direction * along) < clearance;
         }
+
+        // The saved Soundwell battle boundary is a playable *volume*, not
+        // merely a clamp on actor centres. ORK still owns the turn and 2D
+        // physics still validates the complete swept path separately.
+        public static bool FitsBattleStepInArena(Vector2 centre, float footprintRadius) =>
+            footprintRadius >= 0f &&
+            Mathf.Abs(centre.x) + footprintRadius <= 6.7f &&
+            Mathf.Abs(centre.y) + footprintRadius <= 2.85f;
 
         private bool CanSpendStep(int index)
         {
