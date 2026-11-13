@@ -57,6 +57,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellTrialTests.BeastKnockbackKeepsCarriedBellWithRescuerOnContactFrame",
         "BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope":
             "Rpg.Tests.Editor.SoundwellTrialTests.BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope",
+        "PausedEscortRetryClearsWaitingVisualBeforeNextFrame":
+            "Rpg.Tests.Editor.SoundwellTrialTests.PausedEscortRetryClearsWaitingVisualBeforeNextFrame",
         "ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges":
             "Rpg.Tests.Editor.SoundwellTrialTests.ReturnScreenKeepsRescueOutcomeLocalizedAcrossLanguageChanges",
         "PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi":
