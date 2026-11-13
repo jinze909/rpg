@@ -1390,6 +1390,19 @@ namespace Rpg.Tests.Editor
             Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
                 Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance),
                 "The real actor must arrive at the previewed position.");
+            var stepActorSprite = party.Actors[movingRescuer].GetComponent<SpriteRenderer>();
+            Assert.That(stepActorSprite, Is.Not.Null);
+            Assert.That(stepActorSprite.sprite.name, Does.Contain("walking"),
+                "A legal companion ORK step must show the existing 16px walk pose, not teleport in idle.");
+            Assert.That(stepActorSprite.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(stepActorSprite.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(stepActorSprite.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(stepActorSprite.flipX, Is.True,
+                "The visual step must face west with the actual ORK movement.");
+            yield return new WaitForSecondsRealtime(0.46f);
+            Assert.That(stepActorSprite.sprite.name, Does.Not.Contain("walking"),
+                "Movement feedback must expire without freezing the actor in the walk frame.");
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
             Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.False,
                 "The same ORK turn cannot spend a second step.");
             Assert.That(moveButton.interactable, Is.False);

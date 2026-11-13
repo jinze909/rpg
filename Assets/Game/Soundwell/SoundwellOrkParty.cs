@@ -208,6 +208,10 @@ namespace Rpg.Soundwell
         // Readable feedback after ORK has already resolved a real defend turn.
         // This timer affects only the sprite and never Combatant.Battle.Defending.
         private const float CompanionGuardPoseSeconds = 0.80f;
+        // A committed ORK step is instantaneous, but the same 16px walking
+        // pose must communicate who actually moved for a brief unscaled beat.
+        private const float CompanionStepPoseSeconds = 0.38f;
+        private readonly float[] companionStepUntil = new float[3];
         private readonly float[] companionAttackUntil = new float[3];
         private readonly float[] companionGuardUntil = new float[3];
         private readonly Notify[] guardEventHandlers = new Notify[3];
@@ -643,6 +647,20 @@ namespace Rpg.Soundwell
             else
                 actor.GameObject.transform.position = destination;
             Physics2D.SyncTransforms();
+            if (index > 0 && index < actors.Count)
+            {
+                // Visual only: ORK has already accepted this one physical
+                // step. Do not spend another action, animate a proxy actor,
+                // or alter the next combatant's turn.
+                companionStepUntil[index] = Time.unscaledTime + CompanionStepPoseSeconds;
+                SpriteRenderer renderer = actors[index].GetComponent<SpriteRenderer>();
+                if (renderer != null)
+                {
+                    renderer.sprite = index == 2 ? hoodWalkingSprite : walkingSprite;
+                    if (Mathf.Abs(direction.x) > 0.01f)
+                        renderer.flipX = direction.x < 0f;
+                }
+            }
             return true;
         }
 
@@ -789,6 +807,7 @@ namespace Rpg.Soundwell
             {
                 companionAttackUntil[i] = 0f;
                 companionGuardUntil[i] = 0f;
+                companionStepUntil[i] = 0f;
             }
         }
 
@@ -961,7 +980,8 @@ namespace Rpg.Soundwell
                          Time.unscaledTime < companionGuardUntil[i]);
                     Sprite guarding = i == 2 ? hoodGuardSprite : guardSprite;
                     renderer.sprite = Time.unscaledTime < companionAttackUntil[i]
-                        ? attacking : defending ? guarding : idle;
+                        ? attacking : defending ? guarding :
+                        Time.unscaledTime < companionStepUntil[i] ? walking : idle;
                     continue;
                 }
 
