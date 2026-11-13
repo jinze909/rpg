@@ -45,6 +45,13 @@ namespace Rpg.Soundwell
                 variables.Set(key, 0);
         }
 
+        // Public pure rule retained by the old SoundwellTrial compatibility API.
+        // ORK turn-based movement is never knocked back by an exploration plank.
+        public static bool ShouldRecoverFromLowerPlank(
+            bool directCombatStarted, bool gateOpen, Vector2 actorPosition) =>
+            !directCombatStarted && gateOpen &&
+            Vector2.Distance(actorPosition, SoundwellTrial.LowerBoardPosition) <= 0.48f;
+
         public bool RecoverLowerPlank(bool alreadyBroken)
         {
             if (!alreadyBroken)

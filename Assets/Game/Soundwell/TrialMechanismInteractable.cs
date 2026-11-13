@@ -36,6 +36,17 @@ namespace Rpg.Soundwell
         public bool CanPlaceBell => IsCarrying && TryFindBellStand(player.position, out _);
         public Vector2 HearingPoint => new Vector2(1.15f, bell.position.y);
 
+        // Spatial authority for gate, survivor and physical evidence
+        // interactions. The beast service never reads these private fields.
+        private bool Near(Vector2 point, float reach) =>
+            player != null && Vector2.Distance(player.position, point) <= reach;
+        public bool NearGatePanel => Near(new Vector2(-0.55f, 0f), 0.8f);
+        public bool NearSurveyor => Near(SoundwellTrial.SurveyorPosition, 1.05f);
+        public bool NearUpperPlank => Near(SoundwellTrial.UpperBoardPosition, 0.68f);
+        public bool NearRope => Near(SoundwellTrial.RopeEvidencePosition, 0.72f);
+        public bool NearCart => Near(SoundwellTrial.CartEvidencePosition, 0.72f);
+        public bool NearClaws => Near(SoundwellTrial.ClawEvidencePosition, 0.72f);
+
         public bool TryFindBellStand(Vector2 position, out Vector2 stand)
         {
             if (Vector2.Distance(position, SoundwellTrial.SideBellStand) <= StandReach)

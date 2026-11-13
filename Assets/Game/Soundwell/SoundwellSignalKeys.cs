@@ -34,5 +34,9 @@ namespace Rpg.Soundwell
         public const string EntryCartKitKey = "rpg.soundwell.signal-trial.last-return-cart-kit";
         public const string EntrySafeRouteKey = "rpg.soundwell.signal-trial.last-return-safe-route";
         public const string EntryBeastContactsKey = "rpg.soundwell.signal-trial.last-return-beast-contacts";
+        // Explicit gameplay-domain aliases; persisted Makinom IDs are shared.
+        public const string BellSignalKey = SignalKey;
+        public const string InnerGateSignal = GateKey;
+        public const string SurveyorRescuedSignal = RescueKey;
     }
 }

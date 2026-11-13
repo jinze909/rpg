@@ -79,6 +79,65 @@ namespace Rpg.Tests.Editor
             Assert.That(predicate.Invoke(null, new object[] { null }),
                 Is.EqualTo(false),
                 "A missing ORK member may not open the gate or dereference GameObject.");
+
+            // Check the extracted public signal registry without inventing a
+            // new Makinom/ORK authority or changing the locked test manifest.
+            Assert.That(SoundwellSignalKeys.SignalKey,
+                Is.EqualTo("rpg.soundwell.signal-trial.bell"));
+            Assert.That(SoundwellSignalKeys.GateKey,
+                Is.EqualTo("rpg.soundwell.signal-trial.inner-gate"));
+            Assert.That(SoundwellSignalKeys.RescueKey,
+                Is.EqualTo("rpg.soundwell.signal-trial.surveyor-rescued"));
+            Assert.That((int)BellSignal.Ready, Is.Zero);
+            Assert.That((int)BellSignal.Ringing, Is.EqualTo(1));
+            Assert.That((int)BellSignal.Wrapped, Is.EqualTo(2));
+            Assert.That((int)BellSignal.Searching, Is.EqualTo(3));
+            AssertIndependentBeastPatrolSignals();
+        }
+
+        // This is a helper of the existing registered EditMode regression,
+        // not a new undisclosed NUnit test that bypasses strict CI evidence.
+        private static void AssertIndependentBeastPatrolSignals()
+        {
+            var root = new GameObject("isolated beast service");
+            var leader = new GameObject("isolated leader");
+            var actor = new GameObject("isolated beast");
+            try
+            {
+                Rigidbody2D body = leader.AddComponent<Rigidbody2D>();
+                body.gravityScale = 0f;
+                actor.transform.position = new Vector3(3f, 0f, 0f);
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(actor.transform, body, actor.transform.position);
+                int contacts = 0;
+                patrol.PlayerCaught += () => contacts++;
+                Vector2 sound = new Vector2(1.15f, -1.95f);
+                patrol.OnBellSignal(BellSignal.Ringing, sound);
+                Assert.That(patrol.Tick(BellSignal.Ringing, sound, false, false,
+                    false, false), Is.EqualTo(sound),
+                    "Beast chase must use the live bell target, not a UI guess.");
+
+                body.position = new Vector2(3f, 0f);
+                actor.transform.position = new Vector3(3f, 0f, 0f);
+                patrol.Tick(BellSignal.Ready, sound, false, false, false, false);
+                patrol.Tick(BellSignal.Ready, sound, false, false, true, true);
+                patrol.Tick(BellSignal.Ready, sound, true, false, true, false);
+                patrol.Tick(BellSignal.Ready, sound, false, true, true, false);
+                Assert.That(contacts, Is.Zero);
+                patrol.Tick(BellSignal.Ready, sound, false, false, true, false);
+                Assert.That(contacts, Is.EqualTo(1),
+                    "Contact fires only in an open unsafe exploration lane.");
+                Assert.That(body.position, Is.EqualTo(new Vector2(3f, 0f)),
+                    "Only TrialCheckpointManager may relocate a captured player.");
+                patrol.ResetPatrol();
+                Assert.That(patrol.Position, Is.EqualTo(new Vector2(3f, 0f)));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(actor);
+            }
         }
 
         [UnityTest]
