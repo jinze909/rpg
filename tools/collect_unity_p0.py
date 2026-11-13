@@ -83,6 +83,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
 # manifest too. The UnityTest registry below only recognizes IEnumerator,
 # so new NUnit void tests otherwise compile and pass but fail evidence.
 ADDITIONAL_EDITOR_TESTS = {
+    "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
+        "OrkStepMustKeepWholeCombatantInsideSavedBattleBounds":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkStepMustKeepWholeCombatantInsideSavedBattleBounds",
+    },
     "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
         "InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps":
             "Rpg.Tests.Editor.P0BootstrapTests.InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps",

@@ -176,6 +176,25 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
 
 
 class SoundwellAcceptanceContractTests(unittest.TestCase):
+    def test_nunit_step_boundary_test_must_be_exactly_declared(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            test_file = source_root / "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs"
+            test_file.parent.mkdir(parents=True)
+            method = "OrkStepMustKeepWholeCombatantInsideSavedBattleBounds"
+            full_name = "Rpg.Tests.Editor.SoundwellCompanionActionTests." + method
+            test_file.write_text(
+                "[Test] public void " + method + "() { }", encoding="utf-8"
+            )
+            self.assertIn(full_name, expected_tests_for("verify", True, source_root))
+            self.assertIn(full_name, expected_tests_for("prepare", True, source_root))
+            # A source-level name alone must not be accepted without NUnit's
+            # Test attribute; the collector still rejects unexpected results.
+            test_file.write_text(
+                "public void " + method + "() { }", encoding="utf-8"
+            )
+            self.assertNotIn(full_name, expected_tests_for("verify", True, source_root))
+
     def test_paused_leader_animation_test_is_required_in_soundwell_verify(self):
         with tempfile.TemporaryDirectory() as root:
             source_root = Path(root)
