@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         public const string WorkshopPromiseKey = "rpg.return.s00.workshop-promise";
         public const string HanQiaoRescueKey = "rpg.return.s00.hanqiao-rescue";
         public const string EvacueeEscortedKey = "rpg.return.s00.last-evacuee-escorted";
+        public const string SpareRopeCallKey = "rpg.return.s00.spare-rope-call";
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
@@ -33,6 +34,7 @@ namespace Rpg.Soundwell
         private RectTransform lastBoat;
         private RectTransform evacuee;
         private RectTransform evacueeSafeLine;
+        private RectTransform spareRope;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -48,7 +50,8 @@ namespace Rpg.Soundwell
         // 0: roll call; 1: walk; 2: cable decision; 3: stretcher crossing;
         // 4: workshop promise choice; 5: its response; 6: man overboard;
         // 7: rescue station; 8: Han Qiao boards the last boat;
-        // 9: reach the stranded evacuee; 10: escort west; 11: confirm safe crossing.
+        // 9: reach the stranded evacuee; 10: escort west; 11: confirm safe crossing;
+        // 12: voluntary rope call and first-bell cue. The defence is still pending.
         // The ORK defence encounter and fixed third-bell cable break are still pending.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
@@ -141,6 +144,10 @@ namespace Rpg.Soundwell
                 new Color(0.91f, 0.80f, 0.61f)).rectTransform;
             evacueeSafeLine.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(false);
+            // Visible only after the player personally finishes the escort and calls out.
+            spareRope = Panel(canvas.transform, "PLACEHOLDER S00 spare rope at clamp",
+                new Vector2(ClampX + 30f, 51f), new Vector2(32f, 11f), Brass).rectTransform;
+            spareRope.gameObject.SetActive(false);
             marker = Panel(canvas.transform, "PLACEHOLDER player",
                 new Vector2(walker.x, 12f), new Vector2(22f, 31f),
                 new Color(0.64f, 0.85f, 0.93f)).rectTransform;
@@ -274,6 +281,8 @@ namespace Rpg.Soundwell
                 ShowLastBoat();
             else if (phase == 8)
                 ShowFinalRetreat();
+            else if (phase == 11)
+                CallForSpareRope();
         }
 
         private void ShowLastBoat()
@@ -411,11 +420,38 @@ namespace Rpg.Soundwell
             phase = 11;
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "One more person makes it across the safe line. The enemy is still closing; the bridge's final defence lies ahead.",
-                "又一人越过安全线。敌军仍在逼近；最后的桥头防守还在前面。");
+                "One more person crosses the safe line. Enemy troops close in; Shen Li still watches the bridge cable.",
+                "又一人越过安全线。敌军越逼越近，沈砾仍在留意桥上的缆索。");
             instructions.text = Copy(
-                "S00-04 escort slice complete. The ORK defence and the third-bell cable break are not yet playable.",
-                "S00-04 撤离切片完成。ORK 防守战与第三声钟后的断缆仍待实现。");
+                "Call for spare rope to help the bridge crew. The ORK defence is a later slice.",
+                "呼喊多余的绳索，提醒桥头同伴。ORK 防守战仍属后续切片。");
+            next.gameObject.name = "S00 call for spare rope";
+            Text label = next.GetComponentInChildren<Text>(true);
+            if (label != null)
+                label.text = Copy("Who has spare rope?", "谁带了多余的绳子？");
+            next.gameObject.SetActive(true);
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(next.gameObject);
+        }
+
+        private void CallForSpareRope()
+        {
+            // The cue is player initiated and cannot be earned by choosing a
+            // dialogue option, skipping the escort, or waiting out a timer.
+            if (phase != 11 || next == null || !next.gameObject.activeInHierarchy)
+                return;
+            phase = 12;
+            next.gameObject.SetActive(false);
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(SpareRopeCallKey, 1);
+            spareRope.gameObject.SetActive(true);
+            cable.color = new Color(0.78f, 0.43f, 0.28f);
+            narration.text = Copy(
+                "You shout, 'Who has spare rope?' A coil reaches Shen Li at the clamp. The first bell sounds; she turns toward the strained cable.",
+                "你喊：“谁带了多余的绳子？”一卷绳索送到缆桩边的沈砾手里。第一声号钟响起，她转头望向吃紧的缆索。");
+            instructions.text = Copy(
+                "The first bell warns of danger. The ORK defence and fixed third-bell break are not yet playable. Return to entry.",
+                "第一声钟是警讯。ORK 防守战与第三声钟后的既定断缆仍待实现；可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }

@@ -774,7 +774,29 @@ namespace Rpg.Tests.Editor
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
-                        ? "越过安全线" : "across the safe line"));
+                        ? "越过安全线" : "crosses the safe line"));
+
+                // The rope call is an earned, optional follow-up, not a timed
+                // false win or a substitute for the pending ORK defence.
+                var rope = prelude.transform.Find(
+                    "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
+                Assert.That(rope, Is.Not.Null);
+                Assert.That(rope.gameObject.activeInHierarchy, Is.False,
+                    "No rope response before the player reaches the safe line.");
+                var callForRope = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 call for spare rope");
+                Assert.That(callForRope.gameObject.activeInHierarchy, Is.True);
+                callForRope.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(12));
+                Assert.That(rope.gameObject.activeInHierarchy, Is.True,
+                    "Shen Li's received coil must be visible at the repaired cable.");
+                Assert.That(callForRope.gameObject.activeInHierarchy, Is.False,
+                    "The player cannot issue the same rope call twice.");
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "第一声号钟" : "first bell"));
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
 
                 var backToEntry = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 return to Bootstrap");
