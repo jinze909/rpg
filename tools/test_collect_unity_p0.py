@@ -211,6 +211,25 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             )
             self.assertNotIn(full_name, expected_tests_for("verify", True, source_root))
 
+    def test_paused_escort_retry_is_required_without_loosening_p0_manifest(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case_file = source_root / "Assets/Game/Tests/Editor/SoundwellTrialTests.cs"
+            case_file.parent.mkdir(parents=True)
+            method = "PausedEscortRetryClearsWaitingVisualBeforeNextFrame"
+            name = "Rpg.Tests.Editor.SoundwellTrialTests." + method
+            case_file.write_text(
+                "[UnityTest] public IEnumerator " + method +
+                "() { yield break; }", encoding="utf-8",
+            )
+            self.assertIn(name, expected_tests_for("verify", True, source_root))
+            self.assertNotIn(name, expected_tests_for("prepare", True, source_root))
+            case_file.write_text(
+                "public IEnumerator " + method + "() { yield break; }",
+                encoding="utf-8",
+            )
+            self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+
     def test_ork_battle_test_and_runtime_marker_are_required(self):
         self.assertIn(
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.ThreePlayerCombatantsEnterOneOrkTurnBasedBattle",
