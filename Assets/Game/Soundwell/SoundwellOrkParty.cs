@@ -564,14 +564,23 @@ namespace Rpg.Soundwell
             {
                 if (BattleInProgress && Beast != null && !Beast.Status.IsDead)
                     for (int i = 0; i < members.Count; i++)
-                        if (!members[i].Status.IsDead && members[i].Actions.IsChoosing)
+                    {
+                        // ORK's chooser can outlive a scene-owned actor during
+                        // retreat/retry. Never return a vanished combatant as
+                        // an actionable turn or dereference a retired roster slot.
+                        Combatant member = members[i];
+                        if (member != null && member.GameObject != null &&
+                            i < actors.Count && actors[i] != null &&
+                            !member.Status.IsDead && member.Actions.IsChoosing)
                             return i;
+                    }
                 return -1;
             }
         }
 
         public bool CanGuard(int index) => index >= 0 && index < members.Count &&
-            members[index] != null &&
+            members[index] != null && members[index].GameObject != null &&
+            index < actors.Count && actors[index] != null &&
             members[index].Shortcuts.DefendShortcut.CanUse(members[index], true, true);
 
         public bool TryGuard()
@@ -599,7 +608,7 @@ namespace Rpg.Soundwell
 
         private void ShowGuardPose(int index)
         {
-            if (index <= 0 || index >= actors.Count)
+            if (index <= 0 || index >= actors.Count || actors[index] == null)
                 return;
             // Only visuals are extended, never ORK's actual defense status,
             // action cost, target selection or turn progression.
@@ -793,7 +802,7 @@ namespace Rpg.Soundwell
             bool targetAllowed = attack != null && attack.CanTarget(attacker, Beast);
             bool accepted = targetAllowed &&
                 attack.Use(attacker, new List<Combatant> { Beast }, true);
-            if (accepted && index > 0 && index < actors.Count)
+            if (accepted && index > 0 && index < actors.Count && actors[index] != null)
             {
                 // Presentation only. ORK has already accepted the real turn
                 // action; show which companion acted without touching status,
@@ -1044,8 +1053,16 @@ namespace Rpg.Soundwell
             bool inBattle = IsBattleRunning();
             for (int i = 1; i < actors.Count; i++)
             {
-                Transform follower = actors[i].transform;
-                SpriteRenderer renderer = actors[i].GetComponent<SpriteRenderer>();
+                // A scene teardown may retire a follower before the ORK
+                // battle finishes. Missing visuals must not crash the
+                // remaining actors' animation or overwrite combat authority.
+                GameObject followerActor = actors[i];
+                if (followerActor == null)
+                    continue;
+                Transform follower = followerActor.transform;
+                SpriteRenderer renderer = followerActor.GetComponent<SpriteRenderer>();
+                if (renderer == null)
+                    continue;
                 Sprite idle = i == 2 ? hoodIdleSprite : placeholderSprite;
                 Sprite walking = i == 2 ? hoodWalkingSprite : walkingSprite;
                 Sprite attacking = i == 2 ? hoodAttackSprite : attackSprite;
