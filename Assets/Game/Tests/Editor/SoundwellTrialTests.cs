@@ -748,6 +748,17 @@ namespace Rpg.Tests.Editor
                     Is.Not.EqualTo(chineseFeedback[index]),
                     "Switching back to English must restore each authored line.");
 
+            // The optional claw observation is a player-earned clue, not a
+            // persistent hint to reveal on an otherwise fresh attempt. Do it
+            // after finishing the fixed-cost rescue route to leave the route
+            // comparison's recorded interaction counts unchanged.
+            Assert.That(trial.ClawsObserved, Is.False);
+            MoveTestLeader(playerBody, SoundwellTrial.ClawEvidencePosition);
+            Assert.That(trial.CanInspectClaws, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.ClawsObserved, Is.True,
+                "The existing world interaction must actually earn the claw clue.");
+            MoveTestLeader(playerBody, safe);
             // A successful sound-only rescue can be replayed in-place.
             // Invoke the normal Retry input at the real retreat mark: no
             // test-side Makinom variable reset or fake ORK victory.
@@ -770,6 +781,8 @@ namespace Rpg.Tests.Editor
             Assert.That(weakPlank.sprite, Is.SameAs(intactPlankSprite),
                 "Retry must restore the intact pixel silhouette as well as collision.");
             Assert.That(trial.HasSurveyorClue, Is.False);
+            Assert.That(trial.ClawsObserved, Is.False,
+                "Retry must clear the previously inspected claw trail for fair route discovery.");
             Assert.That(trial.IsCarrying || trial.HasBellTarget ||
                 trial.IsSearching || trial.IsWrapped, Is.False,
                 "Retry must clear the old bell lure, wrap and carry state.");
