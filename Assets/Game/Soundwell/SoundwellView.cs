@@ -638,7 +638,10 @@ namespace Rpg.Soundwell
             if (attackTargetMarker.enabled)
                 attackTargetMarker.transform.position =
                     beastActor.position + new Vector3(0f, 1.12f, 0f);
-            activeRescuerMarker.enabled = activeActor != null;
+            // Use the same validated chooser as the legal ORK commands.
+            // A cached Transform with an invalid turn index is not an active
+            // rescuer and must never receive the cyan actor marker.
+            activeRescuerMarker.enabled = liveChooser;
             if (activeRescuerMarker.enabled)
                 activeRescuerMarker.transform.position =
                     activeActor.position + new Vector3(0f, 1.12f, 0f);

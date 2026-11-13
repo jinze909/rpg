@@ -76,6 +76,28 @@ namespace Rpg.Tests.Editor
             }
             Assert.That(trial != null && party != null && trial.IsReady && party.IsReady,
                 Is.True, "Companion attack must use real saved ORK combatants.");
+            // The scene actor list can retire a follower during teardown
+            // while ORK still owns the battle roster. One missing visual
+            // must not make the regular world update throw or stop the trial.
+            var flags = System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic;
+            var actorField = typeof(SoundwellOrkParty).GetField("actors", flags);
+            Assert.That(actorField, Is.Not.Null);
+            var actorRoster = (IList)actorField.GetValue(party);
+            GameObject savedFollower = (GameObject)actorRoster[1];
+            Assert.That(savedFollower, Is.Not.Null);
+            try
+            {
+                actorRoster[1] = null;
+                yield return null;
+                Assert.That(party.IsReady, Is.True,
+                    "Losing one scene visual must not tear down the ORK party.");
+            }
+            finally
+            {
+                actorRoster[1] = savedFollower;
+            }
+
             // A chooser can change while a delayed UGUI view refreshes.
             // Stale actor indices and a missing gate predicate must be
             // harmless, not tear down the live ORK party with IndexOutOfRange.
@@ -100,6 +122,37 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(party.ReadyBaseAttackerIndex, Is.GreaterThanOrEqualTo(0),
                 "Live ORK must offer an actual player turn.");
+            int choosing = party.ChoosingRescuerIndex;
+            Assert.That(choosing, Is.InRange(0, 2));
+            var memberField = typeof(SoundwellOrkParty).GetField("members", flags);
+            Assert.That(memberField, Is.Not.Null);
+            var memberRoster = (IList)memberField.GetValue(party);
+            object savedMember = memberRoster[choosing];
+            GameObject savedActor = (GameObject)actorRoster[choosing];
+            try
+            {
+                memberRoster[choosing] = null;
+                Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(-1),
+                    "A retired ORK roster entry must never be selected.");
+            }
+            finally
+            {
+                memberRoster[choosing] = savedMember;
+            }
+            try
+            {
+                actorRoster[choosing] = null;
+                Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(-1),
+                    "A vanished Unity scene actor cannot retain an ORK chooser.");
+                Assert.That(party.CanGuard(choosing), Is.False,
+                    "An orphaned ORK chooser must not offer Guard.");
+            }
+            finally
+            {
+                actorRoster[choosing] = savedActor;
+            }
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(choosing),
+                "Restoring the real actor must restore the current ORK turn.");
 
             var second = party.Actors[1].GetComponent<SpriteRenderer>();
             var third = party.Actors[2].GetComponent<SpriteRenderer>();
