@@ -1719,6 +1719,33 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.GateOpen, Is.False);
             Assert.That(trial.RescueComplete, Is.False);
 
+            // A saved or modified physical footprint may be offset from the
+            // ORK actor pivot. An apparently legal actor-centre destination
+            // must not carry the collider beyond the real arena boundary.
+            var offsetProbeCollider = party.Leader.GetComponent<CircleCollider2D>();
+            Assert.That(offsetProbeCollider, Is.Not.Null);
+            Assert.That(party.CanStep(0, Vector2.right), Is.True,
+                "The baseline eastward step must be physically legal before the offset probe.");
+            Vector2 originalColliderOffset = offsetProbeCollider.offset;
+            try
+            {
+                offsetProbeCollider.offset = new Vector2(8f, 0f);
+                Physics2D.SyncTransforms();
+                Assert.That(party.CanStep(0, Vector2.right), Is.False,
+                    "An offset circle beyond the arena must invalidate the real ORK step.");
+                Assert.That(party.TryStep(0, Vector2.right), Is.False,
+                    "An illegal offset footprint cannot consume the move allowance.");
+            }
+            finally
+            {
+                offsetProbeCollider.offset = originalColliderOffset;
+                Physics2D.SyncTransforms();
+            }
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
+            Assert.That(party.BuildBattleReadout(),
+                Does.Contain(SoundwellUiLocalization.Get("battle.move") + " 1/1"),
+                "A rejected offset-collider step must leave the same ORK turn unspent.");
+
             Vector2[] positions = party.Actors.Select(actor => (Vector2)actor.transform.position)
                 .Concat(new[] { trial.BeastPosition, trial.BellPosition }).ToArray();
             float[] health = party.Members.Select(member => (float)member.Status[1].GetValue())
