@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Rpg.Soundwell
 {
     // Scene-local presentation for the explicitly labelled placeholder trial.
-    internal sealed class SoundwellView
+    public sealed class SoundwellView
     {
         private static readonly Color Ink = new Color(0.79f, 0.87f, 0.90f);
         private static readonly Color Gold = new Color(1f, 0.72f, 0.33f);
