@@ -221,6 +221,98 @@ jobs:
                           "e62b29221efe1682b2940f861016a2707b8a98eb",
                   },
               },
+          # Fully reviewed one-off retirements: each original HEAD had green
+          # Unity CI; all candidate patch additions are present in the verified
+          # dev replacement, or (M5) tightened in that replacement. Blobs
+          # pin the complete replacement source/test surface against drift.
+              "codex/pending/m2-rebinding-invalid-preference-recovery-nov11": {
+                  "head":"3c369a1936b55e6790fff3f7b2f900b55b609ad7",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "reason":"full M2 corrupt/valid override handling and NUnit coverage reproduced in dev",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellInputAdapter.cs":
+                          "ae0166baac0de887acbe028e3f7a25991d7120c3",
+                      "Assets/Game/Tests/Editor/P0BootstrapTests.cs":
+                          "061f2ac2011f1da289bd4a6d54588f6d268dd8ce",
+                      "tools/collect_unity_p0.py":
+                          "3fbd2169d1c1e4c74ae8fd99fc252ba1da0da8a1",
+                      "tools/test_collect_unity_p0.py":
+                          "297b81a0c2f7523e680a53efc7a990e0aa7dbb28",
+                  },
+              },
+              "codex/pending/m5-exact-wall-audit-on-current-dev-nov12": {
+                  "head":"fed94a532ceb6e88367619429ab5235333f0dc60",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "reason":"cell footprint and solidity assertions preserved and strengthened by current M5 validator",
+                  "blobs":{
+                      "Assets/Game/Editor/SoundwellTilemapSetup.cs":
+                          "8a8e547ebf9b75ce6162601e7765479566bfd193",
+                  },
+              },
+              "codex/pending/story003-companion-battle-step-pixel-pose-nov12": {
+                  "head":"79a3ae892fd6813089356f0ff8a0d9ae1ad88650",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "reason":"all complete step pose patch additions preserved in current game and tests",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                          "4cab8c26568cb0f426307d272699ffeceea89811",
+                      "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                          "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
+                  },
+              },
+              "codex/pending/story003-companion-step-after-escort-nov12": {
+                  "head":"12e6e047c79fe61f7e945a4cdfd52797fa340f5f",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "reason":"all committed post-escort step pose lines preserved in current game and tests",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                          "4cab8c26568cb0f426307d272699ffeceea89811",
+                      "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                          "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
+                  },
+              },
+              "codex/pending/story-003-ork-attack-visual-after-focus-nov11": {
+                  "head":"4a6f9df67700abfd06eddc9dc879a4ae00742c0e",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "reason":"full ORK attack visual feedback and exact test registration preserved",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellTrial.cs":
+                          "c47416e6253b3398a70098bce45ab880c6b2269d",
+                      "Assets/Game/Tests/Editor/SoundwellTrialTests.cs":
+                          "0539f8f8048f623a4d80547b54860ed2dce5bc90",
+                      "tools/collect_unity_p0.py":
+                          "3fbd2169d1c1e4c74ae8fd99fc252ba1da0da8a1",
+                      "tools/test_collect_unity_p0.py":
+                          "297b81a0c2f7523e680a53efc7a990e0aa7dbb28",
+                  },
+              },
+              "codex/pending/story-003-ork-attack-visual-feedback-nov11": {
+                  "head":"0f0043d93b8ce664fe747e317bfad0c3c8ef9a3e",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "reason":"full ORK attack visual feedback and exact test registration preserved",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellTrial.cs":
+                          "c47416e6253b3398a70098bce45ab880c6b2269d",
+                      "Assets/Game/Tests/Editor/SoundwellTrialTests.cs":
+                          "0539f8f8048f623a4d80547b54860ed2dce5bc90",
+                      "tools/collect_unity_p0.py":
+                          "3fbd2169d1c1e4c74ae8fd99fc252ba1da0da8a1",
+                      "tools/test_collect_unity_p0.py":
+                          "297b81a0c2f7523e680a53efc7a990e0aa7dbb28",
+                  },
+              },
           }
           def verified_archived_proof(name,sha):
               entry=ARCHIVED[name]
