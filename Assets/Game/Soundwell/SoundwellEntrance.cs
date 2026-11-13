@@ -27,6 +27,7 @@ namespace Rpg.Soundwell
         private Text sfxText;
         private Font englishFont;
         private float layoutAspect = -1f;
+        private string shownEntryShortcut;
         private int shownOutcome = -1;
         private bool shownOutcomeRecorded;
         private bool shownCartKitRecovered;
@@ -154,12 +155,29 @@ namespace Rpg.Soundwell
             Font font = SoundwellUiLocalization.PresentationFont(englishFont);
             titleText.font = actionText.font = footerText.font = outcomeText.font = font;
             titleText.text = SoundwellUiLocalization.Get("entry.title");
-            actionText.text = SoundwellUiLocalization.Get("entry.action");
+            // Localized entry text is authored for the default F2 binding.
+            // Replace only its shortcut token, leaving the translated copy and
+            // the independent gamepad Submit hint under StringTable authority.
+            shownEntryShortcut = null;
+            RefreshEntryShortcutHint();
             footerText.text = SoundwellUiLocalization.Get("entry.footer");
             RefreshReturnOutcome(true);
             RefreshSfxText();
             languageText.font = font;
             languageText.text = SoundwellUiLocalization.Get("action.language");
+        }
+
+        private void RefreshEntryShortcutHint()
+        {
+            if (actionText == null)
+                return;
+            string shortcut = SoundwellInputAdapter.EntryKeyboardShortcutLabel();
+            if (shortcut == shownEntryShortcut)
+                return;
+            shownEntryShortcut = shortcut;
+            string token = string.IsNullOrEmpty(shortcut) ? "[" : "[" + shortcut + " / ";
+            actionText.text = SoundwellUiLocalization.Get("entry.action")
+                .Replace("[F2 / ", token);
         }
 
         // Use the actual UGUI navigation graph for D-pad and keyboard arrows:
@@ -254,6 +272,9 @@ namespace Rpg.Soundwell
             // ORK may initialize after this scene's Awake/Start. Recheck the
             // same Makinom source without creating a parallel summary flag.
             RefreshReturnOutcome();
+            // Remaps may occur while the Entry screen stays alive. Refresh
+            // only when the effective keyboard shortcut changes.
+            RefreshEntryShortcutHint();
             float aspect = (float)Screen.width / Mathf.Max(Screen.height, 1);
             if (!Mathf.Approximately(aspect, layoutAspect))
                 LayoutForViewportAspect(aspect);
