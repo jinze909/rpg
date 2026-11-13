@@ -549,7 +549,15 @@ namespace Rpg.Soundwell
                 if (member.Battle.Defending)
                     text.Append("  ").Append(SoundwellUiLocalization.Get("battle.defending"));
                 if (member.Actions.IsChoosing)
+                {
                     text.Append("  ").Append(SoundwellUiLocalization.Get("battle.turn"));
+                    // A small ORK-owned mobility allowance is separate from
+                    // the primary action. Surface the *real* live-turn budget
+                    // without duplicating an action counter in presentation.
+                    // 1/1 means unspent, not a promise that every direction is free.
+                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
+                        .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
+                }
                 text.Append('\n');
             }
             text.Append(SoundwellUiLocalization.Get("battle.beast")).Append("  ")

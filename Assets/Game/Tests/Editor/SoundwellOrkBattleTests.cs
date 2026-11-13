@@ -1354,6 +1354,9 @@ namespace Rpg.Tests.Editor
             // A second rescuer can preview an eight-pixel step and cancel
             // without spending the movement allowance or primary action.
             int movingRescuer = party.ChoosingRescuerIndex;
+            string stepLabel = SoundwellUiLocalization.Get("battle.move");
+            Assert.That(party.BuildBattleReadout(), Does.Contain(stepLabel + " 1/1"),
+                "The live chooser should see its one unspent ORK step in the HUD.");
             Vector2 beforeStep = party.Actors[movingRescuer].transform.position;
             Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.True,
                 "The westward step from the live guard follow-up must be reachable.");
@@ -1423,6 +1426,8 @@ namespace Rpg.Tests.Editor
             Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
                 Is.EqualTo(beforeStep),
                 "Cancel cannot secretly move the ORK actor or spend its turn.");
+            Assert.That(party.BuildBattleReadout(), Does.Contain(stepLabel + " 1/1"),
+                "Cancelling the preview must leave the visible movement budget untouched.");
 
             // A collider appearing along the sweep must invalidate the step
             // without moving the chooser or spending its allowance.
@@ -1457,6 +1462,8 @@ namespace Rpg.Tests.Editor
                 "A blocked move must fail even if gameplay calls TryStep directly.");
             Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
                 Is.EqualTo(beforeStep), "A blocked step cannot teleport the ORK actor.");
+            Assert.That(party.BuildBattleReadout(), Does.Contain(stepLabel + " 1/1"),
+                "Physics-rejected movement must not silently consume the displayed allowance.");
             moveButton.onClick.Invoke();
             Assert.That(westButton.interactable, Is.False,
                 "The live movement menu must disable directions blocked by geometry.");
@@ -1496,6 +1503,8 @@ namespace Rpg.Tests.Editor
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
             Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.False,
                 "The same ORK turn cannot spend a second step.");
+            Assert.That(party.BuildBattleReadout(), Does.Contain(stepLabel + " 0/1"),
+                "After an accepted ORK step the HUD must immediately show no movement left.");
             Assert.That(moveButton.interactable, Is.False);
             Assert.That(attack.interactable, Is.True);
             Assert.That(trial.GateOpen, Is.False);
