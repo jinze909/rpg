@@ -163,6 +163,24 @@ jobs:
                   proof=verified_artifact(r,verified_sha,all_runs)
                   if proof:return proof
               return None
+          def workflow_only_proof(sha):
+              # A housekeeping-only candidate is accepted by this exact
+              # cleanup workflow, never by pretending Unity has run.
+              if not ancestor(sha,dev):return None
+              parents=git("rev-list","--parents","-n","1",sha).split()
+              if len(parents)!=2 or parents[0]!=sha:return None
+              files=git("diff-tree","--no-commit-id","--name-only","-r",sha).splitlines()
+              if files!=[".github/workflows/close-merged-pending.yml"]:return None
+              runs=pages("/repos/"+REPO+"/actions/runs?head_sha="+sha,
+                         "workflow_runs",limit=300)
+              for run in runs:
+                  if (run.get("head_sha")==sha and
+                      run.get("name")=="Close fully delivered pending branches" and
+                      run.get("head_branch")=="codex/dev" and
+                      run.get("status")=="completed" and
+                      run.get("conclusion")=="success"):
+                      return run.get("html_url")
+              return None
           check(os.environ.get("GITHUB_REPOSITORY")==REPO,"wrong repository")
           check(os.environ.get("GITHUB_REF")==REF,"wrong branch")
           with open(os.environ["GITHUB_EVENT_PATH"],encoding="utf-8") as f:event=json.load(f)
@@ -513,6 +531,26 @@ jobs:
                   "reason":"guard sprite/animation and memory probe retained; old ORK guard event test replaced by accepted shield turn",
                   "blobs":LEGACY_GUARD_M4_M10_BLOBS,
               },
+              "codex/pending/story003-surveyor-world-dialogue-zh-nov12": {
+                  "head":"47e01f041523789bef6f8d05857224876003dab6",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"Chinese NPC/sign/cart/rope localization now uses the verified route_posted/kit_reclaimed/cart_mentioned/sign_removed and observed.* replacements; smoke still verifies physical map-kit recovery and return dialogue",
+                  "blobs":{
+                      "Assets/Game/Resources/Soundwell/Localization/SoundwellUI-Shared.asset":
+                          "7a7441a0981858308e9f610918da8670ace8dab5",
+                      "Assets/Game/Resources/Soundwell/Localization/SoundwellUI-en.asset":
+                          "05101562a41e5795ef0ce855e361e2e49ff129d6",
+                      "Assets/Game/Resources/Soundwell/Localization/SoundwellUI-zh-Hans.asset":
+                          "93d53e856e2f73ea6d071b6ad9f582fd78b221b3",
+                      "Assets/Game/Soundwell/SoundwellSmokeHost.cs":
+                          "883edbee175922067b56bf4375d403200df2cf9c",
+                      "Assets/Game/Soundwell/SoundwellView.cs":
+                          "1f4ebd3db1f26e4eaca7d54230d5297e5cedc424",
+                  },
+              },
           }
           def verified_archived_proof(name,sha):
               entry=ARCHIVED[name]
@@ -591,6 +629,9 @@ jobs:
                           proof=descendant_proof(sha)
                           method="verified descendant in dev history"
                           if proof:descendant_proven+=1
+                      if not proof:
+                          proof=workflow_only_proof(sha)
+                          if proof:method="same-SHA successful cleanup-only workflow"
                   else:
                       proof=snapshot_proof(sha)
                       method="exact changed-file snapshot in verified dev history"
