@@ -523,6 +523,13 @@ namespace Rpg.Soundwell
             }
         }
 
+        // Attack availability is not the same as whether ORK currently has
+        // an actionable rescuer: Guard, Gate or a movement allowance can
+        // remain available even when a base attack cannot target the beast.
+        // Only report the chooser as pending when ORK has no live turn.
+        public static bool IsBattleChooserPending(int chooserIndex, bool beastDead, float beastHp) =>
+            chooserIndex < 0 && !beastDead && beastHp > 0f;
+
         /// <summary>
         /// Read-only snapshot for the provisional battle HUD. ORK remains the
         /// authority for HP, turn choice, battle outcomes and available actions.
@@ -562,11 +569,11 @@ namespace Rpg.Soundwell
             text.Append(SoundwellUiLocalization.Get("battle.beast")).Append("  ")
                 .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                 .Append(Beast.Status[1].GetValue());
-            // A defeated enemy has no further attack choice to present.
-            // A missing next chooser while its HP is positive is different
-            // from a completed action resolving ORK death/victory.
-            if (ReadyBaseAttackerIndex < 0 && !Beast.Status.IsDead &&
-                Beast.Status[1].GetValue() > 0f)
+            // A disabled Attack button is not a pending ORK menu if the
+            // current chooser may still Guard, open the Gate or take a step.
+            // Preserve the pending cue only while the next turn is unresolved.
+            if (IsBattleChooserPending(ChoosingRescuerIndex, Beast.Status.IsDead,
+                    Beast.Status[1].GetValue()))
                 text.Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
             return text.ToString();
         }
