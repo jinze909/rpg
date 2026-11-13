@@ -835,6 +835,9 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.DirectCombatComplete && !trial.RescueComplete &&
                 !trial.SurveyorEscorting, Is.True,
                 "Defeating the beast alone must not rescue the surveyor.");
+            Assert.That(SoundwellOrkParty.RescueSettled, Is.False);
+            Assert.That(party.Members.All(member =>
+                member.Status[SoundwellOrkParty.ExperienceStatus].GetValue() == 0), Is.True);
             leaderBody.position = SoundwellTrial.SurveyorPosition;
             Physics2D.SyncTransforms();
             Assert.That(trial.AtSurveyor, Is.True);
@@ -903,6 +906,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.RescueComplete, Is.True,
                 "The player and actual survivor must both reach RETREAT.");
+            SoundwellTrialTests.AssertRescueReward(party);
             Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, originalSafePoint),
                 Is.LessThanOrEqualTo(0.98f));
             Assert.That(trial.DirectCombatComplete, Is.True,

@@ -507,6 +507,10 @@ MonoBehaviour:
     m_Key: hint.approach_bell
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267450
+    m_Key: entry.rescue_experience
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

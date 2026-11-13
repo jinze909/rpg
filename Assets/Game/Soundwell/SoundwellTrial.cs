@@ -444,8 +444,9 @@ namespace Rpg.Soundwell
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
-            if (SurveyorEscorting && !RescueComplete && AtSafePoint &&
-                Vector2.Distance(view.SurveyorWorldPosition, safePoint.position) <= 0.9f)
+            if (bootstrapLoad == null && SurveyorEscorting && !RescueComplete && AtSafePoint &&
+                Vector2.Distance(view.SurveyorWorldPosition, safePoint.position) <= 0.9f &&
+                orkParty != null && orkParty.SettleRescue())
                 variables.Set(RescueKey, 1);
 
             // The surveyor does what he promised after being saved. This

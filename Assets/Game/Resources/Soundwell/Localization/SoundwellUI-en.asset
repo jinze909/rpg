@@ -510,6 +510,10 @@ MonoBehaviour:
     m_Localized: "Walk to the copper bell. Watch the beast beyond the grate."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267450
+    m_Localized: "Rescue reward recorded (+{0} EXP per rescuer)."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

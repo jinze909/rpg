@@ -32,6 +32,7 @@ namespace Rpg.Soundwell
         private bool shownCartKitRecovered;
         private bool shownSafeRouteMarked;
         private int shownBeastContacts = -1;
+        private bool shownRescueSettled;
 
         public int LastReturnOutcome => shownOutcome;
         public string ReturnSummaryText => outcomeText != null ? outcomeText.text : string.Empty;
@@ -285,12 +286,14 @@ namespace Rpg.Soundwell
                 variables.GetInt(SoundwellTrial.EntrySafeRouteKey) != 0;
             int contacts = Mathf.Clamp(
                 variables.GetInt(SoundwellTrial.EntryBeastContactsKey), 0, 999);
-            if (!force && result == shownOutcome && outcomeRecorded == shownOutcomeRecorded &&
+            bool rescueSettled = SoundwellOrkParty.RescueSettled;
+            if (!force && rescueSettled == shownRescueSettled && result == shownOutcome && outcomeRecorded == shownOutcomeRecorded &&
                 cartKitRecovered == shownCartKitRecovered &&
                 safeRouteMarked == shownSafeRouteMarked && contacts == shownBeastContacts)
                 return;
 
             shownOutcome = result;
+            shownRescueSettled = rescueSettled;
             shownOutcomeRecorded = outcomeRecorded;
             shownCartKitRecovered = cartKitRecovered;
             shownSafeRouteMarked = safeRouteMarked;
@@ -308,6 +311,10 @@ namespace Rpg.Soundwell
                 : contacts > 0 || outcomeRecorded
                     ? string.Format(SoundwellUiLocalization.Get("entry.withdrawn"), contacts)
                     : "";
+            if (rescueSettled)
+                outcomeText.text += (outcomeText.text.Length > 0 ? "\n" : "") +
+                    string.Format(SoundwellUiLocalization.Get("entry.rescue_experience"),
+                        SoundwellOrkParty.RescueExperience);
         }
 
         public AsyncOperation OpenTrial()

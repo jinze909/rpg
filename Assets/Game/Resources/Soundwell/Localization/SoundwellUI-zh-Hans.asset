@@ -506,6 +506,10 @@ MonoBehaviour:
     m_Localized: "走近铜铃，观察铁栅另一侧的野兽。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267450
+    m_Localized: "救援奖励已记录（每人 +{0} 经验）。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
