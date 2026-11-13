@@ -94,6 +94,10 @@ namespace Rpg.Soundwell
             variables.GetInt(DirectCombatCompleteKey) != 0;
         public bool CanEngageBeast => IsReady && AtGatePanel && !GateOpen &&
             !IsCarrying && !DirectCombatStarted && !DirectCombatComplete &&
+            // ORK's battle component owns a single encounter in this scene.
+            // After defeat, Retry reloads a fresh roster; never advertise a
+            // gate interaction that TryStartDirectEncounter cannot accept.
+            !combatStartedInThisScene &&
             variables.GetInt(RescueApproachKey) == 0 && orkParty != null && orkParty.IsReady;
         // A live positional threat, never another saved or guessed target.
         public bool BeastBlocksEscape => GateOpen && !RescueComplete &&
