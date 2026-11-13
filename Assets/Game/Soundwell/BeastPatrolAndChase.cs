@@ -19,6 +19,8 @@ namespace Rpg.Soundwell
         public event Action PlayerCaught;
 
         public Vector2 Position => beast != null ? (Vector2)beast.position : home;
+        public bool WithinWarningRange(Vector2 worldPoint, float radius) =>
+            beast != null && Vector2.Distance(Position, worldPoint) < radius;
         public float SearchRemainingFraction => Mathf.Clamp01(
             (SearchDurationSeconds - (Time.time - searchStarted)) / SearchDurationSeconds);
 

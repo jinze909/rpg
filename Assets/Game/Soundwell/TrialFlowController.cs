@@ -75,8 +75,8 @@ namespace Rpg.Soundwell
             variables.GetInt(RescueApproachKey) == 0 && orkParty != null && orkParty.IsReady;
         // A live positional threat, never another saved or guessed target.
         public bool BeastBlocksEscape => GateOpen && !RescueComplete &&
-            !DirectCombatComplete && beast != null &&
-            Vector2.Distance(beast.position, EscapeLanePosition) < EscapeLaneDangerRadius;
+            !DirectCombatComplete && patrol != null &&
+            patrol.WithinWarningRange(EscapeLanePosition, EscapeLaneDangerRadius);
         public int BeastContacts => variables != null ? variables.GetInt(BeastContactKey) : 0;
         public bool BeastContacted => BeastContacts > 0;
         public const float BeastContactRadius = BeastPatrolAndChase.ContactRadius;
