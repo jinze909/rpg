@@ -628,6 +628,32 @@ namespace Rpg.Tests.Editor
                 input.Release(gamepad.buttonSouth);
                 yield return null;
 
+                // A UGUI choice owns focus during S00 dialogue. Gamepad B
+                // must cancel here as reliably as it does during movement,
+                // without selecting an answer or starting the trial.
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                Assert.That(events.currentSelectedGameObject?.name,
+                    Is.EqualTo("S00 choice 0"));
+                input.Press(gamepad.buttonEast);
+                yield return null;
+                input.Release(gamepad.buttonEast);
+                yield return null;
+                Assert.That(entry.GetComponentInChildren<WhitewaterPrelude>(true), Is.Null,
+                    "UI Cancel from a focused S00 choice must return to Bootstrap.");
+                Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(initialScene));
+                events.SetSelectedGameObject(prologueButton.gameObject);
+                input.Press(gamepad.buttonSouth);
+                yield return null;
+                yield return null;
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+                prelude = entry.GetComponentInChildren<WhitewaterPrelude>(true);
+                Assert.That(prelude, Is.Not.Null,
+                    "Cancelling the dialogue must allow an intentional S00 replay.");
+                Assert.That(prelude.Phase, Is.EqualTo(0),
+                    "The replay must start from roll call, not the cancelled state.");
+
                 var answer = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 choice 0");
                 answer.onClick.Invoke();

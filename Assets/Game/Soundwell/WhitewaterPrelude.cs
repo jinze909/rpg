@@ -101,6 +101,11 @@ namespace Rpg.Soundwell
             // The existing InputSystemUIInputModule owns dialogue navigation.
             SoundwellInputAdapter.SetUiContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
+            // World movement already handles Back through Gameplay input.
+            // Dialogue switches to UGUI, where B / Esc emits an EventSystem
+            // Cancel instead. Let it bubble from the focused choice/Continue
+            // button to this same scene owner; no second input map or handler.
+            gameObject.AddComponent<SoundwellActionMenuCancelHandler>().Initialize(Close);
 
             var canvas = new GameObject("S00 Whitewater playable canvas",
                 typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
