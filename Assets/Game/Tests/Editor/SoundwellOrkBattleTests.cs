@@ -566,6 +566,53 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(focusGateButton.gameObject),
                 "Gate-only ORK choice must not default Submit to Retreat.");
+            // UI-only legality matrix on the actual UGUI/EventSystem. This
+            // cannot spend ORK movement or invent a legal combatant turn.
+            var setBattleMoveChoices = liveView.GetType().GetMethod("SetBattleMoveChoices");
+            var focusMoveButton = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+            Assert.That(setBattleMoveChoices, Is.Not.Null);
+            Assert.That(focusMoveButton, Is.Not.Null);
+            presentLegalChoices(false, false, false);
+            setBattleMoveChoices.Invoke(liveView, new object[]
+            {
+                actualAttacker, party.Actors[actualAttacker].transform, true, false, false, false
+            });
+            Assert.That(focusMoveButton.interactable, Is.True);
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(focusMoveButton.gameObject),
+                "A move-only chooser must focus enabled Move instead of disabled Attack.");
+            Vector3 beforePreview = party.Actors[actualAttacker].transform.position;
+            ExecuteEvents.Execute(focusMoveButton.gameObject,
+                new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
+            var cancelPreview = GameObject.Find("Soundwell Cancel Move button")?.GetComponent<Button>();
+            Assert.That(cancelPreview, Is.Not.Null,
+                "Controller Submit on Move should open a reversible destination preview.");
+            Assert.That(cancelPreview.gameObject.activeInHierarchy, Is.True);
+            Assert.That(party.Actors[actualAttacker].transform.position,
+                Is.EqualTo(beforePreview),
+                "Preview must not move the ORK actor before Confirm.");
+            cancelPreview.onClick.Invoke();
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(focusMoveButton.gameObject),
+                "Cancel must return to Move without unintentionally retreating.");
+            EventSystem.current.SetSelectedGameObject(battleRetreat.gameObject);
+            setBattleChoices.Invoke(liveView, new object[]
+            {
+                actualAttacker, party.Actors[actualAttacker].transform,
+                false, false, false, false
+            });
+            setBattleMoveChoices.Invoke(liveView, new object[]
+            {
+                actualAttacker, party.Actors[actualAttacker].transform, true, false, false, false
+            });
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.SameAs(battleRetreat.gameObject),
+                "Deliberate Retreat focus must survive a move-only chooser refresh.");
+            setBattleMoveChoices.Invoke(liveView, new object[]
+            {
+                actualAttacker, party.Actors[actualAttacker].transform, false, false, false, false
+            });
+            presentLegalChoices(false, false, true);
             setBattleChoices.Invoke(liveView, new object[] { -1, null, false, false, false, false });
             EventSystem battleEvents = EventSystem.current;
             Assert.That(battleEvents.currentSelectedGameObject, Is.SameAs(attackButton.gameObject),
