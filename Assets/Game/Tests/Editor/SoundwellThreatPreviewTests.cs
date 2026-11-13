@@ -420,7 +420,11 @@ namespace Rpg.Tests.Editor
                 "Carried bell must stop the actual continuous SFX.");
             Assert.That(bellAudio.loop, Is.False);
             Assert.That(bellAudio.clip, Is.Null);
-            yield return null; // Let the visual read the new Makinom signal.
+            Assert.That(intent.enabled, Is.False,
+                "Picking up the audible bell must erase its lure marker before the next frame.");
+            Assert.That(countdown.enabled, Is.False,
+                "A picked-up bell cannot leave an immediate search timer.");
+            yield return null; // Keep the next-frame assertion as a stability regression.
             Assert.That(intent.enabled, Is.False,
                 "The world-space beast target must disappear with the live lure.");
             Assert.That(countdown.enabled, Is.False);
@@ -453,6 +457,10 @@ namespace Rpg.Tests.Editor
             Assert.That(bellAudio.loop, Is.False);
             Assert.That(bellAudio.clip, Is.Null,
                 "The collected wrapped bell must not retain its muted audio cue.");
+            Assert.That(intent.enabled, Is.False,
+                "Picking up a searching bell must clear its last-heard marker on this action.");
+            Assert.That(countdown.enabled, Is.False,
+                "The old search clock cannot linger until another LateUpdate.");
             yield return null;
             Assert.That(intent.enabled, Is.False,
                 "The world-space last-heard marker must clear when the bell is recovered.");

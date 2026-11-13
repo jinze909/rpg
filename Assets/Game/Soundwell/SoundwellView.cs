@@ -1363,6 +1363,13 @@ namespace Rpg.Soundwell
         {
             pulseStarted = float.NegativeInfinity;
             pulse.enabled = false;
+            // Bell pickup, unwrapping and retry clear the authoritative
+            // Makinom signal immediately. Its world-space beast target and
+            // search countdown must vanish on the same player action, not
+            // one LateUpdate after the SFX and pursuit have already stopped.
+            beastIntentMarker.enabled = false;
+            searchTimerTrack.enabled = false;
+            searchTimerFill.enabled = false;
             audio.Stop();
             audio.loop = false;
             audio.clip = null;
