@@ -614,11 +614,15 @@ namespace Rpg.Soundwell
             {
                 if (CanEngageBeast)
                 {
-                    view.AnimatePlayerAction();
                     SetActionMenuOpen(false);
                     SoundwellInputAdapter.SetUiContext();
                     if (orkParty.TryStartDirectEncounter())
                     {
+                        // ORK is the sole encounter authority. Never play an
+                        // accepted-action pose before its actual Start succeeds.
+                        // A stale battle owner can reject engagement even while
+                        // the gate is spatially in reach.
+                        view.AnimatePlayerAction();
                         combatStartedInThisScene = true;
                         variables.Set(RescueApproachKey, 2);
                         variables.Set(DirectCombatStartedKey, 1);

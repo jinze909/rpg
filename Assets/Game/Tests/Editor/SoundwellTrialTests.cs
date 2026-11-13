@@ -758,6 +758,35 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.CanEngageBeast, Is.True,
                 "After a bell-route replay, the real ORK combat route must be available again.");
 
+            // ORK can refuse a new encounter if its battle owner still holds
+            // an earlier start. The visible button must not play a fake
+            // successful attack when that real framework call declines it.
+            var leaderPose = trial.PlayerActor.GetComponentInChildren<SoundwellPlayerVisualAnimation>();
+            Assert.That(leaderPose, Is.Not.Null);
+            Assert.That(leaderPose.CurrentState, Is.EqualTo("Idle"));
+            var startedField = typeof(SoundwellOrkParty).GetField("battleStarted",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Assert.That(startedField, Is.Not.Null);
+            bool originalStarted = (bool)startedField.GetValue(party);
+            try
+            {
+                startedField.SetValue(party, true);
+                trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+                Assert.That(trial.DirectCombatStarted, Is.False,
+                    "A declined ORK encounter must not create a Makinom battle flag.");
+                Assert.That(leaderPose.CurrentState, Is.EqualTo("Idle"),
+                    "A rejected Engage must not play a successful action animation.");
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                    "A failed encounter start must return input to exploration.");
+            }
+            finally
+            {
+                startedField.SetValue(party, originalStarted);
+            }
+            Assert.That(trial.CanEngageBeast, Is.True,
+                "Restoring the ORK battle owner must preserve the real encounter option.");
+
             LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_ROUTE_COST:BELL:world=4:turn=0:escort=3");
             Debug.Log("RPG_SOUNDWELL_ROUTE_COST:BELL:world=4:turn=0:escort=3");
             Debug.Log("RPG_SOUNDWELL_BELL_ONLY_RESCUE_VALIDATED");
