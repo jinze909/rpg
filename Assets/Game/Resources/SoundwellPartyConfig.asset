@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57f604a3b9644bb8af83fd19b9e91e46, type: 3}
+  m_Name: SoundwellPartyConfig
+  m_EditorClassIdentifier: 
+  rescueQuestGuid: f73158e9-7036-48d4-bebc-dd9532340dbc
+  rescueExperience: 10
+  experienceStatus: 4
+  secondFollowerOffset: {x: -0.45, y: -0.48}
+  thirdFollowerOffset: {x: -0.45, y: 0.48}
+  formationFollowSpeed: 4.5
+  followerLagSeconds: 0.05
+  walkFrameSeconds: 0.15
+  leaderMoveSpeed: 4
+  carryingSpeedMultiplier: 0.7
+  battleStepDistance: 0.5

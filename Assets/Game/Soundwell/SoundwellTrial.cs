@@ -40,7 +40,6 @@ namespace Rpg.Soundwell
         public const string EntryBeastContactsKey = "rpg.soundwell.signal-trial.last-return-beast-contacts";
         private const float Reach = 1.25f;
         private const float StandReach = 0.72f;
-        private const float Speed = 4f;
         // A muffled ring leaves a short, legible search window; the beast
         // eventually gives up instead of tracking an inaudible source forever.
         public const float SearchDurationSeconds = 3.5f;
@@ -67,6 +66,7 @@ namespace Rpg.Soundwell
         private SoundwellView view;
         private SoundwellOrkParty orkParty;
         private Rigidbody2D playerBody;
+        private PartyMovement2D partyMovement;
         private Vector2 movement;
         private Vector2 beastHome;
         private Vector2 bellHome;
@@ -184,11 +184,10 @@ namespace Rpg.Soundwell
             orkParty = GetComponent<SoundwellOrkParty>();
             SoundwellInputAdapter.SetGameplayContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
-            playerBody = player.gameObject.AddComponent<Rigidbody2D>();
-            playerBody.gravityScale = 0f;
-            playerBody.constraints = RigidbodyConstraints2D.FreezeRotation;
-            playerBody.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-            player.gameObject.AddComponent<CircleCollider2D>().radius = 0.3f;
+            partyMovement = GetComponent<PartyMovement2D>();
+            if (partyMovement == null)
+                partyMovement = gameObject.AddComponent<PartyMovement2D>();
+            playerBody = partyMovement.Configure(player, SoundwellPartyConfig.Load());
             beastHome = beast.position;
             bellHome = bell.position;
             // M3: One Cinemachine Brain on the scene's real Camera and one
@@ -295,15 +294,10 @@ namespace Rpg.Soundwell
 
         private void FixedUpdate()
         {
-            if (!IsReady)
-                return;
             if (DirectCombatStarted)
-            {
                 movement = Vector2.zero;
-                playerBody.linearVelocity = Vector2.zero;
-                return;
-            }
-            playerBody.linearVelocity = movement * (IsCarrying ? Speed * 0.7f : Speed);
+            partyMovement?.ApplyMovement(movement, IsReady && IsCarrying,
+                IsReady && !DirectCombatStarted);
         }
 
         private void LateUpdate()
