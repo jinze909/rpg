@@ -1328,10 +1328,16 @@ namespace Rpg.Tests.Editor
                 System.Reflection.BindingFlags.Instance |
                 System.Reflection.BindingFlags.NonPublic);
             Assert.That(leaderViewField, Is.Not.Null);
-            var leaderView = (SoundwellView)leaderViewField.GetValue(trial);
+            object leaderView = leaderViewField.GetValue(trial);
             Assert.That(leaderView, Is.Not.Null);
+            // SoundwellView is intentionally internal to the runtime asmdef:
+            // exercise its live presentation through reflection from tests.
+            var showLeaderStep = leaderView.GetType().GetMethod("AnimatePlayerBattleStep",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public);
+            Assert.That(showLeaderStep, Is.Not.Null);
             Vector2 originalLeaderPosition = leaderBody.position;
-            leaderView.AnimatePlayerBattleStep(Vector2.left);
+            showLeaderStep.Invoke(leaderView, new object[] { Vector2.left });
             Assert.That(leadPixel.sprite.name, Does.Contain("leader walk"));
             Assert.That(leadPixel.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
             Assert.That(leadPixel.sprite.pixelsPerUnit, Is.EqualTo(16f));
