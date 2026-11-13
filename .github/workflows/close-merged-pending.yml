@@ -54,6 +54,13 @@ jobs:
               p=subprocess.run(["git","merge-base","--is-ancestor",a,b],capture_output=True,text=True)
               check(p.returncode in (0,1),"unknown ancestry: "+p.stderr[-240:])
               return p.returncode==0
+          def have_commit(sha):
+              # Actions retains metadata for SHAs on long-deleted branches.
+              # A fetch of live refs correctly lacks those unreachable objects.
+              # They cannot be ancestors of the fetched dev history.
+              p=subprocess.run(["git","cat-file","-e",sha+"^{commit}"],
+                               capture_output=True)
+              return p.returncode==0
           def api(path):
               check(path.startswith("/repos/"+REPO+"/"),"invalid API route")
               q=urllib.request.Request("https://api.github.com"+path,headers=HEADERS)
@@ -113,7 +120,8 @@ jobs:
                          if r.get("name")=="Unity ORK P0" and
                          r.get("status")=="completed" and
                          r.get("conclusion")=="success" and
-                         SHARE.fullmatch(r.get("head_sha","")) and
+                         SHARE.fullmatch(r.get("head_sha") or "") and
+                         have_commit(r["head_sha"]) and
                          ancestor(r["head_sha"],dev)]
                   VERIFIED_ANCESTORS=(all_runs,valid)
               return VERIFIED_ANCESTORS
