@@ -54,3 +54,4 @@ namespace Rpg.Tests.Editor
                 "The full shipped Soundwell UI, not a tiny hand-picked subset, must be checked.");
         }
     }
+}
