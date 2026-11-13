@@ -16,9 +16,12 @@ namespace Rpg.Soundwell
         public const string RepairKey = "rpg.return.s00.cable-repair";
         public const string WorkshopPromiseKey = "rpg.return.s00.workshop-promise";
         public const string HanQiaoRescueKey = "rpg.return.s00.hanqiao-rescue";
+        public const string EvacueeEscortedKey = "rpg.return.s00.last-evacuee-escorted";
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
+        private const float EvacueeStartX = -72f;
+        private const float EvacueeSafeX = -265f;
         private static readonly Color Ink = new Color(0.87f, 0.90f, 0.88f);
         private static readonly Color Brass = new Color(0.91f, 0.72f, 0.40f);
         private readonly Button[] choices = new Button[3];
@@ -28,6 +31,8 @@ namespace Rpg.Soundwell
         private RectTransform hanQiao;
         private RectTransform rescuePoint;
         private RectTransform lastBoat;
+        private RectTransform evacuee;
+        private RectTransform evacueeSafeLine;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -37,12 +42,14 @@ namespace Rpg.Soundwell
         private Action onExit;
         private int phase;
         private int rescueMethod;
+        private bool evacueeWaiting;
         private Vector2 walker = new Vector2(-245f, 0f);
 
         // 0: roll call; 1: walk; 2: cable decision; 3: stretcher crossing;
         // 4: workshop promise choice; 5: its response; 6: man overboard;
-        // 7: move and use the chosen rescue station; 8: Han Qiao boards the last boat.
-        // S00-04 and the historical cable break remain for later work.
+        // 7: rescue station; 8: Han Qiao boards the last boat;
+        // 9: reach the stranded evacuee; 10: escort west; 11: confirm safe crossing.
+        // The ORK defence encounter and fixed third-bell cable break are still pending.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
@@ -50,6 +57,15 @@ namespace Rpg.Soundwell
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanRescue => phase == 7 &&
             Mathf.Abs(walker.x - RescueStationX(rescueMethod)) <= RepairReach &&
+            Mathf.Abs(walker.y) <= RepairReach;
+        public Vector2 EvacueePosition => evacuee != null
+            ? evacuee.anchoredPosition : Vector2.zero;
+        public bool CanHelpEvacuee => phase == 9 && evacuee != null &&
+            Mathf.Abs(walker.x - evacuee.anchoredPosition.x) <= RepairReach &&
+            Mathf.Abs(walker.y) <= RepairReach;
+        public bool CanDeliverEvacuee => phase == 10 && evacuee != null &&
+            walker.x <= EvacueeSafeX &&
+            evacuee.anchoredPosition.x <= EvacueeSafeX + 30f &&
             Mathf.Abs(walker.y) <= RepairReach;
 
         private static float RescueStationX(int choice) =>
@@ -114,6 +130,17 @@ namespace Rpg.Soundwell
             lastBoat.gameObject.SetActive(false);
             hanQiao.gameObject.SetActive(false);
             rescuePoint.gameObject.SetActive(false);
+            // S00-04 opens only after the officer has actually boarded.
+            // Both figures are scene-space UGUI markers, with a visible
+            // destination; no automatic quest or battle is awarded.
+            evacueeSafeLine = Panel(canvas.transform, "S00 evacuation safe line",
+                new Vector2(EvacueeSafeX, 12f), new Vector2(14f, 62f),
+                new Color(0.66f, 0.84f, 0.59f)).rectTransform;
+            evacuee = Panel(canvas.transform, "S00 last evacuee",
+                new Vector2(EvacueeStartX, 12f), new Vector2(22f, 32f),
+                new Color(0.91f, 0.80f, 0.61f)).rectTransform;
+            evacueeSafeLine.gameObject.SetActive(false);
+            evacuee.gameObject.SetActive(false);
             marker = Panel(canvas.transform, "PLACEHOLDER player",
                 new Vector2(walker.x, 12f), new Vector2(22f, 31f),
                 new Color(0.64f, 0.85f, 0.93f)).rectTransform;
@@ -245,6 +272,8 @@ namespace Rpg.Soundwell
                 ShowWorkshopPromise();
             else if (phase == 5)
                 ShowLastBoat();
+            else if (phase == 8)
+                ShowFinalRetreat();
         }
 
         private void ShowLastBoat()
@@ -299,10 +328,96 @@ namespace Rpg.Soundwell
                     new Vector2(290f, 100f), Mathf.Clamp01(elapsed / 2f));
                 yield return null;
             }
-            if (phase == 8)
+            if (phase == 8 && next != null)
+            {
                 instructions.text = Copy(
-                    "S00-03 complete. Han Qiao is aboard. The bridge's final retreat is S00-04.",
-                    "S00-03 完成：韩峤已经上船。最后一批人的撤退属于下一段 S00-04。");
+                    "Han Qiao is aboard. One more wounded evacuee is still on the bridge.",
+                    "韩峤已经上船。桥上还有一名伤者没撤离。");
+                next.gameObject.name = "S00 continue to final retreat";
+                Text label = next.GetComponentInChildren<Text>(true);
+                if (label != null)
+                    label.text = Copy("Cover the last evacuee", "掩护最后一名撤离者");
+                next.gameObject.SetActive(true);
+                if (EventSystem.current != null)
+                    EventSystem.current.SetSelectedGameObject(next.gameObject);
+            }
+        }
+
+        private void ShowFinalRetreat()
+        {
+            if (phase != 8 || next == null || !next.gameObject.activeInHierarchy)
+                return;
+            phase = 9;
+            next.gameObject.SetActive(false);
+            evacuee.anchoredPosition = new Vector2(EvacueeStartX, 12f);
+            evacuee.gameObject.SetActive(true);
+            evacueeSafeLine.gameObject.SetActive(true);
+            SoundwellInputAdapter.SetGameplayContext();
+            narration.text = Copy(
+                "The last boat pulls away. Enemy troops close in; a wounded evacuee is stuck beside the railing.",
+                "最后一条船离岸。敌军正在逼近，一名伤者还困在桥边的栏杆旁。");
+            instructions.text = Copy(
+                "Reach the amber evacuee, press E / Pad A, then lead them west to the green safe line.",
+                "走到金色伤者旁按 E／手柄 A，再带他向西走到绿色安全线。");
+        }
+
+        private void HelpEvacuee()
+        {
+            if (!CanHelpEvacuee)
+                return;
+            phase = 10;
+            evacueeWaiting = false;
+            narration.text = Copy(
+                "You take the evacuee's arm. 'Keep behind me. Don't stop at the open span.'",
+                "你扶住伤者的胳膊：“跟在我后面，别停在空桥上。”");
+            instructions.text = Copy(
+                "Lead west. Keep close or they will stop; press E / Pad A at the safe line.",
+                "向西带路，离太远他会停下；到安全线后按 E／手柄 A 确认撤离。");
+        }
+
+        private void UpdateEvacueeFollow()
+        {
+            if (phase != 10 || evacuee == null)
+                return;
+            float gap = Mathf.Abs(walker.x - evacuee.anchoredPosition.x);
+            bool waiting = evacueeWaiting
+                ? gap > 65f : gap > 115f;
+            if (waiting != evacueeWaiting)
+            {
+                evacueeWaiting = waiting;
+                instructions.text = waiting
+                    ? Copy("Too far ahead. Go back for the evacuee.",
+                        "你走得太远了。回去接上伤者。")
+                    : Copy("Lead west, stay close, then press E / Pad A at the green line.",
+                        "向西带路，保持靠近，到绿色线按 E／手柄 A。");
+            }
+            if (evacueeWaiting)
+                return;
+            Vector2 at = evacuee.anchoredPosition;
+            // The person follows the player's real displacement, never a
+            // timer or choice button. They stay one body-width behind and
+            // cannot teleport through the safe-line checkpoint.
+            float westTarget = Mathf.Min(at.x, walker.x + 24f);
+            float newX = Mathf.MoveTowards(at.x, westTarget, 220f * Time.unscaledDeltaTime);
+            evacuee.anchoredPosition = new Vector2(newX, 12f);
+        }
+
+        private void DeliverEvacuee()
+        {
+            if (!CanDeliverEvacuee)
+                return;
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(EvacueeEscortedKey, 1);
+            phase = 11;
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                "One more person makes it across the safe line. The enemy is still closing; the bridge's final defence lies ahead.",
+                "又一人越过安全线。敌军仍在逼近；最后的桥头防守还在前面。");
+            instructions.text = Copy(
+                "S00-04 escort slice complete. The ORK defence and the third-bell cable break are not yet playable.",
+                "S00-04 撤离切片完成。ORK 防守战与第三声钟后的断缆仍待实现。");
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
 
         private void ShowWorkshopPromise()
@@ -342,7 +457,7 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (phase != 1 && phase != 7)
+            if (phase != 1 && phase != 7 && phase != 9 && phase != 10)
                 return;
             SoundwellControlFrame frame = SoundwellInputAdapter.ReadGameplay();
             // In world-movement context UGUI Submit/Cancel is not active.
@@ -361,6 +476,19 @@ namespace Rpg.Soundwell
             {
                 if (frame.Ring && CanRescue)
                     FinishRescue();
+                return;
+            }
+            if (phase == 9)
+            {
+                if (frame.Ring)
+                    HelpEvacuee();
+                return;
+            }
+            if (phase == 10)
+            {
+                UpdateEvacueeFollow();
+                if (frame.Ring)
+                    DeliverEvacuee();
                 return;
             }
             if (frame.Ring && CanRepair)

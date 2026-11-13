@@ -715,6 +715,67 @@ namespace Rpg.Tests.Editor
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
                         ? "沈砾的绳索" : "Shen Li's rope"));
 
+                // A new S00-04 escort must be earned through actual
+                // Gameplay input, not granted by the dialogue or a timer.
+                var retreat = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 continue to final retreat" ||
+                        button.gameObject.name == "S00 continue to last boat");
+                float boatDeadline = Time.realtimeSinceStartup + 4f;
+                while (!retreat.gameObject.activeInHierarchy &&
+                       Time.realtimeSinceStartup < boatDeadline)
+                    yield return null;
+                Assert.That(retreat.gameObject.activeInHierarchy, Is.True,
+                    "A player can begin the final retreat only after the last boat has boarded Han Qiao.");
+                Assert.That(retreat.gameObject.name, Is.EqualTo("S00 continue to final retreat"));
+                retreat.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(9));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                var stranded = prelude.transform.Find(
+                    "S00 Whitewater playable canvas/S00 last evacuee") as RectTransform;
+                Assert.That(stranded, Is.Not.Null);
+                Assert.That(stranded.gameObject.activeInHierarchy, Is.True);
+                float strandedX = stranded.anchoredPosition.x;
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "The player must go to the stranded person before helping.");
+                input.Press(walker.aKey);
+                float approachDeadline = Time.realtimeSinceStartup + 6f;
+                while (!prelude.CanHelpEvacuee &&
+                       Time.realtimeSinceStartup < approachDeadline)
+                    yield return null;
+                input.Release(walker.aKey);
+                yield return null;
+                Assert.That(prelude.CanHelpEvacuee, Is.True);
+                Assert.That(stranded.anchoredPosition.x, Is.EqualTo(strandedX),
+                    "The injured person cannot follow before the player helps.");
+                input.Press(walker.eKey);
+                yield return null;
+                input.Release(walker.eKey);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(10));
+                Assert.That(prelude.CanDeliverEvacuee, Is.False,
+                    "Agreeing to escort is not already a successful crossing.");
+                input.Press(walker.aKey);
+                float escortDeadline = Time.realtimeSinceStartup + 7f;
+                while (!prelude.CanDeliverEvacuee &&
+                       Time.realtimeSinceStartup < escortDeadline)
+                    yield return null;
+                input.Release(walker.aKey);
+                yield return null;
+                Assert.That(prelude.CanDeliverEvacuee, Is.True,
+                    "Both player and follower must physically reach the safe line.");
+                Assert.That(stranded.anchoredPosition.x, Is.LessThan(strandedX - 120f),
+                    "The evacuee must really walk west instead of teleporting.");
+                input.Press(walker.eKey);
+                yield return null;
+                input.Release(walker.eKey);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(11));
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "越过安全线" : "across the safe line"));
+
                 var backToEntry = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 return to Bootstrap");
                 backToEntry.onClick.Invoke();
