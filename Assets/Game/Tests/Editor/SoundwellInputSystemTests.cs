@@ -783,6 +783,27 @@ namespace Rpg.Tests.Editor
                     "Both player and follower must physically reach the safe line.");
                 Assert.That(stranded.anchoredPosition.x, Is.LessThan(strandedX - 120f),
                     "The evacuee must really walk west instead of teleporting.");
+                // A stopped follower may remain on the edge of the green line
+                // while the player has moved farther west. The scripted waiting
+                // state cannot be mistaken for a completed physical escort.
+                var waitingField = typeof(WhitewaterPrelude).GetField("evacueeWaiting",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(waitingField, Is.Not.Null);
+                bool originalWaiting = (bool)waitingField.GetValue(prelude);
+                try
+                {
+                    waitingField.SetValue(prelude, true);
+                    Assert.That(prelude.CanDeliverEvacuee, Is.False,
+                        "An evacuee still waiting for an escort must not be delivered.");
+                    Assert.That(prelude.Phase, Is.EqualTo(10));
+                }
+                finally
+                {
+                    waitingField.SetValue(prelude, originalWaiting);
+                }
+                Assert.That(prelude.CanDeliverEvacuee, Is.True,
+                    "Rejoining the wounded follower must restore the normal safe-line action.");
                 input.Press(walker.eKey);
                 yield return null;
                 input.Release(walker.eKey);
