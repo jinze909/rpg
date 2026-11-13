@@ -643,8 +643,17 @@ namespace Rpg.Tests.Editor
             var battleGateButton = GameObject.Find("Soundwell Battle Gate button")?.GetComponent<Button>();
             Assert.That(battleGuardButton, Is.Not.Null);
             Assert.That(battleGateButton, Is.Not.Null);
+            var activeMarker = GameObject.Find("PLACEHOLDER ORK current rescuer")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(activeMarker, Is.Not.Null);
+            setBattleChoices.Invoke(trialView, new object[]
+                { 1, trial.PlayerActor, true, true, true, false });
+            Assert.That(activeMarker.enabled, Is.True,
+                "A legal live ORK chooser must have a visible cyan actor marker.");
             setBattleChoices.Invoke(trialView, new object[]
                 { 1, null, true, true, true, false });
+            Assert.That(activeMarker.enabled, Is.False,
+                "A destroyed chooser cannot retain a stale world-space actor marker.");
             Assert.That(battleAttackButton.interactable, Is.False,
                 "A missing ORK actor must not leave Attack clickable.");
             Assert.That(battleGuardButton.interactable, Is.False,
@@ -653,6 +662,8 @@ namespace Rpg.Tests.Editor
                 "A missing ORK actor must not leave Gate clickable.");
             setBattleChoices.Invoke(trialView, new object[]
                 { 3, trial.PlayerActor, true, true, true, false });
+            Assert.That(activeMarker.enabled, Is.False,
+                "A cached actor Transform with an invalid ORK turn index must not be highlighted.");
             Assert.That(battleAttackButton.interactable, Is.False,
                 "An invalid rescuer index must not expose Attack.");
             Assert.That(battleGuardButton.interactable, Is.False,
