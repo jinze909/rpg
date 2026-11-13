@@ -235,9 +235,15 @@ namespace Rpg.Soundwell
             // The controller, not a guessed battle location, owns this world
             // cue. Show the 16px brackets only while the LIVE ORK chooser may
             // actually operate the gate. This never changes physical reach.
+            // Plate assigns local scale, and the physical gate plate is
+            // deliberately non-uniformly sized. Invert only its presentation
+            // scale so this child stays one undistorted 16px world unit.
+            Vector3 gateControlScale = gateControl.transform.localScale;
             battleGateTargetMarker = Plate(gateControl.transform,
-                "PLACEHOLDER ORK legal gate target", new Vector2(0f, 0.85f),
-                Vector2.one, Gold, 7);
+                "PLACEHOLDER ORK legal gate target",
+                new Vector2(0f, 0.875f / gateControlScale.y),
+                new Vector2(1f / gateControlScale.x, 1f / gateControlScale.y),
+                Gold, 7);
             battleGateTargetMarker.sprite = attackTargetPixelSprite;
             battleGateTargetMarker.enabled = false;
             // This wrong-way trail sign is a physical consequence of the
