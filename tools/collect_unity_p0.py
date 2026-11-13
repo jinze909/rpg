@@ -86,6 +86,8 @@ ADDITIONAL_EDITOR_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
         "BattleChooserActorLookupIgnoresDestroyedOrMissingActors":
             "Rpg.Tests.Editor.SoundwellTrialTests.BattleChooserActorLookupIgnoresDestroyedOrMissingActors",
+        "RetiredOrkGateActorCannotOpenPhysicalGate":
+            "Rpg.Tests.Editor.SoundwellTrialTests.RetiredOrkGateActorCannotOpenPhysicalGate",
     },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "OrkStepMustKeepWholeCombatantInsideSavedBattleBounds":
