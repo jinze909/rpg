@@ -423,11 +423,17 @@ namespace Rpg.Soundwell
             if (evacueeWaiting)
                 return;
             Vector2 at = evacuee.anchoredPosition;
-            // The person follows the player's real displacement, never a
-            // timer or choice button. They stay one body-width behind and
-            // cannot teleport through the safe-line checkpoint.
-            float westTarget = Mathf.Min(at.x, walker.x + 24f);
-            float newX = Mathf.MoveTowards(at.x, westTarget, 220f * Time.unscaledDeltaTime);
+            // Keep the wounded follower within a body-width in either
+            // direction. Doubling back east to regroup must not abandon them
+            // at their old position; an escort should recover without replay.
+            // The waiting gap above still prevents teleporting a lost ally.
+            const float followOffset = 24f;
+            float followTarget = at.x;
+            if (walker.x < at.x - followOffset)
+                followTarget = walker.x + followOffset;
+            else if (walker.x > at.x + followOffset)
+                followTarget = walker.x - followOffset;
+            float newX = Mathf.MoveTowards(at.x, followTarget, 220f * Time.unscaledDeltaTime);
             evacuee.anchoredPosition = new Vector2(newX, 12f);
         }
 

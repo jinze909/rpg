@@ -755,6 +755,23 @@ namespace Rpg.Tests.Editor
                 Assert.That(prelude.Phase, Is.EqualTo(10));
                 Assert.That(prelude.CanDeliverEvacuee, Is.False,
                     "Agreeing to escort is not already a successful crossing.");
+                // Real keyboard movement: backtrack toward the eastern span
+                // before the westward rescue. The injured follower must move
+                // with the player in both directions, not freeze until a retry.
+                float escortStartX = stranded.anchoredPosition.x;
+                input.Press(walker.dKey);
+                float backtrackDeadline = Time.realtimeSinceStartup + 2f;
+                while (prelude.WalkerPosition.x < escortStartX + 70f &&
+                       Time.realtimeSinceStartup < backtrackDeadline)
+                    yield return null;
+                input.Release(walker.dKey);
+                yield return null;
+                Assert.That(prelude.WalkerPosition.x, Is.GreaterThan(escortStartX + 60f));
+                Assert.That(stranded.anchoredPosition.x, Is.GreaterThan(escortStartX + 20f),
+                    "Backtracking must bring the wounded follower east without teleporting.");
+                Assert.That(prelude.Phase, Is.EqualTo(10),
+                    "Changing direction cannot falsely deliver the evacuee.");
+                Assert.That(prelude.CanDeliverEvacuee, Is.False);
                 input.Press(walker.aKey);
                 float escortDeadline = Time.realtimeSinceStartup + 7f;
                 while (!prelude.CanDeliverEvacuee &&
