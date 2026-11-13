@@ -313,10 +313,136 @@ jobs:
                           "297b81a0c2f7523e680a53efc7a990e0aa7dbb28",
                   },
               },
+          # One-off reviewed candidate retirements. Source/test snapshots
+          # are pinned at the validated dev SHA, not guessed from branch names.
+              "codex/pending/s00-last-boat-hanqiao-rescue-nov13": {
+                  "head":"7fa2b136c53523dacb595bd1d36600697a475f2d",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"S00 Han Qiao last-boat beats and regression tests preserved; copy revised in verified dev",
+                  "blobs":{
+                      "Assets/Game/Soundwell/WhitewaterPrelude.cs":
+                          "3a0356eaceef53f667221deb73f5c15cf91cc3ed",
+                      "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs":
+                          "c0fcb044887bd160b8bc9d338ce7552eadc0a9a4",
+                  },
+              },
+              "codex/pending/s00-workshop-world-back-integrated-nov13": {
+                  "head":"4293d51eec7e4783e18935b1f537b129026c87bf",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"S00 workshop promise/world-back transition and tests retained; choice layout evolved",
+                  "blobs":{
+                      "Assets/Game/Soundwell/WhitewaterPrelude.cs":
+                          "3a0356eaceef53f667221deb73f5c15cf91cc3ed",
+                      "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs":
+                          "c0fcb044887bd160b8bc9d338ce7552eadc0a9a4",
+                  },
+              },
+              "codex/pending/s00-workshop-promise-choice-nov13": {
+                  "head":"59337e8db63b3adca79281fb5079c4a76eee571d",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"S00 workshop choice and existing tests retained; button placement evolved",
+                  "blobs":{
+                      "Assets/Game/Soundwell/WhitewaterPrelude.cs":
+                          "3a0356eaceef53f667221deb73f5c15cf91cc3ed",
+                      "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs":
+                          "c0fcb044887bd160b8bc9d338ce7552eadc0a9a4",
+                  },
+              },
+              "codex/pending/s00-world-back-returns-focus-nov13": {
+                  "head":"109ac11bb876c77098b3102bce7ef1a127be9c53",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"all world-back focus fix and regression additions retained",
+                  "blobs":{
+                      "Assets/Game/Soundwell/WhitewaterPrelude.cs":
+                          "3a0356eaceef53f667221deb73f5c15cf91cc3ed",
+                      "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs":
+                          "c0fcb044887bd160b8bc9d338ce7552eadc0a9a4",
+                  },
+              },
+              "codex/pending/story-003-companion-attack-pixel-pose-nov11": {
+                  "head":"c1a4826e0b86e38a1e8cec2262b913575c6bd7f2",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"pixel attack presentation and companion tests preserved with updated role/controller and assertions",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                          "4cab8c26568cb0f426307d272699ffeceea89811",
+                      "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs":
+                          "c593e3e0caa491e14de9b675eb029c81e752ac17",
+                      "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs.meta":
+                          "bdd895ef774607ac303b1b209d46989ecaa0b680",
+                      "tools/collect_unity_p0.py":
+                          "3fbd2169d1c1e4c74ae8fd99fc252ba1da0da8a1",
+                      "tools/test_collect_unity_p0.py":
+                          "297b81a0c2f7523e680a53efc7a990e0aa7dbb28",
+                  },
+              },
+              "codex/pending/story-003-visible-ork-guard-pose-nov12": {
+                  "head":"afa7ceb0f49f603caf3554dba47a69cfbf137543",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"legacy failing guard-event prototype superseded by accepted ORK guard shield presentation and runtime test",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                          "4cab8c26568cb0f426307d272699ffeceea89811",
+                      "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                          "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
+                  },
+              },
+              "codex/pending/story003-ork-step-resolution-trace-nov12": {
+                  "head":"68342dc638073c00e129b6ec018de86114c21b08",
+                  "verified":"5f0ea77e27be49d8f793351524624ea101e52483",
+                  "run":43518659065,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"throwaway ORK step debug instrumentation retired; its actual step assertions retained",
+                  "blobs":{
+                      "Assets/Game/Soundwell/SoundwellOrkParty.cs":
+                          "4cab8c26568cb0f426307d272699ffeceea89811",
+                      "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs":
+                          "9d307e1dee145ea75047ea303e8af0d1a391252b",
+                  },
+              },
+              "codex/pending/ci-retire-reviewed-legacy-candidates-nov13": {
+                  "head":"f9cbbb02501d8180c39373f2ec3a9f9eda8667ca",
+                  "workflow_only":True,
+                  "run":43523760012,
+                  "reason":"merged cleanup-only commit passed its exact-SHA branch pruning run",
+              },
           }
           def verified_archived_proof(name,sha):
               entry=ARCHIVED[name]
               check(sha==entry["head"],"historical branch moved since audit")
+              if entry.get("workflow_only"):
+                  # Workflow-only history is verified by its own successful
+                  # cleanup run; it must never impersonate Unity acceptance.
+                  check(ancestor(sha,dev),"workflow-only branch not integrated")
+                  changed=git("diff-tree","--no-commit-id","--name-only","-r",sha).splitlines()
+                  check(changed==[".github/workflows/close-merged-pending.yml"],
+                        "non-workflow files changed")
+                  proof=api("/repos/"+REPO+"/actions/runs/"+str(entry["run"]))
+                  check(proof.get("head_sha")==sha and
+                        proof.get("status")=="completed" and
+                        proof.get("conclusion")=="success" and
+                        proof.get("name")=="Close fully delivered pending branches",
+                        "workflow-only SHA not proven by exact cleanup run")
+                  return proof["html_url"]
               check(ancestor("ffc39f9fe1bea122774fd8a54e889083ab78e0e7",dev),
                     "audited dev baseline is missing")
               if entry["ancestor"]:
@@ -324,8 +450,9 @@ jobs:
               else:
                   check(ancestor("8e9f7643ff147ef6f26419733c27ecaab38de207",dev),
                         "evidence workflow integration is missing")
+              snapshot=entry["verified"] if entry.get("pin_verified_snapshot") else dev
               for file_path,want in entry["blobs"].items():
-                  check(git("rev-parse",dev+":"+file_path)==want,
+                  check(git("rev-parse",snapshot+":"+file_path)==want,
                         "audited replacement changed: "+file_path)
               proof=api("/repos/"+REPO+"/actions/runs/"+str(entry["run"]))
               check(proof.get("head_sha")==entry["verified"] and
