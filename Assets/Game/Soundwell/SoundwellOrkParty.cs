@@ -518,7 +518,8 @@ namespace Rpg.Soundwell
             }
         }
 
-        public bool CanGuard(int index) => index >= 0 &&
+        public bool CanGuard(int index) => index >= 0 && index < members.Count &&
+            members[index] != null &&
             members[index].Shortcuts.DefendShortcut.CanUse(members[index], true, true);
 
         public bool TryGuard()
@@ -682,7 +683,10 @@ namespace Rpg.Soundwell
 
         public bool CanOperateGate(int index, Func<Combatant, bool> canReach)
         {
-            if (index < 0)
+            // UI menus may outlive an ORK chooser for a frame. Reject stale
+            // or missing actors and callbacks before dereferencing the group.
+            if (index < 0 || index >= members.Count || members[index] == null ||
+                canReach == null)
                 return false;
             Combatant member = members[index];
             if (!canReach(member) || member.Actions.BlockActionUse ||

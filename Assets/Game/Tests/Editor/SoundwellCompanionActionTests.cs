@@ -76,6 +76,14 @@ namespace Rpg.Tests.Editor
             }
             Assert.That(trial != null && party != null && trial.IsReady && party.IsReady,
                 Is.True, "Companion attack must use real saved ORK combatants.");
+            // A chooser can change while a delayed UGUI view refreshes.
+            // Stale actor indices and a missing gate predicate must be
+            // harmless, not tear down the live ORK party with IndexOutOfRange.
+            Assert.That(party.CanGuard(-1), Is.False);
+            Assert.That(party.CanGuard(party.Members.Count), Is.False);
+            Assert.That(party.CanOperateGate(-1, _ => true), Is.False);
+            Assert.That(party.CanOperateGate(party.Members.Count, _ => true), Is.False);
+            Assert.That(party.CanOperateGate(0, null), Is.False);
             trial.ReadInput = false;
             var body = party.Leader.GetComponent<Rigidbody2D>();
             body.linearVelocity = Vector2.zero;
