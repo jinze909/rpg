@@ -671,8 +671,10 @@ namespace Rpg.Soundwell
             // the waiting caption for a genuinely unresolved ORK turn.
             attackButtonLabel.text = liveChooser
                 ? SoundwellUiLocalization.Get("battle.rescuer") + " " +
-                    (activeRescuerIndex + 1) + "  >  " +
-                    SoundwellUiLocalization.Get("battle.beast")
+                    (activeRescuerIndex + 1) +
+                    (attackButton.interactable
+                        ? "  >  " + SoundwellUiLocalization.Get("battle.beast")
+                        : string.Empty)
                 : SoundwellUiLocalization.Get("battle.menu_pending");
             GameObject focused = actionEventSystem.currentSelectedGameObject;
             bool keepFocus = focused == backButton.gameObject ||
