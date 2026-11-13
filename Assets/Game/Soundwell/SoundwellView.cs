@@ -120,6 +120,10 @@ namespace Rpg.Soundwell
         // Purely visual: ORK owns whether Guard is legal and whether the turn was spent.
         private const float LeaderGuardPoseSeconds = 0.8f;
         private float leaderGuardUntil = float.NegativeInfinity;
+        // ORK alone accepts the movement. This short visual hold lets its
+        // eight-pixel leader step be seen even when battle time is paused.
+        private const float LeaderStepPoseSeconds = 0.44f;
+        private float leaderStepUntil = float.NegativeInfinity;
 
         public SoundwellView(Transform root, Camera camera, Transform player, Transform bell,
             Transform beast, Transform safe, Action ring, Action wrap, Action retry, Action back,
@@ -1379,7 +1383,8 @@ namespace Rpg.Soundwell
         // The rendered leader is still a child of the authoritative ORK/2D actor.
         public void AnimatePlayerMotion(bool moving, float horizontalMotion)
         {
-            playerAnimation.UpdateMotion(moving);
+            bool showingBattleStep = Time.unscaledTime < leaderStepUntil;
+            playerAnimation.UpdateMotion(moving || showingBattleStep);
             // This is renderer-only pixel facing. Preserve the last direction
             // while idle or moving vertically so the character does not flicker
             // between left and right; never flip the physics/ORK actor itself.
@@ -1390,11 +1395,24 @@ namespace Rpg.Soundwell
             // A successful ORK Guard must not disappear on the very next
             // LateUpdate when normal movement presentation refreshes the sprite.
             leaderVisualRenderer.sprite = Time.unscaledTime < leaderGuardUntil
-                ? leaderGuardPixelSprite : walkFrame ? leaderWalkPixelSprite : leaderPixelSprite;
+                ? leaderGuardPixelSprite : showingBattleStep ? leaderWalkPixelSprite
+                : walkFrame ? leaderWalkPixelSprite : leaderPixelSprite;
+        }
+
+        public void AnimatePlayerBattleStep(Vector2 direction)
+        {
+            // Called only after a successful ORK TryStep for the leader.
+            // The physics body, turn budget and target are never touched here.
+            leaderStepUntil = Time.unscaledTime + LeaderStepPoseSeconds;
+            if (Mathf.Abs(direction.x) > 0.01f)
+                leaderVisualRenderer.flipX = direction.x < 0f;
+            playerAnimation.UpdateMotion(true);
+            leaderVisualRenderer.sprite = leaderWalkPixelSprite;
         }
 
         public void AnimatePlayerAction()
         {
+            leaderStepUntil = float.NegativeInfinity;
             leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.PlayAction();
             leaderVisualRenderer.sprite = leaderPixelSprite;
@@ -1402,6 +1420,7 @@ namespace Rpg.Soundwell
 
         public void AnimatePlayerGuard()
         {
+            leaderStepUntil = float.NegativeInfinity;
             // Called only after the live ORK Guard shortcut accepted the turn.
             // No second defense flag, combat timer or HP mutation is created.
             playerAnimation.PlayAction();
@@ -1411,6 +1430,7 @@ namespace Rpg.Soundwell
 
         public void AnimatePlayerHit()
         {
+            leaderStepUntil = float.NegativeInfinity;
             leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.PlayHit();
             leaderVisualRenderer.sprite = leaderPixelSprite;
@@ -1418,6 +1438,7 @@ namespace Rpg.Soundwell
 
         public void ResetPlayerAnimation()
         {
+            leaderStepUntil = float.NegativeInfinity;
             leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.ResetAnimation();
             leaderVisualRenderer.flipX = false;

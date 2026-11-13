@@ -235,7 +235,15 @@ namespace Rpg.Soundwell
                     else
                         SetActionMenuOpen(false);
                 },
-                (actor, direction) => orkParty != null && orkParty.TryStep(actor, direction));
+                (actor, direction) =>
+                {
+                    // The world-space pose follows an actual ORK movement
+                    // acceptance; rejected previews draw no fake step.
+                    bool accepted = orkParty != null && orkParty.TryStep(actor, direction);
+                    if (accepted && actor == 0)
+                        view.AnimatePlayerBattleStep(direction);
+                    return accepted;
+                });
             ResetTrial();
             initialized = true;
         }
