@@ -86,7 +86,7 @@ namespace Rpg.Soundwell
                 beast.position = next;
             }
 
-            if (!directCombat && !combatComplete && gateOpen && !rescueComplete &&
+            if (beast != null && !directCombat && !combatComplete && gateOpen && !rescueComplete &&
                 player.position.x > 0.55f &&
                 Vector2.Distance(player.position, Position) <= ContactRadius)
                 PlayerCaught?.Invoke();
