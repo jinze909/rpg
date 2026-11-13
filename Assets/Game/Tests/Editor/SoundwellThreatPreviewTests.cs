@@ -602,6 +602,10 @@ namespace Rpg.Tests.Editor
             Assert.That(battleMoveButton.interactable, Is.True);
             battleMoveButton.onClick.Invoke();
             Assert.That(previewOpen.GetValue(trialView), Is.EqualTo(true));
+            var westMoveButton = GameObject.Find("Soundwell Move West button")?.GetComponent<Button>();
+            Assert.That(westMoveButton, Is.Not.Null);
+            Assert.That(westMoveButton.interactable, Is.True,
+                "ORK's valid west step must remain reachable while its chooser is alive.");
             setBattleMoveChoices.Invoke(trialView, new object[]
                 { 1, trial.PlayerActor, false, false, false, false });
             Assert.That(previewOpen.GetValue(trialView), Is.EqualTo(false),
@@ -618,6 +622,8 @@ namespace Rpg.Tests.Editor
                 { 1, null, false, false, false, true });
             Assert.That(battleMoveButton.interactable, Is.False,
                 "A missing ORK actor cannot offer a clickable movement preview.");
+            Assert.That(westMoveButton.interactable, Is.False,
+                "An orphaned ORK chooser must revoke its old direction Submit target.");
             battleMoveButton.onClick.Invoke();
             Assert.That(previewOpen.GetValue(trialView), Is.EqualTo(false),
                 "Clicking a stale Move target must never create a ghost preview.");
@@ -629,7 +635,13 @@ namespace Rpg.Tests.Editor
                 { 3, trial.PlayerActor, false, false, false, true });
             Assert.That(battleMoveButton.interactable, Is.False,
                 "Out-of-range rescuer indices must not offer an invalid Move action.");
+            Assert.That(westMoveButton.interactable, Is.False,
+                "An invalid ORK index must not leave directions interactable.");
             setBattleMode.Invoke(trialView, new object[] { false });
+            setBattleMoveChoices.Invoke(trialView, new object[]
+                { 1, trial.PlayerActor, false, false, false, true });
+            Assert.That(westMoveButton.interactable, Is.False,
+                "An out-of-battle update must not re-enable a hidden direction target.");
             Assert.That(eventSystem.currentSelectedGameObject, Is.Null,
                 "The temporary battle-only UGUI state must release focus on exit.");
 

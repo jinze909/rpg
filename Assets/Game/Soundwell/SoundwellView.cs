@@ -665,21 +665,21 @@ namespace Rpg.Soundwell
         public void SetBattleMoveChoices(int actorIndex, Transform actor,
             bool north, bool east, bool south, bool west)
         {
-            moveLegal[0] = north;
-            moveLegal[1] = east;
-            moveLegal[2] = south;
-            moveLegal[3] = west;
-            // Publish the new move eligibility *before* closing a preview
-            // invalidated by a new ORK chooser or an obstructed destination.
-            // CloseBattleMovePreview restores EventSystem focus; using the
-            // old button state can focus Move after it just became disabled.
-            bool any = north || east || south || west;
-            // A stale ORK chooser can publish directional eligibility after
-            // its actor was destroyed or before the next valid rescuer exists.
-            // Never advertise an actionable Move button without a live
-            // three-rescuer actor to preview and submit that step.
-            bool hasLiveChooser = actor != null && actorIndex >= 0 && actorIndex < 3;
-            moveButton.interactable = battleMode && hasLiveChooser && any;
+            // A stale ORK chooser can publish legal directions even after
+            // its actor disappears or the battle HUD exits. Revoke the child
+            // direction buttons as well as the main Move target, or an old
+            // UGUI navigation/Submit target can remain interactable.
+            bool hasLiveChooser = battleMode && actor != null &&
+                actorIndex >= 0 && actorIndex < 3;
+            moveLegal[0] = hasLiveChooser && north;
+            moveLegal[1] = hasLiveChooser && east;
+            moveLegal[2] = hasLiveChooser && south;
+            moveLegal[3] = hasLiveChooser && west;
+            // Publish eligibility before closing an invalid preview: focus
+            // restoration must not reselect a newly disabled Move command.
+            bool any = moveLegal[0] || moveLegal[1] ||
+                moveLegal[2] || moveLegal[3];
+            moveButton.interactable = any;
             for (int i = 0; i < moveDirectionButtons.Length; i++)
                 moveDirectionButtons[i].interactable = moveLegal[i];
             if (movePreviewOpen && (actorIndex != movePreviewActor ||
