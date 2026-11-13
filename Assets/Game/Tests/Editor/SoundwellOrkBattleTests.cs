@@ -1427,6 +1427,17 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(events.currentSelectedGameObject, Is.SameAs(westButton.gameObject));
             Assert.That(stepPreview.enabled, Is.True);
+            SpriteRenderer selectedRescuer = party.Actors[movingRescuer]
+                .GetComponent<SpriteRenderer>();
+            Assert.That(selectedRescuer, Is.Not.Null);
+            Assert.That(stepPreview.sprite, Is.SameAs(selectedRescuer.sprite),
+                "The uncommitted landing preview must depict the actual ORK rescuer, " +
+                "including the third rescuer's distinct hood, not a generic target arrow.");
+            Assert.That(stepPreview.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(stepPreview.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(stepPreview.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(stepPreview.flipX, Is.True,
+                "A westward landing preview must face west before the ORK step commits.");
             Assert.That((Vector2)stepPreview.transform.position,
                 Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance),
                 "Gamepad focus must preview a valid step without a first Submit.");
