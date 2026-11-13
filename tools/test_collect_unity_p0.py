@@ -176,6 +176,23 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
 
 
 class SoundwellAcceptanceContractTests(unittest.TestCase):
+    def test_destroyed_ork_actor_lookup_is_required_only_with_real_nunit_case(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case_file = source_root / "Assets/Game/Tests/Editor/SoundwellTrialTests.cs"
+            case_file.parent.mkdir(parents=True)
+            method = "BattleChooserActorLookupIgnoresDestroyedOrMissingActors"
+            full_name = "Rpg.Tests.Editor.SoundwellTrialTests." + method
+            case_file.write_text("[Test] public void " + method + "() { }",
+                                 encoding="utf-8")
+            self.assertIn(full_name, expected_tests_for("verify", True, source_root))
+            self.assertIn(full_name, expected_tests_for("prepare", True, source_root))
+            # No source method, no expected test: neither missing tests nor
+            # arbitrary unexpected test names may pass the P0 acceptance set.
+            case_file.write_text("public void " + method + "() { }",
+                                 encoding="utf-8")
+            self.assertNotIn(full_name, expected_tests_for("verify", True, source_root))
+
     def test_nunit_step_boundary_test_must_be_exactly_declared(self):
         with tempfile.TemporaryDirectory() as root:
             source_root = Path(root)
