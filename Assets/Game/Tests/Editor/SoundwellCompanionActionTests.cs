@@ -15,6 +15,22 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellCompanionActionTests
     {
         [Test]
+        public void OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending()
+        {
+            // ORK may offer Guard, Gate or its independent step even when the
+            // base Attack target is not currently usable. That is still a
+            // real active chooser, not a loading/pending battle menu.
+            Assert.That(SoundwellOrkParty.IsBattleChooserPending(0, false, 4f), Is.False);
+            Assert.That(SoundwellOrkParty.IsBattleChooserPending(1, false, 4f), Is.False);
+            Assert.That(SoundwellOrkParty.IsBattleChooserPending(2, false, 1f), Is.False);
+            Assert.That(SoundwellOrkParty.IsBattleChooserPending(-1, false, 4f), Is.True,
+                "Only an unresolved living-beast turn should show the waiting caption.");
+            Assert.That(SoundwellOrkParty.IsBattleChooserPending(-1, true, 0f), Is.False);
+            Assert.That(SoundwellOrkParty.IsBattleChooserPending(-1, false, 0f), Is.False,
+                "An already-depleted beast must not leave a false pending command.");
+        }
+
+        [Test]
         public void OrkStepMustKeepWholeCombatantInsideSavedBattleBounds()
         {
             // The previous centre-only check allowed a character's 2D
