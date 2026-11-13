@@ -340,6 +340,37 @@ namespace Rpg.Tests.Editor
             yield return new ExitPlayMode();
         }
 
+        [Test]
+        public void FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice()
+        {
+            // If the mixer has not loaded, the failed operation must not
+            // overwrite an existing choice. A later scene may still route
+            // its bell with that saved preference.
+            string key = SoundwellAudioBus.MutePreferenceKey;
+            bool hadPreference = PlayerPrefs.HasKey(key);
+            int originalPreference = PlayerPrefs.GetInt(key, 0);
+            try
+            {
+                PlayerPrefs.SetInt(key, 1);
+                Assert.That(SoundwellAudioBus.SetMuted(null, false), Is.False);
+                Assert.That(SoundwellAudioBus.IsMuted, Is.True,
+                    "A failed unmute must not discard the player's saved mute.");
+
+                PlayerPrefs.SetInt(key, 0);
+                Assert.That(SoundwellAudioBus.SetMuted(null, true), Is.False);
+                Assert.That(SoundwellAudioBus.IsMuted, Is.False,
+                    "A failed mute must not silently persist an unconfirmed change.");
+            }
+            finally
+            {
+                if (hadPreference)
+                    PlayerPrefs.SetInt(key, originalPreference);
+                else
+                    PlayerPrefs.DeleteKey(key);
+                PlayerPrefs.Save();
+            }
+        }
+
         [UnityTearDown]
         public IEnumerator LeavePlayModeAfterFailure()
         {
