@@ -793,6 +793,14 @@ namespace Rpg.Tests.Editor
                 Assert.That(bridgePost, Is.Not.Null);
                 Assert.That(bridgePost.gameObject.activeInHierarchy, Is.False,
                     "No battle position may be awarded before the first warning bell.");
+                var shenLi = prelude.transform.Find(
+                    "S00 Whitewater playable canvas/PLACEHOLDER Shen Li") as RectTransform;
+                Assert.That(shenLi, Is.Not.Null);
+                Assert.That(bridgePost.anchoredPosition.x, Is.GreaterThan(175f),
+                    "The guard position must be on the bridge's eastern clamp side.");
+                Assert.That(Mathf.Abs(bridgePost.anchoredPosition.x - shenLi.anchoredPosition.x),
+                    Is.LessThanOrEqualTo(36f),
+                    "The bridge post must actually be beside Shen Li as the story states.");
                 Assert.That(rope, Is.Not.Null);
                 Assert.That(rope.gameObject.activeInHierarchy, Is.False,
                     "No rope response before the player reaches the safe line.");

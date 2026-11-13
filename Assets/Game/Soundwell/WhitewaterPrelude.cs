@@ -19,7 +19,9 @@ namespace Rpg.Soundwell
         public const string EvacueeEscortedKey = "rpg.return.s00.last-evacuee-escorted";
         public const string SpareRopeCallKey = "rpg.return.s00.spare-rope-call";
         public const string BridgePostKey = "rpg.return.s00.bridge-post";
-        private const float BridgePostX = 105f;
+        // The post must be physically beside Shen Li (at ClampX + 58), not
+        // a disconnected marker halfway across the bridge.
+        private const float BridgePostX = ClampX + 30f;
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
