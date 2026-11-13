@@ -15,7 +15,7 @@
 | P0-b | 建立脚本化冒烟、同 SHA 验证和基础帧时间、P95、GC 趋势采样。 | 已有声井冒烟、同 SHA 验证和 Editor 趋势采样；按场景补覆盖，不等同玩家设备性能验收 |
 | G1 | 标题、菜单和 HUD 使用 UGUI，验证键鼠与手柄焦点及分辨率适配。世界渲染走 SpriteRenderer / Tilemap，并检查排序层。 | 已有入口/操作/HUD、输入焦点与 SpriteRenderer/Tilemap；完整菜单、各设备/分辨率覆盖按实际缺口补验 |
 | N1 | 打磨已有[S00—M00 场景稿](docs/narrative/SCENE_SCRIPT_S00_M00.md)，写完一条独立地区线及 M08—M11 连续人物场；检查具体行动、对白与因果。 | 开场初稿已整理，后续待编剧；剧情演出未实现、未试玩 |
-| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002 声源试验](production/stories/002-soundwell-signal.md)工程验收通过，主观体验证据未知，不设用户参与门槛。故事 003 与现代化可按实时依赖、玩家收益和验证条件选择；不再为 M2–M11 强制延后。 |
+| P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002](production/stories/002-soundwell-signal.md) 与 [003 移动版代表环](production/stories/003-soundwell-turn-rescue.md)工程验收通过；完整固定阵位模式、后续成长/持久化及主观乐趣仍未验收。故事、序幕与技术卡按真实依赖推进。 |
 
 **用户 2026-11-10 新决定：取消 M1–M11 高于玩法、剧情和故事 003 的强制优先级。** M1–M11 技术卡保留为可选择任务，与故事/玩法并列按价值、依赖、活动候选及真实 CI 结果确定开发顺序；任何 M 阶段均非故事开发的统一前置条件。已合入的阶段候选不再永久保留或复用；每次合入 `codex/dev` 后仅复核本次候选及其直接相关已完全取代的旧候选，按[清理规则](production/workflow.md#候选分支清理)及[自动清理 Actions](.github/workflows/close-merged-pending.yml)处理。正在运行的 CI 保持最终候选 SHA 不变并接续，失败时修复，不阻止在无依赖的独立候选上进行玩法、剧情或技术开发；实时任务状态以 [AI2-STATUS](AI2-STATUS.md) 和 GitHub 为准。
 
@@ -23,13 +23,13 @@
 
 **跨轮现代化任务仍已立项，但不构成强制实施队列：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2) 及子票 [#3—#16](https://github.com/jinze909/rpg/issues/3) 留作独立任务与证据来源。只有技术依赖确实存在时才按依赖排序，并允许故事/玩法增量穿插；不得因为换聊天而丢弃正在接力的候选。原 M1–M11 空预留头只是历史记录，不再永久保留；每个候选只负责一次独立可验收增量，合入后安全关闭，后续内容从最新 dev 新建不同名称候选。开票/建分支不代表阶段完成，也不得混装多项技术或让 ORK 与新系统并行控制同一操作。
 
-**历史技术证据（不代表当前候选）：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。M2 Soundwell New Input System gameplay adapter 已在 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 合入 `codex/dev`，同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；[artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。故事 003 已覆盖三人分别通过 ORK 开闸、保护、攻击，并从同一开局独立完成侧铃与正面护送。战中移动和策略体验对照仍待完成，见[故事 003](production/stories/003-soundwell-turn-rescue.md)。
+**历史技术证据（不代表当前候选）：** Soundwell `codex/dev` 最终整合 SHA `0fb1389c9df1e50d41eef73551e25d0c391c1a43` 已在 [Run 42740645793](https://github.com/jinze909/rpg/actions/runs/42740645793) 通过 5/5、独立批处理与 `passed-clean-candidate`；M1 URP 2D 已在最终资产 SHA `3a3465225636212effcb1d452deb6d7802bb0d16` 的 [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 通过 6/6 tests 并合入 dev。M2 Soundwell New Input System gameplay adapter 已在 `2eee996adaec6563fd379416e7ec6fad8e1b9a62` 合入 `codex/dev`，同 SHA [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628) 通过 8/8 tests、双次 Play Mode、独立 Batch 与 `passed-clean-candidate`；[artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633)。故事 003 已覆盖三人分别通过 ORK 开闸、保护、攻击，并从同一开局独立完成侧铃与正面护送。战中移动预览/取消/阻挡与同起点开闸分工已由[故事 003](production/stories/003-soundwell-turn-rescue.md)后续 Run 验证；完整固定阵位可玩版仍待后续独立切片。
 
 **现行边界（2026-11-11）：** ORK/Makinom 框架和配置允许为明确需求修改，经隔离候选充分验证后合入，旧全面冻结撤销；UGUI 保留，零新增付费，单一 RPG 权威与许可约束继续有效。统一执行规则与官方链接见 [现代 2D RPG 技术基线](docs/technical/MODERN_2D_RPG_STACK.md)。
 
 | 技术卡 | 独立增量（只选有实际收益的官方/零新增购买方案） | 状态与门槛 |
 | --- | --- | --- |
-| M0 · 历史前提（已解决） | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 已整合到 `codex/dev`：`0fb1389c9df1e50d41eef73551e25d0c391c1a43`；同 SHA Run 42740645793 通过 5/5、批处理与 `passed-clean-candidate`。003 两条策略仍未完成 |
+| M0 · 历史前提（已解决） | 修复 003 声井真实三人队伍候选的场景重载/玩家数量回归，恢复同 SHA 干净 CI，继续两条救援路径 | 已整合到 `codex/dev`：`0fb1389c9df1e50d41eef73551e25d0c391c1a43`；同 SHA Run 42740645793 通过 5/5、批处理与 `passed-clean-candidate`。003 两路线现已工程验收通过，参见故事卡的新证据 |
 | M1 · URP 2D | 单独候选：2D Renderer、项目管线、质量级继承、材质/相机/UGUI/场景回归 | **工程交付，Issue #3 closed**；最终资产 `3a346522...` [Run 42744816128](https://github.com/jinze909/rpg/actions/runs/42744816128) 同 SHA verify 成功 |
 | M2 · Input System | `com.unity.inputsystem`、`Both` 兼容、游戏自有 Input Actions/重绑定、键鼠手柄/UGUI 回归 | **核心已合入，#4 open**；UI Toggle 及后续入口焦点修复已进入 dev；剩余设备/实际路径按最新代码与 Run 核对，不重做旧候选 |
 | M3 · Cinemachine 3 | 替代唯一自有摄像机控制路径，验证 2D 跟随、边界、各宽高比和战斗镜头 | **已合入，#5 open**；唯一相机与跟随边界测试 `ca3652f...` [Run 42785942604](https://github.com/jinze909/rpg/actions/runs/42785942604) 通过，镜头截图/重载证据待关票 |
