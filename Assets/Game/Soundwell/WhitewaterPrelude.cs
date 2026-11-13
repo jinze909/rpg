@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         public const string EvacueeEscortedKey = "rpg.return.s00.last-evacuee-escorted";
         public const string SpareRopeCallKey = "rpg.return.s00.spare-rope-call";
         public const string BridgePostKey = "rpg.return.s00.bridge-post";
+        public const string SecondBellKey = "rpg.return.s00.second-bell";
         // The post must be physically beside Shen Li (at ClampX + 58), not
         // a disconnected marker halfway across the bridge.
         private const float BridgePostX = ClampX + 30f;
@@ -40,8 +41,11 @@ namespace Rpg.Soundwell
         private RectTransform evacueeSafeLine;
         private RectTransform spareRope;
         private RectTransform bridgePost;
+        private RectTransform farBankLanternLeft;
+        private RectTransform farBankLanternRight;
         private AudioSource bellAudio;
         private AudioClip firstBellClip;
+        private AudioClip secondBellClip;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -59,7 +63,8 @@ namespace Rpg.Soundwell
         // 7: rescue station; 8: Han Qiao boards the last boat;
         // 9: reach the stranded evacuee; 10: escort west; 11: confirm safe crossing;
         // 12: voluntary rope call, first bell and physical guard-post approach;
-        // 13: reached bridge post. ORK defence and the fixed third-bell break remain pending.
+        // 13: reached bridge post; 14: witnessed the second bell and lights going out.
+        // ORK defence and the fixed third-bell break remain pending.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
@@ -170,6 +175,14 @@ namespace Rpg.Soundwell
                 new Vector2(BridgePostX, 12f), new Vector2(35f, 40f),
                 new Color(0.87f, 0.67f, 0.29f)).rectTransform;
             bridgePost.gameObject.SetActive(false);
+            // Opposite-bank lamps visibly withdraw at the scripted second bell.
+            // They are scenery, not another combat or mission authority.
+            farBankLanternLeft = Panel(canvas.transform, "S00 far bank lantern left",
+                new Vector2(-293f, 90f), new Vector2(14f, 15f), Brass).rectTransform;
+            farBankLanternRight = Panel(canvas.transform, "S00 far bank lantern right",
+                new Vector2(-256f, 90f), new Vector2(14f, 15f), Brass).rectTransform;
+            farBankLanternLeft.gameObject.SetActive(false);
+            farBankLanternRight.gameObject.SetActive(false);
             marker = Panel(canvas.transform, "PLACEHOLDER player",
                 new Vector2(walker.x, 12f), new Vector2(22f, 31f),
                 new Color(0.64f, 0.85f, 0.93f)).rectTransform;
@@ -305,6 +318,8 @@ namespace Rpg.Soundwell
                 ShowFinalRetreat();
             else if (phase == 11)
                 CallForSpareRope();
+            else if (phase == 13)
+                WitnessSecondBell();
         }
 
         private void ShowLastBoat()
@@ -503,20 +518,57 @@ namespace Rpg.Soundwell
                 "You take the bridge post beside Shen Li. The evacuee is safe; you face the approaching troops together.",
                 "你在沈砾身旁站定桥头守位。伤者已撤离，你们一起望向逼近的敌军。");
             instructions.text = Copy(
-                "Bridge post secured. The ORK defence and fixed second/third bell sequence remain unimplemented. Return to entry.",
-                "已到桥头守位。ORK 防守战及既定的第二、第三声钟仍待实现；可返回入口。");
+                "Hold the post. Choose 'Watch the opposite bank' when ready; the third bell is still ahead.",
+                "守住桥头。准备好后选择“观察对岸”，第三声号钟尚未响起。");
+            farBankLanternLeft.gameObject.SetActive(true);
+            farBankLanternRight.gameObject.SetActive(true);
+            next.gameObject.name = "S00 watch opposite bank";
+            Text buttonLabel = next.GetComponentInChildren<Text>(true);
+            if (buttonLabel != null)
+                buttonLabel.text = Copy("Watch the opposite bank", "观察对岸");
+            next.gameObject.SetActive(true);
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(next.gameObject);
+        }
+
+        private void WitnessSecondBell()
+        {
+            // The second bell belongs to the established S00 history, not a
+            // cooldown or a reward for standing still. Only the player who
+            // physically reached the post can advance this scene beat.
+            if (phase != 13 || next == null || !next.gameObject.activeInHierarchy)
+                return;
+            phase = 14;
+            next.gameObject.SetActive(false);
+            farBankLanternLeft.gameObject.SetActive(false);
+            farBankLanternRight.gameObject.SetActive(false);
+            secondBellClip = CreateSecondBellCue();
+            bellAudio.clip = secondBellClip;
+            bellAudio.Play();
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(SecondBellKey, 1);
+            narration.text = Copy(
+                "The second bell rolls across the bridge. On the far bank, the lamps withdraw one by one. Shen Li grips the cable and looks across the span.",
+                "第二声号钟传过浮桥。对岸的灯火一盏接一盏收起。沈砾攥住缆索，望向桥的另一端。");
+            instructions.text = Copy(
+                "The second bell has sounded. The ORK defence and fixed third-bell break are later playable beats. Return to entry.",
+                "第二声号钟已响。ORK 防守战与既定的第三声断桥仍属后续可玩段落；可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
 
-        private static AudioClip CreateFirstBellCue()
+        private static AudioClip CreateFirstBellCue() =>
+            CreateWarningBellCue("PLACEHOLDER S00 first warning bell", 510f);
+
+        private static AudioClip CreateSecondBellCue() =>
+            CreateWarningBellCue("PLACEHOLDER S00 second warning bell", 440f);
+
+        private static AudioClip CreateWarningBellCue(string clipName, float frequency)
         {
-            // A short original, nonverbal warning bell. Its player-facing
-            // meaning comes from the scripted first-bell dialogue, not a
-            // timer or a new combat/quest authority.
+            // An original short nonverbal scene cue, not a new encounter clock
+            // or RPG authority. First/second bells use the same saved M6 SFX bus.
             const int sampleRate = 22050;
             const float duration = 0.9f;
-            const float frequency = 510f;
             int sampleCount = Mathf.RoundToInt(sampleRate * duration);
             float[] samples = new float[sampleCount];
             for (int i = 0; i < sampleCount; i++)
@@ -528,7 +580,7 @@ namespace Rpg.Soundwell
                 samples[i] = 0.19f * envelope *
                     (Mathf.Sin(phase) + 0.33f * Mathf.Sin(phase * 2.73f));
             }
-            AudioClip clip = AudioClip.Create("PLACEHOLDER S00 first warning bell",
+            AudioClip clip = AudioClip.Create(clipName,
                 sampleCount, 1, sampleRate, false);
             clip.SetData(samples, 0);
             return clip;
@@ -540,6 +592,8 @@ namespace Rpg.Soundwell
             // Release the generated sample clip when the temporary scene ends.
             if (firstBellClip != null)
                 Destroy(firstBellClip);
+            if (secondBellClip != null)
+                Destroy(secondBellClip);
         }
 
         private void ShowWorkshopPromise()

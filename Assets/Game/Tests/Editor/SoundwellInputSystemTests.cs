@@ -1,6 +1,7 @@
 using System.Collections;
 using System.IO;
 using System.Linq;
+using GamingIsLove.Makinom;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -936,6 +937,44 @@ namespace Rpg.Tests.Editor
                         ? "桥头守位" : "bridge post"));
                 Assert.That(bellAudio.clip.name, Does.Contain("first warning bell"),
                     "Reaching the post must not invent the pending second/third-bell events.");
+                var farLamps = new[]
+                {
+                    prelude.transform.Find("S00 Whitewater playable canvas/S00 far bank lantern left"),
+                    prelude.transform.Find("S00 Whitewater playable canvas/S00 far bank lantern right")
+                };
+                Assert.That(farLamps.All(lamp => lamp != null && lamp.gameObject.activeInHierarchy),
+                    Is.True, "The player must actually see the opposite-bank lamps before they go out.");
+                var watchBank = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 watch opposite bank");
+                Assert.That(watchBank.gameObject.activeInHierarchy, Is.True);
+                Assert.That(prelude.Phase, Is.EqualTo(13),
+                    "Waiting at the guard post must not silently trigger the second bell.");
+                Assert.That(bellAudio.clip.name, Does.Contain("first warning bell"));
+                watchBank.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(14));
+                Assert.That(farLamps.All(lamp => !lamp.gameObject.activeInHierarchy), Is.True,
+                    "The second bell must physically extinguish the opposite-bank lamps.");
+                Assert.That(bellAudio.clip.name, Does.Contain("second warning bell"),
+                    "The second bell must have its own real routed audio clip.");
+                float[] secondBellSamples = new float[bellAudio.clip.samples];
+                Assert.That(bellAudio.clip.GetData(secondBellSamples, 0), Is.True);
+                Assert.That(secondBellSamples.Any(sample => Mathf.Abs(sample) > 0.01f), Is.True);
+                // This isolated input test intentionally does not bootstrap
+                // Makinom's game: the same S00 scene is safe without it.
+                // Validate its live story variable only when Makinom owns one;
+                // the initialized Bootstrap/ORK integration remains covered
+                // separately by the end-to-end Soundwell suite.
+                if (Maki.Initialized && Maki.Game?.Variables != null)
+                    Assert.That(Maki.Game.Variables.GetInt(WhitewaterPrelude.SecondBellKey),
+                        Is.EqualTo(1));
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "第二声号钟" : "second bell"));
+                watchBank.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(14),
+                    "A stale UGUI Submit must not replay the historical second bell.");
 
                 var backToEntry = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 return to Bootstrap");
