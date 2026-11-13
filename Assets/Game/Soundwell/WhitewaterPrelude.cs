@@ -35,6 +35,8 @@ namespace Rpg.Soundwell
         private RectTransform evacuee;
         private RectTransform evacueeSafeLine;
         private RectTransform spareRope;
+        private AudioSource bellAudio;
+        private AudioClip firstBellClip;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -90,6 +92,12 @@ namespace Rpg.Soundwell
             canvas.transform.SetParent(transform, false);
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 80;
+            // S00 shares the existing saved M6 SFX mixer/mute preference with
+            // the playable Soundwell trial; no parallel audio bus is created.
+            bellAudio = canvas.gameObject.AddComponent<AudioSource>();
+            bellAudio.playOnAwake = false;
+            bellAudio.spatialBlend = 0f;
+            SoundwellAudioBus.Route(bellAudio);
             var scaler = canvas.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(960f, 540f);
@@ -446,6 +454,9 @@ namespace Rpg.Soundwell
                 Maki.Game.Variables.Set(SpareRopeCallKey, 1);
             spareRope.gameObject.SetActive(true);
             cable.color = new Color(0.78f, 0.43f, 0.28f);
+            firstBellClip = CreateFirstBellCue();
+            bellAudio.clip = firstBellClip;
+            bellAudio.Play();
             narration.text = Copy(
                 "You shout, 'Who has spare rope?' A coil reaches Shen Li at the clamp. The first bell sounds; she turns toward the strained cable.",
                 "你喊：“谁带了多余的绳子？”一卷绳索送到缆桩边的沈砾手里。第一声号钟响起，她转头望向吃紧的缆索。");
@@ -454,6 +465,39 @@ namespace Rpg.Soundwell
                 "第一声钟是警讯。ORK 防守战与第三声钟后的既定断缆仍待实现；可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        private static AudioClip CreateFirstBellCue()
+        {
+            // A short original, nonverbal warning bell. Its player-facing
+            // meaning comes from the scripted first-bell dialogue, not a
+            // timer or a new combat/quest authority.
+            const int sampleRate = 22050;
+            const float duration = 0.9f;
+            const float frequency = 510f;
+            int sampleCount = Mathf.RoundToInt(sampleRate * duration);
+            float[] samples = new float[sampleCount];
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float seconds = (float)i / sampleRate;
+                float phase = seconds * frequency * Mathf.PI * 2f;
+                float envelope = Mathf.Min(seconds * 1600f, 1f) *
+                    Mathf.Exp(-5f * seconds / duration);
+                samples[i] = 0.19f * envelope *
+                    (Mathf.Sin(phase) + 0.33f * Mathf.Sin(phase * 2.73f));
+            }
+            AudioClip clip = AudioClip.Create("PLACEHOLDER S00 first warning bell",
+                sampleCount, 1, sampleRate, false);
+            clip.SetData(samples, 0);
+            return clip;
+        }
+
+        private void OnDestroy()
+        {
+            // AudioSource belongs to the scene canvas and stops with it.
+            // Release the generated sample clip when the temporary scene ends.
+            if (firstBellClip != null)
+                Destroy(firstBellClip);
         }
 
         private void ShowWorkshopPromise()

@@ -778,6 +778,14 @@ namespace Rpg.Tests.Editor
 
                 // The rope call is an earned, optional follow-up, not a timed
                 // false win or a substitute for the pending ORK defence.
+                var bellAudio = prelude.GetComponentInChildren<AudioSource>(true);
+                Assert.That(bellAudio, Is.Not.Null);
+                Assert.That(bellAudio.playOnAwake, Is.False);
+                Assert.That(bellAudio.clip, Is.Null,
+                    "The first bell must not sound before the earned rope call.");
+                Assert.That(bellAudio.outputAudioMixerGroup, Is.Not.Null,
+                    "The story cue must share the existing M6 SFX output.");
+                Assert.That(bellAudio.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
                 var rope = prelude.transform.Find(
                     "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
                 Assert.That(rope, Is.Not.Null);
@@ -789,6 +797,15 @@ namespace Rpg.Tests.Editor
                 callForRope.onClick.Invoke();
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(12));
+                Assert.That(bellAudio.clip, Is.Not.Null,
+                    "Player-initiated rope call must schedule a real warning bell clip.");
+                Assert.That(bellAudio.clip.name, Does.Contain("first warning bell"));
+                Assert.That(bellAudio.clip.channels, Is.EqualTo(1));
+                Assert.That(bellAudio.clip.frequency, Is.EqualTo(22050));
+                float[] firstBellSamples = new float[bellAudio.clip.samples];
+                Assert.That(bellAudio.clip.GetData(firstBellSamples, 0), Is.True);
+                Assert.That(firstBellSamples.Any(sample => Mathf.Abs(sample) > 0.01f),
+                    Is.True, "The generated first-bell audio cannot be silent.");
                 Assert.That(rope.gameObject.activeInHierarchy, Is.True,
                     "Shen Li's received coil must be visible at the repaired cable.");
                 Assert.That(callForRope.gameObject.activeInHierarchy, Is.False,
