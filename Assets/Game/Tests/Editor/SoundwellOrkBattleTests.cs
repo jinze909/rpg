@@ -717,8 +717,19 @@ namespace Rpg.Tests.Editor
             // exploration's weak-plank recovery teleport the active party
             // leader behind the turn/movement budget. Probe the real lower
             // plank for a rendered frame, then restore the battle formation.
-            Assert.That(trial.GateOpen, Is.True,
-                "The queued ORK gate action must actually open the lower-route hazard.");
+            Assert.That(trial.DirectCombatStarted, Is.True);
+            // The latch was submitted through ORK, but its action calculation
+            // may still be queued. The safety rule must work *regardless*
+            // of whether that real gate action has finished this frame.
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                true, true, SoundwellTrial.LowerBoardPosition), Is.False,
+                "Even an opened gate cannot make exploration physics teleport an ORK combatant.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, true, SoundwellTrial.LowerBoardPosition), Is.True,
+                "The original weak-plank consequence must remain active outside ORK battle.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, false, SoundwellTrial.LowerBoardPosition), Is.False,
+                "The locked gate must still protect the unopened lower route.");
             Assert.That(trial.LowerPlankBroken, Is.False);
             Vector2 battleLeaderPosition = leaderBody.position;
             leaderBody.position = SoundwellTrial.LowerBoardPosition;
