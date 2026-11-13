@@ -74,6 +74,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial":
             "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
     },
+    "Assets/Game/Tests/Editor/WhitewaterRescueChoiceInputTests.cs": {
+        "PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
+    },
     "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs": {
         "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":
             "Rpg.Tests.Editor.SoundwellThreatPreviewTests.SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping",
