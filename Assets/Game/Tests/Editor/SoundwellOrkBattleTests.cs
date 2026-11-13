@@ -562,6 +562,9 @@ namespace Rpg.Tests.Editor
             Assert.That(disabledAttackCaption.text,
                 Does.Contain(SoundwellUiLocalization.Get("battle.rescuer")),
                 "The disabled Attack should still identify ORK's live rescuer.");
+            Assert.That(disabledAttackCaption.text,
+                Does.Not.Contain(SoundwellUiLocalization.Get("battle.beast")),
+                "A disabled ORK attack cannot advertise the beast as an actionable target.");
             EventSystem.current.SetSelectedGameObject(battleRetreat.gameObject);
             setBattleChoices.Invoke(liveView, new object[]
             {
@@ -645,6 +648,10 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(attackButton.gameObject),
                 "When an attack is legal it remains the default choice.");
+            Assert.That(attackButton.interactable, Is.True);
+            Assert.That(disabledAttackCaption.text,
+                Does.Contain(SoundwellUiLocalization.Get("battle.beast")),
+                "Once ORK enables Attack the real beast target must reappear.");
             // The subsequent frame restores the live ORK-computed choice matrix.
             yield return null;
 
