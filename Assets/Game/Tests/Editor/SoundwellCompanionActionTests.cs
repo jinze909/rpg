@@ -154,6 +154,17 @@ namespace Rpg.Tests.Editor
             body.position = new Vector2(-0.55f, 0f);
             Physics2D.SyncTransforms();
             Assert.That(trial.CanEngageBeast, Is.True);
+            var encounterStartedField = typeof(SoundwellTrial).GetField(
+                "combatStartedInThisScene", flags);
+            Assert.That(encounterStartedField, Is.Not.Null);
+            // A defeated ORK encounter cannot simply start again in the
+            // same scene: Retry must reload its saved battle components.
+            encounterStartedField.SetValue(trial, true);
+            Assert.That(trial.CanEngageBeast, Is.False,
+                "A retired ORK battle owner cannot offer a second gate encounter.");
+            encounterStartedField.SetValue(trial, false);
+            Assert.That(trial.CanEngageBeast, Is.True,
+                "A fresh scene must still offer its first genuine ORK battle.");
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.DirectCombatStarted, Is.True,
                 "The saved world gate must enter a real ORK encounter.");
