@@ -278,8 +278,22 @@ namespace Rpg.Tests.Editor
 
             var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
             Assert.That(entry, Is.Not.Null);
+            var entryButtons = entry.GetComponentsInChildren<Button>(true);
+            var startButton = entryButtons.Single(button =>
+                button.gameObject.name == "Enter Soundwell button");
+            var sfxButton = entryButtons.Single(button =>
+                button.gameObject.name == "Soundwell SFX toggle");
+            var languageButton = entryButtons.Single(button =>
+                button.gameObject.name == "Soundwell entry Language button");
+            Assert.That(startButton.interactable && sfxButton.interactable &&
+                languageButton.interactable, Is.True);
             var load = entry.OpenTrial();
             Assert.That(load, Is.Not.Null);
+            Assert.That(startButton.interactable || sfxButton.interactable ||
+                languageButton.interactable, Is.False,
+                "An accepted entry must lock all UGUI settings until scene handoff.");
+            Assert.That(entry.OpenTrial(), Is.SameAs(load),
+                "Repeated Entry/Submit during loading must share one scene transition.");
             deadline = Time.realtimeSinceStartup + 12f;
             while (!load.isDone && Time.realtimeSinceStartup < deadline)
                 yield return null;
