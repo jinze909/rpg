@@ -39,6 +39,22 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void RetiredOrkGateActorCannotOpenPhysicalGate()
+        {
+            // ORK can call a cached reach predicate after its scene-owned
+            // actor has retired. Exercise the exact predicate with no actor;
+            // the existing live battle test covers actual gate use.
+            var predicate = typeof(SoundwellTrial).GetMethod(
+                "HasLiveGateActorInReach",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static);
+            Assert.That(predicate, Is.Not.Null);
+            Assert.That(predicate.Invoke(null, new object[] { null }),
+                Is.EqualTo(false),
+                "A missing ORK member may not open the gate or dereference GameObject.");
+        }
+
         [UnityTest]
         public IEnumerator PlayerCanRingWrapRetreatAndRetry()
         {

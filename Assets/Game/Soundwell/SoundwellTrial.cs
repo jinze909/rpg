@@ -498,9 +498,19 @@ namespace Rpg.Soundwell
             return actor != null ? actor.transform : null;
         }
 
+        // An ORK turn may retire its combatant between input selection and
+        // the gate reach callback during retreat or scene teardown.
+        // Missing owners/visuals must never open the physical gate or throw.
+        private static bool HasLiveGateActorInReach(Combatant member)
+        {
+            if (member == null || member.GameObject == null)
+                return false;
+            return Vector2.Distance(member.GameObject.transform.position,
+                GatePanelPosition) <= GatePanelReach;
+        }
+
         private bool CanReachBattleGate(Combatant member) =>
-            DirectCombatStarted && !GateOpen && member.GameObject != null &&
-            Vector2.Distance(member.GameObject.transform.position, GatePanelPosition) <= GatePanelReach;
+            DirectCombatStarted && !GateOpen && HasLiveGateActorInReach(member);
 
         public AsyncOperation ReturnToBootstrap()
         {
