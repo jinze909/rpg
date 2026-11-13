@@ -677,13 +677,19 @@ namespace Rpg.Soundwell
                 Mathf.Abs(actor.lossyScale.y));
             float radius = (bodyCollider != null ? bodyCollider.radius : 0.125f) *
                 worldScale;
-            if (!FitsBattleStepInArena(destination, radius))
+            // The collider centre may be offset from the ORK actor origin.
+            // Sweep and bound the physical footprint, not its visual pivot.
+            Vector2 worldColliderOffset = bodyCollider != null
+                ? (Vector2)actor.TransformVector(bodyCollider.offset)
+                : Vector2.zero;
+            Vector2 colliderFrom = from + worldColliderOffset;
+            if (!FitsBattleStepInArena(destination + worldColliderOffset, radius))
                 return false;
 
             // The leader has a real circle collider. Use a two-pixel radius for
             // the companions, whose normal formation fits alongside that collider.
             Physics2D.SyncTransforms();
-            Physics2D.CircleCast(from, radius, direction,
+            Physics2D.CircleCast(colliderFrom, radius, direction,
                 new ContactFilter2D { useTriggers = false }, stepHits, BattleStepDistance);
             foreach (RaycastHit2D hit in stepHits)
                 if (!hit.collider.transform.IsChildOf(actor))
