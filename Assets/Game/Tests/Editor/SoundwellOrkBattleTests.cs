@@ -1324,10 +1324,23 @@ namespace Rpg.Tests.Editor
             var obstruction = new GameObject("Step sweep regression obstruction");
             obstruction.transform.position = beforeStep + Vector2.left * 0.30f;
             obstruction.AddComponent<BoxCollider2D>().size = Vector2.one * 0.10f;
+            // Both the ORK action adapter and the actual UGUI direction
+            // must reject a new collider across the swept step. A failed
+            // confirmation cannot spend a turn or consume the movement budget.
+            yield return null; // Publish the physics change to the live HUD.
             Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.False);
+            Assert.That(party.TryStep(movingRescuer, Vector2.left), Is.False,
+                "A blocked move must fail even if gameplay calls TryStep directly.");
+            Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
+                Is.EqualTo(beforeStep), "A blocked step cannot teleport the ORK actor.");
+            moveButton.onClick.Invoke();
+            Assert.That(westButton.interactable, Is.False,
+                "The live movement menu must disable directions blocked by geometry.");
+            cancelMove.onClick.Invoke();
             Object.Destroy(obstruction);
             yield return null;
-            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.True);
+            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.True,
+                "Removing the obstruction must restore the unspent step.");
 
             moveButton.onClick.Invoke();
             westButton.onClick.Invoke();
