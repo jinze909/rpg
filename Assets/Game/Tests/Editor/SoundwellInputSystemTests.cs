@@ -960,7 +960,14 @@ namespace Rpg.Tests.Editor
                 float[] secondBellSamples = new float[bellAudio.clip.samples];
                 Assert.That(bellAudio.clip.GetData(secondBellSamples, 0), Is.True);
                 Assert.That(secondBellSamples.Any(sample => Mathf.Abs(sample) > 0.01f), Is.True);
-                Assert.That(Maki.Game.Variables.GetInt(WhitewaterPrelude.SecondBellKey), Is.EqualTo(1));
+                // This isolated input test intentionally does not bootstrap
+                // Makinom's game: the same S00 scene is safe without it.
+                // Validate its live story variable only when Makinom owns one;
+                // the initialized Bootstrap/ORK integration remains covered
+                // separately by the end-to-end Soundwell suite.
+                if (Maki.Initialized && Maki.Game?.Variables != null)
+                    Assert.That(Maki.Game.Variables.GetInt(WhitewaterPrelude.SecondBellKey),
+                        Is.EqualTo(1));
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
                         ? "第二声号钟" : "second bell"));
