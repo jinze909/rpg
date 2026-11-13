@@ -251,6 +251,33 @@ namespace Rpg.Tests.Editor
                 rig.RefreshFraming();
                 Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(8.5f).Within(0.01f),
                     "Square viewports must show both Soundwell exits.");
+                // M8: portrait displays expand the world lens rather than cutting
+                // off the two exits. Check both extreme follow directions, not
+                // just a centered camera with no meaningful pan.
+                Vector2 savedPanProbe = leaderBody.position;
+                try
+                {
+                    trial.TrialCamera.aspect = 480f / 800f;
+                    foreach (float probeX in new[] { -7f, 7f })
+                    {
+                        leaderBody.position = new Vector2(probeX, savedPanProbe.y);
+                        Physics2D.SyncTransforms();
+                        rig.RefreshFraming();
+                        float visibleHalfWidth = rig.VirtualCamera.Lens.OrthographicSize *
+                            trial.TrialCamera.aspect;
+                        float pan = rig.FramingTarget.position.x;
+                        Assert.That(visibleHalfWidth - Mathf.Abs(pan),
+                            Is.GreaterThanOrEqualTo(8.22f - 0.001f),
+                            "Portrait follow must keep both Soundwell exits and their safety margin visible.");
+                        Assert.That(pan * 16f, Is.EqualTo(Mathf.Round(pan * 16f)).Within(0.001f),
+                            "Portrait follow must preserve the strict 16-PPU pixel grid.");
+                    }
+                }
+                finally
+                {
+                    leaderBody.position = savedPanProbe;
+                    Physics2D.SyncTransforms();
+                }
                 trial.TrialCamera.aspect = 16f / 9f;
                 rig.RefreshFraming();
                 Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(5.625f).Within(0.01f),
