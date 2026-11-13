@@ -1341,8 +1341,27 @@ namespace Rpg.Tests.Editor
             // A collider appearing along the sweep must invalidate the step
             // without moving the chooser or spending its allowance.
             var obstruction = new GameObject("Step sweep regression obstruction");
+            // The destination was valid when UGUI presented it. A physical
+            // blocker appearing between preview and Confirm must be rejected
+            // immediately, before LateUpdate refreshes the legal directions.
+            moveButton.onClick.Invoke();
+            westButton.onClick.Invoke();
+            Assert.That(stepPreview.enabled, Is.True);
             obstruction.transform.position = beforeStep + Vector2.left * 0.30f;
             obstruction.AddComponent<BoxCollider2D>().size = Vector2.one * 0.10f;
+            Physics2D.SyncTransforms();
+            Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.False);
+            Assert.That(commitMove.interactable, Is.True,
+                "The stale preview is deliberately tested before its next UI refresh.");
+            commitMove.onClick.Invoke();
+            Assert.That(stepPreview.enabled, Is.False,
+                "Rejected movement must immediately remove its now-unsafe world marker.");
+            Assert.That(commitMove.gameObject.activeInHierarchy, Is.False,
+                "Rejected movement must close the stale Confirm overlay.");
+            Assert.That((Vector2)party.Actors[movingRescuer].transform.position, Is.EqualTo(beforeStep));
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
+            Assert.That(attack.interactable, Is.True,
+                "Rejected step cannot spend the current ORK primary action.");
             // Both the ORK action adapter and the actual UGUI direction
             // must reject a new collider across the swept step. A failed
             // confirmation cannot spend a turn or consume the movement budget.

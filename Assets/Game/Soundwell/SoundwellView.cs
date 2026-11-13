@@ -726,11 +726,18 @@ namespace Rpg.Soundwell
 
         private void CommitBattleMovePreview()
         {
-            if (!movePreviewOpen || !moveLegal[movePreviewIndex] ||
-                submitBattleMove == null)
+            if (!movePreviewOpen)
                 return;
-            if (!submitBattleMove(movePreviewActor, MoveDirections[movePreviewIndex]))
+            if (!moveLegal[movePreviewIndex] || submitBattleMove == null ||
+                !submitBattleMove(movePreviewActor, MoveDirections[movePreviewIndex]))
+            {
+                // A collider can appear after the destination was previewed,
+                // or ORK can revoke this chooser before the next UI refresh.
+                // Never leave an unsafe destination marker and live Confirm
+                // button after the authoritative step callback rejects it.
+                CloseBattleMovePreview();
                 return;
+            }
             CloseBattleMovePreview();
             moveButton.interactable = false;
         }
