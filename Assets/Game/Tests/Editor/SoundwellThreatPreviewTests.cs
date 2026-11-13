@@ -568,6 +568,38 @@ namespace Rpg.Tests.Editor
             Assert.That(eventSystem.currentSelectedGameObject, Is.Null,
                 "Retry must not keep a stale focused UGUI Submit target.");
 
+            // Presentation-only regression: a legal ORK movement preview can
+            // become invalid when its destination is blocked or the chooser
+            // changes before the next LateUpdate. Do not leave keyboard/pad
+            // Submit focused on the newly disabled Move command.
+            var viewField = typeof(SoundwellTrial).GetField("view",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(viewField, Is.Not.Null);
+            var trialView = viewField.GetValue(trial) as SoundwellView;
+            Assert.That(trialView, Is.Not.Null);
+            trialView.SetBattleMode(true);
+            trialView.SetBattleChoices(1, trial.PlayerActor, true, true, false, false);
+            trialView.SetBattleMoveChoices(1, trial.PlayerActor, false, false, false, true);
+            var battleMoveButton = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+            var battleAttackButton = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
+            Assert.That(battleMoveButton, Is.Not.Null);
+            Assert.That(battleAttackButton, Is.Not.Null);
+            Assert.That(battleMoveButton.interactable, Is.True);
+            battleMoveButton.onClick.Invoke();
+            Assert.That(trialView.MovePreviewOpen, Is.True);
+            trialView.SetBattleMoveChoices(1, trial.PlayerActor, false, false, false, false);
+            Assert.That(trialView.MovePreviewOpen, Is.False,
+                "Invalidating the last legal destination must close its stale preview.");
+            Assert.That(battleMoveButton.interactable, Is.False,
+                "The now-unreachable step cannot remain interactive.");
+            Assert.That(eventSystem.currentSelectedGameObject,
+                Is.SameAs(battleAttackButton.gameObject),
+                "Automatic preview cancellation must focus the remaining legal action, not disabled Move.");
+            trialView.SetBattleMode(false);
+            Assert.That(eventSystem.currentSelectedGameObject, Is.Null,
+                "The temporary battle-only UGUI state must release focus on exit.");
+
             Debug.Log("RPG_SOUNDWELL_THREAT_PREVIEW_VALIDATED");
             yield return new ExitPlayMode();
         }
