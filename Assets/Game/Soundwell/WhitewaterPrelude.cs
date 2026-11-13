@@ -102,10 +102,9 @@ namespace Rpg.Soundwell
             SoundwellInputAdapter.SetUiContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
             // World movement already handles Back through Gameplay input.
-            // Dialogue switches to UGUI, where B / Esc emits an EventSystem
-            // Cancel instead. Let it bubble from the focused choice/Continue
-            // button to this same scene owner; no second input map or handler.
-            gameObject.AddComponent<SoundwellActionMenuCancelHandler>().Initialize(Close);
+            // The UI module sends Cancel directly to its selected GameObject,
+            // not up the hierarchy. Register on each selectable S00 control
+            // below so B / Esc closes dialogue with no second input owner.
 
             var canvas = new GameObject("S00 Whitewater playable canvas",
                 typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
@@ -202,16 +201,22 @@ namespace Rpg.Soundwell
                 choices[i] = Button(canvas.transform, "S00 choice " + i,
                     new Vector2((i - 1) * 250f, -192f), new Vector2(232f, 50f),
                     () => Choose(choice));
+                choices[i].gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
+                    .Initialize(Close);
                 choiceLabels[i] = Label(choices[i].transform, "", 17,
                     Vector2.zero, new Vector2(224f, 48f), Ink);
             }
             next = Button(canvas.transform, "S00 continue to workshop",
                 new Vector2(145f, -245f), new Vector2(228f, 29f), ContinueScene);
+            next.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
+                .Initialize(Close);
             Label(next.transform, Copy("Talk about the workshop", "聊聊战后的工坊"), 14,
                 Vector2.zero, new Vector2(222f, 27f), Ink);
             next.gameObject.SetActive(false);
             exit = Button(canvas.transform, "S00 return to Bootstrap",
                 new Vector2(-145f, -245f), new Vector2(228f, 29f), Close);
+            exit.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
+                .Initialize(Close);
             Label(exit.transform, Copy("Back to entry", "返回入口"), 14,
                 Vector2.zero, new Vector2(222f, 27f), Ink);
             ShowRollCall();
