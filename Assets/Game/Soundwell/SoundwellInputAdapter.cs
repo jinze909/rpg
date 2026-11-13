@@ -23,6 +23,7 @@ namespace Rpg.Soundwell
         private static InputAction interact, move, ring, wrap, retry, back, carry, gate, toggleMenu;
         private static bool initialized;
         private static bool ignoreHeldToggleUntilRelease;
+        private static bool ignoreHeldEntryUntilRelease;
 
         public static void SetEntryContext()
         {
@@ -30,6 +31,9 @@ namespace Rpg.Soundwell
             ignoreHeldToggleUntilRelease = false;
             actions.Disable();
             entryMap.Enable();
+            // A held gamepad Submit may have just closed the S00 prologue.
+            // Re-enabling Entry must not turn that same press into a new trial.
+            ignoreHeldEntryUntilRelease |= EntryControlHeld();
         }
 
         public static void SetGameplayContext()
@@ -55,7 +59,25 @@ namespace Rpg.Soundwell
             toggleMenu.Enable();
         }
 
-        public static bool InteractPressed() { EnsureLoaded(); return interact.WasPressedThisFrame(); }
+        public static bool InteractPressed()
+        {
+            EnsureLoaded();
+            if (ignoreHeldEntryUntilRelease)
+            {
+                if (!EntryControlHeld())
+                    ignoreHeldEntryUntilRelease = false;
+                return false;
+            }
+            return interact.WasPressedThisFrame();
+        }
+
+        private static bool EntryControlHeld()
+        {
+            foreach (InputControl control in interact.controls)
+                if (control is ButtonControl button && button.isPressed)
+                    return true;
+            return interact.IsPressed();
+        }
 
         // The entry shortcut follows the player's saved keyboard remap.
         // Gamepad South is also UGUI Submit, so it must still respect a
@@ -63,8 +85,8 @@ namespace Rpg.Soundwell
         public static bool EntryKeyboardShortcutPressed()
         {
             EnsureLoaded();
-            return interact.WasPressedThisFrame() &&
-                interact.activeControl != null && interact.activeControl.device is Keyboard;
+            return InteractPressed() && interact.activeControl != null &&
+                interact.activeControl.device is Keyboard;
         }
 
         // Read the effective keyboard binding (including saved overrides) for
