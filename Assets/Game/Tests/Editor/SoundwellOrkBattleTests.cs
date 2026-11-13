@@ -1683,6 +1683,13 @@ namespace Rpg.Tests.Editor
             Assert.That(gateCue.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
             Assert.That(gateCue.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(gateCue.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(gateCue.transform.lossyScale.x, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(gateCue.transform.lossyScale.y, Is.EqualTo(1f).Within(0.0001f),
+                "The physical gate's nonuniform scale must not distort a 16px icon.");
+            Assert.That((Vector2)gateCue.transform.position,
+                Is.EqualTo((Vector2)gateControl.transform.position + Vector2.up * 0.875f)
+                    .Using(Vector2ComparerWithEqualsOperator.Instance),
+                "The pixel-safe target must still track the real gate control.");
             Assert.That(gate.interactable && guard.interactable, Is.True);
             Assert.That(gateCue.enabled, Is.True,
                 "A live ORK chooser in reach must visibly mark the real gate.");
