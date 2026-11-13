@@ -74,7 +74,9 @@ namespace Rpg.Soundwell
             Mathf.Abs(walker.x - evacuee.anchoredPosition.x) <= RepairReach &&
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanDeliverEvacuee => phase == 10 && evacuee != null &&
-            walker.x <= EvacueeSafeX &&
+            // Stopping near the line is not a rescue if the wounded follower
+            // has lost the escort and is still waiting for the player to return.
+            !evacueeWaiting && walker.x <= EvacueeSafeX &&
             evacuee.anchoredPosition.x <= EvacueeSafeX + 30f &&
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanTakeBridgePost => phase == 12 && bridgePost != null &&
