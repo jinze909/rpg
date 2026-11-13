@@ -267,7 +267,11 @@ namespace Rpg.Soundwell
 
         public void SetActionMenuOpen(bool open)
         {
-            if (!IsReady || bootstrapLoad != null || actionMenuOpen == open)
+            // A delayed exploration UGUI callback must not reopen its menu
+            // over ORK's live action chooser. Closing on retreat/retry remains
+            // legal, but only the battle HUD owns navigation while fighting.
+            if (!IsReady || bootstrapLoad != null || actionMenuOpen == open ||
+                (open && DirectCombatStarted))
                 return;
 
             actionMenuOpen = open;
