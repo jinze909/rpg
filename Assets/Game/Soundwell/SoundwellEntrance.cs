@@ -25,6 +25,10 @@ namespace Rpg.Soundwell
         private RectTransform prologueRect;
         private Canvas entryCanvas;
         private WhitewaterPrelude currentPrelude;
+        // A UGUI Submit that closes S00 can be the same gamepad-A event
+        // read by the entry menu on that frame. Do not treat it as a second
+        // request to load the combat trial or reopen the prologue.
+        private int lastPreludeExitFrame = -1;
         private Button languageButton;
         private RectTransform languageRect;
         private Text languageText;
@@ -332,7 +336,8 @@ namespace Rpg.Soundwell
 
         public void OpenPrelude()
         {
-            if (currentPrelude != null || trialLoad != null)
+            if (currentPrelude != null || trialLoad != null ||
+                lastPreludeExitFrame == Time.frameCount)
                 return;
             entryCanvas.enabled = false;
             var scene = new GameObject("S00 Whitewater Bridge · playable opening");
@@ -340,6 +345,7 @@ namespace Rpg.Soundwell
             currentPrelude = scene.AddComponent<WhitewaterPrelude>();
             currentPrelude.Begin(() =>
             {
+                lastPreludeExitFrame = Time.frameCount;
                 currentPrelude = null;
                 entryCanvas.enabled = true;
                 SoundwellInputAdapter.SetEntryContext();
@@ -430,7 +436,8 @@ namespace Rpg.Soundwell
 
         public AsyncOperation OpenTrial()
         {
-            if (trialLoad != null || currentPrelude != null)
+            if (trialLoad != null || currentPrelude != null ||
+                lastPreludeExitFrame == Time.frameCount)
                 return trialLoad;
             // Enter commits the scene transition. Disable the other focused
             // UGUI settings on the same frame, before the async scene unload,
