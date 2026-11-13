@@ -1322,6 +1322,35 @@ namespace Rpg.Tests.Editor
             Assert.That(guard.interactable, Is.True,
                 "The first ORK rescuer must have a legal Guard choice.");
             Sprite idleLeader = leadPixel.sprite;
+            // Check the 16px leader step pose without spending an ORK turn
+            // or modifying the formation used by this guard regression.
+            var leaderViewField = typeof(SoundwellTrial).GetField("view",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(leaderViewField, Is.Not.Null);
+            object leaderView = leaderViewField.GetValue(trial);
+            Assert.That(leaderView, Is.Not.Null);
+            // SoundwellView is intentionally internal to the runtime asmdef:
+            // exercise its live presentation through reflection from tests.
+            var showLeaderStep = leaderView.GetType().GetMethod("AnimatePlayerBattleStep",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public);
+            Assert.That(showLeaderStep, Is.Not.Null);
+            Vector2 originalLeaderPosition = leaderBody.position;
+            showLeaderStep.Invoke(leaderView, new object[] { Vector2.left });
+            Assert.That(leadPixel.sprite.name, Does.Contain("leader walk"));
+            Assert.That(leadPixel.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(leadPixel.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(leadPixel.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(leadPixel.flipX, Is.True);
+            yield return null;
+            Assert.That(leadPixel.sprite.name, Does.Contain("leader walk"),
+                "Battle LateUpdate must not erase the accepted-step visual immediately.");
+            Assert.That((Vector2)leaderBody.position, Is.EqualTo(originalLeaderPosition),
+                "The presentation-only step pose must never move an ORK combatant.");
+            yield return new WaitForSecondsRealtime(0.50f);
+            Assert.That(leadPixel.sprite.name, Does.Not.Contain("leader walk"),
+                "The leader battle step pose must expire on unscaled time.");
             guard.onClick.Invoke();
             Assert.That(leadPixel.sprite, Is.Not.SameAs(idleLeader),
                 "An ORK-accepted leader Guard must change the actual actor silhouette.");
