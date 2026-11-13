@@ -104,6 +104,8 @@ ADDITIONAL_EDITOR_TESTS = {
     "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
         "InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps":
             "Rpg.Tests.Editor.P0BootstrapTests.InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps",
+        "FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice":
+            "Rpg.Tests.Editor.P0BootstrapTests.FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice",
     },
 }
 
