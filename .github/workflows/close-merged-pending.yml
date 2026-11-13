@@ -35,7 +35,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 - <<'PY'
-          import json, os, re, subprocess, urllib.parse, urllib.request
+          import json, os, re, subprocess, time, urllib.parse, urllib.request
           REPO="jinze909/rpg"
           REF="refs/heads/codex/dev"
           SHARE=re.compile(r"^[0-9a-f]{40}$")
@@ -140,9 +140,13 @@ jobs:
               check(proc.returncode in (0,1),"snapshot diff failed: "+proc.stderr[-240:])
               return proc.returncode==0
           def snapshot_proof(sha):
+              check(time.monotonic()<snapshot_deadline,
+                    "snapshot audit deferred: runtime budget")
               base,paths=changed_paths_since_base(sha)
               all_runs,valid=verified_ancestors()
               for r in valid:
+                  check(time.monotonic()<snapshot_deadline,
+                        "snapshot audit deferred: runtime budget")
                   verified_sha=r["head_sha"]
                   if not ancestor(base,verified_sha):continue
                   # ALL net changed files must be byte/mode identical in ONE
@@ -169,6 +173,17 @@ jobs:
                 "force update, missing baseline, or stale event")
           pr_heads={p["head"]["ref"] for p in pages("/repos/"+REPO+"/pulls?state=open")}
           branches=pages("/repos/"+REPO+"/branches",limit=1000)
+          # Sort by immutable ancestry first. Exhaustive divergent snapshot
+          # comparison must never starve deletion of already merged heads.
+          candidates=[]
+          for branch in branches:
+              name=branch.get("name","")
+              sha=branch.get("commit",{}).get("sha","")
+              if not PENDING.fullmatch(name):continue
+              check(bool(SHARE.fullmatch(sha)),"bad candidate SHA")
+              candidates.append((not ancestor(sha,dev),name,branch))
+          candidates.sort(key=lambda item:(item[0],item[1]))
+          snapshot_deadline=time.monotonic()+540
           # Explicit one-time retirements stay SHA-pinned. Ordinary merged
           # historical heads require their own exact-SHA verify evidence.
           ARCHIVED={
@@ -234,12 +249,9 @@ jobs:
           snapshot_proven=0
           deleted=[]
           kept=[]
-          for b in branches:
-              name=b.get("name","")
-              sha=b.get("commit",{}).get("sha","")
-              if not PENDING.fullmatch(name):continue
-              check(bool(SHARE.fullmatch(sha)),"bad candidate SHA")
-              merged=ancestor(sha,dev)
+          for diverged,name,b in candidates:
+              sha=b["commit"]["sha"]
+              merged=not diverged
               historical=name in ARCHIVED
               if merged:
                   merged_seen+=1
