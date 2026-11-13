@@ -430,7 +430,7 @@ namespace Rpg.Soundwell
 
         public AsyncOperation OpenTrial()
         {
-            if (trialLoad != null)
+            if (trialLoad != null || currentPrelude != null)
                 return trialLoad;
             // Enter commits the scene transition. Disable the other focused
             // UGUI settings on the same frame, before the async scene unload,
@@ -439,6 +439,7 @@ namespace Rpg.Soundwell
             entryButton.interactable = false;
             sfxButton.interactable = false;
             languageButton.interactable = false;
+            prologueButton.interactable = false;
             trialLoad = SceneManager.LoadSceneAsync(SceneName);
             return trialLoad;
         }

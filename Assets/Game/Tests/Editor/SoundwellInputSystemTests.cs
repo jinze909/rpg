@@ -524,16 +524,24 @@ namespace Rpg.Tests.Editor
                 Assert.That(enterButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
                 Assert.That(languageButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
                 Assert.That(sfxButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
-                Assert.That(enterButton.navigation.selectOnUp, Is.SameAs(languageButton));
+                var prologueButton = entry.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 Whitewater prologue button");
+                Assert.That(prologueButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(enterButton.navigation.selectOnUp, Is.SameAs(prologueButton));
                 Assert.That(enterButton.navigation.selectOnDown, Is.SameAs(sfxButton));
-                Assert.That(languageButton.navigation.selectOnDown, Is.SameAs(enterButton));
+                Assert.That(prologueButton.navigation.selectOnUp, Is.SameAs(languageButton));
+                Assert.That(prologueButton.navigation.selectOnDown, Is.SameAs(enterButton));
+                Assert.That(languageButton.navigation.selectOnDown, Is.SameAs(prologueButton));
                 Assert.That(sfxButton.navigation.selectOnUp, Is.SameAs(enterButton));
                 Assert.That(languageButton.navigation.selectOnUp, Is.SameAs(sfxButton));
                 Assert.That(sfxButton.navigation.selectOnDown, Is.SameAs(languageButton));
                 Assert.That(languageButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
                 Assert.That(sfxButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
+                Assert.That(prologueButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
                 Assert.That(enterButton.colors.selectedColor,
                     Is.Not.EqualTo(enterButton.colors.normalColor));
+                Assert.That(prologueButton.colors.selectedColor,
+                    Is.EqualTo(enterButton.colors.selectedColor));
                 Assert.That(sfxButton.colors.selectedColor,
                     Is.EqualTo(enterButton.colors.selectedColor));
                 Assert.That(languageButton.colors.selectedColor,
@@ -563,6 +571,64 @@ namespace Rpg.Tests.Editor
                     "Changing language must keep focus on its setting button.");
                 input.Release(gamepad.buttonSouth);
                 yield return null;
+
+                // This new story route must be playable through the real
+                // Bootstrap UGUI Submit, not just an unconnected component.
+                events.SetSelectedGameObject(prologueButton.gameObject);
+                input.Press(gamepad.buttonSouth);
+                yield return null;
+                yield return null;
+                var prelude = entry.GetComponentInChildren<WhitewaterPrelude>(true);
+                Assert.That(prelude, Is.Not.Null, "Pad A must open the S00 bridge scene.");
+                Assert.That(prelude.Phase, Is.EqualTo(0));
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(initialScene),
+                    "S00 must preserve the existing Bootstrap and Soundwell entry.");
+                Assert.That(entry.OpenTrial(), Is.Null,
+                    "A gamepad double-submit must not load Soundwell while S00 is active.");
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+
+                var answer = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 choice 0");
+                answer.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                    "Roll call must release the UI context for actual world movement.");
+
+                // Move using the existing Gameplay InputAction's keyboard
+                // binding; this is not a teleport or synthetic progress flag.
+                Keyboard walker = InputSystem.AddDevice<Keyboard>();
+                input.Press(walker.dKey);
+                float reachDeadline = Time.realtimeSinceStartup + 6f;
+                while (!prelude.CanRepair && Time.realtimeSinceStartup < reachDeadline)
+                    yield return null;
+                input.Release(walker.dKey);
+                yield return null;
+                Assert.That(prelude.CanRepair, Is.True,
+                    "Walking to Shen Li's loose clamp must enable the real repair choice.");
+                input.Press(walker.eKey);
+                yield return null;
+                input.Release(walker.eKey);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(2));
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                answer.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(3),
+                    "Fixing the cable must advance the playable scene.");
+                var crossing = prelude.transform.Find("S00 Whitewater playable canvas/PLACEHOLDER stretcher wagon");
+                Assert.That(crossing, Is.Not.Null);
+                Assert.That(((RectTransform)crossing).anchoredPosition.x, Is.GreaterThan(-320f),
+                    "The stretcher must visibly start crossing only after the repair.");
+                var backToEntry = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 return to Bootstrap");
+                backToEntry.onClick.Invoke();
+                yield return null;
+                Assert.That(entry.GetComponentInChildren<WhitewaterPrelude>(true), Is.Null,
+                    "Returning from the opening must clean up the temporary S00 stage.");
+                Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
+                Assert.That(events.currentSelectedGameObject, Is.SameAs(prologueButton.gameObject));
             }
             finally
             {
