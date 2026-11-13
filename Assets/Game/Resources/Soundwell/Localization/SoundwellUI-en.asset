@@ -386,6 +386,58 @@ MonoBehaviour:
     m_Localized: "CANCEL STEP"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267368
+    m_Localized: "SURVEYOR: My map kit is safe. The verified route is posted where the false sign stood."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267369
+    m_Localized: "SURVEYOR: My map kit is safe. I'll mark the correct route by my old sign."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267370
+    m_Localized: "SURVEYOR: I've taken down that false trail sign. You found my cart; I'll get my map kit."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267371
+    m_Localized: "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267372
+    m_Localized: "OBSERVED: The abandoned cart was dragged to the gate; its tracks lead inside."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267373
+    m_Localized: "OBSERVED: The bell cord was cut. A rough knot remains."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267374
+    m_Localized: "OBSERVED: Claw marks turn toward the bell stand, not RETREAT."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267375
+    m_Localized: "SAFE ROUTE POSTED: The surveyor replaced his false marker with a verified route."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267376
+    m_Localized: "MAP KIT RECOVERED: The surveyor is returning to post the safe route."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267377
+    m_Localized: "ROUTE CORRECTED: [G / RB] Tell the surveyor about his cart, or leave it for now."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267378
+    m_Localized: "ROUTE CORRECTED: You can tell the surveyor about his cart when nearby."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267379
+    m_Localized: "ROUTE CORRECTED: The surveyor is returning to the cart for his map kit."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267380
+    m_Localized: "ROUTE CORRECTED: The surveyor removed the false trail marker himself."
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -595,6 +595,27 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.Get("surveyor.rescued")));
             Assert.That(rescueHint.text, Does.Contain("救援成功"));
             Assert.That(survivorResponse.text, Does.Contain("测路人"));
+            // The earned post-rescue surveyor, physical evidence and cart-route
+            // feedback must all use saved EN/zh StringTables, not English literals.
+            string[] earnedFeedbackKeys =
+            {
+                "surveyor.route_posted",
+                "surveyor.kit_reclaimed",
+                "surveyor.cart_mentioned",
+                "surveyor.sign_removed",
+                "observed.cart",
+                "observed.rope",
+                "observed.claws",
+                "hint.route_posted",
+                "hint.kit_reclaimed",
+                "hint.cart_tell_nearby",
+                "hint.cart_tell_later",
+                "hint.cart_fetching",
+                "hint.sign_removed",
+            };
+            string[] chineseFeedback = earnedFeedbackKeys.Select(SoundwellUiLocalization.Get).ToArray();
+            Assert.That(chineseFeedback.All(value => value.Any(character => character >= '\u4e00' && character <= '\u9fff')),
+                Is.True, "Every earned surveyor and route line must contain readable Chinese.");
             var chineseFont = SoundwellUiLocalization.PresentationFont(
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
             Assert.That(rescueHint.font, Is.SameAs(chineseFont));
@@ -605,6 +626,10 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.Get("hint.rescue_complete")));
             Assert.That(survivorResponse.text, Is.EqualTo(
                 SoundwellUiLocalization.Get("surveyor.rescued")));
+            for (int index = 0; index < earnedFeedbackKeys.Length; index++)
+                Assert.That(SoundwellUiLocalization.Get(earnedFeedbackKeys[index]),
+                    Is.Not.EqualTo(chineseFeedback[index]),
+                    "Switching back to English must restore each authored line.");
 
             // A successful sound-only rescue can be replayed in-place.
             // Invoke the normal Retry input at the real retreat mark: no

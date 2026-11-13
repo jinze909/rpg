@@ -383,6 +383,58 @@ MonoBehaviour:
     m_Key: battle.move_cancel
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267368
+    m_Key: surveyor.route_posted
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267369
+    m_Key: surveyor.kit_reclaimed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267370
+    m_Key: surveyor.cart_mentioned
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267371
+    m_Key: surveyor.sign_removed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267372
+    m_Key: observed.cart
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267373
+    m_Key: observed.rope
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267374
+    m_Key: observed.claws
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267375
+    m_Key: hint.route_posted
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267376
+    m_Key: hint.kit_reclaimed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267377
+    m_Key: hint.cart_tell_nearby
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267378
+    m_Key: hint.cart_tell_later
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267379
+    m_Key: hint.cart_fetching
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267380
+    m_Key: hint.sign_removed
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:
