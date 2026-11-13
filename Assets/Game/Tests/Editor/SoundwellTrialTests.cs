@@ -15,6 +15,30 @@ namespace Rpg.Tests.Editor
 {
     public sealed class SoundwellTrialTests
     {
+        [Test]
+        public void BattleChooserActorLookupIgnoresDestroyedOrMissingActors()
+        {
+            var actor = new GameObject("Soundwell ORK chooser actor lookup");
+            var actors = new[] { actor };
+            try
+            {
+                Assert.That(SoundwellTrial.ResolveBattleActor(actors, 0),
+                    Is.SameAs(actor.transform),
+                    "A live ORK combatant must retain its real world transform.");
+                Assert.That(SoundwellTrial.ResolveBattleActor(actors, -1), Is.Null);
+                Assert.That(SoundwellTrial.ResolveBattleActor(actors, actors.Length), Is.Null);
+                Assert.That(SoundwellTrial.ResolveBattleActor(null, 0), Is.Null);
+                Object.DestroyImmediate(actor);
+                Assert.That(SoundwellTrial.ResolveBattleActor(actors, 0), Is.Null,
+                    "A destroyed ORK actor must not throw while publishing battle HUD state.");
+            }
+            finally
+            {
+                if (actor != null)
+                    Object.DestroyImmediate(actor);
+            }
+        }
+
         [UnityTest]
         public IEnumerator PlayerCanRingWrapRetreatAndRetry()
         {

@@ -331,9 +331,10 @@ namespace Rpg.Soundwell
                 // or maintains a second copy of combat state.
                 view.SetBattleReadout(orkParty != null ? orkParty.BuildBattleReadout() : string.Empty);
                 int activeRescuer = orkParty != null ? orkParty.ChoosingRescuerIndex : -1;
-                Transform activeActor = activeRescuer >= 0 && orkParty != null &&
-                    activeRescuer < orkParty.Actors.Count
-                    ? orkParty.Actors[activeRescuer].transform : null;
+                // ORK may retire a combatant before the chooser HUD updates.
+                // A valid index does not guarantee that Unity's actor survives.
+                Transform activeActor = ResolveBattleActor(
+                    orkParty != null ? orkParty.Actors : null, activeRescuer);
                 view.SetBattleChoices(activeRescuer, activeActor,
                     orkParty != null && orkParty.ReadyBaseAttackerIndex == activeRescuer && activeRescuer >= 0,
                     orkParty != null && orkParty.CanGuard(activeRescuer),
@@ -485,6 +486,17 @@ namespace Rpg.Soundwell
             bool directCombatStarted, bool gateOpen, Vector2 actorPosition) =>
             !directCombatStarted && gateOpen &&
             Vector2.Distance(actorPosition, LowerBoardPosition) <= 0.48f;
+
+        // Resolve the actual ORK scene actor, never an inferred turn marker.
+        // Unity destroyed objects compare null even if their list entry remains.
+        public static Transform ResolveBattleActor(
+            System.Collections.Generic.IReadOnlyList<GameObject> actors, int index)
+        {
+            if (actors == null || index < 0 || index >= actors.Count)
+                return null;
+            GameObject actor = actors[index];
+            return actor != null ? actor.transform : null;
+        }
 
         private bool CanReachBattleGate(Combatant member) =>
             DirectCombatStarted && !GateOpen && member.GameObject != null &&
