@@ -19,6 +19,13 @@ namespace Rpg.Soundwell
     [DefaultExecutionOrder(-10000)]
     public sealed class SoundwellOrkParty : MonoBehaviour
     {
+        public const string RescueQuestGuid = "f73158e9-7036-48d4-bebc-dd9532340dbc";
+        public const int RescueExperience = 10;
+        public const int ExperienceStatus = 4;
+
+        public static bool RescueSettled => ORK.Initialized &&
+            ORK.Game.Quests.GetQuest(ORK.Quests.Get(RescueQuestGuid))?.IsFinished() == true;
+
         private static readonly Vector2[] FollowOffsets =
         {
             new Vector2(-0.45f, -0.48f),
@@ -447,7 +454,52 @@ namespace Rpg.Soundwell
                 yield break;
             }
 
+            var previousGroup = ORK.Game.PlayerHandler.GetGroup(0);
+            var previousMembers = previousGroup.GetGroup();
+            if (previousMembers.Count == members.Count && previousGroup.BattleSystem == PlayerGroup.BattleSystem)
+            {
+                // The saved ORK group survives scene replacement. New scene
+                // actors get its banked experience and fresh encounter HP.
+                for (int i = 0; i < members.Count; i++)
+                    if (previousMembers[i].Setting == members[i].Setting)
+                        members[i].Status[ExperienceStatus].LoadGame(
+                            previousMembers[i].Status[ExperienceStatus].SaveGame());
+            }
+
             IsReady = true;
+        }
+
+        public bool SettleRescue()
+        {
+            if (!IsReady)
+                return false;
+            QuestSetting setting = ORK.Quests.Get(RescueQuestGuid);
+            if (setting == null)
+                throw new InvalidOperationException("The Soundwell rescue quest asset is missing.");
+
+            var quests = ORK.Game.Quests;
+            Quest quest = quests.GetQuest(setting);
+            if (quest?.IsFinished() == true)
+                return true;
+
+            AssignPlayerGroup();
+            if (quest == null)
+            {
+                quests.AddQuest(setting, true, false, false);
+                quest = quests.GetQuest(setting);
+            }
+            if (quest == null)
+                return false;
+
+            var experience = new QuestExperienceReward
+            {
+                combatantScope = MenuCombatantScope.Group,
+                rewardValue = new FloatValue<GameObjectSelection>(RescueExperience)
+            };
+            experience.status.SetAsset(ORK.StatusValues.GetAsset(ExperienceStatus));
+            setting.reward.experience = new[] { experience };
+            quest.SetFinished(members[0], false, false, true, false, false);
+            return quest.IsFinished();
         }
 
         private void Update()
@@ -770,6 +822,18 @@ namespace Rpg.Soundwell
             return accepted;
         }
 
+        private void AssignPlayerGroup()
+        {
+            if (ORK.Game.PlayerHandler.ActiveGroup == PlayerGroup)
+                return;
+
+            ORK.Game.PlayerHandler.SetGroup(0, PlayerGroup, false);
+            ORK.Game.PlayerHandler.SetActiveGroup(0, false, false);
+            ORK.Game.PlayerHandler.SetPlayer(members[0], false);
+            playerAssignedToOrk = true;
+            DisableConflicting3DPlayerControllers();
+        }
+
         public bool TryStartDirectEncounter()
         {
             if (!IsReady || battleStarted || Beast == null || Beast.Status.IsDead ||
@@ -777,12 +841,7 @@ namespace Rpg.Soundwell
                 PlayerGroup == null || EnemyGroup == null || members.Count != 3)
                 return false;
 
-            PlayerGroup.SetLeader(members[0], false);
-            ORK.Game.PlayerHandler.SetGroup(0, PlayerGroup, false);
-            ORK.Game.PlayerHandler.SetActiveGroup(0, false, false);
-            ORK.Game.PlayerHandler.SetPlayer(members[0], false);
-            playerAssignedToOrk = true;
-            DisableConflicting3DPlayerControllers();
+            AssignPlayerGroup();
 
             BattleComponent battle = BattleComponent.CreateBattle(new List<Combatant> { Beast });
             if (battle == null)

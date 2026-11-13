@@ -643,6 +643,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.RescueComplete, Is.True,
                 "The noncombat route must complete only when the actual survivor reaches RETREAT.");
+            AssertRescueReward(party);
             Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, safe),
                 Is.LessThanOrEqualTo(0.98f));
             Assert.That(trial.RopeRecovered || trial.CartKitReclaimed ||
@@ -738,6 +739,33 @@ namespace Rpg.Tests.Editor
         // Attack path, not a synthetic scene or a second camera controller.
         // Cover both extreme player positions and narrow viewports without
         // changing the player physics or committing a viewport preference.
+        internal static void AssertRescueReward(SoundwellOrkParty party)
+        {
+            Assert.That(SoundwellOrkParty.RescueSettled, Is.True);
+            foreach (var member in party.Members)
+                Assert.That(member.Status[SoundwellOrkParty.ExperienceStatus].GetValue(),
+                    Is.EqualTo(SoundwellOrkParty.RescueExperience));
+
+            var questSetting = ORK.Quests.Get(SoundwellOrkParty.RescueQuestGuid);
+            var restoredQuests = new QuestHandler();
+            try
+            {
+                restoredQuests.LoadGame(ORK.Game.Quests.SaveGame());
+                Assert.That(restoredQuests.GetQuest(questSetting)?.IsFinished(), Is.True,
+                    "ORK must serialize the completed rescue under its stable quest GUID.");
+            }
+            finally
+            {
+                ORK.Game.PlayerHandler.Changed -= restoredQuests.PlayerChanged;
+            }
+
+            Assert.That(party.SettleRescue(), Is.True);
+            foreach (var member in party.Members)
+                Assert.That(member.Status[SoundwellOrkParty.ExperienceStatus].GetValue(),
+                    Is.EqualTo(SoundwellOrkParty.RescueExperience),
+                    "Settling the same rescue again must not grant duplicate experience.");
+        }
+
         internal static void RecordRescueRouteStart(string route, SoundwellTrial trial, SoundwellOrkParty party)
         {
             Vector2 leader = trial.PlayerPosition;
