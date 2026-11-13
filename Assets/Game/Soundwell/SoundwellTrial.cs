@@ -463,6 +463,7 @@ namespace Rpg.Soundwell
                 RopeObserved, RopeRecovered, CartObserved, CartClueShared, CartKitReclaimed,
                 ClawsObserved, SurveyorLineTied,
                 BeastBlocksEscape, BeastContacted, LowerPlankBroken,
+                combatStartedInThisScene && !DirectCombatStarted && !DirectCombatComplete,
                 SearchRemainingFraction, destination);
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically

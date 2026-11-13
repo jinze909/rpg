@@ -1088,7 +1088,7 @@ namespace Rpg.Soundwell
             bool canShareCartClue, bool ropeObserved, bool ropeRecovered, bool cartObserved,
             bool cartClueShared, bool cartKitReclaimed,
             bool clawsObserved, bool surveyorLineTied, bool beastBlocksEscape,
-            bool beastContacted, bool lowerPlankBroken,
+            bool beastContacted, bool lowerPlankBroken, bool encounterNeedsRetry,
             float searchRemainingFraction, Vector2 beastDestination)
         {
             // The existing beast actor rotates continuously toward its real
@@ -1329,6 +1329,12 @@ namespace Rpg.Soundwell
             string prompt;
             if (beastContacted && atSafePoint && !surveyorEscorting && !rescueComplete)
                 prompt = SoundwellUiLocalization.Get("hint.beast_contact");
+            else if (encounterNeedsRetry && (atSafePoint || atGatePanel))
+                // The one-encounter ORK owner cannot restart on the same scene.
+                // Explain the already-implemented safe-point Retry instead of
+                // suggesting another disabled gate action or an unknown lure.
+                prompt = SoundwellUiLocalization.Get(atSafePoint
+                    ? "hint.reset_here" : "hint.return_to_reset");
             else if (falseMarkerCleared)
                 prompt = safeRouteMarked
                     ? SoundwellUiLocalization.Get("hint.route_posted")

@@ -162,6 +162,15 @@ namespace Rpg.Tests.Editor
             encounterStartedField.SetValue(trial, true);
             Assert.That(trial.CanEngageBeast, Is.False,
                 "A retired ORK battle owner cannot offer a second gate encounter.");
+            // After an encounter fails the gate is intentionally disabled
+            // until a fresh scene. The player must be told where to retry,
+            // not shown the usual bell-search hint at the unusable gate.
+            yield return null;
+            var trialHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
+            Assert.That(trialHint, Is.Not.Null);
+            Assert.That(trialHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.return_to_reset")),
+                "A spent ORK encounter must direct the player toward the real Retry point.");
             encounterStartedField.SetValue(trial, false);
             Assert.That(trial.CanEngageBeast, Is.True,
                 "A fresh scene must still offer its first genuine ORK battle.");
