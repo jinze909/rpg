@@ -31,6 +31,32 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LowerPlankExplorationKnockbackMustNotOverrideAnOrkStep()
+        {
+            // The weak plank is a real exploration hazard after the gate opens.
+            // In ORK's turn-based battle, the live combatant's accepted step
+            // belongs to ORK and may not be overwritten by scene LateUpdate.
+            Vector2 board = SoundwellTrial.LowerBoardPosition;
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, true, board), Is.True,
+                "A rescuer standing on the open-gate weak plank must be pushed back.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, true, board + Vector2.right * 0.47f), Is.True,
+                "The dangerous exploration footprint includes its near edge.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, true, board + Vector2.right * 0.50f), Is.False,
+                "A rescuer outside the weak plank footprint must not be relocated.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, false, board), Is.False,
+                "A closed gate must not trigger an unreachable exploration hazard.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                true, false, board), Is.False);
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                true, true, board), Is.False,
+                "Opening the gate during battle must not undo ORK-owned movement.");
+        }
+
+        [Test]
         public void OrkStepMustKeepWholeCombatantInsideSavedBattleBounds()
         {
             // The previous centre-only check allowed a character's 2D
