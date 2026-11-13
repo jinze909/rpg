@@ -16,6 +16,32 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellTrialTests
     {
         [Test]
+        public void StaleGameplayInputBeforeTrialInitializationCannotMutateOrExitTheScene()
+        {
+            // A scene-load/UI handoff may deliver the last keyboard/controller
+            // press before SoundwellTrial.Start creates its ORK/Makinom owners.
+            // Both entry points must ignore it instead of dereferencing the
+            // missing player body or starting an unintended Bootstrap load.
+            var root = new GameObject("Uninitialized Soundwell input regression");
+            try
+            {
+                var trial = root.AddComponent<SoundwellTrial>();
+                Assert.That(trial.IsReady, Is.False);
+                Assert.DoesNotThrow(() => trial.ApplyInput(Vector2.left,
+                    true, true, true, true, true));
+                var lateBack = SoundwellControlFrame.FromActions(Vector2.left,
+                    true, true, true, true, true, true);
+                Assert.DoesNotThrow(() => trial.ApplyControls(lateBack));
+                Assert.That(trial.IsReady, Is.False);
+                Assert.That(trial.ActionMenuOpen, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BattleChooserActorLookupIgnoresDestroyedOrMissingActors()
         {
             var actor = new GameObject("Soundwell ORK chooser actor lookup");

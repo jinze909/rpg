@@ -563,7 +563,10 @@ namespace Rpg.Soundwell
         {
             // Do not double-handle the same gamepad A / directional event when
             // InputSystemUIInputModule is submitting or moving a focused UGUI Button.
-            if (actionMenuOpen || DirectCombatStarted)
+            // A stale UI callback can arrive before Bootstrap/ORK has finished
+            // initializing or after an exit has already started scene loading.
+            // Do not act on incomplete scene owners or trigger a second unload.
+            if (!IsReady || bootstrapLoad != null || actionMenuOpen || DirectCombatStarted)
                 return;
 
             if (controls.Back)
@@ -578,7 +581,10 @@ namespace Rpg.Soundwell
         public void ApplyInput(Vector2 direction, bool ring, bool wrap, bool retry,
             bool carry = false, bool gate = false)
         {
-            if (bootstrapLoad != null || DirectCombatStarted)
+            // Input events from a previous UGUI focus can reach this public
+            // entry point before the scene is ready. Never dereference its
+            // uninitialized player/variables or mutate a scene being unloaded.
+            if (!IsReady || bootstrapLoad != null || DirectCombatStarted)
                 return;
 
             movement = Vector2.ClampMagnitude(direction, 1f);

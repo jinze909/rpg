@@ -88,6 +88,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.SoundwellTrialTests.BattleChooserActorLookupIgnoresDestroyedOrMissingActors",
         "RetiredOrkGateActorCannotOpenPhysicalGate":
             "Rpg.Tests.Editor.SoundwellTrialTests.RetiredOrkGateActorCannotOpenPhysicalGate",
+        "StaleGameplayInputBeforeTrialInitializationCannotMutateOrExitTheScene":
+            "Rpg.Tests.Editor.SoundwellTrialTests.StaleGameplayInputBeforeTrialInitializationCannotMutateOrExitTheScene",
     },
     "Assets/Game/Tests/Editor/SoundwellLocalizedRescueCopyTests.cs": {
         "EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy":

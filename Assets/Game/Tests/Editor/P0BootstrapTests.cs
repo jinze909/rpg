@@ -276,6 +276,22 @@ namespace Rpg.Tests.Editor
             {
                 UnityEngine.Object.Destroy(rival.gameObject);
             }
+            // S00 back/Submit is gamepad A, which can also be read as the
+            // Bootstrap entry shortcut in the very same frame. Real UGUI
+            // callbacks must not start a trial or reopen the opening twice.
+            var entrance = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entrance, Is.Not.Null);
+            entrance.OpenPrelude();
+            var prelude = entrance.GetComponentInChildren<WhitewaterPrelude>(true);
+            Assert.That(prelude, Is.Not.Null);
+            prelude.Close();
+            Assert.That(entrance.OpenTrial(), Is.Null,
+                "Closing S00 must not trigger a Soundwell trial with the same Submit.");
+            entrance.OpenPrelude();
+            yield return null;
+            Assert.That(entrance.GetComponentInChildren<WhitewaterPrelude>(true), Is.Null,
+                "The same exit Submit must not re-open S00 before the next input frame.");
+
             Debug.Log("RPG_BOOTSTRAP_PLAY_VALIDATED:second");
             yield return new ExitPlayMode();
             Assert.That(EditorApplication.isPlaying, Is.False);
