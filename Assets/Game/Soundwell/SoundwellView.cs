@@ -1143,12 +1143,12 @@ namespace Rpg.Soundwell
             }
             string speech = falseMarkerCleared
                 ? safeRouteMarked
-                    ? "SURVEYOR: My map kit is safe. The verified route is posted where the false sign stood."
+                    ? SoundwellUiLocalization.Get("surveyor.route_posted")
                     : cartKitReclaimed
-                        ? "SURVEYOR: My map kit is safe. I'll mark the correct route by my old sign."
+                        ? SoundwellUiLocalization.Get("surveyor.kit_reclaimed")
                     : cartObserved && cartClueShared
-                        ? "SURVEYOR: I've taken down that false trail sign. You found my cart; I'll get my map kit."
-                        : "SURVEYOR: My marker was wrong. I've taken down that false trail sign."
+                        ? SoundwellUiLocalization.Get("surveyor.cart_mentioned")
+                        : SoundwellUiLocalization.Get("surveyor.sign_removed")
                 : rescueComplete
                     ? SoundwellUiLocalization.Get("surveyor.rescued")
                     : surveyorEscorting
@@ -1167,11 +1167,11 @@ namespace Rpg.Soundwell
             if (lowerPlankBroken && !hasSurveyorClue && !surveyorEscorting && !rescueComplete)
                 speech = SoundwellUiLocalization.Get("surveyor.plank_snapped");
             if (speech.Length == 0 && atCartEvidence && cartObserved)
-                speech = "OBSERVED: The abandoned cart was dragged to the gate; its tracks lead inside.";
+                speech = SoundwellUiLocalization.Get("observed.cart");
             else if (speech.Length == 0 && atRopeEvidence && ropeObserved)
-                speech = "OBSERVED: The bell cord was cut. A rough knot remains.";
+                speech = SoundwellUiLocalization.Get("observed.rope");
             else if (speech.Length == 0 && atClawEvidence && clawsObserved)
-                speech = "OBSERVED: Claw marks turn toward the bell stand, not RETREAT.";
+                speech = SoundwellUiLocalization.Get("observed.claws");
             if (surveyorStatus.text != speech)
                 surveyorStatus.text = speech;
             gateBlocker.enabled = !gateOpen;
@@ -1206,16 +1206,16 @@ namespace Rpg.Soundwell
                 prompt = SoundwellUiLocalization.Get("hint.beast_contact");
             else if (falseMarkerCleared)
                 prompt = safeRouteMarked
-                    ? "SAFE ROUTE POSTED: The surveyor replaced his false marker with a verified route."
+                    ? SoundwellUiLocalization.Get("hint.route_posted")
                     : cartKitReclaimed
-                        ? "MAP KIT RECOVERED: The surveyor is returning to post the safe route."
+                        ? SoundwellUiLocalization.Get("hint.kit_reclaimed")
                     : cartObserved && !cartClueShared
                         ? canShareCartClue
-                            ? "ROUTE CORRECTED: [G / RB] Tell the surveyor about his cart, or leave it for now."
-                            : "ROUTE CORRECTED: You can tell the surveyor about his cart when nearby."
+                            ? SoundwellUiLocalization.Get("hint.cart_tell_nearby")
+                            : SoundwellUiLocalization.Get("hint.cart_tell_later")
                         : cartObserved
-                            ? "ROUTE CORRECTED: The surveyor is returning to the cart for his map kit."
-                            : "ROUTE CORRECTED: The surveyor removed the false trail marker himself.";
+                            ? SoundwellUiLocalization.Get("hint.cart_fetching")
+                            : SoundwellUiLocalization.Get("hint.sign_removed");
             else if (beastDefeated && !gateOpen)
                 prompt = SoundwellUiLocalization.Get("hint.beast_defeated");
             else if (canEngageBeast)

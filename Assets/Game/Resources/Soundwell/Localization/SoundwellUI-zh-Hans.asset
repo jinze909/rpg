@@ -382,6 +382,58 @@ MonoBehaviour:
     m_Localized: "取消移动"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267368
+    m_Localized: "测路人：地图工具已找回。我在旧路标处竖起了核实过的返程指示。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267369
+    m_Localized: "测路人：地图工具找回来了。我会回旧路标处标明正确路线。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267370
+    m_Localized: "测路人：错误路标已经拆下。你找到了我的骡车，我去取回地图工具。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267371
+    m_Localized: "测路人：是我标错了方向。那块误导人的路牌已拆下。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267372
+    m_Localized: "观察：废弃的骡车曾被拖到闸门，车辙通向内室。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267373
+    m_Localized: "观察：铃绳被割断，断口还留着一个粗糙的绳结。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267374
+    m_Localized: "观察：爪痕转向侧边铃架，而不是撤退点。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267375
+    m_Localized: "安全路线已标记：测路人用核实过的指示替换了错误路标。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267376
+    m_Localized: "地图工具已取回：测路人正返回旧路标处标记安全路线。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267377
+    m_Localized: "路线已纠正：[G / RB] 告诉测路人骡车的位置，或暂时离开。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267378
+    m_Localized: "路线已纠正：靠近测路人时，可以告诉他骡车的位置。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267379
+    m_Localized: "路线已纠正：测路人正返回骡车取回地图工具。"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267380
+    m_Localized: "路线已纠正：测路人亲手拆掉了错误的方向标记。"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
