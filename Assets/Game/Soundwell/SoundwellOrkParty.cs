@@ -51,12 +51,8 @@ namespace Rpg.Soundwell
             public override void Calculate(List<Combatant> targets, float damageFactor,
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
             {
-                // ORK has already admitted this committed no-target action
-                // and spent the rescuer's turn before calling Calculate.
-                // Rechecking CanUse here can fail after the chooser advances
-                // and silently lose the physical gate result. An unsubmitted
-                // or cancelled action never reaches Calculate.
-                openGate();
+                if (CanUse())
+                    openGate();
                 base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
             }
         }

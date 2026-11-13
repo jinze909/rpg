@@ -705,29 +705,13 @@ namespace Rpg.Tests.Editor
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
             Assert.That(gateAction.interactable, Is.True,
                 "The rescuer next to the latch can spend the turn opening it.");
-            gateAction.onClick.Invoke();
-
-            float choiceDeadline = Time.realtimeSinceStartup + 6f;
-            while (party.ChoosingRescuerIndex <= 0 && Time.realtimeSinceStartup < choiceDeadline)
-                yield return null;
-            int guardIndex = party.ChoosingRescuerIndex;
-            Assert.That(guardIndex, Is.InRange(1, 2));
-
-            // Opening the same physical gate during ORK combat cannot let
-            // exploration's weak-plank recovery teleport the active party
-            // leader behind the turn/movement budget. Probe the real lower
-            // plank for a rendered frame, then restore the battle formation.
+            // Probe real 2D plank physics while the ORK encounter owns
+            // placement, BEFORE committing the gate action. ORK resolves
+            // queued actions only after the rest of the party chooses;
+            // requiring GateOpen before Guard/Attack deadlocks the test.
+            // Moving the leader after queueing Gate also invalidates the
+            // recorded ORK action's physical reach at calculation time.
             Assert.That(trial.DirectCombatStarted, Is.True);
-            // ORK's turn chooser can advance before its queued no-target
-            // action has calculated. Wait for the real latch result *before*
-            // moving the leader to probe the weak plank; otherwise this test
-            // itself can move the actor out of reach while ORK is resolving.
-            float gateCompletionDeadline = Time.realtimeSinceStartup + 6f;
-            while (!trial.GateOpen && Time.realtimeSinceStartup < gateCompletionDeadline)
-                yield return null;
-            Assert.That(trial.GateOpen, Is.True,
-                "The ORK-accepted gate turn must open the physical latch before plank probing.");
-            // Even with an open gate, ORK combat keeps ownership of placement.
             Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
                 true, true, SoundwellTrial.LowerBoardPosition), Is.False,
                 "Even an opened gate cannot make exploration physics teleport an ORK combatant.");
@@ -749,6 +733,19 @@ namespace Rpg.Tests.Editor
                 "Combat movement must not silently trigger a second exploration plank outcome.");
             leaderBody.position = battleLeaderPosition;
             Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(trial.AtGatePanel, Is.True,
+                "Restore the real rescuer to the latch before committing ORK's gate action.");
+            Assert.That(gateAction.interactable, Is.True,
+                "The restored latch action must remain a legal ORK turn choice.");
+            gateAction.onClick.Invoke();
+
+            float choiceDeadline = Time.realtimeSinceStartup + 6f;
+            while (party.ChoosingRescuerIndex <= 0 && Time.realtimeSinceStartup < choiceDeadline)
+                yield return null;
+            int guardIndex = party.ChoosingRescuerIndex;
+            Assert.That(guardIndex, Is.InRange(1, 2));
+
             // After the real ORK gate interaction spends the leader's turn,
             // the visible world marker must follow the *new* chooser rather
             // than continuing to identify the prior leader at the latch.
