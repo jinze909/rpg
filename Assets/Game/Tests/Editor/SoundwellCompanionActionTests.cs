@@ -155,6 +155,12 @@ namespace Rpg.Tests.Editor
             Physics2D.SyncTransforms();
             Assert.That(trial.CanEngageBeast, Is.True);
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.DirectCombatStarted, Is.True,
+                "The saved world gate must enter a real ORK encounter.");
+            Assert.That(trial.ActionMenuOpen, Is.False);
+            trial.SetActionMenuOpen(true);
+            Assert.That(trial.ActionMenuOpen, Is.False,
+                "A late exploration menu callback cannot steal live ORK battle focus.");
 
             var button = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
             Assert.That(button, Is.Not.Null);
