@@ -712,6 +712,15 @@ namespace Rpg.Soundwell
             moveButton.interactable = any;
             for (int i = 0; i < moveDirectionButtons.Length; i++)
                 moveDirectionButtons[i].interactable = moveLegal[i];
+            // Primary action choices refresh before step legality. When the
+            // current ORK actor can only move, do not leave Submit on the
+            // disabled Attack fallback. Keep deliberate Retreat focus intact.
+            if (!movePreviewOpen && any && actionEventSystem != null &&
+                !attackButton.interactable && !guardButton.interactable &&
+                !openGateButton.interactable &&
+                actionEventSystem.currentSelectedGameObject != backButton.gameObject &&
+                actionEventSystem.currentSelectedGameObject != moveButton.gameObject)
+                actionEventSystem.SetSelectedGameObject(moveButton.gameObject);
             if (movePreviewOpen && actionEventSystem != null)
             {
                 // Gamepad/keyboard navigation changes the focused direction
