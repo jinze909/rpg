@@ -134,6 +134,12 @@ namespace Rpg.Tests.Editor
                 memberRoster[choosing] = null;
                 Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(-1),
                     "A retired ORK roster entry must never be selected.");
+                string retiredReadout = party.BuildBattleReadout();
+                Assert.That(retiredReadout, Is.Not.Empty,
+                    "Other live combatants and the beast must remain visible.");
+                Assert.That(retiredReadout, Does.Not.Contain(
+                    SoundwellUiLocalization.Get("battle.rescuer") + " " + (choosing + 1) + "  "),
+                    "A retired ORK member must disappear from the readout without throwing.");
             }
             finally
             {
@@ -146,6 +152,9 @@ namespace Rpg.Tests.Editor
                     "A vanished Unity scene actor cannot retain an ORK chooser.");
                 Assert.That(party.CanGuard(choosing), Is.False,
                     "An orphaned ORK chooser must not offer Guard.");
+                Assert.That(party.BuildBattleReadout(), Does.Not.Contain(
+                    SoundwellUiLocalization.Get("battle.rescuer") + " " + (choosing + 1) + "  "),
+                    "The HUD must not show a combatant whose Unity actor has vanished.");
             }
             finally
             {
