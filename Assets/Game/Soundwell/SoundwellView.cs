@@ -1074,6 +1074,13 @@ namespace Rpg.Soundwell
                     new Vector3(1.12f * remaining, 0.11f, 1f);
             }
             escapeDangerMarker.enabled = beastBlocksEscape;
+            // The locked gate has not exposed an escape route. Reporting
+            // "ESCAPE LANE / CLEAR" at this point misrepresents the player's
+            // options; reveal this threat/clearance readout only while the
+            // physical gate is open and rescue is still underway.
+            // Gate-open status, pursuit and the actual escape-lane hazard
+            // remain derived from the existing Makinom/ORK state.
+            escapeStatus.enabled = gateOpen && !rescueComplete;
             string escapeCaption = SoundwellUiLocalization.Get(
                 beastBlocksEscape ? "status.escape_blocked" : "status.escape_clear");
             if (escapeStatus.text != escapeCaption)
