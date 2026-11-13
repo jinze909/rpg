@@ -92,9 +92,12 @@ ADDITIONAL_EDITOR_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellLocalizedRescueCopyTests.cs": {
         "EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy":
             "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy",
-    },    "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
+    },
+    "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "OrkStepMustKeepWholeCombatantInsideSavedBattleBounds":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkStepMustKeepWholeCombatantInsideSavedBattleBounds",
+        "OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending",
     },
     "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
         "InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps":
