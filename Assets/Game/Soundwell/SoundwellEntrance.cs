@@ -21,6 +21,10 @@ namespace Rpg.Soundwell
         private Text footerText;
         private Text outcomeText;
         private Button sfxButton;
+        private Button prologueButton;
+        private RectTransform prologueRect;
+        private Canvas entryCanvas;
+        private WhitewaterPrelude currentPrelude;
         private Button languageButton;
         private RectTransform languageRect;
         private Text languageText;
@@ -50,6 +54,7 @@ namespace Rpg.Soundwell
             var canvas = new GameObject("Soundwell entry prompt", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
             canvas.transform.SetParent(transform, false);
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            entryCanvas = canvas;
             var scaler = canvas.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(960, 540);
@@ -120,6 +125,20 @@ namespace Rpg.Soundwell
             languageButton.onClick.AddListener(SoundwellUiLocalization.Toggle);
             languageText = SoundwellView.AddLabel(languageRect, "", 16,
                 new Color(0.80f, 0.91f, 0.93f), Vector2.zero, new Vector2(198f, 36f));
+            // The next story slice is an optional real playable scene, not
+            // a replacement for the existing Soundwell regression entry.
+            var prologueObject = new GameObject("S00 Whitewater prologue button",
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            prologueObject.transform.SetParent(canvas.transform, false);
+            prologueRect = (RectTransform)prologueObject.transform;
+            prologueRect.anchorMin = prologueRect.anchorMax = new Vector2(0.5f, 0.5f);
+            prologueRect.sizeDelta = new Vector2(254f, 36f);
+            prologueObject.GetComponent<Image>().color = new Color(0.15f, 0.24f, 0.30f);
+            prologueButton = prologueObject.GetComponent<Button>();
+            prologueButton.colors = entryButton.colors;
+            prologueButton.onClick.AddListener(OpenPrelude);
+            SoundwellView.AddLabel(prologueRect, "S00 · 白水渡", 17,
+                new Color(0.98f, 0.80f, 0.52f), Vector2.zero, new Vector2(242f, 33f));
             ConfigureEntrySettingsNavigation();
             titleText.resizeTextForBestFit = true;
             titleText.resizeTextMinSize = 18;
@@ -167,6 +186,13 @@ namespace Rpg.Soundwell
             RefreshSfxText();
             languageText.font = font;
             languageText.text = SoundwellUiLocalization.Get("action.language");
+            Text preludeText = prologueButton.GetComponentInChildren<Text>();
+            if (preludeText != null)
+            {
+                preludeText.font = font;
+                preludeText.text = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                    ? "S00 · 白水渡" : "S00 · Whitewater Bridge";
+            }
         }
 
         private void RefreshEntryShortcutHint()
@@ -192,13 +218,19 @@ namespace Rpg.Soundwell
             entryButton.navigation = new Navigation
             {
                 mode = Navigation.Mode.Explicit,
-                selectOnUp = languageButton,
+                selectOnUp = prologueButton,
                 selectOnDown = sfxButton
             };
             languageButton.navigation = new Navigation
             {
                 mode = Navigation.Mode.Explicit,
                 selectOnUp = sfxButton,
+                selectOnDown = prologueButton
+            };
+            prologueButton.navigation = new Navigation
+            {
+                mode = Navigation.Mode.Explicit,
+                selectOnUp = languageButton,
                 selectOnDown = entryButton
             };
             sfxButton.navigation = new Navigation
@@ -211,6 +243,7 @@ namespace Rpg.Soundwell
             languageButton.transition = Selectable.Transition.ColorTint;
             sfxButton.colors = entryButton.colors;
             languageButton.colors = entryButton.colors;
+            prologueButton.colors = entryButton.colors;
         }
 
         private void ToggleSfx()
@@ -266,6 +299,8 @@ namespace Rpg.Soundwell
             sfxText.rectTransform.sizeDelta = new Vector2(compact ? 294f : 314f, 36f);
             languageRect.anchoredPosition = new Vector2(0f, compact ? 181f : 160f);
             languageRect.sizeDelta = new Vector2(compact ? 186f : 204f, 40f);
+            prologueRect.anchoredPosition = new Vector2(0f, compact ? 140f : 119f);
+            prologueRect.sizeDelta = new Vector2(compact ? 220f : 254f, compact ? 32f : 36f);
             languageText.rectTransform.sizeDelta = new Vector2(compact ? 180f : 198f, 36f);
         }
 
@@ -290,9 +325,27 @@ namespace Rpg.Soundwell
             GameObject selected = EventSystem.current != null
                 ? EventSystem.current.currentSelectedGameObject : null;
             bool settingFocused = selected == sfxButton.gameObject ||
-                selected == languageButton.gameObject;
+                selected == languageButton.gameObject || selected == prologueButton.gameObject;
             if (entryRequested && (!settingFocused || SoundwellInputAdapter.EntryKeyboardShortcutPressed()))
                 OpenTrial();
+        }
+
+        public void OpenPrelude()
+        {
+            if (currentPrelude != null || trialLoad != null)
+                return;
+            entryCanvas.enabled = false;
+            var scene = new GameObject("S00 Whitewater Bridge · playable opening");
+            scene.transform.SetParent(transform, false);
+            currentPrelude = scene.AddComponent<WhitewaterPrelude>();
+            currentPrelude.Begin(() =>
+            {
+                currentPrelude = null;
+                entryCanvas.enabled = true;
+                SoundwellInputAdapter.SetEntryContext();
+                if (EventSystem.current != null)
+                    EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
+            });
         }
 
         public void RefreshReturnOutcome(bool force = false)
