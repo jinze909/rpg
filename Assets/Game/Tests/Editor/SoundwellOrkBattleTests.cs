@@ -736,8 +736,15 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(trial.AtGatePanel, Is.True,
                 "Restore the real rescuer to the latch before committing ORK's gate action.");
+            // Physics.SyncTransforms updates the 2D body immediately, but the
+            // ORK chooser and the battle HUD refresh on their own frame. Do not
+            // assume the Gate button has republished its ORK eligibility in
+            // the same frame as restoring the rigidbody from the plank probe.
+            float restoredGateDeadline = Time.realtimeSinceStartup + 2f;
+            while (!gateAction.interactable && Time.realtimeSinceStartup < restoredGateDeadline)
+                yield return null;
             Assert.That(gateAction.interactable, Is.True,
-                "The restored latch action must remain a legal ORK turn choice.");
+                "The restored latch action must become a legal ORK turn choice after refresh.");
             gateAction.onClick.Invoke();
 
             float choiceDeadline = Time.realtimeSinceStartup + 6f;
