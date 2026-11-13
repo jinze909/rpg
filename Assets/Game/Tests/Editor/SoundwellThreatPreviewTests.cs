@@ -108,6 +108,29 @@ namespace Rpg.Tests.Editor
             Assert.That(beastContactRing, Is.Not.Null);
             Assert.That(beastContactRing.enabled, Is.False,
                 "The locked gate protects the west side; don't advertise an active collision yet.");
+            // A live beast may cross the lane while its physical gate is
+            // still closed. This is not an actionable escape threat until
+            // the player actually opens that gate. Test the real actor and
+            // UI status, then restore its world position before the lure.
+            var beastSprite = GameObject.Find("PLACEHOLDER beast")
+                ?.GetComponent<SpriteRenderer>();
+            Assert.That(beastSprite, Is.Not.Null);
+            Transform liveBeast = beastSprite.transform.parent;
+            Assert.That(liveBeast, Is.Not.Null);
+            Vector3 originalBeastPosition = liveBeast.position;
+            liveBeast.position = SoundwellTrial.EscapeLanePosition;
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(trial.GateOpen, Is.False);
+            Assert.That(trial.BeastBlocksEscape, Is.False,
+                "A locked physical gate must not advertise a usable escape lane as blocked.");
+            var escapeStatus = GameObject.Find("Soundwell escape status")
+                ?.GetComponent<Text>();
+            Assert.That(escapeStatus, Is.Not.Null);
+            Assert.That(escapeStatus.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("status.escape_clear")));
+            liveBeast.position = originalBeastPosition;
+            Physics2D.SyncTransforms();
             Assert.That(beastContactRing.positionCount, Is.EqualTo(40));
             Assert.That(beastContactRing.useWorldSpace, Is.False);
             Assert.That(Mathf.Sqrt(beastContactRing.GetPosition(0).x *
@@ -401,6 +424,18 @@ namespace Rpg.Tests.Editor
             Assert.That(Vector2.Distance(beastContactRing.transform.parent.position,
                 trial.BeastPosition), Is.LessThan(0.001f),
                 "The warning must track the live beast, not a second threat model.");
+            // The same live beast position becomes an actual warning once
+            // the player's gate action has opened the physical escape lane.
+            Vector3 luredBeastPosition = liveBeast.position;
+            liveBeast.position = SoundwellTrial.EscapeLanePosition;
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(trial.BeastBlocksEscape, Is.True,
+                "The open route must warn when the actual beast occupies its lane.");
+            Assert.That(escapeStatus.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("status.escape_blocked")));
+            liveBeast.position = luredBeastPosition;
+            Physics2D.SyncTransforms();
 
             // Taking the already-ringing bell is not a new sound source:
             // the physical lift must silence the continuous SFX and clear the
