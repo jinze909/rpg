@@ -1312,8 +1312,27 @@ namespace Rpg.Tests.Editor
             Assert.That(stepPreview.enabled, Is.True);
             Assert.That((Vector2)stepPreview.transform.position,
                 Is.EqualTo(beforeStep + Vector2.left * SoundwellOrkParty.BattleStepDistance));
-            cancelMove.onClick.Invoke();
-            Assert.That(stepPreview.enabled, Is.False);
+            // The actual gamepad Cancel path must exit move preview only,
+            // without retreating from ORK combat or spending this actor's step.
+            // This guards focus on the hidden-confirmation UGUI overlay; a
+            // direct button invocation would bypass the InputSystemUIInputModule.
+            Gamepad previewCancelPad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                InputSystem.QueueStateEvent(previewCancelPad,
+                    new GamepadState().WithButton(GamepadButton.East));
+                deadline = Time.realtimeSinceStartup + 2f;
+                while (stepPreview.enabled && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(stepPreview.enabled, Is.False,
+                    "Gamepad B must close the focused move preview.");
+                Assert.That(trial.DirectCombatStarted, Is.True,
+                    "Cancel during move preview must not retreat from the ORK encounter.");
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(previewCancelPad);
+            }
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
             Assert.That((Vector2)party.Actors[movingRescuer].transform.position,
                 Is.EqualTo(beforeStep),
