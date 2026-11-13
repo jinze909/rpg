@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer beastIntentMarker;
         private readonly SpriteRenderer attackTargetMarker;
         private readonly SpriteRenderer activeRescuerMarker;
+        private readonly SpriteRenderer battleGateTargetMarker;
         private readonly SpriteRenderer movePreviewMarker;
         private readonly Transform beastActor;
         private readonly SpriteRenderer searchTimerTrack;
@@ -229,8 +230,16 @@ namespace Rpg.Soundwell
                 SoundwellTrial.EscapeLanePosition, new Vector2(0.78f, 0.78f),
                 new Color(0.90f, 0.30f, 0.25f, 0.35f), 0);
             escapeDangerMarker.enabled = false;
-            Plate(root, "PLACEHOLDER gate control", new Vector2(-0.55f, 0f),
-                new Vector2(0.32f, 0.58f), Gold, 1);
+            SpriteRenderer gateControl = Plate(root, "PLACEHOLDER gate control",
+                new Vector2(-0.55f, 0f), new Vector2(0.32f, 0.58f), Gold, 1);
+            // The controller, not a guessed battle location, owns this world
+            // cue. Show the 16px brackets only while the LIVE ORK chooser may
+            // actually operate the gate. This never changes physical reach.
+            battleGateTargetMarker = Plate(gateControl.transform,
+                "PLACEHOLDER ORK legal gate target", new Vector2(0f, 0.85f),
+                Vector2.one, Gold, 7);
+            battleGateTargetMarker.sprite = attackTargetPixelSprite;
+            battleGateTargetMarker.enabled = false;
             // This wrong-way trail sign is a physical consequence of the
             // surveyor's mistaken directions. He removes it after rescue.
             falseTrailMarker = Plate(root, "PLACEHOLDER false trail marker",
@@ -573,6 +582,7 @@ namespace Rpg.Soundwell
             layoutReady = false;
             attackTargetMarker.enabled = false;
             activeRescuerMarker.enabled = false;
+            battleGateTargetMarker.enabled = false;
             // The only battle-specific UGUI action abandons the live ORK
             // encounter. Name it explicitly; exploration still says Back.
             backButton.GetComponentInChildren<Text>().text =
@@ -632,6 +642,7 @@ namespace Rpg.Soundwell
             attackButton.interactable = liveChooser && canAttack;
             guardButton.interactable = liveChooser && canGuard;
             openGateButton.interactable = liveChooser && canOpenGate;
+            battleGateTargetMarker.enabled = openGateButton.interactable && !gateOpen;
             string gateCaption = SoundwellUiLocalization.Get(gateOpen ? "status.gate_open" : "battle.open_gate");
             if (openGateLabel.text != gateCaption)
                 openGateLabel.text = gateCaption;
