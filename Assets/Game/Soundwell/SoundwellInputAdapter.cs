@@ -177,7 +177,7 @@ namespace Rpg.Soundwell
             // later. Excluding inactive objects here leaves a duplicate
             // EventSystem able to steal focus after scene handoff.
             var systems = UnityEngine.Object.FindObjectsByType<EventSystem>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
             EventSystem current = EventSystem.current;
             // Prefer an ACTIVE Soundwell UI owner, never one on an inactive
             // GameObject. Enabling its component cannot activate the host.

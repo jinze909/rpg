@@ -596,6 +596,29 @@ namespace Rpg.Tests.Editor
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
                     "Roll call must release the UI context for actual world movement.");
 
+                // Cancel must remain reachable without a mouse while world
+                // movement has disabled the UGUI navigation action map.
+                input.Press(gamepad.buttonEast);
+                yield return null;
+                input.Release(gamepad.buttonEast);
+                yield return null;
+                Assert.That(entry.GetComponentInChildren<WhitewaterPrelude>(true), Is.Null,
+                    "Gamepad B during the walk must return to entry.");
+                Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
+                Assert.That(events.currentSelectedGameObject, Is.SameAs(prologueButton.gameObject));
+                input.Press(gamepad.buttonSouth);
+                yield return null;
+                yield return null;
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+                prelude = entry.GetComponentInChildren<WhitewaterPrelude>(true);
+                Assert.That(prelude, Is.Not.Null, "S00 must be replayable after cancel.");
+                answer = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 choice 0");
+                answer.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1));
+
                 // Move using the existing Gameplay InputAction's keyboard
                 // binding; this is not a teleport or synthetic progress flag.
                 Keyboard walker = InputSystem.AddDevice<Keyboard>();
@@ -621,6 +644,77 @@ namespace Rpg.Tests.Editor
                 Assert.That(crossing, Is.Not.Null);
                 Assert.That(((RectTransform)crossing).anchoredPosition.x, Is.GreaterThan(-320f),
                     "The stretcher must visibly start crossing only after the repair.");
+
+                // S00-02 must be accessible only AFTER the actual cart crossing,
+                // then record a distinct workshop reply without beginning ORK.
+                var workshop = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 continue to workshop");
+                float crossingDeadline = Time.realtimeSinceStartup + 4f;
+                while (!workshop.gameObject.activeInHierarchy &&
+                       Time.realtimeSinceStartup < crossingDeadline)
+                    yield return null;
+                Assert.That(workshop.gameObject.activeInHierarchy, Is.True,
+                    "Workshop dialogue must unlock when the repaired bridge carries the stretcher.");
+                Assert.That(prelude.Phase, Is.EqualTo(3));
+                workshop.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(4),
+                    "The workshop promise must be a real follow-up interaction.");
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                var jokingReply = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 choice 2");
+                Assert.That(jokingReply.gameObject.activeInHierarchy, Is.True);
+                jokingReply.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(5));
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "锅还在打仗" : "pots are still at war"),
+                    "The selected joke must get Shen Li's actual distinct response.");
+
+                // S00-03: selecting a rescuer never teleports Han Qiao onto
+                // the boat. A real Gameplay action at the matching station
+                // must follow the authored choice before he starts moving.
+                var lastBoat = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 continue to last boat");
+                Assert.That(lastBoat.gameObject.activeInHierarchy, Is.True);
+                var nextCaption = lastBoat.GetComponentInChildren<Text>();
+                Assert.That(nextCaption, Is.Not.Null);
+                Assert.That(nextCaption.text, Is.EqualTo(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "去最后一条船救人" : "Help at the last boat"),
+                    "The next-scene control must advertise the last boat, not the previous workshop.");
+                lastBoat.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(6));
+                var inRiver = prelude.transform.Find(
+                    "S00 Whitewater playable canvas/S00 Han Qiao in water") as RectTransform;
+                Assert.That(inRiver, Is.Not.Null);
+                Assert.That(inRiver.gameObject.activeInHierarchy, Is.True);
+                float inRiverX = inRiver.anchoredPosition.x;
+                var shenLiRescue = prelude.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "S00 choice 1");
+                shenLiRescue.onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(7));
+                Assert.That(inRiver.anchoredPosition.x, Is.EqualTo(inRiverX),
+                    "Choosing a method cannot fake Han Qiao reaching the boat.");
+                Assert.That(prelude.CanRescue, Is.True,
+                    "The player who repaired the cable is beside Shen Li's real rescue station.");
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                input.Press(walker.eKey);
+                yield return null;
+                input.Release(walker.eKey);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(8));
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                yield return null;
+                Assert.That(inRiver.anchoredPosition.x, Is.GreaterThan(inRiverX),
+                    "The rescued officer must visibly move towards the last boat after the action.");
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "沈砾的绳索" : "Shen Li's rope"));
+
                 var backToEntry = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 return to Bootstrap");
                 backToEntry.onClick.Invoke();

@@ -14,6 +14,8 @@ namespace Rpg.Soundwell
     {
         public const string RollCallKey = "rpg.return.s00.rollcall";
         public const string RepairKey = "rpg.return.s00.cable-repair";
+        public const string WorkshopPromiseKey = "rpg.return.s00.workshop-promise";
+        public const string HanQiaoRescueKey = "rpg.return.s00.hanqiao-rescue";
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
@@ -23,21 +25,35 @@ namespace Rpg.Soundwell
         private readonly Text[] choiceLabels = new Text[3];
         private RectTransform marker;
         private RectTransform stretcher;
+        private RectTransform hanQiao;
+        private RectTransform rescuePoint;
+        private RectTransform lastBoat;
         private Image cable;
         private Text narration;
         private Text instructions;
         private Text title;
         private Button exit;
+        private Button next;
         private Action onExit;
         private int phase;
+        private int rescueMethod;
         private Vector2 walker = new Vector2(-245f, 0f);
 
-        // 0: roll call; 1: walk to the clamp; 2: repair decision;
-        // 3: visible bracing and stretcher crossing. Never a fake finished S00.
+        // 0: roll call; 1: walk; 2: cable decision; 3: stretcher crossing;
+        // 4: workshop promise choice; 5: its response; 6: man overboard;
+        // 7: move and use the chosen rescue station; 8: Han Qiao boards the last boat.
+        // S00-04 and the historical cable break remain for later work.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
+        public string CurrentNarration => narration != null ? narration.text : string.Empty;
         public bool CanRepair => phase == 1 && Mathf.Abs(walker.x - ClampX) <= RepairReach &&
             Mathf.Abs(walker.y) <= RepairReach;
+        public bool CanRescue => phase == 7 &&
+            Mathf.Abs(walker.x - RescueStationX(rescueMethod)) <= RepairReach &&
+            Mathf.Abs(walker.y) <= RepairReach;
+
+        private static float RescueStationX(int choice) =>
+            choice == 0 ? 60f : choice == 1 ? ClampX : -70f;
 
         private static bool Chinese => SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
         private static string Copy(string en, string zh) => Chinese ? zh : en;
@@ -85,6 +101,19 @@ namespace Rpg.Soundwell
             stretcher = Panel(canvas.transform, "PLACEHOLDER stretcher wagon",
                 new Vector2(-320f, 23f), new Vector2(52f, 27f),
                 new Color(0.82f, 0.78f, 0.63f)).rectTransform;
+            // S00-03: the officer is visibly in the river, not simply a
+            // dialogue flag. He only appears after the workshop conversation.
+            lastBoat = Panel(canvas.transform, "S00 last boat",
+                new Vector2(295f, 91f), new Vector2(100f, 24f),
+                new Color(0.55f, 0.42f, 0.29f)).rectTransform;
+            hanQiao = Panel(canvas.transform, "S00 Han Qiao in water",
+                new Vector2(-70f, 92f), new Vector2(19f, 29f),
+                new Color(0.72f, 0.77f, 0.82f)).rectTransform;
+            rescuePoint = Panel(canvas.transform, "S00 rescue station",
+                new Vector2(ClampX, 12f), new Vector2(30f, 12f), Brass).rectTransform;
+            lastBoat.gameObject.SetActive(false);
+            hanQiao.gameObject.SetActive(false);
+            rescuePoint.gameObject.SetActive(false);
             marker = Panel(canvas.transform, "PLACEHOLDER player",
                 new Vector2(walker.x, 12f), new Vector2(22f, 31f),
                 new Color(0.64f, 0.85f, 0.93f)).rectTransform;
@@ -102,10 +131,15 @@ namespace Rpg.Soundwell
                 choiceLabels[i] = Label(choices[i].transform, "", 17,
                     Vector2.zero, new Vector2(224f, 48f), Ink);
             }
+            next = Button(canvas.transform, "S00 continue to workshop",
+                new Vector2(145f, -245f), new Vector2(228f, 29f), ContinueScene);
+            Label(next.transform, Copy("Talk about the workshop", "聊聊战后的工坊"), 14,
+                Vector2.zero, new Vector2(222f, 27f), Ink);
+            next.gameObject.SetActive(false);
             exit = Button(canvas.transform, "S00 return to Bootstrap",
-                new Vector2(0f, -248f), new Vector2(210f, 29f), Close);
+                new Vector2(-145f, -245f), new Vector2(228f, 29f), Close);
             Label(exit.transform, Copy("Back to entry", "返回入口"), 14,
-                Vector2.zero, new Vector2(208f, 28f), Ink);
+                Vector2.zero, new Vector2(222f, 27f), Ink);
             ShowRollCall();
         }
 
@@ -134,8 +168,8 @@ namespace Rpg.Soundwell
                     choice == 2 ? "Shen Li pushes a wrench toward you. 'This one's called Tax Collector. Two knocks before it works.'"
                     : "Shen Li: 'Here. The other wrench is Tax Collector. It only listens after two knocks.'",
                     "沈砾把一把扳手推到你脚边：“这把叫税务官。敲两下才肯听话。”");
-                instructions.text = Copy("WASD / left stick: walk to the red clamp. E / Pad A: work.",
-                    "WASD／左摇杆走到红色缆桩。按 E／手柄 A 进行加固。");
+                instructions.text = Copy("WASD / left stick: reach the red clamp. E / Pad A: work. Esc / Pad B: back.",
+                    "WASD／左摇杆到红色缆桩。E／手柄 A 加固，Esc／手柄 B 返回。");
             }
             else if (phase == 2)
             {
@@ -152,12 +186,139 @@ namespace Rpg.Soundwell
                     choice == 2 ? "沈砾先示范一圈。你扶住夹板，一起收紧缆索。第一辆担架车开始过桥。"
                     : choice == 1 ? "你塞进木楔，缆索重新绷紧。第一辆担架车开始过桥。"
                     : "你扶稳夹板，沈砾收紧缆索。第一辆担架车开始过桥。");
-                instructions.text = Copy("S00-01 complete · the bridge can carry the wounded. Return to the entry for now.",
-                    "S00-01 完成：伤员终于能过桥。此为第一段可玩切片，后续剧情尚未接入。");
+                instructions.text = Copy("The stretcher is crossing. Then ask Shen Li about life after the war.",
+                    "担架车正过桥。等它过去，再问沈砾战后的打算。");
                 StartCoroutine(CrossStretcher());
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(exit.gameObject);
             }
+            else if (phase == 4)
+            {
+                if (Maki.Initialized && Maki.Game?.Variables != null)
+                    Maki.Game.Variables.Set(WorkshopPromiseKey, choice + 1);
+                phase = 5;
+                HideChoices();
+                narration.text = Copy(
+                    choice == 0 ? "Shen Li: 'Then I'll remember. Don't complain if the jobs are small.'"
+                    : choice == 1 ? "Shen Li: 'Fair. Don't make a promise just for me.'"
+                    : "Shen Li: 'You can explain to customers why their pots are still at war.'",
+                    choice == 0 ? "沈砾：“那我先记着。到时别嫌活小。”"
+                    : choice == 1 ? "沈砾：“行，别为了我答应。”"
+                    : "沈砾：“你来负责跟客人解释，为什么他们的锅还在打仗。”");
+                instructions.text = Copy("S00-02 complete. Your reply matters to this conversation, not the bridge's fate.",
+                    "S00-02 完成：你的回答改变这一刻的对话，不改变断桥的历史。");
+                if (EventSystem.current != null)
+                    EventSystem.current.SetSelectedGameObject(exit.gameObject);
+                next.gameObject.name = "S00 continue to last boat";
+                Text nextLabel = next.GetComponentInChildren<Text>(true);
+                if (nextLabel != null)
+                    nextLabel.text = Copy("Help at the last boat", "去最后一条船救人");
+                next.gameObject.SetActive(true);
+                if (EventSystem.current != null)
+                    EventSystem.current.SetSelectedGameObject(next.gameObject);
+            }
+            else if (phase == 6)
+            {
+                // A method is not a rescue: the player must reach a real
+                // station and confirm the physical interaction first.
+                rescueMethod = choice;
+                phase = 7;
+                HideChoices();
+                SoundwellInputAdapter.SetGameplayContext();
+                rescuePoint.anchoredPosition = new Vector2(RescueStationX(choice), 12f);
+                rescuePoint.gameObject.SetActive(true);
+                narration.text = Copy(
+                    choice == 0 ? "Grab the wet line and haul Han Qiao yourself."
+                    : choice == 1 ? "Shen Li throws the rope. Help her draw Han Qiao out."
+                    : "The soldiers take your call. Join their lift at the rail.",
+                    choice == 0 ? "你抓住湿绳，准备亲手拉韩峤上岸。"
+                    : choice == 1 ? "沈砾抛出绳索。你得帮她一起把韩峤拉出来。"
+                    : "旁边的士兵听见你叫人。到栏杆边一起拉。");
+                instructions.text = Copy("WASD / left stick to the gold station; E / Pad A to rescue. Esc / Pad B to leave.",
+                    "WASD／左摇杆到金色救援点，E／手柄 A 拉人，Esc／手柄 B 返回。");
+            }
+        }
+
+        private void ContinueScene()
+        {
+            if (phase == 3)
+                ShowWorkshopPromise();
+            else if (phase == 5)
+                ShowLastBoat();
+        }
+
+        private void ShowLastBoat()
+        {
+            if (phase != 5 || next == null || !next.gameObject.activeInHierarchy)
+                return;
+            phase = 6;
+            next.gameObject.SetActive(false);
+            hanQiao.gameObject.SetActive(true);
+            lastBoat.gameObject.SetActive(true);
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                "A splash. Han Qiao clings to broken timber; his soaked uniform pulls him down. He shouts only: 'Rope!'",
+                "一声落水。韩峤扒着断木，浸水的军服把他往下拖。他没有喊官衔，只喊：“绳子！”");
+            instructions.text = Copy("Choose who takes the line. You still have to pull him out.",
+                "决定谁来搭手。选完还得亲自完成救援。");
+            ShowChoices(new[] { "Pull him myself", "Ask Shen Li to throw rope", "Call nearby soldiers" },
+                new[] { "我自己拉", "请沈砾抛绳", "喊旁边士兵搭手" });
+        }
+
+        private void FinishRescue()
+        {
+            if (!CanRescue)
+                return;
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(HanQiaoRescueKey, rescueMethod + 1);
+            phase = 8;
+            rescuePoint.gameObject.SetActive(false);
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                rescueMethod == 0 ? "You heave Han Qiao clear. He is badly hurt, but alive."
+                : rescueMethod == 1 ? "Shen Li's rope holds. Together you pull Han Qiao clear, badly hurt but alive."
+                : "The soldiers lift on your count. Han Qiao comes free, badly hurt but alive.",
+                rescueMethod == 0 ? "你把韩峤拉上来了。他伤得很重，但还活着。"
+                : rescueMethod == 1 ? "沈砾的绳索绷住了。你们一起把韩峤拉出来。他伤得很重，但活着。"
+                : "士兵听你号令，一起把韩峤拉了上来。他伤得很重，但活着。");
+            instructions.text = Copy("The last boat is boarding Han Qiao. He will not witness the cable breaking.",
+                "韩峤上了最后一条船。他不会留在桥头看见断缆。");
+            StartCoroutine(BoatTakesHanQiao());
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        private IEnumerator BoatTakesHanQiao()
+        {
+            Vector2 start = hanQiao.anchoredPosition;
+            float elapsed = 0f;
+            while (elapsed < 2f && hanQiao != null)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                hanQiao.anchoredPosition = Vector2.Lerp(start,
+                    new Vector2(290f, 100f), Mathf.Clamp01(elapsed / 2f));
+                yield return null;
+            }
+            if (phase == 8)
+                instructions.text = Copy(
+                    "S00-03 complete. Han Qiao is aboard. The bridge's final retreat is S00-04.",
+                    "S00-03 完成：韩峤已经上船。最后一批人的撤退属于下一段 S00-04。");
+        }
+
+        private void ShowWorkshopPromise()
+        {
+            if (phase != 3 || next == null || !next.gameObject.activeInHierarchy)
+                return;
+            phase = 4;
+            next.gameObject.SetActive(false);
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                "Shen Li checks the tight cable. 'After the war I want a shop: pots, doors, ordinary jobs. No more half-bridges. Will you come?'",
+                "沈砾试了试缆口：“打完这仗我开间铺子。接普通单，补锅，修门。谁再抬半座桥来，我就关门。你来不来？”");
+            instructions.text = Copy("Answer honestly. The rescue and the later reunion are not decided here.",
+                "照你的心意回答。这句话不会替你决定后来谁能获救、怎样重逢。");
+            ShowChoices(new[] { "I'll come", "I can't promise", "What about my wages?" },
+                new[] { "我会来", "我现在答应不了", "那我的工钱怎么算？" });
         }
 
         private void ShowChoices(string[] english, string[] chinese)
@@ -181,14 +342,27 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (phase != 1)
+            if (phase != 1 && phase != 7)
                 return;
             SoundwellControlFrame frame = SoundwellInputAdapter.ReadGameplay();
+            // In world-movement context UGUI Submit/Cancel is not active.
+            // Let keyboard Esc and controller B exit without a mouse.
+            if (frame.Back)
+            {
+                Close();
+                return;
+            }
             Vector2 delta = Vector2.ClampMagnitude(frame.Movement, 1f) *
                 WalkSpeed * Time.unscaledDeltaTime;
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
             marker.anchoredPosition = new Vector2(walker.x, 12f + walker.y);
+            if (phase == 7)
+            {
+                if (frame.Ring && CanRescue)
+                    FinishRescue();
+                return;
+            }
             if (frame.Ring && CanRepair)
             {
                 phase = 2;
@@ -211,13 +385,19 @@ namespace Rpg.Soundwell
                 stretcher.anchoredPosition = new Vector2(Mathf.Lerp(-320f, 308f, Mathf.Clamp01(elapsed / 2f)), 23f);
                 yield return null;
             }
+            if (phase == 3 && next != null)
+            {
+                next.gameObject.SetActive(true);
+                if (EventSystem.current != null)
+                    EventSystem.current.SetSelectedGameObject(next.gameObject);
+            }
         }
 
         public void Close()
         {
-            // Closing the partial prelude never starts an ORK encounter or
-            // awards quest experience. Preserve only the Makinom dialogue
-            // choice and cable-action facts for the eventual S00 continuation.
+            // Leaving the unfinished prologue never starts an ORK encounter or
+            // awards quest experience. Makinom retains only dialogue/repair
+            // outcomes already earned through real player interactions.
             Action callback = onExit;
             onExit = null;
             callback?.Invoke();

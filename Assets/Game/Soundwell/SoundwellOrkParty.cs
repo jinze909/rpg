@@ -516,8 +516,7 @@ namespace Rpg.Soundwell
             // Disable only the world-movement component, not ORK combat,
             // statuses, action selection or its UI ownership.
             foreach (ButtonPlayerController controller in
-                     UnityEngine.Object.FindObjectsByType<ButtonPlayerController>(
-                         FindObjectsSortMode.None))
+                     UnityEngine.Object.FindObjectsByType<ButtonPlayerController>())
             {
                 if (controller != null && controller.enabled)
                     controller.enabled = false;
