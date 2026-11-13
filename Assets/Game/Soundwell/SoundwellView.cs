@@ -620,9 +620,14 @@ namespace Rpg.Soundwell
         {
             if (!battleMode)
                 return;
-            attackButton.interactable = canAttack;
-            guardButton.interactable = canGuard;
-            openGateButton.interactable = canOpenGate;
+            // ORK may revoke its chooser while a previously queued action is
+            // still being presented. Never expose stale battle commands for a
+            // destroyed actor or an out-of-range rescuer index.
+            bool liveChooser = activeActor != null &&
+                activeRescuerIndex >= 0 && activeRescuerIndex < 3;
+            attackButton.interactable = liveChooser && canAttack;
+            guardButton.interactable = liveChooser && canGuard;
+            openGateButton.interactable = liveChooser && canOpenGate;
             string gateCaption = SoundwellUiLocalization.Get(gateOpen ? "status.gate_open" : "battle.open_gate");
             if (openGateLabel.text != gateCaption)
                 openGateLabel.text = gateCaption;
@@ -637,23 +642,24 @@ namespace Rpg.Soundwell
             if (activeRescuerMarker.enabled)
                 activeRescuerMarker.transform.position =
                     activeActor.position + new Vector3(0f, 1.12f, 0f);
-            attackButtonLabel.text = canAttack
+            attackButtonLabel.text = attackButton.interactable
                 ? SoundwellUiLocalization.Get("battle.rescuer") + " " +
                     (activeRescuerIndex + 1) + "  >  " +
                     SoundwellUiLocalization.Get("battle.beast")
                 : SoundwellUiLocalization.Get("battle.menu_pending");
             GameObject focused = actionEventSystem.currentSelectedGameObject;
             bool keepFocus = focused == backButton.gameObject ||
-                (focused == attackButton.gameObject && canAttack) ||
-                (focused == guardButton.gameObject && canGuard) ||
-                (focused == openGateButton.gameObject && canOpenGate) ||
+                (focused == attackButton.gameObject && attackButton.interactable) ||
+                (focused == guardButton.gameObject && guardButton.interactable) ||
+                (focused == openGateButton.gameObject && openGateButton.interactable) ||
                 (focused == moveButton.gameObject && moveButton.interactable);
             if (!keepFocus && !movePreviewOpen)
             {
                 // While ORK resolves, the disabled Attack button ignores Submit
                 // but still receives Cancel and directional navigation to Retreat.
-                Button target = canAttack ? attackButton : canGuard ? guardButton :
-                    canOpenGate ? openGateButton : attackButton;
+                Button target = attackButton.interactable ? attackButton :
+                    guardButton.interactable ? guardButton :
+                    openGateButton.interactable ? openGateButton : attackButton;
                 actionEventSystem.SetSelectedGameObject(target.gameObject);
             }
             attackButtonLabel.font = SoundwellUiLocalization.PresentationFont(

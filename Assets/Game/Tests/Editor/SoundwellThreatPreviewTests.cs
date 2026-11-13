@@ -629,6 +629,28 @@ namespace Rpg.Tests.Editor
                 { 3, trial.PlayerActor, false, false, false, true });
             Assert.That(battleMoveButton.interactable, Is.False,
                 "Out-of-range rescuer indices must not offer an invalid Move action.");
+            // Attack/Guard/Gate are also ORK chooser-owned actions. A stale
+            // chooser may report cached eligibility after its actor vanished.
+            var battleGuardButton = GameObject.Find("Soundwell Guard button")?.GetComponent<Button>();
+            var battleGateButton = GameObject.Find("Soundwell Battle Gate button")?.GetComponent<Button>();
+            Assert.That(battleGuardButton, Is.Not.Null);
+            Assert.That(battleGateButton, Is.Not.Null);
+            setBattleChoices.Invoke(trialView, new object[]
+                { 1, null, true, true, true, false });
+            Assert.That(battleAttackButton.interactable, Is.False,
+                "A missing ORK actor must not leave Attack clickable.");
+            Assert.That(battleGuardButton.interactable, Is.False,
+                "A missing ORK actor must not leave Guard clickable.");
+            Assert.That(battleGateButton.interactable, Is.False,
+                "A missing ORK actor must not leave Gate clickable.");
+            setBattleChoices.Invoke(trialView, new object[]
+                { 3, trial.PlayerActor, true, true, true, false });
+            Assert.That(battleAttackButton.interactable, Is.False,
+                "An invalid rescuer index must not expose Attack.");
+            Assert.That(battleGuardButton.interactable, Is.False,
+                "An invalid rescuer index must not expose Guard.");
+            Assert.That(battleGateButton.interactable, Is.False,
+                "An invalid rescuer index must not expose Gate.");
             setBattleMode.Invoke(trialView, new object[] { false });
             Assert.That(eventSystem.currentSelectedGameObject, Is.Null,
                 "The temporary battle-only UGUI state must release focus on exit.");
