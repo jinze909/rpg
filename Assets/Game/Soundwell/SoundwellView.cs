@@ -950,6 +950,9 @@ namespace Rpg.Soundwell
             surveyorFigure.position = SoundwellTrial.SurveyorPosition;
             surveyorPixelRenderer.sprite = surveyorPixelSprite;
             surveyorPixelRenderer.flipX = false;
+            // Retry can be invoked while the escort is visibly paused. Remove
+            // the amber waiting cue immediately, not one LateUpdate later.
+            surveyorPixelRenderer.color = Ink;
             waitingForEscortLeader = false;
             escortLine.enabled = false;
             falseTrailMarker.enabled = true;

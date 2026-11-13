@@ -256,7 +256,19 @@ namespace Rpg.Tests.Editor
             yield return new ExitPlayMode();
         }
 
-        private static IEnumerator RunBellOnlyRescueAfterInitialization()
+        [UnityTest]
+        public IEnumerator PausedEscortRetryClearsWaitingVisualBeforeNextFrame()
+        {
+            // The real bell rescue can be abandoned while the survivor is
+            // waiting behind the player. Retry must restore the world actor,
+            // not just clear Makinom escort variables on the next frame.
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return RunBellOnlyRescueAfterInitialization(retryDuringEscortPause: true);
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator RunBellOnlyRescueAfterInitialization(bool retryDuringEscortPause = false)
         {
             float deadline = Time.realtimeSinceStartup + 30f;
             while ((!Maki.Initialized || !ORK.Initialized) &&
@@ -573,6 +585,29 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.Get("hint.escort_paused")));
             Assert.That(pausedResponse.text, Is.EqualTo(
                 SoundwellUiLocalization.Get("surveyor.wait_for_leader")));
+            if (retryDuringEscortPause)
+            {
+                // The player has returned to RETREAT but has not brought the
+                // actual surveyor home. Retry must not bank a false rescue or
+                // leave the waiting (amber) NPC from the abandoned attempt.
+                MoveTestLeader(playerBody, safe);
+                Assert.That(trial.RescueComplete, Is.False);
+                trial.ApplyInput(Vector2.zero, false, false, true);
+                Assert.That(trial.SurveyorWaitingForLeader, Is.False);
+                Assert.That(surveyorSprite.color, Is.EqualTo(followingColor),
+                    "Retry must clear the amber waiting sprite before the next render.");
+                Assert.That(Vector2.Distance(trial.SurveyorWorldPosition,
+                    SoundwellTrial.SurveyorPosition), Is.LessThan(0.001f),
+                    "Retry must return the actual survivor to the trapped position.");
+                Assert.That(trial.SurveyorEscorting, Is.False);
+                Assert.That(trial.GateOpen, Is.False);
+                Assert.That(trial.RescueComplete, Is.False);
+                yield return null;
+                MoveTestLeader(playerBody, new Vector2(-0.55f, 0f));
+                Assert.That(trial.CanEngageBeast, Is.True,
+                    "An abandoned bell escort must still allow the original combat route.");
+                yield break;
+            }
             MoveTestLeader(playerBody, pausePosition);
             deadline = Time.realtimeSinceStartup + 3f;
             while (trial.SurveyorWaitingForLeader && Time.realtimeSinceStartup < deadline)
