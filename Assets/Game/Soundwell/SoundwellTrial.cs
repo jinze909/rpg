@@ -351,7 +351,12 @@ namespace Rpg.Soundwell
             // The lower route is physically unsafe, rather than a fake
             // dialogue lock. Any attempt to walk over its weak section drops
             // the player back inside. A broken plank remains impassable.
-            if (GateOpen && Vector2.Distance(playerBody.position, LowerBoardPosition) <= 0.48f)
+            // The lower plank is an exploration hazard. During the
+            // turn-based ORK encounter, a scripted LateUpdate knockback
+            // would silently override a combatant's authorized position,
+            // bypassing the one-step movement budget and its collision check.
+            if (ShouldRecoverFromLowerPlank(DirectCombatStarted, GateOpen,
+                    playerBody.position))
             {
                 if (!LowerPlankBroken)
                 {
@@ -472,6 +477,14 @@ namespace Rpg.Soundwell
                 Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
                 variables.Set(SafeRouteMarkedKey, 1);
         }
+
+        // The plank belongs to exploration physics, never ORK's turn-owned
+        // combatant placement. Keep the rule independent of the asynchronous
+        // ORK gate-action calculation: a queued gate action is not yet GateOpen.
+        public static bool ShouldRecoverFromLowerPlank(
+            bool directCombatStarted, bool gateOpen, Vector2 actorPosition) =>
+            !directCombatStarted && gateOpen &&
+            Vector2.Distance(actorPosition, LowerBoardPosition) <= 0.48f;
 
         private bool CanReachBattleGate(Combatant member) =>
             DirectCombatStarted && !GateOpen && member.GameObject != null &&

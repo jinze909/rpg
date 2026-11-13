@@ -705,6 +705,39 @@ namespace Rpg.Tests.Editor
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
             Assert.That(gateAction.interactable, Is.True,
                 "The rescuer next to the latch can spend the turn opening it.");
+            // Probe real 2D plank physics while the ORK encounter owns
+            // placement, BEFORE committing the gate action. ORK resolves
+            // queued actions only after the rest of the party chooses;
+            // requiring GateOpen before Guard/Attack deadlocks the test.
+            // Moving the leader after queueing Gate also invalidates the
+            // recorded ORK action's physical reach at calculation time.
+            Assert.That(trial.DirectCombatStarted, Is.True);
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                true, true, SoundwellTrial.LowerBoardPosition), Is.False,
+                "Even an opened gate cannot make exploration physics teleport an ORK combatant.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, true, SoundwellTrial.LowerBoardPosition), Is.True,
+                "The original weak-plank consequence must remain active outside ORK battle.");
+            Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
+                false, false, SoundwellTrial.LowerBoardPosition), Is.False,
+                "The locked gate must still protect the unopened lower route.");
+            Assert.That(trial.LowerPlankBroken, Is.False);
+            Vector2 battleLeaderPosition = leaderBody.position;
+            leaderBody.position = SoundwellTrial.LowerBoardPosition;
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(Vector2.Distance(trial.PlayerPosition,
+                SoundwellTrial.LowerBoardPosition), Is.LessThan(0.03f),
+                "Exploration plank recovery must not override ORK-owned combatant positioning.");
+            Assert.That(trial.LowerPlankBroken, Is.False,
+                "Combat movement must not silently trigger a second exploration plank outcome.");
+            leaderBody.position = battleLeaderPosition;
+            Physics2D.SyncTransforms();
+            yield return null;
+            Assert.That(trial.AtGatePanel, Is.True,
+                "Restore the real rescuer to the latch before committing ORK's gate action.");
+            Assert.That(gateAction.interactable, Is.True,
+                "The restored latch action must remain a legal ORK turn choice.");
             gateAction.onClick.Invoke();
 
             float choiceDeadline = Time.realtimeSinceStartup + 6f;
@@ -712,6 +745,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
             int guardIndex = party.ChoosingRescuerIndex;
             Assert.That(guardIndex, Is.InRange(1, 2));
+
             // After the real ORK gate interaction spends the leader's turn,
             // the visible world marker must follow the *new* chooser rather
             // than continuing to identify the prior leader at the latch.
