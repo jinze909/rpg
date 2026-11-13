@@ -98,6 +98,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkStepMustKeepWholeCombatantInsideSavedBattleBounds",
         "OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending",
+        "LowerPlankExplorationKnockbackMustNotOverrideAnOrkStep":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.LowerPlankExplorationKnockbackMustNotOverrideAnOrkStep",
     },
     "Assets/Game/Tests/Editor/P0BootstrapTests.cs": {
         "InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps":
