@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Localization.Tables;
 
 namespace Rpg.Soundwell
@@ -58,8 +59,51 @@ namespace Rpg.Soundwell
             if (selected == null)
                 throw new InvalidOperationException("Saved Chinese Soundwell StringTable is missing.");
             var translated = selected.GetEntry(key)?.LocalizedValue;
-            return !string.IsNullOrEmpty(translated) ? translated :
+            string copy = !string.IsNullOrEmpty(translated) ? translated :
                 en.GetEntry(key)?.LocalizedValue ?? key;
+            // The trial's Retry input is rebindable. Preserve the authored
+            // localized instruction but replace its default shortcut with
+            // the effective Gameplay/Retry bindings actually listened for.
+            return key == "hint.reset_here" ? WithRetryControls(copy) : copy;
+        }
+
+        private static string WithRetryControls(string copy)
+        {
+            if (string.IsNullOrEmpty(copy) || copy[0] != '[')
+                return copy;
+            int end = copy.IndexOf(']');
+            if (end < 0)
+                return copy;
+
+            var asset = Resources.Load<InputActionAsset>("Input/SoundwellControls");
+            var action = asset?.FindActionMap("Gameplay", false)?.FindAction("Retry", false);
+            if (action == null)
+                return copy;
+            string keyboard = string.Empty;
+            string gamepad = string.Empty;
+            for (int i = 0; i < action.bindings.Count; i++)
+            {
+                var binding = action.bindings[i];
+                if (binding.isComposite || binding.isPartOfComposite ||
+                    string.IsNullOrEmpty(binding.effectivePath))
+                    continue;
+                if (string.IsNullOrEmpty(keyboard) &&
+                    binding.effectivePath.StartsWith("<Keyboard>/",
+                        StringComparison.OrdinalIgnoreCase))
+                    keyboard = action.GetBindingDisplayString(i);
+                if (string.IsNullOrEmpty(gamepad) &&
+                    binding.effectivePath.StartsWith("<Gamepad>/",
+                        StringComparison.OrdinalIgnoreCase))
+                    gamepad = action.GetBindingDisplayString(i);
+            }
+            string padLabel = string.IsNullOrEmpty(gamepad) ? string.Empty :
+                (language == Chinese ? "手柄 " : "Pad ") + gamepad;
+            string label = !string.IsNullOrEmpty(keyboard) && !string.IsNullOrEmpty(padLabel)
+                ? keyboard + (language == Chinese ? "／" : " / ") + padLabel
+                : !string.IsNullOrEmpty(keyboard) ? keyboard
+                : !string.IsNullOrEmpty(padLabel) ? padLabel
+                : language == Chinese ? "重试" : "Retry";
+            return "[" + label + "]" + copy.Substring(end + 1);
         }
 
         public static void SetLanguage(string code)
