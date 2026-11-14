@@ -148,7 +148,21 @@ namespace Rpg.Soundwell
             choice == 0 ? 60f : choice == 1 ? ClampX : -70f;
 
         private static bool Chinese => SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
-        private static string Copy(string en, string zh) => Chinese ? zh : en;
+        private static string Copy(string en, string zh)
+        {
+            string message = Chinese ? zh : en;
+            // Only instruction lines containing the original keyboard/pad
+            // pair need the real Input System binding. Leave authored story
+            // dialogue and all other text unchanged.
+            if (!message.Contains("E / Pad A") && !message.Contains("E／手柄 A"))
+                return message;
+            string key = SoundwellInputAdapter.GameplayKeyboardInteractionLabel();
+            return Chinese
+                ? message.Replace("E／手柄 A",
+                    string.IsNullOrEmpty(key) ? "手柄 A" : key + "／手柄 A")
+                : message.Replace("E / Pad A",
+                    string.IsNullOrEmpty(key) ? "Pad A" : key + " / Pad A");
+        }
 
         public void Begin(Action exitAction)
         {

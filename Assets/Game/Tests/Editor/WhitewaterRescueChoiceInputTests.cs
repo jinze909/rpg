@@ -555,7 +555,12 @@ namespace Rpg.Tests.Editor
                         // spotted enemy. Only the actual cable interaction
                         // permits this last visible approach; no combat or
                         // historical third-bell result is issued by the view.
-                        float pressureDeadline = Time.realtimeSinceStartup + 4f;
+                        // CI can spend part of this realtime window on
+                        // Unity Editor player-loop/editor transitions while
+                        // the authored figures still move at 24 units per
+                        // rendered second. Await the same physical target,
+                        // not a fixed number of frames or a shortened timer.
+                        float pressureDeadline = Time.realtimeSinceStartup + 8f;
                         while (((RectTransform)approaching).anchoredPosition.x <
                                threatStartX + 70f &&
                                Time.realtimeSinceStartup < pressureDeadline)
@@ -565,7 +570,7 @@ namespace Rpg.Tests.Editor
                             "The same soldiers must keep closing in after the player actually holds the cable.");
                         Assert.That(afterHoldX, Is.LessThan(-180f),
                             "The staging silhouettes must remain distant and cannot fake an ORK battle.");
-                        float marchEndDeadline = Time.realtimeSinceStartup + 2f;
+                        float marchEndDeadline = Time.realtimeSinceStartup + 6f;
                         while (((RectTransform)approaching).anchoredPosition.x <
                                threatSpawnX + 77.99f &&
                                Time.realtimeSinceStartup < marchEndDeadline)

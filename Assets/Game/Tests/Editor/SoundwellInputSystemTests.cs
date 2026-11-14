@@ -272,6 +272,56 @@ namespace Rpg.Tests.Editor
                     SoundwellInputAdapter.SetEntryContext();
                 }
 
+                // Rebound interaction instructions in the *playable S00*
+                // must show the actual InputAction, not the legacy E prompt.
+                // Keep this regression in the existing live-input test, so
+                // the strict collector's expected test list is unchanged.
+                var ringAction = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                    .FindActionMap("Gameplay", true).FindAction("Ring", true);
+                int ringKeyboardBinding = Enumerable.Range(0, ringAction.bindings.Count)
+                    .Single(i => ringAction.bindings[i].path == "<Keyboard>/e");
+                string priorRingOverride = ringAction.bindings[ringKeyboardBinding].overridePath;
+                string originalLocale = SoundwellUiLocalization.Language;
+                SoundwellInputAdapter.SetUiContext();
+                ringAction.ApplyBindingOverride(ringKeyboardBinding, "<Keyboard>/r");
+                try
+                {
+                    Assert.That(SoundwellInputAdapter.GameplayKeyboardInteractionLabel(),
+                        Is.EqualTo("R"));
+                    foreach (string locale in new[]
+                    {
+                        SoundwellUiLocalization.English, SoundwellUiLocalization.Chinese
+                    })
+                    {
+                        SoundwellUiLocalization.SetLanguage(locale);
+                        var stageRoot = new GameObject("S00 rebound interaction hint regression");
+                        var stage = stageRoot.AddComponent<WhitewaterPrelude>();
+                        stage.Begin(null);
+                        stage.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 choice 0")
+                            .onClick.Invoke();
+                        string expected = locale == SoundwellUiLocalization.Chinese
+                            ? "R／手柄 A" : "R / Pad A";
+                        string outdated = locale == SoundwellUiLocalization.Chinese
+                            ? "E／手柄 A" : "E / Pad A";
+                        Assert.That(stage.CurrentInstructions, Does.Contain(expected),
+                            "S00 must teach the actual rebound Gameplay action in both locales.");
+                        Assert.That(stage.CurrentInstructions, Does.Not.Contain(outdated),
+                            "Do not advertise E after the player remaps the physical interaction.");
+                        stage.Close();
+                        yield return null;
+                    }
+                }
+                finally
+                {
+                    SoundwellInputAdapter.SetUiContext();
+                    if (priorRingOverride == null)
+                        ringAction.RemoveBindingOverride(ringKeyboardBinding);
+                    else
+                        ringAction.ApplyBindingOverride(ringKeyboardBinding, priorRingOverride);
+                    SoundwellUiLocalization.SetLanguage(originalLocale);
+                }
+
                 SoundwellInputAdapter.SetGameplayContext();
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 

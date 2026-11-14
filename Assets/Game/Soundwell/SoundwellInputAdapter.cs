@@ -113,6 +113,24 @@ namespace Rpg.Soundwell
             return string.Empty;
         }
 
+        // S00 and the trial share Gameplay/Ring as their physical confirm
+        // action. Present the effective keyboard binding rather than a
+        // hardcoded E when the player has saved a valid remap.
+        public static string GameplayKeyboardInteractionLabel()
+        {
+            EnsureLoaded();
+            for (int i = 0; i < ring.bindings.Count; i++)
+            {
+                var binding = ring.bindings[i];
+                if (!binding.isComposite && !binding.isPartOfComposite &&
+                    !string.IsNullOrEmpty(binding.effectivePath) &&
+                    binding.effectivePath.StartsWith("<Keyboard>/",
+                        StringComparison.OrdinalIgnoreCase))
+                    return ring.GetBindingDisplayString(i);
+            }
+            return string.Empty;
+        }
+
         // Both the action's button state and its physical bound controls are
         // checked so a held Start/Tab remains suppressed across re-enables.
         // Releasing it rearms the next intentional menu-toggle press.
