@@ -45,6 +45,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkAcceptedCompanionAttackChangesOnlyItsPixelPose",
     },
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
+        "FixedFormationCanFinishRescueAfterThreeOrkActions":
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.FixedFormationCanFinishRescueAfterThreeOrkActions",
         "BattleStepChangesGateAssignmentFromSameOpening":
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleStepChangesGateAssignmentFromSameOpening",
         "BattleBackCancelEventRetreatsAndReleasesOrkParticipants":
