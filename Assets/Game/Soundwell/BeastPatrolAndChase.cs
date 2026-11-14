@@ -14,6 +14,9 @@ namespace Rpg.Soundwell
         private Vector2 home;
         private Vector2 lastHeard;
         private float searchStarted = float.NegativeInfinity;
+        // Search expiry is one state transition, not one callback per frame.
+        // Re-arm only when the bell starts a new search or the trial resets.
+        private bool searchExpiryNotified;
         // One contact is one caught event until the player actually leaves
         // the hazard; consecutive render/physics updates must not count as
         // separate captures of an overlapping rescuer.
@@ -45,6 +48,7 @@ namespace Rpg.Soundwell
             }
             lastHeard = home;
             searchStarted = float.NegativeInfinity;
+            searchExpiryNotified = false;
             contactLatched = false;
         }
 
@@ -56,6 +60,7 @@ namespace Rpg.Soundwell
             {
                 lastHeard = soundPoint;
                 searchStarted = Time.time;
+                searchExpiryNotified = false;
             }
         }
 
@@ -75,7 +80,15 @@ namespace Rpg.Soundwell
                 {
                     float time = Time.time - searchStarted;
                     if (time >= SearchDurationSeconds)
-                        SearchExpired?.Invoke();
+                    {
+                        if (!searchExpiryNotified)
+                        {
+                            // Mark before callback: a signal handler may
+                            // re-enter Tick while the previous search ends.
+                            searchExpiryNotified = true;
+                            SearchExpired?.Invoke();
+                        }
+                    }
                     else
                         destination = lastHeard + new Vector2(
                             0.45f + 0.45f * Mathf.Cos(time * 2f),

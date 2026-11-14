@@ -47,6 +47,56 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.IsReady, Is.True);
             trial.ReadInput = false;
 
+            // The bell search expires once even if the owning schematic
+            // cannot consume that transition until a later scene update.
+            // A new ringing/searching cycle must still be able to expire.
+            var searchHost = new GameObject("Search expiry latch regression");
+            var searchBeast = new GameObject("Search expiry test beast");
+            var searchLeader = new GameObject("Search expiry test leader");
+            try
+            {
+                var body = searchLeader.AddComponent<Rigidbody2D>();
+                body.gravityScale = 0f;
+                var patrol = searchHost.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(searchBeast.transform, body, Vector2.zero);
+                int expiredEvents = 0;
+                patrol.SearchExpired += () => expiredEvents++;
+                var searchClock = typeof(BeastPatrolAndChase).GetField(
+                    "searchStarted", System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(searchClock, Is.Not.Null);
+                patrol.OnBellSignal(BellSignal.Searching, Vector2.right);
+                searchClock.SetValue(patrol, Time.time -
+                    BeastPatrolAndChase.SearchDurationSeconds - 0.2f);
+                patrol.Tick(BellSignal.Searching, Vector2.right,
+                    false, false, false, false);
+                patrol.Tick(BellSignal.Searching, Vector2.right,
+                    false, false, false, false);
+                Assert.That(expiredEvents, Is.EqualTo(1),
+                    "One completed bell search cannot signal expiration every frame.");
+                patrol.OnBellSignal(BellSignal.Searching, Vector2.left);
+                searchClock.SetValue(patrol, Time.time -
+                    BeastPatrolAndChase.SearchDurationSeconds - 0.2f);
+                patrol.Tick(BellSignal.Searching, Vector2.left,
+                    false, false, false, false);
+                Assert.That(expiredEvents, Is.EqualTo(2),
+                    "A genuinely new search must re-arm expiration.");
+                patrol.ResetPatrol();
+                patrol.OnBellSignal(BellSignal.Searching, Vector2.right);
+                searchClock.SetValue(patrol, Time.time -
+                    BeastPatrolAndChase.SearchDurationSeconds - 0.2f);
+                patrol.Tick(BellSignal.Searching, Vector2.right,
+                    false, false, false, false);
+                Assert.That(expiredEvents, Is.EqualTo(3),
+                    "Retreat/retry must not inherit the prior search expiration latch.");
+            }
+            finally
+            {
+                Object.Destroy(searchHost);
+                Object.Destroy(searchBeast);
+                Object.Destroy(searchLeader);
+            }
+
             // UX-001: once a real escort is underway, reaching the RETREAT
             // marker cannot turn the live hint into a "reset" instruction.
             // Assert the same localized rule used by the scene render, without
