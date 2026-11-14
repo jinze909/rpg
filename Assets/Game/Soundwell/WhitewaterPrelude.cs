@@ -57,6 +57,7 @@ namespace Rpg.Soundwell
         private RectTransform shenLiRescueLine;
         private Texture2D shenLiRescueRopeTexture;
         private RectTransform lastBoat;
+        private Texture2D lastBoatPixelTexture;
         private RectTransform evacuee;
         private RectTransform evacueeSafeLine;
         private RectTransform spareRope;
@@ -200,9 +201,50 @@ namespace Rpg.Soundwell
                 new Color(0.82f, 0.78f, 0.63f)).rectTransform;
             // S00-03: the officer is visibly in the river, not simply a
             // dialogue flag. He only appears after the workshop conversation.
-            lastBoat = Panel(canvas.transform, "S00 last boat",
-                new Vector2(295f, 91f), new Vector2(100f, 24f),
-                new Color(0.55f, 0.42f, 0.29f)).rectTransform;
+            // The last ferry is a real point-filtered pixel silhouette.
+            // Its 48x12 source renders at an integer 2x scale, matching
+            // the existing 16px actors without a soft stretched UGUI bar.
+            const int boatWidth = 48;
+            const int boatHeight = 12;
+            lastBoatPixelTexture = new Texture2D(boatWidth, boatHeight,
+                TextureFormat.RGBA32, false)
+            {
+                name = "S00 48x12 last ferry",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                anisoLevel = 0
+            };
+            var boatPixels = new Color32[boatWidth * boatHeight];
+            for (int y = 0; y < boatHeight; y++)
+            {
+                for (int x = 0; x < boatWidth; x++)
+                {
+                    int inset = y <= 4 ? 8 - y : 3;
+                    bool hull = y >= 2 && y <= 8 &&
+                        x >= inset && x < boatWidth - inset;
+                    bool gunwale = y == 9 && x >= 5 && x < boatWidth - 5;
+                    bool seat = y == 10 && x >= 14 && x < boatWidth - 14;
+                    boatPixels[y * boatWidth + x] = gunwale
+                        ? new Color32(220, 177, 112, 255)
+                        : seat ? new Color32(154, 111, 69, 255)
+                        : hull ? y <= 3 ? new Color32(79, 53, 42, 255)
+                            : x % 9 == 0 ? new Color32(112, 76, 52, 255)
+                            : new Color32(146, 102, 67, 255)
+                        : new Color32(0, 0, 0, 0);
+                }
+            }
+            lastBoatPixelTexture.SetPixels32(boatPixels);
+            lastBoatPixelTexture.Apply(false, false);
+            var boatObject = new GameObject("S00 last boat",
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+            boatObject.transform.SetParent(canvas.transform, false);
+            lastBoat = (RectTransform)boatObject.transform;
+            lastBoat.anchorMin = lastBoat.anchorMax = new Vector2(0.5f, 0.5f);
+            lastBoat.anchoredPosition = new Vector2(295f, 91f);
+            lastBoat.sizeDelta = new Vector2(boatWidth * 2f, boatHeight * 2f);
+            var boatImage = boatObject.GetComponent<RawImage>();
+            boatImage.texture = lastBoatPixelTexture;
+            boatImage.raycastTarget = false;
             var hanQiaoFigure = Panel(canvas.transform, "S00 Han Qiao in water",
                 new Vector2(-70f, 92f), new Vector2(32f, 32f), Color.white);
             hanQiaoPixelSprite = MakeActorSprite("PLACEHOLDER 16px wounded Han Qiao",
@@ -1161,6 +1203,8 @@ namespace Rpg.Soundwell
                 Destroy(spareRopePixelTexture);
             if (shenLiRescueRopeTexture != null)
                 Destroy(shenLiRescueRopeTexture);
+            if (lastBoatPixelTexture != null)
+                Destroy(lastBoatPixelTexture);
         }
 
         private void ShowWorkshopPromise()

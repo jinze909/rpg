@@ -229,6 +229,25 @@ namespace Rpg.Tests.Editor
                         var departingBoat = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/S00 last boat") as RectTransform;
                         Assert.That(departingBoat, Is.Not.Null);
+                        var boatImage = departingBoat.GetComponent<RawImage>();
+                        Assert.That(boatImage, Is.Not.Null,
+                            "The last ferry must have authored pixels, not a stretched flat rectangle.");
+                        Assert.That(boatImage.raycastTarget, Is.False,
+                            "The boat must not intercept rescue or menu input.");
+                        var boatTexture = boatImage.texture as Texture2D;
+                        Assert.That(boatTexture, Is.Not.Null);
+                        Assert.That(boatTexture.width, Is.EqualTo(48));
+                        Assert.That(boatTexture.height, Is.EqualTo(12));
+                        Assert.That(boatTexture.filterMode, Is.EqualTo(FilterMode.Point));
+                        Assert.That(boatTexture.mipmapCount, Is.EqualTo(1));
+                        Assert.That(departingBoat.sizeDelta, Is.EqualTo(new Vector2(96f, 24f)),
+                            "The boat must render every source pixel at an exact 2x scale.");
+                        Assert.That(boatTexture.GetPixel(0, 0).a, Is.EqualTo(0f),
+                            "The rectangular texture must have transparent hull cutouts.");
+                        Assert.That(boatTexture.GetPixel(24, 5).a, Is.GreaterThan(0.9f));
+                        Assert.That(boatTexture.GetPixel(24, 5),
+                            Is.Not.EqualTo(boatTexture.GetPixel(24, 9)),
+                            "The deck and wooden hull need distinct visible pixel details.");
                         Assert.That(departingBoat.gameObject.activeInHierarchy, Is.True);
                         float boatDockX = departingBoat.anchoredPosition.x;
                         float passengerDockX = inWater.anchoredPosition.x;
