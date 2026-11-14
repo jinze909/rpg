@@ -373,6 +373,9 @@ namespace Rpg.Tests.Editor
                             "S00 Whitewater playable canvas/S00 far-bank approaching figure 0");
                         Assert.That(approaching, Is.Not.Null);
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.False);
+                        // Capture the authored spawn position before the warning starts its
+                        // coroutine. The first observed warning frame already moves the guard.
+                        float threatSpawnX = ((RectTransform)approaching).anchoredPosition.x;
                         var approachingImage = approaching.GetComponent<Image>();
                         var playerImage = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/PLACEHOLDER player")
@@ -393,6 +396,8 @@ namespace Rpg.Tests.Editor
                             Is.EqualTo(0f), "The player silhouette must not share that spear.");
                         Assert.That(approachingImage.raycastTarget, Is.False,
                             "Distant guards cannot steal gamepad or mouse interaction.");
+                        Sprite guardIdle = approachingImage.sprite;
+                        Assert.That(guardIdle.name, Does.Not.Contain("walking"));
 
                         input.Press(keys.aKey);
                         float sightlineDeadline = Time.realtimeSinceStartup + 4f;
@@ -433,13 +438,24 @@ namespace Rpg.Tests.Editor
                             "The cable needs help again only after a genuine warning.");
                         input.Press(keys.dKey);
                         float returnDeadline = Time.realtimeSinceStartup + 4f;
+                        bool observedMarchFrame = false;
                         while (!activePrelude.CanHoldCable &&
                                Time.realtimeSinceStartup < returnDeadline)
+                        {
+                            observedMarchFrame |= approachingImage.sprite != guardIdle;
                             yield return null;
+                        }
+                        observedMarchFrame |= approachingImage.sprite != guardIdle;
                         input.Release(keys.dKey);
                         yield return null;
                         Assert.That(activePrelude.CanHoldCable, Is.True,
                             "The player must actually return to Shen Li's post.");
+                        Assert.That(observedMarchFrame, Is.True,
+                            "The far-bank soldiers must show a distinct pixel footfall while advancing.");
+                        Assert.That(approachingImage.sprite.texture.filterMode,
+                            Is.EqualTo(FilterMode.Point));
+                        Assert.That(approachingImage.rectTransform.sizeDelta,
+                            Is.EqualTo(new Vector2(32f, 32f)));
                         float threatAfterReturnX = ((RectTransform)approaching).anchoredPosition.x;
                         Assert.That(threatAfterReturnX, Is.GreaterThan(threatStartX + 4f),
                             "The silhouettes must approach during the player-controlled return, rather than standing still.");
@@ -499,6 +515,16 @@ namespace Rpg.Tests.Editor
                             "The same soldiers must keep closing in after the player actually holds the cable.");
                         Assert.That(afterHoldX, Is.LessThan(-180f),
                             "The staging silhouettes must remain distant and cannot fake an ORK battle.");
+                        float marchEndDeadline = Time.realtimeSinceStartup + 2f;
+                        while (((RectTransform)approaching).anchoredPosition.x <
+                               threatSpawnX + 77.99f &&
+                               Time.realtimeSinceStartup < marchEndDeadline)
+                            yield return null;
+                        Assert.That(((RectTransform)approaching).anchoredPosition.x,
+                            Is.EqualTo(threatSpawnX + 78f).Within(0.02f),
+                            "The scene-only patrol must stop at the already authored distance.");
+                        Assert.That(approachingImage.sprite, Is.SameAs(guardIdle),
+                            "The soldiers must return to their original standing pixels after stopping.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(16),
                             "Visual pressure must not skip into an unimplemented third-bell break.");
                         Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
