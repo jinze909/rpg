@@ -649,6 +649,19 @@ namespace Rpg.Tests.Editor
                         t.rectTransform.sizeDelta.y >= 100f).rectTransform;
                     var sfxRect = (RectTransform)sfxButton.transform;
                     var formationRect = (RectTransform)formationButton.transform;
+                    var prologueButtonForLayout = entry.GetComponentsInChildren<Button>(true)
+                        .Single(b => b.gameObject.name == "S00 Whitewater prologue button");
+                    var prologueButtonRect = (RectTransform)prologueButtonForLayout.transform;
+                    var prologueLabel = prologueButtonForLayout.GetComponentInChildren<Text>();
+                    Assert.That(prologueLabel, Is.Not.Null);
+                    Assert.That(prologueLabel.resizeTextForBestFit, Is.True,
+                        "The S00 entry must fit translated copy without shrinking its click target.");
+                    Assert.That(prologueLabel.rectTransform.sizeDelta.x,
+                        Is.LessThanOrEqualTo(prologueButtonRect.sizeDelta.x - 8f),
+                        "S00 text must remain inside the button horizontally at aspect " + aspect);
+                    Assert.That(prologueLabel.rectTransform.sizeDelta.y,
+                        Is.LessThanOrEqualTo(prologueButtonRect.sizeDelta.y - 3f),
+                        "S00 text must remain inside the button vertically at aspect " + aspect);
                     float settingsGap = formationRect.anchoredPosition.x -
                         formationRect.sizeDelta.x * 0.5f -
                         (sfxRect.anchoredPosition.x + sfxRect.sizeDelta.x * 0.5f);
