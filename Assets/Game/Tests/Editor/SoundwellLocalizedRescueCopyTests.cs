@@ -56,8 +56,8 @@ namespace Rpg.Tests.Editor
                 Does.Contain("走位＋行动"));
         }
 
-        // Keep this inside the existing editor regression so the strict
-        // P0 manifest still checks the same set of tests.
+        // The strict P0 collector must require this independent editor test
+        // for both saved languages and both rebindable Retry controls.
         [Test]
         public void RetryHintShowsEffectiveControlsAfterSavedBindingRemap()
         {

@@ -102,6 +102,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.SoundwellTrialTests.StaleGameplayInputBeforeTrialInitializationCannotMutateOrExitTheScene",
     },
     "Assets/Game/Tests/Editor/SoundwellLocalizedRescueCopyTests.cs": {
+        "RetryHintShowsEffectiveControlsAfterSavedBindingRemap":
+            "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.RetryHintShowsEffectiveControlsAfterSavedBindingRemap",
         "EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy":
             "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy",
         "WhitewaterPreludeTitleMatchesSelectedSceneLanguage":
