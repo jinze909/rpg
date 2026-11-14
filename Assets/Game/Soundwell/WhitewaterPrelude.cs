@@ -68,12 +68,17 @@ namespace Rpg.Soundwell
         private AudioClip secondBellClip;
         private Sprite playerPixelSprite;
         private Sprite shenLiPixelSprite;
+        private Sprite shenLiBracingSprite;
         private Texture2D playerPixelTexture;
         private Texture2D shenLiPixelTexture;
+        private Texture2D shenLiBracingTexture;
+        private Image shenLiFigure;
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
+        private Sprite farBankGuardSprite;
         private Texture2D hanQiaoPixelTexture;
         private Texture2D evacueePixelTexture;
+        private Texture2D farBankGuardTexture;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -175,12 +180,15 @@ namespace Rpg.Soundwell
             cable = Panel(canvas.transform, "Loose cable clamp",
                 new Vector2(ClampX, 12f), new Vector2(28f, 36f),
                 new Color(0.69f, 0.30f, 0.27f));
-            var shenLiFigure = Panel(canvas.transform, "PLACEHOLDER Shen Li",
+            shenLiFigure = Panel(canvas.transform, "PLACEHOLDER Shen Li",
                 new Vector2(ClampX + 58f, 18f), new Vector2(32f, 32f),
                 Color.white);
             shenLiPixelSprite = MakeActorSprite("PLACEHOLDER 16px Shen Li",
                 ShenLiPixels, new Color32(190, 133, 62, 255),
                 out shenLiPixelTexture);
+            shenLiBracingSprite = MakeActorSprite("S00 16px Shen Li bracing the cable",
+                ShenLiBracingPixels, new Color32(190, 133, 62, 255),
+                out shenLiBracingTexture);
             shenLiFigure.sprite = shenLiPixelSprite;
             stretcher = Panel(canvas.transform, "PLACEHOLDER stretcher wagon",
                 new Vector2(-320f, 23f), new Vector2(52f, 27f),
@@ -245,15 +253,19 @@ namespace Rpg.Soundwell
                 out playerPixelTexture);
             playerFigure.sprite = playerPixelSprite;
             marker = playerFigure.rectTransform;
-            // Presentation only: distant pixel figures use the existing 16px
-            // silhouette, not new ORK combatants or independent AI.
+            // Distant spear-bearing enemies get a distinct 16px silhouette
+            // rather than three recoloured player sprites. They remain
+            // non-interactive scenery until a real ORK encounter is authored.
+            farBankGuardSprite = MakeActorSprite("S00 16px far-bank spear guard",
+                FarBankGuardPixels, new Color32(166, 73, 65, 255),
+                out farBankGuardTexture);
             for (int i = 0; i < farBankThreats.Length; i++)
             {
                 farBankThreats[i] = Panel(canvas.transform,
                     "S00 far-bank approaching figure " + i,
                     new Vector2(-283f + i * 34f, 22f), new Vector2(32f, 32f),
-                    new Color(0.79f, 0.37f, 0.32f));
-                farBankThreats[i].sprite = playerPixelSprite;
+                    Color.white);
+                farBankThreats[i].sprite = farBankGuardSprite;
                 farBankThreats[i].gameObject.SetActive(false);
             }
 
@@ -749,6 +761,11 @@ namespace Rpg.Soundwell
             // A visible attempt, not a way to rewrite the established third
             // bell or silently award a battle victory.
             cable.color = new Color(0.96f, 0.73f, 0.32f);
+            // A real held-cable interaction changes Shen Li's arm and
+            // wrench silhouette at the existing 2x pixel scale. Do not
+            // borrow the ORK combat animator or auto-advance the history.
+            if (shenLiFigure != null)
+                shenLiFigure.sprite = shenLiBracingSprite;
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
                 "You brace the strained cable beside Shen Li. For a moment it holds; the armed figures are still advancing over the far span.",
@@ -843,6 +860,28 @@ namespace Rpg.Soundwell
             "................",
         };
 
+        // An extended left arm and wrench face the stressed post after the
+        // player physically confirms the cable hold. No added Animator owner.
+        private static readonly string[] ShenLiBracingPixels =
+        {
+            "................",
+            "....kkkkkkkh....",
+            "....khhhhkkh....",
+            "....khffffkh....",
+            "....khffffkh....",
+            ".....kffffkh....",
+            "......kkkk.h....",
+            ".....kcccck.....",
+            "wggggkcccckg....",
+            "wwwggkcccckg....",
+            ".w...kbbbbk.....",
+            ".w...kcccck.....",
+            ".....kk..kk.....",
+            ".....kk..kk.....",
+            "....kkk..kkk....",
+            "................",
+        };
+
         // Water foam around Han Qiao, and a head bandage on the wounded
         // evacuee, distinguish the two actual story figures at 2x scale.
         private static readonly string[] HanQiaoPixels =
@@ -883,6 +922,29 @@ namespace Rpg.Soundwell
             "...kbb..bbk.....",
             "...kk....kk.....",
             "................",
+        };
+
+        // Helmet, shoulder armour and an upright spear remain recognizable
+        // at native 16px and exact 2x UI scale, unlike the blue player sprite.
+        // The silhouette is local presentation, not a new combat participant.
+        private static readonly string[] FarBankGuardPixels =
+        {
+            ".............g..",
+            "............gg..",
+            ".............g..",
+            ".....kkkkk...g..",
+            "....kkkkkkk..g..",
+            "....kkfffkk..g..",
+            "....kkfffkk..g..",
+            ".....kfffk...g..",
+            "......kkkk...g..",
+            "....kkcccckk.g..",
+            "...kkkcccckkkg..",
+            "...kkkcccckkkg..",
+            "......kbbk...g..",
+            "......kbbk...g..",
+            ".....kk..kk..g..",
+            ".....kk..kk.....",
         };
 
         private static Sprite MakeActorSprite(string name, string[] art,
@@ -934,18 +996,26 @@ namespace Rpg.Soundwell
                 Destroy(playerPixelSprite);
             if (shenLiPixelSprite != null)
                 Destroy(shenLiPixelSprite);
+            if (shenLiBracingSprite != null)
+                Destroy(shenLiBracingSprite);
             if (playerPixelTexture != null)
                 Destroy(playerPixelTexture);
             if (shenLiPixelTexture != null)
                 Destroy(shenLiPixelTexture);
+            if (shenLiBracingTexture != null)
+                Destroy(shenLiBracingTexture);
             if (hanQiaoPixelSprite != null)
                 Destroy(hanQiaoPixelSprite);
             if (evacueePixelSprite != null)
                 Destroy(evacueePixelSprite);
+            if (farBankGuardSprite != null)
+                Destroy(farBankGuardSprite);
             if (hanQiaoPixelTexture != null)
                 Destroy(hanQiaoPixelTexture);
             if (evacueePixelTexture != null)
                 Destroy(evacueePixelTexture);
+            if (farBankGuardTexture != null)
+                Destroy(farBankGuardTexture);
         }
 
         private void ShowWorkshopPromise()
