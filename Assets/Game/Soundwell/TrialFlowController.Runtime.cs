@@ -54,6 +54,12 @@ namespace Rpg.Soundwell
                 // only a brief pixel hit cue; never subtract HP in Unity.
                 view.RefreshBattleBeastHp(orkParty != null && orkParty.Beast != null
                     ? orkParty.Beast.Status[1].GetValue() : float.NaN);
+                // The leader receives the same read-only ORK HP feedback as
+                // the beast and the two companion renderers. No synthetic
+                // damage, extra turn or parallel combat event is introduced.
+                view.RefreshBattleLeaderHp(orkParty != null &&
+                    orkParty.Members.Count > 0 && orkParty.Members[0] != null
+                        ? orkParty.Members[0].Status[1].GetValue() : float.NaN);
                 int activeRescuer = orkParty != null ? orkParty.ChoosingRescuerIndex : -1;
                 // ORK may retire a combatant before the chooser HUD updates.
                 // A valid index does not guarantee that Unity's actor survives.

@@ -126,7 +126,19 @@ namespace Rpg.Tests.Editor
             var view = hitViewField.GetValue(trial) as SoundwellView;
             Assert.That(view, Is.Not.Null);
             Color originalBeastTint = beastSprite.color;
+            var leaderVisual = GameObject.Find("PLACEHOLDER animated player")
+                ?.GetComponent<SoundwellPlayerVisualAnimation>();
+            Assert.That(leaderVisual, Is.Not.Null);
             view.SetBattleMode(true);
+            view.RefreshBattleLeaderHp(5f);
+            Assert.That(leaderVisual.CurrentState, Is.Not.EqualTo("Hit"),
+                "A first real ORK HP snapshot cannot manufacture leader damage.");
+            view.RefreshBattleLeaderHp(5f);
+            Assert.That(leaderVisual.CurrentState, Is.Not.EqualTo("Hit"),
+                "Repeated unchanged HP must not replay the player's hit clip.");
+            view.RefreshBattleLeaderHp(4f);
+            Assert.That(leaderVisual.CurrentState, Is.EqualTo("Hit"),
+                "Only actual lower ORK HP should show the player's M4 Hit animation.");
             view.RefreshBattleBeastHp(4f);
             Assert.That(beastSprite.color, Is.EqualTo(originalBeastTint),
                 "The first HP snapshot must never pretend the beast was hit.");
@@ -142,8 +154,16 @@ namespace Rpg.Tests.Editor
                 "A visual hit must expire even if ORK pauses scaled time.");
             view.SetBattleMode(false);
             view.RefreshBattleBeastHp(float.NaN);
+            view.RefreshBattleLeaderHp(float.NaN);
+            Assert.That(leaderVisual.CurrentState, Is.EqualTo("Idle"),
+                "Leaving ORK combat must clear the prior leader hit pose.");
             Assert.That(beastSprite.color, Is.EqualTo(originalBeastTint),
                 "The hit cue must not leak into exploration.");
+            view.SetBattleMode(true);
+            view.RefreshBattleLeaderHp(4f);
+            Assert.That(leaderVisual.CurrentState, Is.Not.EqualTo("Hit"),
+                "A restarted encounter's first HP snapshot is a baseline, not another hit.");
+            view.SetBattleMode(false);
 
             // Ringing audio continues in real time while ORK pauses the game clock.
             // The accompanying muffled pressure pulse must expire as well:
