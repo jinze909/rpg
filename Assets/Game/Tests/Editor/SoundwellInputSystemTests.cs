@@ -624,7 +624,9 @@ namespace Rpg.Tests.Editor
                 // Two scene characters must be actual point-filtered 16px
                 // sprites, not featureless UGUI color rectangles. Keep their
                 // original GameObject names for existing interaction tests.
-                foreach (string actorName in new[] { "PLACEHOLDER player", "PLACEHOLDER Shen Li" })
+                foreach (string actorName in new[] {
+                    "PLACEHOLDER player", "PLACEHOLDER Shen Li",
+                    "S00 Han Qiao in water", "S00 last evacuee" })
                 {
                     var actorTransform = prelude.transform.Find(
                         "S00 Whitewater playable canvas/" + actorName);

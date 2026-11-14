@@ -53,6 +53,10 @@ namespace Rpg.Soundwell
         private Sprite shenLiPixelSprite;
         private Texture2D playerPixelTexture;
         private Texture2D shenLiPixelTexture;
+        private Sprite hanQiaoPixelSprite;
+        private Sprite evacueePixelSprite;
+        private Texture2D hanQiaoPixelTexture;
+        private Texture2D evacueePixelTexture;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -161,9 +165,13 @@ namespace Rpg.Soundwell
             lastBoat = Panel(canvas.transform, "S00 last boat",
                 new Vector2(295f, 91f), new Vector2(100f, 24f),
                 new Color(0.55f, 0.42f, 0.29f)).rectTransform;
-            hanQiao = Panel(canvas.transform, "S00 Han Qiao in water",
-                new Vector2(-70f, 92f), new Vector2(19f, 29f),
-                new Color(0.72f, 0.77f, 0.82f)).rectTransform;
+            var hanQiaoFigure = Panel(canvas.transform, "S00 Han Qiao in water",
+                new Vector2(-70f, 92f), new Vector2(32f, 32f), Color.white);
+            hanQiaoPixelSprite = MakeActorSprite("PLACEHOLDER 16px wounded Han Qiao",
+                HanQiaoPixels, new Color32(100, 127, 155, 255),
+                out hanQiaoPixelTexture);
+            hanQiaoFigure.sprite = hanQiaoPixelSprite;
+            hanQiao = hanQiaoFigure.rectTransform;
             rescuePoint = Panel(canvas.transform, "S00 rescue station",
                 new Vector2(ClampX, 12f), new Vector2(30f, 12f), Brass).rectTransform;
             lastBoat.gameObject.SetActive(false);
@@ -175,9 +183,13 @@ namespace Rpg.Soundwell
             evacueeSafeLine = Panel(canvas.transform, "S00 evacuation safe line",
                 new Vector2(EvacueeSafeX, 12f), new Vector2(14f, 62f),
                 new Color(0.66f, 0.84f, 0.59f)).rectTransform;
-            evacuee = Panel(canvas.transform, "S00 last evacuee",
-                new Vector2(EvacueeStartX, 12f), new Vector2(22f, 32f),
-                new Color(0.91f, 0.80f, 0.61f)).rectTransform;
+            var evacueeFigure = Panel(canvas.transform, "S00 last evacuee",
+                new Vector2(EvacueeStartX, 12f), new Vector2(32f, 32f), Color.white);
+            evacueePixelSprite = MakeActorSprite("PLACEHOLDER 16px wounded evacuee",
+                EvacueePixels, new Color32(161, 126, 88, 255),
+                out evacueePixelTexture);
+            evacueeFigure.sprite = evacueePixelSprite;
+            evacuee = evacueeFigure.rectTransform;
             evacueeSafeLine.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(false);
             // Visible only after the player personally finishes the escort and calls out.
@@ -642,7 +654,7 @@ namespace Rpg.Soundwell
         }
 
         // Scene-local 16x16 nearest-neighbour sprites. S00 is an existing UGUI
-        // overlay, so its two character Images use pixel-perfect texture input
+        // overlay, so its character Images use pixel-perfect texture input
         // without adding a second world renderer, Animator or combat owner.
         private static readonly string[] PlayerPixels =
         {
@@ -682,6 +694,48 @@ namespace Rpg.Soundwell
             ".....kk..kk.w...",
             ".....kk..kk.w...",
             "....kkk..kkk....",
+            "................",
+        };
+
+        // Water foam around Han Qiao, and a head bandage on the wounded
+        // evacuee, distinguish the two actual story figures at 2x scale.
+        private static readonly string[] HanQiaoPixels =
+        {
+            "................",
+            "......www.......",
+            ".....kkkk.......",
+            "....kkfffkk.....",
+            "....kwfffwk.....",
+            ".....kfffk......",
+            "....wwkkww......",
+            "...wwkcckkw.....",
+            "..wwccc...ww....",
+            "..wccccccw......",
+            "...kkcckk.......",
+            "....kcck........",
+            "....kbbk........",
+            "....wbbw........",
+            "...ww..ww.......",
+            "................",
+        };
+
+        private static readonly string[] EvacueePixels =
+        {
+            "................",
+            ".....wwwkk......",
+            "....wwffkk......",
+            "....kkffkk......",
+            ".....kffk.......",
+            "......kk........",
+            ".....kcck.......",
+            "....kcccck......",
+            "...gkcccckg.....",
+            "...gkcccckg.....",
+            "....kbbbbk......",
+            "....kcccck......",
+            "....kk..kk......",
+            "...kbb..bbk.....",
+            "...kk....kk.....",
             "................",
         };
 
@@ -738,6 +792,14 @@ namespace Rpg.Soundwell
                 Destroy(playerPixelTexture);
             if (shenLiPixelTexture != null)
                 Destroy(shenLiPixelTexture);
+            if (hanQiaoPixelSprite != null)
+                Destroy(hanQiaoPixelSprite);
+            if (evacueePixelSprite != null)
+                Destroy(evacueePixelSprite);
+            if (hanQiaoPixelTexture != null)
+                Destroy(hanQiaoPixelTexture);
+            if (evacueePixelTexture != null)
+                Destroy(evacueePixelTexture);
         }
 
         private void ShowWorkshopPromise()
