@@ -460,6 +460,32 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 combined,
             )
 
+            # New S00 gamepad coverage must be recognized only when its
+            # actual UnityTest method exists in the checked-out candidate.
+            input_file.write_text(
+                input_file.read_text(encoding="utf-8") +
+                "\n[UnityTest] public IEnumerator "
+                "WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress()"
+                " { yield break; }", encoding="utf-8",
+            )
+            s00_pad = (
+                "Rpg.Tests.Editor.SoundwellInputSystemTests."
+                "WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress"
+            )
+            self.assertIn(s00_pad, expected_tests_for("verify", True, source_root))
+            self.assertNotIn(s00_pad, expected_tests_for("prepare", True, source_root))
+            self.assertEqual(len(expected_tests_for("verify", True, source_root)), 19)
+            input_file.write_text(
+                input_file.read_text(encoding="utf-8").replace(
+                    "[UnityTest] public IEnumerator "
+                    "WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress",
+                    "public IEnumerator "
+                    "WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress"
+                ),
+                encoding="utf-8",
+            )
+            self.assertNotIn(s00_pad, expected_tests_for("verify", True, source_root))
+
             # A new regular NUnit [Test] must count toward the exact
             # Unity acceptance set, including its prepare-mode subset.
             bootstrap = source_root / "Assets/Game/Tests/Editor/P0BootstrapTests.cs"

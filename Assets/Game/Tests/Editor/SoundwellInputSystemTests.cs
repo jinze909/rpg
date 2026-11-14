@@ -434,6 +434,91 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress()
+        {
+            // The S00 narrative uses the shared gameplay map. Verify its actual
+            // pad route, not a direct phase setter or a keyboard-only surrogate.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            WhitewaterPrelude prelude = null;
+            try
+            {
+                Gamepad pad = InputSystem.AddDevice<Gamepad>();
+                bool exited = false;
+                var root = new GameObject("S00 real gamepad repair regression");
+                prelude = root.AddComponent<WhitewaterPrelude>();
+                prelude.Begin(() =>
+                {
+                    exited = true;
+                    SoundwellInputAdapter.SetEntryContext();
+                });
+                yield return null;
+
+                Assert.That(prelude.Phase, Is.EqualTo(0));
+                prelude.GetComponentsInChildren<Button>(true)
+                    .Single(b => b.gameObject.name == "S00 choice 0")
+                    .onClick.Invoke();
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                Assert.That(prelude.CanRepair, Is.False);
+
+                // Pressing the correct action from the wrong position cannot
+                // secretly brace the clamp, award repair, or leave gameplay.
+                input.Press(pad.buttonSouth);
+                yield return null;
+                input.Release(pad.buttonSouth);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1));
+                Assert.That(prelude.CanRepair, Is.False);
+
+                input.Set(pad.leftStick, Vector2.right);
+                float reachDeadline = Time.realtimeSinceStartup + 6f;
+                while (!prelude.CanRepair && Time.realtimeSinceStartup < reachDeadline)
+                    yield return null;
+                input.Set(pad.leftStick, Vector2.zero);
+                yield return null;
+                Assert.That(prelude.CanRepair, Is.True,
+                    "The real left stick must move the player to Shen Li's clamp.");
+                Assert.That(prelude.Phase, Is.EqualTo(1),
+                    "Simply arriving with the stick must never auto-complete the repair.");
+
+                input.Press(pad.buttonSouth);
+                yield return null;
+                input.Release(pad.buttonSouth);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(2),
+                    "Only a fresh pad A at the actual clamp may open the repair choices.");
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                Assert.That(EventSystem.current?.currentSelectedGameObject?.name,
+                    Is.EqualTo("S00 choice 0"),
+                    "After using the gamepad in-world, the repair choices must regain UGUI focus.");
+
+                // B must cancel from a focused choice and return to the saved
+                // entry input context, without granting any repair choice.
+                input.Press(pad.buttonEast);
+                yield return null;
+                input.Release(pad.buttonEast);
+                yield return null;
+                Assert.That(exited, Is.True);
+                Assert.That(prelude == null, Is.True);
+                Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
+            }
+            finally
+            {
+                if (prelude != null)
+                    prelude.Close();
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial()
         {
             // Exercise the actual EventSystem and real InputAction events
