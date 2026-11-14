@@ -28,6 +28,27 @@ namespace Rpg.Tests.Editor
             Assert.That(SoundwellOrkParty.IsBattleChooserPending(-1, true, 0f), Is.False);
             Assert.That(SoundwellOrkParty.IsBattleChooserPending(-1, false, 0f), Is.False,
                 "An already-depleted beast must not leave a false pending command.");
+            // ORK may disable a combatant's scene actor while its managed
+            // chooser index is still being cleared. The UGUI must never
+            // enable Attack/Guard/Gate/Move for a retired world actor.
+            var actor = new GameObject("retired ORK chooser scene actor");
+            try
+            {
+                var roster = new[] { actor };
+                Assert.That(SoundwellTrial.ResolveBattleActor(roster, 0),
+                    Is.SameAs(actor.transform));
+                actor.SetActive(false);
+                Assert.That(SoundwellTrial.ResolveBattleActor(roster, 0), Is.Null,
+                    "A disabled combatant must not advertise a live battle chooser.");
+                actor.SetActive(true);
+                Assert.That(SoundwellTrial.ResolveBattleActor(roster, 0),
+                    Is.SameAs(actor.transform),
+                    "A re-enabled real actor must be eligible for normal UGUI focus.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(actor);
+            }
         }
 
         [Test]

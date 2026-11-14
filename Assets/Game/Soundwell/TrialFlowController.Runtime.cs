@@ -166,7 +166,10 @@ namespace Rpg.Soundwell
             if (actors == null || index < 0 || index >= actors.Count)
                 return null;
             GameObject actor = actors[index];
-            return actor != null ? actor.transform : null;
+            // ORK can retire an actor by disabling its scene GameObject
+            // without destroying the managed Combatant. Never publish that
+            // stale Transform as an active chooser in either UGUI menu.
+            return actor != null && actor.activeInHierarchy ? actor.transform : null;
         }
 
         // An ORK turn may retire its combatant between input selection and

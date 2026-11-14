@@ -10,7 +10,8 @@ namespace Rpg.Soundwell
         // Reflection compatibility for the existing ORK gate-reach regression.
         internal static bool HasLiveGateActorInReach(Combatant member)
         {
-            if (member == null || member.GameObject == null)
+            if (member == null || member.GameObject == null ||
+                !member.GameObject.activeInHierarchy)
                 return false;
             return Vector2.Distance(member.GameObject.transform.position,
                 new Vector2(-0.55f, 0f)) <= 0.8f;
