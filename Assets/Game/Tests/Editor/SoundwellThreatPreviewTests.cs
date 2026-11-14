@@ -55,8 +55,8 @@ namespace Rpg.Tests.Editor
             var searchLeader = new GameObject("Search expiry test leader");
             try
             {
-                var body = searchLeader.AddComponent<Rigidbody2D>();
-                body.gravityScale = 0f;
+                var searchLeaderBody = searchLeader.AddComponent<Rigidbody2D>();
+                searchLeaderBody.gravityScale = 0f;
                 var patrol = searchHost.AddComponent<BeastPatrolAndChase>();
                 patrol.Configure(searchBeast.transform, body, Vector2.zero);
                 int expiredEvents = 0;
