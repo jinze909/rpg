@@ -68,8 +68,11 @@ namespace Rpg.Soundwell
         private AudioClip secondBellClip;
         private Sprite playerPixelSprite;
         private Sprite shenLiPixelSprite;
+        private Sprite shenLiBracingSprite;
         private Texture2D playerPixelTexture;
         private Texture2D shenLiPixelTexture;
+        private Texture2D shenLiBracingTexture;
+        private Image shenLiFigure;
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
         private Sprite farBankGuardSprite;
@@ -177,12 +180,15 @@ namespace Rpg.Soundwell
             cable = Panel(canvas.transform, "Loose cable clamp",
                 new Vector2(ClampX, 12f), new Vector2(28f, 36f),
                 new Color(0.69f, 0.30f, 0.27f));
-            var shenLiFigure = Panel(canvas.transform, "PLACEHOLDER Shen Li",
+            shenLiFigure = Panel(canvas.transform, "PLACEHOLDER Shen Li",
                 new Vector2(ClampX + 58f, 18f), new Vector2(32f, 32f),
                 Color.white);
             shenLiPixelSprite = MakeActorSprite("PLACEHOLDER 16px Shen Li",
                 ShenLiPixels, new Color32(190, 133, 62, 255),
                 out shenLiPixelTexture);
+            shenLiBracingSprite = MakeActorSprite("S00 16px Shen Li bracing the cable",
+                ShenLiBracingPixels, new Color32(190, 133, 62, 255),
+                out shenLiBracingTexture);
             shenLiFigure.sprite = shenLiPixelSprite;
             stretcher = Panel(canvas.transform, "PLACEHOLDER stretcher wagon",
                 new Vector2(-320f, 23f), new Vector2(52f, 27f),
@@ -755,6 +761,11 @@ namespace Rpg.Soundwell
             // A visible attempt, not a way to rewrite the established third
             // bell or silently award a battle victory.
             cable.color = new Color(0.96f, 0.73f, 0.32f);
+            // A real held-cable interaction changes Shen Li's arm and
+            // wrench silhouette at the existing 2x pixel scale. Do not
+            // borrow the ORK combat animator or auto-advance the history.
+            if (shenLiFigure != null)
+                shenLiFigure.sprite = shenLiBracingSprite;
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
                 "You brace the strained cable beside Shen Li. For a moment it holds; the armed figures are still advancing over the far span.",
@@ -845,6 +856,28 @@ namespace Rpg.Soundwell
             ".....kcccck.w...",
             ".....kk..kk.w...",
             ".....kk..kk.w...",
+            "....kkk..kkk....",
+            "................",
+        };
+
+        // An extended left arm and wrench face the stressed post after the
+        // player physically confirms the cable hold. No added Animator owner.
+        private static readonly string[] ShenLiBracingPixels =
+        {
+            "................",
+            "....kkkkkkkh....",
+            "....khhhhkkh....",
+            "....khffffkh....",
+            "....khffffkh....",
+            ".....kffffkh....",
+            "......kkkk.h....",
+            ".....kcccck.....",
+            "wggggkcccckg....",
+            "wwwggkcccckg....",
+            ".w...kbbbbk.....",
+            ".w...kcccck.....",
+            ".....kk..kk.....",
+            ".....kk..kk.....",
             "....kkk..kkk....",
             "................",
         };
@@ -963,10 +996,14 @@ namespace Rpg.Soundwell
                 Destroy(playerPixelSprite);
             if (shenLiPixelSprite != null)
                 Destroy(shenLiPixelSprite);
+            if (shenLiBracingSprite != null)
+                Destroy(shenLiBracingSprite);
             if (playerPixelTexture != null)
                 Destroy(playerPixelTexture);
             if (shenLiPixelTexture != null)
                 Destroy(shenLiPixelTexture);
+            if (shenLiBracingTexture != null)
+                Destroy(shenLiBracingTexture);
             if (hanQiaoPixelSprite != null)
                 Destroy(hanQiaoPixelSprite);
             if (evacueePixelSprite != null)

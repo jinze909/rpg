@@ -287,11 +287,31 @@ namespace Rpg.Tests.Editor
                             "A visual threat must not teleport into a fake ORK battle.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(15),
                             "Reaching the clamp is not itself an interaction.");
+                        var shenLiSprite = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/PLACEHOLDER Shen Li")
+                            .GetComponent<Image>();
+                        Sprite beforeHoldPose = shenLiSprite.sprite;
+                        Assert.That(beforeHoldPose, Is.Not.Null);
+                        Assert.That(beforeHoldPose.texture.GetPixel(0, 7).a,
+                            Is.EqualTo(0f),
+                            "Shen Li must not brace the cable before the earned interaction.");
                         input.Press(keys.eKey);
                         yield return null;
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(16));
+                        Assert.That(shenLiSprite.sprite, Is.Not.SameAs(beforeHoldPose),
+                            "Shen Li must visibly raise the wrench only on the actual cable hold.");
+                        Assert.That(shenLiSprite.sprite.texture.width, Is.EqualTo(16));
+                        Assert.That(shenLiSprite.sprite.texture.height, Is.EqualTo(16));
+                        Assert.That(shenLiSprite.sprite.texture.filterMode,
+                            Is.EqualTo(FilterMode.Point));
+                        Assert.That(shenLiSprite.rectTransform.sizeDelta,
+                            Is.EqualTo(new Vector2(32f, 32f)),
+                            "The bracing pose must retain the exact existing 2x pixel scale.");
+                        Assert.That(shenLiSprite.sprite.texture.GetPixel(0, 7).a,
+                            Is.GreaterThan(0.9f),
+                            "The new left-facing wrench must be drawn in the action frame.");
                         Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                         Assert.That(post.GetComponent<Image>().color.g, Is.GreaterThan(0.8f),
                             "The actual held post must change visibly after E / Pad A.");
