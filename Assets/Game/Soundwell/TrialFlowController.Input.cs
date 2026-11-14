@@ -150,7 +150,13 @@ namespace Rpg.Soundwell
             movement = Vector2.zero;
             checkpoint.ResetFlagsAndPosition();
             if (orkParty != null && orkParty.IsReady)
+            {
                 orkParty.ResetEncounter();
+                // Retry relocates the same Rigidbody2D to RETREAT without
+                // walking back through the arena. Do not leave the two
+                // rendered rescuers stranded on the abandoned route.
+                orkParty.RegroupAfterCheckpoint(playerBody.position);
+            }
             view.SetBattleMode(false);
             view.ResetPlayerAnimation();
             view.ResetSurveyor();
