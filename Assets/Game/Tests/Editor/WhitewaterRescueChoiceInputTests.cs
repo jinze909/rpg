@@ -226,8 +226,28 @@ namespace Rpg.Tests.Editor
                         Assert.That(retreat.gameObject.activeInHierarchy, Is.True);
                         Assert.That(retreat.gameObject.name, Is.EqualTo("S00 continue to final retreat"),
                             "Only the completed boat animation may unlock the final retreat.");
+                        var departingBoat = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/S00 last boat") as RectTransform;
+                        Assert.That(departingBoat, Is.Not.Null);
+                        Assert.That(departingBoat.gameObject.activeInHierarchy, Is.True);
+                        float boatDockX = departingBoat.anchoredPosition.x;
+                        float passengerDockX = inWater.anchoredPosition.x;
                         retreat.onClick.Invoke();
                         Assert.That(activePrelude.Phase, Is.EqualTo(9));
+                        float departureDeadline = Time.realtimeSinceStartup + 3f;
+                        while (departingBoat.gameObject.activeInHierarchy &&
+                               Time.realtimeSinceStartup < departureDeadline)
+                            yield return null;
+                        Assert.That(departingBoat.gameObject.activeInHierarchy, Is.False,
+                            "The last boat must actually leave after Han Qiao is aboard.");
+                        Assert.That(inWater.gameObject.activeInHierarchy, Is.False,
+                            "Han Qiao must depart with the boat rather than remaining in the river.");
+                        float boatTravel = departingBoat.anchoredPosition.x - boatDockX;
+                        Assert.That(boatTravel, Is.GreaterThan(300f),
+                            "The boat has to move off the visible ferry route.");
+                        Assert.That(inWater.anchoredPosition.x - passengerDockX,
+                            Is.EqualTo(boatTravel).Within(0.1f),
+                            "The rescued passenger cannot drift away from the moving boat.");
                         input.Press(keys.aKey);
                         float reachDeadline = Time.realtimeSinceStartup + 4f;
                         while (!activePrelude.CanHelpEvacuee && Time.realtimeSinceStartup < reachDeadline)

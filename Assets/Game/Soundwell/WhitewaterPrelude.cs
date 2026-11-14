@@ -568,6 +568,10 @@ namespace Rpg.Soundwell
                 return;
             phase = 9;
             next.gameObject.SetActive(false);
+            // The script says the last boat departs. Move the actual boat
+            // and its rescued passenger out of the scene together instead
+            // of leaving Han Qiao visible on a stationary boat.
+            StartCoroutine(LastBoatDeparts());
             evacuee.anchoredPosition = new Vector2(EvacueeStartX, 12f);
             evacuee.GetComponent<Image>().color = Color.white;
             evacuee.gameObject.SetActive(true);
@@ -579,6 +583,34 @@ namespace Rpg.Soundwell
             instructions.text = Copy(
                 "Reach the amber evacuee, press E / Pad A, then lead them west to the green safe line.",
                 "走到金色伤者旁按 E／手柄 A，再带他向西走到绿色安全线。");
+        }
+
+        private IEnumerator LastBoatDeparts()
+        {
+            if (lastBoat == null || hanQiao == null)
+                yield break;
+
+            Vector2 boatDock = lastBoat.anchoredPosition;
+            Vector2 passengerDock = hanQiao.anchoredPosition;
+            const float travel = 320f;
+            const float duration = 1.25f;
+            float elapsed = 0f;
+            // Unscaled time matches the preceding boarding animation.
+            // This is presentation only: the Makinom rescue result was
+            // already earned at the actual physical rescue interaction.
+            while (elapsed < duration && lastBoat != null && hanQiao != null)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                Vector2 displacement = new Vector2(
+                    travel * Mathf.Clamp01(elapsed / duration), 0f);
+                lastBoat.anchoredPosition = boatDock + displacement;
+                hanQiao.anchoredPosition = passengerDock + displacement;
+                yield return null;
+            }
+            if (lastBoat != null)
+                lastBoat.gameObject.SetActive(false);
+            if (hanQiao != null)
+                hanQiao.gameObject.SetActive(false);
         }
 
         private void HelpEvacuee()
