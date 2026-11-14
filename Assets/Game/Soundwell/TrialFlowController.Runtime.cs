@@ -86,6 +86,10 @@ namespace Rpg.Soundwell
             {
                 if (checkpoint.RecoverLowerPlank(LowerPlankBroken))
                     view.AnimatePlayerHit();
+                // The collapse is a real relocation, not a walk through the
+                // old broken board. Keep the two ORK-owned rescuer visuals at
+                // the same recovery tile without changing turn/battle state.
+                orkParty?.RegroupAfterCheckpoint(playerBody.position);
                 movement = Vector2.zero;
             }
 

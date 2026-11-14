@@ -597,10 +597,28 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.GateOpen, Is.True);
             Assert.That(trial.RescueComplete || trial.DirectCombatComplete, Is.False);
             Vector2 plankRecovery = trial.PlayerPosition;
+            var plankFormation = SoundwellPartyConfig.Load();
+            Assert.That(party.Actors.Count, Is.EqualTo(3));
+            Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
+                plankRecovery + plankFormation.SecondFollowerOffset), Is.LessThan(0.05f),
+                "The lower-board knockback must bring rescuer 2 to the same recovery tile.");
+            Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
+                plankRecovery + plankFormation.ThirdFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 3 cannot walk through the broken board on an old formation path.");
             MoveTestLeader(playerBody, SoundwellTrial.LowerBoardPosition);
             yield return null;
             Assert.That(trial.PlayerPosition, Is.EqualTo(plankRecovery),
                 "Walking onto an already broken plank must remain impassable.");
+            Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
+                plankRecovery + plankFormation.SecondFollowerOffset), Is.LessThan(0.05f));
+            Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
+                plankRecovery + plankFormation.ThirdFollowerOffset), Is.LessThan(0.05f));
+            yield return null;
+            Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
+                plankRecovery + plankFormation.SecondFollowerOffset), Is.LessThan(0.05f),
+                "A later follower render must not replay the abandoned plank path.");
+            Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
+                plankRecovery + plankFormation.ThirdFollowerOffset), Is.LessThan(0.05f));
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             yield return null;
             var plankWarning = GameObject.Find("Soundwell surveyor response")?.GetComponent<Text>();
