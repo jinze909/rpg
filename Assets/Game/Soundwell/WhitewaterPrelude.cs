@@ -968,17 +968,28 @@ namespace Rpg.Soundwell
             // An original short nonverbal scene cue, not a new encounter clock
             // or RPG authority. First/second bells use the same saved M6 SFX bus.
             const int sampleRate = 22050;
-            const float duration = 0.9f;
+            const float duration = 1.3f;
             int sampleCount = Mathf.RoundToInt(sampleRate * duration);
             float[] samples = new float[sampleCount];
             for (int i = 0; i < sampleCount; i++)
             {
                 float seconds = (float)i / sampleRate;
                 float phase = seconds * frequency * Mathf.PI * 2f;
-                float envelope = Mathf.Min(seconds * 1600f, 1f) *
-                    Mathf.Exp(-5f * seconds / duration);
-                samples[i] = 0.19f * envelope *
-                    (Mathf.Sin(phase) + 0.33f * Mathf.Sin(phase * 2.73f));
+                // Bell metal has inharmonic overtones and a sharp strike,
+                // not a flat dual-sine beep. A quieter, delayed reflection
+                // gives the opposite bank a readable acoustic distance.
+                float strike = Mathf.Min(seconds * 850f, 1f) *
+                    Mathf.Exp(-4.6f * seconds / duration);
+                float release = Mathf.Min((duration - seconds) * 28f, 1f);
+                float metal = Mathf.Sin(phase) +
+                    0.39f * Mathf.Sin(phase * 2.37f) +
+                    0.17f * Mathf.Sin(phase * 3.78f);
+                float echoSeconds = seconds - 0.19f;
+                float echo = echoSeconds > 0f
+                    ? 0.22f * Mathf.Exp(-5.3f * echoSeconds / duration) *
+                      Mathf.Sin(echoSeconds * frequency * Mathf.PI * 2f)
+                    : 0f;
+                samples[i] = 0.15f * release * (strike * metal + echo);
             }
             AudioClip clip = AudioClip.Create(clipName,
                 sampleCount, 1, sampleRate, false);

@@ -429,6 +429,18 @@ namespace Rpg.Tests.Editor
                         var bell = activePrelude.GetComponentInChildren<AudioSource>(true);
                         Assert.That(bell.clip.name, Does.Contain("second warning bell"),
                             "The lookout warning must not invent the scripted third bell.");
+                        Assert.That(bell.outputAudioMixerGroup.name, Is.EqualTo("SFX"),
+                            "S00 warning bells must still use the saved player mute and volume bus.");
+                        Assert.That(bell.clip.length, Is.InRange(1.25f, 1.35f),
+                            "The distant bell should decay naturally instead of cutting off as a short beep.");
+                        var bellSamples = new float[bell.clip.samples];
+                        Assert.That(bell.clip.GetData(bellSamples, 0), Is.True);
+                        int tailStart = Mathf.RoundToInt(0.96f * bell.clip.frequency);
+                        Assert.That(bellSamples.Skip(tailStart).Any(sample =>
+                            Mathf.Abs(sample) > 0.0003f), Is.True,
+                            "The warning bell must still ring audibly after its initial strike.");
+                        Assert.That(bellSamples.All(sample => Mathf.Abs(sample) < 0.5f), Is.True,
+                            "The authored inharmonic bell must not clip or overpower gameplay audio.");
 
                         var post = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/S00 bridge defence post");
