@@ -21,6 +21,17 @@ namespace Rpg.Soundwell
         public static int RescueExperience => SoundwellPartyConfig.Load().RescueExperience;
         public static int ExperienceStatus => SoundwellPartyConfig.Load().ExperienceStatus;
 
+        // Player-selected comparison rules only; ORK still owns every actor,
+        // primary action, HP, turn and victory. Read once when battle starts.
+        public const string FixedFormationPreferenceKey = "rpg.soundwell.fixed-formation.v1";
+        public static bool PreferredFixedFormation =>
+            PlayerPrefs.GetInt(FixedFormationPreferenceKey, 0) != 0;
+        public static void SetPreferredFixedFormation(bool fixedMode)
+        {
+            PlayerPrefs.SetInt(FixedFormationPreferenceKey, fixedMode ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
         public static bool RescueSettled => ORK.Initialized &&
             ORK.Game.Quests.GetQuest(ORK.Quests.Get(RescueQuestGuid))?.IsFinished() == true;
 
@@ -79,6 +90,7 @@ namespace Rpg.Soundwell
         // exclusively handled by the saved Soundwell 2D Input System adapter.
         private bool playerAssignedToOrk;
         private bool battleObservedActive;
+        private bool fixedFormationForEncounter;
         private bool battleEndRequested;
         private float battleStartedAt;
         private const float BattleStartTimeout = 8f;
@@ -93,6 +105,7 @@ namespace Rpg.Soundwell
         public IReadOnlyList<Combatant> Members => members;
         public BattleSystemAsset TurnBasedAsset => turnBasedBattleSystem;
         public bool BattleStarted => battleStarted;
+        public bool FixedFormationInBattle => battleStarted && fixedFormationForEncounter;
         public bool BattleInProgress => battleStarted && IsBattleRunning();
         public bool EncounterStartFailed => battleStarted && !battleObservedActive &&
             Time.realtimeSinceStartup - battleStartedAt >= BattleStartTimeout;
@@ -370,7 +383,10 @@ namespace Rpg.Soundwell
             if (!BattleInProgress || members.Count != 3 || Beast == null)
                 return string.Empty;
 
-            var text = new StringBuilder(SoundwellUiLocalization.Get("battle.heading")).Append('\n');
+            var text = new StringBuilder(SoundwellUiLocalization.Get("battle.heading"))
+                .Append(" - ").Append(SoundwellUiLocalization.Get(
+                    fixedFormationForEncounter ? "battle.formation_fixed" :
+                    "battle.formation_mobile")).Append('\n');
             for (int i = 0; i < members.Count; i++)
             {
                 Combatant member = members[i];
@@ -392,8 +408,11 @@ namespace Rpg.Soundwell
                     // the primary action. Surface the *real* live-turn budget
                     // without duplicating an action counter in presentation.
                     // 1/1 means unspent, not a promise that every direction is free.
-                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
-                        .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
+                    if (fixedFormationForEncounter)
+                        text.Append("  ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
+                    else
+                        text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
+                            .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
                 }
                 text.Append('\n');
             }
@@ -478,7 +497,7 @@ namespace Rpg.Soundwell
 
         private bool CanSpendStep(int index)
         {
-            if (index < 0 || index != ChoosingRescuerIndex)
+            if (fixedFormationForEncounter || index < 0 || index != ChoosingRescuerIndex)
                 return false;
 
             Combatant member = members[index];
@@ -601,6 +620,10 @@ namespace Rpg.Soundwell
             if (battle == null)
                 return false;
 
+            // A mode switch outside this encounter must not grant or revoke
+            // movement mid-turn. No copied RPG stat or fabricated ORK action.
+            fixedFormationForEncounter = PreferredFixedFormation;
+
             battleStarted = true;
             battleObservedActive = false;
             battleEndRequested = false;
@@ -632,6 +655,7 @@ namespace Rpg.Soundwell
             }
 
             battleStarted = false;
+            fixedFormationForEncounter = false;
             battleObservedActive = false;
             battleEndRequested = false;
             battleStartedAt = 0f;

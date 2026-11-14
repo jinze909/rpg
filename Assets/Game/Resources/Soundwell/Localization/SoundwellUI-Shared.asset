@@ -511,6 +511,22 @@ MonoBehaviour:
     m_Key: entry.rescue_experience
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267451
+    m_Key: entry.formation_fixed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267452
+    m_Key: entry.formation_mobile
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267453
+    m_Key: battle.formation_fixed
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267454
+    m_Key: battle.formation_mobile
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

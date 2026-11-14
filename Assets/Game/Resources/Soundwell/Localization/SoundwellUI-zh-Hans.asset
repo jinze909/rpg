@@ -510,6 +510,22 @@ MonoBehaviour:
     m_Localized: "救援奖励已记录（每人 +{0} 经验）。"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267451
+    m_Localized: "阵位：固定"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267452
+    m_Localized: "阵位：机动"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267453
+    m_Localized: "固定阵位"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267454
+    m_Localized: "机动阵位"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -21,6 +21,9 @@ namespace Rpg.Soundwell
         private Text footerText;
         private Text outcomeText;
         private Button sfxButton;
+        private Button formationButton;
+        private RectTransform formationRect;
+        private Text formationText;
         private Button prologueButton;
         private RectTransform prologueRect;
         private Canvas entryCanvas;
@@ -113,6 +116,24 @@ namespace Rpg.Soundwell
             sfxText = SoundwellView.AddLabel(sfxRect, "", 16,
                 new Color(0.80f, 0.91f, 0.93f), Vector2.zero, new Vector2(314f, 36f));
 
+            // Choose the SAME rescue encounter with or without optional
+            // positional steps. Changing this preference never spends an ORK turn.
+            var formationObject = new GameObject("Soundwell formation toggle",
+                typeof(RectTransform), typeof(Image), typeof(Button));
+            formationObject.transform.SetParent(canvas.transform, false);
+            formationRect = (RectTransform)formationObject.transform;
+            formationRect.anchorMin = formationRect.anchorMax = new Vector2(0.5f, 0.5f);
+            formationRect.anchoredPosition = new Vector2(150f, -230f);
+            formationRect.sizeDelta = new Vector2(280f, 40f);
+            formationObject.GetComponent<Image>().color = new Color(0.15f, 0.24f, 0.30f);
+            formationButton = formationObject.GetComponent<Button>();
+            formationButton.onClick.AddListener(ToggleFormationPreference);
+            formationText = SoundwellView.AddLabel(formationRect, "", 16,
+                new Color(0.80f, 0.91f, 0.93f), Vector2.zero, new Vector2(270f, 36f));
+            formationText.resizeTextForBestFit = true;
+            formationText.resizeTextMinSize = 11;
+            formationText.resizeTextMaxSize = 16;
+
             // Let keyboard and gamepad users select their language BEFORE
             // entering the trial. This uses the same saved StringTables and
             // PlayerPrefs-backed toggle as the trial's existing UGUI button.
@@ -188,7 +209,8 @@ namespace Rpg.Soundwell
             footerText.text = SoundwellUiLocalization.Get("entry.footer");
             RefreshReturnOutcome(true);
             RefreshSfxText();
-            languageText.font = font;
+            languageText.font = font;            RefreshFormationText();
+
             languageText.text = SoundwellUiLocalization.Get("action.language");
             Text preludeText = prologueButton.GetComponentInChildren<Text>();
             if (preludeText != null)
@@ -223,7 +245,8 @@ namespace Rpg.Soundwell
             {
                 mode = Navigation.Mode.Explicit,
                 selectOnUp = prologueButton,
-                selectOnDown = sfxButton
+                selectOnDown = sfxButton,
+                selectOnRight = formationButton
             };
             languageButton.navigation = new Navigation
             {
@@ -241,13 +264,39 @@ namespace Rpg.Soundwell
             {
                 mode = Navigation.Mode.Explicit,
                 selectOnUp = entryButton,
+                selectOnDown = languageButton,
+                selectOnRight = formationButton
+            };
+            formationButton.navigation = new Navigation
+            {
+                mode = Navigation.Mode.Explicit,
+                selectOnLeft = sfxButton,
+                selectOnUp = entryButton,
                 selectOnDown = languageButton
             };
             sfxButton.transition = Selectable.Transition.ColorTint;
+            formationButton.transition = Selectable.Transition.ColorTint;
             languageButton.transition = Selectable.Transition.ColorTint;
             sfxButton.colors = entryButton.colors;
+            formationButton.colors = entryButton.colors;
             languageButton.colors = entryButton.colors;
             prologueButton.colors = entryButton.colors;
+        }
+
+        private void ToggleFormationPreference()
+        {
+            OrkPartyBridge.SetPreferredFixedFormation(!OrkPartyBridge.PreferredFixedFormation);
+            RefreshFormationText();
+        }
+
+        private void RefreshFormationText()
+        {
+            if (formationText == null)
+                return;
+            formationText.font = SoundwellUiLocalization.PresentationFont(englishFont);
+            formationText.text = SoundwellUiLocalization.Get(
+                OrkPartyBridge.PreferredFixedFormation
+                    ? "entry.formation_fixed" : "entry.formation_mobile");
         }
 
         private void ToggleSfx()
@@ -299,8 +348,18 @@ namespace Rpg.Soundwell
             outcomeText.rectTransform.sizeDelta = new Vector2(compact ? 350f : 600f, compact ? 102f : 116f);
             outcomeText.rectTransform.anchoredPosition = new Vector2(0f, compact ? -153f : -145f);
             outcomeText.fontSize = compact ? 15 : 17;
-            sfxRect.sizeDelta = new Vector2(compact ? 300f : 320f, 40f);
-            sfxText.rectTransform.sizeDelta = new Vector2(compact ? 294f : 314f, 36f);
+            // Same horizontal row keeps both settings above the bottom edge,
+            // and prevents the return summary from overlapping either control.
+            sfxRect.anchoredPosition = new Vector2(compact ? -94f : -150f, -230f);
+            sfxRect.sizeDelta = new Vector2(compact ? 176f : 280f, 40f);
+            sfxText.rectTransform.sizeDelta = new Vector2(compact ? 166f : 270f, 36f);
+            sfxText.resizeTextForBestFit = true;
+            sfxText.resizeTextMinSize = 11;
+            sfxText.resizeTextMaxSize = 16;
+            formationRect.anchoredPosition = new Vector2(compact ? 94f : 150f, -230f);
+            formationRect.sizeDelta = new Vector2(compact ? 176f : 280f, 40f);
+            formationText.rectTransform.sizeDelta =
+                new Vector2(compact ? 166f : 270f, 36f);
             languageRect.anchoredPosition = new Vector2(0f, compact ? 181f : 160f);
             languageRect.sizeDelta = new Vector2(compact ? 186f : 204f, 40f);
             prologueRect.anchoredPosition = new Vector2(0f, compact ? 140f : 119f);
@@ -329,6 +388,7 @@ namespace Rpg.Soundwell
             GameObject selected = EventSystem.current != null
                 ? EventSystem.current.currentSelectedGameObject : null;
             bool settingFocused = selected == sfxButton.gameObject ||
+                selected == formationButton.gameObject ||
                 selected == languageButton.gameObject || selected == prologueButton.gameObject;
             if (entryRequested && (!settingFocused || SoundwellInputAdapter.EntryKeyboardShortcutPressed()))
                 OpenTrial();

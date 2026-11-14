@@ -444,6 +444,9 @@ namespace Rpg.Tests.Editor
             input.Setup();
             bool hadMutePreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
             int previousMutePreference = PlayerPrefs.GetInt(SoundwellAudioBus.MutePreferenceKey, 0);
+            bool hadFormationPreference = PlayerPrefs.HasKey(OrkPartyBridge.FixedFormationPreferenceKey);
+            int previousFormationPreference = PlayerPrefs.GetInt(
+                OrkPartyBridge.FixedFormationPreferenceKey, 0);
             bool hadLanguagePreference = PlayerPrefs.HasKey(SoundwellUiLocalization.LanguagePreferenceKey);
             string previousLanguagePreference = PlayerPrefs.GetString(
                 SoundwellUiLocalization.LanguagePreferenceKey, string.Empty);
@@ -508,6 +511,8 @@ namespace Rpg.Tests.Editor
 
                 var sfxButton = entry.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "Soundwell SFX toggle");
+                var formationButton = entry.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "Soundwell formation toggle");
                 // The visible retry/result summary must never overlap either
                 // the entry footer or the SFX control at 4:3/narrow and 16:9.
                 // Verify the actual UGUI RectTransforms, not just hardcoded text.
@@ -521,6 +526,12 @@ namespace Rpg.Tests.Editor
                         t.text == entry.ReturnSummaryText &&
                         t.rectTransform.sizeDelta.y >= 100f).rectTransform;
                     var sfxRect = (RectTransform)sfxButton.transform;
+                    var formationRect = (RectTransform)formationButton.transform;
+                    float settingsGap = formationRect.anchoredPosition.x -
+                        formationRect.sizeDelta.x * 0.5f -
+                        (sfxRect.anchoredPosition.x + sfxRect.sizeDelta.x * 0.5f);
+                    Assert.That(settingsGap, Is.GreaterThanOrEqualTo(4f),
+                        "The two real entry settings must not overlap at aspect " + aspect);
                     float footerBottom = footer.anchoredPosition.y - footer.sizeDelta.y * 0.5f;
                     float resultTop = result.anchoredPosition.y + result.sizeDelta.y * 0.5f;
                     float resultBottom = result.anchoredPosition.y - result.sizeDelta.y * 0.5f;
@@ -564,6 +575,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(enterButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
                 Assert.That(languageButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
                 Assert.That(sfxButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(formationButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(sfxButton.navigation.selectOnRight, Is.SameAs(formationButton));
+                Assert.That(formationButton.navigation.selectOnLeft, Is.SameAs(sfxButton));
+                Assert.That(formationButton.navigation.selectOnUp, Is.SameAs(enterButton));
                 var prologueButton = entry.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 Whitewater prologue button");
                 Assert.That(prologueButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
@@ -577,12 +592,15 @@ namespace Rpg.Tests.Editor
                 Assert.That(sfxButton.navigation.selectOnDown, Is.SameAs(languageButton));
                 Assert.That(languageButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
                 Assert.That(sfxButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
+                Assert.That(formationButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
                 Assert.That(prologueButton.transition, Is.EqualTo(Selectable.Transition.ColorTint));
                 Assert.That(enterButton.colors.selectedColor,
                     Is.Not.EqualTo(enterButton.colors.normalColor));
                 Assert.That(prologueButton.colors.selectedColor,
                     Is.EqualTo(enterButton.colors.selectedColor));
                 Assert.That(sfxButton.colors.selectedColor,
+                    Is.EqualTo(enterButton.colors.selectedColor));
+                Assert.That(formationButton.colors.selectedColor,
                     Is.EqualTo(enterButton.colors.selectedColor));
                 Assert.That(languageButton.colors.selectedColor,
                     Is.EqualTo(enterButton.colors.selectedColor));
@@ -609,6 +627,24 @@ namespace Rpg.Tests.Editor
                 Assert.That(events.currentSelectedGameObject,
                     Is.SameAs(languageButton.gameObject),
                     "Changing language must keep focus on its setting button.");
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+
+                // The real UGUI selector changes the next encounter's
+                // mobility rules without pressing Enter or starting a scene.
+                events.SetSelectedGameObject(formationButton.gameObject);
+                bool wasFixed = OrkPartyBridge.PreferredFixedFormation;
+                input.Press(gamepad.buttonSouth);
+                yield return null;
+                yield return null;
+                Assert.That(OrkPartyBridge.PreferredFixedFormation, Is.EqualTo(!wasFixed));
+                Assert.That(formationButton.GetComponentInChildren<Text>().text,
+                    Is.EqualTo(SoundwellUiLocalization.Get(
+                        wasFixed ? "entry.formation_mobile" : "entry.formation_fixed")));
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(initialScene),
+                    "Focused formation toggle must not also load the trial.");
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(formationButton.gameObject));
                 input.Release(gamepad.buttonSouth);
                 yield return null;
 
@@ -1056,6 +1092,11 @@ namespace Rpg.Tests.Editor
                     SoundwellAudioBus.SetMuted(mixer, previousMutePreference != 0);
                 if (!hadMutePreference)
                     PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                if (hadFormationPreference)
+                    PlayerPrefs.SetInt(OrkPartyBridge.FixedFormationPreferenceKey,
+                        previousFormationPreference);
+                else
+                    PlayerPrefs.DeleteKey(OrkPartyBridge.FixedFormationPreferenceKey);
                 PlayerPrefs.Save();
                 SoundwellInputAdapter.SetUiContext();
                 input.TearDown();

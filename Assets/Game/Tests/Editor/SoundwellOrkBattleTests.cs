@@ -1691,10 +1691,25 @@ namespace Rpg.Tests.Editor
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return WaitForFrameworkInitialization();
 
-            var opening = new Vector2[5];
-            var openingHealth = new float[4];
-            yield return CompareGateAssignment(false, opening, openingHealth);
-            yield return CompareGateAssignment(true, opening, openingHealth);
+            bool hadFormationPreference = PlayerPrefs.HasKey(OrkPartyBridge.FixedFormationPreferenceKey);
+            int previousFormation = PlayerPrefs.GetInt(OrkPartyBridge.FixedFormationPreferenceKey, 0);
+            try
+            {
+                var opening = new Vector2[5];
+                var openingHealth = new float[4];
+                OrkPartyBridge.SetPreferredFixedFormation(true);
+                yield return CompareGateAssignment(false, opening, openingHealth);
+                OrkPartyBridge.SetPreferredFixedFormation(false);
+                yield return CompareGateAssignment(true, opening, openingHealth);
+            }
+            finally
+            {
+                if (hadFormationPreference)
+                    PlayerPrefs.SetInt(OrkPartyBridge.FixedFormationPreferenceKey, previousFormation);
+                else
+                    PlayerPrefs.DeleteKey(OrkPartyBridge.FixedFormationPreferenceKey);
+                PlayerPrefs.Save();
+            }
         }
 
         private static IEnumerator CompareGateAssignment(bool useStep, Vector2[] opening, float[] openingHealth)
@@ -1745,33 +1760,58 @@ namespace Rpg.Tests.Editor
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
             Assert.That(trial.GateOpen, Is.False);
             Assert.That(trial.RescueComplete, Is.False);
+            Assert.That(party.FixedFormationInBattle, Is.EqualTo(!useStep),
+                "The actual ORK fight must latch the selected fixed/mobile rule.");
+            Assert.That(party.BuildBattleReadout(), Does.Contain(
+                SoundwellUiLocalization.Get(useStep
+                    ? "battle.formation_mobile" : "battle.formation_fixed")));
 
-            // A saved or modified physical footprint may be offset from the
-            // ORK actor pivot. An apparently legal actor-centre destination
-            // must not carry the collider beyond the real arena boundary.
-            var offsetProbeCollider = party.Leader.GetComponent<CircleCollider2D>();
-            Assert.That(offsetProbeCollider, Is.Not.Null);
-            Assert.That(party.CanStep(0, Vector2.right), Is.True,
-                "The baseline eastward step must be physically legal before the offset probe.");
-            Vector2 originalColliderOffset = offsetProbeCollider.offset;
-            try
+            if (useStep)
             {
-                offsetProbeCollider.offset = new Vector2(8f, 0f);
-                Physics2D.SyncTransforms();
+                // A saved or modified physical footprint may be offset from the
+                // ORK actor pivot. An apparently legal actor-centre destination
+                // must not carry the collider beyond the real arena boundary.
+                var offsetProbeCollider = party.Leader.GetComponent<CircleCollider2D>();
+                Assert.That(offsetProbeCollider, Is.Not.Null);
+                Assert.That(party.CanStep(0, Vector2.right), Is.True,
+                    "The baseline eastward step must be physically legal before the offset probe.");
+                Vector2 originalColliderOffset = offsetProbeCollider.offset;
+                try
+                {
+                    offsetProbeCollider.offset = new Vector2(8f, 0f);
+                    Physics2D.SyncTransforms();
+                    Assert.That(party.CanStep(0, Vector2.right), Is.False,
+                        "An offset circle beyond the arena must invalidate the real ORK step.");
+                    Assert.That(party.TryStep(0, Vector2.right), Is.False,
+                        "An illegal offset footprint cannot consume the move allowance.");
+                }
+                finally
+                {
+                    offsetProbeCollider.offset = originalColliderOffset;
+                    Physics2D.SyncTransforms();
+                }
+                Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
+                Assert.That(party.BuildBattleReadout(),
+                    Does.Contain(SoundwellUiLocalization.Get("battle.move") + " 1/1"),
+                    "A rejected offset-collider step must leave the same ORK turn unspent.");
+    
+            }
+            else
+            {
+                Vector2 beforeFixedStep = party.Actors[0].transform.position;
                 Assert.That(party.CanStep(0, Vector2.right), Is.False,
-                    "An offset circle beyond the arena must invalidate the real ORK step.");
+                    "The true fixed-formation encounter cannot advertise a move.");
                 Assert.That(party.TryStep(0, Vector2.right), Is.False,
-                    "An illegal offset footprint cannot consume the move allowance.");
+                    "Even a direct caller cannot move an ORK actor in fixed formation.");
+                Assert.That((Vector2)party.Actors[0].transform.position,
+                    Is.EqualTo(beforeFixedStep));
+                var moveInFixedMode = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+                Assert.That(moveInFixedMode, Is.Not.Null);
+                Assert.That(moveInFixedMode.interactable, Is.False,
+                    "The in-battle UGUI Move command must reflect the fixed rule.");
+                Assert.That(party.BuildBattleReadout(),
+                    Does.Not.Contain(SoundwellUiLocalization.Get("battle.move") + " 1/1"));
             }
-            finally
-            {
-                offsetProbeCollider.offset = originalColliderOffset;
-                Physics2D.SyncTransforms();
-            }
-            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(0));
-            Assert.That(party.BuildBattleReadout(),
-                Does.Contain(SoundwellUiLocalization.Get("battle.move") + " 1/1"),
-                "A rejected offset-collider step must leave the same ORK turn unspent.");
 
             Vector2[] positions = party.Actors.Select(actor => (Vector2)actor.transform.position)
                 .Concat(new[] { trial.BeastPosition, trial.BellPosition }).ToArray();

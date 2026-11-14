@@ -514,6 +514,22 @@ MonoBehaviour:
     m_Localized: "Rescue reward recorded (+{0} EXP per rescuer)."
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267451
+    m_Localized: "Combat: FIXED"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267452
+    m_Localized: "Combat: MOBILE"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267453
+    m_Localized: "Fixed formation"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267454
+    m_Localized: "Mobile formation"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
