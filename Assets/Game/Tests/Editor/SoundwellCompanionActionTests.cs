@@ -49,6 +49,46 @@ namespace Rpg.Tests.Editor
             {
                 Object.DestroyImmediate(actor);
             }
+
+            // Disabled ORK scene actors must be rejected BEFORE the battle
+            // owner or any turn is created, including the visual-only beast.
+            // A roster of managed Combatants can remain valid after its
+            // actual scene actors are deactivated.
+            var leader = new GameObject("battle entry leader");
+            var second = new GameObject("battle entry second rescuer");
+            var third = new GameObject("battle entry third rescuer");
+            var beast = new GameObject("battle entry beast");
+            var parent = new GameObject("inactive battle entry parent");
+            try
+            {
+                var livingRoster = new[] { leader, second, third };
+                Assert.That(SoundwellOrkParty.HasLiveEncounterActors(livingRoster, beast),
+                    Is.True);
+                beast.SetActive(false);
+                Assert.That(SoundwellOrkParty.HasLiveEncounterActors(livingRoster, beast),
+                    Is.False, "A retired beast cannot start an invisible battle.");
+                beast.SetActive(true);
+                second.transform.SetParent(parent.transform);
+                parent.SetActive(false);
+                Assert.That(SoundwellOrkParty.HasLiveEncounterActors(livingRoster, beast),
+                    Is.False, "A rescuer under an inactive parent cannot enter a turn.");
+                parent.SetActive(true);
+                Assert.That(SoundwellOrkParty.HasLiveEncounterActors(livingRoster, beast),
+                    Is.True, "Restoring the scene actor should restore eligibility.");
+                Assert.That(SoundwellOrkParty.HasLiveEncounterActors(
+                    new GameObject[] { leader, null, third }, beast), Is.False);
+                Assert.That(SoundwellOrkParty.HasLiveEncounterActors(
+                    new[] { leader, second }, beast), Is.False);
+                Assert.That(SoundwellOrkParty.HasLiveEncounterActors(null, beast), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(second);
+                Object.DestroyImmediate(third);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(parent);
+            }
         }
 
         [Test]

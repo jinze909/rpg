@@ -377,6 +377,22 @@ namespace Rpg.Soundwell
         public static bool IsActiveBattleSceneActor(GameObject actor) =>
             actor != null && actor.activeInHierarchy;
 
+        // A live ORK status is not enough to enter a playable encounter:
+        // retreat/teardown can deactivate the actual world beast or party
+        // actor before ORK's managed references are retired. Refuse a battle
+        // that could not display and accept actions from all four actors.
+        public static bool HasLiveEncounterActors(
+            IReadOnlyList<GameObject> partyActors, GameObject beastActor)
+        {
+            if (partyActors == null || partyActors.Count != 3 ||
+                !IsActiveBattleSceneActor(beastActor))
+                return false;
+            for (int i = 0; i < partyActors.Count; i++)
+                if (!IsActiveBattleSceneActor(partyActors[i]))
+                    return false;
+            return true;
+        }
+
         public static bool IsBattleChooserPending(int chooserIndex, bool beastDead, float beastHp) =>
             chooserIndex < 0 && !beastDead && beastHp > 0f;
 
@@ -618,7 +634,8 @@ namespace Rpg.Soundwell
         {
             if (!IsReady || battleStarted || Beast == null || Beast.Status.IsDead ||
                 !ORK.Initialized || ORK.Control.InBattle || IsBattleRunning() ||
-                PlayerGroup == null || EnemyGroup == null || members.Count != 3)
+                PlayerGroup == null || EnemyGroup == null || members.Count != 3 ||
+                !HasLiveEncounterActors(actors, Beast.GameObject))
                 return false;
 
             AssignPlayerGroup();
