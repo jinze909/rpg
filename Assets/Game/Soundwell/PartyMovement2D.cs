@@ -64,7 +64,12 @@ namespace Rpg.Soundwell
                   direction == Vector2.left || direction == Vector2.right))
                 return false;
             Transform actor = actorObject.transform;
-            Vector2 from = actor.position;
+            // ORK's most recent accepted step may have teleported a physics
+            // body before its Transform catches up with the next render. Use
+            // the physical position for eligibility and the new destination,
+            // just as the checkpoint/formation owner does.
+            Rigidbody2D actorBody = actorObject.GetComponent<Rigidbody2D>();
+            Vector2 from = actorBody != null ? actorBody.position : (Vector2)actor.position;
             destination = from + direction * distance;
             CircleCollider2D bodyCollider = actor.GetComponent<CircleCollider2D>();
             float worldScale = Mathf.Max(Mathf.Abs(actor.lossyScale.x),
@@ -99,7 +104,8 @@ namespace Rpg.Soundwell
             // but their actual occupied space must still prevent overlap.
             // Compare world-space collider centres, not just pivot positions.
             Transform obstacle = obstacleObject.transform;
-            Vector2 centre = obstacle.position;
+            Rigidbody2D obstacleBody = obstacleObject.GetComponent<Rigidbody2D>();
+            Vector2 centre = obstacleBody != null ? obstacleBody.position : (Vector2)obstacle.position;
             float clearance = minimumClearance;
             CircleCollider2D footprint = obstacle.GetComponent<CircleCollider2D>();
             if (footprint != null)
