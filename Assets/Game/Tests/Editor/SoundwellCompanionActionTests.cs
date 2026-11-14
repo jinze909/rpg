@@ -81,6 +81,49 @@ namespace Rpg.Tests.Editor
                 "Scaled and leader-sized colliders need real southern clearance.");
             Assert.That(SoundwellOrkParty.FitsBattleStepInArena(
                 Vector2.zero, 0.30f), Is.True);
+
+            // A retired, disabled ORK scene actor has no active collider or
+            // movement authority. It must not invisibly block a current
+            // rescuer's otherwise legal step in the live roster.
+            var motorRoot = new GameObject("Soundwell step occupancy regression");
+            var moving = new GameObject("active rescuer");
+            var retired = new GameObject("retired rescuer");
+            var beast = new GameObject("retired beast");
+            try
+            {
+                var motor = motorRoot.AddComponent<PartyMovement2D>();
+                moving.transform.position = new Vector3(-5f, -2f, 0f);
+                retired.transform.position = new Vector3(-4.5f, -2f, 0f);
+                beast.transform.position = new Vector3(-4.5f, -2f, 0f);
+                var team = new[] { moving, retired };
+
+                // First prove these exact positions DO block when active.
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    team, null, 0.5f, out _), Is.False);
+                retired.SetActive(false);
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    team, null, 0.5f, out Vector2 clearStep), Is.True,
+                    "A disabled ORK companion must not retain an invisible block.");
+                Assert.That(clearStep, Is.EqualTo(new Vector2(-4.5f, -2f)));
+
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    new[] { moving }, beast, 0.5f, out _), Is.False);
+                beast.SetActive(false);
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    new[] { moving }, beast, 0.5f, out _), Is.True,
+                    "A retired beast must not block a post-encounter step.");
+                moving.SetActive(false);
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    team, beast, 0.5f, out _), Is.False,
+                    "A disabled rescuer cannot be allowed to move on a stale chooser.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(retired);
+                Object.DestroyImmediate(moving);
+                Object.DestroyImmediate(motorRoot);
+            }
         }
         [UnityTest]
         public IEnumerator OrkAcceptedCompanionAttackChangesOnlyItsPixelPose()

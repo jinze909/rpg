@@ -14,6 +14,10 @@ namespace Rpg.Soundwell
         private Vector2 home;
         private Vector2 lastHeard;
         private float searchStarted = float.NegativeInfinity;
+        // One contact is one caught event until the player actually leaves
+        // the hazard; consecutive render/physics updates must not count as
+        // separate captures of an overlapping rescuer.
+        private bool contactLatched;
 
         public event Action SearchExpired;
         public event Action PlayerCaught;
@@ -41,6 +45,7 @@ namespace Rpg.Soundwell
             }
             lastHeard = home;
             searchStarted = float.NegativeInfinity;
+            contactLatched = false;
         }
 
         public void OnBellSignal(BellSignal signal, Vector2 soundPoint)
@@ -86,10 +91,19 @@ namespace Rpg.Soundwell
                 beast.position = next;
             }
 
-            if (beast != null && !directCombat && !combatComplete && gateOpen && !rescueComplete &&
+            bool playerInDanger = beast != null && player != null &&
+                !directCombat && !combatComplete && gateOpen && !rescueComplete &&
                 player.position.x > 0.55f &&
-                Vector2.Distance(player.position, Position) <= ContactRadius)
+                Vector2.Distance(player.position, Position) <= ContactRadius;
+            if (!playerInDanger)
+                contactLatched = false;
+            else if (!contactLatched)
+            {
+                // Latch before notifying: a checkpoint callback may relocate
+                // the Rigidbody or re-enter scene updates immediately.
+                contactLatched = true;
                 PlayerCaught?.Invoke();
+            }
 
             return destination;
         }
