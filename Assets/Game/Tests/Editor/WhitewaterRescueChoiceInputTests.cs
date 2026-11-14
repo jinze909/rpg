@@ -219,8 +219,27 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(11));
+                        var coil = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
+                        Assert.That(coil, Is.Not.Null);
+                        Assert.That(coil.gameObject.activeInHierarchy, Is.False,
+                            "The rope must not appear before the earned call after a safe escort.");
                         FindButton(activePrelude, "S00 call for spare rope").onClick.Invoke();
                         Assert.That(activePrelude.Phase, Is.EqualTo(12));
+                        Assert.That(coil.gameObject.activeInHierarchy, Is.True);
+                        var coilImage = coil.GetComponent<Image>();
+                        Assert.That(coilImage.sprite, Is.Not.Null);
+                        Assert.That(coilImage.sprite.name, Does.Contain("spare rope coil"));
+                        Assert.That(coilImage.sprite.texture.width, Is.EqualTo(16));
+                        Assert.That(coilImage.sprite.texture.height, Is.EqualTo(16));
+                        Assert.That(coilImage.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                        Assert.That(coilImage.sprite.pixelsPerUnit, Is.EqualTo(16f));
+                        Assert.That(((RectTransform)coil).sizeDelta, Is.EqualTo(new Vector2(32f, 32f)),
+                            "The coil must retain exact 2x pixel scaling in the existing UGUI scene.");
+                        Assert.That(coilImage.sprite.texture.GetPixel(7, 8).a,
+                            Is.GreaterThan(0.9f), "The wound loop needs a real interior rope pixel.");
+                        Assert.That(coilImage.raycastTarget, Is.False,
+                            "A travelling rope cannot steal UI choice clicks or gamepad focus.");
 
                         input.Press(keys.dKey);
                         float postDeadline = Time.realtimeSinceStartup + 6f;

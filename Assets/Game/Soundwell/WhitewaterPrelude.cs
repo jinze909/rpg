@@ -76,9 +76,11 @@ namespace Rpg.Soundwell
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
         private Sprite farBankGuardSprite;
+        private Sprite spareRopePixelSprite;
         private Texture2D hanQiaoPixelTexture;
         private Texture2D evacueePixelTexture;
         private Texture2D farBankGuardTexture;
+        private Texture2D spareRopePixelTexture;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -225,9 +227,17 @@ namespace Rpg.Soundwell
             evacuee = evacueeFigure.rectTransform;
             evacueeSafeLine.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(false);
-            // Visible only after the player personally finishes the escort and calls out.
-            spareRope = Panel(canvas.transform, "PLACEHOLDER S00 spare rope at clamp",
-                new Vector2(ClampX + 30f, 51f), new Vector2(32f, 11f), Brass).rectTransform;
+            // Visible only after the player finishes the escort and calls out.
+            // Use a genuinely coiled 16px nearest-neighbour item, not a solid
+            // rectangle. The original rope travel and Makinom signal remain.
+            var spareRopeFigure = Panel(canvas.transform, "PLACEHOLDER S00 spare rope at clamp",
+                new Vector2(ClampX + 30f, 51f), new Vector2(32f, 32f), Color.white);
+            spareRopePixelSprite = MakeActorSprite("S00 16px spare rope coil",
+                SpareRopePixels, new Color32(164, 119, 71, 255),
+                out spareRopePixelTexture);
+            spareRopeFigure.sprite = spareRopePixelSprite;
+            spareRopeFigure.raycastTarget = false;
+            spareRope = spareRopeFigure.rectTransform;
             spareRope.gameObject.SetActive(false);
             bridgePost = Panel(canvas.transform, "S00 bridge defence post",
                 new Vector2(BridgePostX, 12f), new Vector2(35f, 40f),
@@ -967,6 +977,28 @@ namespace Rpg.Soundwell
             ".....kk..kk.....",
         };
 
+        // Two nested loops and an open centre read as a separate wound coil
+        // at native 16px. All source pixels use the same scene-local palette.
+        private static readonly string[] SpareRopePixels =
+        {
+            "................",
+            "....kkkkkkkk....",
+            "...kkccggcckk...",
+            "..kkcckkkkcckk..",
+            "..kcck....kcck..",
+            ".kcck......kcck.",
+            ".kcck.kkkk.kcck.",
+            ".kcck.kcck.kcck.",
+            ".kcck.kcck.kcck.",
+            ".kcck.kkkk.kcck.",
+            ".kcck......kcck.",
+            "..kcck....kcck..",
+            "..kkcckkkkcckk..",
+            "...kkccggcckk...",
+            "....kkkkkkkk....",
+            "................",
+        };
+
         private static Sprite MakeActorSprite(string name, string[] art,
             Color32 coat, out Texture2D texture)
         {
@@ -1030,12 +1062,16 @@ namespace Rpg.Soundwell
                 Destroy(evacueePixelSprite);
             if (farBankGuardSprite != null)
                 Destroy(farBankGuardSprite);
+            if (spareRopePixelSprite != null)
+                Destroy(spareRopePixelSprite);
             if (hanQiaoPixelTexture != null)
                 Destroy(hanQiaoPixelTexture);
             if (evacueePixelTexture != null)
                 Destroy(evacueePixelTexture);
             if (farBankGuardTexture != null)
                 Destroy(farBankGuardTexture);
+            if (spareRopePixelTexture != null)
+                Destroy(spareRopePixelTexture);
         }
 
         private void ShowWorkshopPromise()
