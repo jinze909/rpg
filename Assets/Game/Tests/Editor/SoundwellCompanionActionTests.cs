@@ -112,6 +112,38 @@ namespace Rpg.Tests.Editor
                 Assert.That(motor.TryStepDestination(moving, Vector2.right,
                     new[] { moving }, beast, 0.5f, out _), Is.True,
                     "A retired beast must not block a post-encounter step.");
+
+                // A trigger is ignored by the solid-world CircleCast, yet a
+                // live ORK actor still occupies space. Its rendered pivot may
+                // be off the lane while its offset collision footprint is not.
+                retired.SetActive(true);
+                retired.transform.position = new Vector2(-4.5f, -1.2f);
+                var offsetFootprint = retired.AddComponent<CircleCollider2D>();
+                offsetFootprint.isTrigger = true;
+                offsetFootprint.radius = 0.24f;
+                offsetFootprint.offset = new Vector2(0f, -0.5f);
+                Physics2D.SyncTransforms();
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    team, null, 0.5f, out _), Is.False,
+                    "An offset trigger footprint must block overlapping a live companion.");
+                offsetFootprint.offset = new Vector2(0f, 0.4f);
+                Physics2D.SyncTransforms();
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    team, null, 0.5f, out _), Is.True,
+                    "Moving the occupied footprint away must reopen the legal step.");
+
+                retired.SetActive(false);
+                beast.SetActive(true);
+                beast.transform.position = new Vector2(-4.5f, -1.2f);
+                var beastFootprint = beast.AddComponent<CircleCollider2D>();
+                beastFootprint.isTrigger = true;
+                beastFootprint.radius = 0.24f;
+                beastFootprint.offset = new Vector2(0f, -0.5f);
+                Physics2D.SyncTransforms();
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    new[] { moving }, beast, 0.5f, out _), Is.False,
+                    "A living beast's offset trigger body cannot be stepped through.");
+                beast.SetActive(false);
                 moving.SetActive(false);
                 Assert.That(motor.TryStepDestination(moving, Vector2.right,
                     team, beast, 0.5f, out _), Is.False,
