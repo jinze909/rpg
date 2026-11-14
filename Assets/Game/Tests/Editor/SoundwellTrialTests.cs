@@ -193,13 +193,28 @@ namespace Rpg.Tests.Editor
             Assert.That(body, Is.Not.Null);
             Vector2 retreat = trial.PlayerPosition;
 
+            var carryPose = trial.PlayerActor.GetComponentInChildren<SoundwellPlayerVisualAnimation>();
+            Assert.That(carryPose, Is.Not.Null);
             MoveTestLeader(body, trial.BellPosition);
             trial.ApplyInput(Vector2.zero, false, false, false, true);
             Assert.That(trial.IsCarrying, Is.True);
+            Assert.That(carryPose.CurrentState, Is.EqualTo("Action"),
+                "The actual lift must animate the leader, like an accepted ring/wrap.");
+            // A carry button away from either stand must not discard the bell
+            // or silently play a new successful interaction pose.
+            MoveTestLeader(body, new Vector2(0f, 0.1f));
+            yield return new WaitForSecondsRealtime(0.4f);
+            Assert.That(carryPose.CurrentState, Is.Not.EqualTo("Action"));
+            trial.ApplyInput(Vector2.zero, false, false, false, true);
+            Assert.That(trial.IsCarrying, Is.True);
+            Assert.That(carryPose.CurrentState, Is.Not.EqualTo("Action"),
+                "A rejected drop must not pretend an interaction happened.");
             MoveTestLeader(body, SoundwellTrial.SideBellStand);
             Assert.That(trial.CanPlaceBell, Is.True);
             trial.ApplyInput(Vector2.zero, false, false, false, true);
             Assert.That(trial.IsCarrying, Is.False);
+            Assert.That(carryPose.CurrentState, Is.EqualTo("Action"),
+                "Only an actual placement at a saved stand should replay the action pose.");
             trial.ApplyInput(Vector2.zero, true, false, false);
             Assert.That(trial.HasBellTarget, Is.True);
             MoveTestLeader(body, new Vector2(-0.55f, 0f));

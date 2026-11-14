@@ -79,6 +79,9 @@ namespace Rpg.Soundwell
                 {
                     variables.Set(CarryKey, 0);
                     bell.position = new Vector3(stand.x, stand.y, 0f);
+                    // A placed bell is a real player interaction. The same
+                    // visual-only pose used by Ring/Wrap acknowledges it.
+                    ActionPoseRequested?.Invoke();
                 }
             }
             else if (AtBell)
@@ -86,6 +89,9 @@ namespace Rpg.Soundwell
                 variables.Set(CarryKey, 1);
                 SetSignal(BellSignal.Ready);
                 PulseResetRequested?.Invoke();
+                // An accepted lift deserves feedback; a carry press out of
+                // range or a failed stand placement must animate nothing.
+                ActionPoseRequested?.Invoke();
             }
         }
 
