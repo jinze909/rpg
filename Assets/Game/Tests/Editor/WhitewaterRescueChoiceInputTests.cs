@@ -164,6 +164,82 @@ namespace Rpg.Tests.Editor
                             "Returning to the follower must restore a visible green escort state.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(10),
                             "Regrouping never skips the physical safe-line confirmation.");
+
+                        // Carry one real S00 route through the already earned
+                        // evacuation and two bells. The next sighting must
+                        // require an actual player step to the lookout and a
+                        // fresh E press; the scripted bell cannot spot troops.
+                        input.Press(keys.aKey);
+                        float safeDeadline = Time.realtimeSinceStartup + 6f;
+                        while (!activePrelude.CanDeliverEvacuee &&
+                               Time.realtimeSinceStartup < safeDeadline)
+                            yield return null;
+                        input.Release(keys.aKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanDeliverEvacuee, Is.True);
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(11));
+                        FindButton(activePrelude, "S00 call for spare rope").onClick.Invoke();
+                        Assert.That(activePrelude.Phase, Is.EqualTo(12));
+
+                        input.Press(keys.dKey);
+                        float postDeadline = Time.realtimeSinceStartup + 6f;
+                        while (!activePrelude.CanTakeBridgePost &&
+                               Time.realtimeSinceStartup < postDeadline)
+                            yield return null;
+                        input.Release(keys.dKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanTakeBridgePost, Is.True);
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(13));
+
+                        var watch = FindButton(activePrelude, "S00 watch opposite bank");
+                        watch.onClick.Invoke();
+                        Assert.That(activePrelude.Phase, Is.EqualTo(14));
+                        Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                        Assert.That(activePrelude.CanWarnFarBank, Is.False,
+                            "The second bell must not automatically reveal the enemy approach.");
+                        var lookout = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/S00 forward lookout");
+                        Assert.That(lookout, Is.Not.Null);
+                        Assert.That(lookout.gameObject.activeInHierarchy, Is.True);
+                        var approaching = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/S00 far-bank approaching figure 0");
+                        Assert.That(approaching, Is.Not.Null);
+                        Assert.That(approaching.gameObject.activeInHierarchy, Is.False);
+
+                        input.Press(keys.aKey);
+                        float sightlineDeadline = Time.realtimeSinceStartup + 4f;
+                        while (!activePrelude.CanWarnFarBank &&
+                               Time.realtimeSinceStartup < sightlineDeadline)
+                            yield return null;
+                        input.Release(keys.aKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanWarnFarBank, Is.True,
+                            "The player must move to the physical forward lookout.");
+                        Assert.That(activePrelude.Phase, Is.EqualTo(14),
+                            "Walking into view without E does not discover troops.");
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(15));
+                        Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                        Assert.That(lookout.GetComponent<Image>().color.g,
+                            Is.GreaterThan(0.8f));
+                        Assert.That(approaching.gameObject.activeInHierarchy, Is.True,
+                            "Spotting must reveal the actual far-bank figures.");
+                        Assert.That(activePrelude.CurrentNarration,
+                            Does.Contain("Three armed silhouettes"));
+                        var bell = activePrelude.GetComponentInChildren<AudioSource>(true);
+                        Assert.That(bell.clip.name, Does.Contain("second warning bell"),
+                            "The lookout warning must not invent the scripted third bell.");
                     }
 
                     activePrelude.Close();

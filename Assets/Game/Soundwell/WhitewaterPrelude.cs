@@ -20,9 +20,13 @@ namespace Rpg.Soundwell
         public const string SpareRopeCallKey = "rpg.return.s00.spare-rope-call";
         public const string BridgePostKey = "rpg.return.s00.bridge-post";
         public const string SecondBellKey = "rpg.return.s00.second-bell";
+        public const string FarBankWarningKey = "rpg.return.s00.far-bank-warning";
         // The post must be physically beside Shen Li (at ClampX + 58), not
         // a disconnected marker halfway across the bridge.
         private const float BridgePostX = ClampX + 30f;
+        // A sightline forward of Shen Li's eastern clamp. Players must
+        // approach it physically after the second warning bell.
+        private const float FarBankLookoutX = 75f;
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
@@ -49,6 +53,8 @@ namespace Rpg.Soundwell
         private RectTransform bridgePost;
         private RectTransform farBankLanternLeft;
         private RectTransform farBankLanternRight;
+        private RectTransform farBankLookout;
+        private readonly Image[] farBankThreats = new Image[3];
         private AudioSource bellAudio;
         private AudioClip firstBellClip;
         private AudioClip secondBellClip;
@@ -77,7 +83,8 @@ namespace Rpg.Soundwell
         // 7: rescue station; 8: Han Qiao boards the last boat;
         // 9: reach the stranded evacuee; 10: escort west; 11: confirm safe crossing;
         // 12: voluntary rope call, first bell and physical guard-post approach;
-        // 13: reached bridge post; 14: witnessed the second bell and lights going out.
+        // 13: reached bridge post; 14: second bell and the forward sightline;
+        // 15: personally spotted approaching troops at that sightline.
         // ORK defence and the fixed third-bell break remain pending.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
@@ -100,6 +107,9 @@ namespace Rpg.Soundwell
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanTakeBridgePost => phase == 12 && bridgePost != null &&
             Mathf.Abs(walker.x - BridgePostX) <= RepairReach &&
+            Mathf.Abs(walker.y) <= RepairReach;
+        public bool CanWarnFarBank => phase == 14 && farBankLookout != null &&
+            Mathf.Abs(walker.x - FarBankLookoutX) <= RepairReach &&
             Mathf.Abs(walker.y) <= RepairReach;
 
         private static float RescueStationX(int choice) =>
@@ -211,6 +221,10 @@ namespace Rpg.Soundwell
                 new Vector2(-256f, 90f), new Vector2(14f, 15f), Brass).rectTransform;
             farBankLanternLeft.gameObject.SetActive(false);
             farBankLanternRight.gameObject.SetActive(false);
+            farBankLookout = Panel(canvas.transform, "S00 forward lookout",
+                new Vector2(FarBankLookoutX, 12f), new Vector2(26f, 40f), Brass)
+                .rectTransform;
+            farBankLookout.gameObject.SetActive(false);
             var playerFigure = Panel(canvas.transform, "PLACEHOLDER player",
                 new Vector2(walker.x, 12f), new Vector2(32f, 32f),
                 Color.white);
@@ -219,7 +233,17 @@ namespace Rpg.Soundwell
                 out playerPixelTexture);
             playerFigure.sprite = playerPixelSprite;
             marker = playerFigure.rectTransform;
-
+            // Presentation only: distant pixel figures use the existing 16px
+            // silhouette, not new ORK combatants or independent AI.
+            for (int i = 0; i < farBankThreats.Length; i++)
+            {
+                farBankThreats[i] = Panel(canvas.transform,
+                    "S00 far-bank approaching figure " + i,
+                    new Vector2(-283f + i * 34f, 22f), new Vector2(32f, 32f),
+                    new Color(0.79f, 0.37f, 0.32f));
+                farBankThreats[i].sprite = playerPixelSprite;
+                farBankThreats[i].gameObject.SetActive(false);
+            }
 
             narration = Label(canvas.transform, "", 21,
                 new Vector2(0f, -100f), new Vector2(840f, 83f), Ink);
@@ -616,6 +640,10 @@ namespace Rpg.Soundwell
                 return;
             phase = 14;
             next.gameObject.SetActive(false);
+            farBankLookout.gameObject.SetActive(true);
+            // Return control to the real gameplay InputAction, so spotting
+            // the opposing troops cannot be granted by the bell or a click.
+            SoundwellInputAdapter.SetGameplayContext();
             // The narration says the far-bank lamps disappear one by one.
             // Make the retreat legible on two visual beats; this is only
             // presentation, not a new battle timer or quest authority.
@@ -629,8 +657,30 @@ namespace Rpg.Soundwell
                 "The second bell rolls across the bridge. On the far bank, the lamps withdraw one by one. Shen Li grips the cable and looks across the span.",
                 "第二声号钟传过浮桥。对岸的灯火一盏接一盏收起。沈砾攥住缆索，望向桥的另一端。");
             instructions.text = Copy(
-                "The second bell has sounded. The ORK defence and fixed third-bell break are later playable beats. Return to entry.",
-                "第二声号钟已响。ORK 防守战与既定的第三声断桥仍属后续可玩段落；可返回入口。");
+                "The lights are going dark. Walk to the amber lookout on the bridge and press E / Pad A to identify the movement.",
+                "灯火正一盏盏熄灭。走到桥上金色瞭望点，按 E／手柄 A 辨认对岸的动静。");
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        private void WarnFarBank()
+        {
+            if (!CanWarnFarBank)
+                return;
+            phase = 15;
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(FarBankWarningKey, 1);
+            farBankLookout.GetComponent<Image>().color =
+                new Color(0.42f, 0.82f, 0.66f);
+            foreach (Image threat in farBankThreats)
+                threat.gameObject.SetActive(true);
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                "Three armed silhouettes appear where the far-bank lamps vanished. You warn Shen Li and the bridge crew. The cable is still under strain.",
+                "对岸灯火熄灭处出现三道持械人影。你向沈砾和桥头同伴发出警告，缆索仍在吃力地绷着。");
+            instructions.text = Copy(
+                "The approach is spotted, not defeated. The ORK bridge defence and the historical third-bell break are still ahead. Return to entry.",
+                "你发现了敌军，却尚未击退他们。ORK 桥头防守战和既定的第三声断桥仍在后续。可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
@@ -860,7 +910,8 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (phase != 1 && phase != 7 && phase != 9 && phase != 10 && phase != 12)
+            if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
+                phase != 12 && phase != 14)
                 return;
             SoundwellControlFrame frame = SoundwellInputAdapter.ReadGameplay();
             // In world-movement context UGUI Submit/Cancel is not active.
@@ -875,6 +926,12 @@ namespace Rpg.Soundwell
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
             marker.anchoredPosition = new Vector2(walker.x, 12f + walker.y);
+            if (phase == 14)
+            {
+                if (frame.Ring)
+                    WarnFarBank();
+                return;
+            }
             if (phase == 12)
             {
                 if (frame.Ring)
