@@ -309,6 +309,30 @@ namespace Rpg.Tests.Editor
                 rig.RefreshFraming();
                 Assert.That(rig.VirtualCamera.Lens.OrthographicSize, Is.EqualTo(5.625f).Within(0.01f),
                     "Widescreen lens must match 320x180 at 16 PPU.");
+                // Physics can relocate the leader to a safe tile between
+                // camera renders. This view must follow its actual body,
+                // never pan toward a stale pre-checkpoint Transform.
+                Vector2 savedPhysicsPan = leaderBody.position;
+                try
+                {
+                    foreach (float newX in new[] { 7f, -7f })
+                    {
+                        leaderBody.position = new Vector2(newX, savedPhysicsPan.y);
+                        rig.RefreshFraming();
+                        Assert.That(rig.FramingTarget.position.x * Mathf.Sign(newX),
+                            Is.GreaterThan(0.75f),
+                            "The Cinemachine target must follow immediate Rigidbody2D relocation.");
+                        Assert.That(rig.FramingTarget.position.x * 16f,
+                            Is.EqualTo(Mathf.Round(rig.FramingTarget.position.x * 16f)).Within(0.001f),
+                            "Checkpoint camera movement must remain snapped to whole world pixels.");
+                    }
+                }
+                finally
+                {
+                    leaderBody.position = savedPhysicsPan;
+                    Physics2D.SyncTransforms();
+                    rig.RefreshFraming();
+                }
             }
             finally
             {

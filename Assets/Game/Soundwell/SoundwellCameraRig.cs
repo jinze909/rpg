@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         public const int ReferenceHeight = 180;
         private Camera sceneCamera;
         private Transform player;
+        private Rigidbody2D playerBody;
         private Transform framingTarget;
         private CinemachineCamera virtualCamera;
 
@@ -39,6 +40,9 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException("Only the native URP 2D Pixel Perfect Camera may control Soundwell.");
             sceneCamera = camera;
             player = leader;
+            // The checkpoint can update physics position before its next
+            // rendered Transform. Camera presentation follows that real body.
+            playerBody = leader.GetComponent<Rigidbody2D>();
             var pixelCamera = camera.gameObject.AddComponent<PixelPerfectCamera>();
             pixelCamera.assetsPPU = PixelsPerUnit;
             pixelCamera.refResolutionX = ReferenceWidth;
@@ -88,8 +92,9 @@ namespace Rpg.Soundwell
             // Quantize the visual framing target, not player/ORK positions.
             // Rounding after a float clamp can place the camera one pixel
             // outside its safe pan budget and clip the opposite trial exit.
-            float x = PixelSafeHorizontalPan(player.position.x * 0.14f, horizontalPan);
-            float y = Mathf.Clamp(player.position.y * 0.15f, -0.5f, 0.5f);
+            Vector2 source = playerBody != null ? playerBody.position : (Vector2)player.position;
+            float x = PixelSafeHorizontalPan(source.x * 0.14f, horizontalPan);
+            float y = Mathf.Clamp(source.y * 0.15f, -0.5f, 0.5f);
             framingTarget.position = new Vector3(
                 x, Mathf.Round(y * PixelsPerUnit) / PixelsPerUnit, 0f);
 
