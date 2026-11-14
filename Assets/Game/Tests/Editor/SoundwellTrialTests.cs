@@ -585,8 +585,22 @@ namespace Rpg.Tests.Editor
                 "The live unasked surveyor prompt must switch into Chinese.");
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             yield return null;
+            var worldPose = trial.PlayerActor.GetComponentInChildren<SoundwellPlayerVisualAnimation>();
+            Assert.That(worldPose, Is.Not.Null);
+            float worldPoseDeadline = Time.realtimeSinceStartup + 3f;
+            while (worldPose.CurrentState != "Idle" && Time.realtimeSinceStartup < worldPoseDeadline)
+                yield return null;
+            Assert.That(worldPose.CurrentState, Is.EqualTo("Idle"));
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.HasSurveyorClue, Is.True);
+            Assert.That(worldPose.CurrentState, Is.EqualTo("Action"),
+                "A real spatial world interaction should use the same player action cue as a real bell pickup.");
+            yield return new WaitForSecondsRealtime(0.45f);
+            yield return null;
+            Assert.That(worldPose.CurrentState, Is.EqualTo("Idle"));
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(worldPose.CurrentState, Is.EqualTo("Idle"),
+                "The already-earned clue must not animate a fake second inspection.");
             // The actual survivor's warning changes language without
             // rewriting Makinom's plank evidence or advancing the rescue.
             var plankSpeech = GameObject.Find("Soundwell surveyor response")?.GetComponent<Text>();

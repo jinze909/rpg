@@ -161,8 +161,15 @@ namespace Rpg.Soundwell
                 choices.Escort ? EscortKey :
                 choices.SecurePlank ? PlankSecuredKey :
                 choices.InspectSurveyor ? SurveyorClueKey : null;
-            if (key != null)
+            // World interactions are earned by actual spatial eligibility.
+            // A fresh accepted action animates the exploration leader; a
+            // rejected or already-consumed input must never pretend success.
+            // Makinom remains the sole owner of each earned scene flag.
+            if (key != null && variables.GetInt(key) == 0)
+            {
                 variables.Set(key, 1);
+                ActionPoseRequested?.Invoke();
+            }
         }
     }
 }
