@@ -31,6 +31,9 @@ namespace Rpg.Soundwell
         // Warned soldiers advance visibly while the player returns to Shen Li,
         // but only a later ORK battle can resolve the encounter.
         private const float FarBankThreatApproach = 58f;
+        // After the player actually braces Shen Li's cable, the three
+        // figures close another short gap. They remain scenery, not a battle.
+        private const float FarBankThreatAfterHold = 20f;
         private const float FarBankThreatSpeed = 24f;
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
@@ -707,10 +710,19 @@ namespace Rpg.Soundwell
             for (int i = 0; i < farBankThreats.Length; i++)
                 destinations[i] = farBankThreats[i].rectTransform.anchoredPosition.x +
                     FarBankThreatApproach;
-            bool approaching;
-            do
+            bool advancedAfterHold = false;
+            // Hold at the first sighted position while the player is away.
+            // A real interaction at Shen Li's post advances the same visual
+            // motor exactly once, with no second enemy actor or combat state.
+            while (phase == 15 || phase == 16)
             {
-                approaching = false;
+                if (phase == 16 && !advancedAfterHold)
+                {
+                    for (int i = 0; i < destinations.Length; i++)
+                        destinations[i] += FarBankThreatAfterHold;
+                    advancedAfterHold = true;
+                }
+                bool approaching = false;
                 for (int i = 0; i < farBankThreats.Length; i++)
                 {
                     RectTransform figure = farBankThreats[i].rectTransform;
@@ -719,9 +731,10 @@ namespace Rpg.Soundwell
                     figure.anchoredPosition = new Vector2(x, figure.anchoredPosition.y);
                     approaching |= x < destinations[i] - 0.01f;
                 }
-                if (approaching)
-                    yield return null;
-            } while (approaching);
+                if (!approaching && advancedAfterHold)
+                    yield break;
+                yield return null;
+            }
         }
 
         private void HoldCableAtPost()

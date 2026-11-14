@@ -284,6 +284,25 @@ namespace Rpg.Tests.Editor
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.True);
                         Assert.That(bell.clip.name, Does.Contain("second warning bell"),
                             "Holding the cable must not invent a third bell or a fake ORK victory.");
+
+                        // The held clamp buys time but cannot freeze the
+                        // spotted enemy. Only the actual cable interaction
+                        // permits this last visible approach; no combat or
+                        // historical third-bell result is issued by the view.
+                        float pressureDeadline = Time.realtimeSinceStartup + 4f;
+                        while (((RectTransform)approaching).anchoredPosition.x <
+                               threatStartX + 70f &&
+                               Time.realtimeSinceStartup < pressureDeadline)
+                            yield return null;
+                        float afterHoldX = ((RectTransform)approaching).anchoredPosition.x;
+                        Assert.That(afterHoldX, Is.GreaterThan(threatStartX + 70f),
+                            "The same soldiers must keep closing in after the player actually holds the cable.");
+                        Assert.That(afterHoldX, Is.LessThan(-180f),
+                            "The staging silhouettes must remain distant and cannot fake an ORK battle.");
+                        Assert.That(activePrelude.Phase, Is.EqualTo(16),
+                            "Visual pressure must not skip into an unimplemented third-bell break.");
+                        Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                        Assert.That(bell.clip.name, Does.Contain("second warning bell"));
                     }
 
                     activePrelude.Close();
