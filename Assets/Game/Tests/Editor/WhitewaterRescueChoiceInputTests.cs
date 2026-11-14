@@ -328,6 +328,8 @@ namespace Rpg.Tests.Editor
                             "Walking away from the bridge lane must visibly stop the wounded follower.");
                         Assert.That(activePrelude.CanDeliverEvacuee, Is.False,
                             "A separated follower cannot be delivered without returning to the bridge lane.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("bridge lane"),
+                            "A player who stepped off the bridge needs a lane-specific recovery hint.");
 
                         input.Press(keys.wKey);
                         float regroupDeadline = Time.realtimeSinceStartup + 3f;
@@ -337,6 +339,8 @@ namespace Rpg.Tests.Editor
                         yield return null;
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Returning to the follower must restore a visible green escort state.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("Green: following"),
+                            "Regrouping must replace the previous amber recovery hint.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(10),
                             "Regrouping never skips the physical safe-line confirmation.");
 

@@ -101,6 +101,7 @@ namespace Rpg.Soundwell
         private int phase;
         private int rescueMethod;
         private bool evacueeWaiting;
+        private bool evacueeWaitedOffLane;
         private Vector2 walker = new Vector2(-245f, 0f);
 
         // 0: roll call; 1: walk; 2: cable decision; 3: stretcher crossing;
@@ -116,6 +117,7 @@ namespace Rpg.Soundwell
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
+        public string CurrentInstructions => instructions != null ? instructions.text : string.Empty;
         public bool CanRepair => phase == 1 && Mathf.Abs(walker.x - ClampX) <= RepairReach &&
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanRescue => phase == 7 &&
@@ -695,6 +697,7 @@ namespace Rpg.Soundwell
                 return;
             phase = 10;
             evacueeWaiting = false;
+            evacueeWaitedOffLane = false;
             SetEvacueeEscortCue(false);
             narration.text = Copy(
                 "You take the evacuee's arm. 'Keep behind me. Don't stop at the open span.'",
@@ -718,13 +721,21 @@ namespace Rpg.Soundwell
                 (evacueeWaiting ? 20f : 33f);
             bool waiting = offLane || (evacueeWaiting
                 ? gap > 65f : gap > 115f);
-            if (waiting != evacueeWaiting)
+            // Explain why the escort stopped instead of always telling an
+            // on-lane player to "return to the lane." If the cause changes
+            // while still waiting, replace the stale hint immediately.
+            if (waiting != evacueeWaiting ||
+                (waiting && offLane != evacueeWaitedOffLane))
             {
                 evacueeWaiting = waiting;
+                evacueeWaitedOffLane = offLane;
                 SetEvacueeEscortCue(waiting);
                 instructions.text = waiting
-                    ? Copy("Amber: the evacuee stopped. Return to their bridge lane.",
-                        "橙色：伤者停下了。回到他所在的桥面通道重新接应。")
+                    ? offLane
+                        ? Copy("Amber: the evacuee stopped. Return to the bridge lane.",
+                            "橙色：伤者停下了。回到桥面通道重新接应。")
+                        : Copy("Amber: the evacuee fell behind. Walk back toward them.",
+                            "橙色：伤者落在后方。请往回走，重新接应。")
                     : Copy("Green: following. Stay close; press E / Pad A at the safe line.",
                         "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
             }
