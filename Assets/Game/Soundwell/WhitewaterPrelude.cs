@@ -43,6 +43,7 @@ namespace Rpg.Soundwell
         private const float SpareRopeTravelSeconds = 0.55f;
         private static readonly Vector2 SpareRopeDispatch = new Vector2(-290f, 51f);
         private static readonly Vector2 SpareRopeDock = new Vector2(ClampX + 30f, 51f);
+        private static readonly Vector2 SpareRopeBrace = new Vector2(ClampX - 3f, 30f);
         private static readonly Color Ink = new Color(0.87f, 0.90f, 0.88f);
         private static readonly Color Brass = new Color(0.91f, 0.72f, 0.40f);
         // A wounded follower needs visible readiness and separation feedback.
@@ -1024,6 +1025,11 @@ namespace Rpg.Soundwell
             // A visible attempt, not a way to rewrite the established third
             // bell or silently award a battle victory.
             cable.color = new Color(0.96f, 0.73f, 0.32f);
+            // Spend the coil the player visibly called for: move that SAME
+            // scene object onto the clamp, not an invented second rope or
+            // an automatically completed ORK defence action.
+            if (spareRope != null && spareRope.gameObject.activeInHierarchy)
+                StartCoroutine(FastenSpareRopeAtClamp());
             // A real held-cable interaction changes Shen Li's arm and
             // wrench silhouette at the existing 2x pixel scale. Do not
             // borrow the ORK combat animator or auto-advance the history.
@@ -1031,13 +1037,36 @@ namespace Rpg.Soundwell
                 shenLiFigure.sprite = shenLiBracingSprite;
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "You brace the strained cable beside Shen Li. For a moment it holds; the armed figures are still advancing over the far span.",
-                "你在沈砾身边扶稳吃紧的缆索。它暂时绷住了，可对岸持械的人影仍在逼近。");
+                "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds; the armed figures are still advancing over the far span.",
+                "你在沈砾身边扶住缆索，把送来的绳卷拉上缆桩。它暂时绷住了，可对岸持械的人影仍在逼近。");
             instructions.text = Copy(
                 "The cable is held for now, not saved. ORK bridge defence and the fixed third-bell break remain ahead. Return to entry.",
                 "缆索暂时撑住，并没有改变结局。ORK 桥头防守战与既定的第三声断桥仍在后续。可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        // Only a visual cable-brace action. Keep the 16px coil on exact
+        // canvas pixels so the saved point-filtered sprite never shimmers.
+        // This cannot fire the third bell, complete a quest or resolve ORK.
+        private IEnumerator FastenSpareRopeAtClamp()
+        {
+            if (spareRope == null)
+                yield break;
+            Vector2 from = spareRope.anchoredPosition;
+            const float duration = 0.42f;
+            float elapsed = 0f;
+            while (phase == 16 && spareRope != null && elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                Vector2 position = Vector2.Lerp(from, SpareRopeBrace,
+                    Mathf.Clamp01(elapsed / duration));
+                spareRope.anchoredPosition = new Vector2(
+                    Mathf.Round(position.x), Mathf.Round(position.y));
+                yield return null;
+            }
+            if (phase == 16 && spareRope != null)
+                spareRope.anchoredPosition = SpareRopeBrace;
         }
 
         private IEnumerator ExtinguishFarBankLamps()
