@@ -163,6 +163,8 @@ namespace Rpg.Soundwell
         private const float CompanionHitSeconds = 0.30f;
         private readonly GameObject[] actors = new GameObject[3];
         private readonly List<Sample> history = new List<Sample>(32);
+        private bool checkpointRegroupPending;
+        private Vector3 checkpointAnchor;
         private Sprite placeholderSprite;
         private Texture2D placeholderTexture;
         private Sprite walkingSprite;
@@ -181,6 +183,10 @@ namespace Rpg.Soundwell
         private Texture2D hoodGuardTexture;
 
         private Transform leader;
+        // Rigidbody2D.position is the gameplay position during an immediate
+        // checkpoint teleport. Transform.position can still reflect the prior
+        // physics step when LateUpdate samples the following formation.
+        private Rigidbody2D leaderBody;
         private Transform parent;
         private SoundwellPartyConfig config;
         private bool ready;
@@ -188,6 +194,7 @@ namespace Rpg.Soundwell
         public void Configure(Transform partyLeader, Transform partyParent, SoundwellPartyConfig settings)
         {
             leader = partyLeader;
+            leaderBody = partyLeader != null ? partyLeader.GetComponent<Rigidbody2D>() : null;
             parent = partyParent;
             config = settings;
             history.Clear();
@@ -216,7 +223,7 @@ namespace Rpg.Soundwell
             GameObject actor = new GameObject(name);
             actor.SetActive(false);
             actor.transform.SetParent(parent, true);
-            actor.transform.position = leader.position + (Vector3)offset;
+            actor.transform.position = LeaderPosition + (Vector3)offset;
             actor.transform.localScale = Vector3.one;
             var renderer = actor.AddComponent<SpriteRenderer>();
             renderer.sprite = index == 2 ? hoodIdleSprite : placeholderSprite;
@@ -229,13 +236,60 @@ namespace Rpg.Soundwell
 
         public void SetFrameworkReady() => ready = true;
 
-        private void RecordLeader()
+        private Vector3 LeaderPosition
         {
-            if (leader == null) return;
-            history.Add(new Sample { At = Time.time, Position = leader.position });
+            get
+            {
+                if (leaderBody == null)
+                    return leader.position;
+                Vector2 position = leaderBody.position;
+                return new Vector3(position.x, position.y, leader.position.z);
+            }
+        }
+
+        // Real beast contact can relocate the leader away and back between
+        // two LateUpdates. Only the checkpoint service knows this occurred;
+        // comparing consecutive sampled positions cannot detect it.
+        // This is exploration presentation, never a second combat action.
+        public void RegroupAfterCheckpoint(Vector2 checkpoint)
+        {
+            if (!ready || leader == null || config == null)
+                return;
+            checkpointAnchor = new Vector3(checkpoint.x, checkpoint.y, 0f);
+            checkpointRegroupPending = true;
+            history.Clear();
+            history.Add(new Sample { At = Time.time, Position = checkpointAnchor });
+            for (int i = 1; i < actors.Length; i++)
+            {
+                if (actors[i] == null)
+                    continue;
+                actors[i].transform.position = checkpointAnchor + (Vector3)
+                    (i == 2 ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
+                var renderer = actors[i].GetComponent<SpriteRenderer>();
+                if (renderer != null)
+                    renderer.sprite = i == 2 ? hoodIdleSprite : placeholderSprite;
+            }
+        }
+
+        // A checkpoint knockback or scene-owned relocation is not a walk
+        // across the arena. Never make the two visible rescuers traverse the
+        // obsolete path while the real leader is already back at safety.
+        private const float LeaderRelocationThreshold = 3f;
+
+        private bool RecordLeader()
+        {
+            if (leader == null) return false;
+            Vector3 position = LeaderPosition;
+            bool relocated = history.Count > 0 &&
+                Vector3.Distance(history[history.Count - 1].Position, position) >
+                LeaderRelocationThreshold;
+            if (relocated)
+                history.Clear();
+            history.Add(new Sample { At = Time.time, Position = position });
             while (history.Count > 32 ||
                 (history.Count > 2 && history[1].At < Time.time - 0.7f))
                 history.RemoveAt(0);
+            return relocated;
         }
 
         private Vector3 FollowSample()
@@ -252,7 +306,7 @@ namespace Rpg.Soundwell
                             Mathf.Clamp01((desired - before.At) / span));
                 }
             }
-            return history.Count == 0 ? leader.position : history[0].Position;
+            return history.Count == 0 ? LeaderPosition : history[0].Position;
         }
 
         public void RefreshCompanionHealth(int index, float hp, bool battleActive)
@@ -275,8 +329,11 @@ namespace Rpg.Soundwell
         public void RenderFollowers(bool inBattle, bool secondDefending, bool thirdDefending)
         {
             if (!ready || leader == null || config == null) return;
-            RecordLeader();
-            Vector3 pathPosition = FollowSample();
+            // Preserve the direct checkpoint signal through the next
+            // follower render even if no discontinuity was sampled.
+            bool checkpointRegroup = checkpointRegroupPending && !inBattle;
+            bool leaderRelocated = checkpointRegroup || RecordLeader();
+            Vector3 pathPosition = checkpointRegroup ? checkpointAnchor : FollowSample();
             for (int i = 1; i < actors.Length; i++)
             {
                 GameObject actor = actors[i];
@@ -302,6 +359,14 @@ namespace Rpg.Soundwell
                 Vector3 goal = pathPosition + (Vector3)(i == 2
                     ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
                 goal.z = 0f;
+                if (leaderRelocated)
+                {
+                    // Only exploration visuals may regroup immediately. ORK
+                    // alone positions the actual combatants during a battle.
+                    actor.transform.position = goal;
+                    renderer.sprite = idle;
+                    continue;
+                }
                 Vector3 beforePosition = actor.transform.position;
                 actor.transform.position = Vector3.MoveTowards(beforePosition, goal,
                     config.FormationFollowSpeed * Time.deltaTime);
@@ -312,6 +377,8 @@ namespace Rpg.Soundwell
                     Mathf.FloorToInt(Time.time / config.WalkFrameSeconds) % 2 == 1
                         ? walking : idle;
             }
+            if (checkpointRegroup)
+                checkpointRegroupPending = false;
         }
 
         public void ShowGuardPose(int index, Transform threat, bool battleStarted)

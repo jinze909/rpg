@@ -269,6 +269,32 @@ namespace Rpg.Tests.Editor
                 "On the very same contact frame, the bell must follow the relocated player.");
             Assert.That(trial.GateOpen, Is.True,
                 "The earned gate opening remains intact after the collision.");
+
+            // The leader's checkpoint relocation is instantaneous. The
+            // ORK-owned followers are a visual exploration formation: they
+            // must regroup at that same safety point, rather than spend
+            // seconds walking through the beast's old combat lane.
+            yield return null;
+            var party = Object.FindFirstObjectByType<SoundwellOrkParty>();
+            Assert.That(party != null && party.IsReady, Is.True);
+            var config = SoundwellPartyConfig.Load();
+            Assert.That(party.Actors.Count, Is.EqualTo(3));
+            Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
+                retreat + config.SecondFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 2 must not trail behind after a real beast contact.");
+            Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
+                retreat + config.ThirdFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 3 must rejoin the checkpoint without a phantom crossing.");
+            // Physics and the ORK party may update again after the first
+            // contact frame. Neither rescuer may snap back to the stale
+            // Rigidbody2D Transform position on the following frame.
+            yield return null;
+            Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
+                retreat + config.SecondFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 2 must stay regrouped through the next update.");
+            Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
+                retreat + config.ThirdFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 3 must stay regrouped through the next update.");
         }
 
         [UnityTest]
@@ -786,6 +812,14 @@ namespace Rpg.Tests.Editor
                 MoveTestLeader(playerBody, safe);
                 Assert.That(trial.RescueComplete, Is.False);
                 trial.ApplyInput(Vector2.zero, false, false, true);
+                var formationConfig = SoundwellPartyConfig.Load();
+                Assert.That(party.Actors.Count, Is.EqualTo(3));
+                Assert.That(Vector2.Distance(party.Actors[1].transform.position,
+                    safe + formationConfig.SecondFollowerOffset), Is.LessThan(0.05f),
+                    "Retry must bring the second rescuer directly to the actual safe point.");
+                Assert.That(Vector2.Distance(party.Actors[2].transform.position,
+                    safe + formationConfig.ThirdFollowerOffset), Is.LessThan(0.05f),
+                    "Retry must bring the third rescuer back without replaying an old path.");
                 Assert.That(trial.SurveyorWaitingForLeader, Is.False);
                 Assert.That(surveyorSprite.color, Is.EqualTo(followingColor),
                     "Retry must clear the amber waiting sprite before the next render.");
@@ -796,6 +830,11 @@ namespace Rpg.Tests.Editor
                 Assert.That(trial.GateOpen, Is.False);
                 Assert.That(trial.RescueComplete, Is.False);
                 yield return null;
+                Assert.That(Vector2.Distance(party.Actors[1].transform.position,
+                    safe + formationConfig.SecondFollowerOffset), Is.LessThan(0.05f),
+                    "A subsequent ORK follower update must not restore the stale retry route.");
+                Assert.That(Vector2.Distance(party.Actors[2].transform.position,
+                    safe + formationConfig.ThirdFollowerOffset), Is.LessThan(0.05f));
                 MoveTestLeader(playerBody, new Vector2(-0.55f, 0f));
                 Assert.That(trial.CanEngageBeast, Is.True,
                     "An abandoned bell escort must still allow the original combat route.");
