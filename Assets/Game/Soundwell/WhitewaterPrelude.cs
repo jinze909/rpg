@@ -54,6 +54,7 @@ namespace Rpg.Soundwell
         private RectTransform stretcher;
         private RectTransform hanQiao;
         private RectTransform rescuePoint;
+        private RectTransform shenLiRescueLine;
         private RectTransform lastBoat;
         private RectTransform evacuee;
         private RectTransform evacueeSafeLine;
@@ -209,6 +210,15 @@ namespace Rpg.Soundwell
             hanQiao = hanQiaoFigure.rectTransform;
             rescuePoint = Panel(canvas.transform, "S00 rescue station",
                 new Vector2(ClampX, 12f), new Vector2(30f, 12f), Brass).rectTransform;
+            // Shen Li's authored rope alternative has a real, non-clickable
+            // line across the water, not merely text claiming she threw it.
+            // It appears only while that rescue plan is active and retracts
+            // on cancellation or the player's earned rescue interaction.
+            shenLiRescueLine = Panel(canvas.transform, "S00 Shen Li thrown rescue line",
+                new Vector2(83f, 55f), new Vector2(315f, 4f),
+                new Color(0.85f, 0.69f, 0.43f)).rectTransform;
+            shenLiRescueLine.localRotation = Quaternion.Euler(0f, 0f, -13.6f);
+            shenLiRescueLine.gameObject.SetActive(false);
             lastBoat.gameObject.SetActive(false);
             hanQiao.gameObject.SetActive(false);
             rescuePoint.gameObject.SetActive(false);
@@ -394,6 +404,7 @@ namespace Rpg.Soundwell
                 SoundwellInputAdapter.SetGameplayContext();
                 rescuePoint.anchoredPosition = new Vector2(RescueStationX(choice), 12f);
                 rescuePoint.gameObject.SetActive(true);
+                shenLiRescueLine.gameObject.SetActive(choice == 1);
                 narration.text = Copy(
                     choice == 0 ? "Grab the wet line and haul Han Qiao yourself."
                     : choice == 1 ? "Shen Li throws the rope. Help her draw Han Qiao out."
@@ -454,6 +465,7 @@ namespace Rpg.Soundwell
             // progressing Han Qiao's boat, or writing the Makinom outcome.
             rescueMethod = -1;
             rescuePoint.gameObject.SetActive(false);
+            shenLiRescueLine.gameObject.SetActive(false);
             phase = 6;
             ShowRescueChoices();
         }
@@ -466,6 +478,7 @@ namespace Rpg.Soundwell
                 Maki.Game.Variables.Set(HanQiaoRescueKey, rescueMethod + 1);
             phase = 8;
             rescuePoint.gameObject.SetActive(false);
+            shenLiRescueLine.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
                 rescueMethod == 0 ? "You heave Han Qiao clear. He is badly hurt, but alive."

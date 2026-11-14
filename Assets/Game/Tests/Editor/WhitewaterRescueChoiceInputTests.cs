@@ -30,7 +30,7 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 Gamepad pad = InputSystem.AddDevice<Gamepad>();
-                foreach (int rescueChoice in new[] { 0, 2 })
+                foreach (int rescueChoice in new[] { 0, 1, 2 })
                 {
                     var root = new GameObject("S00 alternate rescue input regression");
                     activePrelude = root.AddComponent<WhitewaterPrelude>();
@@ -76,15 +76,26 @@ namespace Rpg.Tests.Editor
                         "S00 Whitewater playable canvas/S00 rescue station") as RectTransform;
                     Assert.That(station, Is.Not.Null);
                     Assert.That(station.gameObject.activeInHierarchy, Is.False);
+                    var shenLiLine = activePrelude.transform.Find(
+                        "S00 Whitewater playable canvas/S00 Shen Li thrown rescue line") as RectTransform;
+                    Assert.That(shenLiLine, Is.Not.Null);
+                    Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
+                        "Shen Li cannot throw the rope before the choice is made.");
+                    Assert.That(shenLiLine.GetComponent<Image>().raycastTarget, Is.False,
+                        "The rescue line must not steal clicks or gamepad focus.");
 
                     // The first choice is merely a plan. Back must return
                     // to the rescuer menu, not exit S00 or silently save a rescue.
-                    int abandonedChoice = rescueChoice == 0 ? 2 : 0;
+                    int abandonedChoice = rescueChoice == 0 ? 2 : rescueChoice == 1 ? 1 : 0;
                     ClickChoice(activePrelude, abandonedChoice);
                     Assert.That(activePrelude.Phase, Is.EqualTo(7));
                     Assert.That(station.gameObject.activeInHierarchy, Is.True);
                     Assert.That(station.anchoredPosition.x,
-                        Is.EqualTo(abandonedChoice == 0 ? 60f : -70f));
+                        Is.EqualTo(abandonedChoice == 0 ? 60f :
+                            abandonedChoice == 1 ? 178f : -70f));
+                    Assert.That(shenLiLine.gameObject.activeInHierarchy,
+                        Is.EqualTo(abandonedChoice == 1),
+                        "Only Shen Li's rope choice should draw the line over the water.");
                     if (rescueChoice == 0)
                         input.Press(keys.escapeKey);
                     else
@@ -101,6 +112,8 @@ namespace Rpg.Tests.Editor
                     Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                     Assert.That(station.gameObject.activeInHierarchy, Is.False,
                         "The abandoned rescue station must disappear.");
+                    Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
+                        "Pad B must retract a cancelled Shen Li rope without rescuing anyone.");
                     Assert.That(activePrelude.CanRescue, Is.False);
                     Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX),
                         "Cancelling a plan cannot begin moving Han Qiao to the boat.");
@@ -115,11 +128,21 @@ namespace Rpg.Tests.Editor
                     Assert.That(activePrelude.Phase, Is.EqualTo(7));
                     Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX),
                         "Choosing a rescuer cannot instantly board Han Qiao.");
-                    Assert.That(activePrelude.CanRescue, Is.False,
-                        "Neither alternative station is already in reach after the clamp repair.");
+                    Assert.That(activePrelude.CanRescue, Is.EqualTo(rescueChoice == 1),
+                        "The Shen Li station is at the previously reached clamp; the other rescues require travel.");
                     Assert.That(station.anchoredPosition.x,
-                        Is.EqualTo(rescueChoice == 0 ? 60f : -70f),
+                        Is.EqualTo(rescueChoice == 0 ? 60f : rescueChoice == 1 ? 178f : -70f),
                         "Each authored rescue method must point to its own visible station.");
+                    Assert.That(shenLiLine.gameObject.activeInHierarchy,
+                        Is.EqualTo(rescueChoice == 1),
+                        "The thrown rope must appear only for the selected Shen Li method.");
+                    if (rescueChoice == 1)
+                    {
+                        Assert.That(shenLiLine.sizeDelta.x, Is.GreaterThan(300f),
+                            "The rope should actually span the water to Han Qiao.");
+                        Assert.That(activePrelude.Phase, Is.EqualTo(7),
+                            "Already standing at Shen Li's clamp cannot auto-complete the rescue.");
+                    }
 
                     // The soldier-assisted branch must be playable with the
                     // physical gamepad alone after the Pad B plan cancellation.
@@ -136,7 +159,7 @@ namespace Rpg.Tests.Editor
                         Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX));
                         input.Set(pad.leftStick, Vector2.left);
                     }
-                    else
+                    else if (rescueChoice == 0)
                         input.Press(keys.aKey);
                     float rescueDeadline = Time.realtimeSinceStartup + 5f;
                     while (!activePrelude.CanRescue &&
@@ -144,7 +167,7 @@ namespace Rpg.Tests.Editor
                         yield return null;
                     if (rescueChoice == 2)
                         input.Set(pad.leftStick, Vector2.zero);
-                    else
+                    else if (rescueChoice == 0)
                         input.Release(keys.aKey);
                     yield return null;
                     Assert.That(activePrelude.CanRescue, Is.True,
@@ -163,9 +186,12 @@ namespace Rpg.Tests.Editor
                     yield return null;
                     Assert.That(activePrelude.Phase, Is.EqualTo(8),
                         "Fresh gamepad South or E at the station must perform the actual rescue.");
+                    Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
+                        "The rope retracts after the real action; it cannot stay over the boat.");
                     Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                     Assert.That(activePrelude.CurrentNarration, Does.Contain(
-                        rescueChoice == 0 ? "You heave Han Qiao" : "The soldiers lift"));
+                        rescueChoice == 0 ? "You heave Han Qiao" :
+                        rescueChoice == 1 ? "Shen Li's rope holds" : "The soldiers lift"));
                     Assert.That(inWater.anchoredPosition.x, Is.GreaterThan(riverStartX),
                         "The officer must begin visibly moving only after the actual rescue.");
 
