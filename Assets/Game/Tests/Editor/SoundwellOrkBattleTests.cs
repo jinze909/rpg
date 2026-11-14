@@ -2071,7 +2071,7 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.DirectCombatComplete, Is.True);
             SoundwellTrialTests.AssertRescueReward(party);
             SoundwellSmokeHost.Capture(trial, "19-fixed-formation-physical-rescue");
-            LogAssert.Expect(LogType.Log, "RPG_SOUNDWELL_FIXED_FORMATION_FULL_RESCUE_VALIDATED");
+            LogAssert.Expect(UnityEngine.LogType.Log, "RPG_SOUNDWELL_FIXED_FORMATION_FULL_RESCUE_VALIDATED");
             Debug.Log("RPG_SOUNDWELL_FIXED_FORMATION_FULL_RESCUE_VALIDATED");
         }
 
