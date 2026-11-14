@@ -107,6 +107,23 @@ namespace Rpg.Tests.Editor
 
             Assert.That(party.IsReady, Is.True,
                 "The live Soundwell scene must register its ORK party. " + party.InitializationError);
+            // Scene retirement may precede ORK's next action-choice update.
+            // The chooser and readout must refuse both disabled actors and
+            // children under a deactivated parent without touching ORK turns.
+            var retiredParent = new GameObject("Temporary ORK retired parent");
+            var retiredChild = new GameObject("Temporary ORK retired scene actor");
+            retiredChild.transform.SetParent(retiredParent.transform);
+            Assert.That(OrkPartyBridge.IsActiveBattleSceneActor(retiredChild), Is.True);
+            retiredParent.SetActive(false);
+            Assert.That(retiredChild.activeSelf, Is.True,
+                "The nested actor should still carry its own active flag.");
+            Assert.That(OrkPartyBridge.IsActiveBattleSceneActor(retiredChild), Is.False,
+                "An actor under an inactive parent is not a valid ORK battle choice.");
+            retiredParent.SetActive(true);
+            retiredChild.SetActive(false);
+            Assert.That(OrkPartyBridge.IsActiveBattleSceneActor(retiredChild), Is.False,
+                "A directly disabled actor must not remain visible or actionable.");
+            Object.Destroy(retiredParent);
             float trialDeadline = Time.realtimeSinceStartup + 8f;
             while (!trial.IsReady && Time.realtimeSinceStartup < trialDeadline)
                 yield return null;

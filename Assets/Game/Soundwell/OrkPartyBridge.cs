@@ -371,6 +371,12 @@ namespace Rpg.Soundwell
         // an actionable rescuer: Guard, Gate or a movement allowance can
         // remain available even when a base attack cannot target the beast.
         // Only report the chooser as pending when ORK has no live turn.
+        // ORK can keep a combatant reference briefly after its world actor
+        // has been deactivated by scene retreat/retry. Unity-null is not
+        // enough: inactive objects cannot receive a valid player action.
+        public static bool IsActiveBattleSceneActor(GameObject actor) =>
+            actor != null && actor.activeInHierarchy;
+
         public static bool IsBattleChooserPending(int chooserIndex, bool beastDead, float beastHp) =>
             chooserIndex < 0 && !beastDead && beastHp > 0f;
 
@@ -393,8 +399,8 @@ namespace Rpg.Soundwell
                 // The ORK roster can retire a combatant a frame before the
                 // world-owned visual disappears (or vice versa) on retreat.
                 // Never dereference or advertise an orphan in the live HUD.
-                if (member == null || member.GameObject == null ||
-                    i >= actors.Count || actors[i] == null)
+                if (member == null || !IsActiveBattleSceneActor(member.GameObject) ||
+                    i >= actors.Count || !IsActiveBattleSceneActor(actors[i]))
                     continue;
                 text.Append(SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
                     .Append("  ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
@@ -439,8 +445,8 @@ namespace Rpg.Soundwell
                         // retreat/retry. Never return a vanished combatant as
                         // an actionable turn or dereference a retired roster slot.
                         Combatant member = members[i];
-                        if (member != null && member.GameObject != null &&
-                            i < actors.Count && actors[i] != null &&
+                        if (member != null && IsActiveBattleSceneActor(member.GameObject) &&
+                            i < actors.Count && IsActiveBattleSceneActor(actors[i]) &&
                             !member.Status.IsDead && member.Actions.IsChoosing)
                             return i;
                     }
@@ -450,8 +456,9 @@ namespace Rpg.Soundwell
 
         public bool CanGuard(int index) => index >= 0 && index == ChoosingRescuerIndex &&
             index < members.Count &&
-            members[index] != null && members[index].GameObject != null &&
-            index < actors.Count && actors[index] != null &&
+            members[index] != null &&
+            IsActiveBattleSceneActor(members[index].GameObject) &&
+            index < actors.Count && IsActiveBattleSceneActor(actors[index]) &&
             members[index].Shortcuts.DefendShortcut.CanUse(members[index], true, true);
 
         public bool TryGuard()
