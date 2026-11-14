@@ -164,6 +164,25 @@ namespace Rpg.Soundwell
                     : message.Replace("WASD / left stick",
                         string.IsNullOrEmpty(movement) ? "left stick" : movement + " / left stick");
             }
+            // The two walkable S00 phases handle Gameplay/Back (not a
+            // fixed Escape/Pad B shortcut). Saved remaps must update both
+            // locale prompts without changing the original input owner.
+            if (message.Contains("Esc / Pad B") ||
+                message.Contains("Esc／手柄 B"))
+            {
+                string keyboardBack = SoundwellInputAdapter.GameplayKeyboardBackLabel();
+                string gamepadBack = SoundwellInputAdapter.GameplayGamepadBackLabel();
+                string padBack = string.IsNullOrEmpty(gamepadBack) ? string.Empty
+                    : (Chinese ? "手柄 " : "Pad ") + gamepadBack;
+                string backLabel = !string.IsNullOrEmpty(keyboardBack) && !string.IsNullOrEmpty(padBack)
+                    ? keyboardBack + (Chinese ? "／" : " / ") + padBack
+                    : !string.IsNullOrEmpty(keyboardBack) ? keyboardBack
+                    : !string.IsNullOrEmpty(padBack) ? padBack
+                    : Chinese ? "返回" : "Back";
+                message = Chinese
+                    ? message.Replace("Esc／手柄 B", backLabel)
+                    : message.Replace("Esc / Pad B", backLabel);
+            }
             // Only scripted instructions with the original action pair
             // are rewritten. Resolve both effective bindings from Gameplay/Ring
             // so neither keyboard nor gamepad hints lie after a saved remap.

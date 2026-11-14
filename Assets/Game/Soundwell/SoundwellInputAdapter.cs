@@ -149,6 +149,33 @@ namespace Rpg.Soundwell
             return string.Empty;
         }
 
+        // Gameplay Back is independently rebindable from UI Cancel.
+        // S00's active walking prompts must advertise the live binding.
+        public static string GameplayKeyboardBackLabel()
+        {
+            return GameplayBackLabel("<Keyboard>/");
+        }
+
+        public static string GameplayGamepadBackLabel()
+        {
+            return GameplayBackLabel("<Gamepad>/");
+        }
+
+        private static string GameplayBackLabel(string devicePrefix)
+        {
+            EnsureLoaded();
+            for (int i = 0; i < back.bindings.Count; i++)
+            {
+                var binding = back.bindings[i];
+                if (!binding.isComposite && !binding.isPartOfComposite &&
+                    !string.IsNullOrEmpty(binding.effectivePath) &&
+                    binding.effectivePath.StartsWith(devicePrefix,
+                        StringComparison.OrdinalIgnoreCase))
+                    return back.GetBindingDisplayString(i);
+            }
+            return string.Empty;
+        }
+
         // The playable S00 walks with Gameplay/Move, not a hardcoded WASD
         // input reader. Show the first still-usable keyboard composite's
         // effective Up/Left/Down/Right bindings after player rebinding.

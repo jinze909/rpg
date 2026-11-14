@@ -388,6 +388,78 @@ namespace Rpg.Tests.Editor
                     SoundwellUiLocalization.SetLanguage(previousMoveLocale);
                 }
 
+                // A remapped Gameplay/Back must update the actual S00
+                // walking instruction, and the same physical buttons must
+                // still cancel a walking phase. UI Cancel is separate.
+                var backAction = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                    .FindActionMap("Gameplay", true).FindAction("Back", true);
+                int backKeyIndex = Enumerable.Range(0, backAction.bindings.Count)
+                    .Single(i => backAction.bindings[i].path == "<Keyboard>/escape");
+                int backPadIndex = Enumerable.Range(0, backAction.bindings.Count)
+                    .Single(i => backAction.bindings[i].path == "<Gamepad>/buttonEast");
+                string priorBackKey = backAction.bindings[backKeyIndex].overridePath;
+                string priorBackPad = backAction.bindings[backPadIndex].overridePath;
+                string priorBackLocale = SoundwellUiLocalization.Language;
+                SoundwellInputAdapter.SetUiContext();
+                backAction.ApplyBindingOverride(backKeyIndex, "<Keyboard>/backspace");
+                backAction.ApplyBindingOverride(backPadIndex, "<Gamepad>/buttonWest");
+                try
+                {
+                    string keyBack = backAction.GetBindingDisplayString(backKeyIndex);
+                    string padBack = backAction.GetBindingDisplayString(backPadIndex);
+                    Assert.That(SoundwellInputAdapter.GameplayKeyboardBackLabel(), Is.EqualTo(keyBack));
+                    Assert.That(SoundwellInputAdapter.GameplayGamepadBackLabel(), Is.EqualTo(padBack));
+                    foreach (string locale in new[]
+                    {
+                        SoundwellUiLocalization.English, SoundwellUiLocalization.Chinese
+                    })
+                    {
+                        SoundwellUiLocalization.SetLanguage(locale);
+                        var stageRoot = new GameObject("S00 rebound Back hint regression");
+                        var stage = stageRoot.AddComponent<WhitewaterPrelude>();
+                        stage.Begin(null);
+                        stage.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 choice 0")
+                            .onClick.Invoke();
+                        string expected = locale == SoundwellUiLocalization.Chinese
+                            ? keyBack + "／手柄 " + padBack
+                            : keyBack + " / Pad " + padBack;
+                        Assert.That(stage.CurrentInstructions, Does.Contain(expected),
+                            "Gameplay Back prompt must display both effective bindings.");
+                        Assert.That(stage.CurrentInstructions, Does.Not.Contain(
+                            locale == SoundwellUiLocalization.Chinese ? "Esc／手柄 B" : "Esc / Pad B"));
+                        stage.Close();
+                        yield return null;
+                    }
+
+                    SoundwellInputAdapter.SetGameplayContext();
+                    input.Press(keyboard.backspaceKey);
+                    InputSystem.Update();
+                    Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.True,
+                        "The displayed rebound Backspace key must cancel Gameplay.");
+                    input.Release(keyboard.backspaceKey);
+                    InputSystem.Update();
+                    input.Press(gamepad.buttonWest);
+                    InputSystem.Update();
+                    Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.True,
+                        "The displayed rebound gamepad West button must cancel Gameplay.");
+                    input.Release(gamepad.buttonWest);
+                    InputSystem.Update();
+                }
+                finally
+                {
+                    SoundwellInputAdapter.SetUiContext();
+                    if (priorBackKey == null)
+                        backAction.RemoveBindingOverride(backKeyIndex);
+                    else
+                        backAction.ApplyBindingOverride(backKeyIndex, priorBackKey);
+                    if (priorBackPad == null)
+                        backAction.RemoveBindingOverride(backPadIndex);
+                    else
+                        backAction.ApplyBindingOverride(backPadIndex, priorBackPad);
+                    SoundwellUiLocalization.SetLanguage(priorBackLocale);
+                }
+
                 SoundwellInputAdapter.SetGameplayContext();
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 
