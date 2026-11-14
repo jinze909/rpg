@@ -127,9 +127,23 @@ namespace Rpg.Tests.Editor
                 patrol.Tick(BellSignal.Ready, sound, false, false, true, false);
                 Assert.That(contacts, Is.EqualTo(1),
                     "Contact fires only in an open unsafe exploration lane.");
+                // Rendering and physics can both tick while the same player
+                // collider remains in the beast. It is still one capture.
+                patrol.Tick(BellSignal.Ready, sound, false, false, true, false);
+                Assert.That(contacts, Is.EqualTo(1),
+                    "Continuous overlap cannot count as repeated captures.");
+                body.position = new Vector2(0f, 0f);
+                patrol.Tick(BellSignal.Ready, sound, false, false, true, false);
+                body.position = new Vector2(3f, 0f);
+                patrol.Tick(BellSignal.Ready, sound, false, false, true, false);
+                Assert.That(contacts, Is.EqualTo(2),
+                    "Leaving and re-entering the same unsafe lane must be capturable again.");
                 Assert.That(body.position, Is.EqualTo(new Vector2(3f, 0f)),
                     "Only TrialCheckpointManager may relocate a captured player.");
                 patrol.ResetPatrol();
+                patrol.Tick(BellSignal.Ready, sound, false, false, true, false);
+                Assert.That(contacts, Is.EqualTo(3),
+                    "Retry must clear the contact latch for the next genuine capture.");
                 Assert.That(patrol.Position, Is.EqualTo(new Vector2(3f, 0f)));
             }
             finally
