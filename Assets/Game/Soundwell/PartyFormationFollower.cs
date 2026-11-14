@@ -229,13 +229,24 @@ namespace Rpg.Soundwell
 
         public void SetFrameworkReady() => ready = true;
 
-        private void RecordLeader()
+        // A checkpoint knockback or scene-owned relocation is not a walk
+        // across the arena. Never make the two visible rescuers traverse the
+        // obsolete path while the real leader is already back at safety.
+        private const float LeaderRelocationThreshold = 3f;
+
+        private bool RecordLeader()
         {
-            if (leader == null) return;
+            if (leader == null) return false;
+            bool relocated = history.Count > 0 &&
+                Vector3.Distance(history[history.Count - 1].Position, leader.position) >
+                LeaderRelocationThreshold;
+            if (relocated)
+                history.Clear();
             history.Add(new Sample { At = Time.time, Position = leader.position });
             while (history.Count > 32 ||
                 (history.Count > 2 && history[1].At < Time.time - 0.7f))
                 history.RemoveAt(0);
+            return relocated;
         }
 
         private Vector3 FollowSample()
@@ -275,7 +286,7 @@ namespace Rpg.Soundwell
         public void RenderFollowers(bool inBattle, bool secondDefending, bool thirdDefending)
         {
             if (!ready || leader == null || config == null) return;
-            RecordLeader();
+            bool leaderRelocated = RecordLeader();
             Vector3 pathPosition = FollowSample();
             for (int i = 1; i < actors.Length; i++)
             {
@@ -302,6 +313,14 @@ namespace Rpg.Soundwell
                 Vector3 goal = pathPosition + (Vector3)(i == 2
                     ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
                 goal.z = 0f;
+                if (leaderRelocated)
+                {
+                    // Only exploration visuals may regroup immediately. ORK
+                    // alone positions the actual combatants during a battle.
+                    actor.transform.position = goal;
+                    renderer.sprite = idle;
+                    continue;
+                }
                 Vector3 beforePosition = actor.transform.position;
                 actor.transform.position = Vector3.MoveTowards(beforePosition, goal,
                     config.FormationFollowSpeed * Time.deltaTime);
