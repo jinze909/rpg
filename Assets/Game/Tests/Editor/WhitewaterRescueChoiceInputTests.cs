@@ -110,14 +110,20 @@ namespace Rpg.Tests.Editor
 
                     if (rescueChoice == 0)
                     {
-                        // The wounded follower is slower than the player. Running far
-                        // ahead must stop the escort, show an amber warning, and
-                        // require a real walk back rather than an automatic rescue.
-                        Button retreat = FindButton(activePrelude, "S00 continue to final retreat");
+                        // Leaving the bridge's walkable lane, not simply
+                        // following the ordinary east/west route, must stop
+                        // the escort and make recovery visible to the player.
+                        // The reusable Continue button is renamed only when
+                        // the real boat-arrival coroutine completes.
+                        Button retreat = activePrelude.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 continue to last boat" ||
+                                button.gameObject.name == "S00 continue to final retreat");
                         float boatDeadline = Time.realtimeSinceStartup + 5f;
                         while (!retreat.gameObject.activeInHierarchy && Time.realtimeSinceStartup < boatDeadline)
                             yield return null;
                         Assert.That(retreat.gameObject.activeInHierarchy, Is.True);
+                        Assert.That(retreat.gameObject.name, Is.EqualTo("S00 continue to final retreat"),
+                            "Only the completed boat animation may unlock the final retreat.");
                         retreat.onClick.Invoke();
                         Assert.That(activePrelude.Phase, Is.EqualTo(9));
                         input.Press(keys.aKey);
@@ -137,22 +143,22 @@ namespace Rpg.Tests.Editor
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Green indicates a follower is connected to the escort.");
 
-                        input.Press(keys.aKey);
+                        input.Press(keys.sKey);
                         float separationDeadline = Time.realtimeSinceStartup + 4f;
                         while (follower.color.r <= follower.color.g && Time.realtimeSinceStartup < separationDeadline)
                             yield return null;
-                        input.Release(keys.aKey);
+                        input.Release(keys.sKey);
                         yield return null;
                         Assert.That(follower.color.r, Is.GreaterThan(follower.color.g),
-                            "Walking too far ahead must visibly stop the wounded follower.");
+                            "Walking away from the bridge lane must visibly stop the wounded follower.");
                         Assert.That(activePrelude.CanDeliverEvacuee, Is.False,
-                            "A stranded follower cannot be delivered just because the player reached safety.");
+                            "A separated follower cannot be delivered without returning to the bridge lane.");
 
-                        input.Press(keys.dKey);
+                        input.Press(keys.wKey);
                         float regroupDeadline = Time.realtimeSinceStartup + 3f;
                         while (follower.color.g <= follower.color.r && Time.realtimeSinceStartup < regroupDeadline)
                             yield return null;
-                        input.Release(keys.dKey);
+                        input.Release(keys.wKey);
                         yield return null;
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Returning to the follower must restore a visible green escort state.");

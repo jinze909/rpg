@@ -468,15 +468,22 @@ namespace Rpg.Soundwell
             if (phase != 10 || evacuee == null)
                 return;
             float gap = Mathf.Abs(walker.x - evacuee.anchoredPosition.x);
-            bool waiting = evacueeWaiting
-                ? gap > 65f : gap > 115f;
+            // The ordinary east/west escort retains its established pace.
+            // Straying far off the bridge lane leaves a wounded follower
+            // behind; return to the lane (with hysteresis) to reconnect.
+            // This uses the same player position and follower state, not a
+            // second quest timer or teleport.
+            bool offLane = Mathf.Abs(walker.y) >
+                (evacueeWaiting ? 20f : 33f);
+            bool waiting = offLane || (evacueeWaiting
+                ? gap > 65f : gap > 115f);
             if (waiting != evacueeWaiting)
             {
                 evacueeWaiting = waiting;
                 SetEvacueeEscortCue(waiting);
                 instructions.text = waiting
-                    ? Copy("Amber: the evacuee stopped. Go back and reconnect.",
-                        "橙色：伤者掉队停下了。回去重新接上他。")
+                    ? Copy("Amber: the evacuee stopped. Return to their bridge lane.",
+                        "橙色：伤者停下了。回到他所在的桥面通道重新接应。")
                     : Copy("Green: following. Stay close; press E / Pad A at the safe line.",
                         "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
             }
@@ -493,9 +500,9 @@ namespace Rpg.Soundwell
                 followTarget = walker.x + followOffset;
             else if (walker.x > at.x + followOffset)
                 followTarget = walker.x - followOffset;
-            // The wounded person cannot match the player's full walking pace.
-            // A rushed retreat can actually break the escort until regrouping.
-            float newX = Mathf.MoveTowards(at.x, followTarget, 90f * Time.unscaledDeltaTime);
+            // Keep the previously verified on-lane escort pace. Moving off
+            // the bridge lane, not ordinary westward travel, breaks contact.
+            float newX = Mathf.MoveTowards(at.x, followTarget, 220f * Time.unscaledDeltaTime);
             evacuee.anchoredPosition = new Vector2(newX, 12f);
         }
 
