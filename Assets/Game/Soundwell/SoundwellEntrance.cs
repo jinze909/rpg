@@ -505,6 +505,7 @@ namespace Rpg.Soundwell
             // the player is already headed into the trial.
             entryButton.interactable = false;
             sfxButton.interactable = false;
+            formationButton.interactable = false;
             languageButton.interactable = false;
             prologueButton.interactable = false;
             trialLoad = SceneManager.LoadSceneAsync(SceneName);

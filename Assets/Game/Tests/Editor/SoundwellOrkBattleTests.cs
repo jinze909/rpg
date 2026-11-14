@@ -55,9 +55,19 @@ namespace Rpg.Tests.Editor
             SoundwellEntrance entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
             Assert.That(entrance, Is.Not.Null,
                 "Bootstrap must have its saved Soundwell entry component.");
+            // After Enter commits the scene load, an extra Pad A / pointer
+            // hit cannot change the choice of fixed vs mobile formation.
+            // Both branches of the real ORK comparison depend on this latch.
+            var formationSetting = entrance.GetComponentsInChildren<Button>(true)
+                .Single(button => button.gameObject.name == "Soundwell formation toggle");
+            Assert.That(formationSetting.interactable, Is.True,
+                "Formation selection must be available before committing Entry.");
             AsyncOperation load = entrance.OpenTrial();
             Assert.That(load, Is.Not.Null,
                 "The real Bootstrap entry must begin loading Soundwell.");
+            Assert.That(formationSetting.interactable, Is.False,
+                "The formation preference must be locked when trial loading begins, " +
+                "just like the other Entry settings.");
             float loadDeadline = Time.realtimeSinceStartup + 12f;
             while (!load.isDone && Time.realtimeSinceStartup < loadDeadline)
                 yield return null;
