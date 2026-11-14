@@ -151,17 +151,24 @@ namespace Rpg.Soundwell
         private static string Copy(string en, string zh)
         {
             string message = Chinese ? zh : en;
-            // Only instruction lines containing the original keyboard/pad
-            // pair need the real Input System binding. Leave authored story
-            // dialogue and all other text unchanged.
+            // Only scripted instructions with the original action pair
+            // are rewritten. Resolve both effective bindings from Gameplay/Ring
+            // so neither keyboard nor gamepad hints lie after a saved remap.
             if (!message.Contains("E / Pad A") && !message.Contains("E／手柄 A"))
                 return message;
             string key = SoundwellInputAdapter.GameplayKeyboardInteractionLabel();
+            string pad = SoundwellInputAdapter.GameplayGamepadInteractionLabel();
+            string padLabel = string.IsNullOrEmpty(pad) ? string.Empty
+                : (Chinese ? "手柄 " : "Pad ") + pad;
+            string separator = Chinese ? "／" : " / ";
+            string prompt = !string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(padLabel)
+                ? key + separator + padLabel
+                : !string.IsNullOrEmpty(key) ? key
+                : !string.IsNullOrEmpty(padLabel) ? padLabel
+                : Chinese ? "互动" : "Interact";
             return Chinese
-                ? message.Replace("E／手柄 A",
-                    string.IsNullOrEmpty(key) ? "手柄 A" : key + "／手柄 A")
-                : message.Replace("E / Pad A",
-                    string.IsNullOrEmpty(key) ? "Pad A" : key + " / Pad A");
+                ? message.Replace("E／手柄 A", prompt)
+                : message.Replace("E / Pad A", prompt);
         }
 
         public void Begin(Action exitAction)

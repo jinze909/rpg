@@ -280,14 +280,23 @@ namespace Rpg.Tests.Editor
                     .FindActionMap("Gameplay", true).FindAction("Ring", true);
                 int ringKeyboardBinding = Enumerable.Range(0, ringAction.bindings.Count)
                     .Single(i => ringAction.bindings[i].path == "<Keyboard>/e");
+                int ringGamepadBinding = Enumerable.Range(0, ringAction.bindings.Count)
+                    .Single(i => ringAction.bindings[i].path == "<Gamepad>/buttonSouth");
                 string priorRingOverride = ringAction.bindings[ringKeyboardBinding].overridePath;
+                string priorGamepadOverride = ringAction.bindings[ringGamepadBinding].overridePath;
                 string originalLocale = SoundwellUiLocalization.Language;
                 SoundwellInputAdapter.SetUiContext();
                 ringAction.ApplyBindingOverride(ringKeyboardBinding, "<Keyboard>/r");
+                ringAction.ApplyBindingOverride(ringGamepadBinding, "<Gamepad>/buttonWest");
                 try
                 {
                     Assert.That(SoundwellInputAdapter.GameplayKeyboardInteractionLabel(),
                         Is.EqualTo("R"));
+                    string padBinding = ringAction.GetBindingDisplayString(ringGamepadBinding);
+                    Assert.That(SoundwellInputAdapter.GameplayGamepadInteractionLabel(),
+                        Is.EqualTo(padBinding));
+                    Assert.That(ringAction.bindings[ringGamepadBinding].effectivePath,
+                        Is.EqualTo("<Gamepad>/buttonWest"));
                     foreach (string locale in new[]
                     {
                         SoundwellUiLocalization.English, SoundwellUiLocalization.Chinese
@@ -301,13 +310,13 @@ namespace Rpg.Tests.Editor
                             .Single(button => button.gameObject.name == "S00 choice 0")
                             .onClick.Invoke();
                         string expected = locale == SoundwellUiLocalization.Chinese
-                            ? "R／手柄 A" : "R / Pad A";
-                        string outdated = locale == SoundwellUiLocalization.Chinese
+                            ? "R／手柄 " + padBinding : "R / Pad " + padBinding;
+                        string outdatedKey = locale == SoundwellUiLocalization.Chinese
                             ? "E／手柄 A" : "E / Pad A";
                         Assert.That(stage.CurrentInstructions, Does.Contain(expected),
-                            "S00 must teach the actual rebound Gameplay action in both locales.");
-                        Assert.That(stage.CurrentInstructions, Does.Not.Contain(outdated),
-                            "Do not advertise E after the player remaps the physical interaction.");
+                            "S00 must teach both effective Gameplay/Ring bindings.");
+                        Assert.That(stage.CurrentInstructions, Does.Not.Contain(outdatedKey),
+                            "Do not advertise default E or Pad A after remapping.");
                         stage.Close();
                         yield return null;
                     }
@@ -319,6 +328,10 @@ namespace Rpg.Tests.Editor
                         ringAction.RemoveBindingOverride(ringKeyboardBinding);
                     else
                         ringAction.ApplyBindingOverride(ringKeyboardBinding, priorRingOverride);
+                    if (priorGamepadOverride == null)
+                        ringAction.RemoveBindingOverride(ringGamepadBinding);
+                    else
+                        ringAction.ApplyBindingOverride(ringGamepadBinding, priorGamepadOverride);
                     SoundwellUiLocalization.SetLanguage(originalLocale);
                 }
 

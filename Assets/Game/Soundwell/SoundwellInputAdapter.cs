@@ -131,6 +131,24 @@ namespace Rpg.Soundwell
             return string.Empty;
         }
 
+        // S00's printed pad confirm must follow the same Gameplay/Ring
+        // effective binding used by actual controls. No fallback to Pad A
+        // after the user has rebound or removed the gamepad binding.
+        public static string GameplayGamepadInteractionLabel()
+        {
+            EnsureLoaded();
+            for (int i = 0; i < ring.bindings.Count; i++)
+            {
+                var binding = ring.bindings[i];
+                if (!binding.isComposite && !binding.isPartOfComposite &&
+                    !string.IsNullOrEmpty(binding.effectivePath) &&
+                    binding.effectivePath.StartsWith("<Gamepad>/",
+                        StringComparison.OrdinalIgnoreCase))
+                    return ring.GetBindingDisplayString(i);
+            }
+            return string.Empty;
+        }
+
         // Both the action's button state and its physical bound controls are
         // checked so a held Start/Tab remains suppressed across re-enables.
         // Releasing it rearms the next intentional menu-toggle press.
