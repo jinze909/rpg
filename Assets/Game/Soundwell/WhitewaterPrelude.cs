@@ -103,6 +103,7 @@ namespace Rpg.Soundwell
         // 15: personally spotted troops and return to the cable;
         // 16: the player physically holds the cable beside Shen Li.
         // ORK defence and the fixed third-bell break remain pending.
+        public static string SceneTitle => Copy("S00 · Whitewater Crossing", "S00 · 白水渡");
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
@@ -167,7 +168,7 @@ namespace Rpg.Soundwell
             Panel(canvas.transform, "S00 night backdrop", new Vector2(0f, 0f),
                 new Vector2(960f, 540f), new Color(0.045f, 0.070f, 0.095f));
 
-            title = Label(canvas.transform, "S00 · 白水渡", 28,
+            title = Label(canvas.transform, SceneTitle, 28,
                 new Vector2(0f, 209f), new Vector2(740f, 48f), Brass);
             Label(canvas.transform, Copy("Night roll call · the last bridge",
                 "夜点名 · 最后的浮桥"), 17, new Vector2(0f, 168f), new Vector2(750f, 34f), Ink);
