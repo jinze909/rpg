@@ -145,6 +145,31 @@ namespace Rpg.Tests.Editor
             Assert.That(beastSprite.color, Is.EqualTo(originalBeastTint),
                 "The hit cue must not leak into exploration.");
 
+            // Ringing audio continues in real time while ORK pauses the game clock.
+            // The accompanying muffled pressure pulse must expire as well:
+            // it is a cue, never a second persistent search/signal state.
+            var bellRipple = GameObject.Find("Bell pressure ripple")?.GetComponent<LineRenderer>();
+            Assert.That(bellRipple, Is.Not.Null);
+            float previousTimeScale = Time.timeScale;
+            try
+            {
+                Time.timeScale = 0f;
+                view.PlayBell(true);
+                yield return null;
+                Assert.That(bellRipple.enabled, Is.True,
+                    "The real-time bell strike must briefly display a visible ripple.");
+                float rippleDeadline = Time.realtimeSinceStartup + 0.42f;
+                while (Time.realtimeSinceStartup < rippleDeadline)
+                    yield return null;
+                Assert.That(bellRipple.enabled, Is.False,
+                    "The ripple must not freeze indefinitely when scaled time is paused.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                view.ResetPulse();
+            }
+
             Vector3 originalBeastPosition = liveBeast.position;
             liveBeast.position = SoundwellTrial.EscapeLanePosition;
             Physics2D.SyncTransforms();

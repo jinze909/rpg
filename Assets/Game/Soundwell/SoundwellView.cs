@@ -1436,7 +1436,7 @@ namespace Rpg.Soundwell
 
             if (hint.text != prompt)
                 hint.text = prompt;
-            float age = Time.time - pulseStarted;
+            float age = Time.unscaledTime - pulseStarted;
             pulse.enabled = ringing || age < (mutedPulse ? 0.33f : clearBell.length);
             if (!pulse.enabled)
                 return;
@@ -1455,7 +1455,7 @@ namespace Rpg.Soundwell
         public void PlayBell(bool muffled)
         {
             mutedPulse = muffled;
-            pulseStarted = Time.time;
+            pulseStarted = Time.unscaledTime;
             audio.Stop();
             audio.clip = muffled ? mutedBell : clearBell;
             audio.loop = !muffled;
