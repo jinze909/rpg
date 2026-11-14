@@ -55,6 +55,11 @@ namespace Rpg.Soundwell
         private RectTransform hanQiao;
         private RectTransform rescuePoint;
         private RectTransform shenLiRescueLine;
+        private RectTransform soldierRescueHelper;
+        private Sprite soldierReadySprite;
+        private Sprite soldierHaulingSprite;
+        private Texture2D soldierReadyTexture;
+        private Texture2D soldierHaulingTexture;
         private Texture2D shenLiRescueRopeTexture;
         private RectTransform lastBoat;
         private Texture2D lastBoatPixelTexture;
@@ -256,6 +261,21 @@ namespace Rpg.Soundwell
             hanQiao = hanQiaoFigure.rectTransform;
             rescuePoint = Panel(canvas.transform, "S00 rescue station",
                 new Vector2(ClampX, 12f), new Vector2(30f, 12f), Brass).rectTransform;
+            // The soldiers option is a real, visible helper at the rail,
+            // not just a narration variant. It is non-interactive scenery:
+            // only the player's earned station press completes the rescue.
+            var soldierFigure = Panel(canvas.transform, "S00 soldier rescue helper",
+                new Vector2(RescueStationX(2) - 38f, 12f),
+                new Vector2(32f, 32f), Color.white);
+            soldierReadySprite = MakeActorSprite("S00 16px soldier ready at the rail",
+                SoldierReadyPixels, new Color32(89, 115, 131, 255),
+                out soldierReadyTexture);
+            soldierHaulingSprite = MakeActorSprite("S00 16px soldier hauling the line",
+                SoldierHaulingPixels, new Color32(89, 115, 131, 255),
+                out soldierHaulingTexture);
+            soldierFigure.sprite = soldierReadySprite;
+            soldierRescueHelper = soldierFigure.rectTransform;
+            soldierRescueHelper.gameObject.SetActive(false);
             // Shen Li's authored rope alternative has a real, non-clickable
             // line across the water, not merely text claiming she threw it.
             // It appears only while that rescue plan is active and retracts
@@ -494,6 +514,9 @@ namespace Rpg.Soundwell
                 rescuePoint.anchoredPosition = new Vector2(RescueStationX(choice), 12f);
                 rescuePoint.gameObject.SetActive(true);
                 shenLiRescueLine.gameObject.SetActive(choice == 1);
+                soldierRescueHelper.gameObject.SetActive(choice == 2);
+                if (choice == 2)
+                    soldierRescueHelper.GetComponent<Image>().sprite = soldierReadySprite;
                 narration.text = Copy(
                     choice == 0 ? "Grab the wet line and haul Han Qiao yourself."
                     : choice == 1 ? "Shen Li throws the rope. Help her draw Han Qiao out."
@@ -555,6 +578,7 @@ namespace Rpg.Soundwell
             rescueMethod = -1;
             rescuePoint.gameObject.SetActive(false);
             shenLiRescueLine.gameObject.SetActive(false);
+            soldierRescueHelper.gameObject.SetActive(false);
             phase = 6;
             ShowRescueChoices();
         }
@@ -568,6 +592,10 @@ namespace Rpg.Soundwell
             phase = 8;
             rescuePoint.gameObject.SetActive(false);
             shenLiRescueLine.gameObject.SetActive(false);
+            if (rescueMethod == 2)
+                soldierRescueHelper.GetComponent<Image>().sprite = soldierHaulingSprite;
+            else
+                soldierRescueHelper.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
                 rescueMethod == 0 ? "You heave Han Qiao clear. He is badly hurt, but alive."
@@ -615,6 +643,7 @@ namespace Rpg.Soundwell
                 return;
             phase = 9;
             next.gameObject.SetActive(false);
+            soldierRescueHelper.gameObject.SetActive(false);
             // The script says the last boat departs. Move the actual boat
             // and its rescued passenger out of the scene together instead
             // of leaving Han Qiao visible on a stationary boat.
@@ -1151,6 +1180,48 @@ namespace Rpg.Soundwell
             "...kk......kk...",
         };
 
+        // A nearby bridge soldier is a distinct, armored 16px figure.
+        // Raising the arm is visible only after the actual station rescue.
+        private static readonly string[] SoldierReadyPixels =
+        {
+            "................",
+            ".....kkkkkk.....",
+            "....kkggggkk....",
+            "....kffffffk....",
+            ".....kffffk.....",
+            "......kkkk......",
+            "...kkcccccckk...",
+            "...kcccccccck...",
+            "....kcccccck....",
+            ".....kkkkkk.....",
+            "....kkbbbbkk....",
+            "....kk....kk....",
+            "...kk......kk...",
+            "...kk......kk...",
+            "...kk......kk...",
+            "................",
+        };
+
+        private static readonly string[] SoldierHaulingPixels =
+        {
+            "................",
+            ".....kkkkkk.....",
+            "....kkggggkk....",
+            "....kffffffk....",
+            ".....kffffk.....",
+            "......kkkk......",
+            "..kkkkcccccckkkk",
+            "..kkcccccccckk..",
+            "....kcccccck....",
+            ".....kkkkkk.....",
+            "....kkbbbbkk....",
+            "....kk....kk....",
+            "...kk......kk...",
+            "...kk......kk...",
+            "...kk......kk...",
+            "................",
+        };
+
         // Two nested loops and an open centre read as a separate wound coil
         // at native 16px. All source pixels use the same scene-local palette.
         private static readonly string[] SpareRopePixels =
@@ -1232,6 +1303,10 @@ namespace Rpg.Soundwell
                 Destroy(shenLiBracingTexture);
             if (hanQiaoPixelSprite != null)
                 Destroy(hanQiaoPixelSprite);
+            if (soldierReadySprite != null)
+                Destroy(soldierReadySprite);
+            if (soldierHaulingSprite != null)
+                Destroy(soldierHaulingSprite);
             if (evacueePixelSprite != null)
                 Destroy(evacueePixelSprite);
             if (farBankGuardSprite != null)
@@ -1242,6 +1317,10 @@ namespace Rpg.Soundwell
                 Destroy(spareRopePixelSprite);
             if (hanQiaoPixelTexture != null)
                 Destroy(hanQiaoPixelTexture);
+            if (soldierReadyTexture != null)
+                Destroy(soldierReadyTexture);
+            if (soldierHaulingTexture != null)
+                Destroy(soldierHaulingTexture);
             if (evacueePixelTexture != null)
                 Destroy(evacueePixelTexture);
             if (farBankGuardTexture != null)

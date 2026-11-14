@@ -76,6 +76,19 @@ namespace Rpg.Tests.Editor
                         "S00 Whitewater playable canvas/S00 rescue station") as RectTransform;
                     Assert.That(station, Is.Not.Null);
                     Assert.That(station.gameObject.activeInHierarchy, Is.False);
+                    var soldierHelper = activePrelude.transform.Find(
+                        "S00 Whitewater playable canvas/S00 soldier rescue helper") as RectTransform;
+                    Assert.That(soldierHelper, Is.Not.Null);
+                    Assert.That(soldierHelper.gameObject.activeInHierarchy, Is.False,
+                        "The soldier should not appear before a rescue plan is chosen.");
+                    var soldierGraphic = soldierHelper.GetComponent<Image>();
+                    Assert.That(soldierGraphic, Is.Not.Null);
+                    Assert.That(soldierGraphic.raycastTarget, Is.False,
+                        "The soldier cannot intercept the player's real rescue input.");
+                    Assert.That(soldierGraphic.sprite.texture.width, Is.EqualTo(16));
+                    Assert.That(soldierGraphic.sprite.texture.height, Is.EqualTo(16));
+                    Assert.That(soldierGraphic.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                    Assert.That(soldierGraphic.sprite.name, Does.Contain("ready at the rail"));
                     var shenLiLine = activePrelude.transform.Find(
                         "S00 Whitewater playable canvas/S00 Shen Li thrown rescue line") as RectTransform;
                     Assert.That(shenLiLine, Is.Not.Null);
@@ -111,6 +124,9 @@ namespace Rpg.Tests.Editor
                     Assert.That(shenLiLine.gameObject.activeInHierarchy,
                         Is.EqualTo(abandonedChoice == 1),
                         "Only Shen Li's rope choice should draw the line over the water.");
+                    Assert.That(soldierHelper.gameObject.activeInHierarchy,
+                        Is.EqualTo(abandonedChoice == 2),
+                        "A bridge soldier should arrive only for the soldier-assisted plan.");
                     if (rescueChoice == 0)
                         input.Press(keys.escapeKey);
                     else
@@ -129,6 +145,8 @@ namespace Rpg.Tests.Editor
                         "The abandoned rescue station must disappear.");
                     Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
                         "Pad B must retract a cancelled Shen Li rope without rescuing anyone.");
+                    Assert.That(soldierHelper.gameObject.activeInHierarchy, Is.False,
+                        "Cancelling a plan must also dismiss an uncommitted soldier helper.");
                     Assert.That(activePrelude.CanRescue, Is.False);
                     Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX),
                         "Cancelling a plan cannot begin moving Han Qiao to the boat.");
@@ -151,6 +169,15 @@ namespace Rpg.Tests.Editor
                     Assert.That(shenLiLine.gameObject.activeInHierarchy,
                         Is.EqualTo(rescueChoice == 1),
                         "The thrown rope must appear only for the selected Shen Li method.");
+                    Assert.That(soldierHelper.gameObject.activeInHierarchy,
+                        Is.EqualTo(rescueChoice == 2),
+                        "Only the soldier-assisted rescue gets an arriving pixel helper.");
+                    if (rescueChoice == 2)
+                    {
+                        Assert.That(soldierHelper.anchoredPosition.x, Is.EqualTo(-108f));
+                        Assert.That(soldierGraphic.sprite.name, Does.Contain("ready at the rail"),
+                            "The soldier cannot animate a successful haul before the player's E / Pad A.");
+                    }
                     if (rescueChoice == 1)
                     {
                         Assert.That(shenLiLine.sizeDelta.x, Is.GreaterThan(300f),
@@ -203,6 +230,11 @@ namespace Rpg.Tests.Editor
                         "Fresh gamepad South or E at the station must perform the actual rescue.");
                     Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
                         "The rope retracts after the real action; it cannot stay over the boat.");
+                    Assert.That(soldierHelper.gameObject.activeInHierarchy,
+                        Is.EqualTo(rescueChoice == 2));
+                    if (rescueChoice == 2)
+                        Assert.That(soldierGraphic.sprite.name, Does.Contain("hauling the line"),
+                            "The helper's raised-arm sprite is earned only when the real rescue succeeds.");
                     Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                     Assert.That(activePrelude.CurrentNarration, Does.Contain(
                         rescueChoice == 0 ? "You heave Han Qiao" :
@@ -253,6 +285,8 @@ namespace Rpg.Tests.Editor
                         float passengerDockX = inWater.anchoredPosition.x;
                         retreat.onClick.Invoke();
                         Assert.That(activePrelude.Phase, Is.EqualTo(9));
+                        Assert.That(soldierHelper.gameObject.activeInHierarchy, Is.False,
+                            "The soldier must leave the rescue lane as the last boat departs.");
                         float departureDeadline = Time.realtimeSinceStartup + 3f;
                         while (departingBoat.gameObject.activeInHierarchy &&
                                Time.realtimeSinceStartup < departureDeadline)
