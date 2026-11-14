@@ -812,6 +812,14 @@ namespace Rpg.Tests.Editor
                 MoveTestLeader(playerBody, safe);
                 Assert.That(trial.RescueComplete, Is.False);
                 trial.ApplyInput(Vector2.zero, false, false, true);
+                var formationConfig = SoundwellPartyConfig.Load();
+                Assert.That(party.Actors.Count, Is.EqualTo(3));
+                Assert.That(Vector2.Distance(party.Actors[1].transform.position,
+                    safe + formationConfig.SecondFollowerOffset), Is.LessThan(0.05f),
+                    "Retry must bring the second rescuer directly to the actual safe point.");
+                Assert.That(Vector2.Distance(party.Actors[2].transform.position,
+                    safe + formationConfig.ThirdFollowerOffset), Is.LessThan(0.05f),
+                    "Retry must bring the third rescuer back without replaying an old path.");
                 Assert.That(trial.SurveyorWaitingForLeader, Is.False);
                 Assert.That(surveyorSprite.color, Is.EqualTo(followingColor),
                     "Retry must clear the amber waiting sprite before the next render.");
@@ -822,6 +830,11 @@ namespace Rpg.Tests.Editor
                 Assert.That(trial.GateOpen, Is.False);
                 Assert.That(trial.RescueComplete, Is.False);
                 yield return null;
+                Assert.That(Vector2.Distance(party.Actors[1].transform.position,
+                    safe + formationConfig.SecondFollowerOffset), Is.LessThan(0.05f),
+                    "A subsequent ORK follower update must not restore the stale retry route.");
+                Assert.That(Vector2.Distance(party.Actors[2].transform.position,
+                    safe + formationConfig.ThirdFollowerOffset), Is.LessThan(0.05f));
                 MoveTestLeader(playerBody, new Vector2(-0.55f, 0f));
                 Assert.That(trial.CanEngageBeast, Is.True,
                     "An abandoned bell escort must still allow the original combat route.");
