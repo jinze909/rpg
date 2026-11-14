@@ -149,6 +149,51 @@ namespace Rpg.Soundwell
             return string.Empty;
         }
 
+        // The playable S00 walks with Gameplay/Move, not a hardcoded WASD
+        // input reader. Show the first still-usable keyboard composite's
+        // effective Up/Left/Down/Right bindings after player rebinding.
+        public static string GameplayKeyboardMovementLabel()
+        {
+            EnsureLoaded();
+            for (int start = 0; start + 4 < move.bindings.Count; start++)
+            {
+                if (!move.bindings[start].isComposite)
+                    continue;
+                var labels = new string[4];
+                bool usable = true;
+                for (int part = 0; part < 4; part++)
+                {
+                    int index = start + part + 1;
+                    var binding = move.bindings[index];
+                    if (!binding.isPartOfComposite ||
+                        string.IsNullOrEmpty(binding.effectivePath) ||
+                        !binding.effectivePath.StartsWith("<Keyboard>/",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        usable = false;
+                        break;
+                    }
+                    labels[part] = move.GetBindingDisplayString(index);
+                    if (string.IsNullOrEmpty(labels[part]))
+                    {
+                        usable = false;
+                        break;
+                    }
+                }
+                if (usable)
+                {
+                    // 2DVector parts are Up, Down, Left, Right. Display the
+                    // familiar WASD/IJKL directional order, never the raw
+                    // composite label that ignores actual per-key overrides.
+                    return labels[0].Length == 1 && labels[1].Length == 1 &&
+                        labels[2].Length == 1 && labels[3].Length == 1
+                        ? labels[0] + labels[2] + labels[1] + labels[3]
+                        : labels[0] + "/" + labels[2] + "/" + labels[1] + "/" + labels[3];
+                }
+            }
+            return string.Empty;
+        }
+
         // Both the action's button state and its physical bound controls are
         // checked so a held Start/Tab remains suppressed across re-enables.
         // Releasing it rearms the next intentional menu-toggle press.
