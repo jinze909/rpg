@@ -213,6 +213,26 @@ namespace Rpg.Tests.Editor
                             "S00 Whitewater playable canvas/S00 far-bank approaching figure 0");
                         Assert.That(approaching, Is.Not.Null);
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.False);
+                        var approachingImage = approaching.GetComponent<Image>();
+                        var playerImage = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/PLACEHOLDER player")
+                            .GetComponent<Image>();
+                        Assert.That(approachingImage.sprite, Is.Not.SameAs(playerImage.sprite),
+                            "The far-bank spear guard must be visually distinct from the player.");
+                        Assert.That(approachingImage.sprite.texture.width, Is.EqualTo(16));
+                        Assert.That(approachingImage.sprite.texture.height, Is.EqualTo(16));
+                        Assert.That(approachingImage.sprite.texture.filterMode,
+                            Is.EqualTo(FilterMode.Point));
+                        Assert.That(approachingImage.rectTransform.sizeDelta,
+                            Is.EqualTo(new Vector2(32f, 32f)),
+                            "The spear guard must use the same exact 2x pixel scaling.");
+                        Assert.That(approachingImage.sprite.texture.GetPixel(13, 15).a,
+                            Is.GreaterThan(0.9f),
+                            "The upright spear must be present in the guard silhouette.");
+                        Assert.That(playerImage.sprite.texture.GetPixel(13, 15).a,
+                            Is.EqualTo(0f), "The player silhouette must not share that spear.");
+                        Assert.That(approachingImage.raycastTarget, Is.False,
+                            "Distant guards cannot steal gamepad or mouse interaction.");
 
                         input.Press(keys.aKey);
                         float sightlineDeadline = Time.realtimeSinceStartup + 4f;

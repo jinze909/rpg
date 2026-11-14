@@ -72,8 +72,10 @@ namespace Rpg.Soundwell
         private Texture2D shenLiPixelTexture;
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
+        private Sprite farBankGuardSprite;
         private Texture2D hanQiaoPixelTexture;
         private Texture2D evacueePixelTexture;
+        private Texture2D farBankGuardTexture;
         private Image cable;
         private Text narration;
         private Text instructions;
@@ -245,15 +247,19 @@ namespace Rpg.Soundwell
                 out playerPixelTexture);
             playerFigure.sprite = playerPixelSprite;
             marker = playerFigure.rectTransform;
-            // Presentation only: distant pixel figures use the existing 16px
-            // silhouette, not new ORK combatants or independent AI.
+            // Distant spear-bearing enemies get a distinct 16px silhouette
+            // rather than three recoloured player sprites. They remain
+            // non-interactive scenery until a real ORK encounter is authored.
+            farBankGuardSprite = MakeActorSprite("S00 16px far-bank spear guard",
+                FarBankGuardPixels, new Color32(166, 73, 65, 255),
+                out farBankGuardTexture);
             for (int i = 0; i < farBankThreats.Length; i++)
             {
                 farBankThreats[i] = Panel(canvas.transform,
                     "S00 far-bank approaching figure " + i,
                     new Vector2(-283f + i * 34f, 22f), new Vector2(32f, 32f),
-                    new Color(0.79f, 0.37f, 0.32f));
-                farBankThreats[i].sprite = playerPixelSprite;
+                    Color.white);
+                farBankThreats[i].sprite = farBankGuardSprite;
                 farBankThreats[i].gameObject.SetActive(false);
             }
 
@@ -885,6 +891,29 @@ namespace Rpg.Soundwell
             "................",
         };
 
+        // Helmet, shoulder armour and an upright spear remain recognizable
+        // at native 16px and exact 2x UI scale, unlike the blue player sprite.
+        // The silhouette is local presentation, not a new combat participant.
+        private static readonly string[] FarBankGuardPixels =
+        {
+            ".............g..",
+            "............gg..",
+            ".............g..",
+            ".....kkkkk...g..",
+            "....kkkkkkk..g..",
+            "....kkfffkk..g..",
+            "....kkfffkk..g..",
+            ".....kfffk...g..",
+            "......kkkk...g..",
+            "....kkcccckk.g..",
+            "...kkkcccckkkg..",
+            "...kkkcccckkkg..",
+            "......kbbk...g..",
+            "......kbbk...g..",
+            ".....kk..kk..g..",
+            ".....kk..kk.....",
+        };
+
         private static Sprite MakeActorSprite(string name, string[] art,
             Color32 coat, out Texture2D texture)
         {
@@ -942,10 +971,14 @@ namespace Rpg.Soundwell
                 Destroy(hanQiaoPixelSprite);
             if (evacueePixelSprite != null)
                 Destroy(evacueePixelSprite);
+            if (farBankGuardSprite != null)
+                Destroy(farBankGuardSprite);
             if (hanQiaoPixelTexture != null)
                 Destroy(hanQiaoPixelTexture);
             if (evacueePixelTexture != null)
                 Destroy(evacueePixelTexture);
+            if (farBankGuardTexture != null)
+                Destroy(farBankGuardTexture);
         }
 
         private void ShowWorkshopPromise()
