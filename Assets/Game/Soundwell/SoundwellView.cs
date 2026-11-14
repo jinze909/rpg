@@ -30,6 +30,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer beastVisualRenderer;
         private readonly Color beastBaseTint;
         private float? lastBattleBeastHp;
+        private float? lastBattleLeaderHp;
         private float beastHitFlashUntil = float.NegativeInfinity;
         private readonly Texture2D leaderPixelTexture;
         private readonly Texture2D leaderWalkPixelTexture;
@@ -592,7 +593,10 @@ namespace Rpg.Soundwell
             // One visual hit window belongs to a single live encounter.
             // Never carry an old damage flash into exploration or a replay.
             lastBattleBeastHp = null;
+            lastBattleLeaderHp = null;
             beastHitFlashUntil = float.NegativeInfinity;
+            if (!active)
+                ResetPlayerAnimation();
             if (beastVisualRenderer != null)
                 beastVisualRenderer.color = beastBaseTint;
             layoutReady = false;
@@ -876,6 +880,21 @@ namespace Rpg.Soundwell
         // Consume only the live ORK HP snapshot; the scene neither changes
         // damage nor invents a second hit event. Missing/retired beasts reset
         // presentation without pretending another attack has landed.
+        public void RefreshBattleLeaderHp(float hp)
+        {
+            // Read the actual ORK leader HP, never an inferred battle event.
+            // The first observation and a repeated/same HP are not injuries;
+            // a lower subsequent value drives only the existing M4 Hit clip.
+            if (!battleMode || float.IsNaN(hp) || float.IsInfinity(hp))
+            {
+                lastBattleLeaderHp = null;
+                return;
+            }
+            if (lastBattleLeaderHp.HasValue && hp < lastBattleLeaderHp.Value - 0.001f)
+                AnimatePlayerHit();
+            lastBattleLeaderHp = hp;
+        }
+
         public void RefreshBattleBeastHp(float hp)
         {
             if (beastVisualRenderer == null)
