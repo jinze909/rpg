@@ -81,8 +81,23 @@ namespace Rpg.Tests.Editor
                     Assert.That(shenLiLine, Is.Not.Null);
                     Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
                         "Shen Li cannot throw the rope before the choice is made.");
-                    Assert.That(shenLiLine.GetComponent<Image>().raycastTarget, Is.False,
+                    var ropeGraphic = shenLiLine.GetComponent<RawImage>();
+                    Assert.That(ropeGraphic, Is.Not.Null,
+                        "The thrown rope must be rendered by a tiled pixel texture.");
+                    Assert.That(ropeGraphic.raycastTarget, Is.False,
                         "The rescue line must not steal clicks or gamepad focus.");
+                    var ropeTexture = ropeGraphic.texture as Texture2D;
+                    Assert.That(ropeTexture, Is.Not.Null);
+                    Assert.That(ropeTexture.width, Is.EqualTo(16));
+                    Assert.That(ropeTexture.height, Is.EqualTo(4));
+                    Assert.That(ropeTexture.filterMode, Is.EqualTo(FilterMode.Point),
+                        "The crossing line cannot use blurred stretch filtering.");
+                    Assert.That(ropeTexture.wrapMode, Is.EqualTo(TextureWrapMode.Repeat));
+                    Assert.That(ropeGraphic.uvRect.width, Is.EqualTo(315f / 16f).Within(0.01f),
+                        "Every rope pixel must repeat at the same size along the span.");
+                    Assert.That(ropeTexture.GetPixel(0, 1),
+                        Is.Not.EqualTo(ropeTexture.GetPixel(2, 1)),
+                        "The rope must contain visible braided strands, not solid paint.");
 
                     // The first choice is merely a plan. Back must return
                     // to the rescuer menu, not exit S00 or silently save a rescue.
