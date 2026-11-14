@@ -33,6 +33,9 @@ namespace Rpg.Soundwell
         private static readonly Vector2 SpareRopeDock = new Vector2(ClampX + 30f, 51f);
         private static readonly Color Ink = new Color(0.87f, 0.90f, 0.88f);
         private static readonly Color Brass = new Color(0.91f, 0.72f, 0.40f);
+        // A wounded follower needs visible readiness and separation feedback.
+        private static readonly Color EvacueeFollowingTint = new Color(0.72f, 0.94f, 0.76f);
+        private static readonly Color EvacueeWaitingTint = new Color(1f, 0.60f, 0.35f);
         private readonly Button[] choices = new Button[3];
         private readonly Text[] choiceLabels = new Text[3];
         private RectTransform marker;
@@ -433,6 +436,7 @@ namespace Rpg.Soundwell
             phase = 9;
             next.gameObject.SetActive(false);
             evacuee.anchoredPosition = new Vector2(EvacueeStartX, 12f);
+            evacuee.GetComponent<Image>().color = Color.white;
             evacuee.gameObject.SetActive(true);
             evacueeSafeLine.gameObject.SetActive(true);
             SoundwellInputAdapter.SetGameplayContext();
@@ -450,12 +454,13 @@ namespace Rpg.Soundwell
                 return;
             phase = 10;
             evacueeWaiting = false;
+            SetEvacueeEscortCue(false);
             narration.text = Copy(
                 "You take the evacuee's arm. 'Keep behind me. Don't stop at the open span.'",
                 "你扶住伤者的胳膊：“跟在我后面，别停在空桥上。”");
             instructions.text = Copy(
-                "Lead west. Keep close or they will stop; press E / Pad A at the safe line.",
-                "向西带路，离太远他会停下；到安全线后按 E／手柄 A 确认撤离。");
+                "Lead west. Green: following; amber: stopped. Press E / Pad A at the safe line.",
+                "向西带路：绿色表示跟随，橙色表示掉队；到安全线后按 E／手柄 A 确认撤离。");
         }
 
         private void UpdateEvacueeFollow()
@@ -463,16 +468,24 @@ namespace Rpg.Soundwell
             if (phase != 10 || evacuee == null)
                 return;
             float gap = Mathf.Abs(walker.x - evacuee.anchoredPosition.x);
-            bool waiting = evacueeWaiting
-                ? gap > 65f : gap > 115f;
+            // The ordinary east/west escort retains its established pace.
+            // Straying far off the bridge lane leaves a wounded follower
+            // behind; return to the lane (with hysteresis) to reconnect.
+            // This uses the same player position and follower state, not a
+            // second quest timer or teleport.
+            bool offLane = Mathf.Abs(walker.y) >
+                (evacueeWaiting ? 20f : 33f);
+            bool waiting = offLane || (evacueeWaiting
+                ? gap > 65f : gap > 115f);
             if (waiting != evacueeWaiting)
             {
                 evacueeWaiting = waiting;
+                SetEvacueeEscortCue(waiting);
                 instructions.text = waiting
-                    ? Copy("Too far ahead. Go back for the evacuee.",
-                        "你走得太远了。回去接上伤者。")
-                    : Copy("Lead west, stay close, then press E / Pad A at the green line.",
-                        "向西带路，保持靠近，到绿色线按 E／手柄 A。");
+                    ? Copy("Amber: the evacuee stopped. Return to their bridge lane.",
+                        "橙色：伤者停下了。回到他所在的桥面通道重新接应。")
+                    : Copy("Green: following. Stay close; press E / Pad A at the safe line.",
+                        "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
             }
             if (evacueeWaiting)
                 return;
@@ -487,8 +500,16 @@ namespace Rpg.Soundwell
                 followTarget = walker.x + followOffset;
             else if (walker.x > at.x + followOffset)
                 followTarget = walker.x - followOffset;
+            // Keep the previously verified on-lane escort pace. Moving off
+            // the bridge lane, not ordinary westward travel, breaks contact.
             float newX = Mathf.MoveTowards(at.x, followTarget, 220f * Time.unscaledDeltaTime);
             evacuee.anchoredPosition = new Vector2(newX, 12f);
+        }
+
+        private void SetEvacueeEscortCue(bool waiting)
+        {
+            if (evacuee != null && evacuee.TryGetComponent<Image>(out var graphic))
+                graphic.color = waiting ? EvacueeWaitingTint : EvacueeFollowingTint;
         }
 
         private void DeliverEvacuee()
