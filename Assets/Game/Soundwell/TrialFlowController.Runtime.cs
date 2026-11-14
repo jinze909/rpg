@@ -50,6 +50,10 @@ namespace Rpg.Soundwell
                 // The view reads a live ORK snapshot; it never resolves attacks
                 // or maintains a second copy of combat state.
                 view.SetBattleReadout(orkParty != null ? orkParty.BuildBattleReadout() : string.Empty);
+                // Read ORK's authoritative HP each frame. A drop produces
+                // only a brief pixel hit cue; never subtract HP in Unity.
+                view.RefreshBattleBeastHp(orkParty != null && orkParty.Beast != null
+                    ? orkParty.Beast.Status[1].GetValue() : float.NaN);
                 int activeRescuer = orkParty != null ? orkParty.ChoosingRescuerIndex : -1;
                 // ORK may retire a combatant before the chooser HUD updates.
                 // A valid index does not guarantee that Unity's actor survives.

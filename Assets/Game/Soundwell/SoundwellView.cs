@@ -28,6 +28,9 @@ namespace Rpg.Soundwell
         private readonly Sprite lowerPlankBrokenPixelSprite;
         private readonly SpriteRenderer surveyorPixelRenderer;
         private readonly SpriteRenderer beastVisualRenderer;
+        private readonly Color beastBaseTint;
+        private float? lastBattleBeastHp;
+        private float beastHitFlashUntil = float.NegativeInfinity;
         private readonly Texture2D leaderPixelTexture;
         private readonly Texture2D leaderWalkPixelTexture;
         private readonly Texture2D leaderGuardPixelTexture;
@@ -328,6 +331,7 @@ namespace Rpg.Soundwell
             beastVisualRenderer = Plate(beast, "PLACEHOLDER beast", Vector2.zero,
                 Vector2.one, new Color(0.95f, 0.41f, 0.42f), 3);
             beastVisualRenderer.sprite = beastPixelSprite;
+            beastBaseTint = beastVisualRenderer.color;
 
             // Telegraph the actual encounter radius rather than asking the
             // player to guess a hidden distance. The ring shares the same
@@ -585,6 +589,12 @@ namespace Rpg.Soundwell
             if (!active)
                 CloseBattleMovePreview();
             battleMode = active;
+            // One visual hit window belongs to a single live encounter.
+            // Never carry an old damage flash into exploration or a replay.
+            lastBattleBeastHp = null;
+            beastHitFlashUntil = float.NegativeInfinity;
+            if (beastVisualRenderer != null)
+                beastVisualRenderer.color = beastBaseTint;
             layoutReady = false;
             attackTargetMarker.enabled = false;
             activeRescuerMarker.enabled = false;
@@ -861,6 +871,27 @@ namespace Rpg.Soundwell
                     openGateButton.interactable ? openGateButton : backButton;
                 actionEventSystem.SetSelectedGameObject(target.gameObject);
             }
+        }
+
+        // Consume only the live ORK HP snapshot; the scene neither changes
+        // damage nor invents a second hit event. Missing/retired beasts reset
+        // presentation without pretending another attack has landed.
+        public void RefreshBattleBeastHp(float hp)
+        {
+            if (beastVisualRenderer == null)
+                return;
+            if (!battleMode || float.IsNaN(hp) || float.IsInfinity(hp))
+            {
+                lastBattleBeastHp = null;
+                beastHitFlashUntil = float.NegativeInfinity;
+                beastVisualRenderer.color = beastBaseTint;
+                return;
+            }
+            if (lastBattleBeastHp.HasValue && hp < lastBattleBeastHp.Value - 0.001f)
+                beastHitFlashUntil = Time.unscaledTime + 0.30f;
+            lastBattleBeastHp = hp;
+            beastVisualRenderer.color = Time.unscaledTime < beastHitFlashUntil
+                ? new Color(1f, 0.93f, 0.69f) : beastBaseTint;
         }
 
         public void SetBattleReadout(string summary)

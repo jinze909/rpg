@@ -117,6 +117,34 @@ namespace Rpg.Tests.Editor
             Assert.That(beastSprite, Is.Not.Null);
             Transform liveBeast = beastSprite.transform.parent;
             Assert.That(liveBeast, Is.Not.Null);
+            // Check strictly presentational hit feedback without changing
+            // the saved ORK beast's HP or fabricating combat progress.
+            var hitViewField = typeof(TrialFlowController).GetField("view",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            Assert.That(hitViewField, Is.Not.Null);
+            var view = hitViewField.GetValue(trial) as SoundwellView;
+            Assert.That(view, Is.Not.Null);
+            Color originalBeastTint = beastSprite.color;
+            view.SetBattleMode(true);
+            view.RefreshBattleBeastHp(4f);
+            Assert.That(beastSprite.color, Is.EqualTo(originalBeastTint),
+                "The first HP snapshot must never pretend the beast was hit.");
+            view.RefreshBattleBeastHp(4f);
+            Assert.That(beastSprite.color, Is.EqualTo(originalBeastTint),
+                "Repeated live HP readings must not manufacture damage.");
+            view.RefreshBattleBeastHp(3f);
+            Assert.That(beastSprite.color, Is.Not.EqualTo(originalBeastTint),
+                "Only a lower ORK HP snapshot should flash the 16px beast.");
+            yield return new WaitForSecondsRealtime(0.36f);
+            view.RefreshBattleBeastHp(3f);
+            Assert.That(beastSprite.color, Is.EqualTo(originalBeastTint),
+                "A visual hit must expire even if ORK pauses scaled time.");
+            view.SetBattleMode(false);
+            view.RefreshBattleBeastHp(float.NaN);
+            Assert.That(beastSprite.color, Is.EqualTo(originalBeastTint),
+                "The hit cue must not leak into exploration.");
+
             Vector3 originalBeastPosition = liveBeast.position;
             liveBeast.position = SoundwellTrial.EscapeLanePosition;
             Physics2D.SyncTransforms();
