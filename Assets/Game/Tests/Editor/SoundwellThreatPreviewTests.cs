@@ -58,7 +58,7 @@ namespace Rpg.Tests.Editor
                 var searchLeaderBody = searchLeader.AddComponent<Rigidbody2D>();
                 searchLeaderBody.gravityScale = 0f;
                 var patrol = searchHost.AddComponent<BeastPatrolAndChase>();
-                patrol.Configure(searchBeast.transform, body, Vector2.zero);
+                patrol.Configure(searchBeast.transform, searchLeaderBody, Vector2.zero);
                 int expiredEvents = 0;
                 patrol.SearchExpired += () => expiredEvents++;
                 var searchClock = typeof(BeastPatrolAndChase).GetField(
