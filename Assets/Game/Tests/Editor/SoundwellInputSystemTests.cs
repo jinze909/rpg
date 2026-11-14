@@ -343,6 +343,43 @@ namespace Rpg.Tests.Editor
                     "Closing focus mode must restore Gameplay input.");
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.False);
 
+                // A UI Cancel is the same Escape / Pad B physical control as
+                // Gameplay Back. Merely re-enabling the gameplay map while
+                // that press is held must not trigger a second, scene-wide exit.
+                SoundwellInputAdapter.SetUiContext();
+                input.Press(gamepad.buttonEast);
+                InputSystem.Update();
+                SoundwellInputAdapter.SetGameplayContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.False,
+                    "Holding Pad B across UGUI to Gameplay cannot exit the scene.");
+                input.Release(gamepad.buttonEast);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.False);
+                input.Press(gamepad.buttonEast);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.True,
+                    "A fresh Pad B after release must still exit normally.");
+                input.Release(gamepad.buttonEast);
+                InputSystem.Update();
+
+                SoundwellInputAdapter.SetUiContext();
+                input.Press(keyboard.escapeKey);
+                InputSystem.Update();
+                SoundwellInputAdapter.SetGameplayContext();
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.False,
+                    "Holding Escape across UGUI to Gameplay cannot exit the scene.");
+                input.Release(keyboard.escapeKey);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.False);
+                input.Press(keyboard.escapeKey);
+                InputSystem.Update();
+                Assert.That(SoundwellInputAdapter.ReadGameplay().Back, Is.True,
+                    "A fresh Escape press after release must still exit normally.");
+                input.Release(keyboard.escapeKey);
+                InputSystem.Update();
+
                 // Gamepad South is both Entry/UGUI Submit and the gameplay
                 // Ring action. Holding the physical button across a context
                 // handoff must not manufacture an additional bell action.
