@@ -16,7 +16,7 @@ namespace Rpg.Tests.Editor
     public sealed class WhitewaterRescueChoiceInputTests
     {
         [UnityTest]
-        public IEnumerator PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction()
+        public IEnumerator PlayerAndSoldierRescuesRequireStationInputAndAnEscortCanRegroup()
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
@@ -107,6 +107,58 @@ namespace Rpg.Tests.Editor
                         rescueChoice == 0 ? "You heave Han Qiao" : "The soldiers lift"));
                     Assert.That(inWater.anchoredPosition.x, Is.GreaterThan(riverStartX),
                         "The officer must begin visibly moving only after the actual rescue.");
+
+                    if (rescueChoice == 0)
+                    {
+                        // The wounded follower is slower than the player. Running far
+                        // ahead must stop the escort, show an amber warning, and
+                        // require a real walk back rather than an automatic rescue.
+                        Button retreat = FindButton(activePrelude, "S00 continue to final retreat");
+                        float boatDeadline = Time.realtimeSinceStartup + 5f;
+                        while (!retreat.gameObject.activeInHierarchy && Time.realtimeSinceStartup < boatDeadline)
+                            yield return null;
+                        Assert.That(retreat.gameObject.activeInHierarchy, Is.True);
+                        retreat.onClick.Invoke();
+                        Assert.That(activePrelude.Phase, Is.EqualTo(9));
+                        input.Press(keys.aKey);
+                        float reachDeadline = Time.realtimeSinceStartup + 4f;
+                        while (!activePrelude.CanHelpEvacuee && Time.realtimeSinceStartup < reachDeadline)
+                            yield return null;
+                        input.Release(keys.aKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanHelpEvacuee, Is.True);
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(10));
+                        var follower = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/S00 last evacuee").GetComponent<Image>();
+                        Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
+                            "Green indicates a follower is connected to the escort.");
+
+                        input.Press(keys.aKey);
+                        float separationDeadline = Time.realtimeSinceStartup + 4f;
+                        while (follower.color.r <= follower.color.g && Time.realtimeSinceStartup < separationDeadline)
+                            yield return null;
+                        input.Release(keys.aKey);
+                        yield return null;
+                        Assert.That(follower.color.r, Is.GreaterThan(follower.color.g),
+                            "Walking too far ahead must visibly stop the wounded follower.");
+                        Assert.That(activePrelude.CanDeliverEvacuee, Is.False,
+                            "A stranded follower cannot be delivered just because the player reached safety.");
+
+                        input.Press(keys.dKey);
+                        float regroupDeadline = Time.realtimeSinceStartup + 3f;
+                        while (follower.color.g <= follower.color.r && Time.realtimeSinceStartup < regroupDeadline)
+                            yield return null;
+                        input.Release(keys.dKey);
+                        yield return null;
+                        Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
+                            "Returning to the follower must restore a visible green escort state.");
+                        Assert.That(activePrelude.Phase, Is.EqualTo(10),
+                            "Regrouping never skips the physical safe-line confirmation.");
+                    }
 
                     activePrelude.Close();
                     yield return null;
