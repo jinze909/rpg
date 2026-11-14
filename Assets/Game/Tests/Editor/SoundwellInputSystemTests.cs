@@ -335,6 +335,59 @@ namespace Rpg.Tests.Editor
                     SoundwellUiLocalization.SetLanguage(originalLocale);
                 }
 
+                // The same S00 movement prompt must use the remapped
+                // Gameplay/Move composite, not advertise default WASD.
+                var moveAction = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                    .FindActionMap("Gameplay", true).FindAction("Move", true);
+                var paths = new[] { "<Keyboard>/w", "<Keyboard>/s",
+                    "<Keyboard>/a", "<Keyboard>/d" };
+                var remaps = new[] { "<Keyboard>/i", "<Keyboard>/k",
+                    "<Keyboard>/j", "<Keyboard>/l" };
+                var moveIndices = paths.Select(path => Enumerable.Range(0, moveAction.bindings.Count)
+                    .Single(i => moveAction.bindings[i].path == path)).ToArray();
+                var previousMoves = moveIndices.Select(i => moveAction.bindings[i].overridePath)
+                    .ToArray();
+                string previousMoveLocale = SoundwellUiLocalization.Language;
+                SoundwellInputAdapter.SetUiContext();
+                for (int i = 0; i < moveIndices.Length; i++)
+                    moveAction.ApplyBindingOverride(moveIndices[i], remaps[i]);
+                try
+                {
+                    Assert.That(SoundwellInputAdapter.GameplayKeyboardMovementLabel(),
+                        Is.EqualTo("IJKL"));
+                    foreach (string locale in new[]
+                    {
+                        SoundwellUiLocalization.English, SoundwellUiLocalization.Chinese
+                    })
+                    {
+                        SoundwellUiLocalization.SetLanguage(locale);
+                        var stageRoot = new GameObject("S00 rebound movement hint regression");
+                        var stage = stageRoot.AddComponent<WhitewaterPrelude>();
+                        stage.Begin(null);
+                        stage.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 choice 0")
+                            .onClick.Invoke();
+                        Assert.That(stage.CurrentInstructions, Does.Contain("IJKL"),
+                            "S00 walking instructions must follow physical Move overrides.");
+                        Assert.That(stage.CurrentInstructions, Does.Not.Contain("WASD"),
+                            "Do not advertise the default movement keys after remapping.");
+                        stage.Close();
+                        yield return null;
+                    }
+                }
+                finally
+                {
+                    SoundwellInputAdapter.SetUiContext();
+                    for (int i = 0; i < moveIndices.Length; i++)
+                    {
+                        if (previousMoves[i] == null)
+                            moveAction.RemoveBindingOverride(moveIndices[i]);
+                        else
+                            moveAction.ApplyBindingOverride(moveIndices[i], previousMoves[i]);
+                    }
+                    SoundwellUiLocalization.SetLanguage(previousMoveLocale);
+                }
+
                 SoundwellInputAdapter.SetGameplayContext();
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
 

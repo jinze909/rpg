@@ -151,6 +151,19 @@ namespace Rpg.Soundwell
         private static string Copy(string en, string zh)
         {
             string message = Chinese ? zh : en;
+            // The stage's two movement prompts must follow the effective
+            // keyboard composite too. Saved alternate bindings (e.g. IJKL)
+            // must not be advertised as WASD; the live stick is unchanged.
+            if (message.Contains("WASD / left stick") ||
+                message.Contains("WASD／左摇杆"))
+            {
+                string movement = SoundwellInputAdapter.GameplayKeyboardMovementLabel();
+                message = Chinese
+                    ? message.Replace("WASD／左摇杆",
+                        string.IsNullOrEmpty(movement) ? "左摇杆" : movement + "／左摇杆")
+                    : message.Replace("WASD / left stick",
+                        string.IsNullOrEmpty(movement) ? "left stick" : movement + " / left stick");
+            }
             // Only scripted instructions with the original action pair
             // are rewritten. Resolve both effective bindings from Gameplay/Ring
             // so neither keyboard nor gamepad hints lie after a saved remap.
