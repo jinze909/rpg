@@ -55,6 +55,7 @@ namespace Rpg.Soundwell
         private RectTransform hanQiao;
         private RectTransform rescuePoint;
         private RectTransform shenLiRescueLine;
+        private Texture2D shenLiRescueRopeTexture;
         private RectTransform lastBoat;
         private RectTransform evacuee;
         private RectTransform evacueeSafeLine;
@@ -215,9 +216,49 @@ namespace Rpg.Soundwell
             // line across the water, not merely text claiming she threw it.
             // It appears only while that rescue plan is active and retracts
             // on cancellation or the player's earned rescue interaction.
-            shenLiRescueLine = Panel(canvas.transform, "S00 Shen Li thrown rescue line",
-                new Vector2(83f, 55f), new Vector2(315f, 4f),
-                new Color(0.85f, 0.69f, 0.43f)).rectTransform;
+            // The player's Shen Li rescue choice reveals a real repeating
+            // nearest-neighbour 16x4 rope pattern, not a stretched UGUI bar.
+            // Tiling it at one canvas unit per authored pixel preserves the
+            // strict pixel scale along the full line toward Han Qiao.
+            const int thrownRopePixelsWide = 16;
+            const int thrownRopePixelsHigh = 4;
+            shenLiRescueRopeTexture = new Texture2D(thrownRopePixelsWide,
+                thrownRopePixelsHigh, TextureFormat.RGBA32, false)
+            {
+                name = "S00 pixel rescue rope",
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Repeat,
+                anisoLevel = 0
+            };
+            var ropePixels = new Color32[thrownRopePixelsWide * thrownRopePixelsHigh];
+            for (int y = 0; y < thrownRopePixelsHigh; y++)
+            {
+                for (int x = 0; x < thrownRopePixelsWide; x++)
+                {
+                    // Two opposing diagonal strand rows give the player a
+                    // readable braided rope rather than a solid line.
+                    bool lightStrand = (x + (y == 2 ? 2 : 0)) % 4 < 2;
+                    ropePixels[y * thrownRopePixelsWide + x] =
+                        y == 0 || y == 3 ? new Color32(54, 42, 33, 255) :
+                        lightStrand ? new Color32(224, 183, 112, 255) :
+                            new Color32(151, 105, 56, 255);
+                }
+            }
+            shenLiRescueRopeTexture.SetPixels32(ropePixels);
+            shenLiRescueRopeTexture.Apply(false, false);
+            var thrownLine = new GameObject("S00 Shen Li thrown rescue line",
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
+            thrownLine.transform.SetParent(canvas.transform, false);
+            shenLiRescueLine = (RectTransform)thrownLine.transform;
+            shenLiRescueLine.anchorMin = shenLiRescueLine.anchorMax =
+                new Vector2(0.5f, 0.5f);
+            shenLiRescueLine.sizeDelta = new Vector2(315f, 4f);
+            shenLiRescueLine.anchoredPosition = new Vector2(83f, 55f);
+            var ropeGraphic = thrownLine.GetComponent<RawImage>();
+            ropeGraphic.texture = shenLiRescueRopeTexture;
+            ropeGraphic.uvRect = new Rect(0f, 0f,
+                shenLiRescueLine.sizeDelta.x / thrownRopePixelsWide, 1f);
+            ropeGraphic.raycastTarget = false;
             shenLiRescueLine.localRotation = Quaternion.Euler(0f, 0f, -13.6f);
             shenLiRescueLine.gameObject.SetActive(false);
             lastBoat.gameObject.SetActive(false);
@@ -1086,6 +1127,8 @@ namespace Rpg.Soundwell
                 Destroy(farBankGuardTexture);
             if (spareRopePixelTexture != null)
                 Destroy(spareRopePixelTexture);
+            if (shenLiRescueRopeTexture != null)
+                Destroy(shenLiRescueRopeTexture);
         }
 
         private void ShowWorkshopPromise()
