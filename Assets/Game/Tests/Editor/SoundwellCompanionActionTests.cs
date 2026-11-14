@@ -209,6 +209,20 @@ namespace Rpg.Tests.Editor
                 Assert.That(motor.TryStepDestination(moving, Vector2.right,
                     team, beast, 0.5f, out _), Is.False,
                     "A disabled rescuer cannot be allowed to move on a stale chooser.");
+
+                // ORK may move a Rigidbody2D first and its sprite Transform
+                // may not be sampled until a subsequent frame. Next-step
+                // eligibility must start at the actual physics position.
+                moving.SetActive(true);
+                var movingBody = moving.AddComponent<Rigidbody2D>();
+                movingBody.gravityScale = 0f;
+                movingBody.bodyType = RigidbodyType2D.Kinematic;
+                movingBody.position = new Vector2(-3f, -2f);
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    new[] { moving }, null, 0.5f, out Vector2 physicsStep), Is.True,
+                    "A live ORK actor must be allowed to step after a Rigidbody relocation.");
+                Assert.That(physicsStep, Is.EqualTo(new Vector2(-2.5f, -2f)),
+                    "A valid step must originate from Rigidbody2D.position, not stale rendered coordinates.");
             }
             finally
             {
