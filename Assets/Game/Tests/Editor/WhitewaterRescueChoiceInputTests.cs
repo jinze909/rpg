@@ -373,6 +373,9 @@ namespace Rpg.Tests.Editor
                             "S00 Whitewater playable canvas/S00 far-bank approaching figure 0");
                         Assert.That(approaching, Is.Not.Null);
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.False);
+                        // Capture the authored spawn position before the warning starts its
+                        // coroutine. The first observed warning frame already moves the guard.
+                        float threatSpawnX = ((RectTransform)approaching).anchoredPosition.x;
                         var approachingImage = approaching.GetComponent<Image>();
                         var playerImage = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/PLACEHOLDER player")
@@ -514,11 +517,11 @@ namespace Rpg.Tests.Editor
                             "The staging silhouettes must remain distant and cannot fake an ORK battle.");
                         float marchEndDeadline = Time.realtimeSinceStartup + 2f;
                         while (((RectTransform)approaching).anchoredPosition.x <
-                               threatStartX + 77.99f &&
+                               threatSpawnX + 77.99f &&
                                Time.realtimeSinceStartup < marchEndDeadline)
                             yield return null;
                         Assert.That(((RectTransform)approaching).anchoredPosition.x,
-                            Is.EqualTo(threatStartX + 78f).Within(0.02f),
+                            Is.EqualTo(threatSpawnX + 78f).Within(0.02f),
                             "The scene-only patrol must stop at the already authored distance.");
                         Assert.That(approachingImage.sprite, Is.SameAs(guardIdle),
                             "The soldiers must return to their original standing pixels after stopping.");
