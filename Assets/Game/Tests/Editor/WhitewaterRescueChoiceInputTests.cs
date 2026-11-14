@@ -513,6 +513,9 @@ namespace Rpg.Tests.Editor
                             "A visual threat must not teleport into a fake ORK battle.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(15),
                             "Reaching the clamp is not itself an interaction.");
+                        Vector2 coilBeforeHold = ((RectTransform)coil).anchoredPosition;
+                        Assert.That(coilBeforeHold.y, Is.GreaterThan(40f),
+                            "The spare rope must remain at the handoff point until the player braces the cable.");
                         var shenLiSprite = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/PLACEHOLDER Shen Li")
                             .GetComponent<Image>();
@@ -580,6 +583,18 @@ namespace Rpg.Tests.Editor
                             "The scene-only patrol must stop at the already authored distance.");
                         Assert.That(approachingImage.sprite, Is.SameAs(guardIdle),
                             "The soldiers must return to their original standing pixels after stopping.");
+                        Vector2 braceTarget = ((RectTransform)cable).anchoredPosition +
+                            new Vector2(-3f, 18f);
+                        Vector2 coilAfterHold = ((RectTransform)coil).anchoredPosition;
+                        Assert.That(Vector2.Distance(coilAfterHold, braceTarget),
+                            Is.LessThan(0.01f),
+                            "The actual hand-delivered rope must move onto the cable clamp after E / Pad A.");
+                        Assert.That(Vector2.Distance(coilBeforeHold, coilAfterHold),
+                            Is.GreaterThan(20f),
+                            "A changed caption alone is not a visible cable-brace action.");
+                        Assert.That(coilAfterHold.x % 1f, Is.EqualTo(0f));
+                        Assert.That(coilAfterHold.y % 1f, Is.EqualTo(0f),
+                            "The 16px rope must land on whole canvas pixels.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(16),
                             "Visual pressure must not skip into an unimplemented third-bell break.");
                         Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
