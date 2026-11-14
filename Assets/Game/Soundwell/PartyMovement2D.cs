@@ -85,17 +85,33 @@ namespace Rpg.Soundwell
                     return false;
             foreach (GameObject other in actors)
                 if (other != null && other != actorObject && other.activeInHierarchy &&
-                    BlocksBattleStep(other.transform.position, from, direction, distance, 0.40f))
+                    BlocksBattleStep(other, colliderFrom, direction, distance, radius, 0.40f))
                     return false;
             return beastObject == null || !beastObject.activeInHierarchy ||
-                !BlocksBattleStep(beastObject.transform.position, from, direction, distance, 0.50f);
+                !BlocksBattleStep(beastObject, colliderFrom, direction, distance, radius, 0.50f);
         }
 
-        private static bool BlocksBattleStep(Vector2 obstacle, Vector2 from,
-            Vector2 direction, float distance, float clearance)
+        private static bool BlocksBattleStep(GameObject obstacleObject, Vector2 from,
+            Vector2 direction, float distance, float movingRadius, float minimumClearance)
         {
-            float along = Mathf.Clamp(Vector2.Dot(obstacle - from, direction), 0f, distance);
-            return Vector2.Distance(obstacle, from + direction * along) < clearance;
+            // Some ORK actor visuals use trigger or temporarily disabled
+            // physics colliders. CircleCast intentionally ignores triggers,
+            // but their actual occupied space must still prevent overlap.
+            // Compare world-space collider centres, not just pivot positions.
+            Transform obstacle = obstacleObject.transform;
+            Vector2 centre = obstacle.position;
+            float clearance = minimumClearance;
+            CircleCollider2D footprint = obstacle.GetComponent<CircleCollider2D>();
+            if (footprint != null)
+            {
+                centre += (Vector2)obstacle.TransformVector(footprint.offset);
+                float scale = Mathf.Max(Mathf.Abs(obstacle.lossyScale.x),
+                    Mathf.Abs(obstacle.lossyScale.y));
+                clearance = Mathf.Max(minimumClearance, movingRadius +
+                    footprint.radius * scale);
+            }
+            float along = Mathf.Clamp(Vector2.Dot(centre - from, direction), 0f, distance);
+            return Vector2.Distance(centre, from + direction * along) < clearance;
         }
 
         public static bool FitsBattleStepInArena(Vector2 centre, float footprintRadius) =>
