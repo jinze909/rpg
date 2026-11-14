@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Localization.Tables;
 
 namespace Rpg.Tests.Editor
@@ -53,6 +54,57 @@ namespace Rpg.Tests.Editor
                 Does.Contain("不走位"));
             Assert.That(zh.GetEntry("entry.formation_mobile")?.LocalizedValue,
                 Does.Contain("走位＋行动"));
+        }
+
+        // Keep this inside the existing editor regression so the strict
+        // P0 manifest still checks the same set of tests.
+        [Test]
+        public void RetryHintShowsEffectiveControlsAfterSavedBindingRemap()
+        {
+            var action = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                .FindActionMap("Gameplay", true).FindAction("Retry", true);
+            int keyboardIndex = Enumerable.Range(0, action.bindings.Count)
+                .Single(i => action.bindings[i].path == "<Keyboard>/r");
+            int gamepadIndex = Enumerable.Range(0, action.bindings.Count)
+                .Single(i => action.bindings[i].path == "<Gamepad>/buttonNorth");
+            string oldKeyboard = action.bindings[keyboardIndex].overridePath;
+            string oldGamepad = action.bindings[gamepadIndex].overridePath;
+            string oldLanguage = Rpg.Soundwell.SoundwellUiLocalization.Language;
+            try
+            {
+                action.ApplyBindingOverride(keyboardIndex, "<Keyboard>/t");
+                action.ApplyBindingOverride(gamepadIndex, "<Gamepad>/buttonWest");
+                string key = action.GetBindingDisplayString(keyboardIndex);
+                string pad = action.GetBindingDisplayString(gamepadIndex);
+                foreach (string locale in new[]
+                {
+                    Rpg.Soundwell.SoundwellUiLocalization.English,
+                    Rpg.Soundwell.SoundwellUiLocalization.Chinese
+                })
+                {
+                    Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(locale);
+                    string expected = locale == Rpg.Soundwell.SoundwellUiLocalization.Chinese
+                        ? "[" + key + "／手柄 " + pad + "]"
+                        : "[" + key + " / Pad " + pad + "]";
+                    string hint = Rpg.Soundwell.SoundwellUiLocalization.Get("hint.reset_here");
+                    Assert.That(hint, Does.StartWith(expected),
+                        "The real retry control must match the displayed action in both locales.");
+                    Assert.That(hint, Does.Not.StartWith("[R /"),
+                        "A saved remap must not leave the default key in the trial HUD.");
+                }
+            }
+            finally
+            {
+                if (oldKeyboard == null)
+                    action.RemoveBindingOverride(keyboardIndex);
+                else
+                    action.ApplyBindingOverride(keyboardIndex, oldKeyboard);
+                if (oldGamepad == null)
+                    action.RemoveBindingOverride(gamepadIndex);
+                else
+                    action.ApplyBindingOverride(gamepadIndex, oldGamepad);
+                Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(oldLanguage);
+            }
         }
 
         [Test]
