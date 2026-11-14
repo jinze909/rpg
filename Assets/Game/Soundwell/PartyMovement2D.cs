@@ -57,7 +57,9 @@ namespace Rpg.Soundwell
             out Vector2 destination)
         {
             destination = default;
-            if (actorObject == null ||
+            // ORK can retire a scene actor before a queued menu refreshes.
+            // A disabled combatant must not spend a step or reserve space.
+            if (actorObject == null || !actorObject.activeInHierarchy ||
                 !(direction == Vector2.up || direction == Vector2.down ||
                   direction == Vector2.left || direction == Vector2.right))
                 return false;
@@ -82,10 +84,10 @@ namespace Rpg.Soundwell
                 if (!hit.collider.transform.IsChildOf(actor))
                     return false;
             foreach (GameObject other in actors)
-                if (other != null && other != actorObject &&
+                if (other != null && other != actorObject && other.activeInHierarchy &&
                     BlocksBattleStep(other.transform.position, from, direction, distance, 0.40f))
                     return false;
-            return beastObject == null ||
+            return beastObject == null || !beastObject.activeInHierarchy ||
                 !BlocksBattleStep(beastObject.transform.position, from, direction, distance, 0.50f);
         }
 
