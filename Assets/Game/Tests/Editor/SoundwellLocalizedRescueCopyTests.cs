@@ -13,6 +13,29 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellLocalizedRescueCopyTests
     {
         [Test]
+        public void WhitewaterPreludeTitleMatchesSelectedSceneLanguage()
+        {
+            string previous = Rpg.Soundwell.SoundwellUiLocalization.Language;
+            try
+            {
+                Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(
+                    Rpg.Soundwell.SoundwellUiLocalization.English);
+                Assert.That(Rpg.Soundwell.WhitewaterPrelude.SceneTitle,
+                    Is.EqualTo("S00 · Whitewater Crossing"),
+                    "English S00 must not show a permanently Chinese-only stage title.");
+                Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(
+                    Rpg.Soundwell.SoundwellUiLocalization.Chinese);
+                Assert.That(Rpg.Soundwell.WhitewaterPrelude.SceneTitle,
+                    Is.EqualTo("S00 · 白水渡"),
+                    "The same stage title must preserve its authored Chinese name.");
+            }
+            finally
+            {
+                Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(previous);
+            }
+        }
+
+        [Test]
         public void EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy()
         {
             var english = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-en");
