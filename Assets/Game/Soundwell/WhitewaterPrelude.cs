@@ -79,10 +79,12 @@ namespace Rpg.Soundwell
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
         private Sprite farBankGuardSprite;
+        private Sprite farBankGuardWalkSprite;
         private Sprite spareRopePixelSprite;
         private Texture2D hanQiaoPixelTexture;
         private Texture2D evacueePixelTexture;
         private Texture2D farBankGuardTexture;
+        private Texture2D farBankGuardWalkTexture;
         private Texture2D spareRopePixelTexture;
         private Image cable;
         private Text narration;
@@ -363,6 +365,9 @@ namespace Rpg.Soundwell
             farBankGuardSprite = MakeActorSprite("S00 16px far-bank spear guard",
                 FarBankGuardPixels, new Color32(166, 73, 65, 255),
                 out farBankGuardTexture);
+            farBankGuardWalkSprite = MakeActorSprite("S00 16px far-bank spear guard walking",
+                FarBankGuardWalkPixels, new Color32(166, 73, 65, 255),
+                out farBankGuardWalkTexture);
             for (int i = 0; i < farBankThreats.Length; i++)
             {
                 farBankThreats[i] = Panel(canvas.transform,
@@ -900,7 +905,13 @@ namespace Rpg.Soundwell
                     float x = Mathf.MoveTowards(figure.anchoredPosition.x,
                         destinations[i], FarBankThreatSpeed * Time.unscaledDeltaTime);
                     figure.anchoredPosition = new Vector2(x, figure.anchoredPosition.y);
-                    approaching |= x < destinations[i] - 0.01f;
+                    // Authored pixel footwork tracks the existing visual motor.
+                    // No second velocity, AI turn or combatant is introduced.
+                    bool marching = x < destinations[i] - 0.01f;
+                    farBankThreats[i].sprite = marching &&
+                        Mathf.FloorToInt(Time.unscaledTime / 0.16f) % 2 == 1
+                            ? farBankGuardWalkSprite : farBankGuardSprite;
+                    approaching |= marching;
                 }
                 if (!approaching && advancedAfterHold)
                     yield break;
@@ -1106,6 +1117,29 @@ namespace Rpg.Soundwell
             ".....kk..kk.....",
         };
 
+        // An alternate 16px footfall keeps the helmet and spear fixed while
+        // visibly separating the legs. The original sprite remains the rest
+        // pose once the same approach motor reaches its existing destination.
+        private static readonly string[] FarBankGuardWalkPixels =
+        {
+            ".............g..",
+            "............gg..",
+            ".............g..",
+            ".....kkkkk...g..",
+            "....kkkkkkk..g..",
+            "....kkfffkk..g..",
+            "....kkfffkk..g..",
+            ".....kfffk...g..",
+            "......kkkk...g..",
+            "....kkcccckk.g..",
+            "...kkkcccckkkg..",
+            "...kkkcccckkkg..",
+            "......kbbk...g..",
+            "......kbbk...g..",
+            "....kk....kk.g..",
+            "...kk......kk...",
+        };
+
         // Two nested loops and an open centre read as a separate wound coil
         // at native 16px. All source pixels use the same scene-local palette.
         private static readonly string[] SpareRopePixels =
@@ -1191,6 +1225,8 @@ namespace Rpg.Soundwell
                 Destroy(evacueePixelSprite);
             if (farBankGuardSprite != null)
                 Destroy(farBankGuardSprite);
+            if (farBankGuardWalkSprite != null)
+                Destroy(farBankGuardWalkSprite);
             if (spareRopePixelSprite != null)
                 Destroy(spareRopePixelSprite);
             if (hanQiaoPixelTexture != null)
@@ -1199,6 +1235,8 @@ namespace Rpg.Soundwell
                 Destroy(evacueePixelTexture);
             if (farBankGuardTexture != null)
                 Destroy(farBankGuardTexture);
+            if (farBankGuardWalkTexture != null)
+                Destroy(farBankGuardWalkTexture);
             if (spareRopePixelTexture != null)
                 Destroy(spareRopePixelTexture);
             if (shenLiRescueRopeTexture != null)
