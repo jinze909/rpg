@@ -527,6 +527,10 @@ MonoBehaviour:
     m_Key: battle.formation_mobile
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267455
+    m_Key: entry.whitewater_prologue
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

@@ -162,7 +162,7 @@ namespace Rpg.Soundwell
             prologueButton = prologueObject.GetComponent<Button>();
             prologueButton.colors = entryButton.colors;
             prologueButton.onClick.AddListener(OpenPrelude);
-            SoundwellView.AddLabel(prologueRect, "S00 · 白水渡", 17,
+            SoundwellView.AddLabel(prologueRect, SoundwellUiLocalization.Get("entry.whitewater_prologue"), 17,
                 new Color(0.98f, 0.80f, 0.52f), Vector2.zero, new Vector2(242f, 33f));
             ConfigureEntrySettingsNavigation();
             titleText.resizeTextForBestFit = true;
@@ -216,8 +216,7 @@ namespace Rpg.Soundwell
             if (preludeText != null)
             {
                 preludeText.font = font;
-                preludeText.text = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
-                    ? "S00 · 白水渡" : "S00 · Whitewater Bridge";
+                preludeText.text = SoundwellUiLocalization.Get("entry.whitewater_prologue");
             }
         }
 

@@ -526,6 +526,10 @@ MonoBehaviour:
     m_Localized: "机动阵位"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267455
+    m_Localized: "S00 · 白水渡"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

@@ -622,6 +622,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(entry.GetComponentsInChildren<Text>(true).Any(label =>
                     label.text == SoundwellUiLocalization.Get("entry.title")), Is.True,
                     "The entry heading must refresh without reloading the scene.");
+                Assert.That(prologueButton.GetComponentInChildren<Text>().text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("entry.whitewater_prologue")),
+                    "S00's playable entry must use the same saved EN/zh StringTables as the other entry choices.");
                 Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(initialScene),
                     "Gamepad Submit on Language must not also start the trial.");
                 Assert.That(events.currentSelectedGameObject,

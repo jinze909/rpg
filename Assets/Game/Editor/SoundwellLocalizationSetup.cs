@@ -92,6 +92,7 @@ namespace Rpg.Editor
             ("diagnostic.fallback", "English table fallback", null),
             ("entry.sfx_mute", "SFX ON  /  MUTE", "音效开启 / 点击静音"),
             ("entry.sfx_unmute", "SFX MUTED  /  UNMUTE", "音效已静音 / 点击开启"),
+            ("entry.whitewater_prologue", "S00 · Whitewater Bridge", "S00 · 白水渡"),
         };
 
         public static void Prepare()
