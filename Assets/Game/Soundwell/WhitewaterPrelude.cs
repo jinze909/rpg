@@ -418,6 +418,14 @@ namespace Rpg.Soundwell
             next.gameObject.SetActive(false);
             hanQiao.gameObject.SetActive(true);
             lastBoat.gameObject.SetActive(true);
+            ShowRescueChoices();
+        }
+
+        // Picking a rescuer is reversible until the player has actually
+        // reached their station and pulled Han Qiao free. The boat and
+        // Makinom rescue result must never advance on a cancelled plan.
+        private void ShowRescueChoices()
+        {
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
                 "A splash. Han Qiao clings to broken timber; his soaked uniform pulls him down. He shouts only: 'Rope!'",
@@ -426,6 +434,18 @@ namespace Rpg.Soundwell
                 "决定谁来搭手。选完还得亲自完成救援。");
             ShowChoices(new[] { "Pull him myself", "Ask Shen Li to throw rope", "Call nearby soldiers" },
                 new[] { "我自己拉", "请沈砾抛绳", "喊旁边士兵搭手" });
+        }
+
+        private void CancelUncommittedRescue()
+        {
+            if (phase != 7)
+                return;
+            // Restore the choice without resetting the player's position,
+            // progressing Han Qiao's boat, or writing the Makinom outcome.
+            rescueMethod = -1;
+            rescuePoint.gameObject.SetActive(false);
+            phase = 6;
+            ShowRescueChoices();
         }
 
         private void FinishRescue()
@@ -1059,11 +1079,14 @@ namespace Rpg.Soundwell
                 phase != 12 && phase != 14 && phase != 15)
                 return;
             SoundwellControlFrame frame = SoundwellInputAdapter.ReadGameplay();
-            // In world-movement context UGUI Submit/Cancel is not active.
-            // Let keyboard Esc and controller B exit without a mouse.
+            // An uncommitted Han Qiao rescue plan is cancellable. In other
+            // movement phases Esc / Pad B still leaves the scene as before.
             if (frame.Back)
             {
-                Close();
+                if (phase == 7)
+                    CancelUncommittedRescue();
+                else
+                    Close();
                 return;
             }
             Vector2 delta = Vector2.ClampMagnitude(frame.Movement, 1f) *
