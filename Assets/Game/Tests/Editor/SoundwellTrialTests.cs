@@ -269,6 +269,32 @@ namespace Rpg.Tests.Editor
                 "On the very same contact frame, the bell must follow the relocated player.");
             Assert.That(trial.GateOpen, Is.True,
                 "The earned gate opening remains intact after the collision.");
+
+            // The leader's checkpoint relocation is instantaneous. The
+            // ORK-owned followers are a visual exploration formation: they
+            // must regroup at that same safety point, rather than spend
+            // seconds walking through the beast's old combat lane.
+            yield return null;
+            var party = Object.FindFirstObjectByType<SoundwellOrkParty>();
+            Assert.That(party != null && party.IsReady, Is.True);
+            var config = SoundwellPartyConfig.Load();
+            Assert.That(party.Actors.Count, Is.EqualTo(3));
+            Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
+                retreat + config.SecondFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 2 must not trail behind after a real beast contact.");
+            Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
+                retreat + config.ThirdFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 3 must rejoin the checkpoint without a phantom crossing.");
+            // Physics and the ORK party may update again after the first
+            // contact frame. Neither rescuer may snap back to the stale
+            // Rigidbody2D Transform position on the following frame.
+            yield return null;
+            Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
+                retreat + config.SecondFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 2 must stay regrouped through the next update.");
+            Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
+                retreat + config.ThirdFollowerOffset), Is.LessThan(0.05f),
+                "Rescuer 3 must stay regrouped through the next update.");
         }
 
         [UnityTest]

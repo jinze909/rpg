@@ -1126,6 +1126,16 @@ namespace Rpg.Soundwell
                 trail.enabled = false;
         }
 
+        // Escort recovery takes precedence over an available Retry prompt.
+        // The actual NPC's arrival still controls reward settlement; this
+        // selects existing localized guidance and never changes quest flags.
+        public static string ReturnRouteHint(bool atSafePoint, bool surveyorEscorting)
+        {
+            return SoundwellUiLocalization.Get(surveyorEscorting
+                ? "hint.escort_to_retreat"
+                : atSafePoint ? "hint.reset_here" : "hint.return_to_reset");
+        }
+
         public void Refresh(bool ringing, bool searching, bool returning, bool wrapped,
             bool atBell, bool atSafePoint, bool carrying, bool canPlaceBell,
             bool gateOpen, bool atGatePanel, bool canOpenGate, bool canEngageBeast,
@@ -1412,6 +1422,10 @@ namespace Rpg.Soundwell
                 prompt = SoundwellUiLocalization.Get("hint.escape_blocked");
             else if (surveyorEscorting && waitingForEscortLeader)
                 prompt = SoundwellUiLocalization.Get("hint.escort_paused");
+            else if (surveyorEscorting && atSafePoint)
+                // A guide already back at RETREAT must not be told to reset
+                // while the survivor is still physically following.
+                prompt = ReturnRouteHint(atSafePoint, surveyorEscorting);
             else if (carrying)
                 prompt = SoundwellUiLocalization.Get(canPlaceBell
                     ? "hint.carry_at_stand" : "hint.carry_find_stand");
@@ -1447,9 +1461,7 @@ namespace Rpg.Soundwell
                 prompt = wrapped ? SoundwellUiLocalization.Get("hint.bell_wrapped")
                     : SoundwellUiLocalization.Get("hint.bell_ready");
             else if (ringing || wrapped)
-                prompt = atSafePoint ? SoundwellUiLocalization.Get("hint.reset_here")
-                    : surveyorEscorting ? SoundwellUiLocalization.Get("hint.escort_to_retreat")
-                    : SoundwellUiLocalization.Get("hint.return_to_reset");
+                prompt = ReturnRouteHint(atSafePoint, surveyorEscorting);
             else
                 prompt = SoundwellUiLocalization.Get("hint.approach_bell");
 

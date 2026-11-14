@@ -47,6 +47,34 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.IsReady, Is.True);
             trial.ReadInput = false;
 
+            // UX-001: once a real escort is underway, reaching the RETREAT
+            // marker cannot turn the live hint into a "reset" instruction.
+            // Assert the same localized rule used by the scene render, without
+            // creating a second survivor or artificially completing the quest.
+            string originalHintLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                foreach (string locale in new[]
+                {
+                    SoundwellUiLocalization.English, SoundwellUiLocalization.Chinese
+                })
+                {
+                    SoundwellUiLocalization.SetLanguage(locale);
+                    Assert.That(SoundwellView.ReturnRouteHint(true, true), Is.EqualTo(
+                        SoundwellUiLocalization.Get("hint.escort_to_retreat")),
+                        "Escort is not complete until the surveyor reaches RETREAT.");
+                    Assert.That(SoundwellView.ReturnRouteHint(true, false), Is.EqualTo(
+                        SoundwellUiLocalization.Get("hint.reset_here")),
+                        "Retry remains available before an escort has begun.");
+                    Assert.That(SoundwellView.ReturnRouteHint(false, false), Is.EqualTo(
+                        SoundwellUiLocalization.Get("hint.return_to_reset")));
+                }
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(originalHintLanguage);
+            }
+
             // Both named source positions must be visually distinguishable
             // authored pixel objects, not smooth-scaled rectangles. The
             // visuals do not move the bell or add any alternate sound target.

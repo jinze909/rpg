@@ -47,6 +47,9 @@ namespace Rpg.Soundwell
             patrol.PlayerCaught += () =>
             {
                 checkpoint.RecoverFromBeastContact();
+                // Recovery is an explicit instant relocation, not normal
+                // locomotion. Restore the exploration formation at safety.
+                orkParty?.RegroupAfterCheckpoint(playerBody.position);
                 movement = Vector2.zero;
                 view?.AnimatePlayerHit();
             };

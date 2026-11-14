@@ -84,6 +84,10 @@ namespace Rpg.Soundwell
         protected readonly List<Combatant> members = new List<Combatant>(3);
         protected bool battleStarted;
         private PartyFormationFollower formation;
+        // Persist checkpoint relocation until the next exploration render.
+        // ORK scene actors can update after a beast-contact callback.
+        private bool checkpointRegroupQueued;
+        private Vector2 checkpointRegroupPosition;
         private PartyMovement2D movementController;
         private SoundwellPartyConfig config;
         // The party remains ORK-owned for battles, but its exploration input is
@@ -753,6 +757,15 @@ namespace Rpg.Soundwell
             renderer.enabled = false;
         }
 
+        // Keep the checkpoint handoff on the ORK party's actual actor owner.
+        // Snap immediately and once more at LateUpdate after scene callbacks.
+        public void RegroupAfterCheckpoint(Vector2 checkpoint)
+        {
+            checkpointRegroupPosition = checkpoint;
+            checkpointRegroupQueued = true;
+            formation?.RegroupAfterCheckpoint(checkpoint);
+        }
+
         private void LateUpdate()
         {
             if (battleStarted && IsBattleRunning())
@@ -772,6 +785,11 @@ namespace Rpg.Soundwell
             if (!IsReady || formation == null)
                 return;
             bool inBattle = IsBattleRunning();
+            if (checkpointRegroupQueued && !inBattle)
+            {
+                formation.RegroupAfterCheckpoint(checkpointRegroupPosition);
+                checkpointRegroupQueued = false;
+            }
             bool secondDefending = members.Count > 1 && members[1] != null &&
                 members[1].Battle.Defending;
             bool thirdDefending = members.Count > 2 && members[2] != null &&
