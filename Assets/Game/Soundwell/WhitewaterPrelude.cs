@@ -28,6 +28,10 @@ namespace Rpg.Soundwell
         // A sightline forward of Shen Li's eastern clamp. Players must
         // approach it physically after the second warning bell.
         private const float FarBankLookoutX = 75f;
+        // Warned soldiers advance visibly while the player returns to Shen Li,
+        // but only a later ORK battle can resolve the encounter.
+        private const float FarBankThreatApproach = 58f;
+        private const float FarBankThreatSpeed = 24f;
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
@@ -679,6 +683,7 @@ namespace Rpg.Soundwell
                 new Color(0.42f, 0.82f, 0.66f);
             foreach (Image threat in farBankThreats)
                 threat.gameObject.SetActive(true);
+            StartCoroutine(AdvanceFarBankThreats());
             // Shen Li is still at the real cable post. Returning to her is a
             // second player action, never an automatic follow-up to spotting.
             bridgePost.GetComponent<Image>().color =
@@ -692,6 +697,31 @@ namespace Rpg.Soundwell
                 "返回沈砾身边金色缆桩，按 E／手柄 A 一起扶住缆索。敌军仍未被击退。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        // Distant visual cue only: no combatants, collisions, turns, rewards
+        // or third-bell trigger. The figures stop short of the bridge post.
+        private IEnumerator AdvanceFarBankThreats()
+        {
+            var destinations = new float[farBankThreats.Length];
+            for (int i = 0; i < farBankThreats.Length; i++)
+                destinations[i] = farBankThreats[i].rectTransform.anchoredPosition.x +
+                    FarBankThreatApproach;
+            bool approaching;
+            do
+            {
+                approaching = false;
+                for (int i = 0; i < farBankThreats.Length; i++)
+                {
+                    RectTransform figure = farBankThreats[i].rectTransform;
+                    float x = Mathf.MoveTowards(figure.anchoredPosition.x,
+                        destinations[i], FarBankThreatSpeed * Time.unscaledDeltaTime);
+                    figure.anchoredPosition = new Vector2(x, figure.anchoredPosition.y);
+                    approaching |= x < destinations[i] - 0.01f;
+                }
+                if (approaching)
+                    yield return null;
+            } while (approaching);
         }
 
         private void HoldCableAtPost()

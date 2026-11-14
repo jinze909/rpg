@@ -238,6 +238,7 @@ namespace Rpg.Tests.Editor
                             Is.GreaterThan(0.8f));
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.True,
                             "Spotting must reveal the actual far-bank figures.");
+                        float threatStartX = ((RectTransform)approaching).anchoredPosition.x;
                         Assert.That(activePrelude.CurrentNarration,
                             Does.Contain("Three armed silhouettes"));
                         var bell = activePrelude.GetComponentInChildren<AudioSource>(true);
@@ -259,6 +260,11 @@ namespace Rpg.Tests.Editor
                         yield return null;
                         Assert.That(activePrelude.CanHoldCable, Is.True,
                             "The player must actually return to Shen Li's post.");
+                        float threatAfterReturnX = ((RectTransform)approaching).anchoredPosition.x;
+                        Assert.That(threatAfterReturnX, Is.GreaterThan(threatStartX + 4f),
+                            "The silhouettes must approach during the player-controlled return, rather than standing still.");
+                        Assert.That(threatAfterReturnX, Is.LessThan(-100f),
+                            "A visual threat must not teleport into a fake ORK battle.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(15),
                             "Reaching the clamp is not itself an interaction.");
                         input.Press(keys.eKey);
