@@ -402,6 +402,45 @@ namespace Rpg.Tests.Editor
                     Assert.That(visual.sprite.name, Does.Contain("attack"),
                         "Fresh ORK Attack must replace Step without moving the scene actor.");
                 }
+
+                // A companion should react to an actual lower ORK HP reading,
+                // but never to the first snapshot or repeated unchanged HP.
+                // These presentation-only inputs cannot mutate combat state.
+                var secondVisual = second.GetComponent<SpriteRenderer>();
+                var thirdVisual = third.GetComponent<SpriteRenderer>();
+                Color secondTint = secondVisual.color;
+                Color thirdTint = thirdVisual.color;
+                formation.RefreshCompanionHealth(1, 5f, true);
+                formation.RefreshCompanionHealth(2, 5f, true);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(secondVisual.color, Is.EqualTo(secondTint));
+                Assert.That(thirdVisual.color, Is.EqualTo(thirdTint));
+                formation.RefreshCompanionHealth(1, 5f, true);
+                formation.RefreshCompanionHealth(2, 5f, true);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(secondVisual.color, Is.EqualTo(secondTint),
+                    "An unchanged ORK HP value cannot manufacture a hit flash.");
+                Assert.That(thirdVisual.color, Is.EqualTo(thirdTint));
+                formation.RefreshCompanionHealth(1, 4f, true);
+                formation.RefreshCompanionHealth(2, 4f, true);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(secondVisual.color, Is.Not.EqualTo(secondTint));
+                Assert.That(thirdVisual.color, Is.Not.EqualTo(thirdTint));
+                yield return new WaitForSecondsRealtime(0.38f);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(secondVisual.color, Is.EqualTo(secondTint),
+                    "The damage cue must expire independently of ORK turn timing.");
+                Assert.That(thirdVisual.color, Is.EqualTo(thirdTint));
+                formation.RefreshCompanionHealth(1, 3f, true);
+                formation.RefreshCompanionHealth(2, 3f, true);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(secondVisual.color, Is.Not.EqualTo(secondTint));
+                Assert.That(thirdVisual.color, Is.Not.EqualTo(thirdTint));
+                formation.ResetPoses();
+                formation.RenderFollowers(false, false, false);
+                Assert.That(secondVisual.color, Is.EqualTo(secondTint),
+                    "Retreat or replay must clear the previous fight's hit cue.");
+                Assert.That(thirdVisual.color, Is.EqualTo(thirdTint));
             }
             finally
             {
