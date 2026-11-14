@@ -511,11 +511,11 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267451
-    m_Localized: "阵位：固定"
+    m_Localized: "固定：战中不走位"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267452
-    m_Localized: "阵位：机动"
+    m_Localized: "机动：走位＋行动"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267453

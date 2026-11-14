@@ -162,8 +162,14 @@ namespace Rpg.Soundwell
             prologueButton = prologueObject.GetComponent<Button>();
             prologueButton.colors = entryButton.colors;
             prologueButton.onClick.AddListener(OpenPrelude);
-            SoundwellView.AddLabel(prologueRect, SoundwellUiLocalization.Get("entry.whitewater_prologue"), 17,
+            var prologueLabel = SoundwellView.AddLabel(prologueRect,
+                SoundwellUiLocalization.Get("entry.whitewater_prologue"), 17,
                 new Color(0.98f, 0.80f, 0.52f), Vector2.zero, new Vector2(242f, 33f));
+            // The compact 220px button must fit both authored languages;
+            // UGUI shrinks the glyphs only when needed, never the hit target.
+            prologueLabel.resizeTextForBestFit = true;
+            prologueLabel.resizeTextMinSize = 12;
+            prologueLabel.resizeTextMaxSize = 17;
             ConfigureEntrySettingsNavigation();
             titleText.resizeTextForBestFit = true;
             titleText.resizeTextMinSize = 18;
@@ -363,6 +369,10 @@ namespace Rpg.Soundwell
             languageRect.sizeDelta = new Vector2(compact ? 186f : 204f, 40f);
             prologueRect.anchoredPosition = new Vector2(0f, compact ? 140f : 119f);
             prologueRect.sizeDelta = new Vector2(compact ? 220f : 254f, compact ? 32f : 36f);
+            var prologueLabel = prologueButton.GetComponentInChildren<Text>();
+            if (prologueLabel != null)
+                prologueLabel.rectTransform.sizeDelta =
+                    new Vector2(compact ? 210f : 242f, compact ? 28f : 33f);
             languageText.rectTransform.sizeDelta = new Vector2(compact ? 180f : 198f, 36f);
         }
 

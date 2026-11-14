@@ -176,6 +176,21 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
 
 
 class SoundwellAcceptanceContractTests(unittest.TestCase):
+    def test_formation_stepping_translation_requires_real_nunit_case(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case_file = source_root / "Assets/Game/Tests/Editor/SoundwellLocalizedRescueCopyTests.cs"
+            case_file.parent.mkdir(parents=True)
+            method = "FormationToggleExplainsSteppingInBothLanguages"
+            full_name = "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests." + method
+            case_file.write_text("[Test] public void " + method + "() { }",
+                                 encoding="utf-8")
+            for mode in ("verify", "prepare"):
+                self.assertIn(full_name, expected_tests_for(mode, True, source_root))
+            case_file.write_text("public void " + method + "() { }",
+                                 encoding="utf-8")
+            self.assertNotIn(full_name, expected_tests_for("verify", True, source_root))
+
     def test_destroyed_ork_actor_lookup_is_required_only_with_real_nunit_case(self):
         with tempfile.TemporaryDirectory() as root:
             source_root = Path(root)
