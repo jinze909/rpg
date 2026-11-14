@@ -685,6 +685,41 @@ namespace Rpg.Tests.Editor
             Assert.That(EventSystem.current.currentSelectedGameObject,
                 Is.SameAs(focusMoveButton.gameObject),
                 "Cancel must return to Move without unintentionally retreating.");
+
+            // The real chooser's Move menu must paint the same physics
+            // landing as PartyMovement2D after an instant Rigidbody move.
+            // This temporary actor exists only for the display assertion:
+            // no ORK turn, step allowance or combat position is modified.
+            var displacedPreviewActor = new GameObject("Physics-position step preview regression");
+            try
+            {
+                displacedPreviewActor.transform.position = new Vector3(3f, 3f, 0f);
+                Rigidbody2D previewBody = displacedPreviewActor.AddComponent<Rigidbody2D>();
+                previewBody.bodyType = RigidbodyType2D.Kinematic;
+                previewBody.gravityScale = 0f;
+                previewBody.position = new Vector2(-3f, -2f);
+                setBattleMoveChoices.Invoke(liveView, new object[]
+                {
+                    actualAttacker, displacedPreviewActor.transform, true, false, false, false
+                });
+                focusMoveButton.onClick.Invoke();
+                var physicsPreview = GameObject.Find("PLACEHOLDER ORK step destination")
+                    ?.GetComponent<SpriteRenderer>();
+                Assert.That(physicsPreview, Is.Not.Null);
+                Assert.That(physicsPreview.enabled, Is.True);
+                Assert.That((Vector2)physicsPreview.transform.position,
+                    Is.EqualTo(previewBody.position +
+                        Vector2.up * SoundwellOrkParty.BattleStepDistance),
+                    "Move preview must originate at the accepted Rigidbody2D position, not the earlier sprite Transform.");
+                Assert.That(previewBody.position, Is.EqualTo(new Vector2(-3f, -2f)),
+                    "Merely displaying the ORK step must not move its physics actor.");
+            }
+            finally
+            {
+                if (cancelPreview.gameObject.activeInHierarchy)
+                    cancelPreview.onClick.Invoke();
+                Object.Destroy(displacedPreviewActor);
+            }
             EventSystem.current.SetSelectedGameObject(battleRetreat.gameObject);
             setBattleChoices.Invoke(liveView, new object[]
             {

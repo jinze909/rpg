@@ -821,7 +821,18 @@ namespace Rpg.Soundwell
             Vector2 direction = MoveDirections[movePreviewIndex];
             movePreviewMarker.flipX = Mathf.Abs(direction.x) > 0.01f
                 ? direction.x < 0f : source != null && source.flipX;
-            movePreviewMarker.transform.position = movePreviewTransform.position +
+            // The authoritative ORK step starts at Rigidbody2D.position,
+            // which can lead Transform.position immediately after a portal,
+            // checkpoint or previous physics step. Draw its preview from the
+            // same position or the marker may promise a different landing.
+            Rigidbody2D body = movePreviewTransform.GetComponent<Rigidbody2D>();
+            Vector3 origin = movePreviewTransform.position;
+            if (body != null)
+            {
+                Vector2 physics = body.position;
+                origin = new Vector3(physics.x, physics.y, origin.z);
+            }
+            movePreviewMarker.transform.position = origin +
                 (Vector3)(direction * SoundwellOrkParty.BattleStepDistance);
         }
 
