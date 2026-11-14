@@ -121,24 +121,48 @@ namespace Rpg.Tests.Editor
                         Is.EqualTo(rescueChoice == 0 ? 60f : -70f),
                         "Each authored rescue method must point to its own visible station.");
 
-                    // Real Input System movement and the same E / Pad A
-                    // gameplay interaction used by the main S00 player path.
-                    input.Press(keys.aKey);
+                    // The soldier-assisted branch must be playable with the
+                    // physical gamepad alone after the Pad B plan cancellation.
+                    // A premature Pad A press away from the station cannot
+                    // convert a mere dialogue choice into an earned rescue.
+                    if (rescueChoice == 2)
+                    {
+                        input.Press(pad.buttonSouth);
+                        yield return null;
+                        input.Release(pad.buttonSouth);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(7),
+                            "Pad A outside the soldier's station must not board Han Qiao.");
+                        Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX));
+                        input.Set(pad.leftStick, Vector2.left);
+                    }
+                    else
+                        input.Press(keys.aKey);
                     float rescueDeadline = Time.realtimeSinceStartup + 5f;
                     while (!activePrelude.CanRescue &&
                            Time.realtimeSinceStartup < rescueDeadline)
                         yield return null;
-                    input.Release(keys.aKey);
+                    if (rescueChoice == 2)
+                        input.Set(pad.leftStick, Vector2.zero);
+                    else
+                        input.Release(keys.aKey);
                     yield return null;
                     Assert.That(activePrelude.CanRescue, Is.True,
                         "The player must physically arrive at the selected rescue station.");
                     Assert.That(activePrelude.Phase, Is.EqualTo(7),
                         "Arriving alone must not grant rescue before the action.");
-                    input.Press(keys.eKey);
+                    if (rescueChoice == 2)
+                        input.Press(pad.buttonSouth);
+                    else
+                        input.Press(keys.eKey);
                     yield return null;
-                    input.Release(keys.eKey);
+                    if (rescueChoice == 2)
+                        input.Release(pad.buttonSouth);
+                    else
+                        input.Release(keys.eKey);
                     yield return null;
-                    Assert.That(activePrelude.Phase, Is.EqualTo(8));
+                    Assert.That(activePrelude.Phase, Is.EqualTo(8),
+                        "Fresh gamepad South or E at the station must perform the actual rescue.");
                     Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                     Assert.That(activePrelude.CurrentNarration, Does.Contain(
                         rescueChoice == 0 ? "You heave Han Qiao" : "The soldiers lift"));
