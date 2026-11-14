@@ -73,6 +73,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs": {
         "GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial":
             "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
+        "WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress":
+            "Rpg.Tests.Editor.SoundwellInputSystemTests.WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress",
     },
     "Assets/Game/Tests/Editor/WhitewaterRescueChoiceInputTests.cs": {
         "PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction":
