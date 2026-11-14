@@ -29,6 +29,7 @@ namespace Rpg.Tests.Editor
             {
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                Gamepad pad = InputSystem.AddDevice<Gamepad>();
                 foreach (int rescueChoice in new[] { 0, 2 })
                 {
                     var root = new GameObject("S00 alternate rescue input regression");
@@ -71,15 +72,51 @@ namespace Rpg.Tests.Editor
                         "S00 Whitewater playable canvas/S00 Han Qiao in water") as RectTransform;
                     Assert.That(inWater, Is.Not.Null);
                     float riverStartX = inWater.anchoredPosition.x;
+                    var station = activePrelude.transform.Find(
+                        "S00 Whitewater playable canvas/S00 rescue station") as RectTransform;
+                    Assert.That(station, Is.Not.Null);
+                    Assert.That(station.gameObject.activeInHierarchy, Is.False);
+
+                    // The first choice is merely a plan. Back must return
+                    // to the rescuer menu, not exit S00 or silently save a rescue.
+                    int abandonedChoice = rescueChoice == 0 ? 2 : 0;
+                    ClickChoice(activePrelude, abandonedChoice);
+                    Assert.That(activePrelude.Phase, Is.EqualTo(7));
+                    Assert.That(station.gameObject.activeInHierarchy, Is.True);
+                    Assert.That(station.anchoredPosition.x,
+                        Is.EqualTo(abandonedChoice == 0 ? 60f : -70f));
+                    if (rescueChoice == 0)
+                        input.Press(keys.escapeKey);
+                    else
+                        input.Press(pad.buttonEast);
+                    yield return null;
+                    if (rescueChoice == 0)
+                        input.Release(keys.escapeKey);
+                    else
+                        input.Release(pad.buttonEast);
+                    yield return null;
+                    Assert.That(activePrelude, Is.Not.Null,
+                        "Cancelling a rescue plan must not destroy the whole S00 stage.");
+                    Assert.That(activePrelude.Phase, Is.EqualTo(6));
+                    Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                    Assert.That(station.gameObject.activeInHierarchy, Is.False,
+                        "The abandoned rescue station must disappear.");
+                    Assert.That(activePrelude.CanRescue, Is.False);
+                    Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX),
+                        "Cancelling a plan cannot begin moving Han Qiao to the boat.");
+                    Assert.That(FindButton(activePrelude, "S00 choice 0").gameObject.activeInHierarchy,
+                        Is.True, "Rescuer choices must be available again.");
+                    Assert.That(UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject?.name,
+                        Is.EqualTo("S00 choice 0"), "The returned UGUI menu needs keyboard/gamepad focus.");
+
+                    // Choosing a different rescuer is still an uncommitted
+                    // plan until the player reaches that station and presses E.
                     ClickChoice(activePrelude, rescueChoice);
                     Assert.That(activePrelude.Phase, Is.EqualTo(7));
                     Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX),
                         "Choosing a rescuer cannot instantly board Han Qiao.");
                     Assert.That(activePrelude.CanRescue, Is.False,
                         "Neither alternative station is already in reach after the clamp repair.");
-                    var station = activePrelude.transform.Find(
-                        "S00 Whitewater playable canvas/S00 rescue station") as RectTransform;
-                    Assert.That(station, Is.Not.Null);
                     Assert.That(station.anchoredPosition.x,
                         Is.EqualTo(rescueChoice == 0 ? 60f : -70f),
                         "Each authored rescue method must point to its own visible station.");
