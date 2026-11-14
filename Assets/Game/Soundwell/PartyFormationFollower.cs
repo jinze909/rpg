@@ -154,6 +154,13 @@ namespace Rpg.Soundwell
         private readonly float[] companionStepUntil = new float[3];
         private readonly float[] companionAttackUntil = new float[3];
         private readonly float[] companionGuardUntil = new float[3];
+        // Read-only ORK HP snapshots exist only to drive a short damage flash.
+        // They cannot change combatant health, turns or quest progression.
+        private readonly float?[] lastCompanionHp = new float?[3];
+        private readonly float[] companionHitUntil = new float[3];
+        private readonly Color[] companionTints = new Color[3];
+        private static readonly Color CompanionHitTint = new Color(1f, 0.43f, 0.36f);
+        private const float CompanionHitSeconds = 0.30f;
         private readonly GameObject[] actors = new GameObject[3];
         private readonly List<Sample> history = new List<Sample>(32);
         private Sprite placeholderSprite;
@@ -214,6 +221,7 @@ namespace Rpg.Soundwell
             var renderer = actor.AddComponent<SpriteRenderer>();
             renderer.sprite = index == 2 ? hoodIdleSprite : placeholderSprite;
             renderer.color = tint;
+            companionTints[index] = tint;
             renderer.sortingOrder = 3;
             actors[index] = actor;
             return actor;
@@ -247,6 +255,23 @@ namespace Rpg.Soundwell
             return history.Count == 0 ? leader.position : history[0].Position;
         }
 
+        public void RefreshCompanionHealth(int index, float hp, bool battleActive)
+        {
+            if (index <= 0 || index >= actors.Length)
+                return;
+            if (!battleActive || float.IsNaN(hp) || float.IsInfinity(hp))
+            {
+                lastCompanionHp[index] = null;
+                companionHitUntil[index] = float.NegativeInfinity;
+                return;
+            }
+            // The first live snapshot establishes a baseline, not a hit.
+            if (lastCompanionHp[index].HasValue &&
+                hp < lastCompanionHp[index].Value - 0.001f)
+                companionHitUntil[index] = Time.unscaledTime + CompanionHitSeconds;
+            lastCompanionHp[index] = hp;
+        }
+
         public void RenderFollowers(bool inBattle, bool secondDefending, bool thirdDefending)
         {
             if (!ready || leader == null || config == null) return;
@@ -260,6 +285,10 @@ namespace Rpg.Soundwell
                 if (renderer == null) continue;
                 Sprite idle = i == 2 ? hoodIdleSprite : placeholderSprite;
                 Sprite walking = i == 2 ? hoodWalkingSprite : walkingSprite;
+                // Reuse the real ORK actor's existing sprite; a flash never
+                // duplicates the combatant or modifies its authoritative HP.
+                renderer.color = inBattle && Time.unscaledTime < companionHitUntil[i]
+                    ? CompanionHitTint : companionTints[i];
                 if (inBattle)
                 {
                     bool defending = i == 2 ? thirdDefending : secondDefending;
@@ -336,7 +365,13 @@ namespace Rpg.Soundwell
         public void ResetPoses()
         {
             for (int i = 1; i < actors.Length; i++)
+            {
                 companionStepUntil[i] = companionAttackUntil[i] = companionGuardUntil[i] = 0f;
+                lastCompanionHp[i] = null;
+                companionHitUntil[i] = float.NegativeInfinity;
+                if (actors[i] != null && actors[i].TryGetComponent<SpriteRenderer>(out var visual))
+                    visual.color = companionTints[i];
+            }
         }
 
         // A real 16-PPU, point-filtered pixel silhouette, not a stretched

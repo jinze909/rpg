@@ -754,11 +754,18 @@ namespace Rpg.Soundwell
 
             if (!IsReady || formation == null)
                 return;
+            bool inBattle = IsBattleRunning();
             bool secondDefending = members.Count > 1 && members[1] != null &&
                 members[1].Battle.Defending;
             bool thirdDefending = members.Count > 2 && members[2] != null &&
                 members[2].Battle.Defending;
-            formation.RenderFollowers(IsBattleRunning(), secondDefending, thirdDefending);
+            // An ORK combatant's status is the only injury source. Companion
+            // renderers consume a snapshot for feedback, never write damage.
+            for (int i = 1; i < 3; i++)
+                formation.RefreshCompanionHealth(i,
+                    inBattle && i < members.Count && members[i] != null
+                        ? members[i].Status[1].GetValue() : float.NaN, inBattle);
+            formation.RenderFollowers(inBattle, secondDefending, thirdDefending);
         }
 
         private void Fail(string reason)
