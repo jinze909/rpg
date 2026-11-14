@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
         private static bool initialized;
         private static bool ignoreHeldToggleUntilRelease;
         private static bool ignoreHeldEntryUntilRelease;
+        private static bool ignoreHeldBackUntilRelease;
 
         public static void SetEntryContext()
         {
@@ -42,6 +43,10 @@ namespace Rpg.Soundwell
             // Re-enabling an InputAction while Tab/Start is held may treat
             // its initial state as another press, reopening a just-closed menu.
             ignoreHeldToggleUntilRelease |= ToggleControlHeld();
+            // UGUI Cancel and Gameplay Back share Escape/Pad B. An action
+            // that was already held while dismissing a focused menu must not
+            // be replayed as a fresh request to exit the entire scene.
+            ignoreHeldBackUntilRelease |= BackControlHeld();
             actions.Disable();
             gameplayMap.Enable();
         }
@@ -133,6 +138,14 @@ namespace Rpg.Soundwell
             return toggleMenu.IsPressed();
         }
 
+        private static bool BackControlHeld()
+        {
+            foreach (InputControl control in back.controls)
+                if (control is ButtonControl button && button.isPressed)
+                    return true;
+            return back.IsPressed();
+        }
+
         public static bool IsEntryContextActive
         {
             get { EnsureLoaded(); return entryMap.enabled && !gameplayMap.enabled; }
@@ -153,8 +166,17 @@ namespace Rpg.Soundwell
         public static SoundwellControlFrame ReadGameplay()
         {
             EnsureLoaded();
+            bool backPressed = back.WasPressedThisFrame();
+            if (ignoreHeldBackUntilRelease)
+            {
+                // The held UI-cancel press is consumed until all bound Back
+                // controls are released. The next actual press works normally.
+                if (!BackControlHeld())
+                    ignoreHeldBackUntilRelease = false;
+                backPressed = false;
+            }
             return SoundwellControlFrame.FromActions(move.ReadValue<Vector2>(), ring.WasPressedThisFrame(),
-                wrap.WasPressedThisFrame(), retry.WasPressedThisFrame(), back.WasPressedThisFrame(),
+                wrap.WasPressedThisFrame(), retry.WasPressedThisFrame(), backPressed,
                 carry.WasPressedThisFrame(), gate.WasPressedThisFrame());
         }
 
