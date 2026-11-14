@@ -356,6 +356,62 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator MostRecentAcceptedCompanionPoseCannotReplayEarlierAction()
+        {
+            // ORK may hand the next rescuer a turn before a previous visual
+            // one-shot expires. The visible sprite must follow the latest
+            // accepted command, not replay stale Attack/Guard/Step art.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var root = new GameObject("Soundwell companion latest-action regression");
+            var leader = new GameObject("formation leader");
+            leader.transform.SetParent(root.transform, false);
+            var formation = root.AddComponent<PartyFormationFollower>();
+            try
+            {
+                formation.Configure(leader.transform, root.transform,
+                    SoundwellPartyConfig.Load());
+                var second = formation.CreateFollower(1, "rescuer 2",
+                    new Vector2(-1f, 0f), Color.white);
+                var third = formation.CreateFollower(2, "rescuer 3",
+                    new Vector2(-2f, 0f), Color.white);
+                second.SetActive(true);
+                third.SetActive(true);
+                formation.SetFrameworkReady();
+
+                foreach (int index in new[] { 1, 2 })
+                {
+                    var actor = index == 1 ? second : third;
+                    var visual = actor.GetComponent<SpriteRenderer>();
+                    formation.ShowAttackPose(index, null);
+                    formation.RenderFollowers(true, false, false);
+                    Assert.That(visual.sprite.name, Does.Contain("attack"));
+
+                    formation.ShowGuardPose(index, null, true);
+                    formation.RenderFollowers(true, false, false);
+                    Assert.That(visual.sprite.name, Does.Contain("guard"),
+                        "Fresh ORK Guard must not be overwritten by a prior Attack window.");
+
+                    formation.ShowStepPose(index, Vector2.left);
+                    formation.RenderFollowers(true, false, false);
+                    Assert.That(visual.sprite.name, Does.Contain("walking"),
+                        "Fresh ORK Step must not replay the old timed Guard.");
+
+                    formation.ShowAttackPose(index, null);
+                    formation.RenderFollowers(true, false, false);
+                    Assert.That(visual.sprite.name, Does.Contain("attack"),
+                        "Fresh ORK Attack must replace Step without moving the scene actor.");
+                }
+            }
+            finally
+            {
+                Object.Destroy(root);
+            }
+            yield return null;
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator LeaderActionAndHitFeedbackExpireDuringPausedOrkClock()
         {
             // Model ORK's scaled-time pause without invoking a fake action or

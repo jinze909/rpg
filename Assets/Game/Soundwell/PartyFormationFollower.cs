@@ -289,6 +289,11 @@ namespace Rpg.Soundwell
         {
             if (index <= 0 || index >= actors.Length || actors[index] == null) return;
             companionGuardUntil[index] = Time.unscaledTime + CompanionGuardPoseSeconds;
+            // A newly accepted ORK Guard must win over the previous action's
+            // one-shot pose on the very next render, not briefly flash Attack
+            // or Step again. ORK alone still owns the Defending flag.
+            companionAttackUntil[index] = 0f;
+            companionStepUntil[index] = 0f;
             if (!battleStarted) return;
             SpriteRenderer renderer = actors[index].GetComponent<SpriteRenderer>();
             if (renderer == null) return;
@@ -302,6 +307,10 @@ namespace Rpg.Soundwell
         {
             if (index <= 0 || index >= actors.Length || actors[index] == null) return;
             companionAttackUntil[index] = Time.unscaledTime + CompanionAttackPoseSeconds;
+            // Remove the old Guard/Step presentation window when a different
+            // real action is accepted. Do not resurrect it after Attack fades.
+            companionGuardUntil[index] = 0f;
+            companionStepUntil[index] = 0f;
             SpriteRenderer renderer = actors[index].GetComponent<SpriteRenderer>();
             if (renderer == null) return;
             renderer.sprite = index == 2 ? hoodAttackSprite : attackSprite;
@@ -314,6 +323,10 @@ namespace Rpg.Soundwell
         {
             if (index <= 0 || index >= actors.Length || actors[index] == null) return;
             companionStepUntil[index] = Time.unscaledTime + CompanionStepPoseSeconds;
+            // ORK movement is a new accepted action and must not replay the
+            // previous turn's attack or timed guard art when it is rendered.
+            companionAttackUntil[index] = 0f;
+            companionGuardUntil[index] = 0f;
             SpriteRenderer renderer = actors[index].GetComponent<SpriteRenderer>();
             if (renderer == null) return;
             renderer.sprite = index == 2 ? hoodWalkingSprite : walkingSprite;
