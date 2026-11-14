@@ -100,6 +100,8 @@ ADDITIONAL_EDITOR_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellLocalizedRescueCopyTests.cs": {
         "EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy":
             "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy",
+        "WhitewaterPreludeTitleMatchesSelectedSceneLanguage":
+            "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.WhitewaterPreludeTitleMatchesSelectedSceneLanguage",
     },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "OrkStepMustKeepWholeCombatantInsideSavedBattleBounds":
