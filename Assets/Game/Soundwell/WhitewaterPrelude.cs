@@ -21,6 +21,7 @@ namespace Rpg.Soundwell
         public const string BridgePostKey = "rpg.return.s00.bridge-post";
         public const string SecondBellKey = "rpg.return.s00.second-bell";
         public const string FarBankWarningKey = "rpg.return.s00.far-bank-warning";
+        public const string CableHoldKey = "rpg.return.s00.cable-hold";
         // The post must be physically beside Shen Li (at ClampX + 58), not
         // a disconnected marker halfway across the bridge.
         private const float BridgePostX = ClampX + 30f;
@@ -84,7 +85,8 @@ namespace Rpg.Soundwell
         // 9: reach the stranded evacuee; 10: escort west; 11: confirm safe crossing;
         // 12: voluntary rope call, first bell and physical guard-post approach;
         // 13: reached bridge post; 14: second bell and the forward sightline;
-        // 15: personally spotted approaching troops at that sightline.
+        // 15: personally spotted troops and return to the cable;
+        // 16: the player physically holds the cable beside Shen Li.
         // ORK defence and the fixed third-bell break remain pending.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
@@ -110,6 +112,9 @@ namespace Rpg.Soundwell
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanWarnFarBank => phase == 14 && farBankLookout != null &&
             Mathf.Abs(walker.x - FarBankLookoutX) <= RepairReach &&
+            Mathf.Abs(walker.y) <= RepairReach;
+        public bool CanHoldCable => phase == 15 && bridgePost != null &&
+            Mathf.Abs(walker.x - BridgePostX) <= RepairReach &&
             Mathf.Abs(walker.y) <= RepairReach;
 
         private static float RescueStationX(int choice) =>
@@ -674,13 +679,40 @@ namespace Rpg.Soundwell
                 new Color(0.42f, 0.82f, 0.66f);
             foreach (Image threat in farBankThreats)
                 threat.gameObject.SetActive(true);
-            SoundwellInputAdapter.SetUiContext();
+            // Shen Li is still at the real cable post. Returning to her is a
+            // second player action, never an automatic follow-up to spotting.
+            bridgePost.GetComponent<Image>().color =
+                new Color(0.87f, 0.67f, 0.29f);
+            SoundwellInputAdapter.SetGameplayContext();
             narration.text = Copy(
                 "Three armed silhouettes appear where the far-bank lamps vanished. You warn Shen Li and the bridge crew. The cable is still under strain.",
                 "对岸灯火熄灭处出现三道持械人影。你向沈砾和桥头同伴发出警告，缆索仍在吃力地绷着。");
             instructions.text = Copy(
-                "The approach is spotted, not defeated. The ORK bridge defence and the historical third-bell break are still ahead. Return to entry.",
-                "你发现了敌军，却尚未击退他们。ORK 桥头防守战和既定的第三声断桥仍在后续。可返回入口。");
+                "Get back to Shen Li's amber cable post; press E / Pad A to hold the cable. The attackers are not defeated.",
+                "返回沈砾身边金色缆桩，按 E／手柄 A 一起扶住缆索。敌军仍未被击退。");
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        private void HoldCableAtPost()
+        {
+            if (!CanHoldCable)
+                return;
+            phase = 16;
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(CableHoldKey, 1);
+            bridgePost.GetComponent<Image>().color =
+                new Color(0.42f, 0.82f, 0.66f);
+            // A visible attempt, not a way to rewrite the established third
+            // bell or silently award a battle victory.
+            cable.color = new Color(0.96f, 0.73f, 0.32f);
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                "You brace the strained cable beside Shen Li. For a moment it holds; the armed figures are still advancing over the far span.",
+                "你在沈砾身边扶稳吃紧的缆索。它暂时绷住了，可对岸持械的人影仍在逼近。");
+            instructions.text = Copy(
+                "The cable is held for now, not saved. ORK bridge defence and the fixed third-bell break remain ahead. Return to entry.",
+                "缆索暂时撑住，并没有改变结局。ORK 桥头防守战与既定的第三声断桥仍在后续。可返回入口。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
@@ -911,7 +943,7 @@ namespace Rpg.Soundwell
         private void Update()
         {
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
-                phase != 12 && phase != 14)
+                phase != 12 && phase != 14 && phase != 15)
                 return;
             SoundwellControlFrame frame = SoundwellInputAdapter.ReadGameplay();
             // In world-movement context UGUI Submit/Cancel is not active.
@@ -926,6 +958,12 @@ namespace Rpg.Soundwell
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
             marker.anchoredPosition = new Vector2(walker.x, 12f + walker.y);
+            if (phase == 15)
+            {
+                if (frame.Ring)
+                    HoldCableAtPost();
+                return;
+            }
             if (phase == 14)
             {
                 if (frame.Ring)

@@ -230,7 +230,10 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(15));
-                        Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                        Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                            "Warning the crew returns control for the physical cable hold.");
+                        Assert.That(activePrelude.CanHoldCable, Is.False,
+                            "Spotting troops does not magically return the player to Shen Li.");
                         Assert.That(lookout.GetComponent<Image>().color.g,
                             Is.GreaterThan(0.8f));
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.True,
@@ -240,6 +243,41 @@ namespace Rpg.Tests.Editor
                         var bell = activePrelude.GetComponentInChildren<AudioSource>(true);
                         Assert.That(bell.clip.name, Does.Contain("second warning bell"),
                             "The lookout warning must not invent the scripted third bell.");
+
+                        var post = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/S00 bridge defence post");
+                        Assert.That(post, Is.Not.Null);
+                        Assert.That(post.GetComponent<Image>().color.r,
+                            Is.GreaterThan(post.GetComponent<Image>().color.g),
+                            "The cable needs help again only after a genuine warning.");
+                        input.Press(keys.dKey);
+                        float returnDeadline = Time.realtimeSinceStartup + 4f;
+                        while (!activePrelude.CanHoldCable &&
+                               Time.realtimeSinceStartup < returnDeadline)
+                            yield return null;
+                        input.Release(keys.dKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanHoldCable, Is.True,
+                            "The player must actually return to Shen Li's post.");
+                        Assert.That(activePrelude.Phase, Is.EqualTo(15),
+                            "Reaching the clamp is not itself an interaction.");
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(16));
+                        Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                        Assert.That(post.GetComponent<Image>().color.g, Is.GreaterThan(0.8f),
+                            "The actual held post must change visibly after E / Pad A.");
+                        var cable = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/Loose cable clamp");
+                        Assert.That(cable, Is.Not.Null);
+                        Assert.That(cable.GetComponent<Image>().color.r, Is.GreaterThan(0.9f),
+                            "Shen Li's strained cable must show the physical hold.");
+                        Assert.That(activePrelude.CurrentNarration, Does.Contain("For a moment it holds"));
+                        Assert.That(approaching.gameObject.activeInHierarchy, Is.True);
+                        Assert.That(bell.clip.name, Does.Contain("second warning bell"),
+                            "Holding the cable must not invent a third bell or a fake ORK victory.");
                     }
 
                     activePrelude.Close();
