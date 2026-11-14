@@ -1739,7 +1739,38 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        private static IEnumerator CompareGateAssignment(bool useStep, Vector2[] opening, float[] openingHealth)
+        // Story 003's fixed-position variant must finish the SAME physical
+        // rescue, not stop counting at the ORK battle-victory flag. Keep the
+        // historical fixed/mobile gate-assignment comparison unchanged; this
+        // separate run starts with a fresh saved Bootstrap and earns its own
+        // ORK quest reward after escorting the real survivor to safety.
+        [UnityTest, Order(31)]
+        public IEnumerator FixedFormationCanFinishRescueAfterThreeOrkActions()
+        {
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return WaitForFrameworkInitialization();
+
+            bool hadPreference = PlayerPrefs.HasKey(OrkPartyBridge.FixedFormationPreferenceKey);
+            int previousPreference = PlayerPrefs.GetInt(OrkPartyBridge.FixedFormationPreferenceKey, 0);
+            try
+            {
+                OrkPartyBridge.SetPreferredFixedFormation(true);
+                yield return CompareGateAssignment(false, new Vector2[5], new float[4],
+                    completeRescue: true);
+            }
+            finally
+            {
+                if (hadPreference)
+                    PlayerPrefs.SetInt(OrkPartyBridge.FixedFormationPreferenceKey, previousPreference);
+                else
+                    PlayerPrefs.DeleteKey(OrkPartyBridge.FixedFormationPreferenceKey);
+                PlayerPrefs.Save();
+            }
+        }
+
+        private static IEnumerator CompareGateAssignment(bool useStep, Vector2[] opening,
+            float[] openingHealth, bool completeRescue = false)
         {
             var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
             Assert.That(entrance, Is.Not.Null);
@@ -1767,6 +1798,7 @@ namespace Rpg.Tests.Editor
             // through the normal exploration formation before ORK starts.
             var start = new Vector2(-0.90f, 0f);
             var leaderBody = party.Leader.GetComponent<Rigidbody2D>();
+            Vector2 actualSafeStart = leaderBody.position;
             leaderBody.position = start;
             Physics2D.SyncTransforms();
             deadline = Time.realtimeSinceStartup + 6f;
@@ -1944,6 +1976,12 @@ namespace Rpg.Tests.Editor
                 : $"RPG_SOUNDWELL_GATE_COMPARISON:FIXED:gate=1:guard={companion + 1}:attack={4 - companion}:primary=3:steps=0";
             LogAssert.Expect(UnityEngine.LogType.Log, result);
             Debug.Log(result);
+            if (completeRescue)
+            {
+                Assert.That(useStep, Is.False,
+                    "The dedicated full rescue must validate fixed formation.");
+                yield return FinishFixedFormationRescue(trial, party, leaderBody, actualSafeStart);
+            }
 
             AsyncOperation returnLoad = trial.ReturnToBootstrap();
             Assert.That(returnLoad, Is.Not.Null);
@@ -1958,6 +1996,83 @@ namespace Rpg.Tests.Editor
             Assert.That(ORK.Control.InBattle, Is.False,
                 "Returning after victory must release ORK's battle control before replay.");
             yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
+        }
+
+        private static IEnumerator FinishFixedFormationRescue(SoundwellTrial trial,
+            SoundwellOrkParty party, Rigidbody2D leaderBody, Vector2 safePoint)
+        {
+            Assert.That(trial.GateOpen, Is.True);
+            Assert.That(trial.DirectCombatComplete, Is.True);
+            Assert.That(trial.RescueComplete, Is.False,
+                "ORK victory cannot complete the physical escort.");
+            Assert.That(SoundwellOrkParty.RescueSettled, Is.False,
+                "The separate fixed-formation run must not inherit an already-earned reward.");
+
+            leaderBody.position = SoundwellTrial.SurveyorPosition;
+            Physics2D.SyncTransforms();
+            Assert.That(trial.AtSurveyor, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.HasSurveyorClue, Is.True);
+            leaderBody.position = SoundwellTrial.UpperBoardPosition;
+            Physics2D.SyncTransforms();
+            Assert.That(trial.CanSecurePlank, Is.True);
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.PlankSecured, Is.True);
+            float deadline = Time.realtimeSinceStartup + 10f;
+            while (!trial.CanEscortSurveyor && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.CanEscortSurveyor, Is.True,
+                "The fixed battle must leave a walkable route for the injured surveyor.");
+            trial.ApplyInput(Vector2.zero, false, false, false, false, true);
+            Assert.That(trial.SurveyorEscorting, Is.True);
+            Assert.That(trial.RescueComplete, Is.False,
+                "Starting escort is not the ORK quest reward.");
+
+            // Reuse the real NPC-following and gate-collision route used by
+            // the mobile battle regression: only the battle stance differs.
+            leaderBody.position = new Vector2(0.45f, 0f);
+            Physics2D.SyncTransforms();
+            deadline = Time.realtimeSinceStartup + 10f;
+            while (trial.SurveyorWorldPosition.x > 0.85f &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.SurveyorWorldPosition.x, Is.LessThanOrEqualTo(0.85f));
+            leaderBody.position = new Vector2(-0.85f, 0f);
+            Physics2D.SyncTransforms();
+            deadline = Time.realtimeSinceStartup + 10f;
+            while (trial.SurveyorWorldPosition.x > -0.65f &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.SurveyorWorldPosition.x, Is.LessThanOrEqualTo(-0.65f));
+            Assert.That(trial.RescueComplete, Is.False,
+                "Crossing the gate cannot award the rescue before RETREAT.");
+
+            for (float x = -1.55f; x > safePoint.x + 0.5f; x -= 1.25f)
+            {
+                leaderBody.position = new Vector2(x, safePoint.y);
+                Physics2D.SyncTransforms();
+                deadline = Time.realtimeSinceStartup + 10f;
+                while (trial.SurveyorWorldPosition.x > x + 0.75f &&
+                       Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(trial.SurveyorWorldPosition.x, Is.LessThanOrEqualTo(x + 0.75f),
+                    "The survivor must actually follow the fixed party leader.");
+            }
+
+            leaderBody.position = safePoint;
+            Physics2D.SyncTransforms();
+            deadline = Time.realtimeSinceStartup + 15f;
+            while (!trial.RescueComplete && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(trial.RescueComplete, Is.True,
+                "The live ORK fixed formation must enable a completed rescue.");
+            Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, safePoint),
+                Is.LessThanOrEqualTo(0.98f));
+            Assert.That(trial.DirectCombatComplete, Is.True);
+            SoundwellTrialTests.AssertRescueReward(party);
+            SoundwellSmokeHost.Capture(trial, "19-fixed-formation-physical-rescue");
+            LogAssert.Expect(LogType.Log, "RPG_SOUNDWELL_FIXED_FORMATION_FULL_RESCUE_VALIDATED");
+            Debug.Log("RPG_SOUNDWELL_FIXED_FORMATION_FULL_RESCUE_VALIDATED");
         }
 
         private static IEnumerator WaitForNextGateComparisonTurn(SoundwellOrkParty party, int previous)
