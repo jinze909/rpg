@@ -515,11 +515,11 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267451
-    m_Localized: "Combat: FIXED"
+    m_Localized: "FIXED: no steps"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267452
-    m_Localized: "Combat: MOBILE"
+    m_Localized: "MOBILE: step + act"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267453

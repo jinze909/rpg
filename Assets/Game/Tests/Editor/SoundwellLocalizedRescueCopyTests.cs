@@ -35,6 +35,26 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        // A formation choice changes an actual ORK battle rule. Players must
+        // see the stepping tradeoff before committing to the encounter in
+        // either shipped language, rather than only a mode name.
+        [Test]
+        public void FormationToggleExplainsSteppingInBothLanguages()
+        {
+            var en = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-en");
+            var zh = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-zh-Hans");
+            Assert.That(en, Is.Not.Null);
+            Assert.That(zh, Is.Not.Null);
+            Assert.That(en.GetEntry("entry.formation_fixed")?.LocalizedValue,
+                Does.Contain("no steps"));
+            Assert.That(en.GetEntry("entry.formation_mobile")?.LocalizedValue,
+                Does.Contain("step + act"));
+            Assert.That(zh.GetEntry("entry.formation_fixed")?.LocalizedValue,
+                Does.Contain("不走位"));
+            Assert.That(zh.GetEntry("entry.formation_mobile")?.LocalizedValue,
+                Does.Contain("走位＋行动"));
+        }
+
         [Test]
         public void EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy()
         {
