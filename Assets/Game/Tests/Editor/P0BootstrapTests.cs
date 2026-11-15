@@ -371,7 +371,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 PlayerPrefs.SetInt(key, 1);
-                LogAssert.Expect(LogType.Error,
+                LogAssert.Expect(UnityEngine.LogType.Error,
                     "M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
                 Assert.That(routeWithMixer.Invoke(null, new object[] { bell, null }), Is.EqualTo(false));
                 Assert.That(bell.outputAudioMixerGroup, Is.Null);
