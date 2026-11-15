@@ -87,7 +87,17 @@ namespace Rpg.Soundwell
                 ? (Vector2)actor.TransformVector(bodyCollider.offset)
                 : Vector2.zero;
             Vector2 colliderFrom = from + worldColliderOffset;
-            if (!FitsBattleStepInArena(destination + worldColliderOffset, radius))
+            // The arena walls live under the trial root. Preview and actual
+            // ORK step eligibility must use their local authored limits,
+            // even after a scene-level translation or rotation.
+            Vector2 arenaLocalCentre = transform.InverseTransformPoint(
+                destination + worldColliderOffset);
+            // Circle footprints are measured in world units; when a scene is
+            // scaled, conservatively convert to its tightest local clearance.
+            Vector3 rootScale = transform.lossyScale;
+            float minScale = Mathf.Min(Mathf.Abs(rootScale.x), Mathf.Abs(rootScale.y));
+            if (minScale <= 0.0001f ||
+                !FitsBattleStepInArena(arenaLocalCentre, radius / minScale))
                 return false;
             Physics2D.SyncTransforms();
             Physics2D.CircleCast(colliderFrom, radius, direction,
