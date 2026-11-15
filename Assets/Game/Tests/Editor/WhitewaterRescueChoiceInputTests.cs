@@ -209,6 +209,7 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("手柄 A"));
                         SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                         yield return null;
+                        yield return AssertStationCueTracksLiveRebind(activePrelude);
                         input.Set(pad.leftStick, Vector2.left);
                     }
                     else if (rescueChoice == 0)
@@ -422,6 +423,7 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.CanTakeBridgePost, Is.True);
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("left stick"),
                             "The bridge post must advertise movement when gameplay control returns.");
+                        yield return AssertStationCueTracksLiveRebind(activePrelude);
                         yield return AssertBridgeStationNeedsVisibleContact(input, keys,
                             activePrelude, candidate => candidate.CanTakeBridgePost, 12);
                         input.Press(keys.eKey);
@@ -660,6 +662,54 @@ namespace Rpg.Tests.Editor
             yield return new ExitPlayMode();
         }
 
+
+        // Rebinding does not move a character or change locale. The station
+        // hint must still refresh on the NEXT real input frame, then return
+        // to the original caption once the binding is restored. This runs
+        // within the existing S00 gameplay test; no fake rescue or ORK turn.
+        private static IEnumerator AssertStationCueTracksLiveRebind(WhitewaterPrelude stage)
+        {
+            var actionAsset = Resources.Load<InputActionAsset>("Input/SoundwellControls");
+            Assert.That(actionAsset, Is.Not.Null);
+            InputAction ring = actionAsset.FindActionMap("Gameplay", true)
+                .FindAction("Ring", true);
+            int keyIndex = -1;
+            for (int i = 0; i < ring.bindings.Count; i++)
+                if (ring.bindings[i].path == "<Keyboard>/e")
+                {
+                    keyIndex = i;
+                    break;
+                }
+            Assert.That(keyIndex, Is.GreaterThanOrEqualTo(0));
+            string originalOverride = ring.bindings[keyIndex].overridePath;
+            string originalText = stage.CurrentInstructions;
+            int phase = stage.Phase;
+            try
+            {
+                ring.ApplyBindingOverride(keyIndex, "<Keyboard>/h");
+                string activeKey = SoundwellInputAdapter.GameplayKeyboardInteractionLabel();
+                Assert.That(activeKey, Is.Not.Empty);
+                yield return null;
+                Assert.That(stage.CurrentInstructions,
+                    Does.Contain(activeKey + " / Pad"),
+                    "Rebinding Gameplay/Ring must update the already-visible station cue.");
+                Assert.That(stage.CurrentInstructions, Is.Not.EqualTo(originalText),
+                    "A reachable station cannot leave its old input label cached.");
+                Assert.That(stage.Phase, Is.EqualTo(phase),
+                    "A binding change is not an earned interaction.");
+            }
+            finally
+            {
+                if (originalOverride == null)
+                    ring.RemoveBindingOverride(keyIndex);
+                else
+                    ring.ApplyBindingOverride(keyIndex, originalOverride);
+            }
+            yield return null;
+            Assert.That(stage.CurrentInstructions, Is.EqualTo(originalText),
+                "Restoring the original binding must also restore the station cue.");
+            Assert.That(stage.Phase, Is.EqualTo(phase));
+        }
 
         // Real keyboard movement and Ring presses through the shipping Input
         // System: standing above the bridge's visible marker must not count

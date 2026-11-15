@@ -111,9 +111,11 @@ namespace Rpg.Soundwell
         private int shownBridgeCuePhase = -1;
         private bool shownBridgeCueReachable;
         private string shownBridgeCueLanguage;
+        private string shownBridgeCueBindings;
         private int rescueMethod;
         private bool shownRescueCueReachable;
         private string shownRescueCueLanguage;
+        private string shownRescueCueBindings;
         private bool evacueeWaiting;
         private bool evacueeWaitedOffLane;
         private Vector2 walker = new Vector2(-245f, 0f);
@@ -160,6 +162,17 @@ namespace Rpg.Soundwell
 
         private static float RescueStationX(int choice) =>
             choice == 0 ? 60f : choice == 1 ? ClampX : -70f;
+
+        // A live binding can change without moving the actor or toggling
+        // language. Keep station cues in sync with all controls they print:
+        // walking, hauling and cancelling. This is UI-only and never writes
+        // an input action, Makinom state or gameplay phase.
+        private static string StationPromptBindingSignature() =>
+            string.Concat(SoundwellInputAdapter.GameplayKeyboardMovementLabel(), "|",
+                SoundwellInputAdapter.GameplayKeyboardInteractionLabel(), "|",
+                SoundwellInputAdapter.GameplayGamepadInteractionLabel(), "|",
+                SoundwellInputAdapter.GameplayKeyboardBackLabel(), "|",
+                SoundwellInputAdapter.GameplayGamepadBackLabel());
 
         private static bool Chinese => SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
         private static string Copy(string en, string zh)
@@ -656,11 +669,14 @@ namespace Rpg.Soundwell
                 return;
             bool canHaul = CanRescue;
             string language = SoundwellUiLocalization.Language;
+            string bindings = StationPromptBindingSignature();
             if (shownRescueCueLanguage == language &&
-                shownRescueCueReachable == canHaul)
+                shownRescueCueReachable == canHaul &&
+                shownRescueCueBindings == bindings)
                 return;
             shownRescueCueReachable = canHaul;
             shownRescueCueLanguage = language;
+            shownRescueCueBindings = bindings;
             instructions.text = canHaul
                 ? Copy("At the gold rescue station: press E / Pad A to haul Han Qiao. Esc / Pad B: change plan.",
                     "已到金色救援点：按 E／手柄 A 拉起韩峤。Esc／手柄 B 更换方案。")
@@ -1551,13 +1567,16 @@ namespace Rpg.Soundwell
             bool reachable = phase == 12 ? CanTakeBridgePost :
                 phase == 14 ? CanWarnFarBank : CanHoldCable;
             string locale = SoundwellUiLocalization.Language;
+            string bindings = StationPromptBindingSignature();
             if (shownBridgeCuePhase == phase &&
                 shownBridgeCueReachable == reachable &&
-                shownBridgeCueLanguage == locale)
+                shownBridgeCueLanguage == locale &&
+                shownBridgeCueBindings == bindings)
                 return;
             shownBridgeCuePhase = phase;
             shownBridgeCueReachable = reachable;
             shownBridgeCueLanguage = locale;
+            shownBridgeCueBindings = bindings;
             if (!reachable)
             {
                 ShowBridgeStationOutOfReach();
