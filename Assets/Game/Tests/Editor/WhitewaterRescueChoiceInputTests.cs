@@ -403,6 +403,19 @@ namespace Rpg.Tests.Editor
                         Assert.That(escortStatus.text, Is.EqualTo("WAIT"),
                             "Off-lane separation must show readable state beside the follower.");
 
+                        // Switching locale without moving must refresh the
+                        // recovery instruction and readable follower status.
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("桥面通道"),
+                            "A stranded player must see the lane recovery in the selected language.");
+                        Assert.That(escortStatus.text, Is.EqualTo("等待"));
+                        Assert.That(activePrelude.Phase, Is.EqualTo(10));
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("bridge lane"));
+                        Assert.That(escortStatus.text, Is.EqualTo("WAIT"));
+
                         input.Press(keys.wKey);
                         float regroupDeadline = Time.realtimeSinceStartup + 3f;
                         while (follower.color.g <= follower.color.r && Time.realtimeSinceStartup < regroupDeadline)
@@ -415,6 +428,16 @@ namespace Rpg.Tests.Editor
                             "Regrouping must replace the previous amber recovery hint.");
                         Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"),
                             "Returning to the lane must restore readable follower state.");
+
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("绿色"),
+                            "The connected-escort guidance must update in place with the locale.");
+                        Assert.That(escortStatus.text, Is.EqualTo("跟随"));
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("Green: following"));
+                        Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"));
                         Assert.That(activePrelude.Phase, Is.EqualTo(10),
                             "Regrouping never skips the physical safe-line confirmation.");
 

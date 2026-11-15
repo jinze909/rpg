@@ -844,8 +844,15 @@ namespace Rpg.Soundwell
             // Explain why the escort stopped instead of always telling an
             // on-lane player to "return to the lane." If the cause changes
             // while still waiting, replace the stale hint immediately.
+            // A language switch or saved input remap can happen while both
+            // characters stand still. Refresh the visible escort instruction
+            // and on-actor status without treating the change as movement.
+            bool cueContextChanged = shownEvacueeSafeLineLanguage != null &&
+                (shownEvacueeSafeLineLanguage != SoundwellUiLocalization.Language ||
+                 shownEvacueeSafeLineBindings != StationPromptBindingSignature());
             if (waiting != evacueeWaiting ||
-                (waiting && offLane != evacueeWaitedOffLane))
+                (waiting && offLane != evacueeWaitedOffLane) ||
+                cueContextChanged)
             {
                 evacueeWaiting = waiting;
                 evacueeWaitedOffLane = offLane;
