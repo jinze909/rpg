@@ -126,6 +126,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.P0BootstrapTests.InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps",
         "FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice":
             "Rpg.Tests.Editor.P0BootstrapTests.FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice",
+        "MissingMixerFallbackKeepsMutedBellSilentAndPreservesPreference":
+            "Rpg.Tests.Editor.P0BootstrapTests.MissingMixerFallbackKeepsMutedBellSilentAndPreservesPreference",
     },
 }
 
