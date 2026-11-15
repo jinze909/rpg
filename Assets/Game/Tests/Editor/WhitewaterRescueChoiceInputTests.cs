@@ -199,6 +199,16 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.Phase, Is.EqualTo(7),
                             "Pad A outside the soldier's station must not board Han Qiao.");
                         Assert.That(inWater.anchoredPosition.x, Is.EqualTo(riverStartX));
+                        Assert.That(activePrelude.CurrentInstructions,
+                            Does.Contain("Not at the gold rescue station"),
+                            "An out-of-range Pad A press must explain the actual station, not fail silently.");
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("尚未到金色救援点"),
+                            "The saved Chinese S00 locale needs the same recovery cue.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("手柄 A"));
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        yield return null;
                         input.Set(pad.leftStick, Vector2.left);
                     }
                     else if (rescueChoice == 0)
@@ -214,6 +224,11 @@ namespace Rpg.Tests.Editor
                     yield return null;
                     Assert.That(activePrelude.CanRescue, Is.True,
                         "The player must physically arrive at the selected rescue station.");
+                    Assert.That(activePrelude.CurrentInstructions,
+                        Does.Contain("At the gold rescue station"),
+                        "Crossing into true station reach must show the fresh, available haul control.");
+                    Assert.That(activePrelude.CurrentInstructions, Does.Contain("press"),
+                        "The action must still need an explicit fresh E / Pad A.");
                     Assert.That(activePrelude.Phase, Is.EqualTo(7),
                         "Arriving alone must not grant rescue before the action.");
                     if (rescueChoice == 2)

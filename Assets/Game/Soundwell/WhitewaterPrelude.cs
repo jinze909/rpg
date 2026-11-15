@@ -112,6 +112,8 @@ namespace Rpg.Soundwell
         private bool shownBridgeCueReachable;
         private string shownBridgeCueLanguage;
         private int rescueMethod;
+        private bool shownRescueCueReachable;
+        private string shownRescueCueLanguage;
         private bool evacueeWaiting;
         private bool evacueeWaitedOffLane;
         private Vector2 walker = new Vector2(-245f, 0f);
@@ -583,6 +585,7 @@ namespace Rpg.Soundwell
                 // station and confirm the physical interaction first.
                 rescueMethod = choice;
                 phase = 7;
+                shownRescueCueLanguage = null;
                 HideChoices();
                 SoundwellInputAdapter.SetGameplayContext();
                 rescuePoint.anchoredPosition = new Vector2(RescueStationX(choice), 12f);
@@ -641,6 +644,28 @@ namespace Rpg.Soundwell
                 "决定谁来搭手。选完还得亲自完成救援。");
             ShowChoices(new[] { "Pull him myself", "Ask Shen Li to throw rope", "Call nearby soldiers" },
                 new[] { "我自己拉", "请沈砾抛绳", "喊旁边士兵搭手" });
+        }
+
+        // A rescuer plan only places a station. Use the live player position
+        // to explain when the physical hauling action becomes available,
+        // including after a saved language or input-binding change. This is
+        // presentation only and never performs the rescue automatically.
+        private void RefreshRescueStationReachCue()
+        {
+            if (phase != 7 || instructions == null)
+                return;
+            bool canHaul = CanRescue;
+            string language = SoundwellUiLocalization.Language;
+            if (shownRescueCueLanguage == language &&
+                shownRescueCueReachable == canHaul)
+                return;
+            shownRescueCueReachable = canHaul;
+            shownRescueCueLanguage = language;
+            instructions.text = canHaul
+                ? Copy("At the gold rescue station: press E / Pad A to haul Han Qiao. Esc / Pad B: change plan.",
+                    "已到金色救援点：按 E／手柄 A 拉起韩峤。Esc／手柄 B 更换方案。")
+                : Copy("Not at the gold rescue station: use WASD / left stick to reach it, then E / Pad A. Esc / Pad B: change plan.",
+                    "尚未到金色救援点：用 WASD／左摇杆走近，再按 E／手柄 A 拉人。Esc／手柄 B 更换方案。");
         }
 
         private void CancelUncommittedRescue()
@@ -1609,6 +1634,7 @@ namespace Rpg.Soundwell
             }
             if (phase == 7)
             {
+                RefreshRescueStationReachCue();
                 if (frame.Ring && CanRescue)
                     FinishRescue();
                 return;
