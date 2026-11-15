@@ -1275,6 +1275,12 @@ namespace Rpg.Soundwell
                 ? new Color(0.90f, 0.32f, 0.30f)
                 : new Color(0.67f, 0.39f, 0.27f);
             Vector2 npc = surveyorFigure.position;
+            // All escort following, gate prompts and drawn guide lines must
+            // sample the same authoritative physics position this frame.
+            // The Transform may still describe the previous physics step.
+            Vector2 guidePosition = escortLeaderBody != null
+                ? escortLeaderBody.position : (Vector2)escortLeader.position;
+            float guideGateX = guidePosition.x;
             Vector2 routeTarget;
             if (!surveyorEscorting || rescueComplete)
                 waitingForEscortLeader = false;
@@ -1295,7 +1301,7 @@ namespace Rpg.Soundwell
                     // the survivor waits on the proven plank until the player
                     // physically leads through the gate. No hidden countdown.
                     routeTarget = beastBlocksEscape ? npc
-                        : escortLeader.position.x <= 0.85f
+                        : guideGateX <= 0.85f
                             ? new Vector2(0.85f, 0f)
                             : SoundwellTrial.UpperBoardPosition;
                 }
@@ -1306,7 +1312,7 @@ namespace Rpg.Soundwell
                     // The surveyor will not catch up from arbitrarily far away.
                     // A small hysteresis prevents toggling on every frame at
                     // the boundary; players must return and genuinely escort.
-                    float separation = Vector2.Distance(npc, escortLeader.position);
+                    float separation = Vector2.Distance(npc, guidePosition);
                     if (waitingForEscortLeader)
                         waitingForEscortLeader = separation >
                             (surveyorLineTied ? 3.0f : 2.0f);
@@ -1314,7 +1320,7 @@ namespace Rpg.Soundwell
                         waitingForEscortLeader = separation >
                             (surveyorLineTied ? 4.7f : 3.15f);
                     routeTarget = waitingForEscortLeader ? npc
-                        : (Vector2)escortLeader.position + new Vector2(0.45f, 0f);
+                        : guidePosition + new Vector2(0.45f, 0f);
                 }
             }
             else
@@ -1341,14 +1347,10 @@ namespace Rpg.Soundwell
             escortLine.enabled = surveyorLineTied && surveyorEscorting && !rescueComplete;
             if (escortLine.enabled)
             {
-                escortLine.SetPosition(0, escortLeader.position);
+                escortLine.SetPosition(0, new Vector3(guidePosition.x,
+                    guidePosition.y, escortLeader.position.z));
                 escortLine.SetPosition(1, surveyorFigure.position);
             }
-            // Use the same authoritative 2D physics position as the trial.
-            // A Rigidbody2D step can precede its Transform synchronization,
-            // especially in the test-controlled escort crossing frame.
-            float guideGateX = escortLeaderBody != null
-                ? escortLeaderBody.position.x : escortLeader.position.x;
             string speech = falseMarkerCleared
                 ? safeRouteMarked
                     ? SoundwellUiLocalization.Get("surveyor.route_posted")
