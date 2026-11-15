@@ -61,6 +61,11 @@ namespace Rpg.Soundwell
 
         public void PlayHit()
         {
+            // Repeated contact notifications during a paused ORK clock must
+            // not restart the same visual hit clip on every frame. Gameplay
+            // damage remains owned by ORK; a later hit can start a new pose.
+            if (activeState == 3 && Time.unscaledTime < hitReactionUntil)
+                return;
             hitReactionUntil = Time.unscaledTime + 0.32f;
             oneShotUntil = hitReactionUntil;
             SetState(3, true);
