@@ -50,6 +50,60 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            WhitewaterPrelude stage = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                InputSystem.AddDevice<Keyboard>();
+                InputSystem.AddDevice<Gamepad>();
+                stage = new GameObject("S00 choice translation regression")
+                    .AddComponent<WhitewaterPrelude>();
+                stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                yield return null;
+
+                Button first = FindButton(stage, "S00 choice 0");
+                Button second = FindButton(stage, "S00 choice 1");
+                Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("Here."));
+                Assert.That(second.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("Raise your hand."));
+                Assert.That(stage.Phase, Is.Zero);
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                yield return null;
+                Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("在。"));
+                Assert.That(second.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("举手示意"));
+                Assert.That(stage.Phase, Is.Zero,
+                    "Changing language cannot answer the roll call for the player.");
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                yield return null;
+                Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("Here."));
+                Assert.That(stage.Phase, Is.Zero);
+                second.onClick.Invoke();
+                Assert.That(stage.Phase, Is.EqualTo(1),
+                    "The original choice remains operable after both locale changes.");
+            }
+            finally
+            {
+                if (stage != null)
+                    stage.Close();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction()
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);

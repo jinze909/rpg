@@ -60,6 +60,11 @@ namespace Rpg.Soundwell
         private static readonly Color EvacueeWaitingTint = new Color(1f, 0.60f, 0.35f);
         private readonly Button[] choices = new Button[3];
         private readonly Text[] choiceLabels = new Text[3];
+        // Keep the authored options in both languages while a decision is open.
+        // Switching locale is presentation only: it cannot submit a choice.
+        private string[] openChoicesEnglish;
+        private string[] openChoicesChinese;
+        private string shownChoiceLanguage;
         private RectTransform marker;
         private RectTransform stretcher;
         private RectTransform hanQiao;
@@ -1563,17 +1568,32 @@ namespace Rpg.Soundwell
 
         private void ShowChoices(string[] english, string[] chinese)
         {
-            for (int i = 0; i < choices.Length; i++)
-            {
-                choices[i].gameObject.SetActive(true);
-                choiceLabels[i].text = Chinese ? chinese[i] : english[i];
-            }
+            openChoicesEnglish = english;
+            openChoicesChinese = chinese;
+            shownChoiceLanguage = null;
+            foreach (Button choice in choices)
+                choice.gameObject.SetActive(true);
+            RefreshOpenChoiceLanguage();
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(choices[0].gameObject);
         }
 
+        private void RefreshOpenChoiceLanguage()
+        {
+            if (openChoicesEnglish == null || openChoicesChinese == null ||
+                shownChoiceLanguage == SoundwellUiLocalization.Language)
+                return;
+            shownChoiceLanguage = SoundwellUiLocalization.Language;
+            string[] labels = Chinese ? openChoicesChinese : openChoicesEnglish;
+            for (int i = 0; i < choiceLabels.Length; i++)
+                choiceLabels[i].text = labels[i];
+        }
+
         private void HideChoices()
         {
+            openChoicesEnglish = null;
+            openChoicesChinese = null;
+            shownChoiceLanguage = null;
             foreach (Button choice in choices)
                 choice.gameObject.SetActive(false);
             if (EventSystem.current != null)
@@ -1654,6 +1674,9 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
+            // Dialogue selection uses UI input, not the exploration motor.
+            // Refresh visible options even when the player cannot walk.
+            RefreshOpenChoiceLanguage();
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
                 phase != 12 && phase != 14 && phase != 15)
                 return;
