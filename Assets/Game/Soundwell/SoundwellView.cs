@@ -67,6 +67,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer clawEvidenceMarker;
         private readonly SpriteRenderer[] revealedClawTrail;
         private readonly Transform escortLeader;
+        private readonly Rigidbody2D escortLeaderBody;
         private readonly Transform retreatMarker;
         private readonly BoxCollider2D gateBlocker;
         private readonly LineRenderer pulse;
@@ -139,6 +140,7 @@ namespace Rpg.Soundwell
             this.submitBattleMove = submitBattleMove;
             beastActor = beast;
             escortLeader = player;
+            escortLeaderBody = player.GetComponent<Rigidbody2D>();
             retreatMarker = safe;
             square = Sprite.Create(Texture2D.whiteTexture,
                 new Rect(0, 0, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
@@ -1342,6 +1344,11 @@ namespace Rpg.Soundwell
                 escortLine.SetPosition(0, escortLeader.position);
                 escortLine.SetPosition(1, surveyorFigure.position);
             }
+            // Use the same authoritative 2D physics position as the trial.
+            // A Rigidbody2D step can precede its Transform synchronization,
+            // especially in the test-controlled escort crossing frame.
+            float guideGateX = escortLeaderBody != null
+                ? escortLeaderBody.position.x : escortLeader.position.x;
             string speech = falseMarkerCleared
                 ? safeRouteMarked
                     ? SoundwellUiLocalization.Get("surveyor.route_posted")
@@ -1357,7 +1364,7 @@ namespace Rpg.Soundwell
                             ? SoundwellUiLocalization.Get("surveyor.beast_gate")
                             : waitingForEscortLeader
                                 ? SoundwellUiLocalization.Get("surveyor.wait_for_leader")
-                            : escortLeader.position.x > 0.85f && npc.x > 0.85f
+                            : guideGateX > 0.85f && npc.x > 0.85f
                                 ? SoundwellUiLocalization.Get("surveyor.wait_at_plank")
                                 : SoundwellUiLocalization.Get("surveyor.following")
                 : plankSecured
@@ -1443,12 +1450,19 @@ namespace Rpg.Soundwell
                 // while the survivor is still physically following.
                 prompt = ReturnRouteHint(atSafePoint, surveyorEscorting);
             else if (surveyorEscorting && gateOpen && npc.x > 0.85f &&
-                     escortLeader.position.x > 0.85f)
+                     guideGateX > 0.85f)
                 // The survivor waits on the braced plank until the guide
                 // ACTUALLY crosses x <= 0.85. The guide can move outside
                 // NearUpperPlank before crossing; keep the gate instruction
                 // visible there instead of prematurely suggesting RETREAT.
                 prompt = SoundwellUiLocalization.Get("hint.escort_gate_first");
+            else if (surveyorEscorting && gateOpen && npc.x > 0.85f &&
+                     guideGateX <= 0.85f)
+                // Once the guide has REALLY crossed, the NPC begins moving
+                // through the gate. Do not keep advertising the completed
+                // crossing or fall back to unrelated bell/plank instructions
+                // while the survivor is still behind the doorway.
+                prompt = ReturnRouteHint(atSafePoint, true);
             else if (carrying)
                 prompt = SoundwellUiLocalization.Get(canPlaceBell
                     ? "hint.carry_at_stand" : "hint.carry_find_stand");

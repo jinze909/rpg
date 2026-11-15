@@ -784,6 +784,21 @@ namespace Rpg.Tests.Editor
             foreach (Vector2 step in firstSteps)
             {
                 MoveTestLeader(playerBody, step);
+                if (step.x <= 0.85f && trial.SurveyorWorldPosition.x > 0.85f)
+                {
+                    // The real player is already west of the gate, but the
+                    // survivor is still walking there from the upper plank.
+                    // This is NOT a second gate interaction or a new route
+                    // quest flag; the actual escort prompt must now point
+                    // toward RETREAT instead of the already crossed gate.
+                    yield return null;
+                    Assert.That(trial.SurveyorEscorting, Is.True);
+                    Assert.That(trial.RescueComplete, Is.False);
+                    Assert.That(trial.SurveyorWorldPosition.x, Is.GreaterThan(0.85f));
+                    Assert.That(contextualHint.text, Is.EqualTo(
+                        SoundwellUiLocalization.Get("hint.escort_to_retreat")),
+                        "After the guide crosses the physical gate, direct the still-following survivor to RETREAT.");
+                }
                 deadline = Time.realtimeSinceStartup + 8f;
                 while (Vector2.Distance(trial.SurveyorWorldPosition, step) > 1.35f &&
                        Time.realtimeSinceStartup < deadline)
