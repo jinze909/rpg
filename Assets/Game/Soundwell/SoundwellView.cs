@@ -1147,6 +1147,39 @@ namespace Rpg.Soundwell
         // Escort recovery takes precedence over an available Retry prompt.
         // The actual NPC's arrival still controls reward settlement; this
         // selects existing localized guidance and never changes quest flags.
+        // These are exploration-only search cues. A live ORK encounter is
+        // turn-authoritative: it cannot also display the old Makinom search
+        // target or the earlier bell countdown. This changes presentation
+        // only; the patrol's state, timers and ORK turns are untouched.
+        private void RefreshBeastSearchPresentation(bool ringing, bool searching,
+            float searchRemainingFraction, Vector2 beastDestination)
+        {
+            bool showIntent = !battleMode && (ringing || searching);
+            beastIntentMarker.enabled = showIntent;
+            if (showIntent)
+            {
+                beastIntentMarker.transform.position =
+                    new Vector3(beastDestination.x, beastDestination.y, 0f);
+                Color intentColor = ringing ? Gold : Cloth;
+                intentColor.a = ringing ? 0.84f : 0.62f;
+                beastIntentMarker.color = intentColor;
+            }
+            bool showSearch = !battleMode && searching;
+            searchTimerTrack.enabled = showSearch;
+            searchTimerFill.enabled = showSearch;
+            if (showSearch && beastContactRing != null)
+            {
+                float remaining = Mathf.Clamp01(searchRemainingFraction);
+                Vector2 center = (Vector2)beastContactRing.transform.position +
+                    new Vector2(0f, 0.92f);
+                searchTimerTrack.transform.position = new Vector3(center.x, center.y, 0f);
+                searchTimerFill.transform.position = new Vector3(
+                    center.x - 0.56f * (1f - remaining), center.y, 0f);
+                searchTimerFill.transform.localScale =
+                    new Vector3(1.12f * remaining, 0.11f, 1f);
+            }
+        }
+
         public static string ReturnRouteHint(bool atSafePoint, bool surveyorEscorting)
         {
             return SoundwellUiLocalization.Get(surveyorEscorting
@@ -1184,36 +1217,14 @@ namespace Rpg.Soundwell
                     beastVisualRenderer.flipX = beastFacingX < 0f;
             }
 
-            beastIntentMarker.enabled = ringing || searching;
-            if (beastIntentMarker.enabled)
-            {
-                beastIntentMarker.transform.position =
-                    new Vector3(beastDestination.x, beastDestination.y, 0f);
-                Color intentColor = ringing ? Gold : Cloth;
-                intentColor.a = ringing ? 0.84f : 0.62f;
-                beastIntentMarker.color = intentColor;
-            }
+            RefreshBeastSearchPresentation(ringing, searching,
+                searchRemainingFraction, beastDestination);
             ArrangeActionHud(camera.aspect);
             // The west side is protected by the locked gate. Telegraph the
             // danger only after opening the inner room, and remove the ring
             // after the survivor reaches safety.
             if (beastContactRing != null)
                 beastContactRing.enabled = gateOpen && !rescueComplete && !beastDefeated;
-            searchTimerTrack.enabled = searching;
-            searchTimerFill.enabled = searching;
-            if (searching && beastContactRing != null)
-            {
-                // World-horizontal despite rotations, placed over the
-                // beast's actual location, with a right-to-left depletion.
-                float remaining = Mathf.Clamp01(searchRemainingFraction);
-                Vector2 center = (Vector2)beastContactRing.transform.position +
-                    new Vector2(0f, 0.92f);
-                searchTimerTrack.transform.position = new Vector3(center.x, center.y, 0f);
-                searchTimerFill.transform.position = new Vector3(
-                    center.x - 0.56f * (1f - remaining), center.y, 0f);
-                searchTimerFill.transform.localScale =
-                    new Vector3(1.12f * remaining, 0.11f, 1f);
-            }
             escapeDangerMarker.enabled = beastBlocksEscape;
             // The locked gate has not exposed an escape route. Reporting
             // "ESCAPE LANE / CLEAR" at this point misrepresents the player's
