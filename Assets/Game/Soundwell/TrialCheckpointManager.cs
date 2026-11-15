@@ -33,15 +33,7 @@ namespace Rpg.Soundwell
             bell.position = bellHome;
             // These are the scene-local Makinom flags cleared by the original
             // Retry. EntryOutcomeKey is intentionally NOT reset here.
-            foreach (string key in new[]
-            {
-                RescueApproachKey, DirectCombatStartedKey, DirectCombatCompleteKey,
-                CarryKey, GateKey, SurveyorClueKey, PlankSecuredKey,
-                LowerPlankBrokenKey, EscortKey, BeastContactKey, RescueKey,
-                FalseMarkerClearedKey, SafeRouteMarkedKey, RopeObservedKey,
-                CartObservedKey, CartKitReclaimedKey, CartClueSharedKey,
-                RopeRecoveredKey, EscortLineKey, ClawsObservedKey
-            })
+            foreach (string key in RetryResetKeys)
                 variables.Set(key, 0);
         }
 
