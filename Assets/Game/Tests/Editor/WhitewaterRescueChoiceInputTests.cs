@@ -375,6 +375,35 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.aKey);
                         yield return null;
                         Assert.That(activePrelude.CanHelpEvacuee, Is.True);
+                        // A player horizontally beside the civilian but off the
+                        // bridge's narrow walkable lane cannot begin the escort.
+                        // The same real E action must explain how to get back.
+                        input.Press(keys.sKey);
+                        float laneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (activePrelude.CanHelpEvacuee &&
+                               Time.realtimeSinceStartup < laneDeadline)
+                            yield return null;
+                        input.Release(keys.sKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanHelpEvacuee, Is.False,
+                            "Vertical separation cannot count as touching the wounded civilian.");
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(9),
+                            "An off-lane E press cannot start an unearned rescue.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("bridge lane"),
+                            "The physical contact failure should give a usable recovery hint.");
+                        input.Press(keys.wKey);
+                        laneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (!activePrelude.CanHelpEvacuee &&
+                               Time.realtimeSinceStartup < laneDeadline)
+                            yield return null;
+                        input.Release(keys.wKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanHelpEvacuee, Is.True,
+                            "Returning to the bridge beside the same civilian restores contact.");
                         input.Press(keys.eKey);
                         yield return null;
                         input.Release(keys.eKey);

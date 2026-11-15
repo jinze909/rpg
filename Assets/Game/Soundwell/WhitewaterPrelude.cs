@@ -38,6 +38,9 @@ namespace Rpg.Soundwell
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
+        // The wounded civilian's 32px sprite must overlap the player's body
+        // before an escort can begin; the wider clamp repair radius does not apply.
+        private const float EvacueeContactReachY = 28f;
         // These stage markers are only 26-35 pixels wide, and the player
         // sprite is 32 pixels wide. Do not award a bridge interaction when
         // the two visible bodies are no longer touching.
@@ -146,7 +149,7 @@ namespace Rpg.Soundwell
             ? evacuee.anchoredPosition : Vector2.zero;
         public bool CanHelpEvacuee => phase == 9 && evacuee != null &&
             Mathf.Abs(walker.x - evacuee.anchoredPosition.x) <= RepairReach &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            Mathf.Abs(walker.y) <= EvacueeContactReachY;
         public bool CanDeliverEvacuee => phase == 10 && evacuee != null &&
             // Stopping near the line is not a rescue if the wounded follower
             // has lost the escort and is still waiting for the player to return.
@@ -815,9 +818,11 @@ namespace Rpg.Soundwell
                 // Pressing E away from the last wounded civilian must not
                 // silently discard the real input or grant an unearned escort.
                 if (phase == 9 && instructions != null)
-                    instructions.text = Copy(
-                        "Too far from the amber evacuee. Walk beside them, then press E / Pad A to help.",
-                        "距离金色伤者还太远。先走到伤者身旁，再按 E／手柄 A 搀扶。");
+                    instructions.text = Mathf.Abs(walker.y) > EvacueeContactReachY
+                        ? Copy("Return to the bridge lane beside the amber evacuee, then press E / Pad A to help.",
+                            "请回到金色伤者身旁的桥面通道，再按 E／手柄 A 搀扶。")
+                        : Copy("Too far from the amber evacuee. Walk beside them, then press E / Pad A to help.",
+                            "距离金色伤者还太远。先走到伤者身旁，再按 E／手柄 A 搀扶。");
                 return;
             }
             phase = 10;
