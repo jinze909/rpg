@@ -228,7 +228,7 @@ namespace Rpg.Soundwell
             GameObject actor = new GameObject(name);
             actor.SetActive(false);
             actor.transform.SetParent(parent, true);
-            actor.transform.position = LeaderPosition + (Vector3)offset;
+            actor.transform.position = LeaderPosition + WorldFormationOffset(offset);
             actor.transform.localScale = Vector3.one;
             var renderer = actor.AddComponent<SpriteRenderer>();
             renderer.sprite = index == 2 ? hoodIdleSprite : placeholderSprite;
@@ -241,6 +241,13 @@ namespace Rpg.Soundwell
         }
 
         public void SetFrameworkReady() => ready = true;
+
+        // The stored formation offsets are authored in the trial's local
+        // plane. Convert only the offset vector (never the player position)
+        // so translated/rotated/scaled rooms keep companions on the right
+        // visible side without changing ORK action ownership.
+        private Vector3 WorldFormationOffset(Vector2 localOffset) =>
+            parent != null ? parent.TransformVector(localOffset) : (Vector3)localOffset;
 
         private Vector3 LeaderPosition
         {
@@ -269,8 +276,8 @@ namespace Rpg.Soundwell
             {
                 if (actors[i] == null)
                     continue;
-                actors[i].transform.position = checkpointAnchor + (Vector3)
-                    (i == 2 ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
+                actors[i].transform.position = checkpointAnchor + WorldFormationOffset(
+                    i == 2 ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
                 var renderer = actors[i].GetComponent<SpriteRenderer>();
                 if (renderer != null)
                     renderer.sprite = i == 2 ? hoodIdleSprite : placeholderSprite;
@@ -362,7 +369,7 @@ namespace Rpg.Soundwell
                             : Time.unscaledTime < companionStepUntil[i] ? walking : idle;
                     continue;
                 }
-                Vector3 goal = pathPosition + (Vector3)(i == 2
+                Vector3 goal = pathPosition + WorldFormationOffset(i == 2
                     ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
                 goal.z = 0f;
                 if (leaderRelocated)

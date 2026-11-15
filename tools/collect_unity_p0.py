@@ -37,6 +37,8 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
+        "RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint",
         "MostRecentAcceptedCompanionPoseCannotReplayEarlierAction":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.MostRecentAcceptedCompanionPoseCannotReplayEarlierAction",
         "LeaderActionAndHitFeedbackExpireDuringPausedOrkClock":
