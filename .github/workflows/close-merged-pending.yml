@@ -629,23 +629,23 @@ jobs:
           def verified_archived_proof(name,sha):
               entry=ARCHIVED[name]
               check(sha==entry["head"],"historical branch moved since audit")
-          # For this reviewed retirement set, independently prove the original
-          # branch was itself green, not only that the replacement is green.
-          if entry.get("original_run"):
-              original=api("/repos/"+REPO+"/actions/runs/"+str(entry["original_run"]))
-              check(original.get("head_sha")==sha and
-                    original.get("name")=="Unity ORK P0" and
-                    original.get("status")=="completed" and
-                    original.get("conclusion")=="success",
-                    "original SHA lacks successful Unity verification")
-              original_artifacts=pages("/repos/"+REPO+"/actions/runs/"+
-                    str(entry["original_run"])+"/artifacts","artifacts",limit=200)
-              original_want="unity-ork-p0-verify-"+sha+"-attempt-"+str(
-                    original.get("run_attempt"))
-              check(any(a.get("name")==original_want and
-                    a.get("expired") is False and a.get("size_in_bytes",0)>0
-                    for a in original_artifacts),
-                    "original candidate exact-SHA artifact missing")
+              # For this reviewed retirement set, independently prove the original
+              # branch was itself green, not only that the replacement is green.
+              if entry.get("original_run"):
+                  original=api("/repos/"+REPO+"/actions/runs/"+str(entry["original_run"]))
+                  check(original.get("head_sha")==sha and
+                        original.get("name")=="Unity ORK P0" and
+                        original.get("status")=="completed" and
+                        original.get("conclusion")=="success",
+                        "original SHA lacks successful Unity verification")
+                  original_artifacts=pages("/repos/"+REPO+"/actions/runs/"+
+                        str(entry["original_run"])+"/artifacts","artifacts",limit=200)
+                  original_want="unity-ork-p0-verify-"+sha+"-attempt-"+str(
+                        original.get("run_attempt"))
+                  check(any(a.get("name")==original_want and
+                        a.get("expired") is False and a.get("size_in_bytes",0)>0
+                        for a in original_artifacts),
+                        "original candidate exact-SHA artifact missing")
               if entry.get("workflow_only"):
                   # Workflow-only history is verified by its own successful
                   # cleanup run; it must never impersonate Unity acceptance.
