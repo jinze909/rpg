@@ -76,7 +76,8 @@ namespace Rpg.Soundwell
         // A live positional threat, never another saved or guessed target.
         public bool BeastBlocksEscape => GateOpen && !RescueComplete &&
             !DirectCombatComplete && patrol != null &&
-            patrol.WithinWarningRange(EscapeLanePosition, EscapeLaneDangerRadius);
+            patrol.WithinWarningRange(transform.TransformPoint(EscapeLanePosition),
+                EscapeLaneDangerRadius);
         public int BeastContacts => variables != null ? variables.GetInt(BeastContactKey) : 0;
         public bool BeastContacted => BeastContacts > 0;
         public const float BeastContactRadius = BeastPatrolAndChase.ContactRadius;
@@ -88,8 +89,10 @@ namespace Rpg.Soundwell
         public bool CanOpenGate => AtGatePanel && !GateOpen &&
             (DirectCombatComplete || (variables != null &&
                 variables.GetInt(RescueApproachKey) == 1 && HasBellTarget &&
-                Vector2.Distance(bell.position, SideBellStand) < 0.1f &&
-                beast != null && beast.position.y < -0.95f));
+                Vector2.Distance(bell.position,
+                    mechanisms.SideBellStandWorldPosition) < 0.1f &&
+                beast != null &&
+                transform.InverseTransformPoint(beast.position).y < -0.95f));
         public bool AtSurveyor => GateOpen && !IsCarrying && mechanisms.NearSurveyor;
         public bool HasSurveyorClue => variables != null && variables.GetInt(SurveyorClueKey) != 0;
         public bool AtUpperPlank => GateOpen && !IsCarrying && mechanisms.NearUpperPlank;
@@ -124,7 +127,8 @@ namespace Rpg.Soundwell
         public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
         public bool SurveyorWaitingForLeader => view != null && view.WaitingForEscortLeader;
         public bool CanEscortSurveyor => AtUpperPlank && PlankSecured && !SurveyorEscorting &&
-            !RescueComplete && Vector2.Distance(SurveyorWorldPosition, UpperBoardPosition) < 0.18f;
+            !RescueComplete && Vector2.Distance(SurveyorWorldPosition,
+                transform.TransformPoint(UpperBoardPosition)) < 0.18f;
         public bool CanTieEscortLine => CanEscortSurveyor && RopeRecovered && !SurveyorLineTied;
         public bool HasBellTarget => mechanisms != null && mechanisms.Current == Signal.Ringing;
         public bool IsSearching => mechanisms != null && mechanisms.Current == Signal.Searching;
