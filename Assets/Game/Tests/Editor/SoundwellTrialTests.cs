@@ -102,6 +102,30 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RescuedSurveyorCartTargetUsesTransformedVisibleMarker()
+        {
+            var root = new GameObject("relocated map-kit cart trial");
+            try
+            {
+                root.transform.position = new Vector3(7f, -4f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var trial = root.AddComponent<SoundwellTrial>();
+                Vector2 actualCart = root.transform.TransformPoint(
+                    SoundwellTrial.CartEvidencePosition);
+                Assert.That(Vector2.Distance(trial.CartEvidenceWorldPosition, actualCart),
+                    Is.LessThan(0.001f),
+                    "The rescued surveyor must seek the cart where the moved scene draws it.");
+                Assert.That(Vector2.Distance(trial.CartEvidenceWorldPosition,
+                    SoundwellTrial.CartEvidencePosition), Is.GreaterThan(1f),
+                    "Using the static origin-space cart would strand the map-kit follow-up.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RetiredOrkGateActorCannotOpenPhysicalGate()
         {
             // ORK can call a cached reach predicate after its scene-owned

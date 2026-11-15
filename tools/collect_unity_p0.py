@@ -104,6 +104,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint",
     },
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
+        "RescuedSurveyorCartTargetUsesTransformedVisibleMarker":
+            "Rpg.Tests.Editor.SoundwellTrialTests.RescuedSurveyorCartTargetUsesTransformedVisibleMarker",
         "BattleChooserActorLookupIgnoresDestroyedOrMissingActors":
             "Rpg.Tests.Editor.SoundwellTrialTests.BattleChooserActorLookupIgnoresDestroyedOrMissingActors",
         "RetiredOrkGateActorCannotOpenPhysicalGate":

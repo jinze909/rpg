@@ -125,6 +125,11 @@ namespace Rpg.Soundwell
             Vector2.Distance(playerBody.position, SurveyorWorldPosition) <= 1.65f;
         public bool CanInspectClaws => AtClawEvidence && !ClawsObserved;
         public Vector2 SurveyorWorldPosition => view != null ? view.SurveyorWorldPosition : SurveyorPosition;
+        // The optional map-kit return must target the cart as drawn under
+        // this trial root, not the authoring coordinates at world origin.
+        public Vector2 CartEvidenceWorldPosition => view != null
+            ? view.CartEvidenceWorldPosition
+            : (Vector2)transform.TransformPoint(CartEvidencePosition);
         public bool SurveyorWaitingForLeader => view != null && view.WaitingForEscortLeader;
         public bool CanEscortSurveyor => AtUpperPlank && PlankSecured && !SurveyorEscorting &&
             !RescueComplete && Vector2.Distance(SurveyorWorldPosition,

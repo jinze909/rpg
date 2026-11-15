@@ -147,7 +147,7 @@ namespace Rpg.Soundwell
             // No equipment, quest or reward state is fabricated by the UI.
             if (RescueComplete && FalseMarkerCleared && CartObserved && CartClueShared &&
                 !CartKitReclaimed &&
-                Vector2.Distance(view.SurveyorWorldPosition, CartEvidencePosition) <= 0.20f)
+                Vector2.Distance(view.SurveyorWorldPosition, CartEvidenceWorldPosition) <= 0.20f)
                 variables.Set(CartKitReclaimedKey, 1);
 
             // The optional map kit changes the world: after retrieving it, the

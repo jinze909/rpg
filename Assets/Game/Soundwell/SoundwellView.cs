@@ -1138,6 +1138,7 @@ namespace Rpg.Soundwell
         }
 
         public Vector2 SurveyorWorldPosition => surveyorFigure.position;
+        public Vector2 CartEvidenceWorldPosition => cartEvidenceMarker.transform.position;
         public bool WaitingForEscortLeader => waitingForEscortLeader;
         public Vector2 FalseMarkerWorldPosition => falseTrailMarker.transform.position;
 
@@ -1311,7 +1312,7 @@ namespace Rpg.Soundwell
             if (rescueComplete)
                 routeTarget = !falseMarkerCleared ? FalseMarkerWorldPosition
                     : cartObserved && cartClueShared && !cartKitReclaimed
-                        ? SoundwellTrial.CartEvidencePosition
+                        ? CartEvidenceWorldPosition
                         : cartKitReclaimed && !safeRouteMarked
                             ? FalseMarkerWorldPosition
                             : (Vector2)retreatMarker.position;
