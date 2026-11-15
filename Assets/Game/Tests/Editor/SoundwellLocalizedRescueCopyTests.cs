@@ -179,6 +179,43 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SavedLocalizationTablesAreCachedWhileLiveLocaleChanges()
+        {
+            // HUD refreshes should reuse both shipped table instances.
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static;
+            var owner = typeof(Rpg.Soundwell.SoundwellUiLocalization);
+            var enField = owner.GetField("englishTable", flags);
+            var zhField = owner.GetField("chineseTable", flags);
+            Assert.That(enField, Is.Not.Null);
+            Assert.That(zhField, Is.Not.Null);
+            string previous = Rpg.Soundwell.SoundwellUiLocalization.Language;
+            var en = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-en");
+            var zh = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-zh-Hans");
+            Assert.That(en, Is.Not.Null);
+            Assert.That(zh, Is.Not.Null);
+            try
+            {
+                Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(
+                    Rpg.Soundwell.SoundwellUiLocalization.English);
+                for (int i = 0; i < 3; i++)
+                    Assert.That(Rpg.Soundwell.SoundwellUiLocalization.Get("entry.title"),
+                        Is.EqualTo(en.GetEntry("entry.title").LocalizedValue));
+                Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(
+                    Rpg.Soundwell.SoundwellUiLocalization.Chinese);
+                for (int i = 0; i < 3; i++)
+                    Assert.That(Rpg.Soundwell.SoundwellUiLocalization.Get("entry.title"),
+                        Is.EqualTo(zh.GetEntry("entry.title").LocalizedValue));
+                Assert.That(enField.GetValue(null), Is.SameAs(en));
+                Assert.That(zhField.GetValue(null), Is.SameAs(zh));
+            }
+            finally
+            {
+                Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(previous);
+            }
+        }
+
+        [Test]
         public void EveryPlayableSoundwellLabelAndRewardHasMatchingEnAndChineseCopy()
         {
             var english = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-en");
