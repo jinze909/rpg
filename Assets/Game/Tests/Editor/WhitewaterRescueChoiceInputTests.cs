@@ -657,6 +657,23 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(stage.Phase, Is.EqualTo(phase),
                 "A real off-bridge interaction press cannot advance S00 or award a false warning.");
+            Assert.That(stage.CurrentInstructions, Does.Contain(
+                phase == 14 ? "amber lookout" : phase == 15 ? "amber cable post" : "amber bridge post"),
+                "A rejected real E press must identify the correct reachable marker.");
+            Assert.That(stage.CurrentInstructions, Does.Contain("left stick"),
+                "The rejected action must still explain the playable movement control.");
+            // Both languages must offer a reachable action instead of a
+            // silent miss; localization cannot advance the phase on its own.
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            input.Press(keys.eKey);
+            yield return null;
+            input.Release(keys.eKey);
+            yield return null;
+            Assert.That(stage.Phase, Is.EqualTo(phase));
+            Assert.That(stage.CurrentInstructions, Does.Contain(
+                phase == 14 ? "瞭望点" : phase == 15 ? "缆桩" : "桥头守位"));
+            Assert.That(stage.CurrentInstructions, Does.Contain("左摇杆"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             input.Press(keys.sKey);
             deadline = Time.realtimeSinceStartup + 3f;
             while (stage.WalkerPosition.y > 9f && Time.realtimeSinceStartup < deadline)

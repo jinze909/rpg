@@ -657,7 +657,11 @@ namespace Rpg.Soundwell
             // ORK may revoke its chooser while a previously queued action is
             // still being presented. Never expose stale battle commands for a
             // destroyed actor or an out-of-range rescuer index.
+            // ORK can retire or disable a scene actor before an older UI
+            // callback arrives. A non-null Transform alone is not a live
+            // battle chooser; never advertise actions for an inactive actor.
             bool liveChooser = activeActor != null &&
+                activeActor.gameObject.activeInHierarchy &&
                 activeRescuerIndex >= 0 && activeRescuerIndex < 3;
             attackButton.interactable = liveChooser && canAttack;
             guardButton.interactable = liveChooser && canGuard;
@@ -719,6 +723,7 @@ namespace Rpg.Soundwell
             // direction buttons as well as the main Move target, or an old
             // UGUI navigation/Submit target can remain interactable.
             bool hasLiveChooser = battleMode && actor != null &&
+                actor.gameObject.activeInHierarchy &&
                 actorIndex >= 0 && actorIndex < 3;
             moveLegal[0] = hasLiveChooser && north;
             moveLegal[1] = hasLiveChooser && east;

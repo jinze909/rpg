@@ -1468,6 +1468,33 @@ namespace Rpg.Soundwell
                 EventSystem.current.SetSelectedGameObject(null);
         }
 
+        // An out-of-range interaction must explain what the amber station
+        // requires instead of silently consuming the player's real E / Pad A.
+        // This is only a UGUI hint: it cannot grant a post, warning or combat action.
+        private void ShowBridgeStationOutOfReach()
+        {
+            if (instructions == null)
+                return;
+            switch (phase)
+            {
+                case 12:
+                    instructions.text = Copy(
+                        "Reach Shen Li's amber bridge post with WASD / left stick, then press E / Pad A.",
+                        "用 WASD／左摇杆走到沈砾身边的金色桥头守位，再按 E／手柄 A。");
+                    break;
+                case 14:
+                    instructions.text = Copy(
+                        "Reach the amber lookout with WASD / left stick, then press E / Pad A to spot the troops.",
+                        "用 WASD／左摇杆走到金色瞭望点，再按 E／手柄 A 辨认敌军。");
+                    break;
+                case 15:
+                    instructions.text = Copy(
+                        "Return to Shen Li's amber cable post with WASD / left stick, then press E / Pad A.",
+                        "用 WASD／左摇杆回到沈砾身边的金色缆桩，再按 E／手柄 A。");
+                    break;
+            }
+        }
+
         private void Update()
         {
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
@@ -1492,19 +1519,28 @@ namespace Rpg.Soundwell
             if (phase == 15)
             {
                 if (frame.Ring)
-                    HoldCableAtPost();
+                {
+                    if (CanHoldCable) HoldCableAtPost();
+                    else ShowBridgeStationOutOfReach();
+                }
                 return;
             }
             if (phase == 14)
             {
                 if (frame.Ring)
-                    WarnFarBank();
+                {
+                    if (CanWarnFarBank) WarnFarBank();
+                    else ShowBridgeStationOutOfReach();
+                }
                 return;
             }
             if (phase == 12)
             {
                 if (frame.Ring)
-                    TakeBridgePost();
+                {
+                    if (CanTakeBridgePost) TakeBridgePost();
+                    else ShowBridgeStationOutOfReach();
+                }
                 return;
             }
             if (phase == 7)

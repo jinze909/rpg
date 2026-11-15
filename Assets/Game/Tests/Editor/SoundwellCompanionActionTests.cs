@@ -342,6 +342,47 @@ namespace Rpg.Tests.Editor
                 "Live ORK must offer an actual player turn.");
             int choosing = party.ChoosingRescuerIndex;
             Assert.That(choosing, Is.InRange(0, 2));
+            // Simulate a delayed view-only ORK callback with a retired
+            // scene actor. The managed ORK roster stays intact. Neither
+            // primary commands nor the optional step may become clickable.
+            var viewField = typeof(TrialFlowController).GetField("view", flags);
+            Assert.That(viewField, Is.Not.Null);
+            var liveView = (SoundwellView)viewField.GetValue(trial);
+            Assert.That(liveView, Is.Not.Null);
+            var retiredCallbackActor = new GameObject("retired scene actor callback");
+            try
+            {
+                retiredCallbackActor.SetActive(false);
+                liveView.SetBattleChoices(choosing, retiredCallbackActor.transform,
+                    true, true, true, false);
+                liveView.SetBattleMoveChoices(choosing, retiredCallbackActor.transform,
+                    true, true, true, true);
+                foreach (string actionName in new[]
+                {
+                    "Soundwell Attack button", "Soundwell Guard button",
+                    "Soundwell Battle Gate button", "Soundwell Move button"
+                })
+                {
+                    var staleCommand = GameObject.Find(actionName)?.GetComponent<Button>();
+                    Assert.That(staleCommand, Is.Not.Null);
+                    Assert.That(staleCommand.interactable, Is.False,
+                        "A disabled scene actor must not expose " + actionName + ".");
+                }
+                var staleChevron = GameObject.Find("PLACEHOLDER ORK current rescuer")
+                    ?.GetComponent<SpriteRenderer>();
+                Assert.That(staleChevron, Is.Not.Null);
+                Assert.That(staleChevron.enabled, Is.False,
+                    "A retired actor must not retain the active ORK chevron.");
+            }
+            finally
+            {
+                Object.Destroy(retiredCallbackActor);
+            }
+            yield return null;
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(choosing),
+                "Rejecting a stale view callback cannot spend or change the ORK turn.");
+            Assert.That(button.interactable, Is.True,
+                "The actual living actor must regain its legal ORK attack command.");
             // A delayed UGUI refresh can still ask about yesterday's ORK
             // chooser after a different rescuer receives the live turn.
             // Never offer Guard or Gate to that stale actor index.
