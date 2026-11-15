@@ -9,10 +9,16 @@ namespace Rpg.Tests.Editor
     // side or make the east-side beast harmless.
     public sealed class BeastPatrolCorridorTests
     {
-        [TestCase(-9f)]
-        [TestCase(0f)]
-        [TestCase(12f)]
-        public void BeastContactFollowsTrialOriginAndRearmsAfterExit(float originX)
+        [Test]
+        public void BeastContactFollowsTrialOriginAndRearmsAfterExit()
+        {
+            // Keep all three translated positions in one strictly named NUnit
+            // case so the P0 exact-manifest collector can verify every run.
+            foreach (float originX in new[] { -9f, 0f, 12f })
+                AssertContactAtOrigin(originX);
+        }
+
+        private static void AssertContactAtOrigin(float originX)
         {
             var root = new GameObject("translated Soundwell trial root");
             var beast = new GameObject("borrowed-voice beast");
