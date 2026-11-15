@@ -527,6 +527,14 @@ namespace Rpg.Tests.Editor
                 third.SetActive(true);
                 formation.SetFrameworkReady();
 
+                // A rigidbody target can be moved before its Transform has
+                // rendered the next physics step. The currently accepted
+                // ORK action must face the REAL target on either side.
+                var physicalThreat = new GameObject("ORK physics-first facing target");
+                physicalThreat.transform.SetParent(root.transform, false);
+                var threatBody = physicalThreat.AddComponent<Rigidbody2D>();
+                threatBody.bodyType = RigidbodyType2D.Kinematic;
+                threatBody.gravityScale = 0f;
                 foreach (int index in new[] { 1, 2 })
                 {
                     var actor = index == 1 ? second : third;
@@ -549,6 +557,19 @@ namespace Rpg.Tests.Editor
                     formation.RenderFollowers(true, false, false);
                     Assert.That(visual.sprite.name, Does.Contain("attack"),
                         "Fresh ORK Attack must replace Step without moving the scene actor.");
+
+                    foreach (bool threatOnRight in new[] { true, false })
+                    {
+                        float physicsX = threatOnRight ? 8f : -8f;
+                        physicalThreat.transform.position = new Vector3(-physicsX, 0f, 0f);
+                        threatBody.position = new Vector2(physicsX, 0f);
+                        formation.ShowAttackPose(index, physicalThreat.transform);
+                        Assert.That(visual.flipX, Is.EqualTo(!threatOnRight),
+                            "Attack pose must face the Rigidbody2D target even before its Transform catches up.");
+                        formation.ShowGuardPose(index, physicalThreat.transform, true);
+                        Assert.That(visual.flipX, Is.EqualTo(threatOnRight),
+                            "The left-hand guard shield must flip toward the actual physical threat.");
+                    }
                 }
 
                 // A companion should react to an actual lower ORK HP reading,
