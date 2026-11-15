@@ -9,6 +9,9 @@ namespace Rpg.Soundwell
     {
         public const float ContactRadius = 0.67f;
         public const float SearchDurationSeconds = 3.5f;
+        // Local to this trial root, so moving the whole level cannot shift
+        // the beast contact zone away from its intended east-side corridor.
+        [SerializeField] private float dangerZoneStartLocalX = 0.55f;
         private Transform beast;
         private Rigidbody2D player;
         private Vector2 home;
@@ -106,7 +109,7 @@ namespace Rpg.Soundwell
 
             bool playerInDanger = beast != null && player != null &&
                 !directCombat && !combatComplete && gateOpen && !rescueComplete &&
-                player.position.x > 0.55f &&
+                player.position.x - transform.position.x > dangerZoneStartLocalX &&
                 Vector2.Distance(player.position, Position) <= ContactRadius;
             if (!playerInDanger)
                 contactLatched = false;
