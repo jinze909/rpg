@@ -214,6 +214,40 @@ namespace Rpg.Tests.Editor
                     }
                     if (rescueChoice == 1)
                     {
+                        // Shen Li's station starts horizontally within reach.
+                        // Stepping off the narrow bridge lane cannot rescue
+                        // Han Qiao from below the decking, even after the
+                        // player explicitly presses the real interact key.
+                        input.Press(keys.sKey);
+                        float offLaneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (activePrelude.CanRescue && Time.realtimeSinceStartup < offLaneDeadline)
+                            yield return null;
+                        input.Release(keys.sKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanRescue, Is.False,
+                            "The player must be on the bridge lane to reach the visible rescue station.");
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(7),
+                            "An off-lane E press must not board Han Qiao.");
+                        Assert.That(activePrelude.CurrentInstructions,
+                            Does.Contain("Not at the gold rescue station"),
+                            "The player needs a usable return-to-station hint.");
+                        input.Press(keys.wKey);
+                        offLaneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (!activePrelude.CanRescue && Time.realtimeSinceStartup < offLaneDeadline)
+                            yield return null;
+                        input.Release(keys.wKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanRescue, Is.True,
+                            "Returning to Shen Li's bridge lane must restore the rescue interaction.");
+                        Assert.That(activePrelude.Phase, Is.EqualTo(7),
+                            "Walking back never earns a rescue without a fresh E.");
+                    }
+                    if (rescueChoice == 1)
+                    {
                         Assert.That(shenLiLine.sizeDelta.x, Is.GreaterThan(300f),
                             "The rope should actually span the water to Han Qiao.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(7),

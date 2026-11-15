@@ -40,6 +40,7 @@ namespace Rpg.Soundwell
         private const float RepairReach = 44f;
         // The wounded civilian's 32px sprite must overlap the player's body
         // before an escort can begin; the wider clamp repair radius does not apply.
+        private const float RescueStationReachY = 28f;
         private const float EvacueeContactReachY = 28f;
         // These stage markers are only 26-35 pixels wide, and the player
         // sprite is 32 pixels wide. Do not award a bridge interaction when
@@ -144,7 +145,9 @@ namespace Rpg.Soundwell
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanRescue => phase == 7 &&
             Mathf.Abs(walker.x - RescueStationX(rescueMethod)) <= RepairReach &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            // The visible rescue station is on the bridge deck. A nearby
+            // horizontal position from below the walkway is not a valid haul.
+            Mathf.Abs(walker.y) <= RescueStationReachY;
         public Vector2 EvacueePosition => evacuee != null
             ? evacuee.anchoredPosition : Vector2.zero;
         public bool CanHelpEvacuee => phase == 9 && evacuee != null &&
