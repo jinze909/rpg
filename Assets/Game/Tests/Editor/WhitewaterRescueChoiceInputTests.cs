@@ -351,6 +351,23 @@ namespace Rpg.Tests.Editor
                         Assert.That(inWater.anchoredPosition.x - passengerDockX,
                             Is.EqualTo(boatTravel).Within(0.1f),
                             "The rescued passenger cannot drift away from the moving boat.");
+
+                        // The first two rescue stations leave the player far
+                        // from the last civilian. A real premature E must
+                        // explain proximity instead of silently doing nothing
+                        // or skipping the earned approach.
+                        if (!activePrelude.CanHelpEvacuee)
+                        {
+                            input.Press(keys.eKey);
+                            yield return null;
+                            input.Release(keys.eKey);
+                            yield return null;
+                            Assert.That(activePrelude.Phase, Is.EqualTo(9),
+                                "An out-of-range interaction cannot start an escort.");
+                            Assert.That(activePrelude.CurrentInstructions,
+                                Does.Contain("Too far from the amber evacuee"),
+                                "The actual keyboard action must explain the failed reach check.");
+                        }
                         input.Press(keys.aKey);
                         float reachDeadline = Time.realtimeSinceStartup + 4f;
                         while (!activePrelude.CanHelpEvacuee && Time.realtimeSinceStartup < reachDeadline)

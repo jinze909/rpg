@@ -92,6 +92,37 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MovedSideBellCanBePlacedAtItsVisibleWorldStand()
+        {
+            var root = new GameObject("translated and rotated bell stand");
+            try
+            {
+                root.transform.position = new Vector3(7f, -5f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var mechanism = root.AddComponent<TrialMechanismInteractable>();
+                Vector2 visibleStand = root.transform.TransformPoint(
+                    SoundwellTrial.SideBellStand);
+                Assert.That(Vector2.Distance(
+                    mechanism.SideBellStandWorldPosition, visibleStand),
+                    Is.LessThan(0.0001f));
+                Assert.That(mechanism.TryFindBellStand(visibleStand, out Vector2 placed),
+                    Is.True, "A player standing at the visible side bell must be able to place it.");
+                Assert.That(Vector2.Distance(placed, visibleStand), Is.LessThan(0.0001f),
+                    "The one physical bell must land on the rendered stand.");
+                Assert.That(mechanism.TryFindBellStand(
+                    visibleStand + Vector2.up * 0.73f, out _), Is.False,
+                    "A distant placement must not snap to the side stand.");
+                Assert.That(mechanism.TryFindBellStand(
+                    SoundwellTrial.SideBellStand, out _), Is.False,
+                    "The former world-origin stand must not accept a phantom placement.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void LowerPlankExplorationKnockbackMustNotOverrideAnOrkStep()
         {
             // The weak plank is a real exploration hazard after the gate opens.
