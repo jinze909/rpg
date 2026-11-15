@@ -375,22 +375,25 @@ namespace Rpg.Tests.Editor
                         yield return null;
                     }
 
-                    // Keyboard composite roots may be disabled by a valid
-                    // override while the gamepad left stick still moves the
-                    // player. Don't show dead keyboard keys in S00 instructions.
-                    var keyboardRoots = Enumerable.Range(0, moveAction.bindings.Count)
-                        .Where(index => moveAction.bindings[index].isComposite &&
-                            !string.IsNullOrEmpty(moveAction.bindings[index].effectivePath))
+                    // A player can retain gamepad Move while disabling all
+                    // keyboard directions. Override the actual composite
+                    // PARTS, not their roots: Input System 1.x can throw while
+                    // resolving live child bindings when a root is disabled.
+                    // This must exercise a valid playable gamepad-only setup.
+                    var keyboardParts = Enumerable.Range(0, moveAction.bindings.Count)
+                        .Where(index => moveAction.bindings[index].isPartOfComposite &&
+                            moveAction.bindings[index].effectivePath.StartsWith(
+                                "<Keyboard>/", System.StringComparison.OrdinalIgnoreCase))
                         .ToArray();
-                    Assert.That(keyboardRoots, Is.Not.Empty);
-                    var savedRoots = keyboardRoots.Select(index =>
+                    Assert.That(keyboardParts, Is.Not.Empty);
+                    var savedParts = keyboardParts.Select(index =>
                         moveAction.bindings[index].overridePath).ToArray();
                     try
                     {
-                        foreach (int root in keyboardRoots)
-                            moveAction.ApplyBindingOverride(root, "");
+                        foreach (int part in keyboardParts)
+                            moveAction.ApplyBindingOverride(part, "");
                         Assert.That(SoundwellInputAdapter.GameplayKeyboardMovementLabel(),
-                            Is.Empty, "Disabled composites have orphaned children, not usable keyboard movement.");
+                            Is.Empty, "A gamepad-only binding must not show disabled keyboard directions.");
                         SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                         var joystickStageRoot = new GameObject("S00 gamepad-only movement cue regression");
                         var joystickStage = joystickStageRoot.AddComponent<WhitewaterPrelude>();
@@ -400,19 +403,19 @@ namespace Rpg.Tests.Editor
                             .onClick.Invoke();
                         Assert.That(joystickStage.CurrentInstructions, Does.Contain("left stick"));
                         Assert.That(joystickStage.CurrentInstructions, Does.Not.Contain("IJKL"),
-                            "S00 must not advertise a disabled keyboard composite.");
+                            "S00 must not advertise disabled keyboard directions.");
                         Assert.That(joystickStage.CurrentInstructions, Does.Not.Contain("WASD"));
                         joystickStage.Close();
                         yield return null;
                     }
                     finally
                     {
-                        for (int i = 0; i < keyboardRoots.Length; i++)
+                        for (int i = 0; i < keyboardParts.Length; i++)
                         {
-                            if (savedRoots[i] == null)
-                                moveAction.RemoveBindingOverride(keyboardRoots[i]);
+                            if (savedParts[i] == null)
+                                moveAction.RemoveBindingOverride(keyboardParts[i]);
                             else
-                                moveAction.ApplyBindingOverride(keyboardRoots[i], savedRoots[i]);
+                                moveAction.ApplyBindingOverride(keyboardParts[i], savedParts[i]);
                         }
                     }
                 }
