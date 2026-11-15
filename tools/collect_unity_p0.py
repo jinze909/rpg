@@ -83,6 +83,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/WhitewaterRescueChoiceInputTests.cs": {
         "PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
+        "OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
     },
     "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs": {
         "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":
