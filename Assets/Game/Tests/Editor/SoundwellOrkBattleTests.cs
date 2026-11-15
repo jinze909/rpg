@@ -29,6 +29,44 @@ namespace Rpg.Tests.Editor
     /// </summary>
     public sealed class SoundwellOrkBattleTests
     {
+        [Test, Order(8)]
+        public void BattleStepRespectsArenaBoundsAfterMovingAndRotatingTrial()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var root = new GameObject("moved rotated ORK battle arena");
+            var actor = new GameObject("translated rescuer");
+            try
+            {
+                root.transform.position = new Vector3(20f, -13f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var movement = root.AddComponent<PartyMovement2D>();
+                actor.AddComponent<CircleCollider2D>().radius = 0.3f;
+                var actors = new List<GameObject> { actor };
+                // At 90 degrees world-up is the arena's local-east.
+                actor.transform.position = root.transform.TransformPoint(
+                    new Vector3(5.75f, 0f, 0f));
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.up,
+                    actors, null, 0.5f, out Vector2 permitted), Is.True,
+                    "A valid step may not be rejected by the old world-origin bounds.");
+                Vector2 expected = root.transform.TransformPoint(new Vector3(6.25f, 0f, 0f));
+                Assert.That(Vector2.Distance(permitted, expected),
+                    Is.LessThan(0.0001f));
+
+                actor.transform.position = root.transform.TransformPoint(
+                    new Vector3(6.20f, 0f, 0f));
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.up,
+                    actors, null, 0.5f, out _), Is.False,
+                    "An ORK movement footprint must still remain inside the relocated arena.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(actor);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         // A trigger-only ORK actor still occupies the wide physical space of
         // its box. A successful step preview must never pass through it even
         // though Physics2D.CircleCast intentionally ignores triggers.
