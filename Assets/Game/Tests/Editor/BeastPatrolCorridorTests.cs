@@ -65,6 +65,57 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SearchingBeastScansAndResetsFacingWithRotatedTrial()
+        {
+            var root = new GameObject("rotated Soundwell search root");
+            var beast = new GameObject("rotated searching beast");
+            var rescuer = new GameObject("rotated trial rescuer");
+            try
+            {
+                root.transform.position = new Vector3(9f, -4f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.position = root.transform.TransformPoint(new Vector2(-3f, 0f));
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                Vector2 home = root.transform.TransformPoint(new Vector2(3f, 0f));
+                patrol.Configure(beast.transform, body, home);
+
+                Quaternion expectedFacing = root.transform.rotation *
+                    Quaternion.Euler(0f, 0f, 180f);
+                Assert.That(Quaternion.Angle(beast.transform.rotation, expectedFacing),
+                    Is.LessThan(0.001f),
+                    "The beast must face along the rotated level when reset.");
+
+                Vector2 bell = root.transform.TransformPoint(new Vector2(2f, -0.7f));
+                patrol.OnBellSignal(BellSignal.Searching, bell);
+                Vector2 scanned = patrol.Tick(BellSignal.Searching, bell,
+                    false, false, false, false);
+                Vector2 expected = bell + (Vector2)root.transform.TransformVector(
+                    new Vector2(0.9f, 0f));
+                Assert.That(Vector2.Distance(scanned, expected),
+                    Is.LessThan(0.04f),
+                    "The beast's real search arc should rotate with the visible bell lane.");
+                Assert.That(Vector2.Distance(scanned, bell + new Vector2(0.9f, 0f)),
+                    Is.GreaterThan(0.8f),
+                    "The legacy unrotated world-X scan is not the moved level's search arc.");
+
+                patrol.ResetPatrol();
+                Assert.That(Quaternion.Angle(beast.transform.rotation, expectedFacing),
+                    Is.LessThan(0.001f),
+                    "A repeated search reset cannot restore the old world-space facing.");
+                Assert.That(Vector2.Distance(patrol.Position, home),
+                    Is.LessThan(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WeakPlankContactAndRecoveryFollowTheVisibleTrialRoot()
         {
             var root = new GameObject("offset and rotated Soundwell weak plank");
