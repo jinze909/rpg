@@ -1408,6 +1408,17 @@ namespace Rpg.Soundwell
             Color32 coat, out Texture2D texture)
         {
             const int size = 16;
+            // Invalid authored silhouettes must fail before allocating a
+            // native Texture2D. Otherwise a truncated sprite row throws
+            // halfway through rasterization and leaks a runtime texture.
+            texture = null;
+            if (art == null || art.Length != size)
+                throw new System.InvalidOperationException("S00 pixel actor requires 16 rows.");
+            for (int i = 0; i < size; i++)
+                if (art[i] == null || art[i].Length != size)
+                    throw new System.InvalidOperationException(
+                        "S00 pixel actor row must be exactly 16 pixels.");
+
             texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 name = name + " texture",

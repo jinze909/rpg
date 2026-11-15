@@ -15,6 +15,40 @@ namespace Rpg.Tests.Editor
     // neither the authored choice nor a timer may automatically rescue Han Qiao.
     public sealed class WhitewaterRescueChoiceInputTests
     {
+        [Test]
+        public void TruncatedS00PixelActorDoesNotLeaveUnmanagedTexture()
+        {
+            var generator = typeof(WhitewaterPrelude).GetMethod("MakeActorSprite",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static);
+            Assert.That(generator, Is.Not.Null);
+            string[] art = Enumerable.Repeat("................", 16).ToArray();
+            art[4] = "truncated";
+            var existingTextures = Resources.FindObjectsOfTypeAll<Texture2D>();
+            object[] parameters = { "invalid wounded silhouette", art,
+                new Color32(128, 80, 80, 255), null };
+            try
+            {
+                var error = Assert.Throws<System.Reflection.TargetInvocationException>(
+                    () => generator.Invoke(null, parameters));
+                Assert.That(error.InnerException,
+                    Is.TypeOf<System.InvalidOperationException>());
+                Assert.That(parameters[3], Is.Null,
+                    "A rejected sprite must never hand out a native texture.");
+                Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(texture => !existingTextures.Contains(texture)), Is.Empty,
+                    "Reject malformed S00 art before allocating an orphan texture.");
+            }
+            finally
+            {
+                // Clean up even if a regression creates the very leak that
+                // this test must catch, so later Unity tests stay independent.
+                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(texture => !existingTextures.Contains(texture)))
+                    UnityEngine.Object.DestroyImmediate(orphan);
+            }
+        }
+
         [UnityTest]
         public IEnumerator PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction()
         {
