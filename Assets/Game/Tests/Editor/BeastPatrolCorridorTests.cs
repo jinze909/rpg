@@ -10,6 +10,41 @@ namespace Rpg.Tests.Editor
     public sealed class BeastPatrolCorridorTests
     {
         [Test]
+        public void CarriedBellHandOffsetTracksRotatedTrialAndPhysicalLeader()
+        {
+            var root = new GameObject("rotated Soundwell carried-bell root");
+            try
+            {
+                root.transform.position = new Vector3(7f, -3f, 0f);
+                var trial = root.AddComponent<SoundwellTrial>();
+                Vector2 physicalLeader = new Vector2(9f, 1f);
+                foreach (float angle in new[] { 0f, 90f, 180f })
+                {
+                    root.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                    Vector2 expected = physicalLeader + (Vector2)
+                        root.transform.TransformVector(new Vector3(0.35f, 0f, 0f));
+                    Vector2 held = trial.CarriedBellWorldPosition(physicalLeader);
+                    Assert.That(Vector2.Distance(held, expected), Is.LessThan(0.0001f),
+                        "The same bell must be carried to the visible hand in a rotated trial.");
+                    Assert.That(Vector2.Distance(held, physicalLeader),
+                        Is.EqualTo(0.35f).Within(0.0001f));
+                    if (angle == 90f)
+                        Assert.That(held.x, Is.EqualTo(physicalLeader.x).Within(0.0001f),
+                            "The old fixed world-X offset would put the bell beside the wrong hand.");
+                }
+                root.transform.localScale = new Vector3(2f, 1f, 1f);
+                root.transform.rotation = Quaternion.identity;
+                Vector2 scaled = trial.CarriedBellWorldPosition(physicalLeader);
+                Assert.That(scaled.x - physicalLeader.x, Is.EqualTo(0.7f).Within(0.0001f),
+                    "The offset must follow the authored room scale rather than detach visually.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BeastContactFollowsTrialOriginAndRearmsAfterExit()
         {
             // Keep all three translated positions in one strictly named NUnit
