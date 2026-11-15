@@ -112,6 +112,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.FormationToggleExplainsSteppingInBothLanguages",
         "WhitewaterReplayLabelUsesOnlyEarnedProgressAndBothSavedLanguages":
             "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.WhitewaterReplayLabelUsesOnlyEarnedProgressAndBothSavedLanguages",
+        "SavedLocalizationTablesAreCachedWhileLiveLocaleChanges":
+            "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.SavedLocalizationTablesAreCachedWhileLiveLocaleChanges",
     },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "OrkStepMustKeepWholeCombatantInsideSavedBattleBounds":
