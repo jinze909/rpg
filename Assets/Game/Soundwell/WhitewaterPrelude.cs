@@ -38,6 +38,11 @@ namespace Rpg.Soundwell
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
+        // These stage markers are only 26-35 pixels wide, and the player
+        // sprite is 32 pixels wide. Do not award a bridge interaction when
+        // the two visible bodies are no longer touching.
+        private const float BridgeStationReachX = 27f;
+        private const float BridgeStationReachY = 30f;
         private const float EvacueeStartX = -72f;
         private const float EvacueeSafeX = -265f;
         private const float SpareRopeTravelSeconds = 0.55f;
@@ -136,14 +141,14 @@ namespace Rpg.Soundwell
             evacuee.anchoredPosition.x <= EvacueeSafeX + 30f &&
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanTakeBridgePost => phase == 12 && bridgePost != null &&
-            Mathf.Abs(walker.x - BridgePostX) <= RepairReach &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            Mathf.Abs(walker.x - BridgePostX) <= BridgeStationReachX &&
+            Mathf.Abs(walker.y) <= BridgeStationReachY;
         public bool CanWarnFarBank => phase == 14 && farBankLookout != null &&
-            Mathf.Abs(walker.x - FarBankLookoutX) <= RepairReach &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            Mathf.Abs(walker.x - FarBankLookoutX) <= BridgeStationReachX &&
+            Mathf.Abs(walker.y) <= BridgeStationReachY;
         public bool CanHoldCable => phase == 15 && bridgePost != null &&
-            Mathf.Abs(walker.x - BridgePostX) <= RepairReach &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            Mathf.Abs(walker.x - BridgePostX) <= BridgeStationReachX &&
+            Mathf.Abs(walker.y) <= BridgeStationReachY;
 
         private static float RescueStationX(int choice) =>
             choice == 0 ? 60f : choice == 1 ? ClampX : -70f;
@@ -865,8 +870,8 @@ namespace Rpg.Soundwell
                 "You shout, 'Who has spare rope?' A coil reaches Shen Li at the clamp. The first bell sounds; she turns toward the strained cable.",
                 "你喊：“谁带了多余的绳子？”一卷绳索送到缆桩边的沈砾手里。第一声号钟响起，她转头望向吃紧的缆索。");
             instructions.text = Copy(
-                "Reach the amber bridge post near Shen Li; press E / Pad A to take position. ORK defence remains pending.",
-                "走到沈砾附近金色桥头守位，按 E／手柄 A 就位。ORK 防守战仍待实现。");
+                "WASD / left stick: reach Shen Li's amber bridge post; press E / Pad A to take position. ORK defence remains pending.",
+                "用 WASD／左摇杆走到沈砾附近金色桥头守位，按 E／手柄 A 就位。ORK 防守战仍待实现。");
             SoundwellInputAdapter.SetGameplayContext();
         }
 
@@ -939,8 +944,8 @@ namespace Rpg.Soundwell
                 "The second bell rolls across the bridge. On the far bank, the lamps withdraw one by one. Shen Li grips the cable and looks across the span.",
                 "第二声号钟传过浮桥。对岸的灯火一盏接一盏收起。沈砾攥住缆索，望向桥的另一端。");
             instructions.text = Copy(
-                "The lights are going dark. Walk to the amber lookout on the bridge and press E / Pad A to identify the movement.",
-                "灯火正一盏盏熄灭。走到桥上金色瞭望点，按 E／手柄 A 辨认对岸的动静。");
+                "The lights are going dark. Use WASD / left stick to reach the amber lookout, then E / Pad A to identify the movement.",
+                "灯火正一盏盏熄灭。用 WASD／左摇杆走到桥上金色瞭望点，再按 E／手柄 A 辨认动静。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(null);
         }
@@ -966,8 +971,8 @@ namespace Rpg.Soundwell
                 "Three armed silhouettes appear where the far-bank lamps vanished. You warn Shen Li and the bridge crew. The cable is still under strain.",
                 "对岸灯火熄灭处出现三道持械人影。你向沈砾和桥头同伴发出警告，缆索仍在吃力地绷着。");
             instructions.text = Copy(
-                "Get back to Shen Li's amber cable post; press E / Pad A to hold the cable. The attackers are not defeated.",
-                "返回沈砾身边金色缆桩，按 E／手柄 A 一起扶住缆索。敌军仍未被击退。");
+                "WASD / left stick: return to Shen Li's amber cable post; press E / Pad A to hold the cable. The attackers are not defeated.",
+                "用 WASD／左摇杆返回沈砾身边金色缆桩，按 E／手柄 A 一起扶住缆索。敌军仍未被击退。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(null);
         }
