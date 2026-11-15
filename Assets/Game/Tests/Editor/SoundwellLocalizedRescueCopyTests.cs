@@ -101,9 +101,17 @@ namespace Rpg.Tests.Editor
             string oldKeyboard = action.bindings[keyboardIndex].overridePath;
             string oldGamepad = action.bindings[gamepadIndex].overridePath;
             string oldLanguage = Rpg.Soundwell.SoundwellUiLocalization.Language;
+            // Initialize saved bindings before the isolated remap under test.
+            Rpg.Soundwell.SoundwellInputAdapter.EntryKeyboardShortcutLabel();
+            var entry = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                .FindActionMap("Entry", true).FindAction("Interact", true);
+            int entryPadIndex = Enumerable.Range(0, entry.bindings.Count)
+                .Single(i => entry.bindings[i].path == "<Gamepad>/buttonSouth");
+            string oldEntryPad = entry.bindings[entryPadIndex].overridePath;
             try
             {
                 action.ApplyBindingOverride(keyboardIndex, "<Keyboard>/t");
+                entry.ApplyBindingOverride(entryPadIndex, "<Gamepad>/buttonWest");
                 action.ApplyBindingOverride(gamepadIndex, "<Gamepad>/buttonWest");
                 string key = action.GetBindingDisplayString(keyboardIndex);
                 string pad = action.GetBindingDisplayString(gamepadIndex);
@@ -122,10 +130,42 @@ namespace Rpg.Tests.Editor
                         "The real retry control must match the displayed action in both locales.");
                     Assert.That(hint, Does.Not.StartWith("[R /"),
                         "A saved remap must not leave the default key in the trial HUD.");
+
+                    string actualPad = entry.GetBindingDisplayString(entryPadIndex);
+                    string entryKey = Rpg.Soundwell.SoundwellInputAdapter.EntryKeyboardShortcutLabel();
+                    string expectedEntry = locale == Rpg.Soundwell.SoundwellUiLocalization.Chinese
+                        ? "[" + entryKey + "／手柄 " + actualPad + "]"
+                        : "[" + entryKey + " / Pad " + actualPad + "]";
+                    string entryPrompt = Rpg.Soundwell.SoundwellEntrance.EntryActionPromptForCurrentBindings();
+                    Assert.That(entryPrompt, Does.StartWith(expectedEntry),
+                        "Entry hints must reflect the real remapped gamepad shortcut.");
+                    Assert.That(entryPrompt, Does.Not.Contain("Pad A"));
+                    Assert.That(entryPrompt, Does.Not.Contain("手柄 A"));
+                }
+
+                // A disabled Entry gamepad action must not advertise Pad A.
+                // The independent focused UGUI Submit remains available.
+                entry.ApplyBindingOverride(entryPadIndex, "");
+                foreach (string locale in new[]
+                {
+                    Rpg.Soundwell.SoundwellUiLocalization.English,
+                    Rpg.Soundwell.SoundwellUiLocalization.Chinese
+                })
+                {
+                    Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(locale);
+                    string prompt = Rpg.Soundwell.SoundwellEntrance.EntryActionPromptForCurrentBindings();
+                    string shortcut = Rpg.Soundwell.SoundwellInputAdapter.EntryKeyboardShortcutLabel();
+                    Assert.That(prompt, Does.StartWith("[" + shortcut + "]"));
+                    Assert.That(prompt, Does.Not.Contain("Pad A"));
+                    Assert.That(prompt, Does.Not.Contain("手柄 A"));
                 }
             }
             finally
             {
+                if (oldEntryPad == null)
+                    entry.RemoveBindingOverride(entryPadIndex);
+                else
+                    entry.ApplyBindingOverride(entryPadIndex, oldEntryPad);
                 if (oldKeyboard == null)
                     action.RemoveBindingOverride(keyboardIndex);
                 else

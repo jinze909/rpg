@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Audio;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -39,7 +40,7 @@ namespace Rpg.Soundwell
         private Text sfxText;
         private Font englishFont;
         private float layoutAspect = -1f;
-        private string shownEntryShortcut;
+        private string shownEntryPrompt;
         private string shownPreludeProgressKey;
         private int shownOutcome = -1;
         private bool shownOutcomeRecorded;
@@ -208,10 +209,8 @@ namespace Rpg.Soundwell
             Font font = SoundwellUiLocalization.PresentationFont(englishFont);
             titleText.font = actionText.font = footerText.font = outcomeText.font = font;
             titleText.text = SoundwellUiLocalization.Get("entry.title");
-            // Localized entry text is authored for the default F2 binding.
-            // Replace only its shortcut token, leaving the translated copy and
-            // the independent gamepad Submit hint under StringTable authority.
-            shownEntryShortcut = null;
+            // Re-render both effective shortcut labels on a locale switch.
+            shownEntryPrompt = null;
             RefreshEntryShortcutHint();
             footerText.text = SoundwellUiLocalization.Get("entry.footer");
             RefreshReturnOutcome(true);
@@ -260,13 +259,55 @@ namespace Rpg.Soundwell
         {
             if (actionText == null)
                 return;
-            string shortcut = SoundwellInputAdapter.EntryKeyboardShortcutLabel();
-            if (shortcut == shownEntryShortcut)
+            string prompt = EntryActionPromptForCurrentBindings();
+            if (prompt == shownEntryPrompt)
                 return;
-            shownEntryShortcut = shortcut;
-            string token = string.IsNullOrEmpty(shortcut) ? "[" : "[" + shortcut + " / ";
-            actionText.text = SoundwellUiLocalization.Get("entry.action")
-                .Replace("[F2 / ", token);
+            shownEntryPrompt = prompt;
+            actionText.text = prompt;
+        }
+
+        // Display only: the input adapter still owns Entry actions. Focused
+        // UGUI Submit remains separate from this rebindable entry shortcut.
+        public static string EntryActionPromptForCurrentBindings()
+        {
+            string authored = SoundwellUiLocalization.Get("entry.action");
+            int end = authored.IndexOf(']');
+            if (authored.Length == 0 || authored[0] != '[' || end < 0)
+                return authored;
+
+            string keyboard = SoundwellInputAdapter.EntryKeyboardShortcutLabel();
+            var entry = Resources.Load<InputActionAsset>("Input/SoundwellControls")
+                ?.FindActionMap("Entry", false)?.FindAction("Interact", false);
+            string gamepad = string.Empty;
+            if (entry != null)
+            {
+                for (int i = 0; i < entry.bindings.Count; i++)
+                {
+                    var binding = entry.bindings[i];
+                    if (binding.isComposite || binding.isPartOfComposite ||
+                        string.IsNullOrEmpty(binding.effectivePath) ||
+                        !binding.effectivePath.StartsWith("<Gamepad>/",
+                            System.StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    // Retain the authored default A; display remapped buttons
+                    // using the real Input System binding rather than Pad A.
+                    gamepad = string.Equals(binding.effectivePath,
+                        "<Gamepad>/buttonSouth",
+                        System.StringComparison.OrdinalIgnoreCase)
+                        ? "A" : entry.GetBindingDisplayString(i);
+                    break;
+                }
+            }
+
+            bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
+            string padLabel = string.IsNullOrEmpty(gamepad) ? string.Empty :
+                (chinese ? "手柄 " : "Pad ") + gamepad;
+            string combined = !string.IsNullOrEmpty(keyboard) && !string.IsNullOrEmpty(padLabel)
+                ? keyboard + (chinese ? "／" : " / ") + padLabel
+                : !string.IsNullOrEmpty(keyboard) ? keyboard : padLabel;
+            return string.IsNullOrEmpty(combined)
+                ? authored.Substring(end + 1).TrimStart()
+                : "[" + combined + "]" + authored.Substring(end + 1);
         }
 
         // Use the actual UGUI navigation graph for D-pad and keyboard arrows:
