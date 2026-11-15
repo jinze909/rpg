@@ -7,6 +7,10 @@ namespace Rpg.Soundwell
     public sealed class PartyMovement2D : MonoBehaviour
     {
         private readonly List<RaycastHit2D> stepHits = new List<RaycastHit2D>(8);
+        // Every action preview uses the same trigger-free physical query.
+        // Avoid recreating a ContactFilter2D on every candidate direction.
+        private static readonly ContactFilter2D StepSolidFilter =
+            new ContactFilter2D { useTriggers = false };
         private Rigidbody2D leaderBody;
         private SoundwellPartyConfig config;
         private bool frameworkReady;
@@ -87,7 +91,7 @@ namespace Rpg.Soundwell
                 return false;
             Physics2D.SyncTransforms();
             Physics2D.CircleCast(colliderFrom, radius, direction,
-                new ContactFilter2D { useTriggers = false }, stepHits, distance);
+                StepSolidFilter, stepHits, distance);
             foreach (RaycastHit2D hit in stepHits)
                 if (!hit.collider.transform.IsChildOf(actor))
                     return false;
