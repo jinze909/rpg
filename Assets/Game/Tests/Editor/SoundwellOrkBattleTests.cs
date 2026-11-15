@@ -516,9 +516,14 @@ namespace Rpg.Tests.Editor
             List<Combatant> participants = ORK.Game.Combatants.GetInBattle();
             Assert.That(participants.Count, Is.EqualTo(4),
                 "ORK must register all three scene rescuers and the beast in one battle.");
-            // The active player turn must never trap the player with all
-            // exploration controls and all exit actions hidden.
-            yield return null;
+            // ORK may register/re-enable its default 3D movement controller
+            // after the initial scene transition and well beyond 16 frames.
+            // Keep the real rescue scene running across that window: a
+            // conflicting CharacterController must never reach Update.
+            for (int controllerWindowFrame = 0; controllerWindowFrame < 24; controllerWindowFrame++)
+                yield return null;
+            Assert.That(party.Leader.GetComponent<CharacterController>(), Is.Null,
+                "The 2D rescue leader cannot acquire ORK's 3D CharacterController.");
             Assert.That(Object.FindObjectsByType<ButtonPlayerController>(
                     FindObjectsSortMode.None).Any(controller => controller.isActiveAndEnabled),
                 Is.False,
