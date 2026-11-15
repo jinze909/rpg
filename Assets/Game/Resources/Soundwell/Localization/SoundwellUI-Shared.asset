@@ -531,6 +531,18 @@ MonoBehaviour:
     m_Key: entry.whitewater_prologue
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267456
+    m_Key: entry.whitewater_replay_evacuee
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267457
+    m_Key: entry.whitewater_replay_bell
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267458
+    m_Key: entry.whitewater_replay_cable
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

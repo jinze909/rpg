@@ -36,6 +36,37 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void WhitewaterReplayLabelUsesOnlyEarnedProgressAndBothSavedLanguages()
+        {
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(false, false, false),
+                Is.EqualTo("entry.whitewater_prologue"));
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, false, false),
+                Is.EqualTo("entry.whitewater_replay_evacuee"));
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, false),
+                Is.EqualTo("entry.whitewater_replay_bell"));
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, true),
+                Is.EqualTo("entry.whitewater_replay_cable"),
+                "Bracing the cable must not claim ORK defence or a completed third bell.");
+
+            var en = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-en");
+            var zh = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-zh-Hans");
+            Assert.That(en, Is.Not.Null);
+            Assert.That(zh, Is.Not.Null);
+            foreach (string key in new[]
+            {
+                "entry.whitewater_replay_evacuee",
+                "entry.whitewater_replay_bell",
+                "entry.whitewater_replay_cable"
+            })
+            {
+                Assert.That(en.GetEntry(key)?.LocalizedValue, Does.Contain("Replay"),
+                    "A repeated S00 visit must not promise loading an unavailable checkpoint.");
+                Assert.That(zh.GetEntry(key)?.LocalizedValue, Does.Contain("重玩"),
+                    "The same replay warning must remain readable after switching language.");
+            }
+        }
+
         // A formation choice changes an actual ORK battle rule. Players must
         // see the stepping tradeoff before committing to the encounter in
         // either shipped language, rather than only a mode name.

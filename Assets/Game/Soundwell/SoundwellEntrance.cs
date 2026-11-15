@@ -40,6 +40,7 @@ namespace Rpg.Soundwell
         private Font englishFont;
         private float layoutAspect = -1f;
         private string shownEntryShortcut;
+        private string shownPreludeProgressKey;
         private int shownOutcome = -1;
         private bool shownOutcomeRecorded;
         private bool shownCartKitRecovered;
@@ -218,12 +219,41 @@ namespace Rpg.Soundwell
             languageText.font = font;            RefreshFormationText();
 
             languageText.text = SoundwellUiLocalization.Get("action.language");
-            Text preludeText = prologueButton.GetComponentInChildren<Text>();
-            if (preludeText != null)
-            {
-                preludeText.font = font;
-                preludeText.text = SoundwellUiLocalization.Get("entry.whitewater_prologue");
-            }
+            RefreshPreludeProgress(true);
+        }
+
+        // S00 only records what the player ACTUALLY reached in Makinom.
+        // The prologue button always starts from the opening; when a prior
+        // visit exists it must say Replay, never falsely promise Resume.
+        internal static string PreludeProgressKey(bool evacueeSafe,
+            bool secondBellHeard, bool cableHeld)
+        {
+            if (cableHeld)
+                return "entry.whitewater_replay_cable";
+            if (secondBellHeard)
+                return "entry.whitewater_replay_bell";
+            if (evacueeSafe)
+                return "entry.whitewater_replay_evacuee";
+            return "entry.whitewater_prologue";
+        }
+
+        private void RefreshPreludeProgress(bool force = false)
+        {
+            if (prologueButton == null)
+                return;
+            var state = Maki.Initialized ? Maki.Game?.Variables : null;
+            string key = PreludeProgressKey(
+                state != null && state.GetInt(WhitewaterPrelude.EvacueeEscortedKey) != 0,
+                state != null && state.GetInt(WhitewaterPrelude.SecondBellKey) != 0,
+                state != null && state.GetInt(WhitewaterPrelude.CableHoldKey) != 0);
+            if (!force && key == shownPreludeProgressKey)
+                return;
+            Text label = prologueButton.GetComponentInChildren<Text>();
+            if (label == null)
+                return;
+            shownPreludeProgressKey = key;
+            label.font = SoundwellUiLocalization.PresentationFont(englishFont);
+            label.text = SoundwellUiLocalization.Get(key);
         }
 
         private void RefreshEntryShortcutHint()
@@ -381,6 +411,10 @@ namespace Rpg.Soundwell
             // ORK may initialize after this scene's Awake/Start. Recheck the
             // same Makinom source without creating a parallel summary flag.
             RefreshReturnOutcome();
+            // The S00 scene lives on this Bootstrap canvas. Its Makinom
+            // markers can advance before returning here; show that progress
+            // without maintaining another quest flag or auto-resuming.
+            RefreshPreludeProgress();
             // Remaps may occur while the Entry screen stays alive. Refresh
             // only when the effective keyboard shortcut changes.
             RefreshEntryShortcutHint();

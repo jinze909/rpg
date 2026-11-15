@@ -534,6 +534,18 @@ MonoBehaviour:
     m_Localized: "S00 · Whitewater Bridge"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267456
+    m_Localized: "S00 · Evacuee safe · Replay"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267457
+    m_Localized: "S00 · Second bell · Replay"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 94572955267458
+    m_Localized: "S00 · Cable held · Replay"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

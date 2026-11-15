@@ -1404,6 +1404,21 @@ namespace Rpg.Tests.Editor
                     "Returning from the opening must clean up the temporary S00 stage.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 Assert.That(events.currentSelectedGameObject, Is.SameAs(prologueButton.gameObject));
+                // Only a real Makinom-owned S00 milestone may alter Entry's
+                // replay label. This S00 input test can also run without
+                // Makinom; never fabricate the state merely to pass.
+                if (Maki.Initialized && Maki.Game?.Variables != null)
+                {
+                    yield return null;
+                    var state = Maki.Game.Variables;
+                    string milestone = SoundwellEntrance.PreludeProgressKey(
+                        state.GetInt(WhitewaterPrelude.EvacueeEscortedKey) != 0,
+                        state.GetInt(WhitewaterPrelude.SecondBellKey) != 0,
+                        state.GetInt(WhitewaterPrelude.CableHoldKey) != 0);
+                    Assert.That(prologueButton.GetComponentInChildren<Text>().text,
+                        Is.EqualTo(SoundwellUiLocalization.Get(milestone)),
+                        "Returning from S00 must update the live UGUI button from Makinom.");
+                }
             }
             finally
             {
