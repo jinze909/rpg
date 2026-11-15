@@ -374,6 +374,47 @@ namespace Rpg.Tests.Editor
                         stage.Close();
                         yield return null;
                     }
+
+                    // Keyboard composite roots may be disabled by a valid
+                    // override while the gamepad left stick still moves the
+                    // player. Don't show dead keyboard keys in S00 instructions.
+                    var keyboardRoots = Enumerable.Range(0, moveAction.bindings.Count)
+                        .Where(index => moveAction.bindings[index].isComposite &&
+                            !string.IsNullOrEmpty(moveAction.bindings[index].effectivePath))
+                        .ToArray();
+                    Assert.That(keyboardRoots, Is.Not.Empty);
+                    var savedRoots = keyboardRoots.Select(index =>
+                        moveAction.bindings[index].overridePath).ToArray();
+                    try
+                    {
+                        foreach (int root in keyboardRoots)
+                            moveAction.ApplyBindingOverride(root, "");
+                        Assert.That(SoundwellInputAdapter.GameplayKeyboardMovementLabel(),
+                            Is.Empty, "Disabled composites have orphaned children, not usable keyboard movement.");
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        var joystickStageRoot = new GameObject("S00 gamepad-only movement cue regression");
+                        var joystickStage = joystickStageRoot.AddComponent<WhitewaterPrelude>();
+                        joystickStage.Begin(null);
+                        joystickStage.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 choice 0")
+                            .onClick.Invoke();
+                        Assert.That(joystickStage.CurrentInstructions, Does.Contain("left stick"));
+                        Assert.That(joystickStage.CurrentInstructions, Does.Not.Contain("IJKL"),
+                            "S00 must not advertise a disabled keyboard composite.");
+                        Assert.That(joystickStage.CurrentInstructions, Does.Not.Contain("WASD"));
+                        joystickStage.Close();
+                        yield return null;
+                    }
+                    finally
+                    {
+                        for (int i = 0; i < keyboardRoots.Length; i++)
+                        {
+                            if (savedRoots[i] == null)
+                                moveAction.RemoveBindingOverride(keyboardRoots[i]);
+                            else
+                                moveAction.ApplyBindingOverride(keyboardRoots[i], savedRoots[i]);
+                        }
+                    }
                 }
                 finally
                 {
