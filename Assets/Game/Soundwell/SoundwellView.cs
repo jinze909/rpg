@@ -678,14 +678,14 @@ namespace Rpg.Soundwell
             attackTargetMarker.enabled = attackButton.interactable && beastActor != null;
             if (attackTargetMarker.enabled)
                 attackTargetMarker.transform.position =
-                    beastActor.position + new Vector3(0f, 1.12f, 0f);
+                    BattleMarkerActorPosition(beastActor) + new Vector3(0f, 1.12f, 0f);
             // Use the same validated chooser as the legal ORK commands.
             // A cached Transform with an invalid turn index is not an active
             // rescuer and must never receive the cyan actor marker.
             activeRescuerMarker.enabled = liveChooser;
             if (activeRescuerMarker.enabled)
                 activeRescuerMarker.transform.position =
-                    activeActor.position + new Vector3(0f, 1.12f, 0f);
+                    BattleMarkerActorPosition(activeActor) + new Vector3(0f, 1.12f, 0f);
             // A disabled Attack is not a pending ORK chooser: Guard, Gate
             // or Move may still be available to this real rescuer. Reserve
             // the waiting caption for a genuinely unresolved ORK turn.
@@ -713,6 +713,19 @@ namespace Rpg.Soundwell
             }
             attackButtonLabel.font = SoundwellUiLocalization.PresentationFont(
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+        }
+
+        // ORK may apply a physical step before the next rendered Transform
+        // catches up. Display turn/target markers at the same authoritative
+        // Rigidbody2D.position used by battle movement and the step preview.
+        // Markers remain collider-free; this never moves a combatant.
+        private static Vector3 BattleMarkerActorPosition(Transform actor)
+        {
+            Rigidbody2D body = actor.GetComponent<Rigidbody2D>();
+            if (body == null)
+                return actor.position;
+            Vector2 position = body.position;
+            return new Vector3(position.x, position.y, actor.position.z);
         }
 
         // Preview the destination before spending the current ORK chooser's
