@@ -619,10 +619,10 @@ class UnityTestManifestPreflightTests(unittest.TestCase):
             editor.mkdir(parents=True)
             fixture = editor / "SoundwellTrialTests.cs"
             fixture.write_text(
-                "namespace Rpg.Tests.Editor { class SoundwellTrialTests {\\n"
-                "[UnityTest] public IEnumerator PlayerCanRingWrapRetreatAndRetry() { yield break; }\\n"
-                "[UnityTest, Order(77)] public IEnumerator ForgottenBridgeDefence() { yield break; }\\n"
-                "public IEnumerator NotAUnityTest() { yield break; }\\n"
+                "namespace Rpg.Tests.Editor { class SoundwellTrialTests {\n"
+                "[UnityTest] public IEnumerator PlayerCanRingWrapRetreatAndRetry() { yield break; }\n"
+                "[UnityTest, Order(77)] public IEnumerator ForgottenBridgeDefence() { yield break; }\n"
+                "public IEnumerator NotAUnityTest() { yield break; }\n"
                 "}}", encoding="utf-8",
             )
             missing = "Rpg.Tests.Editor.SoundwellTrialTests.ForgottenBridgeDefence"
@@ -636,9 +636,9 @@ class UnityTestManifestPreflightTests(unittest.TestCase):
             # exempted from a missing UnityTest manifest registration.
             fixture.unlink()
             (editor / "P0BootstrapTests.cs").write_text(
-                "namespace Rpg.Tests.Editor { class P0BootstrapTests {\\n"
-                "[UnityTest] public IEnumerator FirstPlayInitializesFramework() { yield break; }\\n"
-                "[UnityTest] public IEnumerator UnregisteredBootstrapCase() { yield break; }\\n"
+                "namespace Rpg.Tests.Editor { class P0BootstrapTests {\n"
+                "[UnityTest] public IEnumerator FirstPlayInitializesFramework() { yield break; }\n"
+                "[UnityTest] public IEnumerator UnregisteredBootstrapCase() { yield break; }\n"
                 "}}", encoding="utf-8",
             )
             bootstrap_missing = (
