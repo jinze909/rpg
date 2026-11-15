@@ -554,6 +554,46 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
             self.assertNotIn(added_test, expected_tests_for("verify", True, source_root))
 
 
+class PendingBranchCleanupWorkflowTests(unittest.TestCase):
+    def test_reviewed_legacy_retirements_keep_exact_sha_evidence_and_valid_python(self):
+        # The cleanup workflow is a YAML-embedded Python program. Compiler-
+        # check its exact checked-out body before a green Unity verification
+        # may deliver a replacement for any of these diverged branches.
+        import textwrap
+        source = (Path(__file__).resolve().parents[1] /
+                  ".github/workflows/close-merged-pending.yml").read_text(encoding="utf-8")
+        opening = "          python3 - <<'PY'\n"
+        closing = "\n          PY"
+        self.assertEqual(source.count(opening), 1)
+        body = source.split(opening, 1)[1].split(closing, 1)[0]
+        script = textwrap.dedent(body)
+        compile(script, "close-merged-pending.yml:python", "exec")
+
+        expected = {
+            "codex/pending/story-003-ork-attack-choice":
+                ("6f546b89d4a2bc59688e82bb2451adf13c24290a", 43125796222),
+            "codex/pending/s00-escort-separation-visual-regroup-nov13":
+                ("e3cfeb109d8dece1db29ee400c055100856f5894", 43671553145),
+            "codex/pending/story003-escort-checkpoint-follower-resync-nov14":
+                ("878e2dbd8976dd840c9855229bda984e92ba5f57", 43619755853),
+            "codex/pending/story003-fixed-full-rescue-evidence-nov14":
+                ("4ca0a38d83a9de80b7b1bd9eaf6e32796eeb9834", 43590517380),
+        }
+        for name, (head, original_run) in expected.items():
+            with self.subTest(name=name):
+                start = script.index('"' + name + '": {')
+                receipt = script[start:start + 450]
+                self.assertIn('"head": "' + head + '"', receipt)
+                self.assertIn('"verified": "84f7ff5a255b56c1099daa7421f7e22e8546ed50"', receipt)
+                self.assertIn('"run": 43757378497', receipt)
+                self.assertIn('"original_run": ' + str(original_run), receipt)
+                self.assertIn('"pin_verified_snapshot": True', receipt)
+        # Never accept a green replacement without confirming its original
+        # SHA and artifact; this is stronger than the generic snapshot rule.
+        self.assertIn('original.get("head_sha")==sha', script)
+        self.assertIn('"original candidate exact-SHA artifact missing"', script)
+
+
 class CompilerLogTests(unittest.TestCase):
     def test_successful_editor_updater_notice_is_not_compilation_failure(self):
         # Seen in a completed post-merge run with 4/4 tests passing and both
