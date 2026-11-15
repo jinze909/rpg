@@ -16,6 +16,59 @@ namespace Rpg.Tests.Editor
     // The visible target and search countdown must follow the actual beast AI.
     public sealed class SoundwellThreatPreviewTests
     {
+        [Test]
+        public void BeastCaptureUsesLocalDangerCorridorWhenTrialIsRotated()
+        {
+            var root = new GameObject("rotated Soundwell beast corridor");
+            var beast = new GameObject("rotated-trial beast");
+            var rescuer = new GameObject("rotated-trial player");
+            try
+            {
+                root.transform.position = new Vector3(4f, -2f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                Vector2 home = root.transform.TransformPoint(new Vector3(0.75f, 0f, 0f));
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.gravityScale = 0f;
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(beast.transform, body, home);
+                int captures = 0;
+                patrol.PlayerCaught += () => captures++;
+
+                // Contact overlap alone cannot capture a player on the west
+                // side of the visible gate, even though the level is rotated.
+                body.position = root.transform.TransformPoint(new Vector3(0.50f, 0f, 0f));
+                patrol.Tick(BellSignal.Ready, home, false, false, true, false);
+                Assert.That(captures, Is.Zero);
+
+                // The dangerous corridor now lies along world Y rather than X.
+                // The old world-X subtraction missed this genuine contact.
+                body.position = root.transform.TransformPoint(new Vector3(0.64f, 0f, 0f));
+                patrol.Tick(BellSignal.Ready, home, false, false, true, false);
+                patrol.Tick(BellSignal.Ready, home, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(1),
+                    "A rotated trial must still catch a player at the beast on the east side.");
+
+                // Leaving the local hazard must re-arm exactly one new contact.
+                body.position = root.transform.TransformPoint(new Vector3(0.50f, 0f, 0f));
+                patrol.Tick(BellSignal.Ready, home, false, false, true, false);
+                body.position = root.transform.TransformPoint(new Vector3(0.64f, 0f, 0f));
+                patrol.Tick(BellSignal.Ready, home, false, false, false, false);
+                patrol.Tick(BellSignal.Ready, home, true, false, true, false);
+                Assert.That(captures, Is.EqualTo(1),
+                    "A locked gate and an ORK encounter must still suppress exploration contact.");
+                patrol.Tick(BellSignal.Ready, home, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(2),
+                    "Returning to the physically hazardous corridor re-arms one capture.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         [UnityTest]
         public IEnumerator SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping()
         {

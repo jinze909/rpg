@@ -121,7 +121,9 @@ namespace Rpg.Soundwell
 
             bool playerInDanger = beast != null && player != null &&
                 !directCombat && !combatComplete && gateOpen && !rescueComplete &&
-                player.position.x - transform.position.x > dangerZoneStartLocalX &&
+                // The visible east corridor is local to this scene root.
+                // Subtracting only world X fails when a level is rotated.
+                transform.InverseTransformPoint(player.position).x > dangerZoneStartLocalX &&
                 Vector2.Distance(player.position, Position) <= ContactRadius;
             if (!playerInDanger)
                 contactLatched = false;
