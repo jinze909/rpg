@@ -67,6 +67,60 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CameraFramingKeepsAllRotatedTrialCornersVisibleOnNarrowScreens()
+        {
+            var root = new GameObject("rotated and translated Soundwell camera root");
+            var cameraObject = new GameObject("Soundwell rotated camera test");
+            var leader = new GameObject("rotated trial leader");
+            try
+            {
+                root.transform.position = new Vector3(9f, -5f, 0f);
+                leader.transform.SetParent(root.transform, false);
+                var body = leader.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 16f / 9f;
+                var rig = cameraObject.AddComponent<SoundwellCameraRig>();
+                rig.Initialize(camera, leader.transform, root.transform);
+
+                foreach (float angle in new[] { 0f, 45f, 90f, 180f })
+                foreach (float aspect in new[] { 16f / 9f, 1f, 9f / 16f })
+                foreach (Vector2 leaderLocal in new[] {
+                    new Vector2(-6f, 2f), new Vector2(6f, -2f) })
+                {
+                    root.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                    camera.aspect = aspect;
+                    body.position = root.transform.TransformPoint(leaderLocal);
+                    rig.RefreshFraming();
+                    Vector3 centre = rig.FramingTarget.position;
+                    float halfHeight = rig.VirtualCamera.Lens.OrthographicSize;
+                    float halfWidth = halfHeight * aspect;
+                    foreach (float x in new[] { -8.1f, 8.1f })
+                    foreach (float y in new[] { -3.2f, 3.2f })
+                    {
+                        Vector3 corner = root.transform.TransformPoint(
+                            new Vector3(x, y, 0f));
+                        Assert.That(Mathf.Abs(corner.x - centre.x) + 0.12f,
+                            Is.LessThanOrEqualTo(halfWidth + 0.001f),
+                            "A rotated level cannot crop an exit horizontally at angle " +
+                            angle + " and aspect " + aspect);
+                        Assert.That(Mathf.Abs(corner.y - centre.y) + 0.12f,
+                            Is.LessThanOrEqualTo(halfHeight + 0.001f),
+                            "A rotated level cannot crop an exit vertically at angle " +
+                            angle + " and aspect " + aspect);
+                    }
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void StaleGameplayInputBeforeTrialInitializationCannotMutateOrExitTheScene()
         {
             // A scene-load/UI handoff may deliver the last keyboard/controller
