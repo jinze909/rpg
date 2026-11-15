@@ -18,6 +18,52 @@ namespace Rpg.Tests.Editor
                 AssertContactAtOrigin(originX);
         }
 
+        [Test]
+        public void RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry()
+        {
+            var root = new GameObject("restored Soundwell search");
+            var beast = new GameObject("searching beast");
+            var rescuer = new GameObject("safe rescuer");
+            try
+            {
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.position = new Vector2(-4f, 0f);
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(beast.transform, body, new Vector2(1f, 0f));
+                int expired = 0;
+                patrol.SearchExpired += () => expired++;
+
+                // The save restores Searching directly; no OnBellSignal
+                // callback has run on this newly constructed component.
+                patrol.Tick(BellSignal.Searching, new Vector2(2f, 0f),
+                    false, false, false, false);
+                Assert.That(expired, Is.Zero,
+                    "The first restored search frame must not expire immediately.");
+                Assert.That(patrol.SearchRemainingFraction, Is.GreaterThan(0.95f));
+
+                patrol.Tick(BellSignal.Searching, new Vector2(2f, 0f),
+                    false, false, false, false);
+                Assert.That(expired, Is.Zero,
+                    "A repeated render frame cannot prematurely consume the search.");
+
+                // A later restored search after leaving the old bell state
+                // must start fresh instead of inheriting an expired timer.
+                patrol.Tick(BellSignal.Ready, new Vector2(2f, 0f),
+                    false, false, false, false);
+                patrol.Tick(BellSignal.Searching, new Vector2(3f, 0f),
+                    false, false, false, false);
+                Assert.That(expired, Is.Zero);
+                Assert.That(patrol.SearchRemainingFraction, Is.GreaterThan(0.95f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static void AssertContactAtOrigin(float originX)
         {
             var root = new GameObject("translated Soundwell trial root");

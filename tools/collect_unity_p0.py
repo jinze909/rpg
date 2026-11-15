@@ -96,6 +96,8 @@ ADDITIONAL_EDITOR_TESTS = {
     "Assets/Game/Tests/Editor/BeastPatrolCorridorTests.cs": {
         "BeastContactFollowsTrialOriginAndRearmsAfterExit":
             "Rpg.Tests.Editor.BeastPatrolCorridorTests.BeastContactFollowsTrialOriginAndRearmsAfterExit",
+        "RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry":
+            "Rpg.Tests.Editor.BeastPatrolCorridorTests.RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry",
     },
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
         "TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint":

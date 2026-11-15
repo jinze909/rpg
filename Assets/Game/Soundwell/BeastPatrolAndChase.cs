@@ -70,6 +70,12 @@ namespace Rpg.Soundwell
         public Vector2 Tick(BellSignal bellSignal, Vector2 hearingPoint, bool directCombat,
             bool combatComplete, bool gateOpen, bool rescueComplete)
         {
+            // A reloaded Makinom Searching flag can arrive before the
+            // matching transition event. Do not treat an uninitialized
+            // timer (-Infinity) as an already-expired search.
+            if (bellSignal != BellSignal.Searching)
+                searchStarted = float.NegativeInfinity;
+
             Vector2 destination = Position;
             if (!directCombat && !combatComplete && beast != null)
             {
@@ -81,6 +87,12 @@ namespace Rpg.Soundwell
                 }
                 else if (bellSignal == BellSignal.Searching)
                 {
+                    if (float.IsNegativeInfinity(searchStarted))
+                    {
+                        searchStarted = Time.time;
+                        lastHeard = hearingPoint;
+                        searchExpiryNotified = false;
+                    }
                     float time = Time.time - searchStarted;
                     if (time >= SearchDurationSeconds)
                     {
