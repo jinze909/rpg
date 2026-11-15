@@ -118,6 +118,9 @@ namespace Rpg.Soundwell
         private string shownRescueCueBindings;
         private bool evacueeWaiting;
         private bool evacueeWaitedOffLane;
+        private bool shownEvacueeSafeLineReachable;
+        private string shownEvacueeSafeLineLanguage;
+        private string shownEvacueeSafeLineBindings;
         private Vector2 walker = new Vector2(-245f, 0f);
 
         // 0: roll call; 1: walk; 2: cable decision; 3: stretcher crossing;
@@ -812,6 +815,9 @@ namespace Rpg.Soundwell
             phase = 10;
             evacueeWaiting = false;
             evacueeWaitedOffLane = false;
+            shownEvacueeSafeLineReachable = false;
+            shownEvacueeSafeLineLanguage = null;
+            shownEvacueeSafeLineBindings = null;
             SetEvacueeEscortCue(false);
             narration.text = Copy(
                 "You take the evacuee's arm. 'Keep behind me. Don't stop at the open span.'",
@@ -887,7 +893,17 @@ namespace Rpg.Soundwell
         private void DeliverEvacuee()
         {
             if (!CanDeliverEvacuee)
+            {
+                // An early E / Pad A must explain why the physical safe-line
+                // handoff is unavailable, never silently count as evacuation.
+                if (!evacueeWaiting && instructions != null)
+                    instructions.text = walker.x > EvacueeSafeX || Mathf.Abs(walker.y) > RepairReach
+                        ? Copy("Not at the green safe line. Lead the evacuee west before confirming.",
+                            "尚未到绿色安全线。先带伤者向西撤离，再确认交接。")
+                        : Copy("Wait for the evacuee to reach the green safe line before confirming.",
+                            "请等伤者抵达绿色安全线，再确认交接。");
                 return;
+            }
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(EvacueeEscortedKey, 1);
             phase = 11;
@@ -1678,6 +1694,24 @@ namespace Rpg.Soundwell
             if (phase == 10)
             {
                 UpdateEvacueeFollow();
+                // Show readiness only after BOTH bodies have reached the real
+                // safe line. Keep the displayed action current after rebinds.
+                bool ready = CanDeliverEvacuee;
+                string locale = SoundwellUiLocalization.Language;
+                string bindings = StationPromptBindingSignature();
+                if (ready && (!shownEvacueeSafeLineReachable ||
+                    shownEvacueeSafeLineLanguage != locale ||
+                    shownEvacueeSafeLineBindings != bindings))
+                    instructions.text = Copy(
+                        "At the green safe line: press E / Pad A to confirm the evacuee is safe.",
+                        "已到绿色安全线：按 E／手柄 A 确认伤者安全撤离。");
+                else if (!ready && shownEvacueeSafeLineReachable && !evacueeWaiting)
+                    instructions.text = Copy(
+                        "Green: following. Stay close; press E / Pad A at the safe line.",
+                        "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
+                shownEvacueeSafeLineReachable = ready;
+                shownEvacueeSafeLineLanguage = locale;
+                shownEvacueeSafeLineBindings = bindings;
                 if (frame.Ring)
                     DeliverEvacuee();
                 return;
