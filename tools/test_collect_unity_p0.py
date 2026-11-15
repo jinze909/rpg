@@ -568,6 +568,16 @@ class PendingBranchCleanupWorkflowTests(unittest.TestCase):
         body = source.split(opening, 1)[1].split(closing, 1)[0]
         script = textwrap.dedent(body)
         compile(script, "close-merged-pending.yml:python", "exec")
+        # Besides being syntactically valid, the original-run check must
+        # execute inside the per-branch proof, never at module scope.
+        import ast
+        module = ast.parse(script)
+        proof = next((node for node in module.body
+                      if isinstance(node, ast.FunctionDef)
+                      and node.name == "verified_archived_proof"), None)
+        self.assertIsNotNone(proof)
+        self.assertIn('if entry.get("original_run"):',
+                      ast.get_source_segment(script, proof))
 
         expected = {
             "codex/pending/story-003-ork-attack-choice":
