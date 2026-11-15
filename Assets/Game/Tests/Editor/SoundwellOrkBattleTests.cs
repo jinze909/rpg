@@ -713,6 +713,17 @@ namespace Rpg.Tests.Editor
                     "Move preview must originate at the accepted Rigidbody2D position, not the earlier sprite Transform.");
                 Assert.That(previewBody.position, Is.EqualTo(new Vector2(-3f, -2f)),
                     "Merely displaying the ORK step must not move its physics actor.");
+                // Corrupted/empty step distances may never be accepted as
+                // a real move and spend the actor's once-per-turn allowance.
+                var stepGeometry = displacedPreviewActor.AddComponent<PartyMovement2D>();
+                foreach (float invalidDistance in new[]
+                {
+                    0f, -1f, float.NaN, float.PositiveInfinity
+                })
+                    Assert.That(stepGeometry.TryStepDestination(displacedPreviewActor,
+                        Vector2.up, new[] { displacedPreviewActor }, null,
+                        invalidDistance, out _), Is.False,
+                        "Invalid battle stride must not be previewed or submitted.");
             }
             finally
             {
