@@ -176,6 +176,35 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
 
 
 class SoundwellAcceptanceContractTests(unittest.TestCase):
+    def test_new_nunit_case_is_discovered_from_real_fixture_without_weakening_manifest(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case = source_root / "Assets/Game/Tests/Editor/NovelGameplayTests.cs"
+            case.parent.mkdir(parents=True)
+            fixture = (
+                "namespace Rpg.Tests.Editor {\\n"
+                "  public sealed class NovelGameplayTests {\\n"
+                "    [Test, Order(9)] public void ChecksFreshMovement() {}\\n"
+                "  }\\n"
+                "}\\n"
+            )
+            case.write_text(fixture, encoding="utf-8")
+            name = "Rpg.Tests.Editor.NovelGameplayTests.ChecksFreshMovement"
+            self.assertIn(name, expected_tests_for("verify", True, source_root))
+            self.assertNotIn(name, expected_tests_for("prepare", True, source_root))
+            self.assertNotIn(name, expected_tests_for("verify", False, source_root))
+            # A real source fixture is required; comments, method names
+            # without NUnit attributes, and foreign namespaces are not tests.
+            case.write_text(fixture.replace("[Test, Order(9)]", "// [Test, Order(9)]"),
+                            encoding="utf-8")
+            self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+            case.write_text(fixture.replace("Rpg.Tests.Editor", "Other.Tests"),
+                            encoding="utf-8")
+            self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+            case.write_text(fixture.replace("class NovelGameplayTests", "class OtherTests"),
+                            encoding="utf-8")
+            self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+
     def test_formation_stepping_translation_requires_real_nunit_case(self):
         with tempfile.TemporaryDirectory() as root:
             source_root = Path(root)

@@ -152,9 +152,44 @@ SOUNDWELL_MARKERS = (
 SOURCE_PATHS = ("Assets", "Packages", "ProjectSettings")
 
 
+def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
+    """Derive new standalone NUnit cases from the exact checked-out game test sources.
+
+    A genuine namespace, file-matching test fixture and [Test] method are
+    required. Unexpected names not declared by this candidate still fail,
+    as do missing, skipped, duplicate or failing Unity results.
+    """
+    root = source_root / "Assets/Game/Tests/Editor"
+    if not root.is_dir():
+        return set()
+    test_pattern = re.compile(
+        r"^[ \\t]*\\[Test(?:\\s*,[^\\]\\n]+)?\\]\\s*"
+        r"(?:\\[[^\\]\\n]+\\]\\s*)*"
+        r"public\\s+void\\s+([A-Za-z_]\\w*)\\s*\\(",
+        re.MULTILINE,
+    )
+    declared = set()
+    for path in sorted(root.glob("*Tests.cs")):
+        # Prepare runs only P0BootstrapTests in Unity. Do not infer new
+        # Soundwell checks in a mode that does not execute that suite.
+        if (mode != "verify" or not has_soundwell_scene) and path.stem != "P0BootstrapTests":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if not re.search(r"^\\s*namespace\\s+Rpg\\.Tests\\.Editor\\b", source, re.MULTILINE):
+            continue
+        if not re.search(r"\\bclass\\s+" + re.escape(path.stem) + r"\\b", source):
+            continue
+        declared.update(
+            f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
+            for match in test_pattern.finditer(source)
+        )
+    return declared
+
+
 def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
-    """Match the actual candidate's declared UnityTest cases, not a stale fixed count."""
+    """Match the candidate's declared tests and retain strict XML equality."""
     expected = set(EXPECTED_TESTS)
+    expected.update(discover_editor_nunit_tests(source_root, mode, has_soundwell_scene))
     for relative_path, declared_tests in ADDITIONAL_EDITOR_TESTS.items():
         path = source_root / relative_path
         if not path.is_file():
