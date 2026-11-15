@@ -535,6 +535,70 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            GameObject root = null;
+            try
+            {
+                root = new GameObject("rotated Soundwell formation root");
+                root.transform.position = new Vector3(11f, -6f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var leader = new GameObject("real formation leader");
+                leader.transform.SetParent(root.transform, false);
+                leader.transform.localPosition = new Vector3(-2f, 0f, 0f);
+                var body = leader.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.position = leader.transform.position;
+
+                var config = SoundwellPartyConfig.Load();
+                var formation = root.AddComponent<PartyFormationFollower>();
+                formation.Configure(leader.transform, root.transform, config);
+                var second = formation.CreateFollower(1, "rotated second rescuer",
+                    config.SecondFollowerOffset, Color.white);
+                var third = formation.CreateFollower(2, "rotated third rescuer",
+                    config.ThirdFollowerOffset, Color.white);
+                foreach (var entry in new[] {
+                    (actor: second, offset: config.SecondFollowerOffset),
+                    (actor: third, offset: config.ThirdFollowerOffset) })
+                {
+                    Vector3 expected = leader.transform.position +
+                        root.transform.TransformVector(entry.offset);
+                    Assert.That(Vector3.Distance(entry.actor.transform.position, expected),
+                        Is.LessThan(0.001f),
+                        "A follower must spawn beside the real leader in trial-local formation.");
+                }
+
+                second.SetActive(true);
+                third.SetActive(true);
+                formation.SetFrameworkReady();
+                Vector2 checkpoint = root.transform.TransformPoint(new Vector2(1f, -0.5f));
+                body.position = checkpoint;
+                formation.RegroupAfterCheckpoint(checkpoint);
+                formation.RenderFollowers(false, false, false);
+                foreach (var entry in new[] {
+                    (actor: second, offset: config.SecondFollowerOffset),
+                    (actor: third, offset: config.ThirdFollowerOffset) })
+                {
+                    Vector3 expected = (Vector3)checkpoint +
+                        root.transform.TransformVector(entry.offset);
+                    Assert.That(Vector3.Distance(entry.actor.transform.position, expected),
+                        Is.LessThan(0.001f),
+                        "Checkpoint regroup and the next follower render must use the rotated formation.");
+                }
+            }
+            finally
+            {
+                if (root != null)
+                    Object.Destroy(root);
+            }
+            yield return null;
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator MostRecentAcceptedCompanionPoseCannotReplayEarlierAction()
         {
             // ORK may hand the next rescuer a turn before a previous visual
