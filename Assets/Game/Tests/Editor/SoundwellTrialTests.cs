@@ -786,6 +786,7 @@ namespace Rpg.Tests.Editor
                 MoveTestLeader(playerBody, step);
                 if (step.x <= 0.85f && trial.SurveyorWorldPosition.x > 0.85f)
                 {
+                    Vector2 beforeCrossingFollow = trial.SurveyorWorldPosition;
                     // The real player is already west of the gate, but the
                     // survivor is still walking there from the upper plank.
                     // This is NOT a second gate interaction or a new route
@@ -795,6 +796,9 @@ namespace Rpg.Tests.Editor
                     Assert.That(trial.SurveyorEscorting, Is.True);
                     Assert.That(trial.RescueComplete, Is.False);
                     Assert.That(trial.SurveyorWorldPosition.x, Is.GreaterThan(0.85f));
+                    Assert.That(trial.SurveyorWorldPosition.x,
+                        Is.LessThan(beforeCrossingFollow.x),
+                        "Crossing with the physics leader must start the live survivor moving west, not merely change the HUD hint.");
                     Assert.That(contextualHint.text, Is.EqualTo(
                         SoundwellUiLocalization.Get("hint.escort_to_retreat")),
                         "After the guide crosses the physical gate, direct the still-following survivor to RETREAT.");
