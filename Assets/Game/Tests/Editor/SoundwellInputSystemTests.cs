@@ -374,6 +374,50 @@ namespace Rpg.Tests.Editor
                         stage.Close();
                         yield return null;
                     }
+
+                    // A player can retain gamepad Move while disabling all
+                    // keyboard directions. Override the actual composite
+                    // PARTS, not their roots: Input System 1.x can throw while
+                    // resolving live child bindings when a root is disabled.
+                    // This must exercise a valid playable gamepad-only setup.
+                    var keyboardParts = Enumerable.Range(0, moveAction.bindings.Count)
+                        .Where(index => moveAction.bindings[index].isPartOfComposite &&
+                            moveAction.bindings[index].effectivePath.StartsWith(
+                                "<Keyboard>/", System.StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
+                    Assert.That(keyboardParts, Is.Not.Empty);
+                    var savedParts = keyboardParts.Select(index =>
+                        moveAction.bindings[index].overridePath).ToArray();
+                    try
+                    {
+                        foreach (int part in keyboardParts)
+                            moveAction.ApplyBindingOverride(part, "");
+                        Assert.That(SoundwellInputAdapter.GameplayKeyboardMovementLabel(),
+                            Is.Empty, "A gamepad-only binding must not show disabled keyboard directions.");
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        var joystickStageRoot = new GameObject("S00 gamepad-only movement cue regression");
+                        var joystickStage = joystickStageRoot.AddComponent<WhitewaterPrelude>();
+                        joystickStage.Begin(null);
+                        joystickStage.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 choice 0")
+                            .onClick.Invoke();
+                        Assert.That(joystickStage.CurrentInstructions, Does.Contain("left stick"));
+                        Assert.That(joystickStage.CurrentInstructions, Does.Not.Contain("IJKL"),
+                            "S00 must not advertise disabled keyboard directions.");
+                        Assert.That(joystickStage.CurrentInstructions, Does.Not.Contain("WASD"));
+                        joystickStage.Close();
+                        yield return null;
+                    }
+                    finally
+                    {
+                        for (int i = 0; i < keyboardParts.Length; i++)
+                        {
+                            if (savedParts[i] == null)
+                                moveAction.RemoveBindingOverride(keyboardParts[i]);
+                            else
+                                moveAction.ApplyBindingOverride(keyboardParts[i], savedParts[i]);
+                        }
+                    }
                 }
                 finally
                 {
