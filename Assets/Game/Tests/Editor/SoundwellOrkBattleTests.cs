@@ -29,6 +29,45 @@ namespace Rpg.Tests.Editor
     /// </summary>
     public sealed class SoundwellOrkBattleTests
     {
+        // A trigger-only ORK actor still occupies the wide physical space of
+        // its box. A successful step preview must never pass through it even
+        // though Physics2D.CircleCast intentionally ignores triggers.
+        [Test, Order(9)]
+        public void TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var root = new GameObject("Isolated battle-step geometry");
+            var actor = new GameObject("Active rescuer");
+            var blocker = new GameObject("Trigger-only large actor");
+            try
+            {
+                var movement = root.AddComponent<PartyMovement2D>();
+                actor.AddComponent<CircleCollider2D>().radius = 0.3f;
+                blocker.transform.position = new Vector3(1f, 0.7f, 0f);
+                var trigger = blocker.AddComponent<BoxCollider2D>();
+                trigger.size = new Vector2(1.2f, 1.2f);
+                trigger.isTrigger = true;
+                var actors = new List<GameObject> { actor, blocker };
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.right,
+                    actors, null, 1f, out _), Is.False,
+                    "The trigger box reaches into the rescuer's real movement lane.");
+
+                blocker.transform.position = new Vector3(1f, 2f, 0f);
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.right,
+                    actors, null, 1f, out Vector2 destination), Is.True,
+                    "A distant box cannot reserve an unrelated movement lane.");
+                Assert.That(destination, Is.EqualTo(Vector2.right));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(actor);
+                Object.DestroyImmediate(blocker);
+            }
+        }
+
         // Run the full combat path before the separate retreat test. Returning
         // through Bootstrap can leave a pending async scene transition while
         // the next test's fresh Play Mode domain is being initialized.

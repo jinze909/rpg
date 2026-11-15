@@ -123,6 +123,34 @@ namespace Rpg.Soundwell
                 clearance = Mathf.Max(minimumClearance, movingRadius +
                     footprint.radius * scale);
             }
+            // ORK can represent an occupied actor with a trigger-only box
+            // (or temporarily disable its collider while an action plays).
+            // CircleCast excludes triggers; the legacy pivot-only fallback
+            // would allow a rescuer to step through the box's actual width.
+            // Compare the cardinal step's swept footprint with its world-space
+            // bounds, including rotation and non-uniform scale. This remains
+            // a geometry check; ORK retains all turn/action authority.
+            if (footprint == null)
+            {
+                BoxCollider2D box = obstacle.GetComponent<BoxCollider2D>();
+                if (box != null)
+                {
+                    Vector2 halfX = obstacle.TransformVector(
+                        new Vector3(box.size.x * 0.5f, 0f, 0f));
+                    Vector2 halfY = obstacle.TransformVector(
+                        new Vector3(0f, box.size.y * 0.5f, 0f));
+                    Vector2 extents = new Vector2(
+                        Mathf.Abs(halfX.x) + Mathf.Abs(halfY.x),
+                        Mathf.Abs(halfX.y) + Mathf.Abs(halfY.y));
+                    Vector2 boxCentre = obstacle.TransformPoint(box.offset);
+                    Vector2 to = from + direction * distance;
+                    float padding = Mathf.Max(movingRadius, minimumClearance * 0.5f);
+                    return Mathf.Min(from.x, to.x) - padding <= boxCentre.x + extents.x &&
+                        Mathf.Max(from.x, to.x) + padding >= boxCentre.x - extents.x &&
+                        Mathf.Min(from.y, to.y) - padding <= boxCentre.y + extents.y &&
+                        Mathf.Max(from.y, to.y) + padding >= boxCentre.y - extents.y;
+                }
+            }
             float along = Mathf.Clamp(Vector2.Dot(centre - from, direction), 0f, distance);
             return Vector2.Distance(centre, from + direction * along) < clearance;
         }
