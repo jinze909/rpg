@@ -605,6 +605,61 @@ class PendingBranchCleanupWorkflowTests(unittest.TestCase):
         self.assertIn('"original candidate exact-SHA artifact missing"', script)
 
 
+    def test_cleanup_refuses_queued_or_running_branch_ci(self):
+        # Execute only the cleanup workflow's exact runs_for function with
+        # an in-memory API stub: no network, branch deletion or workflow edits.
+        # A string-only assertion would pass even if its safety check were
+        # accidentally moved outside the function or stopped executing.
+        import ast
+        import textwrap
+        import urllib.parse
+
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/close-merged-pending.yml").read_text(
+                        encoding="utf-8")
+        opening = "          python3 - <<'PY'\n"
+        closing = "\n          PY"
+        self.assertEqual(workflow.count(opening), 1)
+        script = textwrap.dedent(workflow.split(opening, 1)[1].split(closing, 1)[0])
+        tree = ast.parse(script)
+        function = next((node for node in tree.body
+                         if isinstance(node, ast.FunctionDef)
+                         and node.name == "runs_for"), None)
+        self.assertIsNotNone(function, "The cleanup must keep a per-branch CI gate.")
+
+        isolated = ast.fix_missing_locations(
+            ast.Module(body=[function], type_ignores=[]))
+        def require(ok, reason):
+            if not ok:
+                raise RuntimeError(reason)
+
+        for status in ("queued", "in_progress", "waiting", "requested"):
+            with self.subTest(status=status):
+                calls = []
+                def pages(path, key):
+                    calls.append((path, key))
+                    return [{"status": "completed"}, {"status": status}]
+                scope = {"REPO": "jinze909/rpg", "urllib": urllib,
+                         "pages": pages, "check": require}
+                exec(compile(isolated, "cleanup:runs_for", "exec"), scope)
+                with self.assertRaisesRegex(RuntimeError, "active or queued CI"):
+                    scope["runs_for"]("codex/pending/r5-ci-safety")
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(calls[0][1], "workflow_runs")
+                self.assertIn("branch=codex%2Fpending%2Fr5-ci-safety", calls[0][0])
+
+        # No active job must leave the branch eligible for the remaining
+        # exact-SHA / artifact checks; it must not make the branch deletable.
+        for statuses in ([], [{"status": "completed"}]):
+            def pages(path, key):
+                return statuses
+            scope = {"REPO": "jinze909/rpg", "urllib": urllib,
+                     "pages": pages, "check": require}
+            exec(compile(isolated, "cleanup:runs_for", "exec"), scope)
+            self.assertEqual(scope["runs_for"]("codex/pending/r5-ci-safety"),
+                             statuses)
+
+
 class UnityTestManifestPreflightTests(unittest.TestCase):
     def test_live_editor_unitytests_are_registered_before_unity_starts(self):
         root = Path(__file__).resolve().parents[1]
