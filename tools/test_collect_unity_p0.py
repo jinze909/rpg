@@ -182,11 +182,11 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             case = source_root / "Assets/Game/Tests/Editor/NovelGameplayTests.cs"
             case.parent.mkdir(parents=True)
             fixture = (
-                "namespace Rpg.Tests.Editor {\\n"
-                "  public sealed class NovelGameplayTests {\\n"
-                "    [Test, Order(9)] public void ChecksFreshMovement() {}\\n"
-                "  }\\n"
-                "}\\n"
+                "namespace Rpg.Tests.Editor {\n"
+                "  public sealed class NovelGameplayTests {\n"
+                "    [Test, Order(9)] public void ChecksFreshMovement() {}\n"
+                "  }\n"
+                "}\n"
             )
             case.write_text(fixture, encoding="utf-8")
             name = "Rpg.Tests.Editor.NovelGameplayTests.ChecksFreshMovement"

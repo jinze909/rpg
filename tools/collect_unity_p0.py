@@ -163,9 +163,9 @@ def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
     if not root.is_dir():
         return set()
     test_pattern = re.compile(
-        r"^[ \\t]*\\[Test(?:\\s*,[^\\]\\n]+)?\\]\\s*"
-        r"(?:\\[[^\\]\\n]+\\]\\s*)*"
-        r"public\\s+void\\s+([A-Za-z_]\\w*)\\s*\\(",
+        r"^[ \t]*\[Test(?:\s*,[^\]\n]+)?\]\s*"
+        r"(?:\[[^\]\n]+\]\s*)*"
+        r"public\s+void\s+([A-Za-z_]\w*)\s*\(",
         re.MULTILINE,
     )
     declared = set()
@@ -175,9 +175,9 @@ def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
         if (mode != "verify" or not has_soundwell_scene) and path.stem != "P0BootstrapTests":
             continue
         source = path.read_text(encoding="utf-8")
-        if not re.search(r"^\\s*namespace\\s+Rpg\\.Tests\\.Editor\\b", source, re.MULTILINE):
+        if not re.search(r"^\s*namespace\s+Rpg\.Tests\.Editor\b", source, re.MULTILINE):
             continue
-        if not re.search(r"\\bclass\\s+" + re.escape(path.stem) + r"\\b", source):
+        if not re.search(r"\bclass\s+" + re.escape(path.stem) + r"\b", source):
             continue
         declared.update(
             f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
