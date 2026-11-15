@@ -81,8 +81,8 @@ namespace Rpg.Soundwell
 
             // Exploration hazards are delegated to checkpoint + patrol; ORK
             // turn movement retains its independent movement authority.
-            if (ShouldRecoverFromLowerPlank(DirectCombatStarted, GateOpen,
-                    playerBody.position))
+            if (checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    DirectCombatStarted, GateOpen, playerBody.position))
             {
                 checkpoint.RecoverLowerPlank(LowerPlankBroken);
                 // Every real lower-board fall needs an observable impact:
