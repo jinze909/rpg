@@ -110,6 +110,14 @@ namespace Rpg.Tests.Editor
                 root.transform.position = new Vector3(7f, -4f, 0f);
                 root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
                 var trial = root.AddComponent<SoundwellTrial>();
+                Vector2 actualSurveyor = root.transform.TransformPoint(
+                    SoundwellTrial.SurveyorPosition);
+                Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, actualSurveyor),
+                    Is.LessThan(0.001f),
+                    "An unloaded view must still resolve the surveyor at the transformed scene origin.");
+                Assert.That(Vector2.Distance(trial.SurveyorWorldPosition,
+                    SoundwellTrial.SurveyorPosition), Is.GreaterThan(1f),
+                    "The legacy origin-space spawn cannot locate the survivor after a scene move.");
                 Vector2 actualCart = root.transform.TransformPoint(
                     SoundwellTrial.CartEvidencePosition);
                 Assert.That(Vector2.Distance(trial.CartEvidenceWorldPosition, actualCart),
