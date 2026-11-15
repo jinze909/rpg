@@ -227,6 +227,40 @@ def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
     return expected
 
 
+def unregistered_unitytest_methods(source_root, mode, has_soundwell_scene):
+    """Fail early for new UnityTest methods omitted from the strict manifest.
+
+    Unlike NUnit [Test] discovery, UnityTest cases are explicitly admitted:
+    a new action test must be intentionally registered, not silently added to
+    the accepted XML result set. This guard runs in the cheap Python preflight
+    before the full Unity import and never relaxes exact result equality.
+    """
+    root = source_root / "Assets/Game/Tests/Editor"
+    if not root.is_dir():
+        return set()
+    pattern = re.compile(
+        r"^[ \\t]*\\[UnityTest(?:\\s*,[^\\]\\n]+)?\\]\\s*"
+        r"(?:\\[[^\\]\\n]+\\]\\s*)*"
+        r"public\\s+IEnumerator\\s+([A-Za-z_]\\w*)\\s*\\(",
+        re.MULTILINE,
+    )
+    expected = expected_tests_for(mode, has_soundwell_scene, source_root)
+    omitted = set()
+    for path in sorted(root.glob("*Tests.cs")):
+        if (mode != "verify" or not has_soundwell_scene) and path.stem != "P0BootstrapTests":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if not re.search(r"^\\s*namespace\\s+Rpg\\.Tests\\.Editor\\b", source, re.MULTILINE):
+            continue
+        if not re.search(r"\\bclass\\s+" + re.escape(path.stem) + r"\\b", source):
+            continue
+        for match in pattern.finditer(source):
+            qualified_name = f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
+            if qualified_name not in expected:
+                omitted.add(qualified_name)
+    return omitted
+
+
 # Import/updater notices can include "Unable to update following assemblies"
 # even when the pinned DLL is intentionally excluded from API updating,
 # both Unity processes exit 0, and all expected real Play Mode tests pass.

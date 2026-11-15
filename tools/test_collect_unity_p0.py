@@ -14,6 +14,7 @@ from collect_unity_p0 import (
     SOUNDWELL_MARKERS,
     SOUNDWELL_TESTS,
     expected_tests_for,
+    unregistered_unitytest_methods,
     format_performance_summary,
     validate_memory_phases,
     validate_soundwell_route_starts,
@@ -602,6 +603,49 @@ class PendingBranchCleanupWorkflowTests(unittest.TestCase):
         # SHA and artifact; this is stronger than the generic snapshot rule.
         self.assertIn('original.get("head_sha")==sha', script)
         self.assertIn('"original candidate exact-SHA artifact missing"', script)
+
+
+class UnityTestManifestPreflightTests(unittest.TestCase):
+    def test_live_editor_unitytests_are_registered_before_unity_starts(self):
+        root = Path(__file__).resolve().parents[1]
+        unregistered = unregistered_unitytest_methods(root, "verify", True)
+        self.assertEqual(unregistered, set(),
+                         "Register every new UnityTest in the exact P0 manifest.")
+
+    def test_missing_playmode_registration_is_detected_but_never_auto_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            editor = root / "Assets/Game/Tests/Editor"
+            editor.mkdir(parents=True)
+            fixture = editor / "SoundwellTrialTests.cs"
+            fixture.write_text(
+                "namespace Rpg.Tests.Editor { class SoundwellTrialTests {\\n"
+                "[UnityTest] public IEnumerator PlayerCanRingWrapRetreatAndRetry() { yield break; }\\n"
+                "[UnityTest, Order(77)] public IEnumerator ForgottenBridgeDefence() { yield break; }\\n"
+                "public IEnumerator NotAUnityTest() { yield break; }\\n"
+                "}}", encoding="utf-8",
+            )
+            missing = "Rpg.Tests.Editor.SoundwellTrialTests.ForgottenBridgeDefence"
+            self.assertEqual(unregistered_unitytest_methods(root, "verify", True),
+                             {missing})
+            self.assertNotIn(missing, expected_tests_for("verify", True, root))
+            self.assertEqual(unregistered_unitytest_methods(root, "prepare", True), set())
+            self.assertEqual(unregistered_unitytest_methods(root, "verify", False), set())
+
+            # Bootstrap tests also run in prepare mode, and must never be
+            # exempted from a missing UnityTest manifest registration.
+            fixture.unlink()
+            (editor / "P0BootstrapTests.cs").write_text(
+                "namespace Rpg.Tests.Editor { class P0BootstrapTests {\\n"
+                "[UnityTest] public IEnumerator FirstPlayInitializesFramework() { yield break; }\\n"
+                "[UnityTest] public IEnumerator UnregisteredBootstrapCase() { yield break; }\\n"
+                "}}", encoding="utf-8",
+            )
+            bootstrap_missing = (
+                "Rpg.Tests.Editor.P0BootstrapTests.UnregisteredBootstrapCase"
+            )
+            self.assertEqual(unregistered_unitytest_methods(root, "prepare", True),
+                             {bootstrap_missing})
 
 
 class CompilerLogTests(unittest.TestCase):
