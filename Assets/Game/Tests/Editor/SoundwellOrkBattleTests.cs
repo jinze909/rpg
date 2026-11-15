@@ -735,6 +735,20 @@ namespace Rpg.Tests.Editor
                 previewBody.bodyType = RigidbodyType2D.Kinematic;
                 previewBody.gravityScale = 0f;
                 previewBody.position = new Vector2(-3f, -2f);
+                // The current ORK rescuer marker and the reversible Move
+                // preview must agree on the same physical position even
+                // before Transform catches up after a queued movement.
+                setBattleChoices.Invoke(liveView, new object[]
+                {
+                    actualAttacker, displacedPreviewActor.transform,
+                    false, false, false, false
+                });
+                Assert.That(turnCue.enabled, Is.True);
+                Assert.That((Vector2)turnCue.transform.position,
+                    Is.EqualTo(previewBody.position + new Vector2(0f, 1.12f)),
+                    "The active ORK rescuer marker cannot lag an accepted Rigidbody2D move.");
+                Assert.That(previewBody.position, Is.EqualTo(new Vector2(-3f, -2f)),
+                    "Repositioning a turn marker cannot teleport the physical combatant.");
                 setBattleMoveChoices.Invoke(liveView, new object[]
                 {
                     actualAttacker, displacedPreviewActor.transform, true, false, false, false
