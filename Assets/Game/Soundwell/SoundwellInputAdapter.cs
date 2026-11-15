@@ -184,7 +184,11 @@ namespace Rpg.Soundwell
             EnsureLoaded();
             for (int start = 0; start + 4 < move.bindings.Count; start++)
             {
-                if (!move.bindings[start].isComposite)
+                // A disabled composite can leave valid-looking direction
+                // child paths that no longer drive the Move action. Never
+                // advertise those orphaned keys in the S00 walk prompt.
+                if (!move.bindings[start].isComposite ||
+                    string.IsNullOrWhiteSpace(move.bindings[start].effectivePath))
                     continue;
                 var labels = new string[4];
                 bool usable = true;
