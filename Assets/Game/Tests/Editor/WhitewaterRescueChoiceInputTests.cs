@@ -394,7 +394,7 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("left stick"),
                             "The bridge post must advertise movement when gameplay control returns.");
                         yield return AssertBridgeStationNeedsVisibleContact(input, keys,
-                            activePrelude, () => activePrelude.CanTakeBridgePost, 12);
+                            activePrelude, candidate => candidate.CanTakeBridgePost, 12);
                         input.Press(keys.eKey);
                         yield return null;
                         input.Release(keys.eKey);
@@ -455,7 +455,7 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.Phase, Is.EqualTo(14),
                             "Walking into view without E does not discover troops.");
                         yield return AssertBridgeStationNeedsVisibleContact(input, keys,
-                            activePrelude, () => activePrelude.CanWarnFarBank, 14);
+                            activePrelude, candidate => candidate.CanWarnFarBank, 14);
                         input.Press(keys.eKey);
                         yield return null;
                         input.Release(keys.eKey);
@@ -511,7 +511,7 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("left stick"),
                             "The cable return must advertise the active movement controls.");
                         yield return AssertBridgeStationNeedsVisibleContact(input, keys,
-                            activePrelude, () => activePrelude.CanHoldCable, 15);
+                            activePrelude, candidate => candidate.CanHoldCable, 15);
                         Assert.That(observedMarchFrame, Is.True,
                             "The far-bank soldiers must show a distinct pixel footfall while advancing.");
                         Assert.That(approachingImage.sprite.texture.filterMode,
@@ -637,9 +637,9 @@ namespace Rpg.Tests.Editor
         // as taking a post, spotting troops, or holding Shen Li's cable.
         private static IEnumerator AssertBridgeStationNeedsVisibleContact(
             InputTestFixture input, Keyboard keys, WhitewaterPrelude stage,
-            System.Func<bool> canUse, int phase)
+            System.Func<WhitewaterPrelude, bool> canUse, int phase)
         {
-            Assert.That(canUse(), Is.True,
+            Assert.That(canUse(stage), Is.True,
                 "The player must first be horizontally in reach of the real station.");
             input.Press(keys.wKey);
             float deadline = Time.realtimeSinceStartup + 3f;
@@ -649,7 +649,7 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(stage.WalkerPosition.y, Is.GreaterThan(35f),
                 "The player must actually move outside the station's visible vertical reach.");
-            Assert.That(canUse(), Is.False,
+            Assert.That(canUse(stage), Is.False,
                 "The old loose station radius gave interaction credit off the bridge.");
             input.Press(keys.eKey);
             yield return null;
@@ -664,7 +664,7 @@ namespace Rpg.Tests.Editor
             input.Release(keys.sKey);
             yield return null;
             Assert.That(stage.WalkerPosition.y, Is.LessThanOrEqualTo(12f));
-            Assert.That(canUse(), Is.True,
+            Assert.That(canUse(stage), Is.True,
                 "Returning to the same visible marker must restore the earned interaction.");
         }
 
