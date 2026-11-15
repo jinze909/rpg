@@ -609,6 +609,43 @@ namespace Rpg.Tests.Editor
             Assert.That(viewField, Is.Not.Null);
             object liveView = viewField.GetValue(trial);
             Assert.That(liveView, Is.Not.Null);
+            // The old bell/search countdown is NOT a turn timer. Even if a
+            // previous Makinom Searching or Ringing flag remains visible on
+            // the same update, the ORK battle must not advertise its patrol
+            // target or a second clock on top of the real combat chooser.
+            var searchPresentation = liveView.GetType().GetMethod(
+                "RefreshBeastSearchPresentation",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(searchPresentation, Is.Not.Null);
+            foreach (string fieldName in new[]
+            {
+                "beastIntentMarker", "searchTimerTrack", "searchTimerFill"
+            })
+            {
+                var field = liveView.GetType().GetField(fieldName,
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(field, Is.Not.Null);
+            }
+            searchPresentation.Invoke(liveView, new object[]
+            {
+                true, true, 0.6f, new Vector2(2f, 1f)
+            });
+            foreach (string fieldName in new[]
+            {
+                "beastIntentMarker", "searchTimerTrack", "searchTimerFill"
+            })
+            {
+                var field = liveView.GetType().GetField(fieldName,
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                var marker = (SpriteRenderer)field.GetValue(liveView);
+                Assert.That(marker, Is.Not.Null);
+                Assert.That(marker.enabled, Is.False,
+                    "Exploration bell/search art cannot claim a second timer during the ORK battle: " +
+                    fieldName);
+            }
             var setBattleMode = liveView.GetType().GetMethod("SetBattleMode");
             var setBattleChoices = liveView.GetType().GetMethod("SetBattleChoices");
             Assert.That(setBattleMode, Is.Not.Null);
