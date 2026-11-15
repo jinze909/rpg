@@ -70,6 +70,7 @@ namespace Rpg.Soundwell
         private RectTransform lastBoat;
         private Texture2D lastBoatPixelTexture;
         private RectTransform evacuee;
+        private Text evacueeEscortStatus;
         private RectTransform evacueeSafeLine;
         private RectTransform spareRope;
         private RectTransform bridgePost;
@@ -407,6 +408,13 @@ namespace Rpg.Soundwell
                 out evacueePixelTexture);
             evacueeFigure.sprite = evacueePixelSprite;
             evacuee = evacueeFigure.rectTransform;
+            // The wounded follower's status must remain readable without
+            // distinguishing the green and amber sprite tints.
+            evacueeEscortStatus = Label(evacuee, "", 12,
+                new Vector2(0f, 25f), new Vector2(82f, 20f), Ink);
+            evacueeEscortStatus.gameObject.name = "S00 evacuee escort status";
+            evacueeEscortStatus.raycastTarget = false;
+            evacueeEscortStatus.gameObject.SetActive(false);
             evacueeSafeLine.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(false);
             // Visible only after the player finishes the escort and calls out.
@@ -716,6 +724,7 @@ namespace Rpg.Soundwell
             StartCoroutine(LastBoatDeparts());
             evacuee.anchoredPosition = new Vector2(EvacueeStartX, 12f);
             evacuee.GetComponent<Image>().color = Color.white;
+            evacueeEscortStatus.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(true);
             evacueeSafeLine.gameObject.SetActive(true);
             SoundwellInputAdapter.SetGameplayContext();
@@ -826,6 +835,12 @@ namespace Rpg.Soundwell
         {
             if (evacuee != null && evacuee.TryGetComponent<Image>(out var graphic))
                 graphic.color = waiting ? EvacueeWaitingTint : EvacueeFollowingTint;
+            if (evacueeEscortStatus != null)
+            {
+                evacueeEscortStatus.text = waiting
+                    ? Copy("WAIT", "等待") : Copy("FOLLOW", "跟随");
+                evacueeEscortStatus.gameObject.SetActive(true);
+            }
         }
 
         private void DeliverEvacuee()
@@ -835,6 +850,7 @@ namespace Rpg.Soundwell
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(EvacueeEscortedKey, 1);
             phase = 11;
+            evacueeEscortStatus.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
                 "One more person crosses the safe line. Enemy troops close in; Shen Li still watches the bridge cable.",

@@ -315,6 +315,14 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.Phase, Is.EqualTo(10));
                         var follower = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/S00 last evacuee").GetComponent<Image>();
+                        var escortStatus = follower.transform.Find("S00 evacuee escort status")
+                            ?.GetComponent<Text>();
+                        Assert.That(escortStatus, Is.Not.Null);
+                        Assert.That(escortStatus.gameObject.activeInHierarchy, Is.True);
+                        Assert.That(escortStatus.raycastTarget, Is.False,
+                            "The on-actor text cannot block rescue input.");
+                        Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"),
+                            "Escort readiness must not rely on color alone.");
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Green indicates a follower is connected to the escort.");
 
@@ -330,6 +338,8 @@ namespace Rpg.Tests.Editor
                             "A separated follower cannot be delivered without returning to the bridge lane.");
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("bridge lane"),
                             "A player who stepped off the bridge needs a lane-specific recovery hint.");
+                        Assert.That(escortStatus.text, Is.EqualTo("WAIT"),
+                            "Off-lane separation must show readable state beside the follower.");
 
                         input.Press(keys.wKey);
                         float regroupDeadline = Time.realtimeSinceStartup + 3f;
@@ -341,6 +351,8 @@ namespace Rpg.Tests.Editor
                             "Returning to the follower must restore a visible green escort state.");
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("Green: following"),
                             "Regrouping must replace the previous amber recovery hint.");
+                        Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"),
+                            "Returning to the lane must restore readable follower state.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(10),
                             "Regrouping never skips the physical safe-line confirmation.");
 
@@ -361,6 +373,8 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(11));
+                        Assert.That(escortStatus.gameObject.activeSelf, Is.False,
+                            "The old follower status must disappear after safe arrival.");
                         var coil = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
                         Assert.That(coil, Is.Not.Null);
