@@ -811,7 +811,15 @@ namespace Rpg.Soundwell
         private void HelpEvacuee()
         {
             if (!CanHelpEvacuee)
+            {
+                // Pressing E away from the last wounded civilian must not
+                // silently discard the real input or grant an unearned escort.
+                if (phase == 9 && instructions != null)
+                    instructions.text = Copy(
+                        "Too far from the amber evacuee. Walk beside them, then press E / Pad A to help.",
+                        "距离金色伤者还太远。先走到伤者身旁，再按 E／手柄 A 搀扶。");
                 return;
+            }
             phase = 10;
             evacueeWaiting = false;
             evacueeWaitedOffLane = false;
