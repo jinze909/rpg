@@ -651,6 +651,9 @@ namespace Rpg.Tests.Editor
                 "The player must actually move outside the station's visible vertical reach.");
             Assert.That(canUse(stage), Is.False,
                 "The old loose station radius gave interaction credit off the bridge.");
+            Assert.That(stage.CurrentInstructions, Does.Contain(
+                phase == 15 ? "Return" : "Reach"),
+                "Walking off the amber marker must restore the phase-correct approach cue.");
             input.Press(keys.eKey);
             yield return null;
             input.Release(keys.eKey);
@@ -683,6 +686,12 @@ namespace Rpg.Tests.Editor
             Assert.That(stage.WalkerPosition.y, Is.LessThanOrEqualTo(12f));
             Assert.That(canUse(stage), Is.True,
                 "Returning to the same visible marker must restore the earned interaction.");
+            Assert.That(stage.Phase, Is.EqualTo(phase),
+                "Proximity feedback cannot grant the post, warning or cable hold.");
+            Assert.That(stage.CurrentInstructions, Does.Contain("At "),
+                "Returning into real station reach must switch to a ready-to-interact cue.");
+            Assert.That(stage.CurrentInstructions, Does.Contain("press "),
+                "A ready station must tell the player which input to use before pressing it.");
         }
 
         private static Button FindButton(WhitewaterPrelude stage, string name)

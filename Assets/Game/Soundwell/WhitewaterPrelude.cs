@@ -105,6 +105,11 @@ namespace Rpg.Soundwell
         private Button next;
         private Action onExit;
         private int phase;
+        // S00 station prompts are keyed only to physical reach, phase and
+        // selected locale. They never grant actions or copy Makinom state.
+        private int shownBridgeCuePhase = -1;
+        private bool shownBridgeCueReachable;
+        private string shownBridgeCueLanguage;
         private int rescueMethod;
         private bool evacueeWaiting;
         private bool evacueeWaitedOffLane;
@@ -1495,6 +1500,48 @@ namespace Rpg.Soundwell
             }
         }
 
+        // Tell the player immediately when their REAL position makes the
+        // amber station usable; stepping out again restores the approach cue.
+        // The existing Ring action still decides whether the station is used.
+        private void RefreshBridgeStationReachCue()
+        {
+            if (instructions == null || (phase != 12 && phase != 14 && phase != 15))
+                return;
+            bool reachable = phase == 12 ? CanTakeBridgePost :
+                phase == 14 ? CanWarnFarBank : CanHoldCable;
+            string locale = SoundwellUiLocalization.Language;
+            if (shownBridgeCuePhase == phase &&
+                shownBridgeCueReachable == reachable &&
+                shownBridgeCueLanguage == locale)
+                return;
+            shownBridgeCuePhase = phase;
+            shownBridgeCueReachable = reachable;
+            shownBridgeCueLanguage = locale;
+            if (!reachable)
+            {
+                ShowBridgeStationOutOfReach();
+                return;
+            }
+            switch (phase)
+            {
+                case 12:
+                    instructions.text = Copy(
+                        "At Shen Li's amber bridge post: press E / Pad A to take position. WASD / left stick to reposition.",
+                        "已到沈砾身边金色桥头守位：按 E／手柄 A 站定，WASD／左摇杆可调整位置。");
+                    break;
+                case 14:
+                    instructions.text = Copy(
+                        "At the amber lookout: press E / Pad A to identify the troops. WASD / left stick to reposition.",
+                        "已到金色瞭望点：按 E／手柄 A 辨认敌军，WASD／左摇杆可调整位置。");
+                    break;
+                case 15:
+                    instructions.text = Copy(
+                        "At Shen Li's amber cable post: press E / Pad A to brace it. WASD / left stick to reposition.",
+                        "已到沈砾身边金色缆桩：按 E／手柄 A 扶住缆索，WASD／左摇杆可调整位置。");
+                    break;
+            }
+        }
+
         private void Update()
         {
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
@@ -1516,6 +1563,7 @@ namespace Rpg.Soundwell
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
             marker.anchoredPosition = new Vector2(walker.x, 12f + walker.y);
+            RefreshBridgeStationReachCue();
             if (phase == 15)
             {
                 if (frame.Ring)
