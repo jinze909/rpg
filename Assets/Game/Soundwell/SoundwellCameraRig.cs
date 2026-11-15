@@ -21,6 +21,7 @@ namespace Rpg.Soundwell
         private Camera sceneCamera;
         private Transform player;
         private Rigidbody2D playerBody;
+        private Transform trialRoot;
         private Transform framingTarget;
         private CinemachineCamera virtualCamera;
 
@@ -40,6 +41,7 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException("Only the native URP 2D Pixel Perfect Camera may control Soundwell.");
             sceneCamera = camera;
             player = leader;
+            trialRoot = sceneRoot;
             // The checkpoint can update physics position before its next
             // rendered Transform. Camera presentation follows that real body.
             playerBody = leader.GetComponent<Rigidbody2D>();
@@ -92,10 +94,16 @@ namespace Rpg.Soundwell
             // Quantize the visual framing target, not player/ORK positions.
             // Rounding after a float clamp can place the camera one pixel
             // outside its safe pan budget and clip the opposite trial exit.
-            Vector2 source = playerBody != null ? playerBody.position : (Vector2)player.position;
-            float x = PixelSafeHorizontalPan(source.x * 0.14f, horizontalPan);
-            float y = Mathf.Clamp(source.y * 0.15f, -0.5f, 0.5f);
-            framingTarget.position = new Vector3(
+            // The trial can be placed away from the world origin (or rotated).
+            // Compute the gentle follow in its authored local room, then let
+            // the child framing target inherit the same scene transform. World
+            // X/Y clamping would otherwise aim at an empty origin after a move.
+            Vector2 sourceWorld = playerBody != null ? playerBody.position :
+                (Vector2)player.position;
+            Vector3 sourceLocal = trialRoot.InverseTransformPoint(sourceWorld);
+            float x = PixelSafeHorizontalPan(sourceLocal.x * 0.14f, horizontalPan);
+            float y = Mathf.Clamp(sourceLocal.y * 0.15f, -0.5f, 0.5f);
+            framingTarget.localPosition = new Vector3(
                 x, Mathf.Round(y * PixelsPerUnit) / PixelsPerUnit, 0f);
 
             if (virtualCamera == null)

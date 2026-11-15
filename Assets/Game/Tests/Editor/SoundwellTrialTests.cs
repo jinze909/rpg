@@ -16,6 +16,57 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellTrialTests
     {
         [Test]
+        public void CameraFramingFollowsTranslatedTrialInsteadOfWorldOrigin()
+        {
+            var root = new GameObject("offset Soundwell camera root");
+            var cameraObject = new GameObject("Soundwell camera translation test");
+            var leader = new GameObject("offset Soundwell leader");
+            try
+            {
+                root.transform.position = new Vector3(12f, -7f, 0f);
+                leader.transform.SetParent(root.transform, false);
+                leader.transform.localPosition = new Vector3(6f, -2f, 0f);
+                var body = leader.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.position = root.transform.TransformPoint(new Vector2(6f, -2f));
+
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 16f / 9f;
+                var rig = cameraObject.AddComponent<SoundwellCameraRig>();
+                rig.Initialize(camera, leader.transform, root.transform);
+                rig.RefreshFraming();
+
+                Vector3 local = root.transform.InverseTransformPoint(
+                    rig.FramingTarget.position);
+                Assert.That(local.x, Is.EqualTo(0.8125f).Within(0.063f),
+                    "The camera should follow the leader gently in trial-local coordinates.");
+                Assert.That(local.y, Is.EqualTo(-0.3125f).Within(0.001f));
+                Assert.That(rig.FramingTarget.position.x,
+                    Is.GreaterThan(root.transform.position.x),
+                    "The camera must frame the translated level instead of world origin.");
+                Assert.That(rig.FramingTarget.position.y,
+                    Is.EqualTo(root.transform.position.y + local.y).Within(0.001f));
+
+                // A later scene relocation must move the framing with the
+                // same room rather than leaving the focus at the old origin.
+                Vector3 before = rig.FramingTarget.position;
+                root.transform.position += new Vector3(-5f, 4f, 0f);
+                body.position = root.transform.TransformPoint(new Vector2(6f, -2f));
+                rig.RefreshFraming();
+                Vector3 moved = rig.FramingTarget.position;
+                Assert.That(moved.x - before.x, Is.EqualTo(-5f).Within(0.001f));
+                Assert.That(moved.y - before.y, Is.EqualTo(4f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void StaleGameplayInputBeforeTrialInitializationCannotMutateOrExitTheScene()
         {
             // A scene-load/UI handoff may deliver the last keyboard/controller
