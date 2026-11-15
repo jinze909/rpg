@@ -376,6 +376,18 @@ namespace Rpg.Tests.Editor
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Green indicates a follower is connected to the escort.");
 
+                        // An early confirmation must never skip the walk or
+                        // silently ignore the player's actual input.
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(10),
+                            "A premature handoff must not complete the evacuation.");
+                        Assert.That(activePrelude.CurrentInstructions,
+                            Does.Contain("Not at the green safe line"),
+                            "The player needs a clear recovery action after early E.");
+
                         input.Press(keys.sKey);
                         float separationDeadline = Time.realtimeSinceStartup + 4f;
                         while (follower.color.r <= follower.color.g && Time.realtimeSinceStartup < separationDeadline)
@@ -418,6 +430,9 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.aKey);
                         yield return null;
                         Assert.That(activePrelude.CanDeliverEvacuee, Is.True);
+                        Assert.That(activePrelude.CurrentInstructions,
+                            Does.Contain("At the green safe line"),
+                            "The handoff hint must become affirmative only when both bodies arrive.");
                         input.Press(keys.eKey);
                         yield return null;
                         input.Release(keys.eKey);
