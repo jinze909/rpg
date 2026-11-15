@@ -97,6 +97,10 @@ ADDITIONAL_EDITOR_TESTS = {
         "BeastContactFollowsTrialOriginAndRearmsAfterExit":
             "Rpg.Tests.Editor.BeastPatrolCorridorTests.BeastContactFollowsTrialOriginAndRearmsAfterExit",
     },
+    "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
+        "TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint":
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint",
+    },
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
         "BattleChooserActorLookupIgnoresDestroyedOrMissingActors":
             "Rpg.Tests.Editor.SoundwellTrialTests.BattleChooserActorLookupIgnoresDestroyedOrMissingActors",
