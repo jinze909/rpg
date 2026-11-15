@@ -1893,6 +1893,22 @@ namespace Rpg.Tests.Editor
                 Assert.That(offsetProbeCollider, Is.Not.Null);
                 Assert.That(party.CanStep(0, Vector2.right), Is.True,
                     "The baseline eastward step must be physically legal before the offset probe.");
+                // The preferred rule belongs to the NEXT encounter, never the
+                // current ORK turn. Editing it during battle cannot consume
+                // or disable a movement choice already earned in mobile mode.
+                try
+                {
+                    OrkPartyBridge.SetPreferredFixedFormation(true);
+                    Assert.That(party.FixedFormationInBattle, Is.False,
+                        "A future fixed preference must not switch this live mobile fight.");
+                    Assert.That(party.CanStep(0, Vector2.right), Is.True);
+                    Assert.That(party.BuildBattleReadout(), Does.Contain(
+                        SoundwellUiLocalization.Get("battle.formation_mobile")));
+                }
+                finally
+                {
+                    OrkPartyBridge.SetPreferredFixedFormation(false);
+                }
                 Vector2 originalColliderOffset = offsetProbeCollider.offset;
                 try
                 {
@@ -1917,6 +1933,22 @@ namespace Rpg.Tests.Editor
             else
             {
                 Vector2 beforeFixedStep = party.Actors[0].transform.position;
+                // Changing the saved next-encounter preference while the
+                // ORK chooser is open must not inject a free step into a
+                // fixed-position rescue. Keep this comparison uncontaminated.
+                try
+                {
+                    OrkPartyBridge.SetPreferredFixedFormation(false);
+                    Assert.That(party.FixedFormationInBattle, Is.True,
+                        "A future mobile preference must not change this fixed ORK fight.");
+                    Assert.That(party.CanStep(0, Vector2.right), Is.False);
+                    Assert.That(party.BuildBattleReadout(), Does.Contain(
+                        SoundwellUiLocalization.Get("battle.formation_fixed")));
+                }
+                finally
+                {
+                    OrkPartyBridge.SetPreferredFixedFormation(true);
+                }
                 Assert.That(party.CanStep(0, Vector2.right), Is.False,
                     "The true fixed-formation encounter cannot advertise a move.");
                 Assert.That(party.TryStep(0, Vector2.right), Is.False,
