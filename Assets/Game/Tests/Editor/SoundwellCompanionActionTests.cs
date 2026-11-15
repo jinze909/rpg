@@ -647,6 +647,18 @@ namespace Rpg.Tests.Editor
 
                 visual.PlayHit();
                 Assert.That(visual.CurrentState, Is.EqualTo("Hit"));
+                yield return new WaitForSecondsRealtime(0.16f);
+                // Two fast contact notifications are one on-screen reaction,
+                // not permission to hold the first hit frame indefinitely.
+                visual.PlayHit();
+                Assert.That(visual.CurrentState, Is.EqualTo("Hit"));
+                yield return new WaitForSecondsRealtime(0.24f);
+                visual.UpdateMotion(false);
+                Assert.That(visual.CurrentState, Is.EqualTo("Idle"),
+                    "Repeated contact must not restart or extend an in-flight hit reaction.");
+                visual.PlayHit();
+                Assert.That(visual.CurrentState, Is.EqualTo("Hit"),
+                    "A later, separate hit must still show new feedback.");
                 yield return new WaitForSecondsRealtime(0.38f);
                 visual.UpdateMotion(false);
                 Assert.That(visual.CurrentState, Is.EqualTo("Idle"),
