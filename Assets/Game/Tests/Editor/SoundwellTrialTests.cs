@@ -66,6 +66,42 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OrkGateReachTracksTheRealRotatedTrialPanel()
+        {
+            var root = new GameObject("moved rotated Soundwell battle gate");
+            var rescuer = new GameObject("living ORK gate actor");
+            try
+            {
+                root.transform.position = new Vector3(6f, -2f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                Vector2 panelWorld = root.transform.TransformPoint(
+                    new Vector3(-0.55f, 0f, 0f));
+                rescuer.transform.position = panelWorld + Vector2.up * 0.77f;
+
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.True, "A living actor at the visible panel must be able to operate it.");
+                rescuer.transform.position = panelWorld + Vector2.right * 0.81f;
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.False, "The 0.8 world-unit reach check must still reject distant actors.");
+
+                rescuer.transform.position = new Vector3(-0.55f, 0f, 0f);
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.False, "The old world-origin panel cannot open a rotated scene gate.");
+                rescuer.transform.position = panelWorld;
+                rescuer.SetActive(false);
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.False, "Retired ORK actors cannot operate a panel at any position.");
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(null, panelWorld),
+                    Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RetiredOrkGateActorCannotOpenPhysicalGate()
         {
             // ORK can call a cached reach predicate after its scene-owned

@@ -184,6 +184,12 @@ namespace Rpg.Soundwell
         // the gate reach callback during retreat or scene teardown.
         // Missing owners/visuals must never open the physical gate or throw.
         private bool CanReachBattleGate(Combatant member) =>
-            DirectCombatStarted && !GateOpen && SoundwellTrial.HasLiveGateActorInReach(member);
+            DirectCombatStarted && !GateOpen &&
+            // The panel sprite is child-local to this trial root. ORK's
+            // chooser must use its actual world position after a scene move
+            // or rotation instead of the legacy world-origin coordinates.
+            SoundwellTrial.IsLiveActorAtGate(
+                member != null ? member.GameObject : null,
+                transform.TransformPoint(new Vector2(-0.55f, 0f)));
     }
 }
