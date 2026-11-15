@@ -395,7 +395,10 @@ namespace Rpg.Soundwell
             if (renderer == null) return;
             renderer.sprite = index == 2 ? hoodGuardSprite : guardSprite;
             if (threat == null) return;
-            float dx = threat.position.x - actors[index].transform.position.x;
+            // ORK can advance the beast's physics body before its rendered
+            // Transform catches up. Face the actual encounter target, not
+            // the stale sprite location after a scene-owned instant move.
+            float dx = ThreatPhysicsX(threat) - actors[index].transform.position.x;
             if (Mathf.Abs(dx) > 0.01f) renderer.flipX = dx > 0f;
         }
 
@@ -411,8 +414,14 @@ namespace Rpg.Soundwell
             if (renderer == null) return;
             renderer.sprite = index == 2 ? hoodAttackSprite : attackSprite;
             if (threat == null) return;
-            float dx = threat.position.x - actors[index].transform.position.x;
+            float dx = ThreatPhysicsX(threat) - actors[index].transform.position.x;
             if (Mathf.Abs(dx) > 0.01f) renderer.flipX = dx < 0f;
+        }
+
+        private static float ThreatPhysicsX(Transform target)
+        {
+            Rigidbody2D body = target.GetComponent<Rigidbody2D>();
+            return body != null ? body.position.x : target.position.x;
         }
 
         public void ShowStepPose(int index, Vector2 direction)
