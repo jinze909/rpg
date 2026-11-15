@@ -84,8 +84,12 @@ namespace Rpg.Soundwell
             if (ShouldRecoverFromLowerPlank(DirectCombatStarted, GateOpen,
                     playerBody.position))
             {
-                if (checkpoint.RecoverLowerPlank(LowerPlankBroken))
-                    view.AnimatePlayerHit();
+                checkpoint.RecoverLowerPlank(LowerPlankBroken);
+                // Every real lower-board fall needs an observable impact:
+                // the first collapse cracks the plank, but subsequent steps
+                // onto its open gap still knock the player back. Do not let
+                // that later physical relocation happen silently.
+                view.AnimatePlayerHit();
                 // The collapse is a real relocation, not a walk through the
                 // old broken board. Keep the two ORK-owned rescuer visuals at
                 // the same recovery tile without changing turn/battle state.
