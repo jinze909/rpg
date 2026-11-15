@@ -162,6 +162,9 @@ namespace Rpg.Soundwell
         private static readonly Color CompanionHitTint = new Color(1f, 0.43f, 0.36f);
         private const float CompanionHitSeconds = 0.30f;
         private readonly GameObject[] actors = new GameObject[3];
+        // Each follower's SpriteRenderer is stable after creation, so the
+        // per-frame formation render never re-resolves its component.
+        private readonly SpriteRenderer[] followerRenderers = new SpriteRenderer[3];
         private readonly List<Sample> history = new List<Sample>(32);
         private bool checkpointRegroupPending;
         private Vector3 checkpointAnchor;
@@ -198,6 +201,8 @@ namespace Rpg.Soundwell
             parent = partyParent;
             config = settings;
             history.Clear();
+            for (int i = 0; i < followerRenderers.Length; i++)
+                followerRenderers[i] = null;
             RecordLeader();
             placeholderSprite = CreatePixelRescuerSprite(
                 IdlePixels, "PLACEHOLDER 16px Soundwell rescuer idle", out placeholderTexture);
@@ -231,6 +236,7 @@ namespace Rpg.Soundwell
             companionTints[index] = tint;
             renderer.sortingOrder = 3;
             actors[index] = actor;
+            followerRenderers[index] = renderer;
             return actor;
         }
 
@@ -338,7 +344,7 @@ namespace Rpg.Soundwell
             {
                 GameObject actor = actors[i];
                 if (actor == null) continue;
-                SpriteRenderer renderer = actor.GetComponent<SpriteRenderer>();
+                SpriteRenderer renderer = followerRenderers[i];
                 if (renderer == null) continue;
                 Sprite idle = i == 2 ? hoodIdleSprite : placeholderSprite;
                 Sprite walking = i == 2 ? hoodWalkingSprite : walkingSprite;

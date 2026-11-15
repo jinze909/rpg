@@ -18,6 +18,29 @@ namespace Rpg.Soundwell
         public static event Action Changed;
         private const string CjkFontPath = "Soundwell/Fonts/SoundwellChinese";
         private static Font cjkFont;
+        // Keep references to authored tables instead of loading on every HUD
+        // refresh. Unity-null also allows reloading destroyed editor assets.
+        private static StringTable englishTable;
+        private static StringTable chineseTable;
+
+        private static StringTable RequireSavedTable(string code)
+        {
+            bool chinese = code == Chinese;
+            StringTable table = chinese ? chineseTable : englishTable;
+            if (table == null)
+            {
+                table = Resources.Load<StringTable>(Folder + code);
+                if (table == null)
+                    throw new InvalidOperationException(chinese
+                        ? "Saved Chinese Soundwell StringTable is missing."
+                        : "Saved English Soundwell StringTable is missing.");
+                if (chinese)
+                    chineseTable = table;
+                else
+                    englishTable = table;
+            }
+            return table;
+        }
 
         // Apply the last player-selected locale before the first scene Awake,
         // so the entry screen and trial HUD never flash the wrong language.
@@ -51,13 +74,8 @@ namespace Rpg.Soundwell
         {
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentException("Localization key cannot be empty.", nameof(key));
-            var en = Resources.Load<StringTable>(Folder + English);
-            if (en == null)
-                throw new InvalidOperationException("Saved English Soundwell StringTable is missing.");
-            var selected = language == Chinese
-                ? Resources.Load<StringTable>(Folder + Chinese) : en;
-            if (selected == null)
-                throw new InvalidOperationException("Saved Chinese Soundwell StringTable is missing.");
+            var en = RequireSavedTable(English);
+            var selected = language == Chinese ? RequireSavedTable(Chinese) : en;
             var translated = selected.GetEntry(key)?.LocalizedValue;
             string copy = !string.IsNullOrEmpty(translated) ? translated :
                 en.GetEntry(key)?.LocalizedValue ?? key;
@@ -110,9 +128,8 @@ namespace Rpg.Soundwell
         {
             if (code != English && code != Chinese)
                 throw new ArgumentOutOfRangeException(nameof(code), "Only authored EN/zh UI is supported.");
-            if (Resources.Load<StringTable>(Folder + English) == null ||
-                Resources.Load<StringTable>(Folder + Chinese) == null)
-                throw new InvalidOperationException("Cannot select a missing Soundwell StringTable.");
+            RequireSavedTable(English);
+            RequireSavedTable(Chinese);
             if (language == code)
                 return;
             language = code;
