@@ -1437,6 +1437,13 @@ namespace Rpg.Soundwell
                 // A guide already back at RETREAT must not be told to reset
                 // while the survivor is still physically following.
                 prompt = ReturnRouteHint(atSafePoint, surveyorEscorting);
+            else if (surveyorEscorting && gateOpen && npc.x > 0.85f &&
+                     escortLeader.position.x > 0.85f)
+                // The survivor waits on the braced plank until the guide
+                // ACTUALLY crosses x <= 0.85. The guide can move outside
+                // NearUpperPlank before crossing; keep the gate instruction
+                // visible there instead of prematurely suggesting RETREAT.
+                prompt = SoundwellUiLocalization.Get("hint.escort_gate_first");
             else if (carrying)
                 prompt = SoundwellUiLocalization.Get(canPlaceBell
                     ? "hint.carry_at_stand" : "hint.carry_find_stand");

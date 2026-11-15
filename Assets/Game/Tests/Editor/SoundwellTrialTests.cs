@@ -457,6 +457,15 @@ namespace Rpg.Tests.Editor
 
         private static IEnumerator RunBellOnlyRescueAfterInitialization(bool retryDuringEscortPause = false)
         {
+            // The retreat hint must prioritize an unfinished escort over the
+            // generic reset prompt; a player must never be told to reset while
+            // the surveyor still needs to reach RETREAT.
+            Assert.That(SoundwellView.ReturnRouteHint(true, true), Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.escort_to_retreat")));
+            Assert.That(SoundwellView.ReturnRouteHint(true, false), Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.reset_here")));
+            Assert.That(SoundwellView.ReturnRouteHint(false, false), Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.return_to_reset")));
             float deadline = Time.realtimeSinceStartup + 30f;
             while ((!Maki.Initialized || !ORK.Initialized) &&
                    Time.realtimeSinceStartup < deadline)
@@ -693,10 +702,15 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.Get("surveyor.plank_braced")));
             Assert.That(plankSpeech.text, Does.Contain("固定好了"));
             Assert.That(trial.PlankSecured, Is.True);
+            Assert.That(contextualHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.plank_braced")),
+                "The live hint must acknowledge the completed brace instead of repeating the action.");
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             yield return null;
             Assert.That(plankSpeech.text, Is.EqualTo(
                 SoundwellUiLocalization.Get("surveyor.plank_braced")));
+            Assert.That(contextualHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.plank_braced")));
 
             deadline = Time.realtimeSinceStartup + 10f;
             while (!trial.CanEscortSurveyor && Time.realtimeSinceStartup < deadline)
@@ -704,6 +718,25 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.CanEscortSurveyor, Is.True);
             Assert.That(trial.CanTieEscortLine, Is.False,
                 "No rope must disable only the optional tied-guide action.");
+            // The surveyor advances in SoundwellView.Refresh (LateUpdate).
+            // CanEscortSurveyor may become true AFTER that frame's hint was
+            // resolved from its earlier position. Wait for the next actual
+            // rendered hint; do not fake a view update or bypass the action.
+            string leadHint = SoundwellUiLocalization.Get("hint.plank_lead");
+            float liveHintDeadline = Time.realtimeSinceStartup + 1f;
+            while (contextualHint.text != leadHint &&
+                   Time.realtimeSinceStartup < liveHintDeadline)
+                yield return null;
+            Assert.That(contextualHint.text, Is.EqualTo(leadHint),
+                "Once the plank is safe, the live prompt should explain how to begin escorting.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(contextualHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.plank_lead")));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(contextualHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.plank_lead")));
             trial.ApplyInput(Vector2.zero, false, false, false, false, true);
             Assert.That(trial.SurveyorEscorting, Is.True);
             Assert.That(trial.SurveyorLineTied, Is.False);
@@ -731,6 +764,9 @@ namespace Rpg.Tests.Editor
             Assert.That(plankResponse.text, Is.EqualTo(
                 SoundwellUiLocalization.Get("surveyor.wait_at_plank")));
             Assert.That(plankResponse.text, Does.Contain("踏板"));
+            Assert.That(contextualHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.escort_gate_first")),
+                "The live prompt must tell the player to cross the open gate before the waiting surveyor can move.");
             Assert.That(SoundwellUiLocalization.Get("surveyor.following"),
                 Does.Contain("身后"));
             Assert.That(SoundwellUiLocalization.Get("hint.escort_gate_first"),
@@ -739,6 +775,8 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(plankResponse.text, Is.EqualTo(
                 SoundwellUiLocalization.Get("surveyor.wait_at_plank")));
+            Assert.That(contextualHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.escort_gate_first")));
             var firstSteps = new[]
             {
                 new Vector2(0.6f, 0.0f), new Vector2(-0.3f, 0.0f)
