@@ -377,11 +377,11 @@ namespace Rpg.Soundwell
 
         private void ToggleSfx()
         {
-            AudioMixer mixer = Resources.Load<AudioMixer>(SoundwellAudioBus.MixerResource);
-            if (mixer == null || !SoundwellAudioBus.SetMuted(mixer, !SoundwellAudioBus.IsMuted))
-                throw new System.InvalidOperationException(
-                    "The saved Soundwell SFX volume control is unavailable.");
-            RefreshSfxText();
+            // Missing or malformed audio configuration is visible in the
+            // console, but must not crash the entry menu or change the saved
+            // mute choice without a successful mixer operation.
+            if (SoundwellAudioBus.ToggleMuted())
+                RefreshSfxText();
         }
 
         private void RefreshSfxText()

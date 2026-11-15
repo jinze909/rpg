@@ -516,9 +516,14 @@ namespace Rpg.Tests.Editor
             List<Combatant> participants = ORK.Game.Combatants.GetInBattle();
             Assert.That(participants.Count, Is.EqualTo(4),
                 "ORK must register all three scene rescuers and the beast in one battle.");
-            // The active player turn must never trap the player with all
-            // exploration controls and all exit actions hidden.
-            yield return null;
+            // ORK may register/re-enable its default 3D movement controller
+            // after the initial scene transition and well beyond 16 frames.
+            // Keep the real rescue scene running across that window: a
+            // conflicting CharacterController must never reach Update.
+            for (int controllerWindowFrame = 0; controllerWindowFrame < 24; controllerWindowFrame++)
+                yield return null;
+            Assert.That(party.Leader.GetComponent<CharacterController>(), Is.Null,
+                "The 2D rescue leader cannot acquire ORK's 3D CharacterController.");
             Assert.That(Object.FindObjectsByType<ButtonPlayerController>(
                     FindObjectsSortMode.None).Any(controller => controller.isActiveAndEnabled),
                 Is.False,
@@ -735,6 +740,20 @@ namespace Rpg.Tests.Editor
                 previewBody.bodyType = RigidbodyType2D.Kinematic;
                 previewBody.gravityScale = 0f;
                 previewBody.position = new Vector2(-3f, -2f);
+                // The current ORK rescuer marker and the reversible Move
+                // preview must agree on the same physical position even
+                // before Transform catches up after a queued movement.
+                setBattleChoices.Invoke(liveView, new object[]
+                {
+                    actualAttacker, displacedPreviewActor.transform,
+                    false, false, false, false
+                });
+                Assert.That(turnCue.enabled, Is.True);
+                Assert.That((Vector2)turnCue.transform.position,
+                    Is.EqualTo(previewBody.position + new Vector2(0f, 1.12f)),
+                    "The active ORK rescuer marker cannot lag an accepted Rigidbody2D move.");
+                Assert.That(previewBody.position, Is.EqualTo(new Vector2(-3f, -2f)),
+                    "Repositioning a turn marker cannot teleport the physical combatant.");
                 setBattleMoveChoices.Invoke(liveView, new object[]
                 {
                     actualAttacker, displacedPreviewActor.transform, true, false, false, false

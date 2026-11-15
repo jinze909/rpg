@@ -614,8 +614,17 @@ namespace Rpg.Tests.Editor
             Assert.That(Vector2.Distance((Vector2)party.Actors[2].transform.position,
                 plankRecovery + plankFormation.ThirdFollowerOffset), Is.LessThan(0.05f),
                 "Rescuer 3 cannot walk through the broken board on an old formation path.");
+            // The first fall's one-shot has ended before a second physical
+            // mistake. A repeat fall must show another Hit pose, not only
+            // silently teleport the same player to the saved recovery tile.
+            yield return new WaitForSecondsRealtime(0.45f);
+            Assert.That(plankHitVisual.CurrentState, Is.Not.EqualTo("Hit"));
             MoveTestLeader(playerBody, SoundwellTrial.LowerBoardPosition);
             yield return null;
+            Assert.That(plankHitVisual.CurrentState, Is.EqualTo("Hit"),
+                "A later fall through the broken gap still deserves a fresh hit cue.");
+            Assert.That(trial.LowerPlankBroken, Is.True,
+                "A repeat fall must not create a second break state.");
             Assert.That(trial.PlayerPosition, Is.EqualTo(plankRecovery),
                 "Walking onto an already broken plank must remain impassable.");
             Assert.That(Vector2.Distance((Vector2)party.Actors[1].transform.position,
