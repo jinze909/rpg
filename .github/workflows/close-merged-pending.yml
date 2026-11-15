@@ -251,6 +251,80 @@ jobs:
                   "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
           }
           ARCHIVED={
+              "codex/pending/story-003-ork-attack-choice": {
+                  "head": "6f546b89d4a2bc59688e82bb2451adf13c24290a",
+                  "verified": "84f7ff5a255b56c1099daa7421f7e22e8546ed50",
+                  "run": 43757378497,
+                  "original_run": 43125796222,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "old attack-choice and diagnostic prototype replaced by live ORK base-attack setup, actual UGUI action/target, natural victory, and retained inspection tool",
+                  "blobs": {
+                      "Assets/Game/Soundwell/OrkPartyBridge.cs":
+                          "4a83d6deafead6919ad1ecacd88319e9c1854a73",
+                      "Assets/Game/Soundwell/TrialFlowController.Runtime.cs":
+                          "2f599eb1969c92197a53fc08e5d1acacb93b64af",
+                      "Assets/Game/Soundwell/SoundwellView.cs":
+                          "d003df80b4f4877779e9790f8314a4d3bb571ba7",
+                      "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                          "24f5549d5875edf728dfb8b1430ea6d46aa9b38c",
+                      "tools/inspect_ork_battle_source.py":
+                          "6557a792eb71736b2f2f5234d009012d56c7c163",
+                      "tools/collect_unity_p0.py":
+                          "7e871c4fdd5d71841fcc4ec5f0d1d7c60457eb00",
+                  },
+              },
+              "codex/pending/s00-escort-separation-visual-regroup-nov13": {
+                  "head": "e3cfeb109d8dece1db29ee400c055100856f5894",
+                  "verified": "84f7ff5a255b56c1099daa7421f7e22e8546ed50",
+                  "run": 43757378497,
+                  "original_run": 43671553145,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "green/amber stop and off-lane recovery retained with stricter bilingual visual/readable state and live input test",
+                  "blobs": {
+                      "Assets/Game/Soundwell/WhitewaterPrelude.cs":
+                          "6c9a6282c4cb6e0feab8bec4b9002785972537ef",
+                      "Assets/Game/Tests/Editor/WhitewaterRescueChoiceInputTests.cs":
+                          "bc2e280a857fa83ed68d21e212bea246bde68a55",
+                      "tools/collect_unity_p0.py":
+                          "7e871c4fdd5d71841fcc4ec5f0d1d7c60457eb00",
+                  },
+              },
+              "codex/pending/story003-escort-checkpoint-follower-resync-nov14": {
+                  "head": "878e2dbd8976dd840c9855229bda984e92ba5f57",
+                  "verified": "84f7ff5a255b56c1099daa7421f7e22e8546ed50",
+                  "run": 43757378497,
+                  "original_run": 43619755853,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "checkpoint recovery signal, ORK-owned formation reposition, Rigidbody2D leader sampling and two-frame regression remain in the verified current code",
+                  "blobs": {
+                      "Assets/Game/Soundwell/OrkPartyBridge.cs":
+                          "4a83d6deafead6919ad1ecacd88319e9c1854a73",
+                      "Assets/Game/Soundwell/PartyFormationFollower.cs":
+                          "37631c5049b75a648e1397f52013b56701b19f4f",
+                      "Assets/Game/Soundwell/TrialFlowController.Scene.cs":
+                          "189ddf91570bbffb39a65b30e3b535c17f260f21",
+                      "Assets/Game/Tests/Editor/SoundwellTrialTests.cs":
+                          "3a0e8f2edc79232eb3256406a561120ca370b056",
+                  },
+              },
+              "codex/pending/story003-fixed-full-rescue-evidence-nov14": {
+                  "head": "4ca0a38d83a9de80b7b1bd9eaf6e32796eeb9834",
+                  "verified": "84f7ff5a255b56c1099daa7421f7e22e8546ed50",
+                  "run": 43757378497,
+                  "original_run": 43590517380,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "fixed-formation win still finishes the physical NPC escort and one ORK quest reward under exact registered UnityTest and collector",
+                  "blobs": {
+                      "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs":
+                          "24f5549d5875edf728dfb8b1430ea6d46aa9b38c",
+                      "tools/collect_unity_p0.py":
+                          "7e871c4fdd5d71841fcc4ec5f0d1d7c60457eb00",
+                  },
+              },
               "codex/pending/story-003-battle-victory-v2": {
                   "head":"dcd7351b3461c78aa8957c2c9c19cd017c50ebd2",
                   "verified":"95d90e3548a599d388def4b6ce72d06f32a8cde8",
@@ -555,6 +629,23 @@ jobs:
           def verified_archived_proof(name,sha):
               entry=ARCHIVED[name]
               check(sha==entry["head"],"historical branch moved since audit")
+          # For this reviewed retirement set, independently prove the original
+          # branch was itself green, not only that the replacement is green.
+          if entry.get("original_run"):
+              original=api("/repos/"+REPO+"/actions/runs/"+str(entry["original_run"]))
+              check(original.get("head_sha")==sha and
+                    original.get("name")=="Unity ORK P0" and
+                    original.get("status")=="completed" and
+                    original.get("conclusion")=="success",
+                    "original SHA lacks successful Unity verification")
+              original_artifacts=pages("/repos/"+REPO+"/actions/runs/"+
+                    str(entry["original_run"])+"/artifacts","artifacts",limit=200)
+              original_want="unity-ork-p0-verify-"+sha+"-attempt-"+str(
+                    original.get("run_attempt"))
+              check(any(a.get("name")==original_want and
+                    a.get("expired") is False and a.get("size_in_bytes",0)>0
+                    for a in original_artifacts),
+                    "original candidate exact-SHA artifact missing")
               if entry.get("workflow_only"):
                   # Workflow-only history is verified by its own successful
                   # cleanup run; it must never impersonate Unity acceptance.
