@@ -225,7 +225,7 @@ namespace Rpg.Soundwell
         // S00 only records what the player ACTUALLY reached in Makinom.
         // The prologue button always starts from the opening; when a prior
         // visit exists it must say Replay, never falsely promise Resume.
-        internal static string PreludeProgressKey(bool evacueeSafe,
+        public static string PreludeProgressKey(bool evacueeSafe,
             bool secondBellHeard, bool cableHeld)
         {
             if (cableHeld)
