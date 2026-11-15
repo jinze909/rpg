@@ -617,7 +617,7 @@ class PendingBranchCleanupWorkflowTests(unittest.TestCase):
         workflow = (Path(__file__).resolve().parents[1] /
                     ".github/workflows/close-merged-pending.yml").read_text(
                         encoding="utf-8")
-        opening = "          python3 - <<'PY'\\n"
+        opening = "          python3 - <<'PY'\n"
         closing = "\n          PY"
         self.assertEqual(workflow.count(opening), 1)
         script = textwrap.dedent(workflow.split(opening, 1)[1].split(closing, 1)[0])
