@@ -26,6 +26,20 @@ namespace Rpg.Soundwell
             bellHome = initialBell;
         }
 
+        // The visible broken plank is parented under the trial root. Resolve
+        // its collision in local space, like its SpriteRenderer marker; the
+        // legacy static rule continues to represent the origin-aligned trial.
+        public bool ShouldRecoverAtVisibleLowerPlank(
+            bool directCombatStarted, bool gateOpen, Vector2 actorWorldPosition)
+        {
+            Vector2 actorLocalPosition = transform.InverseTransformPoint(actorWorldPosition);
+            return ShouldRecoverFromLowerPlank(
+                directCombatStarted, gateOpen, actorLocalPosition);
+        }
+
+        public Vector2 LowerPlankRecoveryWorldPosition =>
+            transform.TransformPoint(LowerBoardRecovery);
+
         public void ResetFlagsAndPosition()
         {
             player.linearVelocity = Vector2.zero;
@@ -49,7 +63,7 @@ namespace Rpg.Soundwell
             if (!alreadyBroken)
                 variables.Set(LowerPlankBrokenKey, 1);
             player.linearVelocity = Vector2.zero;
-            player.position = LowerBoardRecovery;
+            player.position = LowerPlankRecoveryWorldPosition;
             return !alreadyBroken;
         }
 

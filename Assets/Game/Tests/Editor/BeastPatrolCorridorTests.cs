@@ -64,6 +64,50 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void WeakPlankContactAndRecoveryFollowTheVisibleTrialRoot()
+        {
+            var root = new GameObject("offset and rotated Soundwell weak plank");
+            try
+            {
+                root.transform.position = new Vector3(9f, -4f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var checkpoint = root.AddComponent<TrialCheckpointManager>();
+                Vector2 atPlank = root.transform.TransformPoint(
+                    SoundwellTrial.LowerBoardPosition);
+                Vector2 nearPlank = root.transform.TransformPoint(
+                    SoundwellTrial.LowerBoardPosition + Vector2.right * 0.45f);
+                Vector2 outsidePlank = root.transform.TransformPoint(
+                    SoundwellTrial.LowerBoardPosition + Vector2.right * 0.5f);
+                Vector2 expectedRecovery = root.transform.TransformPoint(
+                    new Vector2(2.75f, -0.25f));
+
+                Assert.That(checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    false, true, atPlank), Is.True,
+                    "Stepping on the actual rendered weak plank must cause a fall.");
+                Assert.That(checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    false, true, nearPlank), Is.True);
+                Assert.That(checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    false, true, outsidePlank), Is.False);
+                Assert.That(checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    false, true, SoundwellTrial.LowerBoardPosition), Is.False,
+                    "The old world-space location must never cause a phantom fall.");
+                Assert.That(checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    true, true, atPlank), Is.False,
+                    "ORK combat movement cannot trigger an exploration fall.");
+                Assert.That(checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    false, false, atPlank), Is.False,
+                    "The gated-off plank cannot trigger early recovery.");
+                Assert.That(Vector2.Distance(checkpoint.LowerPlankRecoveryWorldPosition,
+                    expectedRecovery), Is.LessThan(0.0001f),
+                    "Recovery must land beside the moved plank, not at its former world point.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static void AssertContactAtOrigin(float originX)
         {
             var root = new GameObject("translated Soundwell trial root");
