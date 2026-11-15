@@ -59,7 +59,10 @@ namespace Rpg.Soundwell
             destination = default;
             // ORK can retire a scene actor before a queued menu refreshes.
             // A disabled combatant must not spend a step or reserve space.
+            // A broken/zero step length must not consume a rescuer's sole
+            // movement allowance without a real physical displacement.
             if (actorObject == null || !actorObject.activeInHierarchy ||
+                !(distance > 0f) || float.IsInfinity(distance) ||
                 !(direction == Vector2.up || direction == Vector2.down ||
                   direction == Vector2.left || direction == Vector2.right))
                 return false;
