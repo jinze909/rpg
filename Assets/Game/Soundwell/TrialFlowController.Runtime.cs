@@ -134,7 +134,7 @@ namespace Rpg.Soundwell
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
             if (bootstrapLoad == null && SurveyorEscorting && !RescueComplete && AtSafePoint &&
-                Vector2.Distance(view.SurveyorWorldPosition, safePoint.position) <= 0.9f &&
+                Vector2.Distance(view.SurveyorWorldPosition, safePoint.position) <= surveyorSafeArrivalReach &&
                 orkParty != null && orkParty.SettleRescue())
                 variables.Set(RescueKey, 1);
 
@@ -142,7 +142,7 @@ namespace Rpg.Soundwell
             // second, observable outcome occurs only when his actual figure
             // reaches his misleading route marker, not on rescue alone.
             if (RescueComplete && !FalseMarkerCleared &&
-                Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
+                Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= routeMarkerArrivalReach)
                 variables.Set(FalseMarkerClearedKey, 1);
 
             // The optional cart clue pays off only through the survivor's
@@ -150,14 +150,14 @@ namespace Rpg.Soundwell
             // No equipment, quest or reward state is fabricated by the UI.
             if (RescueComplete && FalseMarkerCleared && CartObserved && CartClueShared &&
                 !CartKitReclaimed &&
-                Vector2.Distance(view.SurveyorWorldPosition, CartEvidenceWorldPosition) <= 0.20f)
+                Vector2.Distance(view.SurveyorWorldPosition, CartEvidenceWorldPosition) <= cartKitArrivalReach)
                 variables.Set(CartKitReclaimedKey, 1);
 
             // The optional map kit changes the world: after retrieving it, the
             // surveyor actually walks back and posts the corrected route at
             // his former misleading sign. Merely exiting cannot create it.
             if (CartKitReclaimed && FalseMarkerCleared && !SafeRouteMarked &&
-                Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
+                Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= routeMarkerArrivalReach)
                 variables.Set(SafeRouteMarkedKey, 1);
         }
 
