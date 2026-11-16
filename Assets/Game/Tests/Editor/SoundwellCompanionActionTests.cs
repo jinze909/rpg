@@ -155,6 +155,19 @@ namespace Rpg.Tests.Editor
                 Button Pick(GameObject selected) =>
                     (Button)method.Invoke(null, new object[] { selected, attack, guard, retreat });
 
+                // Preparing/retrying ORK must never expose a phantom command.
+                // A gamepad can still select Leave while the chooser is absent.
+                var suspend = typeof(WhitewaterDefenseEncounter).GetMethod(
+                    "DisableActionsUntilOrkReady",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(suspend, Is.Not.Null);
+                suspend.Invoke(null, new object[] { attack, guard });
+                Assert.That(attack.interactable, Is.False);
+                Assert.That(guard.interactable, Is.False);
+                Assert.That(Pick(attack.gameObject), Is.SameAs(retreat),
+                    "Preparing the bridgehead must not select a nonexistent ORK command.");
+
                 attack.interactable = false;
                 guard.interactable = true;
                 stale.interactable = false;

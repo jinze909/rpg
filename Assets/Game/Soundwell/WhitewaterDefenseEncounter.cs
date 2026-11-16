@@ -203,6 +203,17 @@ namespace Rpg.Soundwell
             return null;
         }
 
+        // Prevent phantom ORK commands while the battle system is preparing,
+        // between retries, or before its first legal chooser is available.
+        // RefreshReadout enables each command only when ORK permits it.
+        private static void DisableActionsUntilOrkReady(Button attack, Button guard)
+        {
+            if (attack != null)
+                attack.interactable = false;
+            if (guard != null)
+                guard.interactable = false;
+        }
+
         private void ShowRetry(string message, bool canRetry)
         {
             SetReadout(message);
@@ -237,10 +248,11 @@ namespace Rpg.Soundwell
                 party.ResetEncounter();
             attackButton.gameObject.SetActive(true);
             guardButton.gameObject.SetActive(true);
-            attackButton.interactable = false;
-            guardButton.interactable = false;
+            DisableActionsUntilOrkReady(attackButton, guardButton);
             retryButton.gameObject.SetActive(false);
             continueButton.gameObject.SetActive(false);
+            // Retry is hidden now: keep a selectable escape while ORK restarts.
+            EventSystem.current?.SetSelectedGameObject(retreatButton.gameObject);
             encounterRoutine = StartCoroutine(StartEncounter());
         }
 
@@ -333,9 +345,12 @@ namespace Rpg.Soundwell
                 new Vector2(320f, -190f), Retreat);
             retryButton.gameObject.SetActive(false);
             continueButton.gameObject.SetActive(false);
+            DisableActionsUntilOrkReady(attackButton, guardButton);
 
+            // Before the first ORK chooser, Attack and Guard cannot execute.
+            // Do not focus a disabled action and trap gamepad users.
             EventSystem eventSystem = SoundwellInputAdapter.EnsureEventSystem(transform);
-            eventSystem?.SetSelectedGameObject(attackButton.gameObject);
+            eventSystem?.SetSelectedGameObject(retreatButton.gameObject);
         }
 
         private Button CreateButton(string objectName, string caption,
