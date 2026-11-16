@@ -193,10 +193,11 @@ def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
             continue
         if not re.search(r"\bclass\s+" + re.escape(path.stem) + r"\b", source):
             continue
-        declared.update(
-            f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
-            for match in test_pattern.finditer(source)
-        )
+        for match in test_pattern.finditer(source):
+            full_name = f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
+            if full_name in declared:
+                raise ValueError(f"Duplicate NUnit test declaration: {full_name}")
+            declared.add(full_name)
     return declared
 
 
