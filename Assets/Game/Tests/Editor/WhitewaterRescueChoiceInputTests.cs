@@ -60,6 +60,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00EndingTitleStaysWithinPortraitAndUltrawideCanvas()
+        {
+            var root = new GameObject("S00 epilogue canvas",
+                typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                var canvas = root.GetComponent<RectTransform>();
+                var creator = typeof(WhitewaterPrelude).GetMethod(
+                    "CreateResponsiveEpilogueCard",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(creator, Is.Not.Null);
+                var card = (Text)creator.Invoke(null,
+                    new object[] { canvas, "TWELVE YEARS LATER" });
+                Assert.That(card.gameObject.name, Is.EqualTo("S00 twelve years later"));
+                Assert.That(card.text, Is.EqualTo("TWELVE YEARS LATER"));
+                Assert.That(card.horizontalOverflow, Is.EqualTo(HorizontalWrapMode.Wrap));
+                Assert.That(card.resizeTextForBestFit, Is.True);
+                Assert.That(card.resizeTextMinSize, Is.LessThanOrEqualTo(12));
+                var rect = card.rectTransform;
+                Assert.That(rect.anchorMin, Is.EqualTo(new Vector2(0f, 0.5f)));
+                Assert.That(rect.anchorMax, Is.EqualTo(new Vector2(1f, 0.5f)));
+                foreach (Vector2 viewport in new[]
+                {
+                    new Vector2(320f, 720f), new Vector2(1200f, 540f)
+                })
+                {
+                    canvas.sizeDelta = viewport;
+                    Canvas.ForceUpdateCanvases();
+                    Assert.That(rect.rect.width,
+                        Is.EqualTo(viewport.x - 40f).Within(0.01f));
+                    Assert.That(rect.rect.height, Is.EqualTo(95f).Within(0.01f));
+                    Assert.That(rect.anchoredPosition.x, Is.EqualTo(0f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void S00WalkerPresentationSnapsToWholePixelsWithoutSnappingMovementMotor()
         {
             // The underlying movement/reach motor remains subpixel-precise;
