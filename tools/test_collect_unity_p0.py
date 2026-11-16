@@ -858,5 +858,28 @@ class CompilerLogTests(unittest.TestCase):
         self.assertEqual(result.group(0).lower(), "error cs1739")
 
 
+class NarrativeCharacterContinuityTests(unittest.TestCase):
+    def test_survivor_identity_and_carpenter_family_match_v02_baseline(self):
+        # R4-01: Narrative v0.2 is a writing baseline, not implemented play.
+        root = Path(__file__).resolve().parents[1] / "docs/narrative"
+        characters = (root / "CHARACTERS.md").read_text(encoding="utf-8")
+        facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
+        outline = (root / "STORY_OUTLINE.md").read_text(encoding="utf-8")
+        regional = (root / "REGIONAL_STORIES.md").read_text(encoding="utf-8")
+        for name, text in (("characters", characters), ("facts", facts),
+                           ("outline", outline)):
+            with self.subTest(document=name):
+                self.assertIn("蕊亚", text)
+                self.assertNotIn("蔻亚", text)
+        self.assertIn("蕊亚（欧林之妹，东岸渔市账房）", characters)
+        self.assertIn("并非晏军阵亡名册成员", facts)
+        self.assertIn("东岸家属", outline)
+        self.assertIn("陶霁", characters)
+        self.assertIn("陶霁", facts)
+        self.assertIn("ST-06｜旧铺的新招牌", regional)
+        self.assertIn("陶霁", regional)
+        self.assertIn("陶小满", regional)
+
+
 if __name__ == "__main__":
     unittest.main()
