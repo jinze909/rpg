@@ -17,6 +17,30 @@ namespace Rpg.Tests.Editor
     public sealed class WhitewaterRescueChoiceInputTests
     {
         [Test]
+        public void S00WalkerPresentationSnapsToWholePixelsWithoutSnappingMovementMotor()
+        {
+            // The underlying movement/reach motor remains subpixel-precise;
+            // only the rendered 16px avatar is snapped to Canvas pixels.
+            var method = typeof(WhitewaterPrelude).GetMethod(
+                "PixelSnappedWalkerPosition",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+
+            Vector2 motorA = new Vector2(-245.49f, 0.49f);
+            Vector2 visualA = (Vector2)method.Invoke(null, new object[] { motorA });
+            Assert.That(visualA, Is.EqualTo(new Vector2(-245f, 12f)));
+            Assert.That(motorA, Is.EqualTo(new Vector2(-245.49f, 0.49f)),
+                "Rendering must never round the movement motor or station reach checks.");
+
+            Vector2 motorB = new Vector2(-245.51f, 0.51f);
+            Vector2 visualB = (Vector2)method.Invoke(null, new object[] { motorB });
+            Assert.That(visualB, Is.EqualTo(new Vector2(-246f, 13f)));
+            Assert.That(visualA.x, Is.EqualTo(Mathf.Round(visualA.x)));
+            Assert.That(visualB.y, Is.EqualTo(Mathf.Round(visualB.y)));
+        }
+
+        [Test]
         public void S00StationBindingLabelsCacheUntilEffectiveControlsChange()
         {
             var root = new GameObject("S00 binding prompt cache test");

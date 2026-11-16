@@ -1899,6 +1899,12 @@ namespace Rpg.Soundwell
             }
         }
 
+        // Preserve fractional world motor movement for accurate reach and
+        // input; only the 16px actor's Canvas presentation snaps to pixels.
+        // Rounding the motor each frame would freeze slow/short inputs.
+        private static Vector2 PixelSnappedWalkerPosition(Vector2 motor) =>
+            new Vector2(Mathf.Round(motor.x), Mathf.Round(12f + motor.y));
+
         private void Update()
         {
             // Dialogue selection uses UI input, not the exploration motor.
@@ -1922,7 +1928,7 @@ namespace Rpg.Soundwell
                 WalkSpeed * Time.unscaledDeltaTime;
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
-            marker.anchoredPosition = new Vector2(walker.x, 12f + walker.y);
+            marker.anchoredPosition = PixelSnappedWalkerPosition(walker);
             RefreshBridgeStationReachCue();
             if (phase == 15)
             {
