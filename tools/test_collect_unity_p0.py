@@ -280,6 +280,23 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
                             encoding="utf-8")
             self.assertNotIn(name, expected_tests_for("verify", True, source_root))
 
+    def test_duplicate_nunit_declarations_are_rejected_in_preflight(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case = source_root / "Assets/Game/Tests/Editor/DuplicateTests.cs"
+            case.parent.mkdir(parents=True)
+            case.write_text(
+                "namespace Rpg.Tests.Editor { public sealed class DuplicateTests {\\n"
+                "  [Test] public void Repeated() {}\\n"
+                "  [Test] public void Repeated() {}\\n"
+                "} }\\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Duplicate NUnit test declaration"):
+                expected_tests_for("verify", True, source_root)
+            # Prepare deliberately only preflights P0BootstrapTests.
+            self.assertNotIn(
+                "Rpg.Tests.Editor.DuplicateTests.Repeated",
+                expected_tests_for("prepare", True, source_root))
+
     def test_formation_stepping_translation_requires_real_nunit_case(self):
         with tempfile.TemporaryDirectory() as root:
             source_root = Path(root)
