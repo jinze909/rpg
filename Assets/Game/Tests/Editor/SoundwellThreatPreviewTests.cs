@@ -82,6 +82,16 @@ namespace Rpg.Tests.Editor
                     "An inactive rescuer must not trigger an invisible checkpoint capture.");
 
                 rescuer.SetActive(true);
+                // EditMode does not guarantee the Rigidbody2D position set
+                // before SetActive(false) survives the physics re-registration.
+                // Re-establish genuine world contact before testing the latch.
+                body.simulated = true;
+                body.position = overlap;
+                Assert.That(body.position.x, Is.GreaterThan(0.55f),
+                    "The reactivated body must actually occupy the dangerous corridor.");
+                Assert.That(Vector2.Distance(body.position, patrol.Position),
+                    Is.LessThan(BeastPatrolAndChase.ContactRadius),
+                    "The reactivated body must genuinely overlap the visible beast.");
                 patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
                 Assert.That(captures, Is.EqualTo(1),
                     "Restoring the visible rescuer should re-arm legitimate beast contact.");
