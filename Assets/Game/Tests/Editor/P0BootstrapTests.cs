@@ -95,6 +95,34 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TilemapFirstTimePreparationRejectsDirtyScenesBeforeResourceCreation()
+        {
+            // Unity CI can already have an unsaved untitled scene; creating
+            // a second additive one throws before reaching the preflight.
+            // Exercise the exact decision without editing saved scene state.
+            var type = Type.GetType("Rpg.Editor.SoundwellTilemapSetup, Assembly-CSharp-Editor", true);
+            var gate = type.GetMethod("RequireCleanEditorScene",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(gate, Is.Not.Null);
+            Assert.DoesNotThrow(() => gate.Invoke(null,
+                new object[] { true, false, "Clean" }));
+            Assert.DoesNotThrow(() => gate.Invoke(null,
+                new object[] { false, true, "Unloaded" }));
+            var error = Assert.Throws<TargetInvocationException>(() =>
+                gate.Invoke(null, new object[] { true, true, "Unsaved scratch" }));
+            Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
+            Assert.That(error.InnerException.Message, Does.Contain("Unsaved scratch"));
+
+            // A correct guard called after creating assets would still leave
+            // an orphaned folder; prove the first call precedes first write.
+            string source = File.ReadAllText("Assets/Game/Editor/SoundwellTilemapSetup.cs");
+            int guardIndex = source.IndexOf("RefuseDirtyOpenScenes();", StringComparison.Ordinal);
+            int firstWrite = source.IndexOf("AssetDatabase.CreateFolder(", StringComparison.Ordinal);
+            Assert.That(guardIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(firstWrite, Is.GreaterThan(guardIndex));
+        }
+
+        [Test]
         public void SavedTilemapValidationPreservesAnAlreadyLoadedTrialScene()
         {
             const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
