@@ -30,6 +30,74 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellOrkBattleTests
     {
         [Test]
+        public void PixelFormationPoseValidationRejectsMalformedRowsBeforeNativeAllocation()
+        {
+            // Formation sprites use Create16: unlike the coloured S00 helper,
+            // it previously allocated a Texture2D before discovering an
+            // invalid row. Do not leak native textures on retrying bad art.
+            var type = typeof(PartyFormationFollower).Assembly.GetType(
+                "Rpg.Soundwell.SoundwellPixelSpriteBuilder");
+            Assert.That(type, Is.Not.Null);
+            var method = type.GetMethod("Create16",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            const string invalidName = "S00 invalid pixel formation test allocation";
+            var good = Enumerable.Repeat("................", 16).ToArray();
+            var badShort = (string[])good.Clone();
+            badShort[15] = "....";
+            var badNull = (string[])good.Clone();
+            badNull[7] = null;
+
+            try
+            {
+                foreach (string[] rows in new string[][] { null, new string[15], badShort, badNull })
+                {
+                    object[] args = { rows, invalidName, null };
+                    var thrown = Assert.Throws<System.Reflection.TargetInvocationException>(
+                        () => { method.Invoke(null, args); });
+                    Assert.That(thrown.InnerException,
+                        Is.TypeOf<System.InvalidOperationException>());
+                    Assert.That(args[2], Is.Null,
+                        "Invalid art must not allocate or return a native texture.");
+                    Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
+                        .Any(t => t.name == invalidName), Is.False,
+                        "No orphaned native texture may survive the failed validation.");
+                }
+
+                good[0] = ".......#........";
+                object[] validArgs = { good, "S00 valid 16px test pose", null };
+                Sprite sprite = null;
+                Texture2D texture = null;
+                try
+                {
+                    sprite = (Sprite)method.Invoke(null, validArgs);
+                    texture = (Texture2D)validArgs[2];
+                    Assert.That(sprite, Is.Not.Null);
+                    Assert.That(texture, Is.Not.Null);
+                    Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
+                    Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
+                    Assert.That(texture.width, Is.EqualTo(16));
+                    Assert.That(texture.height, Is.EqualTo(16));
+                    Assert.That(texture.GetPixel(7, 15).a, Is.EqualTo(1f));
+                }
+                finally
+                {
+                    if (sprite != null)
+                        Object.DestroyImmediate(sprite);
+                    if (texture != null)
+                        Object.DestroyImmediate(texture);
+                }
+            }
+            finally
+            {
+                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(t => t.name == invalidName))
+                    Object.DestroyImmediate(orphan);
+            }
+        }
+
+        [Test]
         public void BattleReadoutRemainsEligibleForPartialOrExtendedOrkRosters()
         {
             Assert.That(OrkPartyBridge.HasReadoutRoster(0), Is.False);
