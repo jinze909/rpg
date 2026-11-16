@@ -163,7 +163,8 @@ namespace Rpg.Soundwell
             }
 
             bool playerInDanger = beast != null && beast.gameObject.activeInHierarchy &&
-                player != null &&
+                player != null && player.gameObject.activeInHierarchy &&
+                player.simulated &&
                 !directCombat && !combatComplete && gateOpen && !rescueComplete &&
                 // The visible east corridor is local to this scene root.
                 // Subtracting only world X fails when a level is rotated.

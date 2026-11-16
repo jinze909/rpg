@@ -57,6 +57,54 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BeastContactIgnoresDisabledOrNonSimulatedPlayer()
+        {
+            var root = new GameObject("inactive player contact trial");
+            var beast = new GameObject("inactive player contact beast");
+            var rescuer = new GameObject("inactive player contact rescuer");
+            try
+            {
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.gravityScale = 0f;
+                Vector2 overlap = new Vector2(0.64f, 0f);
+                body.position = overlap;
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(beast.transform, body, overlap);
+                int captures = 0;
+                patrol.PlayerCaught += () => captures++;
+
+                // A retired/replaced scene actor can retain a managed
+                // Rigidbody reference, but cannot be physically caught.
+                rescuer.SetActive(false);
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.Zero,
+                    "An inactive rescuer must not trigger an invisible checkpoint capture.");
+
+                rescuer.SetActive(true);
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(1),
+                    "Restoring the visible rescuer should re-arm legitimate beast contact.");
+
+                // A live object with suspended 2D physics is also not an
+                // active collision participant until simulation resumes.
+                body.simulated = false;
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(1));
+                body.simulated = true;
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(2),
+                    "Only a reactivated physical contact can count as another capture.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BeastCaptureUsesLocalDangerCorridorWhenTrialIsRotated()
         {
             var root = new GameObject("rotated Soundwell beast corridor");
