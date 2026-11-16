@@ -947,7 +947,7 @@ class NarrativeV11WritingBaselineTests(unittest.TestCase):
             for old_name in obsolete:
                 with self.subTest(document=doc.name, old_name=old_name):
                     self.assertNotIn(old_name, content)
-            for target in re.findall(r'(?<!!)\\[[^\\]]*\\]\\(([^)]+)\\)', content):
+            for target in re.findall(r'(?<!!)\[[^\]]*\]\(([^)]+)\)', content):
                 path = target.split("#", 1)[0].strip()
                 if not path or path.startswith(("http://", "https://", "mailto:")):
                     continue
