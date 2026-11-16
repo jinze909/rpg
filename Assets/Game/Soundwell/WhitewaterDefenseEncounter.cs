@@ -30,6 +30,7 @@ namespace Rpg.Soundwell
         private Coroutine encounterRoutine;
         private Action<bool> onCompleted;
         private bool active;
+        private float layoutAspect = -1f;
 
         public bool IsActive => active;
         public bool IsReady => party != null && party.IsReady;
@@ -378,6 +379,62 @@ namespace Rpg.Soundwell
             EventSystem eventSystem = SoundwellInputAdapter.EnsureEventSystem(transform);
             eventSystem?.SetSelectedGameObject(retreatButton.gameObject);
             RefreshLocalizedPresentation();
+            LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height));
+        }
+
+        private void LateUpdate()
+        {
+            if (hud == null)
+                return;
+            // Keep the real overlay playable after a window resize or
+            // orientation change; do not touch ORK turns or input focus.
+            float aspect = (float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height);
+            if (Mathf.Abs(layoutAspect - aspect) > 0.01f)
+                LayoutForViewportAspect(aspect);
+        }
+
+        private void LayoutForViewportAspect(float aspect)
+        {
+            if (hud == null)
+                return;
+            aspect = float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f
+                ? 16f / 9f : aspect;
+            layoutAspect = aspect;
+            bool compact = aspect <= 1.35f;
+
+            // A portrait window's logical Canvas width can be far smaller
+            // than the 960px reference. Fixed +/-320 buttons were cropped,
+            // including the only retreat option between ORK turns.
+            PositionButton(attackButton, compact
+                ? new Vector2(-84f, -160f) : new Vector2(-320f, -190f));
+            PositionButton(guardButton, compact
+                ? new Vector2(84f, -160f) : new Vector2(-160f, -190f));
+            PositionButton(retryButton, compact
+                ? new Vector2(0f, -160f) : new Vector2(0f, -190f));
+            PositionButton(continueButton, compact
+                ? new Vector2(0f, -160f) : new Vector2(0f, -190f));
+            PositionButton(retreatButton, compact
+                ? new Vector2(0f, -235f) : new Vector2(320f, -190f));
+
+            // CanvasScaler's 0.5 MatchWidthOrHeight is the geometric
+            // mean: logical width = sqrt(referenceWidth * referenceHeight
+            // * viewportAspect). Preserve a margin on narrow screens.
+            float width = Mathf.Min(820f, Mathf.Max(240f,
+                Mathf.Sqrt(960f * 540f * aspect) - 40f));
+            if (heading != null)
+                heading.rectTransform.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Horizontal, width);
+            if (readout != null)
+                readout.rectTransform.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Horizontal, width);
+        }
+
+        private static void PositionButton(Button button, Vector2 position)
+        {
+            if (button != null)
+                ((RectTransform)button.transform).anchoredPosition = position;
         }
 
         private Button CreateButton(string objectName, string caption,

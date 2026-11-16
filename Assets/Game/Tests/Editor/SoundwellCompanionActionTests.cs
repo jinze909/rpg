@@ -228,6 +228,83 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00BridgeheadKeepsLegalActionsAndRetreatInsidePortraitViewport()
+        {
+            var root = new GameObject("S00 portrait defence HUD layout");
+            var defence = root.AddComponent<WhitewaterDefenseEncounter>();
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var owner = typeof(WhitewaterDefenseEncounter);
+            Button MakeButton(string name)
+            {
+                var obj = new GameObject(name, typeof(RectTransform),
+                    typeof(CanvasRenderer), typeof(Image), typeof(Button));
+                obj.transform.SetParent(root.transform, false);
+                return obj.GetComponent<Button>();
+            }
+            Text MakeLabel(string name)
+            {
+                var obj = new GameObject(name, typeof(RectTransform),
+                    typeof(CanvasRenderer), typeof(Text));
+                obj.transform.SetParent(root.transform, false);
+                return obj.GetComponent<Text>();
+            }
+
+            try
+            {
+                var hud = new GameObject("S00 narrow HUD", typeof(RectTransform),
+                    typeof(Canvas)).GetComponent<Canvas>();
+                hud.transform.SetParent(root.transform, false);
+                var attack = MakeButton("Attack");
+                var guard = MakeButton("Guard");
+                var retry = MakeButton("Retry");
+                var advance = MakeButton("Continue");
+                var leave = MakeButton("Leave");
+                var heading = MakeLabel("Bridgehead title");
+                var readout = MakeLabel("ORK status");
+                owner.GetField("hud", flags).SetValue(defence, hud);
+                owner.GetField("heading", flags).SetValue(defence, heading);
+                owner.GetField("readout", flags).SetValue(defence, readout);
+                owner.GetField("attackButton", flags).SetValue(defence, attack);
+                owner.GetField("guardButton", flags).SetValue(defence, guard);
+                owner.GetField("retryButton", flags).SetValue(defence, retry);
+                owner.GetField("continueButton", flags).SetValue(defence, advance);
+                owner.GetField("retreatButton", flags).SetValue(defence, leave);
+
+                var layout = owner.GetMethod("LayoutForViewportAspect", flags);
+                Assert.That(layout, Is.Not.Null);
+                layout.Invoke(defence, new object[] { 9f / 16f });
+                // 960 x 540 reference + 0.5 CanvasScaler match means a
+                // 9:16 window has 540 logical px across (270 per side).
+                foreach (Button button in new[] { attack, guard, retry, advance, leave })
+                {
+                    float x = ((RectTransform)button.transform).anchoredPosition.x;
+                    Assert.That(Mathf.Abs(x) + 74f, Is.LessThan(270f),
+                        button.name + " must remain visible in portrait.");
+                }
+                Assert.That(((RectTransform)leave.transform).anchoredPosition.y,
+                    Is.LessThan(((RectTransform)attack.transform).anchoredPosition.y - 52f),
+                    "Leave must remain separately visible below the live command row.");
+                Assert.That(readout.rectTransform.rect.width, Is.LessThan(540f));
+                Assert.That(heading.rectTransform.rect.width, Is.LessThan(540f));
+
+                layout.Invoke(defence, new object[] { 16f / 9f });
+                Assert.That(((RectTransform)attack.transform).anchoredPosition.x,
+                    Is.EqualTo(-320f), "Landscape keeps the verified action layout.");
+                Assert.That(((RectTransform)leave.transform).anchoredPosition.x,
+                    Is.EqualTo(320f), "Landscape keeps the existing Leave position.");
+                Assert.That(readout.rectTransform.rect.width, Is.EqualTo(820f));
+            }
+            finally
+            {
+                // These test controls are independent of a live ORK battle;
+                // OnDestroy must not schedule a runtime HUD destruction.
+                owner.GetField("hud", flags).SetValue(defence, null);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void S00BridgeheadFocusRecoversGuardWithoutStealingAnIntentionalSelection()
         {
             // Unit-test the same focus decision used each live ORK HUD frame.
