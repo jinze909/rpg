@@ -154,6 +154,80 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00BridgeheadHudSwitchesBothLanguagesWithoutChangingOrkState()
+        {
+            // Test the live Changed event with a real UGUI Text and selectable
+            // controls. No fabricated ORK turn, victory or additional input owner.
+            string previous = SoundwellUiLocalization.Language;
+            var root = new GameObject("S00 language change test");
+            var defence = root.AddComponent<WhitewaterDefenseEncounter>();
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var owner = typeof(WhitewaterDefenseEncounter);
+            Text MakeLabel(Transform parent, string name)
+            {
+                var obj = new GameObject(name, typeof(RectTransform),
+                    typeof(CanvasRenderer), typeof(Text));
+                obj.transform.SetParent(parent, false);
+                return obj.GetComponent<Text>();
+            }
+            Button MakeButton(Transform parent, string name)
+            {
+                var obj = new GameObject(name, typeof(RectTransform),
+                    typeof(CanvasRenderer), typeof(Image), typeof(Button));
+                obj.transform.SetParent(parent, false);
+                MakeLabel(obj.transform, name + " caption");
+                return obj.GetComponent<Button>();
+            }
+            try
+            {
+                // EditMode NUnit does not run the normal Play Mode OnEnable
+                // lifecycle for plain MonoBehaviours. Subscribe through the
+                // real callback so the language Changed event is exercised.
+                owner.GetMethod("OnEnable", flags).Invoke(defence, null);
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var hud = new GameObject("S00 localized HUD", typeof(Canvas))
+                    .GetComponent<Canvas>();
+                hud.transform.SetParent(root.transform, false);
+                Text heading = MakeLabel(hud.transform, "S00 title");
+                Text readout = MakeLabel(hud.transform, "S00 ORK status");
+                var attack = MakeButton(hud.transform, "attack");
+                var retry = MakeButton(hud.transform, "retry");
+                owner.GetField("hud", flags).SetValue(defence, hud);
+                owner.GetField("heading", flags).SetValue(defence, heading);
+                owner.GetField("readout", flags).SetValue(defence, readout);
+                owner.GetField("attackButton", flags).SetValue(defence, attack);
+                owner.GetField("retryButton", flags).SetValue(defence, retry);
+                var setReadout = owner.GetMethod("SetReadout",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                Assert.That(setReadout, Is.Not.Null);
+                setReadout.Invoke(defence, new object[] { "The party is preparing", "队伍正在准备" });
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(heading.text, Is.EqualTo("S00 · 白水渡桥头"));
+                Assert.That(attack.GetComponentInChildren<Text>().text, Is.EqualTo("攻击"));
+                Assert.That(retry.GetComponentInChildren<Text>().text, Is.EqualTo("重试"));
+                Assert.That(readout.text, Is.EqualTo("队伍正在准备"));
+                Assert.That(readout.font.HasCharacter('中'), Is.True,
+                    "Live S00 CJK copy must use the pinned real glyph font.");
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(heading.text, Is.EqualTo("S00 · WHITEWATER BRIDGEHEAD"));
+                Assert.That(attack.GetComponentInChildren<Text>().text, Is.EqualTo("Attack"));
+                Assert.That(readout.text, Is.EqualTo("The party is preparing"));
+                owner.GetField("hud", flags).SetValue(defence, null);
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(previous);
+                owner.GetMethod("OnDisable", flags).Invoke(defence, null);
+                owner.GetField("hud", flags).SetValue(defence, null);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void S00BridgeheadFocusRecoversGuardWithoutStealingAnIntentionalSelection()
         {
             // Unit-test the same focus decision used each live ORK HUD frame.
