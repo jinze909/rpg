@@ -151,7 +151,16 @@ namespace Rpg.Editor
             VerifyPixelWallSprite(rule.m_DefaultSprite, Root + "/GratingBase.png");
             VerifyPixelWallSprite(joinedRule.m_Sprites[0], Root + "/GratingJoined.png");
 
-            Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
+            // Validate the saved scene without closing an editor scene
+            // that a level designer already has open. Dirty loaded scenes
+            // cannot prove the persisted on-disk wall geometry.
+            Scene scene = SceneManager.GetSceneByPath(ScenePath);
+            bool openedForValidation = !scene.IsValid() || !scene.isLoaded;
+            if (!openedForValidation && scene.isDirty)
+                throw new InvalidOperationException(
+                    "Save or discard Soundwell scene edits before validating saved Tilemap walls.");
+            if (openedForValidation)
+                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
             try
             {
                 var roots = scene.GetRootGameObjects().Where(go => go.name == GridName).ToArray();
@@ -212,7 +221,8 @@ namespace Rpg.Editor
             }
             finally
             {
-                EditorSceneManager.CloseScene(scene, true);
+                if (openedForValidation)
+                    EditorSceneManager.CloseScene(scene, true);
             }
             Debug.Log("RPG_SOUNDWELL_TILEMAP_VALIDATED");
         }

@@ -94,6 +94,28 @@ namespace Rpg.Tests.Editor
             Assert.That(setup, Does.Not.Contain("GetField(\"name\""));
         }
 
+        [Test]
+        public void SavedTilemapValidationDoesNotCloseAUsersAlreadyLoadedTrial()
+        {
+            const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
+            var active = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(trialPath);
+            bool openedHere = !active.IsValid() || !active.isLoaded;
+            if (openedHere)
+                active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            try
+            {
+                Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+                Assert.That(active.IsValid() && active.isLoaded, Is.True,
+                    "Read-only Tilemap validation may not close an author's opened scene.");
+                Assert.That(active.isDirty, Is.False);
+            }
+            finally
+            {
+                if (openedHere && active.IsValid() && active.isLoaded)
+                    EditorSceneManager.CloseScene(active, true);
+            }
+        }
+
         [Test, Order(1)]
         public void Urp2DRendererIsTheOnlyActivePipeline()
         {
