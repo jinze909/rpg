@@ -328,8 +328,7 @@ namespace Rpg.Soundwell
             scaler.referenceResolution = new Vector2(960f, 540f);
             scaler.matchWidthOrHeight = 0.5f;
             canvas.gameObject.AddComponent<GraphicRaycaster>();
-            Panel(canvas.transform, "S00 night backdrop", new Vector2(0f, 0f),
-                new Vector2(960f, 540f), new Color(0.045f, 0.070f, 0.095f));
+            CreateFullCanvasNightBackdrop(canvas.transform);
 
             title = Label(canvas.transform, SceneTitle, 28,
                 new Vector2(0f, 209f), new Vector2(740f, 48f), Brass);
@@ -1417,6 +1416,22 @@ namespace Rpg.Soundwell
             card.horizontalOverflow = HorizontalWrapMode.Wrap;
             card.resizeTextMinSize = 12;
             return card;
+        }
+
+        // The prelude starts with a dark night sky. A fixed 960x540 panel
+        // does not cover a portrait or ultrawide CanvasScaler viewport and
+        // exposes the underlying entry screen around the walkable bridge.
+        // Only the backdrop stretches; authored 16px actors remain pixel-snapped.
+        private static Image CreateFullCanvasNightBackdrop(Transform canvasRoot)
+        {
+            Image backdrop = Panel(canvasRoot, "S00 night backdrop",
+                Vector2.zero, Vector2.zero, new Color(0.045f, 0.070f, 0.095f));
+            RectTransform bounds = backdrop.rectTransform;
+            bounds.anchorMin = Vector2.zero;
+            bounds.anchorMax = Vector2.one;
+            bounds.offsetMin = Vector2.zero;
+            bounds.offsetMax = Vector2.zero;
+            return backdrop;
         }
 
         // The same third-bell fade must cover the entire playable canvas
