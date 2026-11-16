@@ -27,8 +27,8 @@ namespace Rpg.Tests.Editor
 
         // Keep preparation out of SetUp/OneTimeSetUp: UTF reruns them after domain reload.
         // A real Linux Player build can exceed NUnit's 180-second default.
-        [Test, Order(0), Timeout(900000)]
-        public void SavedConfigurationAndWiringAreValid()
+        [UnityTest, Order(0), Timeout(900000)]
+        public IEnumerator SavedConfigurationAndWiringAreValid()
         {
             Assert.That(Application.unityVersion, Is.EqualTo("6000.6.8f1"));
             Assert.That(Type.GetType("UnityEngine.UI.Button, UnityEngine.UI", throwOnError: true), Is.Not.Null);
@@ -74,6 +74,20 @@ namespace Rpg.Tests.Editor
                 "Running the command again must not rewrite the saved scene.");
             ValidateConfiguration();
             Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
+            // Unity queues an Editor compile after native Build Profile checks and
+            // bootstrap scene wiring. A synchronous NUnit Test starts the M11
+            // player build in that same editor update and intermittently gets
+            // "Error building Player because scripts are compiling". Give the
+            // editor a real update to drain pending work; do not skip the build
+            // or its strict ELF/scene/evidence checks.
+            yield return null;
+            double readyDeadline = EditorApplication.timeSinceStartup + 120d;
+            while (EditorApplication.isCompiling || EditorApplication.isUpdating)
+            {
+                if (EditorApplication.timeSinceStartup >= readyDeadline)
+                    Assert.Fail("M11 Linux Player build blocked by ongoing script compilation or asset import.");
+                yield return null;
+            }
             // Prepare must also persist URP normalization caused by the real Player build.
             // Verify rebuilds the same committed profiles and requires a clean checkout.
             InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
