@@ -172,7 +172,8 @@ namespace Rpg.Soundwell
             if (eventSystem != null)
             {
                 Button candidate = ChooseAvailableActionFocus(
-                    eventSystem.currentSelectedGameObject, attackButton, guardButton);
+                    eventSystem.currentSelectedGameObject, attackButton, guardButton,
+                    retreatButton);
                 if (candidate != null)
                     eventSystem.SetSelectedGameObject(candidate.gameObject);
             }
@@ -180,8 +181,10 @@ namespace Rpg.Soundwell
 
         // Only repairs stale/disabled selection; an intentional valid choice
         // (including Leave) always wins over automatic focus restoration.
+        // When ORK has no legal command between turns, leave the player a
+        // real UGUI escape route rather than focus a disabled command.
         private static Button ChooseAvailableActionFocus(
-            GameObject selected, Button attack, Button guard)
+            GameObject selected, Button attack, Button guard, Button retreat)
         {
             if (selected != null)
             {
@@ -195,6 +198,8 @@ namespace Rpg.Soundwell
                 return attack;
             if (guard != null && guard.IsActive() && guard.IsInteractable())
                 return guard;
+            if (retreat != null && retreat.IsActive() && retreat.IsInteractable())
+                return retreat;
             return null;
         }
 
