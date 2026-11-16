@@ -902,5 +902,27 @@ class M00EvidenceAndExitContractTests(unittest.TestCase):
         self.assertIn("| bridge_evidence |", facts)
 
 
+class ForeshadowAndFogBoundariesTests(unittest.TestCase):
+    def test_investigator_conscription_and_nearby_fog_clues_match_v02(self):
+        # R4-03: ST-04's beast is not the fog navigation mechanic.
+        # Current fog identity safeguards live in the outline and RC-04.
+        root = Path(__file__).resolve().parents[1] / "docs/narrative"
+        outline = (root / "STORY_OUTLINE.md").read_text(encoding="utf-8")
+        regional = (root / "REGIONAL_STORIES.md").read_text(encoding="utf-8")
+        cases = (root / "ROSTER_CASES.md").read_text(encoding="utf-8")
+        facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
+        m02 = outline.split("#### M02", 1)[1].split("#### M03", 1)[0]
+        m04 = outline.split("#### M04", 1)[1].split("### 第二幕", 1)[0]
+        self.assertIn("伊蕾", m02)
+        self.assertIn("陆钧", m04)
+        self.assertIn("归属", m04)
+        self.assertIn("有效距离不超过一里", outline)
+        self.assertIn("不能单独辨认身份", cases)
+        self.assertIn("不能单凭声音证明身份", facts)
+        self.assertIn("ST-04｜钟岭的回声会咬人", regional)
+        self.assertIn("RC-04", cases)
+        self.assertIn("听雾", cases)
+
+
 if __name__ == "__main__":
     unittest.main()
