@@ -244,8 +244,12 @@ namespace Rpg.Soundwell
         // The prologue button always starts from the opening; when a prior
         // visit exists it must say Replay, never falsely promise Resume.
         public static string PreludeProgressKey(bool evacueeSafe,
-            bool secondBellHeard, bool cableHeld)
+            bool secondBellHeard, bool cableHeld, bool thirdBellHeard = false)
         {
+            // This flag is earned only from the real S00 ORK victory callback.
+            // Earlier scene exits may only advertise what the player reached.
+            if (thirdBellHeard)
+                return "entry.whitewater_replay_third_bell";
             if (cableHeld)
                 return "entry.whitewater_replay_cable";
             if (secondBellHeard)
@@ -263,7 +267,8 @@ namespace Rpg.Soundwell
             string key = PreludeProgressKey(
                 state != null && state.GetInt(WhitewaterPrelude.EvacueeEscortedKey) != 0,
                 state != null && state.GetInt(WhitewaterPrelude.SecondBellKey) != 0,
-                state != null && state.GetInt(WhitewaterPrelude.CableHoldKey) != 0);
+                state != null && state.GetInt(WhitewaterPrelude.CableHoldKey) != 0,
+                state != null && state.GetInt(WhitewaterPrelude.ThirdBellKey) != 0);
             if (!force && key == shownPreludeProgressKey)
                 return;
             Text label = prologueButton.GetComponentInChildren<Text>();

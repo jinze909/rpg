@@ -542,6 +542,10 @@ MonoBehaviour:
     m_Localized: "S00 · 缆索暂稳 · 重玩"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267459
+    m_Localized: "S00 · 第三声号钟 · 重玩"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

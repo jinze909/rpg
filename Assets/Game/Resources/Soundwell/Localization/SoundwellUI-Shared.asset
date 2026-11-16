@@ -543,6 +543,10 @@ MonoBehaviour:
     m_Key: entry.whitewater_replay_cable
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267459
+    m_Key: entry.whitewater_replay_third_bell
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:
