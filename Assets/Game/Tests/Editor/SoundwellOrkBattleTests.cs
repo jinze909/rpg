@@ -30,6 +30,16 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellOrkBattleTests
     {
         [Test]
+        public void BattleReadoutRemainsEligibleForPartialOrExtendedOrkRosters()
+        {
+            Assert.That(OrkPartyBridge.HasReadoutRoster(0), Is.False);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(1), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(2), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(3), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(4), Is.True);
+        }
+
+        [Test]
         public void OrkControllerGuardCachesKnownMotorsBetweenFullSceneScans()
         {
             const System.Reflection.BindingFlags flags =

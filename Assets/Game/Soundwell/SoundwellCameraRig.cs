@@ -18,6 +18,10 @@ namespace Rpg.Soundwell
         public const int PixelsPerUnit = 16;
         public const int ReferenceWidth = 320;
         public const int ReferenceHeight = 180;
+        [SerializeField] private Vector2 trialHalfExtents = new Vector2(8.1f, 3.2f);
+        [SerializeField] private Vector2 followFactors = new Vector2(0.14f, 0.15f);
+        [SerializeField] private Vector2 maxFollowOffsets = new Vector2(0.85f, 0.5f);
+        [SerializeField, Min(0f)] private float trialEdgeMargin = 0.12f;
         private Camera sceneCamera;
         private Transform player;
         private Rigidbody2D playerBody;
@@ -82,9 +86,9 @@ namespace Rpg.Soundwell
             // must be enclosed in WORLD screen axes, not the old local X
             // assumption. Cinemachine still owns the camera pose and lens.
             float aspect = sceneCamera.aspect > 0f ? sceneCamera.aspect : 16f / 9f;
-            const float trialHalfWidth = 8.1f;
-            const float trialHalfHeight = 3.2f;
-            const float edgeMargin = 0.12f;
+            float trialHalfWidth = Mathf.Max(0.01f, trialHalfExtents.x);
+            float trialHalfHeight = Mathf.Max(0.01f, trialHalfExtents.y);
+            float edgeMargin = Mathf.Max(0f, trialEdgeMargin);
             Vector3 trialX = trialRoot.TransformVector(new Vector3(trialHalfWidth, 0f, 0f));
             Vector3 trialY = trialRoot.TransformVector(new Vector3(0f, trialHalfHeight, 0f));
             float worldHalfWidth = Mathf.Abs(trialX.x) + Mathf.Abs(trialY.x);
@@ -106,8 +110,10 @@ namespace Rpg.Soundwell
                 (Vector2)player.position;
             Vector3 sourceLocal = trialRoot.InverseTransformPoint(sourceWorld);
             Vector3 followWorld = trialRoot.TransformVector(new Vector3(
-                Mathf.Clamp(sourceLocal.x * 0.14f, -0.85f, 0.85f),
-                Mathf.Clamp(sourceLocal.y * 0.15f, -0.5f, 0.5f), 0f));
+                Mathf.Clamp(sourceLocal.x * followFactors.x,
+                    -Mathf.Max(0f, maxFollowOffsets.x), Mathf.Max(0f, maxFollowOffsets.x)),
+                Mathf.Clamp(sourceLocal.y * followFactors.y,
+                    -Mathf.Max(0f, maxFollowOffsets.y), Mathf.Max(0f, maxFollowOffsets.y)), 0f));
             // Quantize and clamp BOTH screen-axis pans after transforming to
             // world space: a local X follow becomes world Y at 90 degrees.
             // Clamping before rotation let a far exit leave the screen.
