@@ -1393,10 +1393,32 @@ namespace Rpg.Soundwell
             // M00 is still a separate playable story task. Reuse the real
             // exit control rather than claiming a scene that does not exist.
             exit.transform.SetAsLastSibling();
-            ((RectTransform)exit.transform).anchoredPosition =
-                new Vector2(0f, -190f);
+            RefreshEpilogueExitPosition();
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        // The ending must always offer a clickable return to the entry
+        // screen. The 960x540 CanvasScaler uses the geometric mean of width
+        // and height; fixed y=-190 slips below the viewport on 32:9 screens.
+        private static Vector2 EpilogueExitPosition(float aspect)
+        {
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                aspect = 16f / 9f;
+            float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+            // A 29px button retains 12px of visible bottom breathing room.
+            return new Vector2(0f, Mathf.Max(-190f,
+                -halfHeight + 14.5f + 12f));
+        }
+
+        private void RefreshEpilogueExitPosition()
+        {
+            if (exit == null)
+                return;
+            float aspect = (float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height);
+            ((RectTransform)exit.transform).anchoredPosition =
+                EpilogueExitPosition(aspect);
         }
 
         // The title appears after the full-screen third-bell blackout. Its
@@ -1983,6 +2005,12 @@ namespace Rpg.Soundwell
             // Dialogue selection uses UI input, not the exploration motor.
             // Refresh visible options even when the player cannot walk.
             RefreshOpenChoiceLanguage();
+            if (phase == 18)
+            {
+                // Resizing after the final bell cannot hide the only exit.
+                RefreshEpilogueExitPosition();
+                return;
+            }
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
                 phase != 12 && phase != 14 && phase != 15)
                 return;
