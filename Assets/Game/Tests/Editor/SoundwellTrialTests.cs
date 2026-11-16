@@ -17,6 +17,42 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellTrialTests
     {
         [Test]
+        public void CameraCanFrameASecondAuthoredRoomSizeWithoutChangingConstants()
+        {
+            var root = new GameObject("smaller trial camera root");
+            var camObject = new GameObject("configurable trial camera");
+            var player = new GameObject("smaller trial leader");
+            try
+            {
+                player.transform.SetParent(root.transform, false);
+                var body = player.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                var camera = camObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 1f;
+                var rig = camObject.AddComponent<SoundwellCameraRig>();
+                var field = typeof(SoundwellCameraRig).GetField("trialHalfExtents",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(field, Is.Not.Null);
+                field.SetValue(rig, new Vector2(4f, 3.2f));
+                rig.Initialize(camera, player.transform, root.transform);
+                rig.RefreshFraming();
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize,
+                    Is.GreaterThanOrEqualTo(5.625f));
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize,
+                    Is.LessThan(8.5f),
+                    "The camera lens must use the scene-owned room footprint.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(camObject);
+                Object.DestroyImmediate(player);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CameraFramingFollowsTranslatedTrialInsteadOfWorldOrigin()
         {
             var root = new GameObject("offset Soundwell camera root");
