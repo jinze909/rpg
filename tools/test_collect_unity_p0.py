@@ -24,6 +24,32 @@ from collect_unity_p0 import (
 
 
 
+from unittest.mock import patch
+from tempfile import SpooledTemporaryFile
+import install_ork
+
+
+class VendorAssetStreamingTests(unittest.TestCase):
+    def test_spooled_large_vendor_asset_installs_without_whole_payload_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            name = Path("Assets/Gaming Is Love/Test Packages/large.bin")
+            with SpooledTemporaryFile(max_size=1024) as spool:
+                original = b"ORK3-stream-test" * 120000
+                spool.write(original)
+                spool.seek(0)
+                self.assertTrue(spool._rolled)
+                with patch.object(install_ork, "PROJECT", root):
+                    self.assertEqual(install_ork.install({name: spool}), 1)
+                    self.assertEqual((root / name).stat().st_size, len(original))
+                    self.assertEqual(install_ork.install({name: spool}), 0,
+                                     "An identical vendor payload is idempotent.")
+                    with (root / name).open("ab") as output:
+                        output.write(b"corrupted")
+                    with self.assertRaisesRegex(ValueError, "Existing asset differs"):
+                        install_ork.install({name: spool})
+
+
 class SoundwellRouteComparisonTests(unittest.TestCase):
     def test_both_routes_must_have_exactly_one_equal_fresh_start(self):
         bell = "RPG_SOUNDWELL_ROUTE_START:BELL:shared"
