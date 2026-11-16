@@ -53,6 +53,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void NonFiniteAuthoredCameraValuesCannotPoisonTheLensOrFocus()
+        {
+            var root = new GameObject("invalid authored camera room");
+            var cameraObject = new GameObject("invalid authored camera");
+            var leader = new GameObject("finite leader");
+            try
+            {
+                leader.transform.SetParent(root.transform, false);
+                leader.transform.localPosition = new Vector3(6f, -2f, 0f);
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 1f;
+                var rig = cameraObject.AddComponent<SoundwellCameraRig>();
+                rig.Initialize(camera, leader.transform, root.transform);
+
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var owner = typeof(SoundwellCameraRig);
+                owner.GetField("trialHalfExtents", flags).SetValue(rig,
+                    new Vector2(float.NaN, float.PositiveInfinity));
+                owner.GetField("followFactors", flags).SetValue(rig,
+                    new Vector2(float.NaN, float.NegativeInfinity));
+                owner.GetField("maxFollowOffsets", flags).SetValue(rig,
+                    new Vector2(float.PositiveInfinity, float.NaN));
+                owner.GetField("trialEdgeMargin", flags).SetValue(rig, float.NaN);
+                rig.RefreshFraming();
+
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize,
+                    Is.EqualTo(8.5f).Within(0.01f),
+                    "Invalid authored floats must fall back to the live room lens.");
+                Vector3 centre = rig.FramingTarget.position;
+                Assert.That(float.IsNaN(centre.x) || float.IsInfinity(centre.x), Is.False);
+                Assert.That(float.IsNaN(centre.y) || float.IsInfinity(centre.y), Is.False);
+                Assert.That(centre.x, Is.EqualTo(0.8125f).Within(0.063f));
+                Assert.That(centre.y, Is.EqualTo(-0.3125f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RescueArrivalAndThreatThresholdsAreLevelOwnedFields()
         {
             // A new authored scene can alter these thresholds without
