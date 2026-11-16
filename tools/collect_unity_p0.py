@@ -81,6 +81,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.P0BootstrapTests.SoundwellAudioMuteSurvivesSceneRerouting",
     },
     "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs": {
+        "S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer":
+            "Rpg.Tests.Editor.SoundwellInputSystemTests.S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer",
         "GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial":
             "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
         "WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress":
