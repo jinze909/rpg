@@ -154,6 +154,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DisabledS00BridgeheadReleasesTheEncounterWithoutReportingVictory()
+        {
+            // A deactivated Bootstrap root stops Unity coroutines, but
+            // previously kept the S00 active latch set. The next entry
+            // could not start again even though no ORK victory occurred.
+            var root = new GameObject("S00 interrupted defence");
+            try
+            {
+                var defence = root.AddComponent<WhitewaterDefenseEncounter>();
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var owner = typeof(WhitewaterDefenseEncounter);
+                var active = owner.GetField("active", flags);
+                var callback = owner.GetField("onCompleted", flags);
+                var onDisable = owner.GetMethod("OnDisable", flags);
+                Assert.That(active, Is.Not.Null);
+                Assert.That(callback, Is.Not.Null);
+                Assert.That(onDisable, Is.Not.Null);
+
+                int completed = 0;
+                callback.SetValue(defence, new System.Action<bool>(_ => completed++));
+                active.SetValue(defence, true);
+                onDisable.Invoke(defence, null);
+                Assert.That(defence.IsActive, Is.False,
+                    "Disabling a running scene must cancel the orphaned ORK chooser latch.");
+                Assert.That(callback.GetValue(defence), Is.Null,
+                    "The old completion callback must not survive a scene handoff.");
+                Assert.That(completed, Is.Zero,
+                    "Interrupting the scene is not a genuine ORK victory or retreat.");
+
+                // Repeated OnDisable from destruction must be safe.
+                onDisable.Invoke(defence, null);
+                Assert.That(defence.IsActive, Is.False);
+                Assert.That(completed, Is.Zero);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void S00BridgeheadHudSwitchesBothLanguagesWithoutChangingOrkState()
         {
             // Test the live Changed event with a real UGUI Text and selectable

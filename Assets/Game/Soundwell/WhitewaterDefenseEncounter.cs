@@ -53,6 +53,13 @@ namespace Rpg.Soundwell
         private void OnDisable()
         {
             SoundwellUiLocalization.Changed -= RefreshLocalizedPresentation;
+            // A scene handoff can deactivate the Bootstrap root while the
+            // ORK first-turn wait or chooser coroutine is still running.
+            // Unity stops coroutines on deactivation but leaves our active
+            // latch set, otherwise preventing a fresh bridgehead attempt.
+            // Teardown must never report an unearned S00 victory callback.
+            if (active)
+                Stop();
         }
 
         public bool Begin(Action<bool> completed)
