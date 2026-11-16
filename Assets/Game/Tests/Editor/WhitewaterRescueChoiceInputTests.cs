@@ -427,6 +427,9 @@ namespace Rpg.Tests.Editor
                         rescueChoice == 1 ? "Shen Li's rope holds" : "The soldiers lift"));
                     Assert.That(inWater.anchoredPosition.x, Is.GreaterThan(riverStartX),
                         "The officer must begin visibly moving only after the actual rescue.");
+                    Assert.That(inWater.anchoredPosition.x,
+                        Is.EqualTo(Mathf.Round(inWater.anchoredPosition.x)).Within(0.001f),
+                        "The first earned rescue frame must move on whole canvas pixels.");
 
                     if (rescueChoice == 0)
                     {

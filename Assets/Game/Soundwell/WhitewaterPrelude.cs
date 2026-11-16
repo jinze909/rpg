@@ -753,8 +753,13 @@ namespace Rpg.Soundwell
                 elapsed += Time.unscaledDeltaTime;
                 Vector2 next = Vector2.Lerp(start,
                     new Vector2(290f, 100f), Mathf.Clamp01(elapsed / 2f));
+                // Both endpoints are authored on whole canvas pixels. The
+                // initial rescue must show movement on its FIRST frame,
+                // even when the first 2-second interpolation is below 0.5px.
+                // Ceil preserves eastward progress and remains integer-only;
+                // nearest rounding could leave the officer visibly frozen.
                 hanQiao.anchoredPosition = new Vector2(
-                    Mathf.Round(next.x), Mathf.Round(next.y));
+                    Mathf.Ceil(next.x), Mathf.Ceil(next.y));
                 yield return null;
             }
             if (phase == 8 && next != null)
