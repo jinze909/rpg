@@ -211,6 +211,35 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OrkGateReachUsesAcceptedPhysicsStepInsteadOfStaleVisualPosition()
+        {
+            var actor = new GameObject("ORK stepped gate rescuer");
+            try
+            {
+                Vector2 panel = new Vector2(4.3f, -2.5f);
+                var body = actor.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.gravityScale = 0f;
+                actor.transform.position = panel + Vector2.right * 1.2f;
+                body.position = panel + Vector2.right * 0.40f;
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(actor, panel), Is.True,
+                    "The accepted ORK Rigidbody step must make the nearby physical gate operable.");
+
+                body.position = panel + Vector2.right * 0.81f;
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(actor, panel), Is.False,
+                    "A newer physical step outside gate reach must revoke stale visual eligibility.");
+                body.position = panel;
+                actor.SetActive(false);
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(actor, panel), Is.False,
+                    "A retired scene actor cannot use a gate even with an in-range physics body.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(actor);
+            }
+        }
+
+        [Test]
         public void RescuedSurveyorCartTargetUsesTransformedVisibleMarker()
         {
             var root = new GameObject("relocated map-kit cart trial");

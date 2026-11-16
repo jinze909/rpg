@@ -14,9 +14,18 @@ namespace Rpg.Soundwell
             IsLiveActorAtGate(member != null ? member.GameObject : null,
                 new Vector2(-0.55f, 0f));
 
-        public static bool IsLiveActorAtGate(GameObject actor, Vector2 gateWorldPosition) =>
-            actor != null && actor.activeInHierarchy &&
-            Vector2.Distance(actor.transform.position, gateWorldPosition) <= 0.8f;
+        public static bool IsLiveActorAtGate(GameObject actor, Vector2 gateWorldPosition)
+        {
+            if (actor == null || !actor.activeInHierarchy)
+                return false;
+            // ORK can accept a Rigidbody2D step before Unity publishes the
+            // matching Transform on the next render. Gate eligibility must
+            // read the same authoritative position as battle movement and
+            // its preview, never the previous visual frame.
+            Rigidbody2D body = actor.GetComponent<Rigidbody2D>();
+            Vector2 position = body != null ? body.position : (Vector2)actor.transform.position;
+            return Vector2.Distance(position, gateWorldPosition) <= 0.8f;
+        }
     }
 
     public readonly struct SoundwellControlFrame
