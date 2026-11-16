@@ -47,6 +47,10 @@ namespace Rpg.Editor
                 Validate();
                 return;
             }
+            // Fail before making a new resource folder or saving assets.
+            // Otherwise one unsaved editor scene can strand half-created M5
+            // resources and make the next Prepare refuse to run.
+            RefuseDirtyOpenScenes();
             if (AssetDatabase.IsValidFolder(Root) ||
                 File.Exists(Root + "/GratingBase.png") ||
                 File.Exists(Root + "/GratingJoined.png"))
@@ -79,17 +83,6 @@ namespace Rpg.Editor
             AssetDatabase.CreateAsset(rule, RulePath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
-
-            // Never overwrite an interactive editor's unsaved scene work
-            // with an additive setup pass. CI starts from a clean checkout.
-            for (int i = 0; i < SceneManager.sceneCount; i++)
-            {
-                Scene opened = SceneManager.GetSceneAt(i);
-                if (opened.isLoaded && opened.isDirty)
-                    throw new InvalidOperationException(
-                        "Save or discard open scene edits before preparing the Soundwell Tilemap: " +
-                        opened.path);
-            }
 
             Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
             try
@@ -124,6 +117,20 @@ namespace Rpg.Editor
                 EditorSceneManager.CloseScene(scene, true);
             }
             Validate();
+        }
+
+        // Called before any first-time resource creation. Existing persisted
+        // tiles use read-only Validate() and never enter the prepare path.
+        private static void RefuseDirtyOpenScenes()
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene opened = SceneManager.GetSceneAt(i);
+                if (opened.isLoaded && opened.isDirty)
+                    throw new InvalidOperationException(
+                        "Save or discard open scene edits before preparing the Soundwell Tilemap: " +
+                        (string.IsNullOrEmpty(opened.path) ? opened.name : opened.path));
+            }
         }
 
         public static void Validate()

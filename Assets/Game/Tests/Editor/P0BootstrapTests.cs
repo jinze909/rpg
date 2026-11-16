@@ -95,6 +95,38 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TilemapFirstTimePreparationRejectsDirtyScenesBeforeResourceCreation()
+        {
+            // A disposable additive scene must be rejected without changing
+            // or closing any authored scene; no real tile assets are touched.
+            var type = Type.GetType("Rpg.Editor.SoundwellTilemapSetup, Assembly-CSharp-Editor", true);
+            var gate = type.GetMethod("RefuseDirtyOpenScenes",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(gate, Is.Not.Null);
+
+            var previous = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            var scratch = EditorSceneManager.NewScene(
+                NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            try
+            {
+                EditorSceneManager.MarkSceneDirty(scratch);
+                var error = Assert.Throws<TargetInvocationException>(
+                    () => gate.Invoke(null, null));
+                Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
+                Assert.That(error.InnerException.Message, Does.Contain(scratch.name));
+                Assert.That(scratch.isLoaded && scratch.isDirty, Is.True,
+                    "Rejecting a dirty scene must not close it or discard changes.");
+            }
+            finally
+            {
+                if (scratch.IsValid() && scratch.isLoaded)
+                    EditorSceneManager.CloseScene(scratch, true);
+                if (previous.IsValid() && previous.isLoaded)
+                    UnityEngine.SceneManagement.SceneManager.SetActiveScene(previous);
+            }
+        }
+
+        [Test]
         public void SavedTilemapValidationPreservesAnAlreadyLoadedTrialScene()
         {
             const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
