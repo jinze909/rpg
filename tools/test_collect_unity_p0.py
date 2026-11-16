@@ -5,6 +5,7 @@ import tempfile
 from unittest.mock import patch
 from tempfile import SpooledTemporaryFile
 import install_ork
+import verify_ork
 from pathlib import Path
 
 from collect_unity_p0 import (
@@ -32,6 +33,37 @@ import io
 from zipfile import ZipFile
 
 from restore_unity_p0 import validate_candidate_contents
+
+
+class VendorManifestBoundaryTests(unittest.TestCase):
+    def test_only_canonical_vendor_assets_and_folder_metas_are_allowed(self):
+        valid = verify_ork.valid_vendor_manifest_path
+        for path in (
+            "Assets/Gaming Is Love.meta",
+            "Assets/Gizmos.meta",
+            "Assets/Gaming Is Love/Makinom 2/DLL/ORK3.dll",
+            "Assets/Gizmos/ORK/Icons/icon.png",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(valid(path))
+
+        for path in (
+            "",
+            " Assets/Gaming Is Love.meta",
+            "Assets/Gaming Is Love/surplus.dll ",
+            "Assets/Other/file.dll",
+            "ProjectSettings/ProjectSettings.asset",
+            "/Assets/Gaming Is Love/file.dll",
+            "../Assets/Gaming Is Love/file.dll",
+            "Assets/Gaming Is Love/../Other/file.dll",
+            "Assets/Gaming Is Love/./file.dll",
+            "Assets/Gaming Is Love//file.dll",
+            r"Assets/Gaming Is Love\bad.dll",
+            r"Assets/Gaming Is Love/sub\bad.dll",
+            r"Assets/Gizmos\ORK/icon.png",
+        ):
+            with self.subTest(path=path):
+                self.assertFalse(valid(path))
 
 
 class CandidateRestorePreflightTests(unittest.TestCase):
