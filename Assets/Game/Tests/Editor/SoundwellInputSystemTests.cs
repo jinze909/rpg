@@ -17,6 +17,42 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellInputSystemTests
     {
         [Test]
+        public void UnifiedHeldInputLatchConsumesReleaseBeforeAllowingNewPress()
+        {
+            // The adapter suppresses the opening press and its release, not
+            // the first intentional later press. Exercise the exact shared
+            // latch code without keyboard/gamepad dependence.
+            var owner = typeof(SoundwellInputAdapter);
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static;
+            var kinds = owner.GetNestedType("HeldControl",
+                System.Reflection.BindingFlags.NonPublic);
+            var states = owner.GetField("heldUntilRelease", flags);
+            var consume = owner.GetMethod("ConsumeHeldLatch", flags);
+            Assert.That(kinds, Is.Not.Null);
+            Assert.That(states, Is.Not.Null);
+            Assert.That(consume, Is.Not.Null);
+            var array = (bool[])states.GetValue(null);
+            var previous = (bool[])array.Clone();
+            try
+            {
+                var toggle = System.Enum.Parse(kinds, "Toggle");
+                int index = (int)System.Convert.ChangeType(toggle, typeof(int));
+                array[index] = true;
+                Assert.That(consume.Invoke(null, new object[] { toggle, true }), Is.EqualTo(true));
+                Assert.That(consume.Invoke(null, new object[] { toggle, false }), Is.EqualTo(true),
+                    "The release frame must remain consumed.");
+                Assert.That(array[index], Is.False);
+                Assert.That(consume.Invoke(null, new object[] { toggle, true }), Is.EqualTo(false),
+                    "A later, intentional fresh press must be delivered.");
+            }
+            finally
+            {
+                System.Array.Copy(previous, array, array.Length);
+            }
+        }
+
+        [Test]
         public void InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled()
         {
             SoundwellInputAdapter.ValidateActionAsset();

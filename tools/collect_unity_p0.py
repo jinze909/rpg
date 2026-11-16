@@ -43,6 +43,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.MostRecentAcceptedCompanionPoseCannotReplayEarlierAction",
         "LeaderActionAndHitFeedbackExpireDuringPausedOrkClock":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.LeaderActionAndHitFeedbackExpireDuringPausedOrkClock",
+        "FollowerExplorationFreezesButBattleCueExpiresDuringPausedOrkClock":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.FollowerExplorationFreezesButBattleCueExpiresDuringPausedOrkClock",
         "OrkAcceptedCompanionAttackChangesOnlyItsPixelPose":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkAcceptedCompanionAttackChangesOnlyItsPixelPose",
     },

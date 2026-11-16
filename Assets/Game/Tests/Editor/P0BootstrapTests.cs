@@ -79,6 +79,21 @@ namespace Rpg.Tests.Editor
             InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
         }
 
+        [Test]
+        public void SavedSoundwellMixerPrepareIsReadOnlyAndUsesNoPrivateEditorReflection()
+        {
+            const string mixerPath = "Assets/Game/Resources/Soundwell/Audio/SoundwellMixer.mixer";
+            Assert.That(File.Exists(mixerPath), Is.True);
+            var before = File.ReadAllBytes(mixerPath);
+            Assert.DoesNotThrow(() => InvokeSoundwellAudioMixerSetup("Prepare"),
+                "The pinned mixer must be validated, not recreated on every editor prepare.");
+            Assert.That(File.ReadAllBytes(mixerPath), Is.EqualTo(before));
+            string setup = File.ReadAllText("Assets/Game/Editor/SoundwellAudioMixerSetup.cs");
+            Assert.That(setup, Does.Not.Contain("UnityEditor.Audio.AudioMixerController"));
+            Assert.That(setup, Does.Not.Contain("GetGUIDForVolume"));
+            Assert.That(setup, Does.Not.Contain("GetField(\"name\""));
+        }
+
         [Test, Order(1)]
         public void Urp2DRendererIsTheOnlyActivePipeline()
         {
