@@ -751,8 +751,15 @@ namespace Rpg.Soundwell
             while (elapsed < 2f && hanQiao != null)
             {
                 elapsed += Time.unscaledDeltaTime;
-                hanQiao.anchoredPosition = Vector2.Lerp(start,
+                Vector2 next = Vector2.Lerp(start,
                     new Vector2(290f, 100f), Mathf.Clamp01(elapsed / 2f));
+                // Both endpoints are authored on whole canvas pixels. The
+                // initial rescue must show movement on its FIRST frame,
+                // even when the first 2-second interpolation is below 0.5px.
+                // Ceil preserves eastward progress and remains integer-only;
+                // nearest rounding could leave the officer visibly frozen.
+                hanQiao.anchoredPosition = new Vector2(
+                    Mathf.Ceil(next.x), Mathf.Ceil(next.y));
                 yield return null;
             }
             if (phase == 8 && next != null)
@@ -811,10 +818,14 @@ namespace Rpg.Soundwell
             while (elapsed < duration && lastBoat != null && hanQiao != null)
             {
                 elapsed += Time.unscaledDeltaTime;
-                Vector2 displacement = new Vector2(
-                    travel * Mathf.Clamp01(elapsed / duration), 0f);
-                lastBoat.anchoredPosition = boatDock + displacement;
-                hanQiao.anchoredPosition = passengerDock + displacement;
+                // Round the ONE shared travel displacement, not each actor
+                // separately: both point-filtered sprites stay on whole
+                // canvas pixels without drifting apart while the boat sails.
+                float displacement = Mathf.Round(
+                    travel * Mathf.Clamp01(elapsed / duration));
+                Vector2 move = new Vector2(displacement, 0f);
+                lastBoat.anchoredPosition = boatDock + move;
+                hanQiao.anchoredPosition = passengerDock + move;
                 yield return null;
             }
             if (lastBoat != null)
@@ -1092,9 +1103,15 @@ namespace Rpg.Soundwell
         private IEnumerator AdvanceFarBankThreats()
         {
             var destinations = new float[farBankThreats.Length];
+            // Keep a continuous motor separate from pixel-snapped rendering.
+            // At 60 FPS the 24px/s advance is below half a pixel each frame:
+            // rounding the motor itself would freeze the approaching guards.
+            var positions = new float[farBankThreats.Length];
             for (int i = 0; i < farBankThreats.Length; i++)
-                destinations[i] = farBankThreats[i].rectTransform.anchoredPosition.x +
-                    FarBankThreatApproach;
+            {
+                positions[i] = farBankThreats[i].rectTransform.anchoredPosition.x;
+                destinations[i] = positions[i] + FarBankThreatApproach;
+            }
             bool advancedAfterHold = false;
             // Hold at the first sighted position while the player is away.
             // A real interaction at Shen Li's post advances the same visual
@@ -1111,9 +1128,11 @@ namespace Rpg.Soundwell
                 for (int i = 0; i < farBankThreats.Length; i++)
                 {
                     RectTransform figure = farBankThreats[i].rectTransform;
-                    float x = Mathf.MoveTowards(figure.anchoredPosition.x,
+                    float x = Mathf.MoveTowards(positions[i],
                         destinations[i], FarBankThreatSpeed * Time.unscaledDeltaTime);
-                    figure.anchoredPosition = new Vector2(x, figure.anchoredPosition.y);
+                    positions[i] = x;
+                    figure.anchoredPosition = new Vector2(
+                        Mathf.Round(x), Mathf.Round(figure.anchoredPosition.y));
                     // Authored pixel footwork tracks the existing visual motor.
                     // No second velocity, AI turn or combatant is introduced.
                     bool marching = x < destinations[i] - 0.01f;
@@ -1785,7 +1804,8 @@ namespace Rpg.Soundwell
             while (elapsed < 2f && stretcher != null)
             {
                 elapsed += Time.unscaledDeltaTime;
-                stretcher.anchoredPosition = new Vector2(Mathf.Lerp(-320f, 308f, Mathf.Clamp01(elapsed / 2f)), 23f);
+                stretcher.anchoredPosition = new Vector2(
+                    Mathf.Round(Mathf.Lerp(-320f, 308f, Mathf.Clamp01(elapsed / 2f))), 23f);
                 yield return null;
             }
             if (phase == 3 && next != null)

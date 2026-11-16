@@ -54,6 +54,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RetiredBeastDoesNotCaptureOrWarnUntilItReturnsToTheScene()
+        {
+            var root = new GameObject("Soundwell disabled threat root");
+            var beast = new GameObject("retired ORK beast actor");
+            var rescuer = new GameObject("rescue player");
+            try
+            {
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.gravityScale = 0f;
+                body.position = new Vector2(0.72f, 0f);
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                Vector2 beastHome = new Vector2(0.75f, 0f);
+                patrol.Configure(beast.transform, body, beastHome);
+                int captures = 0;
+                patrol.PlayerCaught += () => captures++;
+
+                beast.SetActive(false);
+                Assert.That(patrol.WithinWarningRange(body.position, 1.55f), Is.False,
+                    "A retired scene actor cannot block the rescue lane.");
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                Assert.That(captures, Is.Zero,
+                    "A disabled ORK beast must not capture the player invisibly.");
+
+                beast.SetActive(true);
+                Assert.That(patrol.WithinWarningRange(body.position, 1.55f), Is.True);
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                Assert.That(captures, Is.EqualTo(1),
+                    "Reactivating the existing threat restores its physical contact.");
+                beast.SetActive(false);
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                beast.SetActive(true);
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                Assert.That(captures, Is.EqualTo(2),
+                    "The contact latch must clear while the actor is absent.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry()
         {
             var root = new GameObject("restored Soundwell search");
