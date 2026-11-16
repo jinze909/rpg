@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
         public const string SecondBellKey = "rpg.return.s00.second-bell";
         public const string FarBankWarningKey = "rpg.return.s00.far-bank-warning";
         public const string CableHoldKey = "rpg.return.s00.cable-hold";
+        public const string ThirdBellKey = "rpg.return.s00.third-bell";
         // The post must be physically beside Shen Li (at ClampX + 58), not
         // a disconnected marker halfway across the bridge.
         private const float BridgePostX = ClampX + 30f;
@@ -94,6 +95,7 @@ namespace Rpg.Soundwell
         private AudioSource bellAudio;
         private AudioClip firstBellClip;
         private AudioClip secondBellClip;
+        private AudioClip thirdBellClip;
         private Sprite playerPixelSprite;
         private Sprite shenLiPixelSprite;
         private Sprite shenLiBracingSprite;
@@ -112,6 +114,8 @@ namespace Rpg.Soundwell
         private Texture2D farBankGuardWalkTexture;
         private Texture2D spareRopePixelTexture;
         private Image cable;
+        private RectTransform bridgeWalkway;
+        private RectTransform bridgeCable;
         private Text narration;
         private Text instructions;
         private Text title;
@@ -121,6 +125,7 @@ namespace Rpg.Soundwell
         private WhitewaterDefenseEncounter defenseEncounter;
         private bool defenseStarted;
         private bool defenseWon;
+        private bool thirdBellStarted;
         private int phase;
         // S00 station prompts are keyed only to physical reach, phase and
         // selected locale. They never grant actions or copy Makinom state.
@@ -147,9 +152,11 @@ namespace Rpg.Soundwell
         // 13: reached bridge post; 14: second bell and the forward sightline;
         // 15: personally spotted troops and return to the cable;
         // 16: the player physically holds the cable beside Shen Li.
-        // ORK defence and the fixed third-bell break remain pending.
+        // Phase 17 is the earned, fixed third-bell break after ORK victory;
+        // phase 18 is the Twelve Years Later card, not a playable M00.
         public static string SceneTitle => Copy("S00 · Whitewater Crossing", "S00 · 白水渡");
         public int Phase => phase;
+        public bool ThirdBellStarted => thirdBellStarted;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
         public string CurrentInstructions => instructions != null ? instructions.text : string.Empty;
@@ -257,6 +264,7 @@ namespace Rpg.Soundwell
             defenseEncounter = GetComponentInParent<WhitewaterDefenseEncounter>();
             defenseStarted = false;
             defenseWon = false;
+            thirdBellStarted = false;
             phase = 0;
             // The existing InputSystemUIInputModule owns dialogue navigation.
             SoundwellInputAdapter.SetUiContext();
@@ -290,12 +298,12 @@ namespace Rpg.Soundwell
             Panel(canvas.transform, "PLACEHOLDER 16px ferry water",
                 new Vector2(0f, 34f), new Vector2(790f, 180f),
                 new Color(0.11f, 0.21f, 0.26f));
-            Panel(canvas.transform, "PLACEHOLDER bridge walkway",
+            bridgeWalkway = Panel(canvas.transform, "PLACEHOLDER bridge walkway",
                 new Vector2(0f, 12f), new Vector2(720f, 58f),
-                new Color(0.34f, 0.29f, 0.23f));
-            Panel(canvas.transform, "PLACEHOLDER cable line",
+                new Color(0.34f, 0.29f, 0.23f)).rectTransform;
+            bridgeCable = Panel(canvas.transform, "PLACEHOLDER cable line",
                 new Vector2(0f, 67f), new Vector2(690f, 7f),
-                new Color(0.56f, 0.55f, 0.50f));
+                new Color(0.56f, 0.55f, 0.50f)).rectTransform;
             cable = Panel(canvas.transform, "Loose cable clamp",
                 new Vector2(ClampX, 12f), new Vector2(28f, 36f),
                 new Color(0.69f, 0.30f, 0.27f));
@@ -1195,6 +1203,10 @@ namespace Rpg.Soundwell
 
         private void OnWhitewaterDefenseCompleted(bool victory)
         {
+            // Only the active encounter may deliver this callback; a stage
+            // presentation, stale input or repeated completion cannot ring it.
+            if (phase != 16 || !defenseStarted)
+                return;
             defenseStarted = false;
             if (!victory)
             {
@@ -1203,13 +1215,104 @@ namespace Rpg.Soundwell
             }
 
             defenseWon = true;
+            StartCoroutine(PlayThirdBellCollapse());
+        }
+
+        // Historical S00 outcome is fixed, but never a reward for merely
+        // watching the approaching soldiers or bracing the cable. It follows
+        // only the live ORK encounter's accepted victory callback.
+        private IEnumerator PlayThirdBellCollapse()
+        {
+            if (phase != 16 || !defenseWon || thirdBellStarted)
+                yield break;
+            thirdBellStarted = true;
+            phase = 17;
             SoundwellInputAdapter.SetUiContext();
+            if (next != null)
+                next.gameObject.SetActive(false);
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(ThirdBellKey, 1);
+            thirdBellClip = CreateThirdBellCue();
+            bellAudio.Stop();
+            bellAudio.clip = thirdBellClip;
+            bellAudio.Play();
             narration.text = Copy(
-                "The immediate pressure eases. Shen Li keeps the spare rope tight against the clamp; the cable is still strained.",
-                "眼前的攻势暂时缓了下来。沈砾仍把备用绳索紧紧压在缆桩上，缆索依旧绷紧。");
+                "A third bell strikes. The bridgehead is held, but the far-side cable breaks in the firelight.",
+                "第三声钟响了。桥头虽守住，对岸的缆索却在火光里崩断。");
             instructions.text = Copy(
-                "The bridgehead is held for a moment. The fixed third-bell break is still ahead. Return to entry when ready.",
-                "桥头暂时守住了。既定的第三声断桥仍在后续。准备好后可返回入口。");
+                "The third bell is a fixed part of the night. The ORK battle has ended; this does not invent another fight.",
+                "第三声钟是这一夜既定的结局。ORK 战斗已经结束；这里不会伪造另一场战斗。");
+
+            yield return new WaitForSecondsRealtime(0.4f);
+            if (phase != 17)
+                yield break;
+            // Only the far (left) section sinks. The near clamp and the
+            // original rescue interactions remain in the same scene graph.
+            float elapsed = 0f;
+            const float fallDuration = 1.1f;
+            while (phase == 17 && elapsed < fallDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / fallDuration);
+                if (bridgeWalkway != null)
+                {
+                    bridgeWalkway.sizeDelta = new Vector2(
+                        Mathf.Round(Mathf.Lerp(720f, 360f, t)), 58f);
+                    bridgeWalkway.anchoredPosition = new Vector2(
+                        Mathf.Round(180f * t), Mathf.Round(12f - 52f * t));
+                }
+                if (bridgeCable != null)
+                {
+                    bridgeCable.sizeDelta = new Vector2(
+                        Mathf.Round(Mathf.Lerp(690f, 330f, t)), 7f);
+                    bridgeCable.anchoredPosition = new Vector2(
+                        Mathf.Round(180f * t), Mathf.Round(67f - 36f * t));
+                }
+                yield return null;
+            }
+            if (phase != 17)
+                yield break;
+
+            narration.text = Copy(
+                "The far span disappears under the water. Shen Li catches your hand: 'Don't look at the water. Look at me.' Torches close in; the crowd tears you apart.",
+                "远端桥身沉入水下。沈砾抓住你的手：“别看水，看我。”四面火把亮起，人潮把你们冲开。");
+            instructions.text = string.Empty;
+            // Torches are only noninteractive light markers, not an ORK squad.
+            Transform canvasRoot = title.transform.parent;
+            var torchPositions = new[]
+            {
+                new Vector2(-307f, 108f), new Vector2(304f, 105f),
+                new Vector2(-293f, -25f), new Vector2(301f, -27f)
+            };
+            foreach (Vector2 torchPosition in torchPositions)
+                Panel(canvasRoot, "PLACEHOLDER S00 encircling torch light",
+                    torchPosition, new Vector2(12f, 17f),
+                    new Color(1f, 0.49f, 0.17f));
+            yield return new WaitForSecondsRealtime(0.8f);
+            if (phase != 17)
+                yield break;
+
+            Image blackout = Panel(canvasRoot, "S00 blackout after bridge collapse",
+                Vector2.zero, new Vector2(960f, 540f), Color.clear);
+            float fade = 0f;
+            while (phase == 17 && fade < 0.5f)
+            {
+                fade += Time.unscaledDeltaTime;
+                blackout.color = new Color(0f, 0f, 0f, Mathf.Clamp01(fade / 0.5f));
+                yield return null;
+            }
+            if (phase != 17)
+                yield break;
+            blackout.color = Color.black;
+            phase = 18;
+            Label(canvasRoot, Copy("TWELVE YEARS LATER", "十二年后"), 35,
+                new Vector2(0f, 25f), new Vector2(780f, 95f), Ink)
+                .gameObject.name = "S00 twelve years later";
+            // M00 is still a separate playable story task. Reuse the real
+            // exit control rather than claiming a scene that does not exist.
+            exit.transform.SetAsLastSibling();
+            ((RectTransform)exit.transform).anchoredPosition =
+                new Vector2(0f, -190f);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
@@ -1285,6 +1388,9 @@ namespace Rpg.Soundwell
 
         private static AudioClip CreateSecondBellCue() =>
             CreateWarningBellCue("PLACEHOLDER S00 second warning bell", 440f);
+
+        private static AudioClip CreateThirdBellCue() =>
+            CreateWarningBellCue("PLACEHOLDER S00 third warning bell", 392f);
 
         private static AudioClip CreateWarningBellCue(string clipName, float frequency)
         {
@@ -1551,6 +1657,8 @@ namespace Rpg.Soundwell
                 Destroy(firstBellClip);
             if (secondBellClip != null)
                 Destroy(secondBellClip);
+            if (thirdBellClip != null)
+                Destroy(thirdBellClip);
             if (playerPixelSprite != null)
                 Destroy(playerPixelSprite);
             if (shenLiPixelSprite != null)
