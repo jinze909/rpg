@@ -16,6 +16,52 @@ namespace Rpg.Tests.Editor
     // neither the authored choice nor a timer may automatically rescue Han Qiao.
     public sealed class WhitewaterRescueChoiceInputTests
     {
+        [Test]
+        public void UnwonOrkEncounterCannotAdvanceS00ViaStaleContinueCallback()
+        {
+            // The Continue button is displayed only after ORK victory, but a
+            // stale or direct callback must still be denied by the owner.
+            var root = new GameObject("unwon S00 ORK defence");
+            try
+            {
+                var party = root.AddComponent<OrkPartyBridge>();
+                var defence = root.AddComponent<WhitewaterDefenseEncounter>();
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterDefenseEncounter);
+                var partyField = type.GetField("party", flags);
+                var activeField = type.GetField("active", flags);
+                var callbackField = type.GetField("onCompleted", flags);
+                var continueMethod = type.GetMethod("Continue", flags);
+                var retreatMethod = type.GetMethod("Retreat", flags);
+                Assert.That(partyField, Is.Not.Null);
+                Assert.That(activeField, Is.Not.Null);
+                Assert.That(callbackField, Is.Not.Null);
+                Assert.That(continueMethod, Is.Not.Null);
+                Assert.That(retreatMethod, Is.Not.Null);
+                partyField.SetValue(defence, party);
+                activeField.SetValue(defence, true);
+                int result = -1;
+                callbackField.SetValue(defence,
+                    new System.Action<bool>(won => result = won ? 1 : 0));
+
+                Assert.That(party.EncounterWon, Is.False);
+                continueMethod.Invoke(defence, null);
+                Assert.That(result, Is.EqualTo(-1),
+                    "Without an actual ORK win, Continue cannot grant the third bell.");
+                Assert.That(defence.IsActive, Is.True,
+                    "Rejecting a stale Continue must not silently end the encounter.");
+
+                retreatMethod.Invoke(defence, null);
+                Assert.That(result, Is.Zero,
+                    "The existing voluntary retreat must remain available.");
+                Assert.That(defence.IsActive, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
 
         [Test]
         public void SharedS00PixelRasterizerRetainsAuthoredCoatAndTransparentCorners()
