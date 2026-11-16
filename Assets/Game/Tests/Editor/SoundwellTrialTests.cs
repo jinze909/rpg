@@ -86,7 +86,8 @@ namespace Rpg.Tests.Editor
                 Vector3 centre = rig.FramingTarget.position;
                 Assert.That(float.IsNaN(centre.x) || float.IsInfinity(centre.x), Is.False);
                 Assert.That(float.IsNaN(centre.y) || float.IsInfinity(centre.y), Is.False);
-                Assert.That(centre.x, Is.EqualTo(0.8125f).Within(0.063f));
+                Assert.That(centre.x, Is.EqualTo(0.25f).Within(0.001f),
+                    "At square aspect, horizontal pixel-safe pan is limited by the room edge.");
                 Assert.That(centre.y, Is.EqualTo(-0.3125f).Within(0.001f));
             }
             finally
