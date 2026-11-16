@@ -881,5 +881,26 @@ class NarrativeCharacterContinuityTests(unittest.TestCase):
         self.assertIn("陶小满", regional)
 
 
+class M00EvidenceAndExitContractTests(unittest.TestCase):
+    def test_memorial_exit_and_separate_war_report_evidence_survive_v02(self):
+        # R4-02: the former SCENE_SCRIPT_S00_M00 path was replaced by
+        # SCENE_SCRIPT_P0_M00; the war-report investigation belongs to M02.
+        root = Path(__file__).resolve().parents[1] / "docs/narrative"
+        script = (root / "SCENE_SCRIPT_P0_M00.md").read_text(encoding="utf-8")
+        outline = (root / "STORY_OUTLINE.md").read_text(encoding="utf-8")
+        facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
+        m00 = script.split("## M00 ·", 1)[1]
+        for player_option in ("[应声：“在。”]", "[沉默]", "[退出人群]"):
+            with self.subTest(option=player_option):
+                self.assertIn(player_option, m00)
+        self.assertIn("四十一个", m00)
+        self.assertIn("战报说桥被敌军烧了，可你记得桥是先断的", outline)
+        m02 = outline.split("#### M02", 1)[1].split("#### M03", 1)[0]
+        for source in ("缆索残件", "桥夫", "战报底稿"):
+            with self.subTest(source=source):
+                self.assertIn(source, m02)
+        self.assertIn("| bridge_evidence |", facts)
+
+
 if __name__ == "__main__":
     unittest.main()
