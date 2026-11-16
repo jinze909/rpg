@@ -16,6 +16,54 @@ namespace Rpg.Tests.Editor
     public sealed class WhitewaterRescueChoiceInputTests
     {
         [Test]
+        public void EvacueePickupRequiresOverlappingPixelFootprints()
+        {
+            // A clamp tool can reach 44px, but two 32px-wide actors cannot
+            // start a physical escort while there is still a visible gap.
+            var root = new GameObject("S00 evacuee contact check");
+            var civilianObject = new GameObject("S00 wounded civilian", typeof(RectTransform));
+            try
+            {
+                civilianObject.transform.SetParent(root.transform, false);
+                var prelude = root.AddComponent<WhitewaterPrelude>();
+                var civilian = civilianObject.GetComponent<RectTransform>();
+                civilian.anchoredPosition = new Vector2(-72f, 12f);
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterPrelude);
+                var phaseField = type.GetField("phase", flags);
+                var walkerField = type.GetField("walker", flags);
+                var evacueeField = type.GetField("evacuee", flags);
+                Assert.That(phaseField, Is.Not.Null);
+                Assert.That(walkerField, Is.Not.Null);
+                Assert.That(evacueeField, Is.Not.Null);
+                evacueeField.SetValue(prelude, civilian);
+                phaseField.SetValue(prelude, 9);
+
+                walkerField.SetValue(prelude, new Vector2(-72f + 44f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "The wider cable-repair radius cannot pick up a distant civilian.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 32f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "Two 32px bodies that only touch at their edges are not overlapping.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.True,
+                    "One pixel of body overlap on the bridge lane allows the escort.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, 29f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "Horizontal contact from below the walkable lane is insufficient.");
+                phaseField.SetValue(prelude, 8);
+                walkerField.SetValue(prelude, new Vector2(-72f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "Boarding Han Qiao cannot prematurely start the next rescue.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void TruncatedS00PixelActorDoesNotLeaveUnmanagedTexture()
         {
             var generator = typeof(WhitewaterPrelude).GetMethod("MakeActorSprite",
