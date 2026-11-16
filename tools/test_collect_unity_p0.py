@@ -58,9 +58,9 @@ class VendorManifestBoundaryTests(unittest.TestCase):
             "Assets/Gaming Is Love/../Other/file.dll",
             "Assets/Gaming Is Love/./file.dll",
             "Assets/Gaming Is Love//file.dll",
-            "Assets/Gaming Is Love\bad.dll",
-            "Assets/Gaming Is Love/sub\bad.dll",
-            "Assets/Gizmos\ORK/icon.png",
+            r"Assets/Gaming Is Love\bad.dll",
+            r"Assets/Gaming Is Love/sub\bad.dll",
+            r"Assets/Gizmos\ORK/icon.png",
         ):
             with self.subTest(path=path):
                 self.assertFalse(valid(path))
