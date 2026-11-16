@@ -40,6 +40,73 @@ namespace Rpg.Tests.Editor
             Assert.That(visualB.y, Is.EqualTo(Mathf.Round(visualB.y)));
         }
 
+
+        [Test]
+        public void S00EvacueePickupCueFollowsRealReachAndLocaleWithoutRescuing()
+        {
+            var root = new GameObject("S00 live civilian pickup cue");
+            var civilianObject = new GameObject("S00 civilian", typeof(RectTransform));
+            var promptObject = new GameObject("S00 instructions", typeof(RectTransform),
+                typeof(Text));
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                civilianObject.transform.SetParent(root.transform, false);
+                promptObject.transform.SetParent(root.transform, false);
+                var stage = root.AddComponent<WhitewaterPrelude>();
+                var civilian = civilianObject.GetComponent<RectTransform>();
+                civilian.anchoredPosition = new Vector2(-72f, 12f);
+                var prompt = promptObject.GetComponent<Text>();
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var owner = typeof(WhitewaterPrelude);
+                var phase = owner.GetField("phase", flags);
+                var walker = owner.GetField("walker", flags);
+                var evacuee = owner.GetField("evacuee", flags);
+                var instructions = owner.GetField("instructions", flags);
+                var refresh = owner.GetMethod("RefreshEvacueePickupReachCue", flags);
+                Assert.That(phase, Is.Not.Null);
+                Assert.That(walker, Is.Not.Null);
+                Assert.That(evacuee, Is.Not.Null);
+                Assert.That(instructions, Is.Not.Null);
+                Assert.That(refresh, Is.Not.Null);
+                phase.SetValue(stage, 9);
+                evacuee.SetValue(stage, civilian);
+                instructions.SetValue(stage, prompt);
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+
+                walker.SetValue(stage, new Vector2(40f, 0f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.False);
+                Assert.That(prompt.text, Does.Contain("Walk beside the amber evacuee"));
+
+                walker.SetValue(stage, new Vector2(-45f, 0f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.True);
+                Assert.That(prompt.text, Does.Contain("Beside the amber evacuee"));
+                Assert.That(stage.Phase, Is.EqualTo(9),
+                    "A readiness cue must not start the escort or earn any rescue.");
+                prompt.text = "unchanged cached cue";
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Is.EqualTo("unchanged cached cue"),
+                    "An unchanged physical/locale state must not rewrite UI each frame.");
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Does.Contain("已到金色伤者身旁"));
+                walker.SetValue(stage, new Vector2(-45f, -32f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.False);
+                Assert.That(prompt.text, Does.Contain("桥面通道"));
+                Assert.That(stage.Phase, Is.EqualTo(9));
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void S00StationBindingLabelsCacheUntilEffectiveControlsChange()
         {
