@@ -2,6 +2,9 @@
 """Regression checks for Unity P0 log acceptance and compiler failures."""
 import unittest
 import tempfile
+from unittest.mock import patch
+from tempfile import SpooledTemporaryFile
+import install_ork
 from pathlib import Path
 
 from collect_unity_p0 import (
@@ -56,6 +59,43 @@ class CandidateRestorePreflightTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Candidate asset lacks metadata"):
                 validate_candidate_contents(
                     archive, {name: hashlib.sha256(b"test").hexdigest()})
+
+
+class InstallerFolderTests(unittest.TestCase):
+    def test_directory_meta_without_asset_is_created_and_install_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as root:
+            destination = Path(root)
+            folder = Path("Assets/Gaming Is Love/EmptyVendorFolder")
+            files = {Path(str(folder) + ".meta"): b"folder meta", folder: None}
+            with patch.object(install_ork, "PROJECT", destination):
+                self.assertEqual(install_ork.install(files), 2)
+                self.assertTrue((destination / folder).is_dir())
+                self.assertEqual((destination / (str(folder) + ".meta")).read_bytes(),
+                                 b"folder meta")
+                self.assertEqual(install_ork.install(files), 0)
+
+
+
+class VendorAssetStreamingTests(unittest.TestCase):
+    def test_spooled_large_vendor_asset_installs_without_whole_payload_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            name = Path("Assets/Gaming Is Love/Test Packages/large.bin")
+            with SpooledTemporaryFile(max_size=1024) as spool:
+                original = b"ORK3-stream-test" * 120000
+                spool.write(original)
+                spool.seek(0)
+                self.assertTrue(spool._rolled)
+                with patch.object(install_ork, "PROJECT", root):
+                    self.assertEqual(install_ork.install({name: spool}), 1)
+                    self.assertEqual((root / name).stat().st_size, len(original))
+                    self.assertEqual(install_ork.install({name: spool}), 0,
+                                     "An identical vendor payload is idempotent.")
+                    with (root / name).open("ab") as output:
+                        output.write(b"corrupted")
+                    with self.assertRaisesRegex(ValueError, "Existing asset differs"):
+                        install_ork.install({name: spool})
+
 
 
 class SoundwellRouteComparisonTests(unittest.TestCase):
