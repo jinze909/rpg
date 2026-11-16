@@ -16,9 +16,13 @@ namespace Rpg.Tests.Editor
 {
     public sealed class SoundwellInputSystemTests
     {
-        [Test]
-        public void S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer()
+        [UnityTest]
+        public IEnumerator S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer()
         {
+            // AudioMixer.SetFloat has no active mixer during EditMode import;
+            // exercise the real mute pathway after audio runtime startup.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
             var mixer = Resources.Load<UnityEngine.Audio.AudioMixer>(SoundwellAudioBus.MixerResource);
             Assert.That(mixer, Is.Not.Null);
             var root = new GameObject("S00 direct SFX fallback mute");
@@ -60,8 +64,9 @@ namespace Rpg.Tests.Editor
                     PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
                     PlayerPrefs.Save();
                 }
-                Object.DestroyImmediate(root);
+                Object.Destroy(root);
             }
+            yield return new ExitPlayMode();
         }
 
         [Test]
