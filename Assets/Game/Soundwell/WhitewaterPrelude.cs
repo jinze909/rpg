@@ -1135,11 +1135,16 @@ namespace Rpg.Soundwell
                         Mathf.Round(x), Mathf.Round(figure.anchoredPosition.y));
                     // Authored pixel footwork tracks the existing visual motor.
                     // No second velocity, AI turn or combatant is introduced.
-                    bool marching = x < destinations[i] - 0.01f;
-                    farBankThreats[i].sprite = marching &&
+                    // The visible position is pixel-snapped. Stop showing
+                    // walking frames as soon as that rendered position reaches
+                    // the authored destination, even if the subpixel motor
+                    // still needs one more Unity frame to finish.
+                    bool movingMotor = x < destinations[i] - 0.01f;
+                    bool visibleMarch = Mathf.Round(x) < Mathf.Round(destinations[i]);
+                    farBankThreats[i].sprite = visibleMarch &&
                         Mathf.FloorToInt(Time.unscaledTime / 0.16f) % 2 == 1
                             ? farBankGuardWalkSprite : farBankGuardSprite;
-                    approaching |= marching;
+                    approaching |= movingMotor;
                 }
                 if (!approaching && advancedAfterHold)
                     yield break;
