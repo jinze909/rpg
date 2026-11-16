@@ -413,7 +413,7 @@ namespace Rpg.Soundwell
         /// Read-only snapshot for the provisional battle HUD. ORK remains the
         /// authority for HP, turn choice, battle outcomes and available actions.
         /// </summary>
-        internal static bool HasReadoutRoster(int memberCount) => memberCount > 0;
+        public static bool HasReadoutRoster(int memberCount) => memberCount > 0;
 
         public string BuildBattleReadout()
         {
