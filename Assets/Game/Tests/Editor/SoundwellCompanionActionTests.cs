@@ -181,6 +181,10 @@ namespace Rpg.Tests.Editor
             }
             try
             {
+                // EditMode NUnit does not run the normal Play Mode OnEnable
+                // lifecycle for plain MonoBehaviours. Subscribe through the
+                // real callback so the language Changed event is exercised.
+                owner.GetMethod("OnEnable", flags).Invoke(defence, null);
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 var hud = new GameObject("S00 localized HUD", typeof(Canvas))
                     .GetComponent<Canvas>();
@@ -217,6 +221,7 @@ namespace Rpg.Tests.Editor
             finally
             {
                 SoundwellUiLocalization.SetLanguage(previous);
+                owner.GetMethod("OnDisable", flags).Invoke(defence, null);
                 owner.GetField("hud", flags).SetValue(defence, null);
                 Object.DestroyImmediate(root);
             }
