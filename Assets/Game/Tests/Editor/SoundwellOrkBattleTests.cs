@@ -30,6 +30,34 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellOrkBattleTests
     {
         [Test]
+        public void RetiredS00OrkHudFocusClearsOnlyItsOwnButtons()
+        {
+            var hud = new GameObject("S00 retiring defense HUD");
+            var action = new GameObject("Retired ORK Guard");
+            var unrelated = new GameObject("Other active menu button");
+            try
+            {
+                action.transform.SetParent(hud.transform, false);
+                var predicate = typeof(WhitewaterDefenseEncounter).GetMethod(
+                    "ShouldClearRetiredHudFocus",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(predicate, Is.Not.Null);
+                Assert.That(predicate.Invoke(null, new object[] { action, hud.transform }),
+                    Is.EqualTo(true), "A discarded ORK command must release gamepad focus.");
+                Assert.That(predicate.Invoke(null, new object[] { unrelated, hud.transform }),
+                    Is.EqualTo(false), "Closing defense must not steal another menu's focus.");
+                Assert.That(predicate.Invoke(null, new object[] { null, hud.transform }),
+                    Is.EqualTo(false));
+            }
+            finally
+            {
+                Object.DestroyImmediate(hud);
+                Object.DestroyImmediate(unrelated);
+            }
+        }
+
+        [Test]
         public void PixelFormationPoseValidationRejectsMalformedRowsBeforeNativeAllocation()
         {
             // Formation sprites use Create16: unlike the coloured S00 helper,
