@@ -2210,6 +2210,7 @@ namespace Rpg.Tests.Editor
             }
             else
             {
+                AssertFixedFormationCannotStep(party, companion, "second");
                 Assert.That(guard.interactable, Is.True);
                 guard.onClick.Invoke();
             }
@@ -2219,6 +2220,8 @@ namespace Rpg.Tests.Editor
             Assert.That(gateCue.enabled, Is.False,
                 "A resolved gate action or an out-of-range chooser must clear its target cue.");
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(3 - companion));
+            if (!useStep)
+                AssertFixedFormationCannotStep(party, 3 - companion, "third");
             Assert.That(attack.interactable, Is.True);
             attack.onClick.Invoke();
             deadline = Time.realtimeSinceStartup + 8f;
@@ -2258,6 +2261,25 @@ namespace Rpg.Tests.Editor
             Assert.That(ORK.Control.InBattle, Is.False,
                 "Returning after victory must release ORK's battle control before replay.");
             yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
+        }
+
+        private static void AssertFixedFormationCannotStep(OrkPartyBridge party,
+            int actorIndex, string turn)
+        {
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(actorIndex),
+                $"The {turn} fixed-formation turn must belong to rescuer {actorIndex + 1}.");
+            Vector2 before = party.Actors[actorIndex].transform.position;
+            Assert.That(party.CanStep(actorIndex, Vector2.right), Is.False,
+                $"Fixed formation must not offer a step to rescuer {actorIndex + 1} on the {turn} turn.");
+            Assert.That(party.TryStep(actorIndex, Vector2.right), Is.False,
+                $"Fixed formation must reject direct step requests for rescuer {actorIndex + 1} on the {turn} turn.");
+            Assert.That((Vector2)party.Actors[actorIndex].transform.position, Is.EqualTo(before),
+                $"Rejecting the {turn} step must leave rescuer {actorIndex + 1} in place.");
+            var move = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+            Assert.That(move, Is.Not.Null,
+                "The in-battle Move command must remain present in fixed formation.");
+            Assert.That(move.interactable, Is.False,
+                $"The in-battle Move command must stay disabled on the {turn} turn.");
         }
 
         private static IEnumerator FinishFixedFormationRescue(SoundwellTrial trial,
