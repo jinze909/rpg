@@ -858,5 +858,76 @@ class CompilerLogTests(unittest.TestCase):
         self.assertEqual(result.group(0).lower(), "error cs1739")
 
 
+
+class NarrativeV1WritingBaselineTests(unittest.TestCase):
+    """Cross-document checks of authored v1.0 writing, not Unity implementation."""
+
+    @staticmethod
+    def docs():
+        return Path(__file__).resolve().parents[1] / "docs/narrative"
+
+    def test_all_29_v1_chapter_routes_retain_sources_and_indexes(self):
+        root = self.docs()
+        outline = (root / "STORY_OUTLINE.md").read_text(encoding="utf-8")
+        handoff = (root / "HANDOFF_FOR_CODEX.md").read_text(encoding="utf-8")
+        routes = (["P0"] + [f"M{i:02d}" for i in range(17)] +
+                  [f"RC{i:02d}" for i in range(1, 6)] +
+                  [f"ST{i:02d}" for i in range(1, 7)])
+        self.assertEqual(len(routes), 29)
+        for chapter in routes:
+            filename = f"SCENE_SCRIPT_{chapter}.md"
+            with self.subTest(chapter=chapter):
+                self.assertTrue((root / filename).is_file(), filename)
+                self.assertIn(chr(96) + filename + chr(96), outline)
+                self.assertIn(chr(96) + filename + chr(96), handoff)
+
+    def test_survivor_identity_and_st06_family_match_v1_sources(self):
+        root = self.docs()
+        characters = (root / "CHARACTERS.md").read_text(encoding="utf-8")
+        facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
+        regional = (root / "REGIONAL_STORIES.md").read_text(encoding="utf-8")
+        st06 = (root / "SCENE_SCRIPT_ST06.md").read_text(encoding="utf-8")
+        self.assertIn("蕊亚（欧林之妹", characters)
+        self.assertIn("survivor_ruiya", facts)
+        self.assertIn("st06_state", facts)
+        for document in (characters, regional, st06):
+            self.assertIn("陶霁", document)
+            self.assertIn("陶小满", document)
+        self.assertIn("ST-06", regional)
+
+    def test_m00_choice_and_m02_independent_evidence_are_preserved(self):
+        root = self.docs()
+        m00 = (root / "SCENE_SCRIPT_M00.md").read_text(encoding="utf-8")
+        m02 = (root / "SCENE_SCRIPT_M02.md").read_text(encoding="utf-8")
+        facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
+        for choice in ("[应声：“在。”]", "[退出人群]"):
+            self.assertIn(choice, m00)
+        self.assertIn("identity_reveal", m00)
+        self.assertIn("四十一个", m00)
+        for clue in ("m02_clue_cable", "m02_clue_log", "m02_clue_draft"):
+            with self.subTest(clue=clue):
+                self.assertIn(clue, m02)
+                self.assertIn(clue, facts)
+        self.assertIn("守桥老人", m02)
+        self.assertIn("战报底稿", m02)
+
+    def test_m03_m04_seeding_and_rc04_fog_stay_distinct(self):
+        root = self.docs()
+        m02 = (root / "SCENE_SCRIPT_M02.md").read_text(encoding="utf-8")
+        m03 = (root / "SCENE_SCRIPT_M03.md").read_text(encoding="utf-8")
+        m04 = (root / "SCENE_SCRIPT_M04.md").read_text(encoding="utf-8")
+        regional = (root / "REGIONAL_STORIES.md").read_text(encoding="utf-8")
+        cases = (root / "ROSTER_CASES.md").read_text(encoding="utf-8")
+        facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
+        self.assertIn("伊蕾", m02)
+        self.assertIn("陆钧", m03)
+        self.assertIn("lu_confession", m03)
+        self.assertIn("归属", m04)
+        self.assertIn("ST-04", regional)
+        self.assertIn("RC-04", cases)
+        self.assertIn("听雾", cases)
+        self.assertIn("skill_fog_mastery", facts)
+
+
 if __name__ == "__main__":
     unittest.main()
