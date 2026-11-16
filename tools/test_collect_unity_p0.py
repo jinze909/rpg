@@ -24,6 +24,40 @@ from collect_unity_p0 import (
 
 
 
+import hashlib
+import io
+from zipfile import ZipFile
+
+from restore_unity_p0 import validate_candidate_contents
+
+
+class CandidateRestorePreflightTests(unittest.TestCase):
+    def test_corrupt_later_member_is_rejected_before_any_file_is_written(self):
+        package = io.BytesIO()
+        with ZipFile(package, "w") as z:
+            z.writestr("ProjectSettings/AudioManager.asset", b"valid")
+            z.writestr("ProjectSettings/GraphicsSettings.asset", b"corrupt")
+        package.seek(0)
+        expected = {
+            "ProjectSettings/AudioManager.asset": hashlib.sha256(b"valid").hexdigest(),
+            "ProjectSettings/GraphicsSettings.asset": hashlib.sha256(b"different").hexdigest(),
+        }
+        with ZipFile(package) as archive:
+            with self.assertRaisesRegex(ValueError, "Candidate file digest differs"):
+                validate_candidate_contents(archive, expected)
+
+    def test_missing_new_asset_meta_is_rejected_before_restore(self):
+        package = io.BytesIO()
+        name = "Assets/Game/Resources/Soundwell/Tiles/NewUntrackedTile.asset"
+        with ZipFile(package, "w") as z:
+            z.writestr(name, b"test")
+        package.seek(0)
+        with ZipFile(package) as archive:
+            with self.assertRaisesRegex(ValueError, "Candidate asset lacks metadata"):
+                validate_candidate_contents(
+                    archive, {name: hashlib.sha256(b"test").hexdigest()})
+
+
 class SoundwellRouteComparisonTests(unittest.TestCase):
     def test_both_routes_must_have_exactly_one_equal_fresh_start(self):
         bell = "RPG_SOUNDWELL_ROUTE_START:BELL:shared"

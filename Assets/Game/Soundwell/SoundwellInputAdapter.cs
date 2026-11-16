@@ -22,19 +22,24 @@ namespace Rpg.Soundwell
         private static InputActionMap gameplayMap;
         private static InputAction interact, move, ring, wrap, retry, back, carry, gate, toggleMenu;
         private static bool initialized;
-        private static bool ignoreHeldToggleUntilRelease;
-        private static bool ignoreHeldEntryUntilRelease;
-        private static bool ignoreHeldBackUntilRelease;
+        private enum HeldControl { Toggle, Entry, Back }
+        // One context-transfer latch table, not one state machine for each
+        // menu key. Every release frame is consumed before re-arming a press.
+        private static readonly bool[] heldUntilRelease = new bool[3];
+        private static void ArmHeldLatch(HeldControl control, bool isHeld) =>
+            heldUntilRelease[(int)control] |= isHeld;
+        private static void ClearHeldLatch(HeldControl control) =>
+            heldUntilRelease[(int)control] = false;
 
         public static void SetEntryContext()
         {
             EnsureLoaded();
-            ignoreHeldToggleUntilRelease = false;
+            ClearHeldLatch(HeldControl.Toggle);
             actions.Disable();
             entryMap.Enable();
             // A held gamepad Submit may have just closed the S00 prologue.
             // Re-enabling Entry must not turn that same press into a new trial.
-            ignoreHeldEntryUntilRelease |= EntryControlHeld();
+            ArmHeldLatch(HeldControl.Entry, EntryControlHeld());
         }
 
         public static void SetGameplayContext()
@@ -42,11 +47,11 @@ namespace Rpg.Soundwell
             EnsureLoaded();
             // Re-enabling an InputAction while Tab/Start is held may treat
             // its initial state as another press, reopening a just-closed menu.
-            ignoreHeldToggleUntilRelease |= ToggleControlHeld();
+            ArmHeldLatch(HeldControl.Toggle, ToggleControlHeld());
             // UGUI Cancel and Gameplay Back share Escape/Pad B. An action
             // that was already held while dismissing a focused menu must not
             // be replayed as a fresh request to exit the entire scene.
-            ignoreHeldBackUntilRelease |= BackControlHeld();
+            ArmHeldLatch(HeldControl.Back, BackControlHeld());
             actions.Disable();
             gameplayMap.Enable();
         }
@@ -59,7 +64,7 @@ namespace Rpg.Soundwell
             EnsureLoaded();
             // A held opening press must not immediately close the newly
             // focused menu when this action is disabled and enabled again.
-            ignoreHeldToggleUntilRelease |= ToggleControlHeld();
+            ArmHeldLatch(HeldControl.Toggle, ToggleControlHeld());
             actions.Disable();
             toggleMenu.Enable();
         }
@@ -67,20 +72,20 @@ namespace Rpg.Soundwell
         // Shared context-switch latch: a held button may never be treated
         // as a new press after enabling another action map. The release
         // frame itself remains consumed; the next press is intentional.
-        private static bool ConsumeHeldLatch(ref bool latch, bool controlStillHeld)
+        private static bool ConsumeHeldLatch(HeldControl control, bool controlStillHeld)
         {
-            if (!latch)
+            int index = (int)control;
+            if (!heldUntilRelease[index])
                 return false;
             if (!controlStillHeld)
-                latch = false;
+                heldUntilRelease[index] = false;
             return true;
         }
 
         public static bool InteractPressed()
         {
             EnsureLoaded();
-            if (ignoreHeldEntryUntilRelease &&
-                ConsumeHeldLatch(ref ignoreHeldEntryUntilRelease, EntryControlHeld()))
+            if (ConsumeHeldLatch(HeldControl.Entry, EntryControlHeld()))
                 return false;
             return interact.WasPressedThisFrame();
         }
@@ -240,8 +245,7 @@ namespace Rpg.Soundwell
         public static bool ToggleMenuPressed()
         {
             EnsureLoaded();
-            if (ignoreHeldToggleUntilRelease &&
-                ConsumeHeldLatch(ref ignoreHeldToggleUntilRelease, ToggleControlHeld()))
+            if (ConsumeHeldLatch(HeldControl.Toggle, ToggleControlHeld()))
                 return false;
             return toggleMenu.WasPressedThisFrame();
         }
@@ -287,8 +291,7 @@ namespace Rpg.Soundwell
             bool backPressed = back.WasPressedThisFrame();
             // A held UI-cancel stays suppressed across UGUI -> world until
             // release; the next intentional Back works after a fresh press.
-            if (ignoreHeldBackUntilRelease &&
-                ConsumeHeldLatch(ref ignoreHeldBackUntilRelease, BackControlHeld()))
+            if (ConsumeHeldLatch(HeldControl.Back, BackControlHeld()))
                 backPressed = false;
             return SoundwellControlFrame.FromActions(move.ReadValue<Vector2>(), ring.WasPressedThisFrame(),
                 wrap.WasPressedThisFrame(), retry.WasPressedThisFrame(), backPressed,
