@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Reflection;
 using GamingIsLove.Makinom;
 using GamingIsLove.ORKFramework;
 using NUnit.Framework;
@@ -6,6 +7,7 @@ using Rpg.Soundwell;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
@@ -16,6 +18,44 @@ namespace Rpg.Tests.Editor
     // The visible target and search countdown must follow the actual beast AI.
     public sealed class SoundwellThreatPreviewTests
     {
+        [Test]
+        public void MissingMixerFallbackDetachesAnEarlierSfxRoute()
+        {
+            // A scene-local AudioSource can outlive a mixer routing failure.
+            // When the saved bus goes unavailable, a previously routed bell
+            // must use direct playback rather than a stale muted SFX group.
+            var mixer = Resources.Load<AudioMixer>(SoundwellAudioBus.MixerResource);
+            Assert.That(mixer, Is.Not.Null);
+            AudioMixerGroup sfx = null;
+            foreach (AudioMixerGroup group in mixer.FindMatchingGroups("SFX"))
+                if (group.name == "SFX")
+                {
+                    sfx = group;
+                    break;
+                }
+            Assert.That(sfx, Is.Not.Null);
+            var source = new GameObject("Fallback with stale SFX routing");
+            try
+            {
+                var bell = source.AddComponent<AudioSource>();
+                bell.outputAudioMixerGroup = sfx;
+                var route = typeof(SoundwellAudioBus).GetMethod("RouteWithMixer",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                Assert.That(route, Is.Not.Null);
+                LogAssert.Expect(LogType.Error,
+                    "M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
+                Assert.That(route.Invoke(null, new object[] { bell, null }), Is.EqualTo(false));
+                Assert.That(bell.outputAudioMixerGroup, Is.Null,
+                    "Fallback must detach the old mixer before using source-level mute.");
+                Assert.That(bell.mute, Is.EqualTo(SoundwellAudioBus.IsMuted),
+                    "The existing player mute preference must remain authoritative.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(source);
+            }
+        }
+
         [Test]
         public void BeastCaptureUsesLocalDangerCorridorWhenTrialIsRotated()
         {
