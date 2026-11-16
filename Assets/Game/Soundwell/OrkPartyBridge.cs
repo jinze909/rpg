@@ -353,29 +353,46 @@ namespace Rpg.Soundwell
             return quest.IsFinished();
         }
 
+        // Keep a small stable cache of ORK's competing 3D motors instead of
+        // traversing the entire scene each Update. Registration and periodic
+        // fallback discover newly instantiated vendor components.
+        private const float ControllerAuditInterval = 0.20f;
+        private readonly List<ButtonPlayerController> known3DControllers =
+            new List<ButtonPlayerController>(2);
+        private float nextControllerAuditAt;
+
         private void WatchOrkControllerRegistration()
         {
-            // Cover the controller that may already exist before this frame.
             DisableConflicting3DPlayerControllers();
+            nextControllerAuditAt = Time.unscaledTime + ControllerAuditInterval;
         }
 
         private void Update()
         {
-            if (playerAssignedToOrk && IsReady && ORK.Initialized)
+            if (!playerAssignedToOrk || !IsReady || !ORK.Initialized)
+                return;
+            foreach (ButtonPlayerController controller in known3DControllers)
+                if (controller != null && controller.enabled)
+                    controller.enabled = false;
+            if (Time.unscaledTime >= nextControllerAuditAt)
+            {
                 DisableConflicting3DPlayerControllers();
+                nextControllerAuditAt = Time.unscaledTime + ControllerAuditInterval;
+            }
         }
 
-        private static void DisableConflicting3DPlayerControllers()
+        private void DisableConflicting3DPlayerControllers()
         {
-            // ORK's default Button controller adds a 3D CharacterController in
-            // Update. That component conflicts with Soundwell's real Rigidbody2D
-            // and throws before the player can choose or abandon a battle.
-            // Disable only the world-movement component, not ORK combat,
-            // statuses, action selection or its UI ownership.
+            // Preserve ORK's battle, status and action ownership. Disable
+            // only vendor 3D movement that conflicts with our Rigidbody2D.
+            known3DControllers.RemoveAll(controller => controller == null);
             foreach (ButtonPlayerController controller in
                      UnityEngine.Object.FindObjectsByType<ButtonPlayerController>())
             {
-                if (controller != null && controller.enabled)
+                if (controller == null) continue;
+                if (!known3DControllers.Contains(controller))
+                    known3DControllers.Add(controller);
+                if (controller.enabled)
                     controller.enabled = false;
             }
         }
