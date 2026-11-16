@@ -111,6 +111,17 @@ namespace Rpg.Tests.Editor
                 Assert.That(stage.CanHelpEvacuee, Is.False);
                 Assert.That(prompt.text, Does.Contain("桥面通道"));
                 Assert.That(stage.Phase, Is.EqualTo(9));
+
+                // Language also changes the unreachable warning, not just
+                // the nearby action. Never leak a phase-9 prompt into escort.
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Does.Contain("Return to the bridge lane"));
+                phase.SetValue(stage, 10);
+                prompt.text = "Escort underway — do not replace this prompt";
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Is.EqualTo("Escort underway — do not replace this prompt"));
+                Assert.That(stage.CanHelpEvacuee, Is.False);
             }
             finally
             {
