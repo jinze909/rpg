@@ -118,6 +118,9 @@ namespace Rpg.Soundwell
         private Button exit;
         private Button next;
         private Action onExit;
+        private WhitewaterDefenseEncounter defenseEncounter;
+        private bool defenseStarted;
+        private bool defenseWon;
         private int phase;
         // S00 station prompts are keyed only to physical reach, phase and
         // selected locale. They never grant actions or copy Makinom state.
@@ -251,6 +254,9 @@ namespace Rpg.Soundwell
         public void Begin(Action exitAction)
         {
             onExit = exitAction;
+            defenseEncounter = GetComponentInParent<WhitewaterDefenseEncounter>();
+            defenseStarted = false;
+            defenseWon = false;
             phase = 0;
             // The existing InputSystemUIInputModule owns dialogue navigation.
             SoundwellInputAdapter.SetUiContext();
@@ -1147,9 +1153,65 @@ namespace Rpg.Soundwell
                     approaching |= movingMotor;
                 }
                 if (!approaching && advancedAfterHold)
+                {
+                    BeginWhitewaterDefense();
                     yield break;
+                }
                 yield return null;
             }
+        }
+
+        private void BeginWhitewaterDefense()
+        {
+            if (phase != 16 || defenseStarted || defenseWon)
+                return;
+
+            if (defenseEncounter == null)
+                defenseEncounter = GetComponentInParent<WhitewaterDefenseEncounter>();
+            if (defenseEncounter == null)
+            {
+                instructions.text = Copy(
+                    "The bridgehead ORK defence is not configured in this Bootstrap scene.",
+                    "当前 Bootstrap 场景尚未配置桥头 ORK 防守战。");
+                return;
+            }
+
+            defenseStarted = defenseEncounter.Begin(OnWhitewaterDefenseCompleted);
+            if (!defenseStarted)
+            {
+                instructions.text = Copy(
+                    "The bridgehead defence could not start. Leave the prologue and retry after the ORK party is ready.",
+                    "桥头防守战未能启动。请退出序章，待 ORK 队伍就绪后重试。");
+                return;
+            }
+
+            narration.text = Copy(
+                "The three armed silhouettes reach the span. You and Shen Li hold the cable as the bridgehead closes into a real fight.",
+                "三个持械人影逼近桥面。你和沈砾仍扶着缆索，桥头的冲突终于变成真正的战斗。");
+            instructions.text = Copy(
+                "Use Attack or Guard on the active ORK turn. The enemy squad takes its own ORK turns; the scene does not fake damage or victory.",
+                "在 ORK 当前回合选择攻击或防御。敌方小队也由 ORK 自己行动；场景不会伪造伤害或胜利。");
+        }
+
+        private void OnWhitewaterDefenseCompleted(bool victory)
+        {
+            defenseStarted = false;
+            if (!victory)
+            {
+                Close();
+                return;
+            }
+
+            defenseWon = true;
+            SoundwellInputAdapter.SetUiContext();
+            narration.text = Copy(
+                "The immediate pressure eases. Shen Li keeps the spare rope tight against the clamp; the cable is still strained.",
+                "眼前的攻势暂时缓了下来。沈砾仍把备用绳索紧紧压在缆桩上，缆索依旧绷紧。");
+            instructions.text = Copy(
+                "The bridgehead is held for a moment. The fixed third-bell break is still ahead. Return to entry when ready.",
+                "桥头暂时守住了。既定的第三声断桥仍在后续。准备好后可返回入口。");
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
 
         private void HoldCableAtPost()
@@ -1482,6 +1544,7 @@ namespace Rpg.Soundwell
 
         private void OnDestroy()
         {
+            defenseEncounter?.Stop();
             // AudioSource belongs to the scene canvas and stops with it.
             // Release the generated sample clip when the temporary scene ends.
             if (firstBellClip != null)
@@ -1779,9 +1842,10 @@ namespace Rpg.Soundwell
 
         public void Close()
         {
-            // Leaving the unfinished prologue never starts an ORK encounter or
-            // awards quest experience. Makinom retains only dialogue/repair
-            // outcomes already earned through real player interactions.
+            defenseEncounter?.Stop();
+            // Leaving the unfinished prologue never awards quest experience.
+            // Makinom retains only dialogue/repair outcomes already earned
+            // through real player interactions.
             Action callback = onExit;
             onExit = null;
             callback?.Invoke();
