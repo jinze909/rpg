@@ -97,33 +97,29 @@ namespace Rpg.Tests.Editor
         [Test]
         public void TilemapFirstTimePreparationRejectsDirtyScenesBeforeResourceCreation()
         {
-            // A disposable additive scene must be rejected without changing
-            // or closing any authored scene; no real tile assets are touched.
+            // Unity CI can already have an unsaved untitled scene; creating
+            // a second additive one throws before reaching the preflight.
+            // Exercise the exact decision without editing saved scene state.
             var type = Type.GetType("Rpg.Editor.SoundwellTilemapSetup, Assembly-CSharp-Editor", true);
-            var gate = type.GetMethod("RefuseDirtyOpenScenes",
+            var gate = type.GetMethod("RequireCleanEditorScene",
                 BindingFlags.NonPublic | BindingFlags.Static);
             Assert.That(gate, Is.Not.Null);
+            Assert.DoesNotThrow(() => gate.Invoke(null,
+                new object[] { true, false, "Clean" }));
+            Assert.DoesNotThrow(() => gate.Invoke(null,
+                new object[] { false, true, "Unloaded" }));
+            var error = Assert.Throws<TargetInvocationException>(() =>
+                gate.Invoke(null, new object[] { true, true, "Unsaved scratch" }));
+            Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
+            Assert.That(error.InnerException.Message, Does.Contain("Unsaved scratch"));
 
-            var previous = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            var scratch = EditorSceneManager.NewScene(
-                NewSceneSetup.EmptyScene, NewSceneMode.Additive);
-            try
-            {
-                EditorSceneManager.MarkSceneDirty(scratch);
-                var error = Assert.Throws<TargetInvocationException>(
-                    () => gate.Invoke(null, null));
-                Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
-                Assert.That(error.InnerException.Message, Does.Contain(scratch.name));
-                Assert.That(scratch.isLoaded && scratch.isDirty, Is.True,
-                    "Rejecting a dirty scene must not close it or discard changes.");
-            }
-            finally
-            {
-                if (scratch.IsValid() && scratch.isLoaded)
-                    EditorSceneManager.CloseScene(scratch, true);
-                if (previous.IsValid() && previous.isLoaded)
-                    UnityEngine.SceneManagement.SceneManager.SetActiveScene(previous);
-            }
+            // A correct guard called after creating assets would still leave
+            // an orphaned folder; prove the first call precedes first write.
+            string source = File.ReadAllText("Assets/Game/Editor/SoundwellTilemapSetup.cs");
+            int guardIndex = source.IndexOf("RefuseDirtyOpenScenes();", StringComparison.Ordinal);
+            int firstWrite = source.IndexOf("AssetDatabase.CreateFolder(", StringComparison.Ordinal);
+            Assert.That(guardIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(firstWrite, Is.GreaterThan(guardIndex));
         }
 
         [Test]

@@ -126,11 +126,20 @@ namespace Rpg.Editor
             for (int i = 0; i < SceneManager.sceneCount; i++)
             {
                 Scene opened = SceneManager.GetSceneAt(i);
-                if (opened.isLoaded && opened.isDirty)
-                    throw new InvalidOperationException(
-                        "Save or discard open scene edits before preparing the Soundwell Tilemap: " +
-                        (string.IsNullOrEmpty(opened.path) ? opened.name : opened.path));
+                RequireCleanEditorScene(opened.isLoaded, opened.isDirty,
+                    string.IsNullOrEmpty(opened.path) ? opened.name : opened.path);
             }
+        }
+
+        // Keep the actual loaded-scene reader above. Its per-scene
+        // decision is independently testable even when the Unity batch
+        // editor starts in a dirty, untitled scene.
+        private static void RequireCleanEditorScene(bool loaded, bool dirty, string name)
+        {
+            if (loaded && dirty)
+                throw new InvalidOperationException(
+                    "Save or discard open scene edits before preparing the Soundwell Tilemap: " +
+                    name);
         }
 
         public static void Validate()
