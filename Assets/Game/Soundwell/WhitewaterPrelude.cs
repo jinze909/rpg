@@ -1376,8 +1376,7 @@ namespace Rpg.Soundwell
             if (phase != 17)
                 yield break;
 
-            Image blackout = Panel(canvasRoot, "S00 blackout after bridge collapse",
-                Vector2.zero, new Vector2(960f, 540f), Color.clear);
+            Image blackout = CreateFullCanvasBlackout(canvasRoot);
             float fade = 0f;
             while (phase == 17 && fade < 0.5f)
             {
@@ -1399,6 +1398,22 @@ namespace Rpg.Soundwell
                 new Vector2(0f, -190f);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        // The same third-bell fade must cover the entire playable canvas
+        // on portrait and ultrawide screens. A fixed 960x540 center panel
+        // exposes scene edges after CanvasScaler adjusts the viewport.
+        // This is purely a visual overlay: it cannot affect the ORK victory.
+        private static Image CreateFullCanvasBlackout(Transform canvasRoot)
+        {
+            Image blackout = Panel(canvasRoot, "S00 blackout after bridge collapse",
+                Vector2.zero, Vector2.zero, Color.clear);
+            RectTransform cover = blackout.rectTransform;
+            cover.anchorMin = Vector2.zero;
+            cover.anchorMax = Vector2.one;
+            cover.offsetMin = Vector2.zero;
+            cover.offsetMax = Vector2.zero;
+            return blackout;
         }
 
         private void HoldCableAtPost()

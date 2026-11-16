@@ -17,6 +17,49 @@ namespace Rpg.Tests.Editor
     public sealed class WhitewaterRescueChoiceInputTests
     {
         [Test]
+        public void S00ThirdBellBlackoutCoversAnyCanvasAspectWithoutBlockingReturn()
+        {
+            var root = new GameObject("S00 blackout canvas", typeof(RectTransform),
+                typeof(Canvas));
+            try
+            {
+                var canvas = root.GetComponent<RectTransform>();
+                var creator = typeof(WhitewaterPrelude).GetMethod(
+                    "CreateFullCanvasBlackout",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(creator, Is.Not.Null);
+                var image = (Image)creator.Invoke(null, new object[] { canvas });
+                Assert.That(image.gameObject.name,
+                    Is.EqualTo("S00 blackout after bridge collapse"));
+                Assert.That(image.color, Is.EqualTo(Color.clear));
+                Assert.That(image.raycastTarget, Is.False,
+                    "The black frame cannot block the return-to-entry UGUI button.");
+                RectTransform cover = image.rectTransform;
+                Assert.That(cover.anchorMin, Is.EqualTo(Vector2.zero));
+                Assert.That(cover.anchorMax, Is.EqualTo(Vector2.one));
+                Assert.That(cover.offsetMin, Is.EqualTo(Vector2.zero));
+                Assert.That(cover.offsetMax, Is.EqualTo(Vector2.zero));
+                // A stretch-anchored overlay adapts to either extreme viewport
+                // without another animation, camera or gameplay branch.
+                foreach (Vector2 viewport in new[]
+                {
+                    new Vector2(1200f, 540f), new Vector2(320f, 720f)
+                })
+                {
+                    canvas.sizeDelta = viewport;
+                    Canvas.ForceUpdateCanvases();
+                    Assert.That(cover.rect.width, Is.EqualTo(viewport.x).Within(0.01f));
+                    Assert.That(cover.rect.height, Is.EqualTo(viewport.y).Within(0.01f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void S00WalkerPresentationSnapsToWholePixelsWithoutSnappingMovementMotor()
         {
             // The underlying movement/reach motor remains subpixel-precise;
