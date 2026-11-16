@@ -133,36 +133,86 @@ namespace Rpg.Soundwell
                 clearance = Mathf.Max(minimumClearance, movingRadius +
                     footprint.radius * scale);
             }
-            // ORK can represent an occupied actor with a trigger-only box
-            // (or temporarily disable its collider while an action plays).
-            // CircleCast excludes triggers; the legacy pivot-only fallback
-            // would allow a rescuer to step through the box's actual width.
-            // Compare the cardinal step's swept footprint with its world-space
-            // bounds, including rotation and non-uniform scale. This remains
-            // a geometry check; ORK retains all turn/action authority.
+            // ORK sometimes represents a live combatant by a trigger-only
+            // rotated box. CircleCast excludes that trigger, so check its
+            // actual swept outline rather than its world AABB: a 45-degree
+            // box has empty AABB corners that must remain walkable.
             if (footprint == null)
             {
                 BoxCollider2D box = obstacle.GetComponent<BoxCollider2D>();
                 if (box != null)
-                {
-                    Vector2 halfX = obstacle.TransformVector(
-                        new Vector3(box.size.x * 0.5f, 0f, 0f));
-                    Vector2 halfY = obstacle.TransformVector(
-                        new Vector3(0f, box.size.y * 0.5f, 0f));
-                    Vector2 extents = new Vector2(
-                        Mathf.Abs(halfX.x) + Mathf.Abs(halfY.x),
-                        Mathf.Abs(halfX.y) + Mathf.Abs(halfY.y));
-                    Vector2 boxCentre = obstacle.TransformPoint(box.offset);
-                    Vector2 to = from + direction * distance;
-                    float padding = Mathf.Max(movingRadius, minimumClearance * 0.5f);
-                    return Mathf.Min(from.x, to.x) - padding <= boxCentre.x + extents.x &&
-                        Mathf.Max(from.x, to.x) + padding >= boxCentre.x - extents.x &&
-                        Mathf.Min(from.y, to.y) - padding <= boxCentre.y + extents.y &&
-                        Mathf.Max(from.y, to.y) + padding >= boxCentre.y - extents.y;
-                }
+                    return SweptCircleTouchesBox(from, from + direction * distance,
+                        Mathf.Max(movingRadius, minimumClearance * 0.5f),
+                        obstacle, box);
             }
             float along = Mathf.Clamp(Vector2.Dot(centre - from, direction), 0f, distance);
             return Vector2.Distance(centre, from + direction * along) < clearance;
+        }
+
+        // Closest distance from a cardinal step segment to the true four
+        // rotated box edges. The centre-in-box check also catches steps that
+        // start entirely inside a trigger footprint. No temporary colliders,
+        // allocations, or extra movement authority are introduced.
+        private static bool SweptCircleTouchesBox(Vector2 from, Vector2 to,
+            float padding, Transform obstacle, BoxCollider2D box)
+        {
+            Vector2 fromLocal = (Vector2)obstacle.InverseTransformPoint(from) - box.offset;
+            Vector2 toLocal = (Vector2)obstacle.InverseTransformPoint(to) - box.offset;
+            float halfWidth = box.size.x * 0.5f;
+            float halfHeight = box.size.y * 0.5f;
+            if ((Mathf.Abs(fromLocal.x) <= halfWidth &&
+                 Mathf.Abs(fromLocal.y) <= halfHeight) ||
+                (Mathf.Abs(toLocal.x) <= halfWidth &&
+                 Mathf.Abs(toLocal.y) <= halfHeight))
+                return true;
+
+            Vector2 centre = obstacle.TransformPoint(box.offset);
+            Vector2 horizontal = obstacle.TransformVector(
+                new Vector3(halfWidth, 0f, 0f));
+            Vector2 vertical = obstacle.TransformVector(
+                new Vector3(0f, halfHeight, 0f));
+            Vector2 a = centre - horizontal - vertical;
+            Vector2 b = centre + horizontal - vertical;
+            Vector2 c = centre + horizontal + vertical;
+            Vector2 d = centre - horizontal + vertical;
+            float squaredPadding = padding * padding;
+            return SegmentTouchesEdge(from, to, a, b, squaredPadding) ||
+                   SegmentTouchesEdge(from, to, b, c, squaredPadding) ||
+                   SegmentTouchesEdge(from, to, c, d, squaredPadding) ||
+                   SegmentTouchesEdge(from, to, d, a, squaredPadding);
+        }
+
+        private static bool SegmentTouchesEdge(Vector2 from, Vector2 to,
+            Vector2 a, Vector2 b, float squaredPadding)
+        {
+            Vector2 step = to - from;
+            Vector2 edge = b - a;
+            float cross = step.x * edge.y - step.y * edge.x;
+            if (Mathf.Abs(cross) > 0.000001f)
+            {
+                Vector2 gap = a - from;
+                float along = (gap.x * edge.y - gap.y * edge.x) / cross;
+                float across = (gap.x * step.y - gap.y * step.x) / cross;
+                if (along >= 0f && along <= 1f &&
+                    across >= 0f && across <= 1f)
+                    return true;
+            }
+            return SquaredDistanceToSegment(from, a, b) <= squaredPadding ||
+                SquaredDistanceToSegment(to, a, b) <= squaredPadding ||
+                SquaredDistanceToSegment(a, from, to) <= squaredPadding ||
+                SquaredDistanceToSegment(b, from, to) <= squaredPadding;
+        }
+
+        private static float SquaredDistanceToSegment(Vector2 point,
+            Vector2 start, Vector2 end)
+        {
+            Vector2 segment = end - start;
+            float lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= 0.000001f)
+                return (point - start).sqrMagnitude;
+            float fraction = Mathf.Clamp01(Vector2.Dot(point - start, segment) /
+                lengthSquared);
+            return (point - (start + segment * fraction)).sqrMagnitude;
         }
 
         public static bool FitsBattleStepInArena(Vector2 centre, float footprintRadius) =>

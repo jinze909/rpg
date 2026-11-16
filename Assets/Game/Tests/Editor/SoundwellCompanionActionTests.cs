@@ -149,6 +149,45 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RotatedTriggerBoxAllowsEmptyCornerButBlocksItsRealBody()
+        {
+            // ORK's trigger-only actors are excluded from CircleCast, but
+            // their visible rotated body must still occupy the true shape.
+            // The old world AABB rejected the first unobstructed step.
+            var root = new GameObject("Soundwell rotated box motor");
+            var moving = new GameObject("moving rescuer");
+            var blocker = new GameObject("rotated ORK box actor");
+            try
+            {
+                var motor = root.AddComponent<PartyMovement2D>();
+                moving.transform.position = new Vector2(-4f, -1f);
+                blocker.transform.position = new Vector2(-3.3f, -0.6f);
+                blocker.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+                var box = blocker.AddComponent<BoxCollider2D>();
+                box.size = new Vector2(0.3f, 0.8f);
+                box.isTrigger = true;
+                Physics2D.SyncTransforms();
+                var members = new[] { moving, blocker };
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    members, null, 0.5f, out Vector2 clearStep), Is.True,
+                    "An empty corner of the rotated box's world AABB must be walkable.");
+                Assert.That(clearStep, Is.EqualTo(new Vector2(-3.5f, -1f)));
+
+                blocker.transform.position = new Vector2(-3.65f, -1f);
+                Physics2D.SyncTransforms();
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    members, null, 0.5f, out _), Is.False,
+                    "A step passing through the actual rotated box must remain blocked.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(blocker);
+                Object.DestroyImmediate(moving);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void OrkStepMustKeepWholeCombatantInsideSavedBattleBounds()
         {
             // The previous centre-only check allowed a character's 2D
