@@ -162,6 +162,9 @@ namespace Rpg.Soundwell
         private static readonly Color CompanionHitTint = new Color(1f, 0.43f, 0.36f);
         private const float CompanionHitSeconds = 0.30f;
         private readonly GameObject[] actors = new GameObject[3];
+        // Each follower's SpriteRenderer is stable after creation, so the
+        // per-frame formation render never re-resolves its component.
+        private readonly SpriteRenderer[] followerRenderers = new SpriteRenderer[3];
         private readonly List<Sample> history = new List<Sample>(32);
         private bool checkpointRegroupPending;
         private Vector3 checkpointAnchor;
@@ -198,6 +201,8 @@ namespace Rpg.Soundwell
             parent = partyParent;
             config = settings;
             history.Clear();
+            for (int i = 0; i < followerRenderers.Length; i++)
+                followerRenderers[i] = null;
             RecordLeader();
             placeholderSprite = CreatePixelRescuerSprite(
                 IdlePixels, "PLACEHOLDER 16px Soundwell rescuer idle", out placeholderTexture);
@@ -223,7 +228,7 @@ namespace Rpg.Soundwell
             GameObject actor = new GameObject(name);
             actor.SetActive(false);
             actor.transform.SetParent(parent, true);
-            actor.transform.position = LeaderPosition + (Vector3)offset;
+            actor.transform.position = LeaderPosition + WorldFormationOffset(offset);
             actor.transform.localScale = Vector3.one;
             var renderer = actor.AddComponent<SpriteRenderer>();
             renderer.sprite = index == 2 ? hoodIdleSprite : placeholderSprite;
@@ -231,10 +236,18 @@ namespace Rpg.Soundwell
             companionTints[index] = tint;
             renderer.sortingOrder = 3;
             actors[index] = actor;
+            followerRenderers[index] = renderer;
             return actor;
         }
 
         public void SetFrameworkReady() => ready = true;
+
+        // The stored formation offsets are authored in the trial's local
+        // plane. Convert only the offset vector (never the player position)
+        // so translated/rotated/scaled rooms keep companions on the right
+        // visible side without changing ORK action ownership.
+        private Vector3 WorldFormationOffset(Vector2 localOffset) =>
+            parent != null ? parent.TransformVector(localOffset) : (Vector3)localOffset;
 
         private Vector3 LeaderPosition
         {
@@ -263,8 +276,8 @@ namespace Rpg.Soundwell
             {
                 if (actors[i] == null)
                     continue;
-                actors[i].transform.position = checkpointAnchor + (Vector3)
-                    (i == 2 ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
+                actors[i].transform.position = checkpointAnchor + WorldFormationOffset(
+                    i == 2 ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
                 var renderer = actors[i].GetComponent<SpriteRenderer>();
                 if (renderer != null)
                     renderer.sprite = i == 2 ? hoodIdleSprite : placeholderSprite;
@@ -338,7 +351,7 @@ namespace Rpg.Soundwell
             {
                 GameObject actor = actors[i];
                 if (actor == null) continue;
-                SpriteRenderer renderer = actor.GetComponent<SpriteRenderer>();
+                SpriteRenderer renderer = followerRenderers[i];
                 if (renderer == null) continue;
                 Sprite idle = i == 2 ? hoodIdleSprite : placeholderSprite;
                 Sprite walking = i == 2 ? hoodWalkingSprite : walkingSprite;
@@ -356,7 +369,7 @@ namespace Rpg.Soundwell
                             : Time.unscaledTime < companionStepUntil[i] ? walking : idle;
                     continue;
                 }
-                Vector3 goal = pathPosition + (Vector3)(i == 2
+                Vector3 goal = pathPosition + WorldFormationOffset(i == 2
                     ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
                 goal.z = 0f;
                 if (leaderRelocated)
@@ -456,42 +469,7 @@ namespace Rpg.Soundwell
         private static Sprite CreatePixelRescuerSprite(
             string[] rows, string name, out Texture2D texture)
         {
-            const int size = 16;
-            if (rows.Length != size)
-                throw new System.InvalidOperationException("Pixel rescuer requires 16 rows.");
-
-            texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                name = name,
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-                anisoLevel = 0
-            };
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                if (rows[size - 1 - y].Length != size)
-                    throw new System.InvalidOperationException("Pixel rescuer row must be 16 pixels.");
-                for (int x = 0; x < size; x++)
-                {
-                    char part = rows[size - 1 - y][x];
-                    pixels[y * size + x] = part == '#'
-                        ? new Color32(255, 255, 255, 255)
-                        : part == '+'
-                            ? new Color32(176, 176, 176, 255)
-                            : new Color32(0, 0, 0, 0);
-                }
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply(false, false);
-            Sprite sprite = Sprite.Create(texture,
-                new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f),
-                16f, 0, SpriteMeshType.FullRect);
-            // Texture.name does not propagate to Sprite.Create. Keep each
-            // visible pose identifiable for the guard-action regression and
-            // for artifact inspection without changing ORK battle state.
-            sprite.name = name;
-            return sprite;
+            return SoundwellPixelSpriteBuilder.Create16(rows, name, out texture);
         }
 
 

@@ -9,6 +9,9 @@ namespace Rpg.Soundwell
     {
         public const float ContactRadius = 0.67f;
         public const float SearchDurationSeconds = 3.5f;
+        // Local to this trial root, so moving the whole level cannot shift
+        // the beast contact zone away from its intended east-side corridor.
+        [SerializeField] private float dangerZoneStartLocalX = 0.55f;
         private Transform beast;
         private Rigidbody2D player;
         private Vector2 home;
@@ -44,7 +47,10 @@ namespace Rpg.Soundwell
             if (beast != null)
             {
                 beast.position = home;
-                beast.rotation = Quaternion.Euler(0f, 0f, 180f);
+                // The original resting pose is relative to the authored
+                // level, not the unrotated world. A rotated trial must not
+                // make the returning beast face an unrelated compass heading.
+                beast.rotation = transform.rotation * Quaternion.Euler(0f, 0f, 180f);
             }
             lastHeard = home;
             searchStarted = float.NegativeInfinity;
@@ -67,6 +73,12 @@ namespace Rpg.Soundwell
         public Vector2 Tick(BellSignal bellSignal, Vector2 hearingPoint, bool directCombat,
             bool combatComplete, bool gateOpen, bool rescueComplete)
         {
+            // A reloaded Makinom Searching flag can arrive before the
+            // matching transition event. Do not treat an uninitialized
+            // timer (-Infinity) as an already-expired search.
+            if (bellSignal != BellSignal.Searching)
+                searchStarted = float.NegativeInfinity;
+
             Vector2 destination = Position;
             if (!directCombat && !combatComplete && beast != null)
             {
@@ -78,6 +90,12 @@ namespace Rpg.Soundwell
                 }
                 else if (bellSignal == BellSignal.Searching)
                 {
+                    if (float.IsNegativeInfinity(searchStarted))
+                    {
+                        searchStarted = Time.time;
+                        lastHeard = hearingPoint;
+                        searchExpiryNotified = false;
+                    }
                     float time = Time.time - searchStarted;
                     if (time >= SearchDurationSeconds)
                     {
@@ -90,9 +108,13 @@ namespace Rpg.Soundwell
                         }
                     }
                     else
-                        destination = lastHeard + new Vector2(
-                            0.45f + 0.45f * Mathf.Cos(time * 2f),
-                            0.8f * Mathf.Sin(time * 2f));
+                        // Search the same authored local arc after the whole
+                        // trial has moved or rotated. The bell's lastHeard
+                        // remains a real world-space position, not a second
+                        // Makinom search destination.
+                        destination = lastHeard + (Vector2)transform.TransformVector(
+                            new Vector2(0.45f + 0.45f * Mathf.Cos(time * 2f),
+                                0.8f * Mathf.Sin(time * 2f)));
                 }
                 Vector2 position = beast.position;
                 Vector2 next = Vector2.MoveTowards(position, destination,
@@ -106,7 +128,9 @@ namespace Rpg.Soundwell
 
             bool playerInDanger = beast != null && player != null &&
                 !directCombat && !combatComplete && gateOpen && !rescueComplete &&
-                player.position.x > 0.55f &&
+                // The visible east corridor is local to this scene root.
+                // Subtracting only world X fails when a level is rotated.
+                transform.InverseTransformPoint(player.position).x > dangerZoneStartLocalX &&
                 Vector2.Distance(player.position, Position) <= ContactRadius;
             if (!playerInDanger)
                 contactLatched = false;

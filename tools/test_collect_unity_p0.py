@@ -14,6 +14,7 @@ from collect_unity_p0 import (
     SOUNDWELL_MARKERS,
     SOUNDWELL_TESTS,
     expected_tests_for,
+    unregistered_unitytest_methods,
     format_performance_summary,
     validate_memory_phases,
     validate_soundwell_route_starts,
@@ -176,6 +177,35 @@ class MemoryPhasesEvidenceTests(unittest.TestCase):
 
 
 class SoundwellAcceptanceContractTests(unittest.TestCase):
+    def test_new_nunit_case_is_discovered_from_real_fixture_without_weakening_manifest(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case = source_root / "Assets/Game/Tests/Editor/NovelGameplayTests.cs"
+            case.parent.mkdir(parents=True)
+            fixture = (
+                "namespace Rpg.Tests.Editor {\n"
+                "  public sealed class NovelGameplayTests {\n"
+                "    [Test, Order(9)] public void ChecksFreshMovement() {}\n"
+                "  }\n"
+                "}\n"
+            )
+            case.write_text(fixture, encoding="utf-8")
+            name = "Rpg.Tests.Editor.NovelGameplayTests.ChecksFreshMovement"
+            self.assertIn(name, expected_tests_for("verify", True, source_root))
+            self.assertNotIn(name, expected_tests_for("prepare", True, source_root))
+            self.assertNotIn(name, expected_tests_for("verify", False, source_root))
+            # A real source fixture is required; comments, method names
+            # without NUnit attributes, and foreign namespaces are not tests.
+            case.write_text(fixture.replace("[Test, Order(9)]", "// [Test, Order(9)]"),
+                            encoding="utf-8")
+            self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+            case.write_text(fixture.replace("Rpg.Tests.Editor", "Other.Tests"),
+                            encoding="utf-8")
+            self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+            case.write_text(fixture.replace("class NovelGameplayTests", "class OtherTests"),
+                            encoding="utf-8")
+            self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+
     def test_formation_stepping_translation_requires_real_nunit_case(self):
         with tempfile.TemporaryDirectory() as root:
             source_root = Path(root)
@@ -523,6 +553,154 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertNotIn(added_test, expected_tests_for("verify", True, source_root))
+
+
+class PendingBranchCleanupWorkflowTests(unittest.TestCase):
+    def test_reviewed_legacy_retirements_keep_exact_sha_evidence_and_valid_python(self):
+        # The cleanup workflow is a YAML-embedded Python program. Compiler-
+        # check its exact checked-out body before a green Unity verification
+        # may deliver a replacement for any of these diverged branches.
+        import textwrap
+        source = (Path(__file__).resolve().parents[1] /
+                  ".github/workflows/close-merged-pending.yml").read_text(encoding="utf-8")
+        opening = "          python3 - <<'PY'\n"
+        closing = "\n          PY"
+        self.assertEqual(source.count(opening), 1)
+        body = source.split(opening, 1)[1].split(closing, 1)[0]
+        script = textwrap.dedent(body)
+        compile(script, "close-merged-pending.yml:python", "exec")
+        # Besides being syntactically valid, the original-run check must
+        # execute inside the per-branch proof, never at module scope.
+        import ast
+        module = ast.parse(script)
+        proof = next((node for node in module.body
+                      if isinstance(node, ast.FunctionDef)
+                      and node.name == "verified_archived_proof"), None)
+        self.assertIsNotNone(proof)
+        self.assertIn('if entry.get("original_run"):',
+                      ast.get_source_segment(script, proof))
+
+        expected = {
+            "codex/pending/story-003-ork-attack-choice":
+                ("6f546b89d4a2bc59688e82bb2451adf13c24290a", 43125796222),
+            "codex/pending/s00-escort-separation-visual-regroup-nov13":
+                ("e3cfeb109d8dece1db29ee400c055100856f5894", 43671553145),
+            "codex/pending/story003-escort-checkpoint-follower-resync-nov14":
+                ("878e2dbd8976dd840c9855229bda984e92ba5f57", 43619755853),
+            "codex/pending/story003-fixed-full-rescue-evidence-nov14":
+                ("4ca0a38d83a9de80b7b1bd9eaf6e32796eeb9834", 43590517380),
+        }
+        for name, (head, original_run) in expected.items():
+            with self.subTest(name=name):
+                start = script.index('"' + name + '": {')
+                receipt = script[start:start + 450]
+                self.assertIn('"head": "' + head + '"', receipt)
+                self.assertIn('"verified": "84f7ff5a255b56c1099daa7421f7e22e8546ed50"', receipt)
+                self.assertIn('"run": 43757378497', receipt)
+                self.assertIn('"original_run": ' + str(original_run), receipt)
+                self.assertIn('"pin_verified_snapshot": True', receipt)
+        # Never accept a green replacement without confirming its original
+        # SHA and artifact; this is stronger than the generic snapshot rule.
+        self.assertIn('original.get("head_sha")==sha', script)
+        self.assertIn('"original candidate exact-SHA artifact missing"', script)
+
+
+    def test_cleanup_refuses_queued_or_running_branch_ci(self):
+        # Execute only the cleanup workflow's exact runs_for function with
+        # an in-memory API stub: no network, branch deletion or workflow edits.
+        # A string-only assertion would pass even if its safety check were
+        # accidentally moved outside the function or stopped executing.
+        import ast
+        import textwrap
+        import urllib.parse
+
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/close-merged-pending.yml").read_text(
+                        encoding="utf-8")
+        opening = "          python3 - <<'PY'\n"
+        closing = "\n          PY"
+        self.assertEqual(workflow.count(opening), 1)
+        script = textwrap.dedent(workflow.split(opening, 1)[1].split(closing, 1)[0])
+        tree = ast.parse(script)
+        function = next((node for node in tree.body
+                         if isinstance(node, ast.FunctionDef)
+                         and node.name == "runs_for"), None)
+        self.assertIsNotNone(function, "The cleanup must keep a per-branch CI gate.")
+
+        isolated = ast.fix_missing_locations(
+            ast.Module(body=[function], type_ignores=[]))
+        def require(ok, reason):
+            if not ok:
+                raise RuntimeError(reason)
+
+        for status in ("queued", "in_progress", "waiting", "requested"):
+            with self.subTest(status=status):
+                calls = []
+                def pages(path, key):
+                    calls.append((path, key))
+                    return [{"status": "completed"}, {"status": status}]
+                scope = {"REPO": "jinze909/rpg", "urllib": urllib,
+                         "pages": pages, "check": require}
+                exec(compile(isolated, "cleanup:runs_for", "exec"), scope)
+                with self.assertRaisesRegex(RuntimeError, "active or queued CI"):
+                    scope["runs_for"]("codex/pending/r5-ci-safety")
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(calls[0][1], "workflow_runs")
+                self.assertIn("branch=codex%2Fpending%2Fr5-ci-safety", calls[0][0])
+
+        # No active job must leave the branch eligible for the remaining
+        # exact-SHA / artifact checks; it must not make the branch deletable.
+        for statuses in ([], [{"status": "completed"}]):
+            def pages(path, key):
+                return statuses
+            scope = {"REPO": "jinze909/rpg", "urllib": urllib,
+                     "pages": pages, "check": require}
+            exec(compile(isolated, "cleanup:runs_for", "exec"), scope)
+            self.assertEqual(scope["runs_for"]("codex/pending/r5-ci-safety"),
+                             statuses)
+
+
+class UnityTestManifestPreflightTests(unittest.TestCase):
+    def test_live_editor_unitytests_are_registered_before_unity_starts(self):
+        root = Path(__file__).resolve().parents[1]
+        unregistered = unregistered_unitytest_methods(root, "verify", True)
+        self.assertEqual(unregistered, set(),
+                         "Register every new UnityTest in the exact P0 manifest.")
+
+    def test_missing_playmode_registration_is_detected_but_never_auto_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            editor = root / "Assets/Game/Tests/Editor"
+            editor.mkdir(parents=True)
+            fixture = editor / "SoundwellTrialTests.cs"
+            fixture.write_text(
+                "namespace Rpg.Tests.Editor { class SoundwellTrialTests {\n"
+                "[UnityTest] public IEnumerator PlayerCanRingWrapRetreatAndRetry() { yield break; }\n"
+                "[UnityTest, Order(77)] public IEnumerator ForgottenBridgeDefence() { yield break; }\n"
+                "public IEnumerator NotAUnityTest() { yield break; }\n"
+                "}}", encoding="utf-8",
+            )
+            missing = "Rpg.Tests.Editor.SoundwellTrialTests.ForgottenBridgeDefence"
+            self.assertEqual(unregistered_unitytest_methods(root, "verify", True),
+                             {missing})
+            self.assertNotIn(missing, expected_tests_for("verify", True, root))
+            self.assertEqual(unregistered_unitytest_methods(root, "prepare", True), set())
+            self.assertEqual(unregistered_unitytest_methods(root, "verify", False), set())
+
+            # Bootstrap tests also run in prepare mode, and must never be
+            # exempted from a missing UnityTest manifest registration.
+            fixture.unlink()
+            (editor / "P0BootstrapTests.cs").write_text(
+                "namespace Rpg.Tests.Editor { class P0BootstrapTests {\n"
+                "[UnityTest] public IEnumerator FirstPlayInitializesFramework() { yield break; }\n"
+                "[UnityTest] public IEnumerator UnregisteredBootstrapCase() { yield break; }\n"
+                "}}", encoding="utf-8",
+            )
+            bootstrap_missing = (
+                "Rpg.Tests.Editor.P0BootstrapTests.UnregisteredBootstrapCase"
+            )
+            self.assertEqual(unregistered_unitytest_methods(root, "prepare", True),
+                             {bootstrap_missing})
 
 
 class CompilerLogTests(unittest.TestCase):
