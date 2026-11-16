@@ -896,7 +896,7 @@ class M00EvidenceAndExitContractTests(unittest.TestCase):
         self.assertIn("四十一个", m00)
         self.assertIn("战报说桥被敌军烧了，可你记得桥是先断的", outline)
         m02 = outline.split("#### M02", 1)[1].split("#### M03", 1)[0]
-        for source in ("缆索残件", "桥夫", "战报底稿"):
+        for source in ("缆索残件", "守桥老人", "战报底稿"):
             with self.subTest(source=source):
                 self.assertIn(source, m02)
         self.assertIn("| bridge_evidence |", facts)
