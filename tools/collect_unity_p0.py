@@ -37,6 +37,8 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
+        "RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint",
         "MostRecentAcceptedCompanionPoseCannotReplayEarlierAction":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.MostRecentAcceptedCompanionPoseCannotReplayEarlierAction",
         "LeaderActionAndHitFeedbackExpireDuringPausedOrkClock":
@@ -57,6 +59,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellDirectVictoryEscortTests.OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival",
     },
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
+        "FocusedTrialLanguageButtonKeepsSubmitAndCancelRouting":
+            "Rpg.Tests.Editor.SoundwellTrialTests.FocusedTrialLanguageButtonKeepsSubmitAndCancelRouting",
         "BeastKnockbackKeepsCarriedBellWithRescuerOnContactFrame":
             "Rpg.Tests.Editor.SoundwellTrialTests.BeastKnockbackKeepsCarriedBellWithRescuerOnContactFrame",
         "BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope":
@@ -83,6 +87,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/WhitewaterRescueChoiceInputTests.cs": {
         "PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
+        "OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
     },
     "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs": {
         "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":
@@ -93,7 +99,19 @@ ADDITIONAL_SOUNDWELL_TESTS = {
 # manifest too. The UnityTest registry below only recognizes IEnumerator,
 # so new NUnit void tests otherwise compile and pass but fail evidence.
 ADDITIONAL_EDITOR_TESTS = {
+    "Assets/Game/Tests/Editor/BeastPatrolCorridorTests.cs": {
+        "BeastContactFollowsTrialOriginAndRearmsAfterExit":
+            "Rpg.Tests.Editor.BeastPatrolCorridorTests.BeastContactFollowsTrialOriginAndRearmsAfterExit",
+        "RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry":
+            "Rpg.Tests.Editor.BeastPatrolCorridorTests.RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry",
+    },
+    "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
+        "TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint":
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint",
+    },
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
+        "RescuedSurveyorCartTargetUsesTransformedVisibleMarker":
+            "Rpg.Tests.Editor.SoundwellTrialTests.RescuedSurveyorCartTargetUsesTransformedVisibleMarker",
         "BattleChooserActorLookupIgnoresDestroyedOrMissingActors":
             "Rpg.Tests.Editor.SoundwellTrialTests.BattleChooserActorLookupIgnoresDestroyedOrMissingActors",
         "RetiredOrkGateActorCannotOpenPhysicalGate":
@@ -112,6 +130,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.FormationToggleExplainsSteppingInBothLanguages",
         "WhitewaterReplayLabelUsesOnlyEarnedProgressAndBothSavedLanguages":
             "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.WhitewaterReplayLabelUsesOnlyEarnedProgressAndBothSavedLanguages",
+        "SavedLocalizationTablesAreCachedWhileLiveLocaleChanges":
+            "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests.SavedLocalizationTablesAreCachedWhileLiveLocaleChanges",
     },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "OrkStepMustKeepWholeCombatantInsideSavedBattleBounds":
@@ -126,6 +146,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.P0BootstrapTests.InvalidSavedBindingOverridesRecoverDefaultInputWithoutLosingValidRemaps",
         "FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice":
             "Rpg.Tests.Editor.P0BootstrapTests.FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice",
+        "MissingMixerFallbackKeepsMutedBellSilentAndPreservesPreference":
+            "Rpg.Tests.Editor.P0BootstrapTests.MissingMixerFallbackKeepsMutedBellSilentAndPreservesPreference",
     },
 }
 
@@ -140,9 +162,45 @@ SOUNDWELL_MARKERS = (
 SOURCE_PATHS = ("Assets", "Packages", "ProjectSettings")
 
 
+def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
+    """Derive new standalone NUnit cases from the exact checked-out game test sources.
+
+    A genuine namespace, file-matching test fixture and [Test] method are
+    required. Unexpected names not declared by this candidate still fail,
+    as do missing, skipped, duplicate or failing Unity results.
+    """
+    root = source_root / "Assets/Game/Tests/Editor"
+    if not root.is_dir():
+        return set()
+    test_pattern = re.compile(
+        r"^[ \t]*\[Test(?:\s*,[^\]\n]+)?\]\s*"
+        r"(?:\[[^\]\n]+\]\s*)*"
+        r"public\s+void\s+([A-Za-z_]\w*)\s*\(",
+        re.MULTILINE,
+    )
+    declared = set()
+    for path in sorted(root.glob("*Tests.cs")):
+        # Prepare runs only P0BootstrapTests in Unity. Do not infer new
+        # Soundwell checks in a mode that does not execute that suite.
+        if (mode != "verify" or not has_soundwell_scene) and path.stem != "P0BootstrapTests":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if not re.search(r"^\s*namespace\s+Rpg\.Tests\.Editor\b", source, re.MULTILINE):
+            continue
+        if not re.search(r"\bclass\s+" + re.escape(path.stem) + r"\b", source):
+            continue
+        for match in test_pattern.finditer(source):
+            full_name = f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
+            if full_name in declared:
+                raise ValueError(f"Duplicate NUnit test declaration: {full_name}")
+            declared.add(full_name)
+    return declared
+
+
 def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
-    """Match the actual candidate's declared UnityTest cases, not a stale fixed count."""
+    """Match the candidate's declared tests and retain strict XML equality."""
     expected = set(EXPECTED_TESTS)
+    expected.update(discover_editor_nunit_tests(source_root, mode, has_soundwell_scene))
     for relative_path, declared_tests in ADDITIONAL_EDITOR_TESTS.items():
         path = source_root / relative_path
         if not path.is_file():
@@ -174,6 +232,40 @@ def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
                 if re.search(signature, content):
                     expected.add(test_name)
     return expected
+
+
+def unregistered_unitytest_methods(source_root, mode, has_soundwell_scene):
+    """Fail early for new UnityTest methods omitted from the strict manifest.
+
+    Unlike NUnit [Test] discovery, UnityTest cases are explicitly admitted:
+    a new action test must be intentionally registered, not silently added to
+    the accepted XML result set. This guard runs in the cheap Python preflight
+    before the full Unity import and never relaxes exact result equality.
+    """
+    root = source_root / "Assets/Game/Tests/Editor"
+    if not root.is_dir():
+        return set()
+    pattern = re.compile(
+        r"^[ \t]*\[UnityTest(?:\s*,[^\]\n]+)?\]\s*"
+        r"(?:\[[^\]\n]+\]\s*)*"
+        r"public\s+IEnumerator\s+([A-Za-z_]\w*)\s*\(",
+        re.MULTILINE,
+    )
+    expected = expected_tests_for(mode, has_soundwell_scene, source_root)
+    omitted = set()
+    for path in sorted(root.glob("*Tests.cs")):
+        if (mode != "verify" or not has_soundwell_scene) and path.stem != "P0BootstrapTests":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if not re.search(r"^\s*namespace\s+Rpg\.Tests\.Editor\b", source, re.MULTILINE):
+            continue
+        if not re.search(r"\bclass\s+" + re.escape(path.stem) + r"\b", source):
+            continue
+        for match in pattern.finditer(source):
+            qualified_name = f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
+            if qualified_name not in expected:
+                omitted.add(qualified_name)
+    return omitted
 
 
 # Import/updater notices can include "Unable to update following assemblies"

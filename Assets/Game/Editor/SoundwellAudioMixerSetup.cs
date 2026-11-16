@@ -92,13 +92,10 @@ namespace Rpg.Editor
             if (mixer.FindSnapshot("Snapshot") == null)
                 throw new InvalidOperationException("The native mixer must have a saved starting snapshot.");
 
-            Type editorType = FindEditorType("UnityEditor.Audio.AudioMixerController");
-            var controller = (object)mixer;
-            PropertyInfo exposed = editorType.GetProperty("exposedParameters", Flags);
-            var values = exposed != null ? exposed.GetValue(controller) as Array : null;
-            if (values == null || values.Length != 1 ||
-                (string)values.GetValue(0).GetType().GetField("name", Flags)?.GetValue(values.GetValue(0)) != Parameter)
-                throw new InvalidOperationException("The SFX attenuation must expose one stable volume parameter.");
+            // Runtime also reads this public exposed parameter. Validation
+            // must not depend on the editor's undocumented mixer internals.
+            if (!mixer.GetFloat(Parameter, out _))
+                throw new InvalidOperationException("The SFX attenuation must expose the saved volume parameter.");
 
             Debug.Log("RPG_SOUNDWELL_AUDIO_MIXER_VALIDATED");
         }

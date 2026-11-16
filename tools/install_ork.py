@@ -35,7 +35,11 @@ def read_package(package):
     for entry in entries.values():
         if "pathname" not in entry:
             continue
-        raw_path = entry["pathname"].decode("utf-8").splitlines()[0]
+        decoded_path = entry["pathname"].decode("utf-8")
+        raw_lines = decoded_path.splitlines()
+        if not raw_lines or not raw_lines[0].strip() or raw_lines[0] != raw_lines[0].strip():
+            raise ValueError(f"Blank or padded asset path in Unity package: {decoded_path!r}")
+        raw_path = raw_lines[0]
         path = PurePosixPath(raw_path)
         if (
             path.is_absolute()
