@@ -76,6 +76,12 @@ namespace Rpg.Soundwell
             sceneCamera.gameObject.AddComponent<CinemachineBrain>();
         }
 
+        // Broken or uninitialized serialized floats must not produce an
+        // invalid Cinemachine lens or move the focus to NaN coordinates.
+        // Valid authored values remain unchanged.
+        private static float FiniteOrDefault(float value, float fallback) =>
+            float.IsNaN(value) || float.IsInfinity(value) ? fallback : value;
+
         public void RefreshFraming()
         {
             if (sceneCamera == null || player == null || framingTarget == null)
@@ -85,10 +91,15 @@ namespace Rpg.Soundwell
             // +/-3.2 Y. For a relocated, rotated or scaled room, those edges
             // must be enclosed in WORLD screen axes, not the old local X
             // assumption. Cinemachine still owns the camera pose and lens.
-            float aspect = sceneCamera.aspect > 0f ? sceneCamera.aspect : 16f / 9f;
-            float trialHalfWidth = Mathf.Max(0.01f, trialHalfExtents.x);
-            float trialHalfHeight = Mathf.Max(0.01f, trialHalfExtents.y);
-            float edgeMargin = Mathf.Max(0f, trialEdgeMargin);
+            float aspect = FiniteOrDefault(sceneCamera.aspect, 16f / 9f);
+            if (aspect <= 0f)
+                aspect = 16f / 9f;
+            float trialHalfWidth = Mathf.Max(0.01f,
+                FiniteOrDefault(trialHalfExtents.x, 8.1f));
+            float trialHalfHeight = Mathf.Max(0.01f,
+                FiniteOrDefault(trialHalfExtents.y, 3.2f));
+            float edgeMargin = Mathf.Max(0f,
+                FiniteOrDefault(trialEdgeMargin, 0.12f));
             Vector3 trialX = trialRoot.TransformVector(new Vector3(trialHalfWidth, 0f, 0f));
             Vector3 trialY = trialRoot.TransformVector(new Vector3(0f, trialHalfHeight, 0f));
             float worldHalfWidth = Mathf.Abs(trialX.x) + Mathf.Abs(trialY.x);
@@ -109,11 +120,15 @@ namespace Rpg.Soundwell
             Vector2 sourceWorld = playerBody != null ? playerBody.position :
                 (Vector2)player.position;
             Vector3 sourceLocal = trialRoot.InverseTransformPoint(sourceWorld);
+            float followX = FiniteOrDefault(followFactors.x, 0.14f);
+            float followY = FiniteOrDefault(followFactors.y, 0.15f);
+            float maxFollowX = Mathf.Max(0f,
+                FiniteOrDefault(maxFollowOffsets.x, 0.85f));
+            float maxFollowY = Mathf.Max(0f,
+                FiniteOrDefault(maxFollowOffsets.y, 0.5f));
             Vector3 followWorld = trialRoot.TransformVector(new Vector3(
-                Mathf.Clamp(sourceLocal.x * followFactors.x,
-                    -Mathf.Max(0f, maxFollowOffsets.x), Mathf.Max(0f, maxFollowOffsets.x)),
-                Mathf.Clamp(sourceLocal.y * followFactors.y,
-                    -Mathf.Max(0f, maxFollowOffsets.y), Mathf.Max(0f, maxFollowOffsets.y)), 0f));
+                Mathf.Clamp(sourceLocal.x * followX, -maxFollowX, maxFollowX),
+                Mathf.Clamp(sourceLocal.y * followY, -maxFollowY, maxFollowY), 0f));
             // Quantize and clamp BOTH screen-axis pans after transforming to
             // world space: a local X follow becomes world Y at 90 degrees.
             // Clamping before rotation let a far exit leave the screen.
