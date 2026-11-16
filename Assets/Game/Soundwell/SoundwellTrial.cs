@@ -7,14 +7,24 @@ namespace Rpg.Soundwell
     // Trial systems own the mechanisms, beast and checkpoint independently.
     public sealed class SoundwellTrial : TrialFlowController
     {
-        // Reflection compatibility for the existing ORK gate-reach regression.
-        internal static bool HasLiveGateActorInReach(Combatant member)
+        // Retain the origin-aligned compatibility API exercised by the
+        // existing ORK gate regression; actual scene ownership supplies the
+        // transformed panel world position via IsLiveActorAtGate.
+        internal static bool HasLiveGateActorInReach(Combatant member) =>
+            IsLiveActorAtGate(member != null ? member.GameObject : null,
+                new Vector2(-0.55f, 0f));
+
+        public static bool IsLiveActorAtGate(GameObject actor, Vector2 gateWorldPosition)
         {
-            if (member == null || member.GameObject == null ||
-                !member.GameObject.activeInHierarchy)
+            if (actor == null || !actor.activeInHierarchy)
                 return false;
-            return Vector2.Distance(member.GameObject.transform.position,
-                new Vector2(-0.55f, 0f)) <= 0.8f;
+            // ORK can accept a Rigidbody2D step before Unity publishes the
+            // matching Transform on the next render. Gate eligibility must
+            // read the same authoritative position as battle movement and
+            // its preview, never the previous visual frame.
+            Rigidbody2D body = actor.GetComponent<Rigidbody2D>();
+            Vector2 position = body != null ? body.position : (Vector2)actor.transform.position;
+            return Vector2.Distance(position, gateWorldPosition) <= 0.8f;
         }
     }
 

@@ -21,6 +21,7 @@ namespace Rpg.Soundwell
         private Camera sceneCamera;
         private Transform player;
         private Rigidbody2D playerBody;
+        private Transform trialRoot;
         private Transform framingTarget;
         private CinemachineCamera virtualCamera;
 
@@ -40,6 +41,7 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException("Only the native URP 2D Pixel Perfect Camera may control Soundwell.");
             sceneCamera = camera;
             player = leader;
+            trialRoot = sceneRoot;
             // The checkpoint can update physics position before its next
             // rendered Transform. Camera presentation follows that real body.
             playerBody = leader.GetComponent<Rigidbody2D>();
@@ -75,28 +77,43 @@ namespace Rpg.Soundwell
             if (sceneCamera == null || player == null || framingTarget == null)
                 return;
 
-            // Keep BOTH trial ends in frame on square and portrait displays.
-            // The old static camera showed x=-8.1 and x=+8.1 even at 1:1;
-            // blindly following the player by 0.85 units would crop the far
-            // end because the square viewport has only 0.3 units of slack.
-            // Widescreen has enough slack for the full gentle follow range.
-            // Only Cinemachine owns the real camera's pose and lens.
+            // The visible trial corners are authored at local +/-8.1 X and
+            // +/-3.2 Y. For a relocated, rotated or scaled room, those edges
+            // must be enclosed in WORLD screen axes, not the old local X
+            // assumption. Cinemachine still owns the camera pose and lens.
             float aspect = sceneCamera.aspect > 0f ? sceneCamera.aspect : 16f / 9f;
-            // The 320x180 / 16 PPU 16:9 view has half-height 5.625.
-            // Narrow viewports expand the composition to keep both exits.
-            float desiredSize = Mathf.Max(ReferenceHeight / (2f * PixelsPerUnit), 8.5f / aspect);
             const float trialHalfWidth = 8.1f;
+            const float trialHalfHeight = 3.2f;
             const float edgeMargin = 0.12f;
-            float availablePan = Mathf.Max(0f, desiredSize * aspect - trialHalfWidth - edgeMargin);
-            float horizontalPan = Mathf.Min(0.85f, availablePan);
-            // Quantize the visual framing target, not player/ORK positions.
-            // Rounding after a float clamp can place the camera one pixel
-            // outside its safe pan budget and clip the opposite trial exit.
-            Vector2 source = playerBody != null ? playerBody.position : (Vector2)player.position;
-            float x = PixelSafeHorizontalPan(source.x * 0.14f, horizontalPan);
-            float y = Mathf.Clamp(source.y * 0.15f, -0.5f, 0.5f);
-            framingTarget.position = new Vector3(
-                x, Mathf.Round(y * PixelsPerUnit) / PixelsPerUnit, 0f);
+            Vector3 trialX = trialRoot.TransformVector(new Vector3(trialHalfWidth, 0f, 0f));
+            Vector3 trialY = trialRoot.TransformVector(new Vector3(0f, trialHalfHeight, 0f));
+            float worldHalfWidth = Mathf.Abs(trialX.x) + Mathf.Abs(trialY.x);
+            float worldHalfHeight = Mathf.Abs(trialX.y) + Mathf.Abs(trialY.y);
+            // Fit the rotated visible corners, but preserve the established
+            // unrotated 8.5-unit square viewport. The older blanket 0.85
+            // slack enlarged that square view to 9.07 and regressed the
+            // live ORK battle's camera contract.
+            // Horizontal and vertical padding include the 0.12 edge margin.
+            float desiredSize = Mathf.Max(ReferenceHeight / (2f * PixelsPerUnit),
+                worldHalfHeight + edgeMargin + 0.5f,
+                (worldHalfWidth + edgeMargin + 0.28f) / aspect);
+            float availablePanX = Mathf.Max(0f,
+                desiredSize * aspect - worldHalfWidth - edgeMargin);
+            float availablePanY = Mathf.Max(0f,
+                desiredSize - worldHalfHeight - edgeMargin);
+
+            Vector2 sourceWorld = playerBody != null ? playerBody.position :
+                (Vector2)player.position;
+            Vector3 sourceLocal = trialRoot.InverseTransformPoint(sourceWorld);
+            Vector3 followWorld = trialRoot.TransformVector(new Vector3(
+                Mathf.Clamp(sourceLocal.x * 0.14f, -0.85f, 0.85f),
+                Mathf.Clamp(sourceLocal.y * 0.15f, -0.5f, 0.5f), 0f));
+            // Quantize and clamp BOTH screen-axis pans after transforming to
+            // world space: a local X follow becomes world Y at 90 degrees.
+            // Clamping before rotation let a far exit leave the screen.
+            float x = PixelSafeHorizontalPan(followWorld.x, availablePanX);
+            float y = PixelSafeHorizontalPan(followWorld.y, availablePanY);
+            framingTarget.position = trialRoot.position + new Vector3(x, y, 0f);
 
             if (virtualCamera == null)
                 return;

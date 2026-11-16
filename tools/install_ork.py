@@ -35,7 +35,11 @@ def read_package(package):
     for entry in entries.values():
         if "pathname" not in entry:
             continue
-        raw_path = entry["pathname"].decode("utf-8").splitlines()[0]
+        decoded_path = entry["pathname"].decode("utf-8")
+        raw_lines = decoded_path.splitlines()
+        if not raw_lines or not raw_lines[0].strip() or raw_lines[0] != raw_lines[0].strip():
+            raise ValueError(f"Blank or padded asset path in Unity package: {decoded_path!r}")
+        raw_path = raw_lines[0]
         path = PurePosixPath(raw_path)
         if (
             path.is_absolute()
@@ -48,6 +52,10 @@ def read_package(package):
         files[PurePosixPath(f"{path}.meta")] = entry["asset.meta"]
         if "asset" in entry:
             files[path] = entry["asset"]
+        else:
+            # Unity package folders have a pathname + .meta but no asset.
+            # Keep the directory itself, or Unity drops the orphaned .meta.
+            files[path] = None
     return files
 
 
@@ -60,7 +68,10 @@ def install(files):
             if candidate.is_symlink():
                 raise ValueError(f"Refusing to write through a symlink: {candidate}")
         if target.exists():
-            if not target.is_file() or target.read_bytes() != data:
+            if data is None:
+                if not target.is_dir():
+                    raise ValueError(f"Existing package folder differs: {relative}")
+            elif not target.is_file() or target.read_bytes() != data:
                 raise ValueError(f"Existing asset differs: {relative}")
         else:
             missing[target] = data
@@ -69,12 +80,19 @@ def install(files):
     try:
         for target, data in missing.items():
             target.parent.mkdir(parents=True, exist_ok=True)
-            with target.open("xb") as output:
+            if data is None:
+                target.mkdir()
                 created.append(target)
-                output.write(data)
+            else:
+                with target.open("xb") as output:
+                    created.append(target)
+                    output.write(data)
     except OSError:
         for target in reversed(created):
-            target.unlink()
+            if target.is_dir():
+                target.rmdir()
+            else:
+                target.unlink()
         raise
     return len(created)
 

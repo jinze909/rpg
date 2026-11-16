@@ -92,6 +92,37 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MovedSideBellCanBePlacedAtItsVisibleWorldStand()
+        {
+            var root = new GameObject("translated and rotated bell stand");
+            try
+            {
+                root.transform.position = new Vector3(7f, -5f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var mechanism = root.AddComponent<TrialMechanismInteractable>();
+                Vector2 visibleStand = root.transform.TransformPoint(
+                    SoundwellTrial.SideBellStand);
+                Assert.That(Vector2.Distance(
+                    mechanism.SideBellStandWorldPosition, visibleStand),
+                    Is.LessThan(0.0001f));
+                Assert.That(mechanism.TryFindBellStand(visibleStand, out Vector2 placed),
+                    Is.True, "A player standing at the visible side bell must be able to place it.");
+                Assert.That(Vector2.Distance(placed, visibleStand), Is.LessThan(0.0001f),
+                    "The one physical bell must land on the rendered stand.");
+                Assert.That(mechanism.TryFindBellStand(
+                    visibleStand + Vector2.up * 0.73f, out _), Is.False,
+                    "A distant placement must not snap to the side stand.");
+                Assert.That(mechanism.TryFindBellStand(
+                    SoundwellTrial.SideBellStand, out _), Is.False,
+                    "The former world-origin stand must not accept a phantom placement.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void LowerPlankExplorationKnockbackMustNotOverrideAnOrkStep()
         {
             // The weak plank is a real exploration hazard after the gate opens.
@@ -115,6 +146,45 @@ namespace Rpg.Tests.Editor
             Assert.That(SoundwellTrial.ShouldRecoverFromLowerPlank(
                 true, true, board), Is.False,
                 "Opening the gate during battle must not undo ORK-owned movement.");
+        }
+
+        [Test]
+        public void RotatedTriggerBoxAllowsEmptyCornerButBlocksItsRealBody()
+        {
+            // ORK's trigger-only actors are excluded from CircleCast, but
+            // their visible rotated body must still occupy the true shape.
+            // The old world AABB rejected the first unobstructed step.
+            var root = new GameObject("Soundwell rotated box motor");
+            var moving = new GameObject("moving rescuer");
+            var blocker = new GameObject("rotated ORK box actor");
+            try
+            {
+                var motor = root.AddComponent<PartyMovement2D>();
+                moving.transform.position = new Vector2(-4f, -1f);
+                blocker.transform.position = new Vector2(-3.3f, -0.6f);
+                blocker.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+                var box = blocker.AddComponent<BoxCollider2D>();
+                box.size = new Vector2(0.3f, 0.8f);
+                box.isTrigger = true;
+                Physics2D.SyncTransforms();
+                var members = new[] { moving, blocker };
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    members, null, 0.5f, out Vector2 clearStep), Is.True,
+                    "An empty corner of the rotated box's world AABB must be walkable.");
+                Assert.That(clearStep, Is.EqualTo(new Vector2(-3.5f, -1f)));
+
+                blocker.transform.position = new Vector2(-3.65f, -1f);
+                Physics2D.SyncTransforms();
+                Assert.That(motor.TryStepDestination(moving, Vector2.right,
+                    members, null, 0.5f, out _), Is.False,
+                    "A step passing through the actual rotated box must remain blocked.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(blocker);
+                Object.DestroyImmediate(moving);
+                Object.DestroyImmediate(root);
+            }
         }
 
         [Test]
@@ -501,6 +571,70 @@ namespace Rpg.Tests.Editor
             if (party.BattleInProgress)
                 Assert.That(second.sprite, Is.SameAs(baseline),
                     "During battle the action must return to the idle combat pose.");
+        }
+
+        [UnityTest]
+        public IEnumerator RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            GameObject root = null;
+            try
+            {
+                root = new GameObject("rotated Soundwell formation root");
+                root.transform.position = new Vector3(11f, -6f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var leader = new GameObject("real formation leader");
+                leader.transform.SetParent(root.transform, false);
+                leader.transform.localPosition = new Vector3(-2f, 0f, 0f);
+                var body = leader.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.position = leader.transform.position;
+
+                var config = SoundwellPartyConfig.Load();
+                var formation = root.AddComponent<PartyFormationFollower>();
+                formation.Configure(leader.transform, root.transform, config);
+                var second = formation.CreateFollower(1, "rotated second rescuer",
+                    config.SecondFollowerOffset, Color.white);
+                var third = formation.CreateFollower(2, "rotated third rescuer",
+                    config.ThirdFollowerOffset, Color.white);
+                foreach (var entry in new[] {
+                    (actor: second, offset: config.SecondFollowerOffset),
+                    (actor: third, offset: config.ThirdFollowerOffset) })
+                {
+                    Vector3 expected = leader.transform.position +
+                        root.transform.TransformVector(entry.offset);
+                    Assert.That(Vector3.Distance(entry.actor.transform.position, expected),
+                        Is.LessThan(0.001f),
+                        "A follower must spawn beside the real leader in trial-local formation.");
+                }
+
+                second.SetActive(true);
+                third.SetActive(true);
+                formation.SetFrameworkReady();
+                Vector2 checkpoint = root.transform.TransformPoint(new Vector2(1f, -0.5f));
+                body.position = checkpoint;
+                formation.RegroupAfterCheckpoint(checkpoint);
+                formation.RenderFollowers(false, false, false);
+                foreach (var entry in new[] {
+                    (actor: second, offset: config.SecondFollowerOffset),
+                    (actor: third, offset: config.ThirdFollowerOffset) })
+                {
+                    Vector3 expected = (Vector3)checkpoint +
+                        root.transform.TransformVector(entry.offset);
+                    Assert.That(Vector3.Distance(entry.actor.transform.position, expected),
+                        Is.LessThan(0.001f),
+                        "Checkpoint regroup and the next follower render must use the rotated formation.");
+                }
+            }
+            finally
+            {
+                if (root != null)
+                    Object.Destroy(root);
+            }
+            yield return null;
+            yield return new ExitPlayMode();
         }
 
         [UnityTest]

@@ -357,6 +357,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MissingMixerFallbackKeepsMutedBellSilentAndPreservesPreference()
+        {
+            // Exercise the missing-resource path without removing the real,
+            // saved mixer asset from this checkout.
+            var routeWithMixer = typeof(SoundwellAudioBus).GetMethod(
+                "RouteWithMixer", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(routeWithMixer, Is.Not.Null);
+            string key = SoundwellAudioBus.MutePreferenceKey;
+            bool hadPreference = PlayerPrefs.HasKey(key);
+            int oldPreference = PlayerPrefs.GetInt(key, 0);
+            var bell = new GameObject("Missing mixer fallback bell").AddComponent<AudioSource>();
+            try
+            {
+                PlayerPrefs.SetInt(key, 1);
+                LogAssert.Expect(UnityEngine.LogType.Error,
+                    "M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
+                Assert.That(routeWithMixer.Invoke(null, new object[] { bell, null }), Is.EqualTo(false));
+                Assert.That(bell.outputAudioMixerGroup, Is.Null);
+                Assert.That(bell.mute, Is.True,
+                    "Missing SFX mixer must not play audio over a saved mute.");
+                Assert.That(SoundwellAudioBus.IsMuted, Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(bell.gameObject);
+                if (hadPreference)
+                    PlayerPrefs.SetInt(key, oldPreference);
+                else
+                    PlayerPrefs.DeleteKey(key);
+                PlayerPrefs.Save();
+            }
+        }
+
+        [Test]
         public void FailedAudioMixerMuteMustPreserveTheSavedPlayerChoice()
         {
             // If the mixer has not loaded, the failed operation must not

@@ -13,6 +13,7 @@ namespace Rpg.Soundwell
         private static readonly Color Gold = new Color(1f, 0.72f, 0.33f);
         private static readonly Color Cloth = new Color(0.45f, 0.73f, 0.83f);
         private readonly Camera camera;
+        private readonly Transform trialRoot;
         private readonly Sprite square;
         private readonly Sprite leaderPixelSprite;
         private readonly Sprite leaderWalkPixelSprite;
@@ -137,6 +138,7 @@ namespace Rpg.Soundwell
             System.Func<int, Vector2, bool> submitBattleMove)
         {
             this.camera = camera;
+            trialRoot = root;
             this.submitBattleMove = submitBattleMove;
             beastActor = beast;
             escortLeader = player;
@@ -270,7 +272,7 @@ namespace Rpg.Soundwell
             // warning marks which part can take the load.
             surveyorFigure = new GameObject("Surveyor figure").transform;
             surveyorFigure.SetParent(root, false);
-            surveyorFigure.position = SoundwellTrial.SurveyorPosition;
+            surveyorFigure.localPosition = SoundwellTrial.SurveyorPosition;
             // The actual survivor is one transparent, point-filtered 16px
             // character, not scaled whiteTexture plates plus a separate face.
             surveyorPixelRenderer = Plate(surveyorFigure, "PLACEHOLDER trapped surveyor",
@@ -533,7 +535,8 @@ namespace Rpg.Soundwell
             menuStatus.resizeTextMinSize = 11;
             menuStatus.resizeTextMaxSize = 14;
 
-            // Pointer-accessible locale toggle remains separate from gameplay actions.
+            // The locale toggle remains a UGUI setting, not a gameplay action.
+            // Let focused keyboard/gamepad navigation reach it as well as the pointer.
             languageButton = CreateActionButton(actionCanvas.transform, "Language", "", 7,
                 SoundwellUiLocalization.Toggle);
             var langRect = (RectTransform)languageButton.transform;
@@ -548,7 +551,7 @@ namespace Rpg.Soundwell
             // The Input System sends Cancel directly to the selected object.
             // Let the trial owner restore the input context or withdraw from ORK.
             foreach (var button in new[] { ringButton, wrapButton, retryButton,
-                backButton, carryButton, gateButton, attackButton, guardButton, openGateButton,
+                backButton, carryButton, gateButton, languageButton, attackButton, guardButton, openGateButton,
                 moveButton, confirmMoveButton, cancelMoveButton })
                 button.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
                     .Initialize(cancelActionMenu);
@@ -570,7 +573,7 @@ namespace Rpg.Soundwell
         {
             actionMenuOpen = open;
             foreach (var button in new[] { ringButton, wrapButton, retryButton, backButton,
-                carryButton, gateButton })
+                carryButton, gateButton, languageButton })
                 button.navigation = new Navigation
                 {
                     mode = open ? Navigation.Mode.Automatic : Navigation.Mode.None
@@ -1056,7 +1059,8 @@ namespace Rpg.Soundwell
         private bool IsActionSelection(GameObject selected) =>
             selected == ringButton.gameObject || selected == wrapButton.gameObject ||
             selected == retryButton.gameObject || selected == backButton.gameObject ||
-            selected == carryButton.gameObject || selected == gateButton.gameObject;
+            selected == carryButton.gameObject || selected == gateButton.gameObject ||
+            selected == languageButton.gameObject;
 
         private void EnsureActionSelection()
         {
@@ -1138,12 +1142,13 @@ namespace Rpg.Soundwell
         }
 
         public Vector2 SurveyorWorldPosition => surveyorFigure.position;
+        public Vector2 CartEvidenceWorldPosition => cartEvidenceMarker.transform.position;
         public bool WaitingForEscortLeader => waitingForEscortLeader;
         public Vector2 FalseMarkerWorldPosition => falseTrailMarker.transform.position;
 
         public void ResetSurveyor()
         {
-            surveyorFigure.position = SoundwellTrial.SurveyorPosition;
+            surveyorFigure.localPosition = SoundwellTrial.SurveyorPosition;
             surveyorPixelRenderer.sprite = surveyorPixelSprite;
             surveyorPixelRenderer.flipX = false;
             // Retry can be invoked while the escort is visibly paused. Remove
@@ -1304,14 +1309,18 @@ namespace Rpg.Soundwell
             // The Transform may still describe the previous physics step.
             Vector2 guidePosition = escortLeaderBody != null
                 ? escortLeaderBody.position : (Vector2)escortLeader.position;
-            float guideGateX = guidePosition.x;
+            // The route is authored in trial-local space. Compare lane/gate
+            // thresholds there and convert physical waypoints back to world
+            // space so a translated/rotated scene cannot strand the survivor.
+            Vector2 npcLocal = trialRoot.InverseTransformPoint(npc);
+            float guideGateX = trialRoot.InverseTransformPoint(guidePosition).x;
             Vector2 routeTarget;
             if (!surveyorEscorting || rescueComplete)
                 waitingForEscortLeader = false;
             if (rescueComplete)
                 routeTarget = !falseMarkerCleared ? FalseMarkerWorldPosition
                     : cartObserved && cartClueShared && !cartKitReclaimed
-                        ? SoundwellTrial.CartEvidencePosition
+                        ? CartEvidenceWorldPosition
                         : cartKitReclaimed && !safeRouteMarked
                             ? FalseMarkerWorldPosition
                             : (Vector2)retreatMarker.position;
@@ -1319,18 +1328,19 @@ namespace Rpg.Soundwell
             {
                 // Cross the only real doorway instead of taking a straight
                 // diagonal through the closed upper section of the grating.
-                if (npc.x > 0.85f)
+                if (npcLocal.x > 0.85f)
                 {
                     // Bracing and asking to follow are not enough on their own:
                     // the survivor waits on the proven plank until the player
                     // physically leads through the gate. No hidden countdown.
                     routeTarget = beastBlocksEscape ? npc
                         : guideGateX <= 0.85f
-                            ? new Vector2(0.85f, 0f)
-                            : SoundwellTrial.UpperBoardPosition;
+                            ? (Vector2)trialRoot.TransformPoint(new Vector2(0.85f, 0f))
+                            : (Vector2)upperBoardMarker.transform.position;
                 }
-                else if (npc.x > -0.65f)
-                    routeTarget = beastBlocksEscape ? npc : new Vector2(-0.65f, 0f);
+                else if (npcLocal.x > -0.65f)
+                    routeTarget = beastBlocksEscape ? npc
+                        : (Vector2)trialRoot.TransformPoint(new Vector2(-0.65f, 0f));
                 else
                 {
                     // The surveyor will not catch up from arbitrarily far away.
@@ -1344,20 +1354,22 @@ namespace Rpg.Soundwell
                         waitingForEscortLeader = separation >
                             (surveyorLineTied ? 4.7f : 3.15f);
                     routeTarget = waitingForEscortLeader ? npc
-                        : guidePosition + new Vector2(0.45f, 0f);
+                        : guidePosition + (Vector2)trialRoot.TransformVector(new Vector2(0.45f, 0f));
                 }
             }
             else
-                routeTarget = plankSecured ? SoundwellTrial.UpperBoardPosition
-                    : SoundwellTrial.SurveyorPosition;
+                routeTarget = plankSecured ? (Vector2)upperBoardMarker.transform.position
+                    : (Vector2)trialRoot.TransformPoint(SoundwellTrial.SurveyorPosition);
             Vector3 previousSurveyorPosition = surveyorFigure.position;
             surveyorFigure.position = Vector3.MoveTowards(previousSurveyorPosition,
-                new Vector3(routeTarget.x, routeTarget.y, 0f), 2.25f * Time.deltaTime);
+                new Vector3(routeTarget.x, routeTarget.y, surveyorFigure.position.z),
+                2.25f * Time.deltaTime);
             // Render only: use the *actual* escort displacement for both facing
             // and the pixel-step frame; no second NPC motor or route state.
             Vector3 surveyorStep = surveyorFigure.position - previousSurveyorPosition;
-            if (Mathf.Abs(surveyorStep.x) > 0.001f)
-                surveyorPixelRenderer.flipX = surveyorStep.x < 0f;
+            float localStepX = trialRoot.InverseTransformVector(surveyorStep).x;
+            if (Mathf.Abs(localStepX) > 0.001f)
+                surveyorPixelRenderer.flipX = localStepX < 0f;
             bool surveyorMoving = surveyorStep.sqrMagnitude > 0.000001f;
             surveyorPixelRenderer.sprite = surveyorMoving &&
                 Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1
