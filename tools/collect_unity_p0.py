@@ -91,6 +91,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
         "OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
+        "ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater",
     },
     "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs": {
         "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":

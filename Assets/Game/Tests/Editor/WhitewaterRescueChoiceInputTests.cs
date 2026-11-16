@@ -135,6 +135,102 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater()
+        {
+            // Isolate the visual callback while the separate S00 full-path
+            // test proves the real ORK battle starts and accepts actions.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            WhitewaterPrelude stage = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                InputSystem.AddDevice<Keyboard>();
+                InputSystem.AddDevice<Gamepad>();
+                stage = new GameObject("S00 third bell regression")
+                    .AddComponent<WhitewaterPrelude>();
+                stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                yield return null;
+
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterPrelude);
+                var completion = type.GetMethod("OnWhitewaterDefenseCompleted", flags);
+                var phaseField = type.GetField("phase", flags);
+                var defenseStarted = type.GetField("defenseStarted", flags);
+                Assert.That(completion, Is.Not.Null);
+                Assert.That(phaseField, Is.Not.Null);
+                Assert.That(defenseStarted, Is.Not.Null);
+                var bell = stage.GetComponentInChildren<AudioSource>(true);
+                Assert.That(bell, Is.Not.Null);
+
+                completion.Invoke(stage, new object[] { true });
+                Assert.That(stage.Phase, Is.Zero,
+                    "A callback cannot skip roll call, rescue, and the ORK encounter.");
+                Assert.That(stage.ThirdBellStarted, Is.False);
+                phaseField.SetValue(stage, 16);
+                completion.Invoke(stage, new object[] { true });
+                Assert.That(stage.ThirdBellStarted, Is.False,
+                    "Holding Shen Li's cable without the live ORK encounter cannot ring the third bell.");
+                Assert.That(bell.clip, Is.Null);
+
+                defenseStarted.SetValue(stage, true);
+                completion.Invoke(stage, new object[] { true });
+                Assert.That(stage.Phase, Is.EqualTo(17));
+                Assert.That(stage.ThirdBellStarted, Is.True);
+                Assert.That(bell.clip, Is.Not.Null);
+                Assert.That(bell.clip.name, Does.Contain("third warning bell"));
+                Assert.That(bell.outputAudioMixerGroup, Is.Not.Null,
+                    "The scripted third bell must use the existing saved M6 SFX bus.");
+                Assert.That(bell.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
+                Assert.That(bell.clip.length, Is.InRange(1.25f, 1.35f));
+
+                var walkway = stage.transform.Find(
+                    "S00 Whitewater playable canvas/PLACEHOLDER bridge walkway") as RectTransform;
+                Assert.That(walkway, Is.Not.Null);
+                float deadline = Time.realtimeSinceStartup + 8f;
+                while (stage.Phase != 18 && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(stage.Phase, Is.EqualTo(18),
+                    "Only the earned win should reach the final blackout and historical title.");
+                Assert.That(walkway.sizeDelta.x, Is.LessThan(400f),
+                    "The far span must visibly fall, not merely change a caption.");
+                Assert.That(walkway.anchoredPosition.y, Is.LessThan(-20f));
+                var blackout = stage.transform.Find(
+                    "S00 Whitewater playable canvas/S00 blackout after bridge collapse");
+                Assert.That(blackout, Is.Not.Null);
+                Assert.That(blackout.GetComponent<Image>().color.a,
+                    Is.GreaterThan(0.99f));
+                var card = stage.transform.Find(
+                    "S00 Whitewater playable canvas/S00 twelve years later");
+                Assert.That(card, Is.Not.Null);
+                Assert.That(card.GetComponent<Text>().text,
+                    Is.EqualTo("TWELVE YEARS LATER"));
+                var exit = FindButton(stage, "S00 return to Bootstrap");
+                Assert.That(exit.gameObject.activeInHierarchy, Is.True,
+                    "The final title cannot trap players in an unimplemented M00.");
+
+                completion.Invoke(stage, new object[] { true });
+                yield return null;
+                Assert.That(stage.Phase, Is.EqualTo(18),
+                    "An old duplicate victory callback must not restart the third bell.");
+            }
+            finally
+            {
+                if (stage != null)
+                    stage.Close();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection()
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
