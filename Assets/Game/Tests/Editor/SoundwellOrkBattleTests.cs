@@ -29,6 +29,23 @@ namespace Rpg.Tests.Editor
     /// </summary>
     public sealed class SoundwellOrkBattleTests
     {
+        [Test]
+        public void OrkControllerGuardCachesKnownMotorsBetweenFullSceneScans()
+        {
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic;
+            var bridge = typeof(OrkPartyBridge);
+            Assert.That(bridge.GetField("known3DControllers", flags), Is.Not.Null);
+            Assert.That(bridge.GetField("registrationWatch", flags), Is.Not.Null);
+            Assert.That(bridge.GetMethod("WatchLateControllerRegistrations", flags),
+                Is.Not.Null, "New ORK controllers must be observed during registration.");
+            Assert.That(bridge.GetField("ControllerRegistrationChecks", flags), Is.Not.Null);
+            Assert.That(bridge.GetMethod("DisableConflicting3DPlayerControllers", flags),
+                Is.Not.Null);
+        }
+
         [Test, Order(8)]
         public void BattleStepRespectsArenaBoundsAfterMovingAndRotatingTrial()
         {
