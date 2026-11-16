@@ -41,6 +41,9 @@ namespace Rpg.Soundwell
         private Font englishFont;
         private float layoutAspect = -1f;
         private string shownEntryPrompt;
+        private bool entryBindingHintDirty;
+        private float nextOutcomeRefreshAt;
+        private const float OutcomeRefreshInterval = 0.20f;
         private string shownPreludeProgressKey;
         private int shownOutcome = -1;
         private bool shownOutcomeRecorded;
@@ -193,11 +196,27 @@ namespace Rpg.Soundwell
         private void OnEnable()
         {
             SoundwellUiLocalization.Changed += RefreshLocalizedPresentation;
+            InputSystem.onActionChange += OnInputActionChanged;
+            // Refresh immediately when this screen is shown again.
+            entryBindingHintDirty = true;
+            nextOutcomeRefreshAt = 0f;
         }
 
         private void OnDisable()
         {
             SoundwellUiLocalization.Changed -= RefreshLocalizedPresentation;
+            InputSystem.onActionChange -= OnInputActionChanged;
+        }
+
+        private static bool ShouldRefreshBindingPrompt(InputActionChange change) =>
+            change == InputActionChange.BoundControlsChanged;
+
+        private void OnInputActionChanged(object source, InputActionChange change)
+        {
+            // Input System owns effective control changes; individual action
+            // presses must never trigger a new binding-label lookup.
+            if (ShouldRefreshBindingPrompt(change))
+                entryBindingHintDirty = true;
         }
 
         private void RefreshLocalizedPresentation()
@@ -449,16 +468,21 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            // ORK may initialize after this scene's Awake/Start. Recheck the
-            // same Makinom source without creating a parallel summary flag.
-            RefreshReturnOutcome();
-            // The S00 scene lives on this Bootstrap canvas. Its Makinom
-            // markers can advance before returning here; show that progress
-            // without maintaining another quest flag or auto-resuming.
-            RefreshPreludeProgress();
-            // Remaps may occur while the Entry screen stays alive. Refresh
-            // only when the effective keyboard shortcut changes.
-            RefreshEntryShortcutHint();
+            // Makinom lacks a public outcome/marker change notification.
+            // Poll its authoritative state at a bounded UI cadence.
+            if (Time.unscaledTime >= nextOutcomeRefreshAt)
+            {
+                RefreshReturnOutcome();
+                RefreshPreludeProgress();
+                nextOutcomeRefreshAt = Time.unscaledTime + OutcomeRefreshInterval;
+            }
+            // Effective remaps notify us through the Input System, so avoid
+            // per-frame binding-string lookups while the screen is idle.
+            if (entryBindingHintDirty)
+            {
+                entryBindingHintDirty = false;
+                RefreshEntryShortcutHint();
+            }
             float aspect = (float)Screen.width / Mathf.Max(Screen.height, 1);
             if (!Mathf.Approximately(aspect, layoutAspect))
                 LayoutForViewportAspect(aspect);
