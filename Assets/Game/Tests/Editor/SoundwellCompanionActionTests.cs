@@ -229,6 +229,23 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AuthoredArenaExtentsConstrainTheWholeCombatantFootprint()
+        {
+            // Future trial rooms can define different collision boundaries.
+            var smaller = new Vector2(2f, 1f);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(1.7f, 0f), 0.25f, smaller), Is.True);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(1.8f, 0f), 0.25f, smaller), Is.False);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(0f, -0.8f), 0.25f, smaller), Is.False);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                Vector2.zero, 0.1f, new Vector2(-1f, 1f)), Is.False);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                Vector2.zero, 0.1f, smaller), Is.True);
+        }
+
+        [Test]
         public void OrkStepMustKeepWholeCombatantInsideSavedBattleBounds()
         {
             // The previous centre-only check allowed a character's 2D
