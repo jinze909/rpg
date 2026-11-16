@@ -165,7 +165,31 @@ namespace Rpg.Soundwell
         // Each follower's SpriteRenderer is stable after creation, so the
         // per-frame formation render never re-resolves its component.
         private readonly SpriteRenderer[] followerRenderers = new SpriteRenderer[3];
-        private readonly List<Sample> history = new List<Sample>(32);
+        // Fixed-capacity ring: oldest samples are evicted in O(1), avoiding
+        // per-frame List.RemoveAt(0) shifts during follower rendering.
+        private readonly Sample[] history = new Sample[32];
+        private int historyStart;
+        private int historyCount;
+
+        private void ClearHistory() => historyStart = historyCount = 0;
+
+        private Sample HistoryAt(int index) =>
+            history[(historyStart + index) % history.Length];
+
+        private void AddHistory(Sample sample)
+        {
+            int slot = (historyStart + historyCount) % history.Length;
+            history[slot] = sample;
+            if (historyCount < history.Length) historyCount++;
+            else historyStart = (historyStart + 1) % history.Length;
+        }
+
+        private void DropOldestHistory()
+        {
+            if (historyCount <= 0) return;
+            historyStart = (historyStart + 1) % history.Length;
+            historyCount--;
+        }
         private bool checkpointRegroupPending;
         private Vector3 checkpointAnchor;
         private Sprite placeholderSprite;
@@ -200,7 +224,7 @@ namespace Rpg.Soundwell
             leaderBody = partyLeader != null ? partyLeader.GetComponent<Rigidbody2D>() : null;
             parent = partyParent;
             config = settings;
-            history.Clear();
+            ClearHistory();
             for (int i = 0; i < followerRenderers.Length; i++)
                 followerRenderers[i] = null;
             RecordLeader();
@@ -270,15 +294,15 @@ namespace Rpg.Soundwell
                 return;
             checkpointAnchor = new Vector3(checkpoint.x, checkpoint.y, 0f);
             checkpointRegroupPending = true;
-            history.Clear();
-            history.Add(new Sample { At = Time.time, Position = checkpointAnchor });
+            ClearHistory();
+            AddHistory(new Sample { At = Time.time, Position = checkpointAnchor });
             for (int i = 1; i < actors.Length; i++)
             {
                 if (actors[i] == null)
                     continue;
                 actors[i].transform.position = checkpointAnchor + WorldFormationOffset(
                     i == 2 ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
-                var renderer = actors[i].GetComponent<SpriteRenderer>();
+                var renderer = followerRenderers[i];
                 if (renderer != null)
                     renderer.sprite = i == 2 ? hoodIdleSprite : placeholderSprite;
             }
@@ -293,24 +317,23 @@ namespace Rpg.Soundwell
         {
             if (leader == null) return false;
             Vector3 position = LeaderPosition;
-            bool relocated = history.Count > 0 &&
-                Vector3.Distance(history[history.Count - 1].Position, position) >
+            bool relocated = historyCount > 0 &&
+                Vector3.Distance(HistoryAt(historyCount - 1).Position, position) >
                 LeaderRelocationThreshold;
             if (relocated)
-                history.Clear();
-            history.Add(new Sample { At = Time.time, Position = position });
-            while (history.Count > 32 ||
-                (history.Count > 2 && history[1].At < Time.time - 0.7f))
-                history.RemoveAt(0);
+                ClearHistory();
+            AddHistory(new Sample { At = Time.time, Position = position });
+            while (historyCount > 2 && HistoryAt(1).At < Time.time - 0.7f)
+                DropOldestHistory();
             return relocated;
         }
 
         private Vector3 FollowSample()
         {
             float desired = Time.time - config.FollowerLagSeconds;
-            for (int i = history.Count - 1; i > 0; i--)
+            for (int i = historyCount - 1; i > 0; i--)
             {
-                Sample before = history[i - 1], after = history[i];
+                Sample before = HistoryAt(i - 1), after = HistoryAt(i);
                 if (before.At <= desired)
                 {
                     float span = after.At - before.At;
@@ -319,7 +342,7 @@ namespace Rpg.Soundwell
                             Mathf.Clamp01((desired - before.At) / span));
                 }
             }
-            return history.Count == 0 ? LeaderPosition : history[0].Position;
+            return historyCount == 0 ? LeaderPosition : HistoryAt(0).Position;
         }
 
         public void RefreshCompanionHealth(int index, float hp, bool battleActive)
