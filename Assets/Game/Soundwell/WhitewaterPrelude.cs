@@ -38,6 +38,14 @@ namespace Rpg.Soundwell
         private const float WalkSpeed = 175f;
         private const float ClampX = 178f;
         private const float RepairReach = 44f;
+        // The wounded civilian's 32px sprite must overlap the player's body
+        // before an escort can begin; the wider clamp repair radius does not apply.
+        private const float RescueStationReachY = 28f;
+        // Two 32px-wide figures need at least one visible pixel of horizontal
+        // overlap before the player can take the wounded civilian's arm.
+        // The clamp's 44px tool radius would permit a visible gap.
+        private const float EvacueeContactReachX = 31f;
+        private const float EvacueeContactReachY = 28f;
         // These stage markers are only 26-35 pixels wide, and the player
         // sprite is 32 pixels wide. Do not award a bridge interaction when
         // the two visible bodies are no longer touching.
@@ -56,6 +64,11 @@ namespace Rpg.Soundwell
         private static readonly Color EvacueeWaitingTint = new Color(1f, 0.60f, 0.35f);
         private readonly Button[] choices = new Button[3];
         private readonly Text[] choiceLabels = new Text[3];
+        // Keep the authored options in both languages while a decision is open.
+        // Switching locale is presentation only: it cannot submit a choice.
+        private string[] openChoicesEnglish;
+        private string[] openChoicesChinese;
+        private string shownChoiceLanguage;
         private RectTransform marker;
         private RectTransform stretcher;
         private RectTransform hanQiao;
@@ -118,6 +131,9 @@ namespace Rpg.Soundwell
         private string shownRescueCueBindings;
         private bool evacueeWaiting;
         private bool evacueeWaitedOffLane;
+        private bool shownEvacueeSafeLineReachable;
+        private string shownEvacueeSafeLineLanguage;
+        private string shownEvacueeSafeLineBindings;
         private Vector2 walker = new Vector2(-245f, 0f);
 
         // 0: roll call; 1: walk; 2: cable decision; 3: stretcher crossing;
@@ -138,12 +154,14 @@ namespace Rpg.Soundwell
             Mathf.Abs(walker.y) <= RepairReach;
         public bool CanRescue => phase == 7 &&
             Mathf.Abs(walker.x - RescueStationX(rescueMethod)) <= RepairReach &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            // The visible rescue station is on the bridge deck. A nearby
+            // horizontal position from below the walkway is not a valid haul.
+            Mathf.Abs(walker.y) <= RescueStationReachY;
         public Vector2 EvacueePosition => evacuee != null
             ? evacuee.anchoredPosition : Vector2.zero;
         public bool CanHelpEvacuee => phase == 9 && evacuee != null &&
-            Mathf.Abs(walker.x - evacuee.anchoredPosition.x) <= RepairReach &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            Mathf.Abs(walker.x - evacuee.anchoredPosition.x) <= EvacueeContactReachX &&
+            Mathf.Abs(walker.y) <= EvacueeContactReachY;
         public bool CanDeliverEvacuee => phase == 10 && evacuee != null &&
             // Stopping near the line is not a rescue if the wounded follower
             // has lost the escort and is still waiting for the player to return.
@@ -808,10 +826,23 @@ namespace Rpg.Soundwell
         private void HelpEvacuee()
         {
             if (!CanHelpEvacuee)
+            {
+                // Pressing E away from the last wounded civilian must not
+                // silently discard the real input or grant an unearned escort.
+                if (phase == 9 && instructions != null)
+                    instructions.text = Mathf.Abs(walker.y) > EvacueeContactReachY
+                        ? Copy("Return to the bridge lane beside the amber evacuee, then press E / Pad A to help.",
+                            "请回到金色伤者身旁的桥面通道，再按 E／手柄 A 搀扶。")
+                        : Copy("Too far from the amber evacuee. Walk beside them, then press E / Pad A to help.",
+                            "距离金色伤者还太远。先走到伤者身旁，再按 E／手柄 A 搀扶。");
                 return;
+            }
             phase = 10;
             evacueeWaiting = false;
             evacueeWaitedOffLane = false;
+            shownEvacueeSafeLineReachable = false;
+            shownEvacueeSafeLineLanguage = null;
+            shownEvacueeSafeLineBindings = null;
             SetEvacueeEscortCue(false);
             narration.text = Copy(
                 "You take the evacuee's arm. 'Keep behind me. Don't stop at the open span.'",
@@ -838,8 +869,15 @@ namespace Rpg.Soundwell
             // Explain why the escort stopped instead of always telling an
             // on-lane player to "return to the lane." If the cause changes
             // while still waiting, replace the stale hint immediately.
+            // A language switch or saved input remap can happen while both
+            // characters stand still. Refresh the visible escort instruction
+            // and on-actor status without treating the change as movement.
+            bool cueContextChanged = shownEvacueeSafeLineLanguage != null &&
+                (shownEvacueeSafeLineLanguage != SoundwellUiLocalization.Language ||
+                 shownEvacueeSafeLineBindings != StationPromptBindingSignature());
             if (waiting != evacueeWaiting ||
-                (waiting && offLane != evacueeWaitedOffLane))
+                (waiting && offLane != evacueeWaitedOffLane) ||
+                cueContextChanged)
             {
                 evacueeWaiting = waiting;
                 evacueeWaitedOffLane = offLane;
@@ -887,7 +925,17 @@ namespace Rpg.Soundwell
         private void DeliverEvacuee()
         {
             if (!CanDeliverEvacuee)
+            {
+                // An early E / Pad A must explain why the physical safe-line
+                // handoff is unavailable, never silently count as evacuation.
+                if (!evacueeWaiting && instructions != null)
+                    instructions.text = walker.x > EvacueeSafeX || Mathf.Abs(walker.y) > RepairReach
+                        ? Copy("Not at the green safe line. Lead the evacuee west before confirming.",
+                            "尚未到绿色安全线。先带伤者向西撤离，再确认交接。")
+                        : Copy("Wait for the evacuee to reach the green safe line before confirming.",
+                            "请等伤者抵达绿色安全线，再确认交接。");
                 return;
+            }
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(EvacueeEscortedKey, 1);
             phase = 11;
@@ -1408,6 +1456,17 @@ namespace Rpg.Soundwell
             Color32 coat, out Texture2D texture)
         {
             const int size = 16;
+            // Invalid authored silhouettes must fail before allocating a
+            // native Texture2D. Otherwise a truncated sprite row throws
+            // halfway through rasterization and leaks a runtime texture.
+            texture = null;
+            if (art == null || art.Length != size)
+                throw new System.InvalidOperationException("S00 pixel actor requires 16 rows.");
+            for (int i = 0; i < size; i++)
+                if (art[i] == null || art[i].Length != size)
+                    throw new System.InvalidOperationException(
+                        "S00 pixel actor row must be exactly 16 pixels.");
+
             texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 name = name + " texture",
@@ -1513,17 +1572,32 @@ namespace Rpg.Soundwell
 
         private void ShowChoices(string[] english, string[] chinese)
         {
-            for (int i = 0; i < choices.Length; i++)
-            {
-                choices[i].gameObject.SetActive(true);
-                choiceLabels[i].text = Chinese ? chinese[i] : english[i];
-            }
+            openChoicesEnglish = english;
+            openChoicesChinese = chinese;
+            shownChoiceLanguage = null;
+            foreach (Button choice in choices)
+                choice.gameObject.SetActive(true);
+            RefreshOpenChoiceLanguage();
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(choices[0].gameObject);
         }
 
+        private void RefreshOpenChoiceLanguage()
+        {
+            if (openChoicesEnglish == null || openChoicesChinese == null ||
+                shownChoiceLanguage == SoundwellUiLocalization.Language)
+                return;
+            shownChoiceLanguage = SoundwellUiLocalization.Language;
+            string[] labels = Chinese ? openChoicesChinese : openChoicesEnglish;
+            for (int i = 0; i < choiceLabels.Length; i++)
+                choiceLabels[i].text = labels[i];
+        }
+
         private void HideChoices()
         {
+            openChoicesEnglish = null;
+            openChoicesChinese = null;
+            shownChoiceLanguage = null;
             foreach (Button choice in choices)
                 choice.gameObject.SetActive(false);
             if (EventSystem.current != null)
@@ -1604,6 +1678,9 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
+            // Dialogue selection uses UI input, not the exploration motor.
+            // Refresh visible options even when the player cannot walk.
+            RefreshOpenChoiceLanguage();
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
                 phase != 12 && phase != 14 && phase != 15)
                 return;
@@ -1667,6 +1744,24 @@ namespace Rpg.Soundwell
             if (phase == 10)
             {
                 UpdateEvacueeFollow();
+                // Show readiness only after BOTH bodies have reached the real
+                // safe line. Keep the displayed action current after rebinds.
+                bool ready = CanDeliverEvacuee;
+                string locale = SoundwellUiLocalization.Language;
+                string bindings = StationPromptBindingSignature();
+                if (ready && (!shownEvacueeSafeLineReachable ||
+                    shownEvacueeSafeLineLanguage != locale ||
+                    shownEvacueeSafeLineBindings != bindings))
+                    instructions.text = Copy(
+                        "At the green safe line: press E / Pad A to confirm the evacuee is safe.",
+                        "已到绿色安全线：按 E／手柄 A 确认伤者安全撤离。");
+                else if (!ready && shownEvacueeSafeLineReachable && !evacueeWaiting)
+                    instructions.text = Copy(
+                        "Green: following. Stay close; press E / Pad A at the safe line.",
+                        "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
+                shownEvacueeSafeLineReachable = ready;
+                shownEvacueeSafeLineLanguage = locale;
+                shownEvacueeSafeLineBindings = bindings;
                 if (frame.Ring)
                     DeliverEvacuee();
                 return;

@@ -10,11 +10,120 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.Audio;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace Rpg.Tests.Editor
 {
     public sealed class SoundwellTrialTests
     {
+        [Test]
+        public void CameraFramingFollowsTranslatedTrialInsteadOfWorldOrigin()
+        {
+            var root = new GameObject("offset Soundwell camera root");
+            var cameraObject = new GameObject("Soundwell camera translation test");
+            var leader = new GameObject("offset Soundwell leader");
+            try
+            {
+                root.transform.position = new Vector3(12f, -7f, 0f);
+                leader.transform.SetParent(root.transform, false);
+                leader.transform.localPosition = new Vector3(6f, -2f, 0f);
+                var body = leader.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.position = root.transform.TransformPoint(new Vector2(6f, -2f));
+
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 16f / 9f;
+                var rig = cameraObject.AddComponent<SoundwellCameraRig>();
+                rig.Initialize(camera, leader.transform, root.transform);
+                rig.RefreshFraming();
+
+                Vector3 local = root.transform.InverseTransformPoint(
+                    rig.FramingTarget.position);
+                Assert.That(local.x, Is.EqualTo(0.8125f).Within(0.063f),
+                    "The camera should follow the leader gently in trial-local coordinates.");
+                Assert.That(local.y, Is.EqualTo(-0.3125f).Within(0.001f));
+                Assert.That(rig.FramingTarget.position.x,
+                    Is.GreaterThan(root.transform.position.x),
+                    "The camera must frame the translated level instead of world origin.");
+                Assert.That(rig.FramingTarget.position.y,
+                    Is.EqualTo(root.transform.position.y + local.y).Within(0.001f));
+
+                // A later scene relocation must move the framing with the
+                // same room rather than leaving the focus at the old origin.
+                Vector3 before = rig.FramingTarget.position;
+                root.transform.position += new Vector3(-5f, 4f, 0f);
+                body.position = root.transform.TransformPoint(new Vector2(6f, -2f));
+                rig.RefreshFraming();
+                Vector3 moved = rig.FramingTarget.position;
+                Assert.That(moved.x - before.x, Is.EqualTo(-5f).Within(0.001f));
+                Assert.That(moved.y - before.y, Is.EqualTo(4f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void CameraFramingKeepsAllRotatedTrialCornersVisibleOnNarrowScreens()
+        {
+            var root = new GameObject("rotated and translated Soundwell camera root");
+            var cameraObject = new GameObject("Soundwell rotated camera test");
+            var leader = new GameObject("rotated trial leader");
+            try
+            {
+                root.transform.position = new Vector3(9f, -5f, 0f);
+                leader.transform.SetParent(root.transform, false);
+                var body = leader.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 16f / 9f;
+                var rig = cameraObject.AddComponent<SoundwellCameraRig>();
+                rig.Initialize(camera, leader.transform, root.transform);
+
+                foreach (float angle in new[] { 0f, 45f, 90f, 180f })
+                foreach (float aspect in new[] { 16f / 9f, 1f, 9f / 16f })
+                foreach (Vector2 leaderLocal in new[] {
+                    new Vector2(-6f, 2f), new Vector2(6f, -2f) })
+                {
+                    root.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                    camera.aspect = aspect;
+                    body.position = root.transform.TransformPoint(leaderLocal);
+                    rig.RefreshFraming();
+                    Vector3 centre = rig.FramingTarget.position;
+                    float halfHeight = rig.VirtualCamera.Lens.OrthographicSize;
+                    if (angle == 0f && Mathf.Approximately(aspect, 1f))
+                        Assert.That(halfHeight, Is.EqualTo(8.5f).Within(0.01f),
+                            "Unrotated square framing must keep the existing live ORK lens.");
+                    float halfWidth = halfHeight * aspect;
+                    foreach (float x in new[] { -8.1f, 8.1f })
+                    foreach (float y in new[] { -3.2f, 3.2f })
+                    {
+                        Vector3 corner = root.transform.TransformPoint(
+                            new Vector3(x, y, 0f));
+                        Assert.That(Mathf.Abs(corner.x - centre.x) + 0.12f,
+                            Is.LessThanOrEqualTo(halfWidth + 0.001f),
+                            "A rotated level cannot crop an exit horizontally at angle " +
+                            angle + " and aspect " + aspect);
+                        Assert.That(Mathf.Abs(corner.y - centre.y) + 0.12f,
+                            Is.LessThanOrEqualTo(halfHeight + 0.001f),
+                            "A rotated level cannot crop an exit vertically at angle " +
+                            angle + " and aspect " + aspect);
+                    }
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void StaleGameplayInputBeforeTrialInitializationCannotMutateOrExitTheScene()
         {
@@ -62,6 +171,103 @@ namespace Rpg.Tests.Editor
             {
                 if (actor != null)
                     Object.DestroyImmediate(actor);
+            }
+        }
+
+        [Test]
+        public void OrkGateReachTracksTheRealRotatedTrialPanel()
+        {
+            var root = new GameObject("moved rotated Soundwell battle gate");
+            var rescuer = new GameObject("living ORK gate actor");
+            try
+            {
+                root.transform.position = new Vector3(6f, -2f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                Vector2 panelWorld = root.transform.TransformPoint(
+                    new Vector3(-0.55f, 0f, 0f));
+                rescuer.transform.position = panelWorld + Vector2.up * 0.77f;
+
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.True, "A living actor at the visible panel must be able to operate it.");
+                rescuer.transform.position = panelWorld + Vector2.right * 0.81f;
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.False, "The 0.8 world-unit reach check must still reject distant actors.");
+
+                rescuer.transform.position = new Vector3(-0.55f, 0f, 0f);
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.False, "The old world-origin panel cannot open a rotated scene gate.");
+                rescuer.transform.position = panelWorld;
+                rescuer.SetActive(false);
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(rescuer, panelWorld),
+                    Is.False, "Retired ORK actors cannot operate a panel at any position.");
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(null, panelWorld),
+                    Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void OrkGateReachUsesAcceptedPhysicsStepInsteadOfStaleVisualPosition()
+        {
+            var actor = new GameObject("ORK stepped gate rescuer");
+            try
+            {
+                Vector2 panel = new Vector2(4.3f, -2.5f);
+                var body = actor.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.gravityScale = 0f;
+                actor.transform.position = panel + Vector2.right * 1.2f;
+                body.position = panel + Vector2.right * 0.40f;
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(actor, panel), Is.True,
+                    "The accepted ORK Rigidbody step must make the nearby physical gate operable.");
+
+                body.position = panel + Vector2.right * 0.81f;
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(actor, panel), Is.False,
+                    "A newer physical step outside gate reach must revoke stale visual eligibility.");
+                body.position = panel;
+                actor.SetActive(false);
+                Assert.That(SoundwellTrial.IsLiveActorAtGate(actor, panel), Is.False,
+                    "A retired scene actor cannot use a gate even with an in-range physics body.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(actor);
+            }
+        }
+
+        [Test]
+        public void RescuedSurveyorCartTargetUsesTransformedVisibleMarker()
+        {
+            var root = new GameObject("relocated map-kit cart trial");
+            try
+            {
+                root.transform.position = new Vector3(7f, -4f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var trial = root.AddComponent<SoundwellTrial>();
+                Vector2 actualSurveyor = root.transform.TransformPoint(
+                    SoundwellTrial.SurveyorPosition);
+                Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, actualSurveyor),
+                    Is.LessThan(0.001f),
+                    "An unloaded view must still resolve the surveyor at the transformed scene origin.");
+                Assert.That(Vector2.Distance(trial.SurveyorWorldPosition,
+                    SoundwellTrial.SurveyorPosition), Is.GreaterThan(1f),
+                    "The legacy origin-space spawn cannot locate the survivor after a scene move.");
+                Vector2 actualCart = root.transform.TransformPoint(
+                    SoundwellTrial.CartEvidencePosition);
+                Assert.That(Vector2.Distance(trial.CartEvidenceWorldPosition, actualCart),
+                    Is.LessThan(0.001f),
+                    "The rescued surveyor must seek the cart where the moved scene draws it.");
+                Assert.That(Vector2.Distance(trial.CartEvidenceWorldPosition,
+                    SoundwellTrial.CartEvidencePosition), Is.GreaterThan(1f),
+                    "Using the static origin-space cart would strand the map-kit follow-up.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
             }
         }
 
@@ -152,6 +358,94 @@ namespace Rpg.Tests.Editor
                 Object.DestroyImmediate(leader);
                 Object.DestroyImmediate(actor);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator FocusedTrialLanguageButtonKeepsSubmitAndCancelRouting()
+        {
+            // A keyboard/gamepad player must be able to change the live trial
+            // language inside its real focus menu, without losing selection,
+            // ringing the bell, or becoming trapped when pressing Cancel.
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity",
+                OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            float deadline = Time.realtimeSinceStartup + 30f;
+            while ((!Maki.Initialized || !ORK.Initialized) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(Maki.Initialized && ORK.Initialized, Is.True);
+            var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entry, Is.Not.Null);
+            AsyncOperation loading = entry.OpenTrial();
+            Assert.That(loading, Is.Not.Null);
+            deadline = Time.realtimeSinceStartup + 20f;
+            while (!loading.isDone && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(loading.isDone, Is.True);
+
+            SoundwellTrial trial = null;
+            deadline = Time.realtimeSinceStartup + 25f;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                trial = Object.FindFirstObjectByType<SoundwellTrial>();
+                if (trial != null && trial.IsReady)
+                    break;
+                yield return null;
+            }
+            Assert.That(trial != null && trial.IsReady, Is.True);
+            trial.ReadInput = false;
+            var languageButton = GameObject.Find("Soundwell Language button")
+                ?.GetComponent<Button>();
+            Assert.That(languageButton, Is.Not.Null);
+            string previousLanguage = SoundwellUiLocalization.Language;
+            string key = SoundwellUiLocalization.LanguagePreferenceKey;
+            bool savedPreference = PlayerPrefs.HasKey(key);
+            string previousPreference = PlayerPrefs.GetString(key, string.Empty);
+            try
+            {
+                trial.SetActionMenuOpen(true);
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                Assert.That(languageButton.navigation.mode,
+                    Is.EqualTo(Navigation.Mode.Automatic),
+                    "Trial locale must be reachable in focused keyboard/gamepad navigation.");
+                EventSystem events = EventSystem.current;
+                Assert.That(events, Is.Not.Null);
+                events.SetSelectedGameObject(languageButton.gameObject);
+                yield return null;
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(languageButton.gameObject),
+                    "A regular world HUD refresh cannot steal language-button focus.");
+
+                ExecuteEvents.Execute(languageButton.gameObject,
+                    new BaseEventData(events), ExecuteEvents.submitHandler);
+                yield return null;
+                Assert.That(SoundwellUiLocalization.Language,
+                    Is.Not.EqualTo(previousLanguage),
+                    "Focused UGUI Submit must invoke the actual language action.");
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(languageButton.gameObject),
+                    "Switching locale must not throw keyboard/gamepad focus away.");
+                Assert.That(trial.ActionMenuOpen, Is.True);
+                Assert.That(trial.DirectCombatStarted, Is.False);
+
+                ExecuteEvents.Execute(languageButton.gameObject,
+                    new BaseEventData(events), ExecuteEvents.cancelHandler);
+                yield return null;
+                Assert.That(trial.ActionMenuOpen, Is.False,
+                    "UGUI Cancel must close the focused menu from Language.");
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                    "After Cancel, movement and world controls must be restored.");
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                if (savedPreference)
+                    PlayerPrefs.SetString(key, previousPreference);
+                else
+                    PlayerPrefs.DeleteKey(key);
+                PlayerPrefs.Save();
+            }
+            yield return new ExitPlayMode();
         }
 
         [UnityTest]

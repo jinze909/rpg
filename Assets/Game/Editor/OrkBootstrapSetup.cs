@@ -51,7 +51,7 @@ namespace Rpg.Editor
                     Undo.RegisterCreatedObjectUndo(starterObject, "Wire ORK Bootstrap");
                     var starter = Undo.AddComponent(starterObject, starterType);
                     var settings = new SerializedObject(starter);
-                    settings.FindProperty("project").objectReferenceValue = project;
+                    RequireSerializedField(settings, "project").objectReferenceValue = project;
                     settings.ApplyModifiedProperties();
                     ValidateStarter(FindStarters(scene, starterType), project);
 
@@ -72,7 +72,13 @@ namespace Rpg.Editor
             }
             catch (InvalidOperationException error)
             {
-                Debug.LogError(error.Message);
+                // Highlight the scene object if the saved starter is present.
+                var context = scene.GetRootGameObjects()
+                    .FirstOrDefault(root => root.name == "ORK Game Starter");
+                if (context != null)
+                    Debug.LogError(error.Message, context);
+                else
+                    Debug.LogError(error.Message);
             }
         }
 
@@ -137,6 +143,20 @@ namespace Rpg.Editor
                 .ToArray();
         }
 
+        // ORK vendor versions may rename serialized fields. Report the
+        // exact missing field instead of allowing a NullReferenceException
+        // while wiring/saving a real Unity scene.
+        private static SerializedProperty RequireSerializedField(
+            SerializedObject settings, string field)
+        {
+            SerializedProperty property = settings.FindProperty(field);
+            if (property == null)
+                throw new InvalidOperationException(
+                    "ORK Game Starter is missing required serialized field '" + field +
+                    "'; inspect the installed ORK version before editing the scene.");
+            return property;
+        }
+
         private static void ValidateStarter(Component[] starters, ScriptableObject project)
         {
             if (starters.Length != 1 || !(starters[0] is Behaviour starter) || !starter.enabled || !starter.gameObject.activeInHierarchy)
@@ -145,8 +165,8 @@ namespace Rpg.Editor
             }
 
             var settings = new SerializedObject(starter);
-            if (settings.FindProperty("useAssetBundle").boolValue ||
-                settings.FindProperty("project").objectReferenceValue != project)
+            if (RequireSerializedField(settings, "useAssetBundle").boolValue ||
+                RequireSerializedField(settings, "project").objectReferenceValue != project)
             {
                 throw new InvalidOperationException($"The ORK Game Starter must use the saved project asset at {ProjectPath}.");
             }

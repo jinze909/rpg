@@ -80,6 +80,17 @@ namespace Rpg.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
 
+            // Never overwrite an interactive editor's unsaved scene work
+            // with an additive setup pass. CI starts from a clean checkout.
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene opened = SceneManager.GetSceneAt(i);
+                if (opened.isLoaded && opened.isDirty)
+                    throw new InvalidOperationException(
+                        "Save or discard open scene edits before preparing the Soundwell Tilemap: " +
+                        opened.path);
+            }
+
             Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
             try
             {

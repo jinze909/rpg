@@ -81,8 +81,8 @@ namespace Rpg.Soundwell
 
             // Exploration hazards are delegated to checkpoint + patrol; ORK
             // turn movement retains its independent movement authority.
-            if (ShouldRecoverFromLowerPlank(DirectCombatStarted, GateOpen,
-                    playerBody.position))
+            if (checkpoint.ShouldRecoverAtVisibleLowerPlank(
+                    DirectCombatStarted, GateOpen, playerBody.position))
             {
                 checkpoint.RecoverLowerPlank(LowerPlankBroken);
                 // Every real lower-board fall needs an observable impact:
@@ -107,7 +107,10 @@ namespace Rpg.Soundwell
             // the old location for a frame and advertises a false drop point.
             // Only Makinom's existing carrying variable owns this decision.
             if (IsCarrying)
-                bell.position = new Vector3(playerBody.position.x + 0.35f, playerBody.position.y, 0f);
+            {
+                Vector2 held = CarriedBellWorldPosition(playerBody.position);
+                bell.position = new Vector3(held.x, held.y, 0f);
+            }
 
             // The drawn intent marker receives exactly the destination already
             // used by the beast, never a separate visual guess.
@@ -147,7 +150,7 @@ namespace Rpg.Soundwell
             // No equipment, quest or reward state is fabricated by the UI.
             if (RescueComplete && FalseMarkerCleared && CartObserved && CartClueShared &&
                 !CartKitReclaimed &&
-                Vector2.Distance(view.SurveyorWorldPosition, CartEvidencePosition) <= 0.20f)
+                Vector2.Distance(view.SurveyorWorldPosition, CartEvidenceWorldPosition) <= 0.20f)
                 variables.Set(CartKitReclaimedKey, 1);
 
             // The optional map kit changes the world: after retrieving it, the
@@ -157,6 +160,13 @@ namespace Rpg.Soundwell
                 Vector2.Distance(view.SurveyorWorldPosition, view.FalseMarkerWorldPosition) <= 0.20f)
                 variables.Set(SafeRouteMarkedKey, 1);
         }
+
+        // The 0.35-unit hand offset belongs to the authored trial, not the
+        // global X axis. Keep the single carried bell beside the real physics
+        // player when the room is translated, rotated, or scaled.
+        public Vector2 CarriedBellWorldPosition(Vector2 leaderWorldPosition) =>
+            leaderWorldPosition + (Vector2)transform.TransformVector(
+                new Vector3(0.35f, 0f, 0f));
 
         // The plank belongs to exploration physics, never ORK's turn-owned
         // combatant placement. Keep the rule independent of the asynchronous
@@ -184,6 +194,12 @@ namespace Rpg.Soundwell
         // the gate reach callback during retreat or scene teardown.
         // Missing owners/visuals must never open the physical gate or throw.
         private bool CanReachBattleGate(Combatant member) =>
-            DirectCombatStarted && !GateOpen && SoundwellTrial.HasLiveGateActorInReach(member);
+            DirectCombatStarted && !GateOpen &&
+            // The panel sprite is child-local to this trial root. ORK's
+            // chooser must use its actual world position after a scene move
+            // or rotation instead of the legacy world-origin coordinates.
+            SoundwellTrial.IsLiveActorAtGate(
+                member != null ? member.GameObject : null,
+                transform.TransformPoint(new Vector2(-0.55f, 0f)));
     }
 }
