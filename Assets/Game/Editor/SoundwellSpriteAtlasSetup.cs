@@ -26,7 +26,7 @@ namespace Rpg.Editor
         };
 
         // CI and the explicit P0 validation entrypoint invoke Validate().
-        // A project-wide IPreprocessBuildWithReport hook would block unrelated
+        // A project-wide build interceptor would block unrelated
         // builds when Soundwell assets have not been imported yet.
 
         public static void Prepare()
