@@ -106,11 +106,13 @@ namespace Rpg.Soundwell
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
         private Sprite farBankGuardSprite;
+        private Sprite encirclingTorchSprite;
         private Sprite farBankGuardWalkSprite;
         private Sprite spareRopePixelSprite;
         private Texture2D hanQiaoPixelTexture;
         private Texture2D evacueePixelTexture;
         private Texture2D farBankGuardTexture;
+        private Texture2D encirclingTorchTexture;
         private Texture2D farBankGuardWalkTexture;
         private Texture2D spareRopePixelTexture;
         private Image cable;
@@ -1277,17 +1279,24 @@ namespace Rpg.Soundwell
                 "The far span disappears under the water. Shen Li catches your hand: 'Don't look at the water. Look at me.' Torches close in; the crowd tears you apart.",
                 "远端桥身沉入水下。沈砾抓住你的手：“别看水，看我。”四面火把亮起，人潮把你们冲开。");
             instructions.text = string.Empty;
-            // Torches are only noninteractive light markers, not an ORK squad.
+            // Torches are existing noninteractive scenery, never an ORK squad.
+            // Use one shared point-filtered 16px sprite for all four lights,
+            // not four stretching solid rectangles or duplicate textures.
             Transform canvasRoot = title.transform.parent;
+            encirclingTorchSprite = MakeActorSprite("S00 16px encircling torch",
+                EncirclingTorchPixels, new Color32(255, 115, 42, 255),
+                out encirclingTorchTexture);
             var torchPositions = new[]
             {
                 new Vector2(-307f, 108f), new Vector2(304f, 105f),
                 new Vector2(-293f, -25f), new Vector2(301f, -27f)
             };
             foreach (Vector2 torchPosition in torchPositions)
-                Panel(canvasRoot, "PLACEHOLDER S00 encircling torch light",
-                    torchPosition, new Vector2(12f, 17f),
-                    new Color(1f, 0.49f, 0.17f));
+            {
+                var torch = Panel(canvasRoot, "PLACEHOLDER S00 encircling torch light",
+                    torchPosition, new Vector2(32f, 32f), Color.white);
+                torch.sprite = encirclingTorchSprite;
+            }
             yield return new WaitForSecondsRealtime(0.8f);
             if (phase != 17)
                 yield break;
@@ -1644,6 +1653,29 @@ namespace Rpg.Soundwell
             "................",
         };
 
+        // Fixed S00 encirclement already had four torches. Draw their
+        // flame and grip at the same 16px/2x scale as the bridge actors.
+        // f/g = hot flame, c = orange fire, h/k = wooden handle and rim.
+        private static readonly string[] EncirclingTorchPixels =
+        {
+            "................",
+            ".......g........",
+            "......gfg.......",
+            "......fcf.......",
+            ".....fcccf......",
+            "......ccc.......",
+            "......hch.......",
+            ".......h........",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......kkk.......",
+            "................",
+        };
+
         private static Sprite MakeActorSprite(string name, string[] art,
             Color32 coat, out Texture2D texture) =>
             SoundwellPixelSpriteBuilder.Create16Colored(art, name, coat, out texture);
@@ -1681,6 +1713,8 @@ namespace Rpg.Soundwell
                 Destroy(evacueePixelSprite);
             if (farBankGuardSprite != null)
                 Destroy(farBankGuardSprite);
+            if (encirclingTorchSprite != null)
+                Destroy(encirclingTorchSprite);
             if (farBankGuardWalkSprite != null)
                 Destroy(farBankGuardWalkSprite);
             if (spareRopePixelSprite != null)
@@ -1695,6 +1729,8 @@ namespace Rpg.Soundwell
                 Destroy(evacueePixelTexture);
             if (farBankGuardTexture != null)
                 Destroy(farBankGuardTexture);
+            if (encirclingTorchTexture != null)
+                Destroy(encirclingTorchTexture);
             if (farBankGuardWalkTexture != null)
                 Destroy(farBankGuardWalkTexture);
             if (spareRopePixelTexture != null)
