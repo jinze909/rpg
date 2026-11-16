@@ -18,7 +18,10 @@ namespace Rpg.Soundwell
 
         private OrkPartyBridge party;
         private Canvas hud;
+        private Text heading;
         private Text readout;
+        private string readoutEnglish;
+        private string readoutChinese;
         private Button attackButton;
         private Button guardButton;
         private Button retryButton;
@@ -39,6 +42,16 @@ namespace Rpg.Soundwell
         private void Awake()
         {
             party = GetComponent<OrkPartyBridge>();
+        }
+
+        private void OnEnable()
+        {
+            SoundwellUiLocalization.Changed += RefreshLocalizedPresentation;
+        }
+
+        private void OnDisable()
+        {
+            SoundwellUiLocalization.Changed -= RefreshLocalizedPresentation;
         }
 
         public bool Begin(Action<bool> completed)
@@ -76,7 +89,7 @@ namespace Rpg.Soundwell
 
         private IEnumerator StartEncounter()
         {
-            SetReadout(Copy("Preparing the ORK bridgehead party…", "正在准备 ORK 桥头队伍……"));
+            SetReadout("Preparing the ORK bridgehead party…", "正在准备 ORK 桥头队伍……");
             float readyDeadline = Time.realtimeSinceStartup + 35f;
             while (ShouldWaitForPartyInitialization(active, party.IsReady,
                        party.InitializationError, Time.realtimeSinceStartup,
@@ -90,8 +103,8 @@ namespace Rpg.Soundwell
             {
                 string error = string.IsNullOrEmpty(party.InitializationError)
                     ? string.Empty : " " + party.InitializationError;
-                ShowRetry(Copy("The ORK party did not initialize." + error,
-                    "ORK 队伍未能初始化。" + error), false);
+                ShowRetry("The ORK party did not initialize." + error,
+                    "ORK 队伍未能初始化。" + error, false);
                 yield break;
             }
 
@@ -100,13 +113,13 @@ namespace Rpg.Soundwell
 
             if (!party.TryStartDirectEncounter())
             {
-                ShowRetry(Copy("ORK could not start the bridgehead encounter. Retry when the battle system is ready.",
-                    "ORK 无法启动桥头遭遇战。战斗系统就绪后可以重试。"), true);
+                ShowRetry("ORK could not start the bridgehead encounter. Retry when the battle system is ready.",
+                    "ORK 无法启动桥头遭遇战。战斗系统就绪后可以重试。", true);
                 yield break;
             }
 
-            SetReadout(Copy("The guard squad is closing. Waiting for the first ORK turn…",
-                "持矛守军正在逼近，等待 ORK 首个回合……"));
+            SetReadout("The guard squad is closing. Waiting for the first ORK turn…",
+                "持矛守军正在逼近，等待 ORK 首个回合……");
             float battleDeadline = Time.realtimeSinceStartup + 12f;
             while (active && !party.BattleInProgress &&
                    !party.EncounterStartFailed && !party.EncounterWon &&
@@ -125,8 +138,8 @@ namespace Rpg.Soundwell
 
             if (!party.BattleInProgress)
             {
-                ShowRetry(Copy("The ORK encounter did not become active. No victory was recorded; retry the defence.",
-                    "ORK 遭遇战未能进入活动状态。没有记录胜利；请重试防守。"), true);
+                ShowRetry("The ORK encounter did not become active. No victory was recorded; retry the defence.",
+                    "ORK 遭遇战未能进入活动状态。没有记录胜利；请重试防守。", true);
                 yield break;
             }
 
@@ -140,8 +153,8 @@ namespace Rpg.Soundwell
 
                 if (party.EncounterFailed || party.EncounterStartFailed)
                 {
-                    ShowRetry(Copy("The guard squad still holds the span. Regroup and retry the ORK defence.",
-                        "持矛守军仍控制着桥面。重新整队，再次进行 ORK 防守。"), true);
+                    ShowRetry("The guard squad still holds the span. Regroup and retry the ORK defence.",
+                        "持矛守军仍控制着桥面。重新整队，再次进行 ORK 防守。", true);
                     yield break;
                 }
 
@@ -173,6 +186,8 @@ namespace Rpg.Soundwell
             string beastLabel = SoundwellUiLocalization.Get("battle.beast");
             if (!string.IsNullOrEmpty(beastLabel))
                 snapshot = snapshot.Replace(beastLabel, Copy("SPEAR GUARD SQUAD", "持矛守军小队"));
+            readoutEnglish = null;
+            readoutChinese = null;
             readout.text = snapshot;
             attackButton.interactable = CanAttack;
             guardButton.interactable = CanGuard;
@@ -225,9 +240,9 @@ namespace Rpg.Soundwell
                 guard.interactable = false;
         }
 
-        private void ShowRetry(string message, bool canRetry)
+        private void ShowRetry(string english, string chinese, bool canRetry)
         {
-            SetReadout(message);
+            SetReadout(english, chinese);
             attackButton.gameObject.SetActive(false);
             guardButton.gameObject.SetActive(false);
             retryButton.gameObject.SetActive(canRetry);
@@ -239,9 +254,9 @@ namespace Rpg.Soundwell
 
         private void ShowVictory()
         {
-            SetReadout(Copy(
+            SetReadout(
                 "The ORK party has held the bridgehead. Continue to return to Shen Li and the strained cable.",
-                "ORK 队伍守住了桥头。继续后返回沈砾身边，缆索仍然绷紧。"));
+                "ORK 队伍守住了桥头。继续后返回沈砾身边，缆索仍然绷紧。");
             attackButton.gameObject.SetActive(false);
             guardButton.gameObject.SetActive(false);
             retryButton.gameObject.SetActive(false);
@@ -330,7 +345,7 @@ namespace Rpg.Soundwell
             backdrop.color = new Color(0.025f, 0.040f, 0.055f, 0.92f);
             backdrop.raycastTarget = false;
 
-            Text heading = SoundwellView.AddLabel(hud.transform,
+            heading = SoundwellView.AddLabel(hud.transform,
                 Copy("S00 · WHITEWATER BRIDGEHEAD", "S00 · 白水渡桥头"), 26,
                 Brass, new Vector2(0f, 190f), new Vector2(820f, 44f));
             heading.alignment = TextAnchor.MiddleCenter;
@@ -362,6 +377,7 @@ namespace Rpg.Soundwell
             // Do not focus a disabled action and trap gamepad users.
             EventSystem eventSystem = SoundwellInputAdapter.EnsureEventSystem(transform);
             eventSystem?.SetSelectedGameObject(retreatButton.gameObject);
+            RefreshLocalizedPresentation();
         }
 
         private Button CreateButton(string objectName, string caption,
@@ -393,10 +409,53 @@ namespace Rpg.Soundwell
             return button;
         }
 
-        private void SetReadout(string message)
+        // S00 uses the same live language as the entry screen and trial UI.
+        // A locale switch must not leave stale battle captions or unreadable
+        // Chinese glyphs while ORK still owns turns, HP and victory.
+        private void RefreshLocalizedPresentation()
         {
+            if (hud == null)
+                return;
+            Font font = SoundwellUiLocalization.PresentationFont(
+                Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+            if (heading != null)
+            {
+                heading.text = Copy("S00 · WHITEWATER BRIDGEHEAD", "S00 · 白水渡桥头");
+                heading.font = font;
+            }
+            RefreshButtonCaption(attackButton, "Attack", "攻击", font);
+            RefreshButtonCaption(guardButton, "Guard", "防御", font);
+            RefreshButtonCaption(retryButton, "Retry", "重试", font);
+            RefreshButtonCaption(continueButton, "Continue", "继续", font);
+            RefreshButtonCaption(retreatButton, "Leave", "离开", font);
             if (readout != null)
-                readout.text = message;
+            {
+                readout.font = font;
+                if (readoutEnglish != null && readoutChinese != null)
+                    readout.text = Copy(readoutEnglish, readoutChinese);
+                else if (BattleInProgress)
+                    RefreshReadout();
+            }
+        }
+
+        private static void RefreshButtonCaption(
+            Button button, string english, string chinese, Font font)
+        {
+            if (button == null)
+                return;
+            Text label = button.GetComponentInChildren<Text>(true);
+            if (label == null)
+                return;
+            label.font = font;
+            label.text = Copy(english, chinese);
+        }
+
+        private void SetReadout(string english, string chinese)
+        {
+            readoutEnglish = english;
+            readoutChinese = chinese;
+            if (readout != null)
+                readout.text = Copy(english, chinese);
         }
 
         private static string Copy(string english, string chinese) =>
