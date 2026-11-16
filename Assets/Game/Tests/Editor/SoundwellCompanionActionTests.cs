@@ -153,7 +153,7 @@ namespace Rpg.Tests.Editor
                     System.Reflection.BindingFlags.NonPublic);
                 Assert.That(method, Is.Not.Null);
                 Button Pick(GameObject selected) =>
-                    (Button)method.Invoke(null, new object[] { selected, attack, guard });
+                    (Button)method.Invoke(null, new object[] { selected, attack, guard, retreat });
 
                 attack.interactable = false;
                 guard.interactable = true;
@@ -170,12 +170,17 @@ namespace Rpg.Tests.Editor
                     "Prefer the legal ORK Attack after a fresh chooser arrives.");
                 attack.interactable = false;
                 guard.interactable = false;
-                Assert.That(Pick(stale.gameObject), Is.Null,
-                    "An unresolved ORK turn must never invent a legal action.");
+                Assert.That(Pick(stale.gameObject), Is.SameAs(retreat),
+                    "Between ORK turns, gamepad focus must fall back to a real Leave action.");
+                Assert.That(Pick(retreat.gameObject), Is.Null,
+                    "An existing valid Leave selection must not be stolen.");
                 guard.interactable = true;
                 guard.gameObject.SetActive(false);
+                Assert.That(Pick(stale.gameObject), Is.SameAs(retreat),
+                    "A disabled ORK command may not trap focus when Leave is available.");
+                retreat.interactable = false;
                 Assert.That(Pick(stale.gameObject), Is.Null,
-                    "A retired scene control cannot become the selected action.");
+                    "Never select a disabled Leave or fabricate a legal ORK turn.");
             }
             finally
             {
