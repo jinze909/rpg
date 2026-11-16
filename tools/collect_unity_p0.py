@@ -104,6 +104,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.BeastPatrolCorridorTests.BeastContactFollowsTrialOriginAndRearmsAfterExit",
         "RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry":
             "Rpg.Tests.Editor.BeastPatrolCorridorTests.RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry",
+        "RetiredBeastDoesNotCaptureOrWarnUntilItReturnsToTheScene":
+            "Rpg.Tests.Editor.BeastPatrolCorridorTests.RetiredBeastDoesNotCaptureOrWarnUntilItReturnsToTheScene",
     },
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
         "TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint":
