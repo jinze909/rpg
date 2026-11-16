@@ -5,6 +5,7 @@ using Rpg.Soundwell;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.TestTools;
 
@@ -202,15 +203,36 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 Gamepad pad = InputSystem.AddDevice<Gamepad>();
+                EditorSceneManager.LoadSceneInPlayMode(
+                    "Assets/Game/Scenes/Bootstrap.unity",
+                    new LoadSceneParameters(LoadSceneMode.Single));
+                float entranceDeadline = Time.realtimeSinceStartup + 5f;
+                var entrance = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
+                while (entrance == null && Time.realtimeSinceStartup < entranceDeadline)
+                {
+                    yield return null;
+                    entrance = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
+                }
+                Assert.That(entrance, Is.Not.Null,
+                    "The Bootstrap scene must expose the S00 entry after the input fixture is ready.");
+                var defense = entrance.GetComponent<WhitewaterDefenseEncounter>();
+                Assert.That(defense, Is.Not.Null,
+                    "The Bootstrap entrance must own the S00 ORK defence.");
+                Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True,
+                    "The Bootstrap entry must initialise the shared input adapter after fixture setup.");
                 foreach (int rescueChoice in new[] { 0, 1, 2 })
                 {
-                    var root = new GameObject("S00 alternate rescue input regression");
-                    activePrelude = root.AddComponent<WhitewaterPrelude>();
-                    activePrelude.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                    entrance.OpenPrelude();
                     yield return null;
+                    activePrelude = entrance.GetComponentInChildren<WhitewaterPrelude>(true);
+                    Assert.That(activePrelude, Is.Not.Null,
+                        "Opening S00 must create its playable stage.");
+                    var root = activePrelude.gameObject;
 
                     ClickChoice(activePrelude, 0); // Roll call: the player answers.
                     Assert.That(activePrelude.Phase, Is.EqualTo(1));
+                    Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                        "The roll call must return movement control to the gameplay action map.");
                     input.Press(keys.dKey);
                     float repairDeadline = Time.realtimeSinceStartup + 6f;
                     while (!activePrelude.CanRepair && Time.realtimeSinceStartup < repairDeadline)
@@ -218,7 +240,7 @@ namespace Rpg.Tests.Editor
                     input.Release(keys.dKey);
                     yield return null;
                     Assert.That(activePrelude.CanRepair, Is.True,
-                        "The player must physically reach the clamp before repairing.");
+                        $"The player must physically reach the clamp before repairing (walker={activePrelude.WalkerPosition}, gameplay={SoundwellInputAdapter.IsGameplayContextActive}).");
                     input.Press(keys.eKey);
                     yield return null;
                     input.Release(keys.eKey);
@@ -953,6 +975,24 @@ namespace Rpg.Tests.Editor
                             "Visual pressure must not skip into an unimplemented third-bell break.");
                         Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                         Assert.That(bell.clip.name, Does.Contain("second warning bell"));
+
+                        float battleDeadline = Time.realtimeSinceStartup + 35f;
+                        while (!defense.BattleInProgress &&
+                               Time.realtimeSinceStartup < battleDeadline)
+                            yield return null;
+                        Assert.That(defense.IsReady, Is.True,
+                            "The S00 ORK party must register before the bridgehead encounter.");
+                        Assert.That(defense.BattleInProgress, Is.True,
+                            "The three advancing silhouettes must resolve into a real ORK encounter, not a staged attack.");
+                        float actionDeadline = Time.realtimeSinceStartup + 8f;
+                        bool acceptedAction = false;
+                        while (!acceptedAction && Time.realtimeSinceStartup < actionDeadline)
+                        {
+                            acceptedAction = defense.TryAttack() || defense.TryGuard();
+                            yield return null;
+                        }
+                        Assert.That(acceptedAction, Is.True,
+                            "At least one live ORK chooser must accept a real Attack or Guard action.");
                     }
 
                     activePrelude.Close();
