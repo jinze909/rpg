@@ -353,32 +353,44 @@ namespace Rpg.Soundwell
             return quest.IsFinished();
         }
 
-        // Keep a small stable cache of ORK's competing 3D motors instead of
-        // traversing the entire scene each Update. Registration and periodic
-        // fallback discover newly instantiated vendor components.
-        private const float ControllerAuditInterval = 0.20f;
+        // The vendor may create its controller several frames AFTER group
+        // assignment. Watch only this registration window rather than scan
+        // the full scene perpetually inside Update.
+        private const float ControllerRegistrationPollSeconds = 0.15f;
+        private const int ControllerRegistrationChecks = 12;
         private readonly List<ButtonPlayerController> known3DControllers =
             new List<ButtonPlayerController>(2);
-        private float nextControllerAuditAt;
+        private Coroutine registrationWatch;
 
         private void WatchOrkControllerRegistration()
         {
             DisableConflicting3DPlayerControllers();
-            nextControllerAuditAt = Time.unscaledTime + ControllerAuditInterval;
+            if (registrationWatch != null)
+                StopCoroutine(registrationWatch);
+            registrationWatch = StartCoroutine(WatchLateControllerRegistrations());
+        }
+
+        private IEnumerator WatchLateControllerRegistrations()
+        {
+            for (int check = 0; check < ControllerRegistrationChecks; check++)
+            {
+                yield return new WaitForSecondsRealtime(ControllerRegistrationPollSeconds);
+                if (!playerAssignedToOrk || !ORK.Initialized || !isActiveAndEnabled)
+                    break;
+                DisableConflicting3DPlayerControllers();
+            }
+            registrationWatch = null;
         }
 
         private void Update()
         {
             if (!playerAssignedToOrk || !IsReady || !ORK.Initialized)
                 return;
+            // Re-disable already discovered motors cheaply, without a scene
+            // traversal every frame or any ORK battle/state side effects.
             foreach (ButtonPlayerController controller in known3DControllers)
                 if (controller != null && controller.enabled)
                     controller.enabled = false;
-            if (Time.unscaledTime >= nextControllerAuditAt)
-            {
-                DisableConflicting3DPlayerControllers();
-                nextControllerAuditAt = Time.unscaledTime + ControllerAuditInterval;
-            }
         }
 
         private void DisableConflicting3DPlayerControllers()
