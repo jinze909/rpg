@@ -1135,7 +1135,12 @@ namespace Rpg.Soundwell
                         Mathf.Round(x), Mathf.Round(figure.anchoredPosition.y));
                     // Authored pixel footwork tracks the existing visual motor.
                     // No second velocity, AI turn or combatant is introduced.
-                    bool marching = x < destinations[i] - 0.01f;
+                    // Pixel snapping can display the final standing tile
+                    // half a pixel before the continuous motor catches up.
+                    // When the guard is visibly at its destination, use the
+                    // idle sprite in that same frame (not the walking sprite).
+                    bool marching = Mathf.Round(x) < Mathf.Round(destinations[i]) &&
+                        x < destinations[i] - 0.01f;
                     farBankThreats[i].sprite = marching &&
                         Mathf.FloorToInt(Time.unscaledTime / 0.16f) % 2 == 1
                             ? farBankGuardWalkSprite : farBankGuardSprite;
@@ -1472,52 +1477,8 @@ namespace Rpg.Soundwell
         };
 
         private static Sprite MakeActorSprite(string name, string[] art,
-            Color32 coat, out Texture2D texture)
-        {
-            const int size = 16;
-            // Invalid authored silhouettes must fail before allocating a
-            // native Texture2D. Otherwise a truncated sprite row throws
-            // halfway through rasterization and leaks a runtime texture.
-            texture = null;
-            if (art == null || art.Length != size)
-                throw new System.InvalidOperationException("S00 pixel actor requires 16 rows.");
-            for (int i = 0; i < size; i++)
-                if (art[i] == null || art[i].Length != size)
-                    throw new System.InvalidOperationException(
-                        "S00 pixel actor row must be exactly 16 pixels.");
-
-            texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                name = name + " texture",
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp
-            };
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    // Pattern rows are top to bottom; Unity pixels are bottom to top.
-                    switch (art[size - 1 - y][x])
-                    {
-                        case 'k': pixels[y * size + x] = new Color32(24, 32, 41, 255); break;
-                        case 'h': pixels[y * size + x] = new Color32(82, 51, 43, 255); break;
-                        case 'f': pixels[y * size + x] = new Color32(226, 180, 136, 255); break;
-                        case 'c': pixels[y * size + x] = coat; break;
-                        case 'g': pixels[y * size + x] = new Color32(195, 181, 151, 255); break;
-                        case 'b': pixels[y * size + x] = new Color32(67, 70, 75, 255); break;
-                        case 'w': pixels[y * size + x] = new Color32(181, 202, 207, 255); break;
-                        default: pixels[y * size + x] = new Color32(0, 0, 0, 0); break;
-                    }
-                }
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply(false, false);
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size),
-                new Vector2(0.5f, 0.5f), size);
-            sprite.name = name;
-            return sprite;
-        }
+            Color32 coat, out Texture2D texture) =>
+            SoundwellPixelSpriteBuilder.Create16Colored(art, name, coat, out texture);
 
         private void OnDestroy()
         {
