@@ -246,6 +246,29 @@ namespace Rpg.Tests.Editor
                 Assert.That(walkway.sizeDelta.x, Is.LessThan(400f),
                     "The far span must visibly fall, not merely change a caption.");
                 Assert.That(walkway.anchoredPosition.y, Is.LessThan(-20f));
+                var torches = stage.GetComponentsInChildren<Image>(true)
+                    .Where(image => image.gameObject.name ==
+                        "PLACEHOLDER S00 encircling torch light").ToArray();
+                Assert.That(torches.Length, Is.EqualTo(4),
+                    "The historical encirclement must show four existing lights.");
+                var torchSprite = torches[0].sprite;
+                Assert.That(torchSprite, Is.Not.Null);
+                Assert.That(torchSprite.pixelsPerUnit, Is.EqualTo(16f));
+                Assert.That(torchSprite.texture.width, Is.EqualTo(16));
+                Assert.That(torchSprite.texture.height, Is.EqualTo(16));
+                Assert.That(torchSprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(torchSprite.texture.GetPixel(7, 12).a,
+                    Is.GreaterThan(0.99f), "The flame must contain visible authored pixels.");
+                foreach (var torch in torches)
+                {
+                    Assert.That(torch.sprite, Is.SameAs(torchSprite),
+                        "The four lights must share one generated 16px texture.");
+                    Assert.That(torch.raycastTarget, Is.False,
+                        "Scenery cannot steal the final Exit button's input.");
+                    Assert.That(torch.rectTransform.sizeDelta,
+                        Is.EqualTo(new Vector2(32f, 32f)),
+                        "The S00 canvas must show each torch at exact 2x pixel scale.");
+                }
                 var blackout = stage.transform.Find(
                     "S00 Whitewater playable canvas/S00 blackout after bridge collapse");
                 Assert.That(blackout, Is.Not.Null);
@@ -264,6 +287,12 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(stage.Phase, Is.EqualTo(18),
                     "An old duplicate victory callback must not restart the third bell.");
+                var sharedTorchTexture = torchSprite.texture;
+                stage.Close();
+                yield return null;
+                Assert.That(sharedTorchTexture == null, Is.True,
+                    "Closing the finished S00 must release its one generated torch texture.");
+                stage = null;
             }
             finally
             {
