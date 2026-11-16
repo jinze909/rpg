@@ -17,6 +17,22 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellInputSystemTests
     {
         [Test]
+        public void EntryHintRefreshRespondsOnlyToEffectiveBindingChanges()
+        {
+            var filter = typeof(SoundwellEntrance).GetMethod(
+                "ShouldRefreshBindingPrompt",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(filter, Is.Not.Null);
+            Assert.That(filter.Invoke(null, new object[] {
+                InputActionChange.BoundControlsChanged }), Is.EqualTo(true));
+            Assert.That(filter.Invoke(null, new object[] {
+                InputActionChange.ActionStarted }), Is.EqualTo(false));
+            Assert.That(filter.Invoke(null, new object[] {
+                InputActionChange.ActionCanceled }), Is.EqualTo(false));
+        }
+
+        [Test]
         public void UnifiedHeldInputLatchConsumesReleaseBeforeAllowingNewPress()
         {
             // The adapter suppresses the opening press and its release, not

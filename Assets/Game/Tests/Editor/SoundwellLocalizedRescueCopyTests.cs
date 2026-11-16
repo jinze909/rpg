@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using Rpg.Soundwell;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Localization.Tables;
@@ -13,6 +14,24 @@ namespace Rpg.Tests.Editor
     // key may never silently fall back to an English/raw key in the trial.
     public sealed class SoundwellLocalizedRescueCopyTests
     {
+        [Test]
+        public void AdaptiveLocalizedTitleSamplingClipsToActualCaptureRect()
+        {
+            var pixels = new Color32[120 * 80];
+            var bright = new Color32(235, 235, 235, 255);
+            pixels[62 * 120 + 20] = bright;
+            pixels[62 * 120 + 28] = bright;
+            pixels[62 * 120 + 60] = bright; // outside title
+            var title = new RectInt(10, 50, 30, 25);
+            int count = SoundwellSmokeHost.CountLocalizedGlyphPixels(
+                pixels, 120, 80, title);
+            Assert.That(count, Is.EqualTo(2));
+            Assert.That(SoundwellSmokeHost.CountLocalizedGlyphPixels(
+                pixels, 120, 80, new RectInt(130, 100, 15, 20)), Is.Zero);
+            Assert.That(SoundwellSmokeHost.CountLocalizedGlyphPixels(
+                pixels, 120, 80, new RectInt(0, 0, 0, 20)), Is.Zero);
+        }
+
         [Test]
         public void WhitewaterPreludeTitleMatchesSelectedSceneLanguage()
         {
