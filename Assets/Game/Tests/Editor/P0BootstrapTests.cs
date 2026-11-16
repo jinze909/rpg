@@ -95,6 +95,36 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SavedTilemapValidationPreservesAnAlreadyLoadedTrialScene()
+        {
+            const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
+            var active = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(trialPath);
+            bool openedHere = !active.IsValid() || !active.isLoaded;
+            if (openedHere)
+                active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            bool wasDirty = active.isDirty;
+            try
+            {
+                if (wasDirty)
+                    Assert.Throws<InvalidOperationException>(
+                        () => InvokeSoundwellTilemapSetup("Validate"),
+                        "Validation must reject unsaved wall geometry without closing the author's scene.");
+                else
+                    Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+
+                Assert.That(active.IsValid() && active.isLoaded, Is.True,
+                    "Read-only Tilemap validation may not close an author's already loaded scene.");
+                Assert.That(active.isDirty, Is.EqualTo(wasDirty),
+                    "Validation must not change or discard the open scene's dirty state.");
+            }
+            finally
+            {
+                if (openedHere && active.IsValid() && active.isLoaded)
+                    EditorSceneManager.CloseScene(active, true);
+            }
+        }
+
+        [Test]
         public void SoundwellAtlasValidationRemainsExplicitInsteadOfGlobalBuildInterceptor()
         {
             // The P0 gate still validates saved atlas dependencies, while
