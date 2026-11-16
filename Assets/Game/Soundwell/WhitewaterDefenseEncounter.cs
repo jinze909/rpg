@@ -64,12 +64,23 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // ORK may fail initialization before the normal deadline (e.g. a
+        // missing saved asset). Once it reports an error, waiting 35 seconds
+        // only traps the player on an unusable combat screen. No local ORK
+        // readiness or victory is manufactured by this UI decision.
+        private static bool ShouldWaitForPartyInitialization(
+            bool encounterActive, bool partyReady, string error,
+            float now, float deadline) =>
+            encounterActive && !partyReady && string.IsNullOrEmpty(error) &&
+            now < deadline;
+
         private IEnumerator StartEncounter()
         {
             SetReadout(Copy("Preparing the ORK bridgehead party…", "正在准备 ORK 桥头队伍……"));
             float readyDeadline = Time.realtimeSinceStartup + 35f;
-            while (active && !party.IsReady &&
-                   Time.realtimeSinceStartup < readyDeadline)
+            while (ShouldWaitForPartyInitialization(active, party.IsReady,
+                       party.InitializationError, Time.realtimeSinceStartup,
+                       readyDeadline))
                 yield return null;
 
             if (!active)

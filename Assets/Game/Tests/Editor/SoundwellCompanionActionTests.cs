@@ -128,6 +128,32 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00BridgeheadPartyInitializationErrorEndsWaitImmediately()
+        {
+            // Verify the real coroutine's gate. An initialized or failed ORK
+            // bridge is not simulated as a successful battle or quest.
+            var gate = typeof(WhitewaterDefenseEncounter).GetMethod(
+                "ShouldWaitForPartyInitialization",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(gate, Is.Not.Null);
+            bool Wait(bool active, bool ready, string error, float now, float deadline) =>
+                (bool)gate.Invoke(null, new object[] { active, ready, error, now, deadline });
+
+            Assert.That(Wait(true, false, null, 5f, 35f), Is.True,
+                "An ORK bridge that is still initializing should keep its normal deadline.");
+            Assert.That(Wait(true, false, "", 34.9f, 35f), Is.True);
+            Assert.That(Wait(true, false, "Missing saved ORK project.", 5f, 35f), Is.False,
+                "A definitive framework error must immediately reveal the existing Leave action.");
+            Assert.That(Wait(true, true, null, 5f, 35f), Is.False,
+                "A ready ORK party may continue to the real encounter.");
+            Assert.That(Wait(false, false, null, 5f, 35f), Is.False,
+                "Leaving the prologue must cancel the pending wait.");
+            Assert.That(Wait(true, false, null, 35f, 35f), Is.False,
+                "A genuinely stuck party must still time out normally.");
+        }
+
+        [Test]
         public void S00BridgeheadFocusRecoversGuardWithoutStealingAnIntentionalSelection()
         {
             // Unit-test the same focus decision used each live ORK HUD frame.
