@@ -286,10 +286,10 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             case = source_root / "Assets/Game/Tests/Editor/DuplicateTests.cs"
             case.parent.mkdir(parents=True)
             case.write_text(
-                "namespace Rpg.Tests.Editor { public sealed class DuplicateTests {\\n"
-                "  [Test] public void Repeated() {}\\n"
-                "  [Test] public void Repeated() {}\\n"
-                "} }\\n", encoding="utf-8")
+                "namespace Rpg.Tests.Editor { public sealed class DuplicateTests {\n"
+                "  [Test] public void Repeated() {}\n"
+                "  [Test] public void Repeated() {}\n"
+                "} }\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "Duplicate NUnit test declaration"):
                 expected_tests_for("verify", True, source_root)
             # Prepare deliberately only preflights P0BootstrapTests.
