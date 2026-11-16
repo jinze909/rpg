@@ -120,6 +120,23 @@ def validate_manifest(previous_bytes, generated_bytes, lock_bytes):
         print(f"Unity normalized {name}: {previous_dependencies.get(name, '(new)')} -> {version}")
 
 
+def validate_candidate_contents(archive, hashes):
+    """Preflight the whole artifact before writing any Unity-owned files."""
+    checked = {}
+    for name, digest in hashes.items():
+        data = archive.read(name)
+        if hashlib.sha256(data).hexdigest() != digest:
+            raise ValueError(f"Candidate file digest differs: {name}")
+        path = Path(name)
+        if any(part.is_symlink() for part in (path, *path.parents)):
+            raise ValueError(f"Candidate file traverses a symlink: {name}")
+        if name.startswith("Assets/") and not name.endswith(".meta"):
+            if name + ".meta" not in hashes and not Path(name + ".meta").is_file():
+                raise ValueError(f"Candidate asset lacks metadata: {name}")
+        checked[name] = data
+    return checked
+
+
 def restore(evidence):
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     report = json.loads((evidence / "validation.json").read_text())
@@ -138,18 +155,13 @@ def restore(evidence):
         if manifest in hashes:
             validate_manifest(Path(manifest).read_bytes(), archive.read(manifest),
                               archive.read("Packages/packages-lock.json"))
-        for name, digest in hashes.items():
-            data = archive.read(name)
-            if hashlib.sha256(data).hexdigest() != digest:
-                raise ValueError(f"Candidate file digest differs: {name}")
+        # Do not partially apply a candidate if the LAST file has a bad
+        # digest or missing .meta. Verification precedes every write.
+        checked = validate_candidate_contents(archive, hashes)
+        for name, data in checked.items():
             path = Path(name)
-            if any(p.is_symlink() for p in (path, *path.parents)):
-                raise ValueError(f"Candidate file traverses a symlink: {name}")
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-        for name in hashes:
-            if name.startswith("Assets/") and not name.endswith(".meta") and not Path(name + ".meta").is_file():
-                raise ValueError(f"Candidate asset lacks metadata: {name}")
 
     for name in (
         "Assets/Game/Scenes/Bootstrap.unity",

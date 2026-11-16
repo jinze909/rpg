@@ -17,6 +17,24 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellTrialTests
     {
         [Test]
+        public void RescueArrivalAndThreatThresholdsAreLevelOwnedFields()
+        {
+            // A new authored scene can alter these thresholds without
+            // silently changing Makinom rescue/route state rules.
+            var owner = typeof(TrialFlowController);
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var fields = new[]
+            {
+                "safePointPlayerReach", "surveyorSafeArrivalReach",
+                "routeMarkerArrivalReach", "cartKitArrivalReach", "returnedBeastLocalY"
+            };
+            foreach (string field in fields)
+                Assert.That(owner.GetField(field, flags), Is.Not.Null,
+                    "Missing scene-configurable Story 003 action threshold: " + field);
+        }
+
+        [Test]
         public void CameraFramingFollowsTranslatedTrialInsteadOfWorldOrigin()
         {
             var root = new GameObject("offset Soundwell camera root");

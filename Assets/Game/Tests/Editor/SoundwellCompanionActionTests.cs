@@ -188,6 +188,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FormationTrajectoryRingKeepsLatestSamplesWithoutShiftingOldest()
+        {
+            var root = new GameObject("Soundwell ring sampling regression");
+            var leader = new GameObject("trajectory leader");
+            var settings = ScriptableObject.CreateInstance<SoundwellPartyConfig>();
+            try
+            {
+                leader.transform.SetParent(root.transform);
+                var follower = root.AddComponent<PartyFormationFollower>();
+                follower.Configure(leader.transform, root.transform, settings);
+                var record = typeof(PartyFormationFollower).GetMethod("RecordLeader",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                var count = typeof(PartyFormationFollower).GetField("historyCount",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                var first = typeof(PartyFormationFollower).GetMethod("HistoryAt",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(record, Is.Not.Null);
+                Assert.That(count, Is.Not.Null);
+                Assert.That(first, Is.Not.Null);
+                for (int i = 1; i <= 80; i++)
+                {
+                    leader.transform.position = new Vector3(i * 0.05f, 0f, 0f);
+                    record.Invoke(follower, null);
+                }
+                Assert.That((int)count.GetValue(follower), Is.EqualTo(32));
+                var oldest = first.Invoke(follower, new object[] { 0 });
+                var position = (Vector3)oldest.GetType().GetField("Position").GetValue(oldest);
+                Assert.That(position.x, Is.EqualTo(49f * 0.05f).Within(0.001f),
+                    "The ring must preserve the most recent 32 actual leader samples.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(settings);
+            }
+        }
+
+        [Test]
         public void OrkStepMustKeepWholeCombatantInsideSavedBattleBounds()
         {
             // The previous centre-only check allowed a character's 2D
@@ -750,6 +791,50 @@ namespace Rpg.Tests.Editor
                 Object.Destroy(root);
             }
             yield return null;
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator FollowerExplorationFreezesButBattleCueExpiresDuringPausedOrkClock()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var root = new GameObject("paused Soundwell formation");
+            var leader = new GameObject("paused formation leader");
+            var config = SoundwellPartyConfig.Load();
+            float oldScale = Time.timeScale;
+            try
+            {
+                leader.transform.SetParent(root.transform, false);
+                var formation = root.AddComponent<PartyFormationFollower>();
+                formation.Configure(leader.transform, root.transform, config);
+                GameObject actor = formation.CreateFollower(1, "paused rescuer",
+                    config.SecondFollowerOffset, Color.white);
+                actor.SetActive(true);
+                formation.SetFrameworkReady();
+                var renderer = actor.GetComponent<SpriteRenderer>();
+                Sprite idle = renderer.sprite;
+                Vector3 before = actor.transform.position;
+                Time.timeScale = 0f;
+                leader.transform.position += Vector3.right;
+                formation.RenderFollowers(false, false, false);
+                Assert.That(Vector3.Distance(actor.transform.position, before),
+                    Is.LessThan(0.00001f),
+                    "Exploration followers must not slide while Time.timeScale is zero.");
+                formation.ShowAttackPose(1, null);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(renderer.sprite, Is.Not.SameAs(idle),
+                    "The real ORK attack still shows a short visible pose.");
+                yield return new WaitForSecondsRealtime(0.45f);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(renderer.sprite, Is.SameAs(idle),
+                    "The ORK battle pause must not leave a rescuer stuck attacking.");
+            }
+            finally
+            {
+                Time.timeScale = oldScale;
+                Object.Destroy(root);
+            }
             yield return new ExitPlayMode();
         }
 
