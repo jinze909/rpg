@@ -936,11 +936,17 @@ class NarrativeV11WritingBaselineTests(unittest.TestCase):
     def test_v11_document_links_resolve_in_place_without_old_combined_scripts(self):
         root = self.docs()
         project = root.parents[1]
-        historical = {"RPG_PROGRESSION_AND_REWARDS.md",
-                      "WORLD_FLAVOR_AND_SLANG.md"}
-        sources = sorted(doc for doc in root.glob("*.md")
-                         if doc.name not in historical)
+        # v1.1 replaces the withdrawn v1.0-only design extras. Excluding
+        # them from the count used to hide accidental reintroductions.
+        historical = ("RPG_PROGRESSION_AND_REWARDS.md",
+                      "WORLD_FLAVOR_AND_SLANG.md")
+        for obsolete_name in historical:
+            with self.subTest(obsolete=obsolete_name):
+                self.assertFalse((root / obsolete_name).exists(),
+                                 f"Retired v1.0 draft has returned: {obsolete_name}")
+        sources = sorted(root.glob("*.md"))
         self.assertEqual(len(sources), 39)
+        self.assertIn("v1.1", (root / "STORY_OUTLINE.md").read_text(encoding="utf-8"))
         obsolete = ("SCENE_SCRIPT_P0_M00.md", "SCENE_SCRIPT_M03_M12.md")
         for doc in sources:
             content = doc.read_text(encoding="utf-8")
