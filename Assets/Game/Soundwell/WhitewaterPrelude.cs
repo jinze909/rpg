@@ -1388,9 +1388,8 @@ namespace Rpg.Soundwell
                 yield break;
             blackout.color = Color.black;
             phase = 18;
-            Label(canvasRoot, Copy("TWELVE YEARS LATER", "十二年后"), 35,
-                new Vector2(0f, 25f), new Vector2(780f, 95f), Ink)
-                .gameObject.name = "S00 twelve years later";
+            CreateResponsiveEpilogueCard(canvasRoot,
+                Copy("TWELVE YEARS LATER", "十二年后"));
             // M00 is still a separate playable story task. Reuse the real
             // exit control rather than claiming a scene that does not exist.
             exit.transform.SetAsLastSibling();
@@ -1398,6 +1397,26 @@ namespace Rpg.Soundwell
                 new Vector2(0f, -190f);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        // The title appears after the full-screen third-bell blackout. Its
+        // former fixed 780px width exceeded portrait canvas bounds, leaving
+        // the ending unreadable even though the blackout itself stretched.
+        // Keep a safe margin without altering the scene or ORK result.
+        private static Text CreateResponsiveEpilogueCard(
+            Transform canvasRoot, string message)
+        {
+            Text card = Label(canvasRoot, message, 35,
+                new Vector2(0f, 25f), new Vector2(-40f, 95f), Ink);
+            card.gameObject.name = "S00 twelve years later";
+            RectTransform rect = card.rectTransform;
+            rect.anchorMin = new Vector2(0f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.anchoredPosition = new Vector2(0f, 25f);
+            rect.sizeDelta = new Vector2(-40f, 95f);
+            card.horizontalOverflow = HorizontalWrapMode.Wrap;
+            card.resizeTextMinSize = 12;
+            return card;
         }
 
         // The same third-bell fade must cover the entire playable canvas
