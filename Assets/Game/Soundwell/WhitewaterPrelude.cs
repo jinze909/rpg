@@ -1135,7 +1135,12 @@ namespace Rpg.Soundwell
                         Mathf.Round(x), Mathf.Round(figure.anchoredPosition.y));
                     // Authored pixel footwork tracks the existing visual motor.
                     // No second velocity, AI turn or combatant is introduced.
-                    bool marching = x < destinations[i] - 0.01f;
+                    // Pixel snapping can display the final standing tile
+                    // half a pixel before the continuous motor catches up.
+                    // When the guard is visibly at its destination, use the
+                    // idle sprite in that same frame (not the walking sprite).
+                    bool marching = Mathf.Round(x) < Mathf.Round(destinations[i]) &&
+                        x < destinations[i] - 0.01f;
                     farBankThreats[i].sprite = marching &&
                         Mathf.FloorToInt(Time.unscaledTime / 0.16f) % 2 == 1
                             ? farBankGuardWalkSprite : farBankGuardSprite;
