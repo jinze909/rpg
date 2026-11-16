@@ -15,6 +15,50 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellCompanionActionTests
     {
         [Test]
+        public void BeastHitRecoilUsesOnlyRealOrkDamageAndPreservesSixteenPixelSprite()
+        {
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static;
+            var type = typeof(SoundwellView);
+            var damage = type.GetMethod("HasRealOrkBeastDamage", flags);
+            var pose = type.GetMethod("WithBeastRecoilPose", flags);
+            var idleField = type.GetField("BeastPixels", flags);
+            Assert.That(damage, Is.Not.Null);
+            Assert.That(pose, Is.Not.Null);
+            Assert.That(idleField, Is.Not.Null);
+
+            bool TookDamage(float? prior, float current) =>
+                (bool)damage.Invoke(null, new object[] { prior, current });
+            Assert.That(TookDamage(null, 10f), Is.False,
+                "First ORK HP observation cannot invent an injury.");
+            Assert.That(TookDamage(10f, 10f), Is.False);
+            Assert.That(TookDamage(10f, 12f), Is.False,
+                "Healing is not an attack.");
+            Assert.That(TookDamage(10f, 9.9995f), Is.False,
+                "A tiny HP roundoff cannot trigger a second hit.");
+            Assert.That(TookDamage(10f, 8f), Is.True,
+                "A real ORK HP decrease must show the new hit frame.");
+            Assert.That(TookDamage(10f, float.NaN), Is.False);
+            Assert.That(TookDamage(10f, float.PositiveInfinity), Is.False);
+
+            var idle = (string[])idleField.GetValue(null);
+            var recoiling = (string[])pose.Invoke(null, null);
+            Assert.That(idle.Length, Is.EqualTo(16));
+            Assert.That(recoiling.Length, Is.EqualTo(16));
+            Assert.That(recoiling, Is.Not.EqualTo(idle));
+            for (int row = 0; row < 16; row++)
+            {
+                Assert.That(idle[row].Length, Is.EqualTo(16));
+                Assert.That(recoiling[row].Length, Is.EqualTo(16),
+                    "The hit frame must not change sprite scale or footprint.");
+                Assert.That(recoiling[row], row >= 1 && row <= 8
+                    ? Is.EqualTo("." + idle[row].Substring(0, 15))
+                    : Is.EqualTo(idle[row]),
+                    "Only the upper body may recoil; keep both feet anchored.");
+            }
+        }
+
+        [Test]
         public void OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending()
         {
             // ORK may offer Guard, Gate or its independent step even when the
