@@ -179,7 +179,11 @@ namespace Rpg.Soundwell
             ? evacuee.anchoredPosition : Vector2.zero;
         public bool CanHelpEvacuee => phase == 9 && evacuee != null &&
             Mathf.Abs(walker.x - evacuee.anchoredPosition.x) <= EvacueeContactReachX &&
-            Mathf.Abs(walker.y) <= EvacueeContactReachY;
+            // Stay on the bridge lane, and require actual sprite overlap in Y.
+            // A player below the lane can otherwise touch X while remaining
+            // visibly separated from the wounded civilian centered at Y=12.
+            Mathf.Abs(walker.y) <= EvacueeContactReachY &&
+            Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
         public bool CanDeliverEvacuee => phase == 10 && evacuee != null &&
             // Stopping near the line is not a rescue if the wounded follower
             // has lost the escort and is still waiting for the player to return.

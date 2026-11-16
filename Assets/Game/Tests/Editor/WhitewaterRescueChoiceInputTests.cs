@@ -168,6 +168,12 @@ namespace Rpg.Tests.Editor
                 walkerField.SetValue(prelude, new Vector2(-72f + 31f, 0f));
                 Assert.That(prelude.CanHelpEvacuee, Is.True,
                     "One pixel of body overlap on the bridge lane allows the escort.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, -28f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "X contact and a valid lane position cannot rescue across a visible vertical gap.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, -16f));
+                Assert.That(prelude.CanHelpEvacuee, Is.True,
+                    "The actual actor footprints overlap vertically at the 28px edge.");
                 walkerField.SetValue(prelude, new Vector2(-72f + 31f, 29f));
                 Assert.That(prelude.CanHelpEvacuee, Is.False,
                     "Horizontal contact from below the walkable lane is insufficient.");
