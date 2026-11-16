@@ -17,6 +17,54 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellInputSystemTests
     {
         [Test]
+        public void S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer()
+        {
+            var mixer = Resources.Load<UnityEngine.Audio.AudioMixer>(SoundwellAudioBus.MixerResource);
+            Assert.That(mixer, Is.Not.Null);
+            var root = new GameObject("S00 direct SFX fallback mute");
+            var source = root.AddComponent<AudioSource>();
+            bool hadPreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
+            bool originalMute = SoundwellAudioBus.IsMuted;
+            var route = typeof(SoundwellAudioBus).GetMethod("RouteWithMixer",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(route, Is.Not.Null);
+            try
+            {
+                LogAssert.Expect(LogType.Error,
+                    "M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
+                Assert.That(route.Invoke(null, new object[] { source, null }), Is.EqualTo(false));
+                Assert.That(source.outputAudioMixerGroup, Is.Null);
+                Assert.That(source.mute, Is.EqualTo(originalMute));
+
+                // A valid mixer still accepts the player's SFX preference,
+                // but the already-fallback direct source must change too.
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, !originalMute), Is.True);
+                Assert.That(source.mute, Is.EqualTo(!originalMute));
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, originalMute), Is.True);
+                Assert.That(source.mute, Is.EqualTo(originalMute));
+
+                // Rejoining the actual SFX group removes fallback tracking.
+                Assert.That(route.Invoke(null, new object[] { source, mixer }), Is.EqualTo(true));
+                Assert.That(source.outputAudioMixerGroup?.name, Is.EqualTo("SFX"));
+                Assert.That(source.mute, Is.False);
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, !originalMute), Is.True);
+                Assert.That(source.mute, Is.False,
+                    "A mixer-routed bell cannot retain a duplicate per-source mute.");
+            }
+            finally
+            {
+                SoundwellAudioBus.SetMuted(mixer, originalMute);
+                if (!hadPreference)
+                {
+                    PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                    PlayerPrefs.Save();
+                }
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void EntryHintRefreshRespondsOnlyToEffectiveBindingChanges()
         {
             var filter = typeof(SoundwellEntrance).GetMethod(
