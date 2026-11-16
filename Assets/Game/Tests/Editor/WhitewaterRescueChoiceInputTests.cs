@@ -476,7 +476,17 @@ namespace Rpg.Tests.Editor
                         float departureDeadline = Time.realtimeSinceStartup + 3f;
                         while (departingBoat.gameObject.activeInHierarchy &&
                                Time.realtimeSinceStartup < departureDeadline)
+                        {
                             yield return null;
+                            Assert.That(departingBoat.anchoredPosition.x,
+                                Is.EqualTo(Mathf.Round(departingBoat.anchoredPosition.x))
+                                    .Within(0.001f),
+                                "The 2x point-filtered ferry must not shimmer between canvas pixels.");
+                            Assert.That(inWater.anchoredPosition.x - passengerDockX,
+                                Is.EqualTo(departingBoat.anchoredPosition.x - boatDockX)
+                                    .Within(0.01f),
+                                "Pixel snapping cannot separate the passenger from the ferry.");
+                        }
                         Assert.That(departingBoat.gameObject.activeInHierarchy, Is.False,
                             "The last boat must actually leave after Han Qiao is aboard.");
                         Assert.That(inWater.gameObject.activeInHierarchy, Is.False,
@@ -787,6 +797,10 @@ namespace Rpg.Tests.Editor
                         {
                             observedMarchFrame |= approachingImage.sprite != guardIdle;
                             yield return null;
+                            Assert.That(((RectTransform)approaching).anchoredPosition.x,
+                                Is.EqualTo(Mathf.Round(
+                                    ((RectTransform)approaching).anchoredPosition.x)).Within(0.001f),
+                                "The marching 16px guard must stay on whole canvas pixels.");
                         }
                         observedMarchFrame |= approachingImage.sprite != guardIdle;
                         input.Release(keys.dKey);
