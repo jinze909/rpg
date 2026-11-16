@@ -30,7 +30,8 @@ namespace Rpg.Soundwell
 
         public Vector2 Position => beast != null ? (Vector2)beast.position : home;
         public bool WithinWarningRange(Vector2 worldPoint, float radius) =>
-            beast != null && Vector2.Distance(Position, worldPoint) < radius;
+            beast != null && beast.gameObject.activeInHierarchy &&
+            Vector2.Distance(Position, worldPoint) < radius;
         public float SearchRemainingFraction => Mathf.Clamp01(
             (SearchDurationSeconds - (Time.time - searchStarted)) / SearchDurationSeconds);
 
@@ -80,7 +81,8 @@ namespace Rpg.Soundwell
                 searchStarted = float.NegativeInfinity;
 
             Vector2 destination = Position;
-            if (!directCombat && !combatComplete && beast != null)
+            if (!directCombat && !combatComplete && beast != null &&
+                beast.gameObject.activeInHierarchy)
             {
                 destination = home;
                 if (bellSignal == BellSignal.Ringing)
@@ -126,7 +128,8 @@ namespace Rpg.Soundwell
                 beast.position = next;
             }
 
-            bool playerInDanger = beast != null && player != null &&
+            bool playerInDanger = beast != null && beast.gameObject.activeInHierarchy &&
+                player != null &&
                 !directCombat && !combatComplete && gateOpen && !rescueComplete &&
                 // The visible east corridor is local to this scene root.
                 // Subtracting only world X fails when a level is rotated.
@@ -147,6 +150,7 @@ namespace Rpg.Soundwell
 
         public bool IsReturning(bool directCombat, bool combatComplete, BellSignal signal) =>
             !directCombat && !combatComplete && beast != null &&
+            beast.gameObject.activeInHierarchy &&
             signal != BellSignal.Ringing && signal != BellSignal.Searching &&
             Vector2.Distance(beast.position, home) > 0.15f;
     }

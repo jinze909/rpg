@@ -427,6 +427,9 @@ namespace Rpg.Tests.Editor
                         rescueChoice == 1 ? "Shen Li's rope holds" : "The soldiers lift"));
                     Assert.That(inWater.anchoredPosition.x, Is.GreaterThan(riverStartX),
                         "The officer must begin visibly moving only after the actual rescue.");
+                    Assert.That(inWater.anchoredPosition.x,
+                        Is.EqualTo(Mathf.Round(inWater.anchoredPosition.x)).Within(0.001f),
+                        "The first earned rescue frame must move on whole canvas pixels.");
 
                     if (rescueChoice == 0)
                     {
@@ -476,7 +479,17 @@ namespace Rpg.Tests.Editor
                         float departureDeadline = Time.realtimeSinceStartup + 3f;
                         while (departingBoat.gameObject.activeInHierarchy &&
                                Time.realtimeSinceStartup < departureDeadline)
+                        {
                             yield return null;
+                            Assert.That(departingBoat.anchoredPosition.x,
+                                Is.EqualTo(Mathf.Round(departingBoat.anchoredPosition.x))
+                                    .Within(0.001f),
+                                "The 2x point-filtered ferry must not shimmer between canvas pixels.");
+                            Assert.That(inWater.anchoredPosition.x - passengerDockX,
+                                Is.EqualTo(departingBoat.anchoredPosition.x - boatDockX)
+                                    .Within(0.01f),
+                                "Pixel snapping cannot separate the passenger from the ferry.");
+                        }
                         Assert.That(departingBoat.gameObject.activeInHierarchy, Is.False,
                             "The last boat must actually leave after Han Qiao is aboard.");
                         Assert.That(inWater.gameObject.activeInHierarchy, Is.False,
@@ -787,6 +800,10 @@ namespace Rpg.Tests.Editor
                         {
                             observedMarchFrame |= approachingImage.sprite != guardIdle;
                             yield return null;
+                            Assert.That(((RectTransform)approaching).anchoredPosition.x,
+                                Is.EqualTo(Mathf.Round(
+                                    ((RectTransform)approaching).anchoredPosition.x)).Within(0.001f),
+                                "The marching 16px guard must stay on whole canvas pixels.");
                         }
                         observedMarchFrame |= approachingImage.sprite != guardIdle;
                         input.Release(keys.dKey);
@@ -861,7 +878,11 @@ namespace Rpg.Tests.Editor
                         // rendered second. Await the same physical target,
                         // not a fixed number of frames or a shortened timer.
                         float pressureDeadline = Time.realtimeSinceStartup + 8f;
-                        while (((RectTransform)approaching).anchoredPosition.x <
+                        // Pixel-snapped motion can land exactly on this
+                        // whole-pixel threshold. Wait until the strict
+                        // assertion below is true, not until it first equals
+                        // the threshold (the old float motor overshot it).
+                        while (((RectTransform)approaching).anchoredPosition.x <=
                                threatStartX + 70f &&
                                Time.realtimeSinceStartup < pressureDeadline)
                             yield return null;
