@@ -216,6 +216,11 @@ namespace Rpg.Soundwell
         {
             if (!active)
                 return;
+            // Continue is presentation, not a victory authority. A hidden,
+            // stale or reflected UI callback cannot award the fixed third
+            // bell unless ORK has actually ended this encounter in victory.
+            if (victory && (party == null || !party.EncounterWon))
+                return;
 
             Action<bool> callback = onCompleted;
             onCompleted = null;
