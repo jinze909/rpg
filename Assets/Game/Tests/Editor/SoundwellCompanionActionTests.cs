@@ -59,6 +59,62 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00BridgeheadFocusRecoversGuardWithoutStealingAnIntentionalSelection()
+        {
+            // Unit-test the same focus decision used each live ORK HUD frame.
+            // This does not create a pretend chooser or grant any ORK action.
+            var root = new GameObject("S00 temporary focus parent");
+            Button MakeButton(string name)
+            {
+                var obj = new GameObject(name, typeof(RectTransform),
+                    typeof(CanvasRenderer), typeof(Image), typeof(Button));
+                obj.transform.SetParent(root.transform, false);
+                return obj.GetComponent<Button>();
+            }
+
+            try
+            {
+                var attack = MakeButton("ORK attack");
+                var guard = MakeButton("ORK guard");
+                var retreat = MakeButton("Player selected Leave");
+                var stale = MakeButton("Old disabled chooser");
+                var method = typeof(WhitewaterDefenseEncounter).GetMethod(
+                    "ChooseAvailableActionFocus",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(method, Is.Not.Null);
+                Button Pick(GameObject selected) =>
+                    (Button)method.Invoke(null, new object[] { selected, attack, guard });
+
+                attack.interactable = false;
+                guard.interactable = true;
+                stale.interactable = false;
+                Assert.That(Pick(attack.gameObject), Is.SameAs(guard),
+                    "A disabled Attack must not trap a gamepad when Guard is legal.");
+                Assert.That(Pick(stale.gameObject), Is.SameAs(guard));
+                Assert.That(Pick(guard.gameObject), Is.Null,
+                    "Already focused legal Guard must not be reset every frame.");
+                Assert.That(Pick(retreat.gameObject), Is.Null,
+                    "An intentional focused Leave must never be stolen.");
+                attack.interactable = true;
+                Assert.That(Pick(stale.gameObject), Is.SameAs(attack),
+                    "Prefer the legal ORK Attack after a fresh chooser arrives.");
+                attack.interactable = false;
+                guard.interactable = false;
+                Assert.That(Pick(stale.gameObject), Is.Null,
+                    "An unresolved ORK turn must never invent a legal action.");
+                guard.interactable = true;
+                guard.gameObject.SetActive(false);
+                Assert.That(Pick(stale.gameObject), Is.Null,
+                    "A retired scene control cannot become the selected action.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending()
         {
             // ORK may offer Guard, Gate or its independent step even when the
