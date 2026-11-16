@@ -9,7 +9,7 @@ Open the project's startup scene and confirm that ORK 3.22.0 with Makinom 2.21.0
 ## Prerequisites
 
 - Unity 6000.6.8f1 with an active license.
-- The pinned ORK package installed using the [repository setup](../../README.md#本地启动).
+- The pinned ORK package installed using the [repository setup](../../README.md#可选本地启动).
 
 ## Acceptance
 

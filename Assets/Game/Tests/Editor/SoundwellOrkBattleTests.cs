@@ -29,6 +29,101 @@ namespace Rpg.Tests.Editor
     /// </summary>
     public sealed class SoundwellOrkBattleTests
     {
+        [Test]
+        public void PixelFormationPoseValidationRejectsMalformedRowsBeforeNativeAllocation()
+        {
+            // Formation sprites use Create16: unlike the coloured S00 helper,
+            // it previously allocated a Texture2D before discovering an
+            // invalid row. Do not leak native textures on retrying bad art.
+            var type = typeof(PartyFormationFollower).Assembly.GetType(
+                "Rpg.Soundwell.SoundwellPixelSpriteBuilder");
+            Assert.That(type, Is.Not.Null);
+            var method = type.GetMethod("Create16",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            const string invalidName = "S00 invalid pixel formation test allocation";
+            var good = Enumerable.Repeat("................", 16).ToArray();
+            var badShort = (string[])good.Clone();
+            badShort[15] = "....";
+            var badNull = (string[])good.Clone();
+            badNull[7] = null;
+
+            try
+            {
+                foreach (string[] rows in new string[][] { null, new string[15], badShort, badNull })
+                {
+                    object[] args = { rows, invalidName, null };
+                    var thrown = Assert.Throws<System.Reflection.TargetInvocationException>(
+                        () => { method.Invoke(null, args); });
+                    Assert.That(thrown.InnerException,
+                        Is.TypeOf<System.InvalidOperationException>());
+                    Assert.That(args[2], Is.Null,
+                        "Invalid art must not allocate or return a native texture.");
+                    Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
+                        .Any(t => t.name == invalidName), Is.False,
+                        "No orphaned native texture may survive the failed validation.");
+                }
+
+                good[0] = ".......#........";
+                object[] validArgs = { good, "S00 valid 16px test pose", null };
+                Sprite sprite = null;
+                Texture2D texture = null;
+                try
+                {
+                    sprite = (Sprite)method.Invoke(null, validArgs);
+                    texture = (Texture2D)validArgs[2];
+                    Assert.That(sprite, Is.Not.Null);
+                    Assert.That(texture, Is.Not.Null);
+                    Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
+                    Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
+                    Assert.That(texture.width, Is.EqualTo(16));
+                    Assert.That(texture.height, Is.EqualTo(16));
+                    Assert.That(texture.GetPixel(7, 15).a, Is.EqualTo(1f));
+                }
+                finally
+                {
+                    if (sprite != null)
+                        Object.DestroyImmediate(sprite);
+                    if (texture != null)
+                        Object.DestroyImmediate(texture);
+                }
+            }
+            finally
+            {
+                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(t => t.name == invalidName))
+                    Object.DestroyImmediate(orphan);
+            }
+        }
+
+        [Test]
+        public void BattleReadoutRemainsEligibleForPartialOrExtendedOrkRosters()
+        {
+            Assert.That(OrkPartyBridge.HasReadoutRoster(0), Is.False);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(1), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(2), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(3), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(4), Is.True);
+        }
+
+        [Test]
+        public void OrkControllerGuardCachesKnownMotorsBetweenFullSceneScans()
+        {
+            const System.Reflection.BindingFlags flags =
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic;
+            var bridge = typeof(OrkPartyBridge);
+            Assert.That(bridge.GetField("known3DControllers", flags), Is.Not.Null);
+            Assert.That(bridge.GetField("registrationWatch", flags), Is.Not.Null);
+            Assert.That(bridge.GetMethod("WatchLateControllerRegistrations", flags),
+                Is.Not.Null, "New ORK controllers must be observed during registration.");
+            Assert.That(bridge.GetField("ControllerRegistrationChecks", flags), Is.Not.Null);
+            Assert.That(bridge.GetMethod("DisableConflicting3DPlayerControllers", flags),
+                Is.Not.Null);
+        }
+
         [Test, Order(8)]
         public void BattleStepRespectsArenaBoundsAfterMovingAndRotatingTrial()
         {
@@ -2183,6 +2278,7 @@ namespace Rpg.Tests.Editor
             }
             else
             {
+                AssertFixedFormationCannotStep(party, companion, "second");
                 Assert.That(guard.interactable, Is.True);
                 guard.onClick.Invoke();
             }
@@ -2192,6 +2288,8 @@ namespace Rpg.Tests.Editor
             Assert.That(gateCue.enabled, Is.False,
                 "A resolved gate action or an out-of-range chooser must clear its target cue.");
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(3 - companion));
+            if (!useStep)
+                AssertFixedFormationCannotStep(party, 3 - companion, "third");
             Assert.That(attack.interactable, Is.True);
             attack.onClick.Invoke();
             deadline = Time.realtimeSinceStartup + 8f;
@@ -2231,6 +2329,25 @@ namespace Rpg.Tests.Editor
             Assert.That(ORK.Control.InBattle, Is.False,
                 "Returning after victory must release ORK's battle control before replay.");
             yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
+        }
+
+        private static void AssertFixedFormationCannotStep(OrkPartyBridge party,
+            int actorIndex, string turn)
+        {
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(actorIndex),
+                $"The {turn} fixed-formation turn must belong to rescuer {actorIndex + 1}.");
+            Vector2 before = party.Actors[actorIndex].transform.position;
+            Assert.That(party.CanStep(actorIndex, Vector2.right), Is.False,
+                $"Fixed formation must not offer a step to rescuer {actorIndex + 1} on the {turn} turn.");
+            Assert.That(party.TryStep(actorIndex, Vector2.right), Is.False,
+                $"Fixed formation must reject direct step requests for rescuer {actorIndex + 1} on the {turn} turn.");
+            Assert.That((Vector2)party.Actors[actorIndex].transform.position, Is.EqualTo(before),
+                $"Rejecting the {turn} step must leave rescuer {actorIndex + 1} in place.");
+            var move = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+            Assert.That(move, Is.Not.Null,
+                "The in-battle Move command must remain present in fixed formation.");
+            Assert.That(move.interactable, Is.False,
+                $"The in-battle Move command must stay disabled on the {turn} turn.");
         }
 
         private static IEnumerator FinishFixedFormationRescue(SoundwellTrial trial,

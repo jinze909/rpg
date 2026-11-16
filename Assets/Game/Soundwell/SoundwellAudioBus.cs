@@ -35,6 +35,8 @@ namespace Rpg.Soundwell
             RouteWithMixer(bell, CurrentMixer());
         }
 
+        // Every direct-source fallback must detach an earlier SFX output.
+        // Otherwise an audible bell can remain routed through a stale muted mixer.
         // Missing/edited resources should not crash the scene while the
         // player is walking or rescuing someone. Keep a muted source muted
         // even if the authored SFX bus cannot be loaded or controlled.
@@ -42,6 +44,7 @@ namespace Rpg.Soundwell
         {
             if (mixer == null)
             {
+                bell.outputAudioMixerGroup = null;
                 bell.mute = IsMuted;
                 Debug.LogError("M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
                 return false;
@@ -54,7 +57,8 @@ namespace Rpg.Soundwell
                     .Where(group => group.name == "SFX").ToArray();
                 if (outputs.Length != 1)
                 {
-                    bell.mute = IsMuted;
+                    bell.outputAudioMixerGroup = null;
+                bell.mute = IsMuted;
                     Debug.LogError("M6 Soundwell mixer must have exactly one SFX output; using direct AudioSource mute fallback.");
                     return false;
                 }
@@ -64,6 +68,7 @@ namespace Rpg.Soundwell
             bell.outputAudioMixerGroup = output;
             if (!mixer.SetFloat(VolumeParameter, IsMuted ? -80f : 0f))
             {
+                bell.outputAudioMixerGroup = null;
                 bell.mute = IsMuted;
                 Debug.LogError("M6 Soundwell SFX volume parameter is unavailable; using direct AudioSource mute fallback.");
                 return false;

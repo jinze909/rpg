@@ -15,6 +15,193 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellCompanionActionTests
     {
         [Test]
+        public void BeastHitRecoilUsesOnlyRealOrkDamageAndPreservesSixteenPixelSprite()
+        {
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static;
+            var type = typeof(SoundwellView);
+            var damage = type.GetMethod("HasRealOrkBeastDamage", flags);
+            var pose = type.GetMethod("WithBeastRecoilPose", flags);
+            var idleField = type.GetField("BeastPixels", flags);
+            Assert.That(damage, Is.Not.Null);
+            Assert.That(pose, Is.Not.Null);
+            Assert.That(idleField, Is.Not.Null);
+
+            bool TookDamage(float? prior, float current) =>
+                (bool)damage.Invoke(null, new object[] { prior, current });
+            Assert.That(TookDamage(null, 10f), Is.False,
+                "First ORK HP observation cannot invent an injury.");
+            Assert.That(TookDamage(10f, 10f), Is.False);
+            Assert.That(TookDamage(10f, 12f), Is.False,
+                "Healing is not an attack.");
+            Assert.That(TookDamage(10f, 9.9995f), Is.False,
+                "A tiny HP roundoff cannot trigger a second hit.");
+            Assert.That(TookDamage(10f, 8f), Is.True,
+                "A real ORK HP decrease must show the new hit frame.");
+            Assert.That(TookDamage(10f, float.NaN), Is.False);
+            Assert.That(TookDamage(10f, float.PositiveInfinity), Is.False);
+
+            var idle = (string[])idleField.GetValue(null);
+            var recoiling = (string[])pose.Invoke(null, null);
+            Assert.That(idle.Length, Is.EqualTo(16));
+            Assert.That(recoiling.Length, Is.EqualTo(16));
+            Assert.That(recoiling, Is.Not.EqualTo(idle));
+            for (int row = 0; row < 16; row++)
+            {
+                Assert.That(idle[row].Length, Is.EqualTo(16));
+                Assert.That(recoiling[row].Length, Is.EqualTo(16),
+                    "The hit frame must not change sprite scale or footprint.");
+                Assert.That(recoiling[row], row >= 1 && row <= 8
+                    ? Is.EqualTo("." + idle[row].Substring(0, 15))
+                    : Is.EqualTo(idle[row]),
+                    "Only the upper body may recoil; keep both feet anchored.");
+            }
+        }
+
+        [Test]
+        public void SoundwellViewRejectsInvalidActorAndPlankPixelsBeforeTextureAllocation()
+        {
+            var method = typeof(SoundwellView).GetMethod("CreatePixelSprite",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static);
+            Assert.That(method, Is.Not.Null);
+            const string invalidName = "R5 invalid SoundwellView grid allocation";
+            var actor = Enumerable.Repeat("................", 16).ToArray();
+            var plank = Enumerable.Repeat("..........................", 6).ToArray();
+            var brokenActor = (string[])actor.Clone();
+            brokenActor[15] = "...";
+            var nullActor = (string[])actor.Clone();
+            nullActor[6] = null;
+            var brokenPlank = (string[])plank.Clone();
+            brokenPlank[5] = "..........";
+
+            try
+            {
+                foreach (string[] rows in new string[][]
+                    { null, new string[0], new string[16], brokenActor, nullActor,
+                      brokenPlank })
+                {
+                    object[] args = { invalidName, rows, null };
+                    var error = Assert.Throws<System.Reflection.TargetInvocationException>(
+                        () => { method.Invoke(null, args); });
+                    Assert.That(error.InnerException,
+                        Is.TypeOf<System.InvalidOperationException>());
+                    Assert.That(args[2], Is.Null,
+                        "Invalid art must never expose a newly allocated native texture.");
+                    Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
+                        .Any(t => t.name == invalidName), Is.False,
+                        "Malformed actor or plank pixels must not leak Texture2D.");
+                }
+
+                // Both dimensions are actually authored in the current scene.
+                foreach (string[] rows in new[] { actor, plank })
+                {
+                    object[] args = { "R5 validated view pose", rows, null };
+                    Sprite sprite = null;
+                    Texture2D texture = null;
+                    try
+                    {
+                        sprite = (Sprite)method.Invoke(null, args);
+                        texture = (Texture2D)args[2];
+                        Assert.That(sprite, Is.Not.Null);
+                        Assert.That(texture, Is.Not.Null);
+                        Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
+                        Assert.That(texture.width, Is.EqualTo(rows[0].Length));
+                        Assert.That(texture.height, Is.EqualTo(rows.Length));
+                        Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
+                    }
+                    finally
+                    {
+                        if (sprite != null)
+                            Object.DestroyImmediate(sprite);
+                        if (texture != null)
+                            Object.DestroyImmediate(texture);
+                    }
+                }
+            }
+            finally
+            {
+                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(t => t.name == invalidName))
+                    Object.DestroyImmediate(orphan);
+            }
+        }
+
+        [Test]
+        public void S00BridgeheadFocusRecoversGuardWithoutStealingAnIntentionalSelection()
+        {
+            // Unit-test the same focus decision used each live ORK HUD frame.
+            // This does not create a pretend chooser or grant any ORK action.
+            var root = new GameObject("S00 temporary focus parent");
+            Button MakeButton(string name)
+            {
+                var obj = new GameObject(name, typeof(RectTransform),
+                    typeof(CanvasRenderer), typeof(Image), typeof(Button));
+                obj.transform.SetParent(root.transform, false);
+                return obj.GetComponent<Button>();
+            }
+
+            try
+            {
+                var attack = MakeButton("ORK attack");
+                var guard = MakeButton("ORK guard");
+                var retreat = MakeButton("Player selected Leave");
+                var stale = MakeButton("Old disabled chooser");
+                var method = typeof(WhitewaterDefenseEncounter).GetMethod(
+                    "ChooseAvailableActionFocus",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(method, Is.Not.Null);
+                Button Pick(GameObject selected) =>
+                    (Button)method.Invoke(null, new object[] { selected, attack, guard, retreat });
+
+                // Preparing/retrying ORK must never expose a phantom command.
+                // A gamepad can still select Leave while the chooser is absent.
+                var suspend = typeof(WhitewaterDefenseEncounter).GetMethod(
+                    "DisableActionsUntilOrkReady",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(suspend, Is.Not.Null);
+                suspend.Invoke(null, new object[] { attack, guard });
+                Assert.That(attack.interactable, Is.False);
+                Assert.That(guard.interactable, Is.False);
+                Assert.That(Pick(attack.gameObject), Is.SameAs(retreat),
+                    "Preparing the bridgehead must not select a nonexistent ORK command.");
+
+                attack.interactable = false;
+                guard.interactable = true;
+                stale.interactable = false;
+                Assert.That(Pick(attack.gameObject), Is.SameAs(guard),
+                    "A disabled Attack must not trap a gamepad when Guard is legal.");
+                Assert.That(Pick(stale.gameObject), Is.SameAs(guard));
+                Assert.That(Pick(guard.gameObject), Is.Null,
+                    "Already focused legal Guard must not be reset every frame.");
+                Assert.That(Pick(retreat.gameObject), Is.Null,
+                    "An intentional focused Leave must never be stolen.");
+                attack.interactable = true;
+                Assert.That(Pick(stale.gameObject), Is.SameAs(attack),
+                    "Prefer the legal ORK Attack after a fresh chooser arrives.");
+                attack.interactable = false;
+                guard.interactable = false;
+                Assert.That(Pick(stale.gameObject), Is.SameAs(retreat),
+                    "Between ORK turns, gamepad focus must fall back to a real Leave action.");
+                Assert.That(Pick(retreat.gameObject), Is.Null,
+                    "An existing valid Leave selection must not be stolen.");
+                guard.interactable = true;
+                guard.gameObject.SetActive(false);
+                Assert.That(Pick(stale.gameObject), Is.SameAs(retreat),
+                    "A disabled ORK command may not trap focus when Leave is available.");
+                retreat.interactable = false;
+                Assert.That(Pick(stale.gameObject), Is.Null,
+                    "Never select a disabled Leave or fabricate a legal ORK turn.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void OrkBattleReadoutMustNotMislabelAnActiveNonAttackChooserAsPending()
         {
             // ORK may offer Guard, Gate or its independent step even when the
@@ -185,6 +372,64 @@ namespace Rpg.Tests.Editor
                 Object.DestroyImmediate(moving);
                 Object.DestroyImmediate(root);
             }
+        }
+
+        [Test]
+        public void FormationTrajectoryRingKeepsLatestSamplesWithoutShiftingOldest()
+        {
+            var root = new GameObject("Soundwell ring sampling regression");
+            var leader = new GameObject("trajectory leader");
+            var settings = ScriptableObject.CreateInstance<SoundwellPartyConfig>();
+            try
+            {
+                leader.transform.SetParent(root.transform);
+                var follower = root.AddComponent<PartyFormationFollower>();
+                follower.Configure(leader.transform, root.transform, settings);
+                var record = typeof(PartyFormationFollower).GetMethod("RecordLeader",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                var count = typeof(PartyFormationFollower).GetField("historyCount",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                var first = typeof(PartyFormationFollower).GetMethod("HistoryAt",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(record, Is.Not.Null);
+                Assert.That(count, Is.Not.Null);
+                Assert.That(first, Is.Not.Null);
+                for (int i = 1; i <= 80; i++)
+                {
+                    leader.transform.position = new Vector3(i * 0.05f, 0f, 0f);
+                    record.Invoke(follower, null);
+                }
+                Assert.That((int)count.GetValue(follower), Is.EqualTo(32));
+                var oldest = first.Invoke(follower, new object[] { 0 });
+                var position = (Vector3)oldest.GetType().GetField("Position").GetValue(oldest);
+                Assert.That(position.x, Is.EqualTo(49f * 0.05f).Within(0.001f),
+                    "The ring must preserve the most recent 32 actual leader samples.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(settings);
+            }
+        }
+
+        [Test]
+        public void AuthoredArenaExtentsConstrainTheWholeCombatantFootprint()
+        {
+            // Future trial rooms can define different collision boundaries.
+            var smaller = new Vector2(2f, 1f);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(1.7f, 0f), 0.25f, smaller), Is.True);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(1.8f, 0f), 0.25f, smaller), Is.False);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(0f, -0.8f), 0.25f, smaller), Is.False);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                Vector2.zero, 0.1f, new Vector2(-1f, 1f)), Is.False);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                Vector2.zero, 0.1f, smaller), Is.True);
         }
 
         [Test]
@@ -750,6 +995,50 @@ namespace Rpg.Tests.Editor
                 Object.Destroy(root);
             }
             yield return null;
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator FollowerExplorationFreezesButBattleCueExpiresDuringPausedOrkClock()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var root = new GameObject("paused Soundwell formation");
+            var leader = new GameObject("paused formation leader");
+            var config = SoundwellPartyConfig.Load();
+            float oldScale = Time.timeScale;
+            try
+            {
+                leader.transform.SetParent(root.transform, false);
+                var formation = root.AddComponent<PartyFormationFollower>();
+                formation.Configure(leader.transform, root.transform, config);
+                GameObject actor = formation.CreateFollower(1, "paused rescuer",
+                    config.SecondFollowerOffset, Color.white);
+                actor.SetActive(true);
+                formation.SetFrameworkReady();
+                var renderer = actor.GetComponent<SpriteRenderer>();
+                Sprite idle = renderer.sprite;
+                Vector3 before = actor.transform.position;
+                Time.timeScale = 0f;
+                leader.transform.position += Vector3.right;
+                formation.RenderFollowers(false, false, false);
+                Assert.That(Vector3.Distance(actor.transform.position, before),
+                    Is.LessThan(0.00001f),
+                    "Exploration followers must not slide while Time.timeScale is zero.");
+                formation.ShowAttackPose(1, null);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(renderer.sprite, Is.Not.SameAs(idle),
+                    "The real ORK attack still shows a short visible pose.");
+                yield return new WaitForSecondsRealtime(0.45f);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(renderer.sprite, Is.SameAs(idle),
+                    "The ORK battle pause must not leave a rescuer stuck attacking.");
+            }
+            finally
+            {
+                Time.timeScale = oldScale;
+                Object.Destroy(root);
+            }
             yield return new ExitPlayMode();
         }
 

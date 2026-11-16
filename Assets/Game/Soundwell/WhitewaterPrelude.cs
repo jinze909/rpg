@@ -3,6 +3,7 @@ using System.Collections;
 using GamingIsLove.Makinom;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -22,6 +23,7 @@ namespace Rpg.Soundwell
         public const string SecondBellKey = "rpg.return.s00.second-bell";
         public const string FarBankWarningKey = "rpg.return.s00.far-bank-warning";
         public const string CableHoldKey = "rpg.return.s00.cable-hold";
+        public const string ThirdBellKey = "rpg.return.s00.third-bell";
         // The post must be physically beside Shen Li (at ClampX + 58), not
         // a disconnected marker halfway across the bridge.
         private const float BridgePostX = ClampX + 30f;
@@ -94,6 +96,7 @@ namespace Rpg.Soundwell
         private AudioSource bellAudio;
         private AudioClip firstBellClip;
         private AudioClip secondBellClip;
+        private AudioClip thirdBellClip;
         private Sprite playerPixelSprite;
         private Sprite shenLiPixelSprite;
         private Sprite shenLiBracingSprite;
@@ -104,20 +107,28 @@ namespace Rpg.Soundwell
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
         private Sprite farBankGuardSprite;
+        private Sprite encirclingTorchSprite;
         private Sprite farBankGuardWalkSprite;
         private Sprite spareRopePixelSprite;
         private Texture2D hanQiaoPixelTexture;
         private Texture2D evacueePixelTexture;
         private Texture2D farBankGuardTexture;
+        private Texture2D encirclingTorchTexture;
         private Texture2D farBankGuardWalkTexture;
         private Texture2D spareRopePixelTexture;
         private Image cable;
+        private RectTransform bridgeWalkway;
+        private RectTransform bridgeCable;
         private Text narration;
         private Text instructions;
         private Text title;
         private Button exit;
         private Button next;
         private Action onExit;
+        private WhitewaterDefenseEncounter defenseEncounter;
+        private bool defenseStarted;
+        private bool defenseWon;
+        private bool thirdBellStarted;
         private int phase;
         // S00 station prompts are keyed only to physical reach, phase and
         // selected locale. They never grant actions or copy Makinom state.
@@ -125,6 +136,11 @@ namespace Rpg.Soundwell
         private bool shownBridgeCueReachable;
         private string shownBridgeCueLanguage;
         private string shownBridgeCueBindings;
+        // The S00 movement motor still polls reachability every frame, but
+        // formatting five effective Input System binding labels is only
+        // necessary after the underlying controls actually change.
+        private bool stationBindingsDirty = true;
+        private string cachedStationBindings;
         private int rescueMethod;
         private bool shownRescueCueReachable;
         private string shownRescueCueLanguage;
@@ -144,9 +160,11 @@ namespace Rpg.Soundwell
         // 13: reached bridge post; 14: second bell and the forward sightline;
         // 15: personally spotted troops and return to the cable;
         // 16: the player physically holds the cable beside Shen Li.
-        // ORK defence and the fixed third-bell break remain pending.
+        // Phase 17 is the earned, fixed third-bell break after ORK victory;
+        // phase 18 is the Twelve Years Later card, not a playable M00.
         public static string SceneTitle => Copy("S00 · Whitewater Crossing", "S00 · 白水渡");
         public int Phase => phase;
+        public bool ThirdBellStarted => thirdBellStarted;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
         public string CurrentInstructions => instructions != null ? instructions.text : string.Empty;
@@ -185,12 +203,36 @@ namespace Rpg.Soundwell
         // language. Keep station cues in sync with all controls they print:
         // walking, hauling and cancelling. This is UI-only and never writes
         // an input action, Makinom state or gameplay phase.
-        private static string StationPromptBindingSignature() =>
-            string.Concat(SoundwellInputAdapter.GameplayKeyboardMovementLabel(), "|",
+        private void OnEnable()
+        {
+            InputSystem.onActionChange += OnStationActionChanged;
+            stationBindingsDirty = true;
+        }
+
+        private void OnDisable()
+        {
+            InputSystem.onActionChange -= OnStationActionChanged;
+        }
+
+        private void OnStationActionChanged(object source, InputActionChange change)
+        {
+            if (change == InputActionChange.BoundControlsChanged)
+                stationBindingsDirty = true;
+        }
+
+        private string StationPromptBindingSignature()
+        {
+            if (!stationBindingsDirty && cachedStationBindings != null)
+                return cachedStationBindings;
+            cachedStationBindings = string.Concat(
+                SoundwellInputAdapter.GameplayKeyboardMovementLabel(), "|",
                 SoundwellInputAdapter.GameplayKeyboardInteractionLabel(), "|",
                 SoundwellInputAdapter.GameplayGamepadInteractionLabel(), "|",
                 SoundwellInputAdapter.GameplayKeyboardBackLabel(), "|",
                 SoundwellInputAdapter.GameplayGamepadBackLabel());
+            stationBindingsDirty = false;
+            return cachedStationBindings;
+        }
 
         private static bool Chinese => SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
         private static string Copy(string en, string zh)
@@ -251,6 +293,10 @@ namespace Rpg.Soundwell
         public void Begin(Action exitAction)
         {
             onExit = exitAction;
+            defenseEncounter = GetComponentInParent<WhitewaterDefenseEncounter>();
+            defenseStarted = false;
+            defenseWon = false;
+            thirdBellStarted = false;
             phase = 0;
             // The existing InputSystemUIInputModule owns dialogue navigation.
             SoundwellInputAdapter.SetUiContext();
@@ -284,12 +330,12 @@ namespace Rpg.Soundwell
             Panel(canvas.transform, "PLACEHOLDER 16px ferry water",
                 new Vector2(0f, 34f), new Vector2(790f, 180f),
                 new Color(0.11f, 0.21f, 0.26f));
-            Panel(canvas.transform, "PLACEHOLDER bridge walkway",
+            bridgeWalkway = Panel(canvas.transform, "PLACEHOLDER bridge walkway",
                 new Vector2(0f, 12f), new Vector2(720f, 58f),
-                new Color(0.34f, 0.29f, 0.23f));
-            Panel(canvas.transform, "PLACEHOLDER cable line",
+                new Color(0.34f, 0.29f, 0.23f)).rectTransform;
+            bridgeCable = Panel(canvas.transform, "PLACEHOLDER cable line",
                 new Vector2(0f, 67f), new Vector2(690f, 7f),
-                new Color(0.56f, 0.55f, 0.50f));
+                new Color(0.56f, 0.55f, 0.50f)).rectTransform;
             cable = Panel(canvas.transform, "Loose cable clamp",
                 new Vector2(ClampX, 12f), new Vector2(28f, 36f),
                 new Color(0.69f, 0.30f, 0.27f));
@@ -751,8 +797,15 @@ namespace Rpg.Soundwell
             while (elapsed < 2f && hanQiao != null)
             {
                 elapsed += Time.unscaledDeltaTime;
-                hanQiao.anchoredPosition = Vector2.Lerp(start,
+                Vector2 next = Vector2.Lerp(start,
                     new Vector2(290f, 100f), Mathf.Clamp01(elapsed / 2f));
+                // Both endpoints are authored on whole canvas pixels. The
+                // initial rescue must show movement on its FIRST frame,
+                // even when the first 2-second interpolation is below 0.5px.
+                // Ceil preserves eastward progress and remains integer-only;
+                // nearest rounding could leave the officer visibly frozen.
+                hanQiao.anchoredPosition = new Vector2(
+                    Mathf.Ceil(next.x), Mathf.Ceil(next.y));
                 yield return null;
             }
             if (phase == 8 && next != null)
@@ -811,10 +864,14 @@ namespace Rpg.Soundwell
             while (elapsed < duration && lastBoat != null && hanQiao != null)
             {
                 elapsed += Time.unscaledDeltaTime;
-                Vector2 displacement = new Vector2(
-                    travel * Mathf.Clamp01(elapsed / duration), 0f);
-                lastBoat.anchoredPosition = boatDock + displacement;
-                hanQiao.anchoredPosition = passengerDock + displacement;
+                // Round the ONE shared travel displacement, not each actor
+                // separately: both point-filtered sprites stay on whole
+                // canvas pixels without drifting apart while the boat sails.
+                float displacement = Mathf.Round(
+                    travel * Mathf.Clamp01(elapsed / duration));
+                Vector2 move = new Vector2(displacement, 0f);
+                lastBoat.anchoredPosition = boatDock + move;
+                hanQiao.anchoredPosition = passengerDock + move;
                 yield return null;
             }
             if (lastBoat != null)
@@ -1092,9 +1149,15 @@ namespace Rpg.Soundwell
         private IEnumerator AdvanceFarBankThreats()
         {
             var destinations = new float[farBankThreats.Length];
+            // Keep a continuous motor separate from pixel-snapped rendering.
+            // At 60 FPS the 24px/s advance is below half a pixel each frame:
+            // rounding the motor itself would freeze the approaching guards.
+            var positions = new float[farBankThreats.Length];
             for (int i = 0; i < farBankThreats.Length; i++)
-                destinations[i] = farBankThreats[i].rectTransform.anchoredPosition.x +
-                    FarBankThreatApproach;
+            {
+                positions[i] = farBankThreats[i].rectTransform.anchoredPosition.x;
+                destinations[i] = positions[i] + FarBankThreatApproach;
+            }
             bool advancedAfterHold = false;
             // Hold at the first sighted position while the player is away.
             // A real interaction at Shen Li's post advances the same visual
@@ -1111,21 +1174,186 @@ namespace Rpg.Soundwell
                 for (int i = 0; i < farBankThreats.Length; i++)
                 {
                     RectTransform figure = farBankThreats[i].rectTransform;
-                    float x = Mathf.MoveTowards(figure.anchoredPosition.x,
+                    float x = Mathf.MoveTowards(positions[i],
                         destinations[i], FarBankThreatSpeed * Time.unscaledDeltaTime);
-                    figure.anchoredPosition = new Vector2(x, figure.anchoredPosition.y);
+                    positions[i] = x;
+                    figure.anchoredPosition = new Vector2(
+                        Mathf.Round(x), Mathf.Round(figure.anchoredPosition.y));
                     // Authored pixel footwork tracks the existing visual motor.
                     // No second velocity, AI turn or combatant is introduced.
-                    bool marching = x < destinations[i] - 0.01f;
-                    farBankThreats[i].sprite = marching &&
+                    // The displayed guard is snapped to whole pixels, but
+                    // its authored motor must still complete the full step.
+                    // Stop the walking sprite on the final visible pixel
+                    // without cutting off the subpixel motor prematurely.
+                    bool movingMotor = x < destinations[i] - 0.01f;
+                    bool visibleMarch = Mathf.Round(x) < Mathf.Round(destinations[i]);
+                    farBankThreats[i].sprite = visibleMarch &&
                         Mathf.FloorToInt(Time.unscaledTime / 0.16f) % 2 == 1
                             ? farBankGuardWalkSprite : farBankGuardSprite;
-                    approaching |= marching;
+                    approaching |= movingMotor;
                 }
                 if (!approaching && advancedAfterHold)
+                {
+                    BeginWhitewaterDefense();
                     yield break;
+                }
                 yield return null;
             }
+        }
+
+        private void BeginWhitewaterDefense()
+        {
+            if (phase != 16 || defenseStarted || defenseWon)
+                return;
+
+            if (defenseEncounter == null)
+                defenseEncounter = GetComponentInParent<WhitewaterDefenseEncounter>();
+            if (defenseEncounter == null)
+            {
+                instructions.text = Copy(
+                    "The bridgehead ORK defence is not configured in this Bootstrap scene.",
+                    "当前 Bootstrap 场景尚未配置桥头 ORK 防守战。");
+                return;
+            }
+
+            defenseStarted = defenseEncounter.Begin(OnWhitewaterDefenseCompleted);
+            if (!defenseStarted)
+            {
+                instructions.text = Copy(
+                    "The bridgehead defence could not start. Leave the prologue and retry after the ORK party is ready.",
+                    "桥头防守战未能启动。请退出序章，待 ORK 队伍就绪后重试。");
+                return;
+            }
+
+            narration.text = Copy(
+                "The three armed silhouettes reach the span. You and Shen Li hold the cable as the bridgehead closes into a real fight.",
+                "三个持械人影逼近桥面。你和沈砾仍扶着缆索，桥头的冲突终于变成真正的战斗。");
+            instructions.text = Copy(
+                "Use Attack or Guard on the active ORK turn. The enemy squad takes its own ORK turns; the scene does not fake damage or victory.",
+                "在 ORK 当前回合选择攻击或防御。敌方小队也由 ORK 自己行动；场景不会伪造伤害或胜利。");
+        }
+
+        private void OnWhitewaterDefenseCompleted(bool victory)
+        {
+            // Only the active encounter may deliver this callback; a stage
+            // presentation, stale input or repeated completion cannot ring it.
+            if (phase != 16 || !defenseStarted)
+                return;
+            defenseStarted = false;
+            if (!victory)
+            {
+                Close();
+                return;
+            }
+
+            defenseWon = true;
+            StartCoroutine(PlayThirdBellCollapse());
+        }
+
+        // Historical S00 outcome is fixed, but never a reward for merely
+        // watching the approaching soldiers or bracing the cable. It follows
+        // only the live ORK encounter's accepted victory callback.
+        private IEnumerator PlayThirdBellCollapse()
+        {
+            if (phase != 16 || !defenseWon || thirdBellStarted)
+                yield break;
+            thirdBellStarted = true;
+            phase = 17;
+            SoundwellInputAdapter.SetUiContext();
+            if (next != null)
+                next.gameObject.SetActive(false);
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(ThirdBellKey, 1);
+            thirdBellClip = CreateThirdBellCue();
+            bellAudio.Stop();
+            bellAudio.clip = thirdBellClip;
+            bellAudio.Play();
+            narration.text = Copy(
+                "A third bell strikes. The bridgehead is held, but the far-side cable breaks in the firelight.",
+                "第三声钟响了。桥头虽守住，对岸的缆索却在火光里崩断。");
+            instructions.text = Copy(
+                "The third bell is a fixed part of the night. The ORK battle has ended; this does not invent another fight.",
+                "第三声钟是这一夜既定的结局。ORK 战斗已经结束；这里不会伪造另一场战斗。");
+
+            yield return new WaitForSecondsRealtime(0.4f);
+            if (phase != 17)
+                yield break;
+            // Only the far (left) section sinks. The near clamp and the
+            // original rescue interactions remain in the same scene graph.
+            float elapsed = 0f;
+            const float fallDuration = 1.1f;
+            while (phase == 17 && elapsed < fallDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / fallDuration);
+                if (bridgeWalkway != null)
+                {
+                    bridgeWalkway.sizeDelta = new Vector2(
+                        Mathf.Round(Mathf.Lerp(720f, 360f, t)), 58f);
+                    bridgeWalkway.anchoredPosition = new Vector2(
+                        Mathf.Round(180f * t), Mathf.Round(12f - 52f * t));
+                }
+                if (bridgeCable != null)
+                {
+                    bridgeCable.sizeDelta = new Vector2(
+                        Mathf.Round(Mathf.Lerp(690f, 330f, t)), 7f);
+                    bridgeCable.anchoredPosition = new Vector2(
+                        Mathf.Round(180f * t), Mathf.Round(67f - 36f * t));
+                }
+                yield return null;
+            }
+            if (phase != 17)
+                yield break;
+
+            narration.text = Copy(
+                "The far span disappears under the water. Shen Li catches your hand: 'Don't look at the water. Look at me.' Torches close in; the crowd tears you apart.",
+                "远端桥身沉入水下。沈砾抓住你的手：“别看水，看我。”四面火把亮起，人潮把你们冲开。");
+            instructions.text = string.Empty;
+            // Torches are existing noninteractive scenery, never an ORK squad.
+            // Use one shared point-filtered 16px sprite for all four lights,
+            // not four stretching solid rectangles or duplicate textures.
+            Transform canvasRoot = title.transform.parent;
+            encirclingTorchSprite = MakeActorSprite("S00 16px encircling torch",
+                EncirclingTorchPixels, new Color32(255, 115, 42, 255),
+                out encirclingTorchTexture);
+            var torchPositions = new[]
+            {
+                new Vector2(-307f, 108f), new Vector2(304f, 105f),
+                new Vector2(-293f, -25f), new Vector2(301f, -27f)
+            };
+            foreach (Vector2 torchPosition in torchPositions)
+            {
+                var torch = Panel(canvasRoot, "PLACEHOLDER S00 encircling torch light",
+                    torchPosition, new Vector2(32f, 32f), Color.white);
+                torch.sprite = encirclingTorchSprite;
+            }
+            yield return new WaitForSecondsRealtime(0.8f);
+            if (phase != 17)
+                yield break;
+
+            Image blackout = Panel(canvasRoot, "S00 blackout after bridge collapse",
+                Vector2.zero, new Vector2(960f, 540f), Color.clear);
+            float fade = 0f;
+            while (phase == 17 && fade < 0.5f)
+            {
+                fade += Time.unscaledDeltaTime;
+                blackout.color = new Color(0f, 0f, 0f, Mathf.Clamp01(fade / 0.5f));
+                yield return null;
+            }
+            if (phase != 17)
+                yield break;
+            blackout.color = Color.black;
+            phase = 18;
+            Label(canvasRoot, Copy("TWELVE YEARS LATER", "十二年后"), 35,
+                new Vector2(0f, 25f), new Vector2(780f, 95f), Ink)
+                .gameObject.name = "S00 twelve years later";
+            // M00 is still a separate playable story task. Reuse the real
+            // exit control rather than claiming a scene that does not exist.
+            exit.transform.SetAsLastSibling();
+            ((RectTransform)exit.transform).anchoredPosition =
+                new Vector2(0f, -190f);
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
 
         private void HoldCableAtPost()
@@ -1155,8 +1383,8 @@ namespace Rpg.Soundwell
                 "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds; the armed figures are still advancing over the far span.",
                 "你在沈砾身边扶住缆索，把送来的绳卷拉上缆桩。它暂时绷住了，可对岸持械的人影仍在逼近。");
             instructions.text = Copy(
-                "The cable is held for now, not saved. ORK bridge defence and the fixed third-bell break remain ahead. Return to entry.",
-                "缆索暂时撑住，并没有改变结局。ORK 桥头防守战与既定的第三声断桥仍在后续。可返回入口。");
+                "Hold the cable. The guards are closing; an ORK bridgehead battle is about to begin. Choose Attack or Guard when your turn appears.",
+                "继续扶住缆索。守军正在逼近，ORK 桥头战斗即将开始。轮到你时选择攻击或防御。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
@@ -1199,6 +1427,9 @@ namespace Rpg.Soundwell
 
         private static AudioClip CreateSecondBellCue() =>
             CreateWarningBellCue("PLACEHOLDER S00 second warning bell", 440f);
+
+        private static AudioClip CreateThirdBellCue() =>
+            CreateWarningBellCue("PLACEHOLDER S00 third warning bell", 392f);
 
         private static AudioClip CreateWarningBellCue(string clipName, float frequency)
         {
@@ -1452,62 +1683,44 @@ namespace Rpg.Soundwell
             "................",
         };
 
-        private static Sprite MakeActorSprite(string name, string[] art,
-            Color32 coat, out Texture2D texture)
+        // Fixed S00 encirclement already had four torches. Draw their
+        // flame and grip at the same 16px/2x scale as the bridge actors.
+        // f/g = hot flame, c = orange fire, h/k = wooden handle and rim.
+        private static readonly string[] EncirclingTorchPixels =
         {
-            const int size = 16;
-            // Invalid authored silhouettes must fail before allocating a
-            // native Texture2D. Otherwise a truncated sprite row throws
-            // halfway through rasterization and leaks a runtime texture.
-            texture = null;
-            if (art == null || art.Length != size)
-                throw new System.InvalidOperationException("S00 pixel actor requires 16 rows.");
-            for (int i = 0; i < size; i++)
-                if (art[i] == null || art[i].Length != size)
-                    throw new System.InvalidOperationException(
-                        "S00 pixel actor row must be exactly 16 pixels.");
+            "................",
+            ".......g........",
+            "......gfg.......",
+            "......fcf.......",
+            ".....fcccf......",
+            "......ccc.......",
+            "......hch.......",
+            ".......h........",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......kkk.......",
+            "................",
+        };
 
-            texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                name = name + " texture",
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp
-            };
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    // Pattern rows are top to bottom; Unity pixels are bottom to top.
-                    switch (art[size - 1 - y][x])
-                    {
-                        case 'k': pixels[y * size + x] = new Color32(24, 32, 41, 255); break;
-                        case 'h': pixels[y * size + x] = new Color32(82, 51, 43, 255); break;
-                        case 'f': pixels[y * size + x] = new Color32(226, 180, 136, 255); break;
-                        case 'c': pixels[y * size + x] = coat; break;
-                        case 'g': pixels[y * size + x] = new Color32(195, 181, 151, 255); break;
-                        case 'b': pixels[y * size + x] = new Color32(67, 70, 75, 255); break;
-                        case 'w': pixels[y * size + x] = new Color32(181, 202, 207, 255); break;
-                        default: pixels[y * size + x] = new Color32(0, 0, 0, 0); break;
-                    }
-                }
-            }
-            texture.SetPixels32(pixels);
-            texture.Apply(false, false);
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size),
-                new Vector2(0.5f, 0.5f), size);
-            sprite.name = name;
-            return sprite;
-        }
+        private static Sprite MakeActorSprite(string name, string[] art,
+            Color32 coat, out Texture2D texture) =>
+            SoundwellPixelSpriteBuilder.Create16Colored(art, name, coat, out texture);
 
         private void OnDestroy()
         {
+            defenseEncounter?.Stop();
             // AudioSource belongs to the scene canvas and stops with it.
             // Release the generated sample clip when the temporary scene ends.
             if (firstBellClip != null)
                 Destroy(firstBellClip);
             if (secondBellClip != null)
                 Destroy(secondBellClip);
+            if (thirdBellClip != null)
+                Destroy(thirdBellClip);
             if (playerPixelSprite != null)
                 Destroy(playerPixelSprite);
             if (shenLiPixelSprite != null)
@@ -1530,6 +1743,8 @@ namespace Rpg.Soundwell
                 Destroy(evacueePixelSprite);
             if (farBankGuardSprite != null)
                 Destroy(farBankGuardSprite);
+            if (encirclingTorchSprite != null)
+                Destroy(encirclingTorchSprite);
             if (farBankGuardWalkSprite != null)
                 Destroy(farBankGuardWalkSprite);
             if (spareRopePixelSprite != null)
@@ -1544,6 +1759,8 @@ namespace Rpg.Soundwell
                 Destroy(evacueePixelTexture);
             if (farBankGuardTexture != null)
                 Destroy(farBankGuardTexture);
+            if (encirclingTorchTexture != null)
+                Destroy(encirclingTorchTexture);
             if (farBankGuardWalkTexture != null)
                 Destroy(farBankGuardWalkTexture);
             if (spareRopePixelTexture != null)
@@ -1785,7 +2002,8 @@ namespace Rpg.Soundwell
             while (elapsed < 2f && stretcher != null)
             {
                 elapsed += Time.unscaledDeltaTime;
-                stretcher.anchoredPosition = new Vector2(Mathf.Lerp(-320f, 308f, Mathf.Clamp01(elapsed / 2f)), 23f);
+                stretcher.anchoredPosition = new Vector2(
+                    Mathf.Round(Mathf.Lerp(-320f, 308f, Mathf.Clamp01(elapsed / 2f))), 23f);
                 yield return null;
             }
             if (phase == 3 && next != null)
@@ -1798,9 +2016,10 @@ namespace Rpg.Soundwell
 
         public void Close()
         {
-            // Leaving the unfinished prologue never starts an ORK encounter or
-            // awards quest experience. Makinom retains only dialogue/repair
-            // outcomes already earned through real player interactions.
+            defenseEncounter?.Stop();
+            // Leaving the unfinished prologue never awards quest experience.
+            // Makinom retains only dialogue/repair outcomes already earned
+            // through real player interactions.
             Action callback = onExit;
             onExit = null;
             callback?.Invoke();

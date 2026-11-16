@@ -11,6 +11,8 @@ namespace Rpg.Soundwell
         // Avoid recreating a ContactFilter2D on every candidate direction.
         private static readonly ContactFilter2D StepSolidFilter =
             new ContactFilter2D { useTriggers = false };
+        // Per-level battle bounds; old Soundwell values remain the default.
+        [SerializeField] private Vector2 battleArenaHalfExtents = new Vector2(6.7f, 2.85f);
         private Rigidbody2D leaderBody;
         private SoundwellPartyConfig config;
         private bool frameworkReady;
@@ -97,7 +99,8 @@ namespace Rpg.Soundwell
             Vector3 rootScale = transform.lossyScale;
             float minScale = Mathf.Min(Mathf.Abs(rootScale.x), Mathf.Abs(rootScale.y));
             if (minScale <= 0.0001f ||
-                !FitsBattleStepInArena(arenaLocalCentre, radius / minScale))
+                !FitsBattleStepInArena(arenaLocalCentre, radius / minScale,
+                    battleArenaHalfExtents))
                 return false;
             Physics2D.SyncTransforms();
             Physics2D.CircleCast(colliderFrom, radius, direction,
@@ -215,9 +218,16 @@ namespace Rpg.Soundwell
             return (point - (start + segment * fraction)).sqrMagnitude;
         }
 
+        // Preserve the existing entrypoint for callers and authored tests.
         public static bool FitsBattleStepInArena(Vector2 centre, float footprintRadius) =>
-            footprintRadius >= 0f &&
-            Mathf.Abs(centre.x) + footprintRadius <= 6.7f &&
-            Mathf.Abs(centre.y) + footprintRadius <= 2.85f;
+            FitsBattleStepInArena(centre, footprintRadius, new Vector2(6.7f, 2.85f));
+
+        public static bool FitsBattleStepInArena(
+            Vector2 centre, float footprintRadius, Vector2 halfExtents) =>
+            footprintRadius >= 0f && !float.IsNaN(footprintRadius) &&
+            halfExtents.x > 0f && halfExtents.y > 0f &&
+            !float.IsNaN(halfExtents.x) && !float.IsNaN(halfExtents.y) &&
+            Mathf.Abs(centre.x) + footprintRadius <= halfExtents.x &&
+            Mathf.Abs(centre.y) + footprintRadius <= halfExtents.y;
     }
 }

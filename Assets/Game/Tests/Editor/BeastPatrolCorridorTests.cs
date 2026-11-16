@@ -45,12 +45,105 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PatrolSweepStopsAtRealSolidWallsAndIgnoresTriggerZones()
+        {
+            var root = new GameObject("patrol obstruction root");
+            var beast = new GameObject("patrolling beast");
+            var rescuer = new GameObject("safe player");
+            var wall = new GameObject("physical stone wall");
+            var trigger = new GameObject("nonblocking trigger");
+            try
+            {
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(beast.transform, body, Vector2.zero);
+                wall.transform.position = new Vector3(0.5f, 0f, 0f);
+                wall.AddComponent<BoxCollider2D>().size = new Vector2(0.2f, 2f);
+                trigger.transform.position = new Vector3(0.25f, 0.7f, 0f);
+                var sensor = trigger.AddComponent<BoxCollider2D>();
+                sensor.isTrigger = true;
+                Physics2D.SyncTransforms();
+
+                var sweep = typeof(BeastPatrolAndChase).GetMethod("ConstrainBeastMotion",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                Assert.That(sweep, Is.Not.Null);
+                Vector2 blocked = (Vector2)sweep.Invoke(patrol,
+                    new object[] { Vector2.zero, Vector2.right });
+                Assert.That(blocked.x, Is.LessThan(0.40f),
+                    "Static wall collision must stop the visible beast before crossing it.");
+                Vector2 clear = (Vector2)sweep.Invoke(patrol,
+                    new object[] { Vector2.zero, Vector2.up });
+                Assert.That(clear.y, Is.EqualTo(1f).Within(0.0001f),
+                    "A nonblocking trigger cannot act like a solid wall.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(trigger);
+                Object.DestroyImmediate(wall);
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BeastContactFollowsTrialOriginAndRearmsAfterExit()
         {
             // Keep all three translated positions in one strictly named NUnit
             // case so the P0 exact-manifest collector can verify every run.
             foreach (float originX in new[] { -9f, 0f, 12f })
                 AssertContactAtOrigin(originX);
+        }
+
+        [Test]
+        public void RetiredBeastDoesNotCaptureOrWarnUntilItReturnsToTheScene()
+        {
+            var root = new GameObject("Soundwell disabled threat root");
+            var beast = new GameObject("retired ORK beast actor");
+            var rescuer = new GameObject("rescue player");
+            try
+            {
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.gravityScale = 0f;
+                body.position = new Vector2(0.72f, 0f);
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                Vector2 beastHome = new Vector2(0.75f, 0f);
+                patrol.Configure(beast.transform, body, beastHome);
+                int captures = 0;
+                patrol.PlayerCaught += () => captures++;
+
+                beast.SetActive(false);
+                Assert.That(patrol.WithinWarningRange(body.position, 1.55f), Is.False,
+                    "A retired scene actor cannot block the rescue lane.");
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                Assert.That(captures, Is.Zero,
+                    "A disabled ORK beast must not capture the player invisibly.");
+
+                beast.SetActive(true);
+                Assert.That(patrol.WithinWarningRange(body.position, 1.55f), Is.True);
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                Assert.That(captures, Is.EqualTo(1),
+                    "Reactivating the existing threat restores its physical contact.");
+                beast.SetActive(false);
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                beast.SetActive(true);
+                patrol.Tick(BellSignal.Ready, beastHome,
+                    false, false, true, false);
+                Assert.That(captures, Is.EqualTo(2),
+                    "The contact latch must clear while the actor is absent.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
         }
 
         [Test]

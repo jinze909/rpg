@@ -1678,6 +1678,51 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException(message);
         }
 
+        private static RectInt LocalizedTitleRect(
+            Text authoredTitle, Camera camera, int width, int height)
+        {
+            var corners = new Vector3[4];
+            authoredTitle.rectTransform.GetWorldCorners(corners);
+            float minX = float.PositiveInfinity, maxX = float.NegativeInfinity;
+            float minY = float.PositiveInfinity, maxY = float.NegativeInfinity;
+            foreach (Vector3 corner in corners)
+            {
+                Vector3 viewport = camera.WorldToViewportPoint(corner);
+                minX = Mathf.Min(minX, viewport.x * width);
+                maxX = Mathf.Max(maxX, viewport.x * width);
+                minY = Mathf.Min(minY, viewport.y * height);
+                maxY = Mathf.Max(maxY, viewport.y * height);
+            }
+            int x = Mathf.Clamp(Mathf.FloorToInt(minX), 0, width);
+            int y = Mathf.Clamp(Mathf.FloorToInt(minY), 0, height);
+            int right = Mathf.Clamp(Mathf.CeilToInt(maxX), 0, width);
+            int top = Mathf.Clamp(Mathf.CeilToInt(maxY), 0, height);
+            return new RectInt(x, y, Mathf.Max(0, right - x), Mathf.Max(0, top - y));
+        }
+
+        public static int CountLocalizedGlyphPixels(
+            Color32[] pixels, int width, int height, RectInt sample)
+        {
+            if (pixels == null || width <= 0 || height <= 0 ||
+                pixels.Length != width * height || sample.width <= 0 ||
+                sample.height <= 0)
+                return 0;
+            int glyphs = 0;
+            for (int y = Mathf.Max(0, sample.yMin); y < Mathf.Min(height, sample.yMax); y++)
+                for (int x = Mathf.Max(0, sample.xMin); x < Mathf.Min(width, sample.xMax); x++)
+                {
+                    // Exclude the central ASCII separator in this title.
+                    // Only the real localized side glyphs count.
+                    float fraction = (x - sample.xMin) / (float)sample.width;
+                    if (fraction >= 0.34f && fraction <= 0.54f)
+                        continue;
+                    Color32 pixel = pixels[y * width + x];
+                    if (pixel.r > 115 && pixel.g > 115 && pixel.b > 115)
+                        glyphs++;
+                }
+            return glyphs;
+        }
+
         public static byte[] Capture(SoundwellTrial trial, string stage,
             int width = 960, int height = 540, params Vector3[] visiblePoints)
         {
@@ -1750,19 +1795,14 @@ namespace Rpg.Soundwell
                         .FirstOrDefault(label => label.text == expectedTitle);
                     Require(authoredTitle != null && authoredTitle.gameObject.activeInHierarchy,
                         "Chinese HUD title did not resolve the authored hud.title StringTable key.");
-                    // UI pixels from the Chinese title, excluding the ASCII
-                    // slash. Prior screenshots had ZERO visible Chinese title
-                    // pixels despite Font.HasCharacter returning true.
-                    int glyphPixels = 0;
-                    for (int y = 446; y < 477; y++)
-                        for (int x = 399; x < 592; x++)
-                        {
-                            if (x >= 465 && x <= 503)
-                                continue;
-                            Color32 pixel = imagePixels[y * width + x];
-                            if (pixel.r > 115 && pixel.g > 115 && pixel.b > 115)
-                                glyphPixels++;
-                        }
+                    // Sample the authored title's actual screenshot rectangle.
+                    // A fixed pixel box masks missing glyphs at other resolutions.
+                    RectInt titleRect = LocalizedTitleRect(authoredTitle,
+                        camera, width, height);
+                    Require(titleRect.width > 0 && titleRect.height > 0,
+                        "Chinese HUD title has no visible capture rectangle.");
+                    int glyphPixels = CountLocalizedGlyphPixels(
+                        imagePixels, width, height, titleRect);
                     Require(glyphPixels >= 45,
                         "Chinese title lacks actual GameView glyph pixels: " + glyphPixels);
                 }

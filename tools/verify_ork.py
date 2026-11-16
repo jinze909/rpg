@@ -10,11 +10,11 @@ PROJECT = Path(__file__).resolve().parent.parent
 
 
 def valid_vendor_manifest_path(name):
-    """Only pinned Unity vendor assets may be verified under this manifest."""
-    if not isinstance(name, str) or not name or name != name.strip() or "\\\\" in name:
+    """Limit integrity entries to canonical paths inside the saved ORK vendor roots."""
+    if not isinstance(name, str) or not name or name != name.strip() or "\\" in name:
         return False
     path = PurePosixPath(name)
-    if path.is_absolute() or "." in path.parts or ".." in path.parts or path.as_posix() != name:
+    if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
         return False
     roots = (PurePosixPath("Assets/Gaming Is Love"), PurePosixPath("Assets/Gizmos"))
     return any(path == root or path == PurePosixPath(str(root) + ".meta")

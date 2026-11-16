@@ -79,6 +79,62 @@ namespace Rpg.Tests.Editor
             InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
         }
 
+        [Test]
+        public void SavedSoundwellMixerPrepareIsReadOnlyAndUsesNoPrivateEditorReflection()
+        {
+            const string mixerPath = "Assets/Game/Resources/Soundwell/Audio/SoundwellMixer.mixer";
+            Assert.That(File.Exists(mixerPath), Is.True);
+            var before = File.ReadAllBytes(mixerPath);
+            Assert.DoesNotThrow(() => InvokeSoundwellAudioMixerSetup("Prepare"),
+                "The pinned mixer must be validated, not recreated on every editor prepare.");
+            Assert.That(File.ReadAllBytes(mixerPath), Is.EqualTo(before));
+            string setup = File.ReadAllText("Assets/Game/Editor/SoundwellAudioMixerSetup.cs");
+            Assert.That(setup, Does.Not.Contain("UnityEditor.Audio.AudioMixerController"));
+            Assert.That(setup, Does.Not.Contain("GetGUIDForVolume"));
+            Assert.That(setup, Does.Not.Contain("GetField(\"name\""));
+        }
+
+        [Test]
+        public void SavedTilemapValidationPreservesAnAlreadyLoadedTrialScene()
+        {
+            const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
+            var active = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(trialPath);
+            bool openedHere = !active.IsValid() || !active.isLoaded;
+            if (openedHere)
+                active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            bool wasDirty = active.isDirty;
+            try
+            {
+                if (wasDirty)
+                    Assert.Throws<InvalidOperationException>(
+                        () => InvokeSoundwellTilemapSetup("Validate"),
+                        "Validation must reject unsaved wall geometry without closing the author's scene.");
+                else
+                    Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+
+                Assert.That(active.IsValid() && active.isLoaded, Is.True,
+                    "Read-only Tilemap validation may not close an author's already loaded scene.");
+                Assert.That(active.isDirty, Is.EqualTo(wasDirty),
+                    "Validation must not change or discard the open scene's dirty state.");
+            }
+            finally
+            {
+                if (openedHere && active.IsValid() && active.isLoaded)
+                    EditorSceneManager.CloseScene(active, true);
+            }
+        }
+
+        [Test]
+        public void SoundwellAtlasValidationRemainsExplicitInsteadOfGlobalBuildInterceptor()
+        {
+            // The P0 gate still validates saved atlas dependencies, while
+            // unrelated profiles must not require the Soundwell importer.
+            InvokeSoundwellSpriteAtlasSetup("Validate");
+            string setup = File.ReadAllText("Assets/Game/Editor/SoundwellSpriteAtlasSetup.cs");
+            Assert.That(setup, Does.Not.Contain("IPreprocessBuildWithReport"));
+            Assert.That(setup, Does.Not.Contain("OnPreprocessBuild("));
+        }
+
         [Test, Order(1)]
         public void Urp2DRendererIsTheOnlyActivePipeline()
         {

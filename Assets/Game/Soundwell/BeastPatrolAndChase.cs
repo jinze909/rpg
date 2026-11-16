@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Rpg.Soundwell
@@ -25,12 +26,46 @@ namespace Rpg.Soundwell
         // separate captures of an overlapping rescuer.
         private bool contactLatched;
 
+        // First physics-safety increment: visual patrol may not sweep through
+        // saved solid Tilemap/BoxCollider walls. A fixed-step Rigidbody motor
+        // can replace Transform movement later without removing this clearance.
+        [SerializeField, Min(0.05f)] private float beastClearanceRadius = 0.20f;
+        private static readonly ContactFilter2D SolidSceneFilter =
+            new ContactFilter2D { useTriggers = false };
+        private readonly List<RaycastHit2D> solidHits = new List<RaycastHit2D>(8);
+
+        private Vector2 ConstrainBeastMotion(Vector2 from, Vector2 intended)
+        {
+            Vector2 step = intended - from;
+            if (step.sqrMagnitude <= 0.000001f)
+                return intended;
+            float length = step.magnitude;
+            Vector2 direction = step / length;
+            Physics2D.CircleCast(from, beastClearanceRadius, direction,
+                SolidSceneFilter, solidHits, length);
+            float permitted = length;
+            foreach (RaycastHit2D hit in solidHits)
+            {
+                if (hit.collider == null || hit.collider.transform.IsChildOf(beast))
+                    continue;
+                // ORK characters and the player remain controlled by ORK /
+                // their own Rigidbody2D; only stationary level geometry
+                // blocks this scene-owned patrol motion.
+                Rigidbody2D body = hit.collider.attachedRigidbody;
+                if (body != null && body.bodyType != RigidbodyType2D.Static)
+                    continue;
+                permitted = Mathf.Min(permitted, Mathf.Max(0f, hit.distance - 0.01f));
+            }
+            return from + direction * permitted;
+        }
+
         public event Action SearchExpired;
         public event Action PlayerCaught;
 
         public Vector2 Position => beast != null ? (Vector2)beast.position : home;
         public bool WithinWarningRange(Vector2 worldPoint, float radius) =>
-            beast != null && Vector2.Distance(Position, worldPoint) < radius;
+            beast != null && beast.gameObject.activeInHierarchy &&
+            Vector2.Distance(Position, worldPoint) < radius;
         public float SearchRemainingFraction => Mathf.Clamp01(
             (SearchDurationSeconds - (Time.time - searchStarted)) / SearchDurationSeconds);
 
@@ -80,7 +115,8 @@ namespace Rpg.Soundwell
                 searchStarted = float.NegativeInfinity;
 
             Vector2 destination = Position;
-            if (!directCombat && !combatComplete && beast != null)
+            if (!directCombat && !combatComplete && beast != null &&
+                beast.gameObject.activeInHierarchy)
             {
                 destination = home;
                 if (bellSignal == BellSignal.Ringing)
@@ -117,8 +153,8 @@ namespace Rpg.Soundwell
                                 0.8f * Mathf.Sin(time * 2f)));
                 }
                 Vector2 position = beast.position;
-                Vector2 next = Vector2.MoveTowards(position, destination,
-                    2.5f * Time.deltaTime);
+                Vector2 next = ConstrainBeastMotion(position,
+                    Vector2.MoveTowards(position, destination, 2.5f * Time.deltaTime));
                 Vector2 facing = next - position;
                 if (facing.sqrMagnitude > 0.000001f)
                     beast.rotation = Quaternion.Euler(0f, 0f,
@@ -126,7 +162,8 @@ namespace Rpg.Soundwell
                 beast.position = next;
             }
 
-            bool playerInDanger = beast != null && player != null &&
+            bool playerInDanger = beast != null && beast.gameObject.activeInHierarchy &&
+                player != null &&
                 !directCombat && !combatComplete && gateOpen && !rescueComplete &&
                 // The visible east corridor is local to this scene root.
                 // Subtracting only world X fails when a level is rotated.
@@ -147,6 +184,7 @@ namespace Rpg.Soundwell
 
         public bool IsReturning(bool directCombat, bool combatComplete, BellSignal signal) =>
             !directCombat && !combatComplete && beast != null &&
+            beast.gameObject.activeInHierarchy &&
             signal != BellSignal.Ringing && signal != BellSignal.Searching &&
             Vector2.Distance(beast.position, home) > 0.15f;
     }

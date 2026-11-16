@@ -43,6 +43,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.MostRecentAcceptedCompanionPoseCannotReplayEarlierAction",
         "LeaderActionAndHitFeedbackExpireDuringPausedOrkClock":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.LeaderActionAndHitFeedbackExpireDuringPausedOrkClock",
+        "FollowerExplorationFreezesButBattleCueExpiresDuringPausedOrkClock":
+            "Rpg.Tests.Editor.SoundwellCompanionActionTests.FollowerExplorationFreezesButBattleCueExpiresDuringPausedOrkClock",
         "OrkAcceptedCompanionAttackChangesOnlyItsPixelPose":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.OrkAcceptedCompanionAttackChangesOnlyItsPixelPose",
     },
@@ -89,6 +91,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
         "OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
+        "ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater",
     },
     "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs": {
         "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":
@@ -104,6 +108,8 @@ ADDITIONAL_EDITOR_TESTS = {
             "Rpg.Tests.Editor.BeastPatrolCorridorTests.BeastContactFollowsTrialOriginAndRearmsAfterExit",
         "RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry":
             "Rpg.Tests.Editor.BeastPatrolCorridorTests.RestoredSearchingBellGetsAFullWindowWithoutPhantomExpiry",
+        "RetiredBeastDoesNotCaptureOrWarnUntilItReturnsToTheScene":
+            "Rpg.Tests.Editor.BeastPatrolCorridorTests.RetiredBeastDoesNotCaptureOrWarnUntilItReturnsToTheScene",
     },
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
         "TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint":
@@ -189,10 +195,11 @@ def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
             continue
         if not re.search(r"\bclass\s+" + re.escape(path.stem) + r"\b", source):
             continue
-        declared.update(
-            f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
-            for match in test_pattern.finditer(source)
-        )
+        for match in test_pattern.finditer(source):
+            full_name = f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
+            if full_name in declared:
+                raise ValueError(f"Duplicate NUnit test declaration: {full_name}")
+            declared.add(full_name)
     return declared
 
 

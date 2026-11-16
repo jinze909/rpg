@@ -353,29 +353,58 @@ namespace Rpg.Soundwell
             return quest.IsFinished();
         }
 
+        // The vendor may create its controller several frames AFTER group
+        // assignment. Watch only this registration window rather than scan
+        // the full scene perpetually inside Update.
+        private const float ControllerRegistrationPollSeconds = 0.15f;
+        private const int ControllerRegistrationChecks = 12;
+        private readonly List<ButtonPlayerController> known3DControllers =
+            new List<ButtonPlayerController>(2);
+        private Coroutine registrationWatch;
+
         private void WatchOrkControllerRegistration()
         {
-            // Cover the controller that may already exist before this frame.
             DisableConflicting3DPlayerControllers();
+            if (registrationWatch != null)
+                StopCoroutine(registrationWatch);
+            registrationWatch = StartCoroutine(WatchLateControllerRegistrations());
+        }
+
+        private IEnumerator WatchLateControllerRegistrations()
+        {
+            for (int check = 0; check < ControllerRegistrationChecks; check++)
+            {
+                yield return new WaitForSecondsRealtime(ControllerRegistrationPollSeconds);
+                if (!playerAssignedToOrk || !ORK.Initialized || !isActiveAndEnabled)
+                    break;
+                DisableConflicting3DPlayerControllers();
+            }
+            registrationWatch = null;
         }
 
         private void Update()
         {
-            if (playerAssignedToOrk && IsReady && ORK.Initialized)
-                DisableConflicting3DPlayerControllers();
+            if (!playerAssignedToOrk || !IsReady || !ORK.Initialized)
+                return;
+            // Re-disable already discovered motors cheaply, without a scene
+            // traversal every frame or any ORK battle/state side effects.
+            foreach (ButtonPlayerController controller in known3DControllers)
+                if (controller != null && controller.enabled)
+                    controller.enabled = false;
         }
 
-        private static void DisableConflicting3DPlayerControllers()
+        private void DisableConflicting3DPlayerControllers()
         {
-            // ORK's default Button controller adds a 3D CharacterController in
-            // Update. That component conflicts with Soundwell's real Rigidbody2D
-            // and throws before the player can choose or abandon a battle.
-            // Disable only the world-movement component, not ORK combat,
-            // statuses, action selection or its UI ownership.
+            // Preserve ORK's battle, status and action ownership. Disable
+            // only vendor 3D movement that conflicts with our Rigidbody2D.
+            known3DControllers.RemoveAll(controller => controller == null);
             foreach (ButtonPlayerController controller in
                      UnityEngine.Object.FindObjectsByType<ButtonPlayerController>())
             {
-                if (controller != null && controller.enabled)
+                if (controller == null) continue;
+                if (!known3DControllers.Contains(controller))
+                    known3DControllers.Add(controller);
+                if (controller.enabled)
                     controller.enabled = false;
             }
         }
@@ -413,9 +442,13 @@ namespace Rpg.Soundwell
         /// Read-only snapshot for the provisional battle HUD. ORK remains the
         /// authority for HP, turn choice, battle outcomes and available actions.
         /// </summary>
+        public static bool HasReadoutRoster(int memberCount) => memberCount > 0;
+
         public string BuildBattleReadout()
         {
-            if (!BattleInProgress || members.Count != 3 || Beast == null)
+            // Combatant retirement may shrink the ORK roster during a battle.
+            // Remaining active members should keep their live HP/action HUD.
+            if (!BattleInProgress || !HasReadoutRoster(members.Count) || Beast == null)
                 return string.Empty;
 
             var text = new StringBuilder(SoundwellUiLocalization.Get("battle.heading"))
@@ -445,7 +478,7 @@ namespace Rpg.Soundwell
                     // 1/1 means unspent, not a promise that every direction is free.
                     if (fixedFormationForEncounter)
                         text.Append("  ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
-                    else
+                    else if (i < lastStepTurn.Length)
                         text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
                             .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
                 }

@@ -2,6 +2,10 @@
 """Regression checks for Unity P0 log acceptance and compiler failures."""
 import unittest
 import tempfile
+from unittest.mock import patch
+from tempfile import SpooledTemporaryFile
+import install_ork
+import verify_ork
 from pathlib import Path
 
 from collect_unity_p0 import (
@@ -24,20 +28,106 @@ from collect_unity_p0 import (
 
 
 
-import verify_ork
+import hashlib
+import io
+from zipfile import ZipFile
+
+from restore_unity_p0 import validate_candidate_contents
 
 
 class VendorManifestBoundaryTests(unittest.TestCase):
-    def test_vendor_manifest_rejects_escaping_and_non_vendor_entries(self):
+    def test_only_canonical_vendor_assets_and_folder_metas_are_allowed(self):
         valid = verify_ork.valid_vendor_manifest_path
-        self.assertTrue(valid("Assets/Gaming Is Love.meta"))
-        self.assertTrue(valid("Assets/Gaming Is Love/Makinom 2/DLL/ORK3.dll"))
-        self.assertTrue(valid("Assets/Gizmos.meta"))
-        for path in ("Assets/Other/file.dll", "ProjectSettings/ProjectSettings.asset",
-                     "../Assets/Gaming Is Love/file.dll",
-                     "Assets/Gaming Is Love/../Other/file.dll",
-                     "Assets/Gaming Is Love\\bad.dll", " Assets/Gaming Is Love.meta", ""):
-            self.assertFalse(valid(path), path)
+        for path in (
+            "Assets/Gaming Is Love.meta",
+            "Assets/Gizmos.meta",
+            "Assets/Gaming Is Love/Makinom 2/DLL/ORK3.dll",
+            "Assets/Gizmos/ORK/Icons/icon.png",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(valid(path))
+
+        for path in (
+            "",
+            " Assets/Gaming Is Love.meta",
+            "Assets/Gaming Is Love/surplus.dll ",
+            "Assets/Other/file.dll",
+            "ProjectSettings/ProjectSettings.asset",
+            "/Assets/Gaming Is Love/file.dll",
+            "../Assets/Gaming Is Love/file.dll",
+            "Assets/Gaming Is Love/../Other/file.dll",
+            "Assets/Gaming Is Love/./file.dll",
+            "Assets/Gaming Is Love//file.dll",
+            "Assets/Gaming Is Love\bad.dll",
+            "Assets/Gaming Is Love/sub\bad.dll",
+            "Assets/Gizmos\ORK/icon.png",
+        ):
+            with self.subTest(path=path):
+                self.assertFalse(valid(path))
+
+
+class CandidateRestorePreflightTests(unittest.TestCase):
+    def test_corrupt_later_member_is_rejected_before_any_file_is_written(self):
+        package = io.BytesIO()
+        with ZipFile(package, "w") as z:
+            z.writestr("ProjectSettings/AudioManager.asset", b"valid")
+            z.writestr("ProjectSettings/GraphicsSettings.asset", b"corrupt")
+        package.seek(0)
+        expected = {
+            "ProjectSettings/AudioManager.asset": hashlib.sha256(b"valid").hexdigest(),
+            "ProjectSettings/GraphicsSettings.asset": hashlib.sha256(b"different").hexdigest(),
+        }
+        with ZipFile(package) as archive:
+            with self.assertRaisesRegex(ValueError, "Candidate file digest differs"):
+                validate_candidate_contents(archive, expected)
+
+    def test_missing_new_asset_meta_is_rejected_before_restore(self):
+        package = io.BytesIO()
+        name = "Assets/Game/Resources/Soundwell/Tiles/NewUntrackedTile.asset"
+        with ZipFile(package, "w") as z:
+            z.writestr(name, b"test")
+        package.seek(0)
+        with ZipFile(package) as archive:
+            with self.assertRaisesRegex(ValueError, "Candidate asset lacks metadata"):
+                validate_candidate_contents(
+                    archive, {name: hashlib.sha256(b"test").hexdigest()})
+
+
+class InstallerFolderTests(unittest.TestCase):
+    def test_directory_meta_without_asset_is_created_and_install_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as root:
+            destination = Path(root)
+            folder = Path("Assets/Gaming Is Love/EmptyVendorFolder")
+            files = {Path(str(folder) + ".meta"): b"folder meta", folder: None}
+            with patch.object(install_ork, "PROJECT", destination):
+                self.assertEqual(install_ork.install(files), 2)
+                self.assertTrue((destination / folder).is_dir())
+                self.assertEqual((destination / (str(folder) + ".meta")).read_bytes(),
+                                 b"folder meta")
+                self.assertEqual(install_ork.install(files), 0)
+
+
+
+class VendorAssetStreamingTests(unittest.TestCase):
+    def test_spooled_large_vendor_asset_installs_without_whole_payload_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            name = Path("Assets/Gaming Is Love/Test Packages/large.bin")
+            with SpooledTemporaryFile(max_size=1024) as spool:
+                original = b"ORK3-stream-test" * 120000
+                spool.write(original)
+                spool.seek(0)
+                self.assertTrue(spool._rolled)
+                with patch.object(install_ork, "PROJECT", root):
+                    self.assertEqual(install_ork.install({name: spool}), 1)
+                    self.assertEqual((root / name).stat().st_size, len(original))
+                    self.assertEqual(install_ork.install({name: spool}), 0,
+                                     "An identical vendor payload is idempotent.")
+                    with (root / name).open("ab") as output:
+                        output.write(b"corrupted")
+                    with self.assertRaisesRegex(ValueError, "Existing asset differs"):
+                        install_ork.install({name: spool})
+
 
 
 class SoundwellRouteComparisonTests(unittest.TestCase):
@@ -221,6 +311,23 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             case.write_text(fixture.replace("class NovelGameplayTests", "class OtherTests"),
                             encoding="utf-8")
             self.assertNotIn(name, expected_tests_for("verify", True, source_root))
+
+    def test_duplicate_nunit_declarations_are_rejected_in_preflight(self):
+        with tempfile.TemporaryDirectory() as root:
+            source_root = Path(root)
+            case = source_root / "Assets/Game/Tests/Editor/DuplicateTests.cs"
+            case.parent.mkdir(parents=True)
+            case.write_text(
+                "namespace Rpg.Tests.Editor { public sealed class DuplicateTests {\n"
+                "  [Test] public void Repeated() {}\n"
+                "  [Test] public void Repeated() {}\n"
+                "} }\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Duplicate NUnit test declaration"):
+                expected_tests_for("verify", True, source_root)
+            # Prepare deliberately only preflights P0BootstrapTests.
+            self.assertNotIn(
+                "Rpg.Tests.Editor.DuplicateTests.Repeated",
+                expected_tests_for("prepare", True, source_root))
 
     def test_formation_stepping_translation_requires_real_nunit_case(self):
         with tempfile.TemporaryDirectory() as root:

@@ -35,6 +35,14 @@ namespace Rpg.Soundwell
         [SerializeField] protected Transform beast;
         [SerializeField] protected Transform safePoint;
         [SerializeField] protected Camera trialCamera;
+        // Scene-owned action/recovery thresholds. Defaults preserve the
+        // verified Soundwell layout; a translated/expanded level may change
+        // them without rewriting the Makinom state transitions.
+        [SerializeField, Min(0.01f)] private float safePointPlayerReach = 1.1f;
+        [SerializeField, Min(0.01f)] private float surveyorSafeArrivalReach = 0.9f;
+        [SerializeField, Min(0.01f)] private float routeMarkerArrivalReach = 0.20f;
+        [SerializeField, Min(0.01f)] private float cartKitArrivalReach = 0.20f;
+        [SerializeField] private float returnedBeastLocalY = -0.95f;
 
         private AsyncOperation bootstrapLoad;
         private VariableHandler variables;
@@ -92,7 +100,7 @@ namespace Rpg.Soundwell
                 Vector2.Distance(bell.position,
                     mechanisms.SideBellStandWorldPosition) < 0.1f &&
                 beast != null &&
-                transform.InverseTransformPoint(beast.position).y < -0.95f));
+                transform.InverseTransformPoint(beast.position).y < returnedBeastLocalY));
         public bool AtSurveyor => GateOpen && !IsCarrying && mechanisms.NearSurveyor;
         public bool HasSurveyorClue => variables != null && variables.GetInt(SurveyorClueKey) != 0;
         public bool AtUpperPlank => GateOpen && !IsCarrying && mechanisms.NearUpperPlank;
@@ -144,7 +152,7 @@ namespace Rpg.Soundwell
         public bool ActionMenuOpen => actionMenuOpen;
 
         private bool AtBell => mechanisms != null && mechanisms.AtBell;
-        private bool AtSafePoint => Vector2.Distance(playerBody.position, safePoint.position) <= 1.1f;
+        private bool AtSafePoint => Vector2.Distance(playerBody.position, safePoint.position) <= safePointPlayerReach;
 
     }
 }

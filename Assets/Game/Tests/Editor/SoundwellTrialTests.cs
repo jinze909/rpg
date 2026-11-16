@@ -17,6 +17,106 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellTrialTests
     {
         [Test]
+        public void CameraCanFrameASecondAuthoredRoomSizeWithoutChangingConstants()
+        {
+            var root = new GameObject("smaller trial camera root");
+            var camObject = new GameObject("configurable trial camera");
+            var player = new GameObject("smaller trial leader");
+            try
+            {
+                player.transform.SetParent(root.transform, false);
+                var body = player.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                var camera = camObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 1f;
+                var rig = camObject.AddComponent<SoundwellCameraRig>();
+                var field = typeof(SoundwellCameraRig).GetField("trialHalfExtents",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(field, Is.Not.Null);
+                field.SetValue(rig, new Vector2(4f, 3.2f));
+                rig.Initialize(camera, player.transform, root.transform);
+                rig.RefreshFraming();
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize,
+                    Is.GreaterThanOrEqualTo(5.625f));
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize,
+                    Is.LessThan(8.5f),
+                    "The camera lens must use the scene-owned room footprint.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(camObject);
+                Object.DestroyImmediate(player);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NonFiniteAuthoredCameraValuesCannotPoisonTheLensOrFocus()
+        {
+            var root = new GameObject("invalid authored camera room");
+            var cameraObject = new GameObject("invalid authored camera");
+            var leader = new GameObject("finite leader");
+            try
+            {
+                leader.transform.SetParent(root.transform, false);
+                leader.transform.localPosition = new Vector3(6f, -2f, 0f);
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 1f;
+                var rig = cameraObject.AddComponent<SoundwellCameraRig>();
+                rig.Initialize(camera, leader.transform, root.transform);
+
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var owner = typeof(SoundwellCameraRig);
+                owner.GetField("trialHalfExtents", flags).SetValue(rig,
+                    new Vector2(float.NaN, float.PositiveInfinity));
+                owner.GetField("followFactors", flags).SetValue(rig,
+                    new Vector2(float.NaN, float.NegativeInfinity));
+                owner.GetField("maxFollowOffsets", flags).SetValue(rig,
+                    new Vector2(float.PositiveInfinity, float.NaN));
+                owner.GetField("trialEdgeMargin", flags).SetValue(rig, float.NaN);
+                rig.RefreshFraming();
+
+                Assert.That(rig.VirtualCamera.Lens.OrthographicSize,
+                    Is.EqualTo(8.5f).Within(0.01f),
+                    "Invalid authored floats must fall back to the live room lens.");
+                Vector3 centre = rig.FramingTarget.position;
+                Assert.That(float.IsNaN(centre.x) || float.IsInfinity(centre.x), Is.False);
+                Assert.That(float.IsNaN(centre.y) || float.IsInfinity(centre.y), Is.False);
+                Assert.That(centre.x, Is.EqualTo(0.25f).Within(0.001f),
+                    "At square aspect, horizontal pixel-safe pan is limited by the room edge.");
+                Assert.That(centre.y, Is.EqualTo(-0.3125f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraObject);
+                Object.DestroyImmediate(leader);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RescueArrivalAndThreatThresholdsAreLevelOwnedFields()
+        {
+            // A new authored scene can alter these thresholds without
+            // silently changing Makinom rescue/route state rules.
+            var owner = typeof(TrialFlowController);
+            var flags = System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+            var fields = new[]
+            {
+                "safePointPlayerReach", "surveyorSafeArrivalReach",
+                "routeMarkerArrivalReach", "cartKitArrivalReach", "returnedBeastLocalY"
+            };
+            foreach (string field in fields)
+                Assert.That(owner.GetField(field, flags), Is.Not.Null,
+                    "Missing scene-configurable Story 003 action threshold: " + field);
+        }
+
+        [Test]
         public void CameraFramingFollowsTranslatedTrialInsteadOfWorldOrigin()
         {
             var root = new GameObject("offset Soundwell camera root");
