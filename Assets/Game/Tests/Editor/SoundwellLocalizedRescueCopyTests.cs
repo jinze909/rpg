@@ -67,6 +67,15 @@ namespace Rpg.Tests.Editor
             Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, true),
                 Is.EqualTo("entry.whitewater_replay_cable"),
                 "Bracing the cable must not claim ORK defence or a completed third bell.");
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, true, true),
+                Is.EqualTo("entry.whitewater_replay_third_bell"),
+                "Only the earned third-bell Makinom flag can advance the replay label.");
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, true, false),
+                Is.EqualTo("entry.whitewater_replay_cable"),
+                "A replay which reaches the clamp must not invent the third bell.");
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(false, false, false, true),
+                Is.EqualTo("entry.whitewater_replay_third_bell"),
+                "The real third-bell flag is authoritative even if older markers were cleared.");
 
             var en = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-en");
             var zh = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-zh-Hans");
@@ -76,7 +85,8 @@ namespace Rpg.Tests.Editor
             {
                 "entry.whitewater_replay_evacuee",
                 "entry.whitewater_replay_bell",
-                "entry.whitewater_replay_cable"
+                "entry.whitewater_replay_cable",
+                "entry.whitewater_replay_third_bell"
             })
             {
                 Assert.That(en.GetEntry(key)?.LocalizedValue, Does.Contain("Replay"),
