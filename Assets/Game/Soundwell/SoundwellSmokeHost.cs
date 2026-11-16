@@ -1741,6 +1741,15 @@ namespace Rpg.Soundwell
                 var imagePixels = frame.GetPixels32();
                 if (stage == "14-localized-zh-Hans")
                 {
+                    // Check the actual localized Text component before the
+                    // legacy pixel-region evidence check. A high-contrast
+                    // image is not proof that the intended StringTable key
+                    // appeared on the authored UI.
+                    string expectedTitle = SoundwellUiLocalization.Get("hud.title");
+                    var authoredTitle = trial.GetComponentsInChildren<Text>(true)
+                        .FirstOrDefault(label => label.text == expectedTitle);
+                    Require(authoredTitle != null && authoredTitle.gameObject.activeInHierarchy,
+                        "Chinese HUD title did not resolve the authored hud.title StringTable key.");
                     // UI pixels from the Chinese title, excluding the ASCII
                     // slash. Prior screenshots had ZERO visible Chinese title
                     // pixels despite Font.HasCharacter returning true.

@@ -7,6 +7,10 @@ namespace Rpg.Soundwell
     public sealed class PartyMovement2D : MonoBehaviour
     {
         private readonly List<RaycastHit2D> stepHits = new List<RaycastHit2D>(8);
+        // Every action preview uses the same trigger-free physical query.
+        // Avoid recreating a ContactFilter2D on every candidate direction.
+        private static readonly ContactFilter2D StepSolidFilter =
+            new ContactFilter2D { useTriggers = false };
         private Rigidbody2D leaderBody;
         private SoundwellPartyConfig config;
         private bool frameworkReady;
@@ -83,11 +87,21 @@ namespace Rpg.Soundwell
                 ? (Vector2)actor.TransformVector(bodyCollider.offset)
                 : Vector2.zero;
             Vector2 colliderFrom = from + worldColliderOffset;
-            if (!FitsBattleStepInArena(destination + worldColliderOffset, radius))
+            // The arena walls live under the trial root. Preview and actual
+            // ORK step eligibility must use their local authored limits,
+            // even after a scene-level translation or rotation.
+            Vector2 arenaLocalCentre = transform.InverseTransformPoint(
+                destination + worldColliderOffset);
+            // Circle footprints are measured in world units; when a scene is
+            // scaled, conservatively convert to its tightest local clearance.
+            Vector3 rootScale = transform.lossyScale;
+            float minScale = Mathf.Min(Mathf.Abs(rootScale.x), Mathf.Abs(rootScale.y));
+            if (minScale <= 0.0001f ||
+                !FitsBattleStepInArena(arenaLocalCentre, radius / minScale))
                 return false;
             Physics2D.SyncTransforms();
             Physics2D.CircleCast(colliderFrom, radius, direction,
-                new ContactFilter2D { useTriggers = false }, stepHits, distance);
+                StepSolidFilter, stepHits, distance);
             foreach (RaycastHit2D hit in stepHits)
                 if (!hit.collider.transform.IsChildOf(actor))
                     return false;
@@ -119,8 +133,86 @@ namespace Rpg.Soundwell
                 clearance = Mathf.Max(minimumClearance, movingRadius +
                     footprint.radius * scale);
             }
+            // ORK sometimes represents a live combatant by a trigger-only
+            // rotated box. CircleCast excludes that trigger, so check its
+            // actual swept outline rather than its world AABB: a 45-degree
+            // box has empty AABB corners that must remain walkable.
+            if (footprint == null)
+            {
+                BoxCollider2D box = obstacle.GetComponent<BoxCollider2D>();
+                if (box != null)
+                    return SweptCircleTouchesBox(from, from + direction * distance,
+                        Mathf.Max(movingRadius, minimumClearance * 0.5f),
+                        obstacle, box);
+            }
             float along = Mathf.Clamp(Vector2.Dot(centre - from, direction), 0f, distance);
             return Vector2.Distance(centre, from + direction * along) < clearance;
+        }
+
+        // Closest distance from a cardinal step segment to the true four
+        // rotated box edges. The centre-in-box check also catches steps that
+        // start entirely inside a trigger footprint. No temporary colliders,
+        // allocations, or extra movement authority are introduced.
+        private static bool SweptCircleTouchesBox(Vector2 from, Vector2 to,
+            float padding, Transform obstacle, BoxCollider2D box)
+        {
+            Vector2 fromLocal = (Vector2)obstacle.InverseTransformPoint(from) - box.offset;
+            Vector2 toLocal = (Vector2)obstacle.InverseTransformPoint(to) - box.offset;
+            float halfWidth = box.size.x * 0.5f;
+            float halfHeight = box.size.y * 0.5f;
+            if ((Mathf.Abs(fromLocal.x) <= halfWidth &&
+                 Mathf.Abs(fromLocal.y) <= halfHeight) ||
+                (Mathf.Abs(toLocal.x) <= halfWidth &&
+                 Mathf.Abs(toLocal.y) <= halfHeight))
+                return true;
+
+            Vector2 centre = obstacle.TransformPoint(box.offset);
+            Vector2 horizontal = obstacle.TransformVector(
+                new Vector3(halfWidth, 0f, 0f));
+            Vector2 vertical = obstacle.TransformVector(
+                new Vector3(0f, halfHeight, 0f));
+            Vector2 a = centre - horizontal - vertical;
+            Vector2 b = centre + horizontal - vertical;
+            Vector2 c = centre + horizontal + vertical;
+            Vector2 d = centre - horizontal + vertical;
+            float squaredPadding = padding * padding;
+            return SegmentTouchesEdge(from, to, a, b, squaredPadding) ||
+                   SegmentTouchesEdge(from, to, b, c, squaredPadding) ||
+                   SegmentTouchesEdge(from, to, c, d, squaredPadding) ||
+                   SegmentTouchesEdge(from, to, d, a, squaredPadding);
+        }
+
+        private static bool SegmentTouchesEdge(Vector2 from, Vector2 to,
+            Vector2 a, Vector2 b, float squaredPadding)
+        {
+            Vector2 step = to - from;
+            Vector2 edge = b - a;
+            float cross = step.x * edge.y - step.y * edge.x;
+            if (Mathf.Abs(cross) > 0.000001f)
+            {
+                Vector2 gap = a - from;
+                float along = (gap.x * edge.y - gap.y * edge.x) / cross;
+                float across = (gap.x * step.y - gap.y * step.x) / cross;
+                if (along >= 0f && along <= 1f &&
+                    across >= 0f && across <= 1f)
+                    return true;
+            }
+            return SquaredDistanceToSegment(from, a, b) <= squaredPadding ||
+                SquaredDistanceToSegment(to, a, b) <= squaredPadding ||
+                SquaredDistanceToSegment(a, from, to) <= squaredPadding ||
+                SquaredDistanceToSegment(b, from, to) <= squaredPadding;
+        }
+
+        private static float SquaredDistanceToSegment(Vector2 point,
+            Vector2 start, Vector2 end)
+        {
+            Vector2 segment = end - start;
+            float lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= 0.000001f)
+                return (point - start).sqrMagnitude;
+            float fraction = Mathf.Clamp01(Vector2.Dot(point - start, segment) /
+                lengthSquared);
+            return (point - (start + segment * fraction)).sqrMagnitude;
         }
 
         public static bool FitsBattleStepInArena(Vector2 centre, float footprintRadius) =>

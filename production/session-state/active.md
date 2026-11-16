@@ -15,7 +15,7 @@ Current story and next acceptance check are maintained in [AI2-STATUS.md](../../
 ## Verification
 
 - Verified locally that the pinned archive extracts all 136 files byte for byte. A second install made zero changes. A changed archive and a conflicting local asset were rejected. Static scene links and the build scene GUID were verified.
-- Current native bootstrap and Soundwell acceptance are recorded by exact candidate SHA and CI links in AI2-STATUS.md and stories 001/002. The historical candidate `2eee996adaec6563fd379416e7ec6fad8e1b9a62` passed [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628): 8/8 Editor tests, two Play Mode cycles, independent Batch and `passed-clean-candidate`; [artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633). That historical candidate preceded the ORK UGUI action wiring now on `codex/dev`; Story 003 has verified real ORK actions and moving-party rescue, while fixed-formation comparison and production story scope remain unfinished (see `production/stories/003-soundwell-turn-rescue.md`).
+- Current native bootstrap and Soundwell acceptance are recorded by exact candidate SHA and CI links in AI2-STATUS.md and stories 001/002. The historical candidate `2eee996adaec6563fd379416e7ec6fad8e1b9a62` passed [Run 42766341628](https://github.com/jinze909/rpg/actions/runs/42766341628): 8/8 Editor tests, two Play Mode cycles, independent Batch and `passed-clean-candidate`; [artifact](https://github.com/jinze909/rpg/actions/runs/42766341628/artifacts/13740231633). Story 003 remains in progress because the ORK Unity UI system and player-selected base attack are not yet configured.
 
 ## Current narrative baseline
 

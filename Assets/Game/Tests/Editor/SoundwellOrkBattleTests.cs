@@ -29,6 +29,83 @@ namespace Rpg.Tests.Editor
     /// </summary>
     public sealed class SoundwellOrkBattleTests
     {
+        [Test, Order(8)]
+        public void BattleStepRespectsArenaBoundsAfterMovingAndRotatingTrial()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var root = new GameObject("moved rotated ORK battle arena");
+            var actor = new GameObject("translated rescuer");
+            try
+            {
+                root.transform.position = new Vector3(20f, -13f, 0f);
+                root.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+                var movement = root.AddComponent<PartyMovement2D>();
+                actor.AddComponent<CircleCollider2D>().radius = 0.3f;
+                var actors = new List<GameObject> { actor };
+                // At 90 degrees world-up is the arena's local-east.
+                actor.transform.position = root.transform.TransformPoint(
+                    new Vector3(5.75f, 0f, 0f));
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.up,
+                    actors, null, 0.5f, out Vector2 permitted), Is.True,
+                    "A valid step may not be rejected by the old world-origin bounds.");
+                Vector2 expected = root.transform.TransformPoint(new Vector3(6.25f, 0f, 0f));
+                Assert.That(Vector2.Distance(permitted, expected),
+                    Is.LessThan(0.0001f));
+
+                actor.transform.position = root.transform.TransformPoint(
+                    new Vector3(6.20f, 0f, 0f));
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.up,
+                    actors, null, 0.5f, out _), Is.False,
+                    "An ORK movement footprint must still remain inside the relocated arena.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(actor);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        // A trigger-only ORK actor still occupies the wide physical space of
+        // its box. A successful step preview must never pass through it even
+        // though Physics2D.CircleCast intentionally ignores triggers.
+        [Test, Order(9)]
+        public void TriggerOnlyBoxActorBlocksTheFullBattleStepFootprint()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var root = new GameObject("Isolated battle-step geometry");
+            var actor = new GameObject("Active rescuer");
+            var blocker = new GameObject("Trigger-only large actor");
+            try
+            {
+                var movement = root.AddComponent<PartyMovement2D>();
+                actor.AddComponent<CircleCollider2D>().radius = 0.3f;
+                blocker.transform.position = new Vector3(1f, 0.7f, 0f);
+                var trigger = blocker.AddComponent<BoxCollider2D>();
+                trigger.size = new Vector2(1.2f, 1.2f);
+                trigger.isTrigger = true;
+                var actors = new List<GameObject> { actor, blocker };
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.right,
+                    actors, null, 1f, out _), Is.False,
+                    "The trigger box reaches into the rescuer's real movement lane.");
+
+                blocker.transform.position = new Vector3(1f, 2f, 0f);
+                Physics2D.SyncTransforms();
+                Assert.That(movement.TryStepDestination(actor, Vector2.right,
+                    actors, null, 1f, out Vector2 destination), Is.True,
+                    "A distant box cannot reserve an unrelated movement lane.");
+                Assert.That(destination, Is.EqualTo(Vector2.right));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(actor);
+                Object.DestroyImmediate(blocker);
+            }
+        }
+
         // Run the full combat path before the separate retreat test. Returning
         // through Bootstrap can leave a pending async scene transition while
         // the next test's fresh Play Mode domain is being initialized.
@@ -516,9 +593,14 @@ namespace Rpg.Tests.Editor
             List<Combatant> participants = ORK.Game.Combatants.GetInBattle();
             Assert.That(participants.Count, Is.EqualTo(4),
                 "ORK must register all three scene rescuers and the beast in one battle.");
-            // The active player turn must never trap the player with all
-            // exploration controls and all exit actions hidden.
-            yield return null;
+            // ORK may register/re-enable its default 3D movement controller
+            // after the initial scene transition and well beyond 16 frames.
+            // Keep the real rescue scene running across that window: a
+            // conflicting CharacterController must never reach Update.
+            for (int controllerWindowFrame = 0; controllerWindowFrame < 24; controllerWindowFrame++)
+                yield return null;
+            Assert.That(party.Leader.GetComponent<CharacterController>(), Is.Null,
+                "The 2D rescue leader cannot acquire ORK's 3D CharacterController.");
             Assert.That(Object.FindObjectsByType<ButtonPlayerController>(
                     FindObjectsSortMode.None).Any(controller => controller.isActiveAndEnabled),
                 Is.False,
