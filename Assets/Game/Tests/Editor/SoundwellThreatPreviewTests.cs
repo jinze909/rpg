@@ -102,6 +102,13 @@ namespace Rpg.Tests.Editor
                 patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
                 Assert.That(captures, Is.EqualTo(1));
                 body.simulated = true;
+                // The EditMode physics engine may reset the Rigidbody pose
+                // when simulation is re-enabled. Require an actual second
+                // overlap rather than an assumed stale transform position.
+                body.position = overlap;
+                Assert.That(body.position.x, Is.GreaterThan(0.55f));
+                Assert.That(Vector2.Distance(body.position, patrol.Position),
+                    Is.LessThan(BeastPatrolAndChase.ContactRadius));
                 patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
                 Assert.That(captures, Is.EqualTo(2),
                     "Only a reactivated physical contact can count as another capture.");
