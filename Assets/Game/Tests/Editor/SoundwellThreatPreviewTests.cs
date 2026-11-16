@@ -42,7 +42,7 @@ namespace Rpg.Tests.Editor
                 var route = typeof(SoundwellAudioBus).GetMethod("RouteWithMixer",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 Assert.That(route, Is.Not.Null);
-                LogAssert.Expect(LogType.Error,
+                LogAssert.Expect(UnityEngine.LogType.Error,
                     "M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
                 Assert.That(route.Invoke(null, new object[] { bell, null }), Is.EqualTo(false));
                 Assert.That(bell.outputAudioMixerGroup, Is.Null,
