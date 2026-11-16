@@ -165,6 +165,37 @@ namespace Rpg.Soundwell
             readout.text = snapshot;
             attackButton.interactable = CanAttack;
             guardButton.interactable = CanGuard;
+            // A gamepad can remain focused on Attack while ORK only permits
+            // Guard this turn. Restore a legal command without stealing the
+            // player's intentional focus on Leave or another enabled button.
+            EventSystem eventSystem = EventSystem.current;
+            if (eventSystem != null)
+            {
+                Button candidate = ChooseAvailableActionFocus(
+                    eventSystem.currentSelectedGameObject, attackButton, guardButton);
+                if (candidate != null)
+                    eventSystem.SetSelectedGameObject(candidate.gameObject);
+            }
+        }
+
+        // Only repairs stale/disabled selection; an intentional valid choice
+        // (including Leave) always wins over automatic focus restoration.
+        private static Button ChooseAvailableActionFocus(
+            GameObject selected, Button attack, Button guard)
+        {
+            if (selected != null)
+            {
+                Selectable selectedControl = selected.GetComponent<Selectable>();
+                if (selectedControl != null && selectedControl.IsActive() &&
+                    selectedControl.IsInteractable())
+                    return null;
+            }
+
+            if (attack != null && attack.IsActive() && attack.IsInteractable())
+                return attack;
+            if (guard != null && guard.IsActive() && guard.IsInteractable())
+                return guard;
+            return null;
         }
 
         private void ShowRetry(string message, bool canRetry)
