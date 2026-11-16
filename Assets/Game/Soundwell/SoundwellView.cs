@@ -1945,10 +1945,18 @@ namespace Rpg.Soundwell
         private static Sprite CreatePixelSprite(string name, string[] rows,
             out Texture2D texture)
         {
-            int height = rows.Length;
-            int width = height > 0 ? rows[0].Length : 0;
+            // The scene renders both 16x16 actors and 26x6 weak planks.
+            // Validate *all* source rows before creating any native texture;
+            // a malformed later row must not orphan Texture2D on scene retry.
+            texture = null;
+            int height = rows != null ? rows.Length : 0;
+            int width = height > 0 && rows[0] != null ? rows[0].Length : 0;
             if (!((width == 16 && height == 16) || (width == 26 && height == 6)))
                 throw new System.InvalidOperationException("Invalid source pixel grid dimensions.");
+            for (int y = 0; y < height; y++)
+                if (rows[y] == null || rows[y].Length != width)
+                    throw new System.InvalidOperationException("Inconsistent source pixel row width.");
+
             texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
             {
                 name = name,
@@ -1960,8 +1968,6 @@ namespace Rpg.Soundwell
             for (int y = 0; y < height; y++)
             {
                 string row = rows[height - 1 - y];
-                if (row.Length != width)
-                    throw new System.InvalidOperationException("Inconsistent source pixel row width.");
                 for (int x = 0; x < width; x++)
                 {
                     char value = row[x];

@@ -59,6 +59,75 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SoundwellViewRejectsInvalidActorAndPlankPixelsBeforeTextureAllocation()
+        {
+            var method = typeof(SoundwellView).GetMethod("CreatePixelSprite",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static);
+            Assert.That(method, Is.Not.Null);
+            const string invalidName = "R5 invalid SoundwellView grid allocation";
+            var actor = Enumerable.Repeat("................", 16).ToArray();
+            var plank = Enumerable.Repeat("..........................", 6).ToArray();
+            var brokenActor = (string[])actor.Clone();
+            brokenActor[15] = "...";
+            var nullActor = (string[])actor.Clone();
+            nullActor[6] = null;
+            var brokenPlank = (string[])plank.Clone();
+            brokenPlank[5] = "..........";
+
+            try
+            {
+                foreach (string[] rows in new string[][]
+                    { null, new string[0], new string[16], brokenActor, nullActor,
+                      brokenPlank })
+                {
+                    object[] args = { invalidName, rows, null };
+                    var error = Assert.Throws<System.Reflection.TargetInvocationException>(
+                        () => { method.Invoke(null, args); });
+                    Assert.That(error.InnerException,
+                        Is.TypeOf<System.InvalidOperationException>());
+                    Assert.That(args[2], Is.Null,
+                        "Invalid art must never expose a newly allocated native texture.");
+                    Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
+                        .Any(t => t.name == invalidName), Is.False,
+                        "Malformed actor or plank pixels must not leak Texture2D.");
+                }
+
+                // Both dimensions are actually authored in the current scene.
+                foreach (string[] rows in new[] { actor, plank })
+                {
+                    object[] args = { "R5 validated view pose", rows, null };
+                    Sprite sprite = null;
+                    Texture2D texture = null;
+                    try
+                    {
+                        sprite = (Sprite)method.Invoke(null, args);
+                        texture = (Texture2D)args[2];
+                        Assert.That(sprite, Is.Not.Null);
+                        Assert.That(texture, Is.Not.Null);
+                        Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
+                        Assert.That(texture.width, Is.EqualTo(rows[0].Length));
+                        Assert.That(texture.height, Is.EqualTo(rows.Length));
+                        Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
+                    }
+                    finally
+                    {
+                        if (sprite != null)
+                            Object.DestroyImmediate(sprite);
+                        if (texture != null)
+                            Object.DestroyImmediate(texture);
+                    }
+                }
+            }
+            finally
+            {
+                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(t => t.name == invalidName))
+                    Object.DestroyImmediate(orphan);
+            }
+        }
+
+        [Test]
         public void S00BridgeheadFocusRecoversGuardWithoutStealingAnIntentionalSelection()
         {
             // Unit-test the same focus decision used each live ORK HUD frame.
