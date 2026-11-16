@@ -94,6 +94,17 @@ namespace Rpg.Tests.Editor
             Assert.That(setup, Does.Not.Contain("GetField(\"name\""));
         }
 
+        [Test]
+        public void SoundwellAtlasValidationRemainsExplicitInsteadOfGlobalBuildInterceptor()
+        {
+            // The P0 gate still validates saved atlas dependencies, while
+            // unrelated profiles must not require the Soundwell importer.
+            InvokeSoundwellSpriteAtlasSetup("Validate");
+            string setup = File.ReadAllText("Assets/Game/Editor/SoundwellSpriteAtlasSetup.cs");
+            Assert.That(setup, Does.Not.Contain("IPreprocessBuildWithReport"));
+            Assert.That(setup, Does.Not.Contain("OnPreprocessBuild("));
+        }
+
         [Test, Order(1)]
         public void Urp2DRendererIsTheOnlyActivePipeline()
         {

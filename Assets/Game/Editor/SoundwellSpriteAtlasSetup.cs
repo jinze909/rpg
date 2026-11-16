@@ -3,8 +3,6 @@ using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.Build;
-using UnityEditor.Build.Reporting;
 using UnityEditor.U2D;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -16,7 +14,7 @@ namespace Rpg.Editor
     /// Prepare authors the V2 importer once; every subsequent clean build only
     /// validates the persisted atlas and its source GUID dependencies.
     /// </summary>
-    public sealed class SoundwellSpriteAtlasSetup : IPreprocessBuildWithReport
+    public static class SoundwellSpriteAtlasSetup
     {
         private const string Root = "Assets/Game/Resources/Soundwell/Tiles";
         private const string AtlasPath = Root + "/SoundwellWalls.spriteatlasv2";
@@ -27,14 +25,9 @@ namespace Rpg.Editor
             Root + "/GratingJoined.png"
         };
 
-        public int callbackOrder => -100;
-
-        public void OnPreprocessBuild(BuildReport report)
-        {
-            // Do not generate untracked assets in a clean verify build.
-            // The P0 prepare/publish workflow owns asset authoring and writeback.
-            Validate();
-        }
+        // CI and the explicit P0 validation entrypoint invoke Validate().
+        // A project-wide build interceptor would block unrelated
+        // builds when Soundwell assets have not been imported yet.
 
         public static void Prepare()
         {
