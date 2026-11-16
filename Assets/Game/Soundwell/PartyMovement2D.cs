@@ -218,15 +218,21 @@ namespace Rpg.Soundwell
             return (point - (start + segment * fraction)).sqrMagnitude;
         }
 
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
         // Preserve the existing entrypoint for callers and authored tests.
         public static bool FitsBattleStepInArena(Vector2 centre, float footprintRadius) =>
             FitsBattleStepInArena(centre, footprintRadius, new Vector2(6.7f, 2.85f));
 
         public static bool FitsBattleStepInArena(
             Vector2 centre, float footprintRadius, Vector2 halfExtents) =>
-            footprintRadius >= 0f && !float.IsNaN(footprintRadius) &&
+            // A corrupted level extent must never turn a restricted ORK
+            // movement preview into an unbounded walkable arena.
+            IsFinite(centre.x) && IsFinite(centre.y) &&
+            IsFinite(footprintRadius) && footprintRadius >= 0f &&
+            IsFinite(halfExtents.x) && IsFinite(halfExtents.y) &&
             halfExtents.x > 0f && halfExtents.y > 0f &&
-            !float.IsNaN(halfExtents.x) && !float.IsNaN(halfExtents.y) &&
             Mathf.Abs(centre.x) + footprintRadius <= halfExtents.x &&
             Mathf.Abs(centre.y) + footprintRadius <= halfExtents.y;
     }

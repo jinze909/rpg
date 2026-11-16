@@ -652,6 +652,36 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CorruptedBattleBoundsNeverAuthorizeAnOutOfArenaStep()
+        {
+            // Invalid scene serialization and motion math cannot enlarge
+            // the ORK arena or consume a real actor's single movement step.
+            var authoredBounds = new Vector2(6.7f, 2.85f);
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(1f, 0f), 0.3f, authoredBounds), Is.True);
+            foreach (float bad in new[]
+            {
+                float.NaN, float.PositiveInfinity, float.NegativeInfinity
+            })
+            {
+                Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                    Vector2.zero, bad, authoredBounds), Is.False);
+                Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                    new Vector2(bad, 0f), 0.3f, authoredBounds), Is.False);
+                Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                    new Vector2(0f, bad), 0.3f, authoredBounds), Is.False);
+                Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                    Vector2.zero, 0.3f, new Vector2(bad, 2.85f)), Is.False);
+                Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                    Vector2.zero, 0.3f, new Vector2(6.7f, bad)), Is.False);
+            }
+
+            Assert.That(PartyMovement2D.FitsBattleStepInArena(
+                new Vector2(6.5f, 0f), 0.3f, authoredBounds), Is.False,
+                "A valid arena must still reject the actor's overhanging footprint.");
+        }
+
+        [Test]
         public void OrkStepMustKeepWholeCombatantInsideSavedBattleBounds()
         {
             // The previous centre-only check allowed a character's 2D
