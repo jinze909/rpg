@@ -1,5 +1,7 @@
 # AI2 当前状态
 
+- 叙事写作基线已更新，未实现、未验收。
+
 本页只保留当前接力，不代替实时 GitHub 核对。故事 003 移动版代表环的工程验收与技术基线见[故事卡](production/stories/003-soundwell-turn-rescue.md)；M1–M11 另见[现代化事实核查](docs/technical/MODERNIZATION_VERIFIED_STATUS.md)。
 
 - **当前目标**。故事 003 已完成本轮移动版工程验收；按既有《归来》序幕 S00 白水渡继续，尚未完成的桥头 ORK 防守及第三声断桥必须逐项真实实现，不能用演出代替战斗。
