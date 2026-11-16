@@ -96,8 +96,22 @@ namespace Rpg.Editor
             };
             var global = EditorBuildSettings.scenes.Where(x => x.enabled).Select(x => x.path).ToArray();
             var own = profile.GetScenesForBuild().Where(x => x.enabled).Select(x => x.path).ToArray();
-            if (!global.SequenceEqual(expected) || !own.SequenceEqual(global))
-                throw new InvalidOperationException("Both profiles must use the same two authoritative scenes.");
+            // The authored Whitewater prologue may later become a real saved
+            // scene. Admit exactly that third scene, never arbitrary extras.
+            const string prelude = "Assets/Game/Scenes/WhitewaterPrelude.unity";
+            bool includesPrelude = global.Length == expected.Length + 1 &&
+                global.Take(expected.Length).SequenceEqual(expected) &&
+                global[global.Length - 1] == prelude;
+            if ((!global.SequenceEqual(expected) && !includesPrelude) ||
+                !own.SequenceEqual(global))
+                throw new InvalidOperationException(
+                    "Both saved profiles must use the authoritative Bootstrap/Trial scenes and optional authored Whitewater prologue.");
+            foreach (string scenePath in global)
+            {
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) == null)
+                    throw new InvalidOperationException(
+                        "Build Profile references a missing authored Unity scene: " + scenePath);
+            }
             return profile;
         }
 
