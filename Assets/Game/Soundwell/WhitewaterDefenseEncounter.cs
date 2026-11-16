@@ -310,6 +310,14 @@ namespace Rpg.Soundwell
             callback?.Invoke(victory);
         }
 
+        // A retiring ORK HUD must not leave a gamepad focus target or an
+        // interactable button behind during Unity's deferred Destroy().
+        // Never clear a selection owned by the entry screen or another menu.
+        private static bool ShouldClearRetiredHudFocus(
+            GameObject selected, Transform retiringHud) =>
+            selected != null && retiringHud != null &&
+            selected.transform.IsChildOf(retiringHud);
+
         public void Stop()
         {
             active = false;
@@ -322,8 +330,17 @@ namespace Rpg.Soundwell
                 party.ResetEncounter();
             if (hud != null)
             {
-                Destroy(hud.gameObject);
+                Canvas retiringHud = hud;
                 hud = null;
+                EventSystem eventSystem = EventSystem.current;
+                if (eventSystem != null &&
+                    ShouldClearRetiredHudFocus(eventSystem.currentSelectedGameObject,
+                        retiringHud.transform))
+                    eventSystem.SetSelectedGameObject(null);
+                // Destroy happens after the current frame. Deactivate now so
+                // stale Attack/Guard/Continue can never receive another click.
+                retiringHud.gameObject.SetActive(false);
+                Destroy(retiringHud.gameObject);
             }
             onCompleted = null;
         }
