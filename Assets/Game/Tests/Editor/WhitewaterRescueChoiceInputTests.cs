@@ -17,6 +17,42 @@ namespace Rpg.Tests.Editor
     public sealed class WhitewaterRescueChoiceInputTests
     {
         [Test]
+        public void S00StationBindingLabelsCacheUntilEffectiveControlsChange()
+        {
+            var root = new GameObject("S00 binding prompt cache test");
+            try
+            {
+                var stage = root.AddComponent<WhitewaterPrelude>();
+                var owner = typeof(WhitewaterPrelude);
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var signature = owner.GetMethod("StationPromptBindingSignature", flags);
+                var notify = owner.GetMethod("OnStationActionChanged", flags);
+                var cache = owner.GetField("cachedStationBindings", flags);
+                Assert.That(signature, Is.Not.Null);
+                Assert.That(notify, Is.Not.Null);
+                Assert.That(cache, Is.Not.Null);
+
+                string first = (string)signature.Invoke(stage, null);
+                Assert.That(cache.GetValue(stage), Is.EqualTo(first));
+                // A normal gameplay action must not re-query all five labels.
+                cache.SetValue(stage, "cached S00 bindings");
+                notify.Invoke(stage, new object[] { null, InputActionChange.ActionStarted });
+                Assert.That(signature.Invoke(stage, null), Is.EqualTo("cached S00 bindings"));
+                // An effective rebind must invalidate the cache and restore
+                // the actual Input System labels before the next cue frame.
+                notify.Invoke(stage, new object[] { null,
+                    InputActionChange.BoundControlsChanged });
+                Assert.That(signature.Invoke(stage, null), Is.EqualTo(first));
+                Assert.That(cache.GetValue(stage), Is.EqualTo(first));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void UnwonOrkEncounterCannotAdvanceS00ViaStaleContinueCallback()
         {
             // The Continue button is displayed only after ORK victory, but a
