@@ -891,7 +891,9 @@ namespace Rpg.Soundwell
                 // Pressing E away from the last wounded civilian must not
                 // silently discard the real input or grant an unearned escort.
                 if (phase == 9 && instructions != null)
-                    instructions.text = Mathf.Abs(walker.y) > EvacueeContactReachY
+                    instructions.text = Mathf.Abs(walker.y) > EvacueeContactReachY ||
+                        (evacuee != null &&
+                         Mathf.Abs(walker.y - evacuee.anchoredPosition.y) > EvacueeContactReachY)
                         ? Copy("Return to the bridge lane beside the amber evacuee, then press E / Pad A to help.",
                             "请回到金色伤者身旁的桥面通道，再按 E／手柄 A 搀扶。")
                         : Copy("Too far from the amber evacuee. Walk beside them, then press E / Pad A to help.",
