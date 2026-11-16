@@ -16,21 +16,71 @@ namespace Rpg.Soundwell
         public const string MutePreferenceKey = "rpg.soundwell.audio.sfx-muted.v1";
         public static bool IsMuted => PlayerPrefs.GetInt(MutePreferenceKey, 0) != 0;
 
+        // A Soundwell stage can create more than one bell source. Keep the
+        // authored mixer and SFX group across scene-local source replacements.
+        private static AudioMixer cachedMixer;
+        private static AudioMixerGroup cachedSfxGroup;
+
+        private static AudioMixer CurrentMixer()
+        {
+            if (cachedMixer == null)
+                cachedMixer = Resources.Load<AudioMixer>(MixerResource);
+            return cachedMixer;
+        }
+
         public static void Route(AudioSource bell)
         {
             if (bell == null)
                 throw new ArgumentNullException(nameof(bell));
-            AudioMixer mixer = Resources.Load<AudioMixer>(MixerResource);
+            RouteWithMixer(bell, CurrentMixer());
+        }
+
+        // Missing/edited resources should not crash the scene while the
+        // player is walking or rescuing someone. Keep a muted source muted
+        // even if the authored SFX bus cannot be loaded or controlled.
+        private static bool RouteWithMixer(AudioSource bell, AudioMixer mixer)
+        {
             if (mixer == null)
-                throw new InvalidOperationException("M6 Soundwell AudioMixer asset is missing.");
-            var outputs = mixer.FindMatchingGroups("SFX").Where(g => g.name == "SFX").ToArray();
-            if (outputs.Length != 1)
-                throw new InvalidOperationException("Expected exactly one SFX mixer output.");
-            bell.outputAudioMixerGroup = outputs[0];
-            // Connecting a new scene must not overwrite the player's mute choice.
-            // Only the explicit SetMuted command is allowed to update preferences.
+            {
+                bell.mute = IsMuted;
+                Debug.LogError("M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
+                return false;
+            }
+
+            AudioMixerGroup output = cachedSfxGroup;
+            if (output == null || output.audioMixer != mixer)
+            {
+                var outputs = mixer.FindMatchingGroups("SFX")
+                    .Where(group => group.name == "SFX").ToArray();
+                if (outputs.Length != 1)
+                {
+                    bell.mute = IsMuted;
+                    Debug.LogError("M6 Soundwell mixer must have exactly one SFX output; using direct AudioSource mute fallback.");
+                    return false;
+                }
+                cachedSfxGroup = output = outputs[0];
+            }
+
+            bell.outputAudioMixerGroup = output;
             if (!mixer.SetFloat(VolumeParameter, IsMuted ? -80f : 0f))
-                throw new InvalidOperationException("The SFX volume control is not exposed by the saved mixer.");
+            {
+                bell.mute = IsMuted;
+                Debug.LogError("M6 Soundwell SFX volume parameter is unavailable; using direct AudioSource mute fallback.");
+                return false;
+            }
+
+            // The saved mixer is authoritative again; do not retain a stale
+            // per-source mute from an earlier fallback.
+            bell.mute = false;
+            return true;
+        }
+
+        public static bool ToggleMuted()
+        {
+            if (SetMuted(CurrentMixer(), !IsMuted))
+                return true;
+            Debug.LogError("M6 Soundwell SFX toggle unavailable; keeping the player's saved preference.");
+            return false;
         }
 
         public static bool SetMuted(AudioMixer mixer, bool muted)
