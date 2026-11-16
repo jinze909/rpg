@@ -93,6 +93,9 @@ namespace Rpg.Soundwell
         // The party remains ORK-owned for battles, but its exploration input is
         // exclusively handled by the saved Soundwell 2D Input System adapter.
         private bool playerAssignedToOrk;
+        // ORK can spawn or re-enable its 3D controller long after SetPlayer,
+        // including during turn changes. Keep suppressing only that movement
+        // component for the lifetime of Soundwell's active 2D player.
         private bool battleObservedActive;
         private bool fixedFormationForEncounter;
         private bool battleEndRequested;
@@ -348,6 +351,12 @@ namespace Rpg.Soundwell
             setting.reward.experience = new[] { experience };
             quest.SetFinished(members[0], false, false, true, false, false);
             return quest.IsFinished();
+        }
+
+        private void WatchOrkControllerRegistration()
+        {
+            // Cover the controller that may already exist before this frame.
+            DisableConflicting3DPlayerControllers();
         }
 
         private void Update()
@@ -625,13 +634,17 @@ namespace Rpg.Soundwell
         private void AssignPlayerGroup()
         {
             if (ORK.Game.PlayerHandler.ActiveGroup == PlayerGroup)
+            {
+                playerAssignedToOrk = true;
+                WatchOrkControllerRegistration();
                 return;
+            }
 
             ORK.Game.PlayerHandler.SetGroup(0, PlayerGroup, false);
             ORK.Game.PlayerHandler.SetActiveGroup(0, false, false);
             ORK.Game.PlayerHandler.SetPlayer(members[0], false);
             playerAssignedToOrk = true;
-            DisableConflicting3DPlayerControllers();
+            WatchOrkControllerRegistration();
         }
 
         public bool TryStartDirectEncounter()
@@ -657,6 +670,7 @@ namespace Rpg.Soundwell
             battleEndRequested = false;
             battleStartedAt = Time.realtimeSinceStartup;
             battle.StartGroup(EnemyGroup, null);
+            WatchOrkControllerRegistration();
             return true;
         }
 

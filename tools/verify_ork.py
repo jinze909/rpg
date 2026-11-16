@@ -9,13 +9,25 @@ import zipfile
 PROJECT = Path(__file__).resolve().parent.parent
 
 
+def valid_vendor_manifest_path(name):
+    """Only pinned Unity vendor assets may be verified under this manifest."""
+    if not isinstance(name, str) or not name or name != name.strip() or "\\\\" in name:
+        return False
+    path = PurePosixPath(name)
+    if path.is_absolute() or "." in path.parts or ".." in path.parts or path.as_posix() != name:
+        return False
+    roots = (PurePosixPath("Assets/Gaming Is Love"), PurePosixPath("Assets/Gizmos"))
+    return any(path == root or path == PurePosixPath(str(root) + ".meta")
+               or root in path.parents for root in roots)
+
+
 def verify():
     manifest = json.loads((PROJECT / "docs/ork-package-manifest.json").read_text())
     entries = manifest["files"]
     paths = set()
     for entry in entries:
         relative = PurePosixPath(entry["path"])
-        if relative.is_absolute() or ".." in relative.parts or str(relative) in paths:
+        if not valid_vendor_manifest_path(entry["path"]) or str(relative) in paths:
             raise ValueError(f"Invalid or duplicate manifest path: {relative}")
         paths.add(str(relative))
         target = PROJECT.joinpath(*relative.parts)

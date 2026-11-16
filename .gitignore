@@ -16,7 +16,7 @@
 *.unitypackage
 __pycache__/
 
-# ORK/Makinom vendor assets are tracked; repository visibility does not change their license terms.
+# ORK/Makinom vendor assets are tracked for this private project.
 # Ignore generated backups, downloads and local editor data only.
 /Assets/Gaming Is Love/_Backups/
 /Assets/Gaming Is Love/_Backups.meta

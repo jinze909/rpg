@@ -34,12 +34,25 @@ namespace Rpg.Soundwell
         public bool IsCarrying => variables.GetInt(CarryKey) != 0;
         public bool AtBell => Vector2.Distance(player.position, bell.position) <= Reach;
         public bool CanPlaceBell => IsCarrying && TryFindBellStand(player.position, out _);
-        public Vector2 HearingPoint => new Vector2(1.15f, bell.position.y);
+        // The drawn bell stands are children of the trial root. Convert
+        // the authored side stand and hearing lane to world positions so a
+        // relocated/rotated trial still points the beast at the real bell.
+        public Vector2 SideBellStandWorldPosition =>
+            transform.TransformPoint(SoundwellTrial.SideBellStand);
+        public Vector2 HearingPoint
+        {
+            get
+            {
+                Vector3 bellLocal = transform.InverseTransformPoint(bell.position);
+                return transform.TransformPoint(new Vector3(1.15f, bellLocal.y, 0f));
+            }
+        }
 
         // Spatial authority for gate, survivor and physical evidence
         // interactions. The beast service never reads these private fields.
-        private bool Near(Vector2 point, float reach) =>
-            player != null && Vector2.Distance(player.position, point) <= reach;
+        private bool Near(Vector2 localPoint, float reach) =>
+            player != null && Vector2.Distance(player.position,
+                (Vector2)transform.TransformPoint(localPoint)) <= reach;
         public bool NearGatePanel => Near(new Vector2(-0.55f, 0f), 0.8f);
         public bool NearSurveyor => Near(SoundwellTrial.SurveyorPosition, 1.05f);
         public bool NearUpperPlank => Near(SoundwellTrial.UpperBoardPosition, 0.68f);
@@ -49,9 +62,10 @@ namespace Rpg.Soundwell
 
         public bool TryFindBellStand(Vector2 position, out Vector2 stand)
         {
-            if (Vector2.Distance(position, SoundwellTrial.SideBellStand) <= StandReach)
+            Vector2 sideStand = SideBellStandWorldPosition;
+            if (Vector2.Distance(position, sideStand) <= StandReach)
             {
-                stand = SoundwellTrial.SideBellStand;
+                stand = sideStand;
                 return true;
             }
             if (Vector2.Distance(position, bellHome) <= StandReach)

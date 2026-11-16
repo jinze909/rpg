@@ -15,6 +15,142 @@ namespace Rpg.Tests.Editor
     // neither the authored choice nor a timer may automatically rescue Han Qiao.
     public sealed class WhitewaterRescueChoiceInputTests
     {
+        [Test]
+        public void EvacueePickupRequiresOverlappingPixelFootprints()
+        {
+            // A clamp tool can reach 44px, but two 32px-wide actors cannot
+            // start a physical escort while there is still a visible gap.
+            var root = new GameObject("S00 evacuee contact check");
+            var civilianObject = new GameObject("S00 wounded civilian", typeof(RectTransform));
+            try
+            {
+                civilianObject.transform.SetParent(root.transform, false);
+                var prelude = root.AddComponent<WhitewaterPrelude>();
+                var civilian = civilianObject.GetComponent<RectTransform>();
+                civilian.anchoredPosition = new Vector2(-72f, 12f);
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterPrelude);
+                var phaseField = type.GetField("phase", flags);
+                var walkerField = type.GetField("walker", flags);
+                var evacueeField = type.GetField("evacuee", flags);
+                Assert.That(phaseField, Is.Not.Null);
+                Assert.That(walkerField, Is.Not.Null);
+                Assert.That(evacueeField, Is.Not.Null);
+                evacueeField.SetValue(prelude, civilian);
+                phaseField.SetValue(prelude, 9);
+
+                walkerField.SetValue(prelude, new Vector2(-72f + 44f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "The wider cable-repair radius cannot pick up a distant civilian.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 32f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "Two 32px bodies that only touch at their edges are not overlapping.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.True,
+                    "One pixel of body overlap on the bridge lane allows the escort.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, 29f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "Horizontal contact from below the walkable lane is insufficient.");
+                phaseField.SetValue(prelude, 8);
+                walkerField.SetValue(prelude, new Vector2(-72f, 0f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "Boarding Han Qiao cannot prematurely start the next rescue.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void TruncatedS00PixelActorDoesNotLeaveUnmanagedTexture()
+        {
+            var generator = typeof(WhitewaterPrelude).GetMethod("MakeActorSprite",
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Static);
+            Assert.That(generator, Is.Not.Null);
+            string[] art = Enumerable.Repeat("................", 16).ToArray();
+            art[4] = "truncated";
+            var existingTextures = Resources.FindObjectsOfTypeAll<Texture2D>();
+            object[] parameters = { "invalid wounded silhouette", art,
+                new Color32(128, 80, 80, 255), null };
+            try
+            {
+                var error = Assert.Throws<System.Reflection.TargetInvocationException>(
+                    () => generator.Invoke(null, parameters));
+                Assert.That(error.InnerException,
+                    Is.TypeOf<System.InvalidOperationException>());
+                Assert.That(parameters[3], Is.Null,
+                    "A rejected sprite must never hand out a native texture.");
+                Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(texture => !existingTextures.Contains(texture)), Is.Empty,
+                    "Reject malformed S00 art before allocating an orphan texture.");
+            }
+            finally
+            {
+                // Clean up even if a regression creates the very leak that
+                // this test must catch, so later Unity tests stay independent.
+                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(texture => !existingTextures.Contains(texture)))
+                    UnityEngine.Object.DestroyImmediate(orphan);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            WhitewaterPrelude stage = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                InputSystem.AddDevice<Keyboard>();
+                InputSystem.AddDevice<Gamepad>();
+                stage = new GameObject("S00 choice translation regression")
+                    .AddComponent<WhitewaterPrelude>();
+                stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                yield return null;
+
+                Button first = FindButton(stage, "S00 choice 0");
+                Button second = FindButton(stage, "S00 choice 1");
+                Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("Here."));
+                Assert.That(second.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("Raise your hand."));
+                Assert.That(stage.Phase, Is.Zero);
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                yield return null;
+                Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("在。"));
+                Assert.That(second.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("举手示意"));
+                Assert.That(stage.Phase, Is.Zero,
+                    "Changing language cannot answer the roll call for the player.");
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                yield return null;
+                Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("Here."));
+                Assert.That(stage.Phase, Is.Zero);
+                second.onClick.Invoke();
+                Assert.That(stage.Phase, Is.EqualTo(1),
+                    "The original choice remains operable after both locale changes.");
+            }
+            finally
+            {
+                if (stage != null)
+                    stage.Close();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
+        }
+
         [UnityTest]
         public IEnumerator PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction()
         {
@@ -180,6 +316,40 @@ namespace Rpg.Tests.Editor
                     }
                     if (rescueChoice == 1)
                     {
+                        // Shen Li's station starts horizontally within reach.
+                        // Stepping off the narrow bridge lane cannot rescue
+                        // Han Qiao from below the decking, even after the
+                        // player explicitly presses the real interact key.
+                        input.Press(keys.sKey);
+                        float offLaneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (activePrelude.CanRescue && Time.realtimeSinceStartup < offLaneDeadline)
+                            yield return null;
+                        input.Release(keys.sKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanRescue, Is.False,
+                            "The player must be on the bridge lane to reach the visible rescue station.");
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(7),
+                            "An off-lane E press must not board Han Qiao.");
+                        Assert.That(activePrelude.CurrentInstructions,
+                            Does.Contain("Not at the gold rescue station"),
+                            "The player needs a usable return-to-station hint.");
+                        input.Press(keys.wKey);
+                        offLaneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (!activePrelude.CanRescue && Time.realtimeSinceStartup < offLaneDeadline)
+                            yield return null;
+                        input.Release(keys.wKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanRescue, Is.True,
+                            "Returning to Shen Li's bridge lane must restore the rescue interaction.");
+                        Assert.That(activePrelude.Phase, Is.EqualTo(7),
+                            "Walking back never earns a rescue without a fresh E.");
+                    }
+                    if (rescueChoice == 1)
+                    {
                         Assert.That(shenLiLine.sizeDelta.x, Is.GreaterThan(300f),
                             "The rope should actually span the water to Han Qiao.");
                         Assert.That(activePrelude.Phase, Is.EqualTo(7),
@@ -317,6 +487,23 @@ namespace Rpg.Tests.Editor
                         Assert.That(inWater.anchoredPosition.x - passengerDockX,
                             Is.EqualTo(boatTravel).Within(0.1f),
                             "The rescued passenger cannot drift away from the moving boat.");
+
+                        // The first two rescue stations leave the player far
+                        // from the last civilian. A real premature E must
+                        // explain proximity instead of silently doing nothing
+                        // or skipping the earned approach.
+                        if (!activePrelude.CanHelpEvacuee)
+                        {
+                            input.Press(keys.eKey);
+                            yield return null;
+                            input.Release(keys.eKey);
+                            yield return null;
+                            Assert.That(activePrelude.Phase, Is.EqualTo(9),
+                                "An out-of-range interaction cannot start an escort.");
+                            Assert.That(activePrelude.CurrentInstructions,
+                                Does.Contain("Too far from the amber evacuee"),
+                                "The actual keyboard action must explain the failed reach check.");
+                        }
                         input.Press(keys.aKey);
                         float reachDeadline = Time.realtimeSinceStartup + 4f;
                         while (!activePrelude.CanHelpEvacuee && Time.realtimeSinceStartup < reachDeadline)
@@ -324,6 +511,35 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.aKey);
                         yield return null;
                         Assert.That(activePrelude.CanHelpEvacuee, Is.True);
+                        // A player horizontally beside the civilian but off the
+                        // bridge's narrow walkable lane cannot begin the escort.
+                        // The same real E action must explain how to get back.
+                        input.Press(keys.sKey);
+                        float laneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (activePrelude.CanHelpEvacuee &&
+                               Time.realtimeSinceStartup < laneDeadline)
+                            yield return null;
+                        input.Release(keys.sKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanHelpEvacuee, Is.False,
+                            "Vertical separation cannot count as touching the wounded civilian.");
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(9),
+                            "An off-lane E press cannot start an unearned rescue.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("bridge lane"),
+                            "The physical contact failure should give a usable recovery hint.");
+                        input.Press(keys.wKey);
+                        laneDeadline = Time.realtimeSinceStartup + 2f;
+                        while (!activePrelude.CanHelpEvacuee &&
+                               Time.realtimeSinceStartup < laneDeadline)
+                            yield return null;
+                        input.Release(keys.wKey);
+                        yield return null;
+                        Assert.That(activePrelude.CanHelpEvacuee, Is.True,
+                            "Returning to the bridge beside the same civilian restores contact.");
                         input.Press(keys.eKey);
                         yield return null;
                         input.Release(keys.eKey);
@@ -342,6 +558,18 @@ namespace Rpg.Tests.Editor
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Green indicates a follower is connected to the escort.");
 
+                        // An early confirmation must never skip the walk or
+                        // silently ignore the player's actual input.
+                        input.Press(keys.eKey);
+                        yield return null;
+                        input.Release(keys.eKey);
+                        yield return null;
+                        Assert.That(activePrelude.Phase, Is.EqualTo(10),
+                            "A premature handoff must not complete the evacuation.");
+                        Assert.That(activePrelude.CurrentInstructions,
+                            Does.Contain("Not at the green safe line"),
+                            "The player needs a clear recovery action after early E.");
+
                         input.Press(keys.sKey);
                         float separationDeadline = Time.realtimeSinceStartup + 4f;
                         while (follower.color.r <= follower.color.g && Time.realtimeSinceStartup < separationDeadline)
@@ -357,6 +585,19 @@ namespace Rpg.Tests.Editor
                         Assert.That(escortStatus.text, Is.EqualTo("WAIT"),
                             "Off-lane separation must show readable state beside the follower.");
 
+                        // Switching locale without moving must refresh the
+                        // recovery instruction and readable follower status.
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("桥面通道"),
+                            "A stranded player must see the lane recovery in the selected language.");
+                        Assert.That(escortStatus.text, Is.EqualTo("等待"));
+                        Assert.That(activePrelude.Phase, Is.EqualTo(10));
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("bridge lane"));
+                        Assert.That(escortStatus.text, Is.EqualTo("WAIT"));
+
                         input.Press(keys.wKey);
                         float regroupDeadline = Time.realtimeSinceStartup + 3f;
                         while (follower.color.g <= follower.color.r && Time.realtimeSinceStartup < regroupDeadline)
@@ -369,6 +610,16 @@ namespace Rpg.Tests.Editor
                             "Regrouping must replace the previous amber recovery hint.");
                         Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"),
                             "Returning to the lane must restore readable follower state.");
+
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("绿色"),
+                            "The connected-escort guidance must update in place with the locale.");
+                        Assert.That(escortStatus.text, Is.EqualTo("跟随"));
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        yield return null;
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("Green: following"));
+                        Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"));
                         Assert.That(activePrelude.Phase, Is.EqualTo(10),
                             "Regrouping never skips the physical safe-line confirmation.");
 
@@ -384,6 +635,9 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.aKey);
                         yield return null;
                         Assert.That(activePrelude.CanDeliverEvacuee, Is.True);
+                        Assert.That(activePrelude.CurrentInstructions,
+                            Does.Contain("At the green safe line"),
+                            "The handoff hint must become affirmative only when both bodies arrive.");
                         input.Press(keys.eKey);
                         yield return null;
                         input.Release(keys.eKey);
