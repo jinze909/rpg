@@ -1008,8 +1008,8 @@ namespace Rpg.Soundwell
                 "One more person crosses the safe line. Enemy troops close in; Shen Li still watches the bridge cable.",
                 "又一人越过安全线。敌军越逼越近，沈砾仍在留意桥上的缆索。");
             instructions.text = Copy(
-                "Call for spare rope to help the bridge crew. The ORK defence is a later slice.",
-                "呼喊多余的绳索，提醒桥头同伴。ORK 防守战仍属后续切片。");
+                "Call for spare rope to help the bridge crew.",
+                "呼喊多余的绳索，提醒桥头同伴。");
             next.gameObject.name = "S00 call for spare rope";
             Text label = next.GetComponentInChildren<Text>(true);
             if (label != null)
@@ -1043,8 +1043,8 @@ namespace Rpg.Soundwell
                 "You shout, 'Who has spare rope?' A coil reaches Shen Li at the clamp. The first bell sounds; she turns toward the strained cable.",
                 "你喊：“谁带了多余的绳子？”一卷绳索送到缆桩边的沈砾手里。第一声号钟响起，她转头望向吃紧的缆索。");
             instructions.text = Copy(
-                "WASD / left stick: reach Shen Li's amber bridge post; press E / Pad A to take position. ORK defence remains pending.",
-                "用 WASD／左摇杆走到沈砾附近金色桥头守位，按 E／手柄 A 就位。ORK 防守战仍待实现。");
+                "WASD / left stick: reach Shen Li's amber bridge post; press E / Pad A to take position.",
+                "用 WASD／左摇杆走到沈砾附近金色桥头守位，按 E／手柄 A 就位。");
             SoundwellInputAdapter.SetGameplayContext();
         }
 
