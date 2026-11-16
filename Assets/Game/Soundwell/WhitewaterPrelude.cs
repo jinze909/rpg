@@ -3,6 +3,7 @@ using System.Collections;
 using GamingIsLove.Makinom;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -135,6 +136,11 @@ namespace Rpg.Soundwell
         private bool shownBridgeCueReachable;
         private string shownBridgeCueLanguage;
         private string shownBridgeCueBindings;
+        // The S00 movement motor still polls reachability every frame, but
+        // formatting five effective Input System binding labels is only
+        // necessary after the underlying controls actually change.
+        private bool stationBindingsDirty = true;
+        private string cachedStationBindings;
         private int rescueMethod;
         private bool shownRescueCueReachable;
         private string shownRescueCueLanguage;
@@ -197,12 +203,36 @@ namespace Rpg.Soundwell
         // language. Keep station cues in sync with all controls they print:
         // walking, hauling and cancelling. This is UI-only and never writes
         // an input action, Makinom state or gameplay phase.
-        private static string StationPromptBindingSignature() =>
-            string.Concat(SoundwellInputAdapter.GameplayKeyboardMovementLabel(), "|",
+        private void OnEnable()
+        {
+            InputSystem.onActionChange += OnStationActionChanged;
+            stationBindingsDirty = true;
+        }
+
+        private void OnDisable()
+        {
+            InputSystem.onActionChange -= OnStationActionChanged;
+        }
+
+        private void OnStationActionChanged(object source, InputActionChange change)
+        {
+            if (change == InputActionChange.BoundControlsChanged)
+                stationBindingsDirty = true;
+        }
+
+        private string StationPromptBindingSignature()
+        {
+            if (!stationBindingsDirty && cachedStationBindings != null)
+                return cachedStationBindings;
+            cachedStationBindings = string.Concat(
+                SoundwellInputAdapter.GameplayKeyboardMovementLabel(), "|",
                 SoundwellInputAdapter.GameplayKeyboardInteractionLabel(), "|",
                 SoundwellInputAdapter.GameplayGamepadInteractionLabel(), "|",
                 SoundwellInputAdapter.GameplayKeyboardBackLabel(), "|",
                 SoundwellInputAdapter.GameplayGamepadBackLabel());
+            stationBindingsDirty = false;
+            return cachedStationBindings;
+        }
 
         private static bool Chinese => SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
         private static string Copy(string en, string zh)
