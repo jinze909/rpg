@@ -1353,8 +1353,8 @@ namespace Rpg.Soundwell
                 "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds; the armed figures are still advancing over the far span.",
                 "你在沈砾身边扶住缆索，把送来的绳卷拉上缆桩。它暂时绷住了，可对岸持械的人影仍在逼近。");
             instructions.text = Copy(
-                "The cable is held for now, not saved. ORK bridge defence and the fixed third-bell break remain ahead. Return to entry.",
-                "缆索暂时撑住，并没有改变结局。ORK 桥头防守战与既定的第三声断桥仍在后续。可返回入口。");
+                "Hold the cable. The guards are closing; an ORK bridgehead battle is about to begin. Choose Attack or Guard when your turn appears.",
+                "继续扶住缆索。守军正在逼近，ORK 桥头战斗即将开始。轮到你时选择攻击或防御。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }

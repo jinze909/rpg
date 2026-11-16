@@ -1093,6 +1093,11 @@ namespace Rpg.Tests.Editor
                         Assert.That(cable.GetComponent<Image>().color.r, Is.GreaterThan(0.9f),
                             "Shen Li's strained cable must show the physical hold.");
                         Assert.That(activePrelude.CurrentNarration, Does.Contain("For a moment it holds"));
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("about to begin"),
+                            "Bracing the cable must prepare players for the earned ORK battle, not tell them to leave.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("Attack or Guard"));
+                        Assert.That(activePrelude.CurrentInstructions, Does.Not.Contain("Return to entry"),
+                            "The upcoming bridgehead encounter must not be described as a completed dead end.");
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.True);
                         Assert.That(bell.clip.name, Does.Contain("second warning bell"),
                             "Holding the cable must not invent a third bell or a fake ORK victory.");
