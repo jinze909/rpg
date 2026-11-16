@@ -10,8 +10,16 @@ namespace Rpg.Soundwell
             string[] rows, string name, out Texture2D texture)
         {
             const int size = 16;
-            if (rows.Length != size)
+            texture = null;
+            if (rows == null || rows.Length != size)
                 throw new System.InvalidOperationException("Pixel rescuer requires 16 rows.");
+            // Validate the entire grid before allocating a native Texture2D.
+            // Rejecting a malformed later row must never leak an unowned
+            // texture, especially during repeated failed scene initialization.
+            for (int i = 0; i < size; i++)
+                if (rows[i] == null || rows[i].Length != size)
+                    throw new System.InvalidOperationException(
+                        "Pixel rescuer row must be 16 pixels.");
 
             texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
@@ -23,8 +31,6 @@ namespace Rpg.Soundwell
             var pixels = new Color32[size * size];
             for (int y = 0; y < size; y++)
             {
-                if (rows[size - 1 - y].Length != size)
-                    throw new System.InvalidOperationException("Pixel rescuer row must be 16 pixels.");
                 for (int x = 0; x < size; x++)
                 {
                     char part = rows[size - 1 - y][x];
