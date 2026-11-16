@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Rpg.Soundwell
@@ -24,6 +25,39 @@ namespace Rpg.Soundwell
         // the hazard; consecutive render/physics updates must not count as
         // separate captures of an overlapping rescuer.
         private bool contactLatched;
+
+        // First physics-safety increment: visual patrol may not sweep through
+        // saved solid Tilemap/BoxCollider walls. A fixed-step Rigidbody motor
+        // can replace Transform movement later without removing this clearance.
+        [SerializeField, Min(0.05f)] private float beastClearanceRadius = 0.20f;
+        private static readonly ContactFilter2D SolidSceneFilter =
+            new ContactFilter2D { useTriggers = false };
+        private readonly List<RaycastHit2D> solidHits = new List<RaycastHit2D>(8);
+
+        private Vector2 ConstrainBeastMotion(Vector2 from, Vector2 intended)
+        {
+            Vector2 step = intended - from;
+            if (step.sqrMagnitude <= 0.000001f)
+                return intended;
+            float length = step.magnitude;
+            Vector2 direction = step / length;
+            Physics2D.CircleCast(from, beastClearanceRadius, direction,
+                SolidSceneFilter, solidHits, length);
+            float permitted = length;
+            foreach (RaycastHit2D hit in solidHits)
+            {
+                if (hit.collider == null || hit.collider.transform.IsChildOf(beast))
+                    continue;
+                // ORK characters and the player remain controlled by ORK /
+                // their own Rigidbody2D; only stationary level geometry
+                // blocks this scene-owned patrol motion.
+                Rigidbody2D body = hit.collider.attachedRigidbody;
+                if (body != null && body.bodyType != RigidbodyType2D.Static)
+                    continue;
+                permitted = Mathf.Min(permitted, Mathf.Max(0f, hit.distance - 0.01f));
+            }
+            return from + direction * permitted;
+        }
 
         public event Action SearchExpired;
         public event Action PlayerCaught;
@@ -119,8 +153,8 @@ namespace Rpg.Soundwell
                                 0.8f * Mathf.Sin(time * 2f)));
                 }
                 Vector2 position = beast.position;
-                Vector2 next = Vector2.MoveTowards(position, destination,
-                    2.5f * Time.deltaTime);
+                Vector2 next = ConstrainBeastMotion(position,
+                    Vector2.MoveTowards(position, destination, 2.5f * Time.deltaTime));
                 Vector2 facing = next - position;
                 if (facing.sqrMagnitude > 0.000001f)
                     beast.rotation = Quaternion.Euler(0f, 0f,

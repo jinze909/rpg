@@ -45,6 +45,50 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PatrolSweepStopsAtRealSolidWallsAndIgnoresTriggerZones()
+        {
+            var root = new GameObject("patrol obstruction root");
+            var beast = new GameObject("patrolling beast");
+            var rescuer = new GameObject("safe player");
+            var wall = new GameObject("physical stone wall");
+            var trigger = new GameObject("nonblocking trigger");
+            try
+            {
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(beast.transform, body, Vector2.zero);
+                wall.transform.position = new Vector3(0.5f, 0f, 0f);
+                wall.AddComponent<BoxCollider2D>().size = new Vector2(0.2f, 2f);
+                trigger.transform.position = new Vector3(0.25f, 0.7f, 0f);
+                var sensor = trigger.AddComponent<BoxCollider2D>();
+                sensor.isTrigger = true;
+                Physics2D.SyncTransforms();
+
+                var sweep = typeof(BeastPatrolAndChase).GetMethod("ConstrainBeastMotion",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+                Assert.That(sweep, Is.Not.Null);
+                Vector2 blocked = (Vector2)sweep.Invoke(patrol,
+                    new object[] { Vector2.zero, Vector2.right });
+                Assert.That(blocked.x, Is.LessThan(0.40f),
+                    "Static wall collision must stop the visible beast before crossing it.");
+                Vector2 clear = (Vector2)sweep.Invoke(patrol,
+                    new object[] { Vector2.zero, Vector2.up });
+                Assert.That(clear.y, Is.EqualTo(1f).Within(0.0001f),
+                    "A nonblocking trigger cannot act like a solid wall.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(trigger);
+                Object.DestroyImmediate(wall);
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BeastContactFollowsTrialOriginAndRearmsAfterExit()
         {
             // Keep all three translated positions in one strictly named NUnit
