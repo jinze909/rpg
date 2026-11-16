@@ -413,9 +413,14 @@ namespace Rpg.Soundwell
         /// Read-only snapshot for the provisional battle HUD. ORK remains the
         /// authority for HP, turn choice, battle outcomes and available actions.
         /// </summary>
+        internal static bool HasReadoutRoster(int memberCount) => memberCount > 0;
+
         public string BuildBattleReadout()
         {
-            if (!BattleInProgress || members.Count != 3 || Beast == null)
+            // A combatant can retire during an ORK state transition. Do not
+            // blank the entire surviving party HUD just because a roster
+            // temporarily contains fewer than the prototype's three actors.
+            if (!BattleInProgress || !HasReadoutRoster(members.Count) || Beast == null)
                 return string.Empty;
 
             var text = new StringBuilder(SoundwellUiLocalization.Get("battle.heading"))
@@ -445,7 +450,7 @@ namespace Rpg.Soundwell
                     // 1/1 means unspent, not a promise that every direction is free.
                     if (fixedFormationForEncounter)
                         text.Append("  ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
-                    else
+                    else if (i < lastStepTurn.Length)
                         text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
                             .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
                 }
