@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.Audio;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace Rpg.Tests.Editor
 {
@@ -328,6 +329,94 @@ namespace Rpg.Tests.Editor
                 Object.DestroyImmediate(leader);
                 Object.DestroyImmediate(actor);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator FocusedTrialLanguageButtonKeepsSubmitAndCancelRouting()
+        {
+            // A keyboard/gamepad player must be able to change the live trial
+            // language inside its real focus menu, without losing selection,
+            // ringing the bell, or becoming trapped when pressing Cancel.
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity",
+                OpenSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            float deadline = Time.realtimeSinceStartup + 30f;
+            while ((!Maki.Initialized || !ORK.Initialized) &&
+                   Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(Maki.Initialized && ORK.Initialized, Is.True);
+            var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+            Assert.That(entry, Is.Not.Null);
+            AsyncOperation loading = entry.OpenTrial();
+            Assert.That(loading, Is.Not.Null);
+            deadline = Time.realtimeSinceStartup + 20f;
+            while (!loading.isDone && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.That(loading.isDone, Is.True);
+
+            SoundwellTrial trial = null;
+            deadline = Time.realtimeSinceStartup + 25f;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                trial = Object.FindFirstObjectByType<SoundwellTrial>();
+                if (trial != null && trial.IsReady)
+                    break;
+                yield return null;
+            }
+            Assert.That(trial != null && trial.IsReady, Is.True);
+            trial.ReadInput = false;
+            var languageButton = GameObject.Find("Soundwell Language button")
+                ?.GetComponent<Button>();
+            Assert.That(languageButton, Is.Not.Null);
+            string previousLanguage = SoundwellUiLocalization.Language;
+            string key = SoundwellUiLocalization.LanguagePreferenceKey;
+            bool savedPreference = PlayerPrefs.HasKey(key);
+            string previousPreference = PlayerPrefs.GetString(key, string.Empty);
+            try
+            {
+                trial.SetActionMenuOpen(true);
+                Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
+                Assert.That(languageButton.navigation.mode,
+                    Is.EqualTo(Navigation.Mode.Automatic),
+                    "Trial locale must be reachable in focused keyboard/gamepad navigation.");
+                EventSystem events = EventSystem.current;
+                Assert.That(events, Is.Not.Null);
+                events.SetSelectedGameObject(languageButton.gameObject);
+                yield return null;
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(languageButton.gameObject),
+                    "A regular world HUD refresh cannot steal language-button focus.");
+
+                ExecuteEvents.Execute(languageButton.gameObject,
+                    new BaseEventData(events), ExecuteEvents.submitHandler);
+                yield return null;
+                Assert.That(SoundwellUiLocalization.Language,
+                    Is.Not.EqualTo(previousLanguage),
+                    "Focused UGUI Submit must invoke the actual language action.");
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(languageButton.gameObject),
+                    "Switching locale must not throw keyboard/gamepad focus away.");
+                Assert.That(trial.ActionMenuOpen, Is.True);
+                Assert.That(trial.DirectCombatStarted, Is.False);
+
+                ExecuteEvents.Execute(languageButton.gameObject,
+                    new BaseEventData(events), ExecuteEvents.cancelHandler);
+                yield return null;
+                Assert.That(trial.ActionMenuOpen, Is.False,
+                    "UGUI Cancel must close the focused menu from Language.");
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                    "After Cancel, movement and world controls must be restored.");
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                if (savedPreference)
+                    PlayerPrefs.SetString(key, previousPreference);
+                else
+                    PlayerPrefs.DeleteKey(key);
+                PlayerPrefs.Save();
+            }
+            yield return new ExitPlayMode();
         }
 
         [UnityTest]

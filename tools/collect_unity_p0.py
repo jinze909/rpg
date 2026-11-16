@@ -59,6 +59,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.SoundwellDirectVictoryEscortTests.OrkVictoryDoesNotBypassSurvivorEscortOrSafeArrival",
     },
     "Assets/Game/Tests/Editor/SoundwellTrialTests.cs": {
+        "FocusedTrialLanguageButtonKeepsSubmitAndCancelRouting":
+            "Rpg.Tests.Editor.SoundwellTrialTests.FocusedTrialLanguageButtonKeepsSubmitAndCancelRouting",
         "BeastKnockbackKeepsCarriedBellWithRescuerOnContactFrame":
             "Rpg.Tests.Editor.SoundwellTrialTests.BeastKnockbackKeepsCarriedBellWithRescuerOnContactFrame",
         "BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope":

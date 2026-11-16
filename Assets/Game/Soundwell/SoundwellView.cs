@@ -535,7 +535,8 @@ namespace Rpg.Soundwell
             menuStatus.resizeTextMinSize = 11;
             menuStatus.resizeTextMaxSize = 14;
 
-            // Pointer-accessible locale toggle remains separate from gameplay actions.
+            // The locale toggle remains a UGUI setting, not a gameplay action.
+            // Let focused keyboard/gamepad navigation reach it as well as the pointer.
             languageButton = CreateActionButton(actionCanvas.transform, "Language", "", 7,
                 SoundwellUiLocalization.Toggle);
             var langRect = (RectTransform)languageButton.transform;
@@ -550,7 +551,7 @@ namespace Rpg.Soundwell
             // The Input System sends Cancel directly to the selected object.
             // Let the trial owner restore the input context or withdraw from ORK.
             foreach (var button in new[] { ringButton, wrapButton, retryButton,
-                backButton, carryButton, gateButton, attackButton, guardButton, openGateButton,
+                backButton, carryButton, gateButton, languageButton, attackButton, guardButton, openGateButton,
                 moveButton, confirmMoveButton, cancelMoveButton })
                 button.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
                     .Initialize(cancelActionMenu);
@@ -572,7 +573,7 @@ namespace Rpg.Soundwell
         {
             actionMenuOpen = open;
             foreach (var button in new[] { ringButton, wrapButton, retryButton, backButton,
-                carryButton, gateButton })
+                carryButton, gateButton, languageButton })
                 button.navigation = new Navigation
                 {
                     mode = open ? Navigation.Mode.Automatic : Navigation.Mode.None
@@ -1058,7 +1059,8 @@ namespace Rpg.Soundwell
         private bool IsActionSelection(GameObject selected) =>
             selected == ringButton.gameObject || selected == wrapButton.gameObject ||
             selected == retryButton.gameObject || selected == backButton.gameObject ||
-            selected == carryButton.gameObject || selected == gateButton.gameObject;
+            selected == carryButton.gameObject || selected == gateButton.gameObject ||
+            selected == languageButton.gameObject;
 
         private void EnsureActionSelection()
         {
