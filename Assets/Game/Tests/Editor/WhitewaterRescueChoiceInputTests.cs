@@ -878,7 +878,11 @@ namespace Rpg.Tests.Editor
                         // rendered second. Await the same physical target,
                         // not a fixed number of frames or a shortened timer.
                         float pressureDeadline = Time.realtimeSinceStartup + 8f;
-                        while (((RectTransform)approaching).anchoredPosition.x <
+                        // Pixel-snapped motion can land exactly on this
+                        // whole-pixel threshold. Wait until the strict
+                        // assertion below is true, not until it first equals
+                        // the threshold (the old float motor overshot it).
+                        while (((RectTransform)approaching).anchoredPosition.x <=
                                threatStartX + 70f &&
                                Time.realtimeSinceStartup < pressureDeadline)
                             yield return null;
