@@ -30,6 +30,37 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellOrkBattleTests
     {
         [Test]
+        public void S00BridgeheadActionsRemainInViewOnUltrawideScreens()
+        {
+            var slots = typeof(WhitewaterDefenseEncounter).GetMethod(
+                "VerticalHudSlots",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(slots, Is.Not.Null);
+            Vector2 regular = (Vector2)slots.Invoke(null,
+                new object[] { 16f / 9f });
+            Assert.That(regular, Is.EqualTo(new Vector2(190f, -190f)),
+                "Ordinary 16:9 battle positioning must not change.");
+
+            // Under a CanvasScaler 960x540 MatchWidthOrHeight=0.5 the
+            // logical height collapses as a screen becomes wider.
+            foreach (float aspect in new[] { 32f / 9f, 5f })
+            {
+                float halfHeight = 0.5f *
+                    Mathf.Sqrt(960f * 540f / aspect);
+                Vector2 anchors = (Vector2)slots.Invoke(null,
+                    new object[] { aspect });
+                Assert.That(anchors.x + 22f,
+                    Is.LessThanOrEqualTo(halfHeight - 12f),
+                    "The 44px heading must not crop above the viewport.");
+                Assert.That(anchors.y - 26f,
+                    Is.GreaterThanOrEqualTo(-halfHeight + 12f),
+                    "The 52px Attack/Guard/Leave row must remain selectable.");
+                Assert.That(anchors.x, Is.GreaterThan(anchors.y));
+            }
+        }
+
+        [Test]
         public void RetiredS00OrkHudFocusClearsOnlyItsOwnButtons()
         {
             var hud = new GameObject("S00 retiring defense HUD");

@@ -428,19 +428,23 @@ namespace Rpg.Soundwell
             layoutAspect = aspect;
             bool compact = aspect <= 1.35f;
 
-            // A portrait window's logical Canvas width can be far smaller
-            // than the 960px reference. Fixed +/-320 buttons were cropped,
-            // including the only retreat option between ORK turns.
+            // The portrait menu needs a compact horizontal arrangement.
+            // Ultrawide screens are the inverse problem: CanvasScaler makes
+            // the logical height too short for fixed +/-190 UI positions,
+            // clipping ORK commands and the only safe retreat route.
+            Vector2 vertical = VerticalHudSlots(aspect);
+            bool shallow = aspect > 2.55f;
+            float actionY = vertical.y;
             PositionButton(attackButton, compact
-                ? new Vector2(-84f, -160f) : new Vector2(-320f, -190f));
+                ? new Vector2(-84f, -160f) : new Vector2(-320f, actionY));
             PositionButton(guardButton, compact
-                ? new Vector2(84f, -160f) : new Vector2(-160f, -190f));
+                ? new Vector2(84f, -160f) : new Vector2(-160f, actionY));
             PositionButton(retryButton, compact
-                ? new Vector2(0f, -160f) : new Vector2(0f, -190f));
+                ? new Vector2(0f, -160f) : new Vector2(0f, actionY));
             PositionButton(continueButton, compact
-                ? new Vector2(0f, -160f) : new Vector2(0f, -190f));
+                ? new Vector2(0f, -160f) : new Vector2(0f, actionY));
             PositionButton(retreatButton, compact
-                ? new Vector2(0f, -235f) : new Vector2(320f, -190f));
+                ? new Vector2(0f, -235f) : new Vector2(320f, actionY));
 
             // CanvasScaler's 0.5 MatchWidthOrHeight is the geometric
             // mean: logical width = sqrt(referenceWidth * referenceHeight
@@ -448,11 +452,35 @@ namespace Rpg.Soundwell
             float width = Mathf.Min(820f, Mathf.Max(240f,
                 Mathf.Sqrt(960f * 540f * aspect) - 40f));
             if (heading != null)
+            {
+                heading.rectTransform.anchoredPosition =
+                    new Vector2(0f, vertical.x);
                 heading.rectTransform.SetSizeWithCurrentAnchors(
                     RectTransform.Axis.Horizontal, width);
+            }
             if (readout != null)
+            {
+                readout.rectTransform.anchoredPosition = new Vector2(0f,
+                    shallow ? 0f : 28f);
                 readout.rectTransform.SetSizeWithCurrentAnchors(
                     RectTransform.Axis.Horizontal, width);
+                readout.rectTransform.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Vertical,
+                    shallow ? Mathf.Clamp(
+                        Mathf.Sqrt(960f * 540f / aspect) - 170f, 100f, 250f)
+                    : 250f);
+            }
+        }
+
+        // Full-height 16:9 and portrait keep their existing HUD positions.
+        // A 32:9/5:1 viewport instead uses its actual logical Canvas height:
+        // the heading leaves 16px above its 44px rect and the 52px action
+        // row leaves 12px below, even after a live resolution change.
+        private static Vector2 VerticalHudSlots(float aspect)
+        {
+            float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+            return new Vector2(Mathf.Min(190f, halfHeight - 38f),
+                Mathf.Max(-190f, -halfHeight + 38f));
         }
 
         private static void PositionButton(Button button, Vector2 position)
