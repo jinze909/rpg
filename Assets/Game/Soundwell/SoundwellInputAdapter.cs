@@ -64,15 +64,24 @@ namespace Rpg.Soundwell
             toggleMenu.Enable();
         }
 
+        // Shared context-switch latch: a held button may never be treated
+        // as a new press after enabling another action map. The release
+        // frame itself remains consumed; the next press is intentional.
+        private static bool ConsumeHeldLatch(ref bool latch, bool controlStillHeld)
+        {
+            if (!latch)
+                return false;
+            if (!controlStillHeld)
+                latch = false;
+            return true;
+        }
+
         public static bool InteractPressed()
         {
             EnsureLoaded();
-            if (ignoreHeldEntryUntilRelease)
-            {
-                if (!EntryControlHeld())
-                    ignoreHeldEntryUntilRelease = false;
+            if (ignoreHeldEntryUntilRelease &&
+                ConsumeHeldLatch(ref ignoreHeldEntryUntilRelease, EntryControlHeld()))
                 return false;
-            }
             return interact.WasPressedThisFrame();
         }
 
@@ -231,12 +240,9 @@ namespace Rpg.Soundwell
         public static bool ToggleMenuPressed()
         {
             EnsureLoaded();
-            if (ignoreHeldToggleUntilRelease)
-            {
-                if (!ToggleControlHeld())
-                    ignoreHeldToggleUntilRelease = false;
+            if (ignoreHeldToggleUntilRelease &&
+                ConsumeHeldLatch(ref ignoreHeldToggleUntilRelease, ToggleControlHeld()))
                 return false;
-            }
             return toggleMenu.WasPressedThisFrame();
         }
 
@@ -279,14 +285,11 @@ namespace Rpg.Soundwell
         {
             EnsureLoaded();
             bool backPressed = back.WasPressedThisFrame();
-            if (ignoreHeldBackUntilRelease)
-            {
-                // The held UI-cancel press is consumed until all bound Back
-                // controls are released. The next actual press works normally.
-                if (!BackControlHeld())
-                    ignoreHeldBackUntilRelease = false;
+            // A held UI-cancel stays suppressed across UGUI -> world until
+            // release; the next intentional Back works after a fresh press.
+            if (ignoreHeldBackUntilRelease &&
+                ConsumeHeldLatch(ref ignoreHeldBackUntilRelease, BackControlHeld()))
                 backPressed = false;
-            }
             return SoundwellControlFrame.FromActions(move.ReadValue<Vector2>(), ring.WasPressedThisFrame(),
                 wrap.WasPressedThisFrame(), retry.WasPressedThisFrame(), backPressed,
                 carry.WasPressedThisFrame(), gate.WasPressedThisFrame());
