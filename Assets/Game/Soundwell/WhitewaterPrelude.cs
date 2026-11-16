@@ -147,6 +147,10 @@ namespace Rpg.Soundwell
         private string shownRescueCueBindings;
         private bool evacueeWaiting;
         private bool evacueeWaitedOffLane;
+        private bool shownEvacueePickupReachable;
+        private bool shownEvacueePickupOffLane;
+        private string shownEvacueePickupLanguage;
+        private string shownEvacueePickupBindings;
         private bool shownEvacueeSafeLineReachable;
         private string shownEvacueeSafeLineLanguage;
         private string shownEvacueeSafeLineBindings;
@@ -832,6 +836,8 @@ namespace Rpg.Soundwell
             if (phase != 8 || next == null || !next.gameObject.activeInHierarchy)
                 return;
             phase = 9;
+            shownEvacueePickupLanguage = null;
+            shownEvacueePickupBindings = null;
             next.gameObject.SetActive(false);
             soldierRescueHelper.gameObject.SetActive(false);
             // The script says the last boat departs. Move the actual boat
@@ -882,6 +888,39 @@ namespace Rpg.Soundwell
                 lastBoat.gameObject.SetActive(false);
             if (hanQiao != null)
                 hanQiao.gameObject.SetActive(false);
+        }
+
+        // The amber civilian is a physical pickup, not a dialogue shortcut.
+        // Show immediate on/off-lane reach feedback before a player presses E.
+        // This is UI only: it never changes phase, follower state or Makinom.
+        private void RefreshEvacueePickupReachCue()
+        {
+            if (phase != 9 || instructions == null || evacuee == null)
+                return;
+            bool reachable = CanHelpEvacuee;
+            bool offLane = Mathf.Abs(walker.y) > EvacueeContactReachY ||
+                Mathf.Abs(walker.y - evacuee.anchoredPosition.y) > EvacueeContactReachY;
+            string locale = SoundwellUiLocalization.Language;
+            string bindings = StationPromptBindingSignature();
+            // The civilian can remain unreachable while the player changes
+            // from distant-on-bridge to off-lane. Both hints must still refresh.
+            if (shownEvacueePickupLanguage == locale &&
+                shownEvacueePickupBindings == bindings &&
+                shownEvacueePickupReachable == reachable &&
+                shownEvacueePickupOffLane == offLane)
+                return;
+            shownEvacueePickupReachable = reachable;
+            shownEvacueePickupOffLane = offLane;
+            shownEvacueePickupLanguage = locale;
+            shownEvacueePickupBindings = bindings;
+            instructions.text = reachable
+                ? Copy("Beside the amber evacuee: press E / Pad A to help, then lead west.",
+                    "已到金色伤者身旁：按 E／手柄 A 搀扶，再向西带路。")
+                : offLane
+                    ? Copy("Return to the bridge lane beside the amber evacuee, then press E / Pad A.",
+                        "请回到金色伤者身旁的桥面通道，再按 E／手柄 A 搀扶。")
+                    : Copy("Walk beside the amber evacuee, then press E / Pad A to help.",
+                        "请走到金色伤者身旁，再按 E／手柄 A 搀扶。");
         }
 
         private void HelpEvacuee()
@@ -1966,6 +2005,7 @@ namespace Rpg.Soundwell
             }
             if (phase == 9)
             {
+                RefreshEvacueePickupReachCue();
                 if (frame.Ring)
                     HelpEvacuee();
                 return;
