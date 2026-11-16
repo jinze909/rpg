@@ -427,6 +427,50 @@ namespace Rpg.Tests.Editor
                         yield return null;
                     }
 
+                    // Some valid saved remaps leave a subset of keyboard
+                    // directions unbound in BOTH keyboard composites. The
+                    // remaining keys still move the actor; the prompt must
+                    // show them, not pretend only a gamepad can move.
+                    var arrowPaths = new[] { "<Keyboard>/upArrow", "<Keyboard>/downArrow",
+                        "<Keyboard>/leftArrow", "<Keyboard>/rightArrow" };
+                    var arrowIndices = arrowPaths.Select(path =>
+                        Enumerable.Range(0, moveAction.bindings.Count)
+                            .Single(i => moveAction.bindings[i].path == path)).ToArray();
+                    var previousArrows = arrowIndices.Select(i =>
+                        moveAction.bindings[i].overridePath).ToArray();
+                    try
+                    {
+                        moveAction.ApplyBindingOverride(moveIndices[0], "");
+                        foreach (int index in arrowIndices)
+                            moveAction.ApplyBindingOverride(index, "");
+                        Assert.That(SoundwellInputAdapter.GameplayKeyboardMovementLabel(),
+                            Is.EqualTo("-/J/K/L"),
+                            "A partial keyboard remap should show actual usable keys and an unbound Up.");
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        var partialRoot = new GameObject("S00 partial keyboard movement cue regression");
+                        var partialStage = partialRoot.AddComponent<WhitewaterPrelude>();
+                        partialStage.Begin(null);
+                        partialStage.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 choice 0")
+                            .onClick.Invoke();
+                        Assert.That(partialStage.CurrentInstructions, Does.Contain("-/J/K/L"));
+                        Assert.That(partialStage.CurrentInstructions, Does.Not.Contain("IJKL"),
+                            "The removed Up binding cannot be advertised as playable.");
+                        partialStage.Close();
+                        yield return null;
+                    }
+                    finally
+                    {
+                        moveAction.ApplyBindingOverride(moveIndices[0], remaps[0]);
+                        for (int i = 0; i < arrowIndices.Length; i++)
+                        {
+                            if (previousArrows[i] == null)
+                                moveAction.RemoveBindingOverride(arrowIndices[i]);
+                            else
+                                moveAction.ApplyBindingOverride(arrowIndices[i], previousArrows[i]);
+                        }
+                    }
+
                     // A player can retain gamepad Move while disabling all
                     // keyboard directions. Override the actual composite
                     // PARTS, not their roots: Input System 1.x can throw while
