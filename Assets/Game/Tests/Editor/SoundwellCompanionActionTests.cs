@@ -795,6 +795,50 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator FollowerExplorationFreezesButBattleCueExpiresDuringPausedOrkClock()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var root = new GameObject("paused Soundwell formation");
+            var leader = new GameObject("paused formation leader");
+            var config = SoundwellPartyConfig.Load();
+            float oldScale = Time.timeScale;
+            try
+            {
+                leader.transform.SetParent(root.transform, false);
+                var formation = root.AddComponent<PartyFormationFollower>();
+                formation.Configure(leader.transform, root.transform, config);
+                GameObject actor = formation.CreateFollower(1, "paused rescuer",
+                    config.SecondFollowerOffset, Color.white);
+                actor.SetActive(true);
+                formation.SetFrameworkReady();
+                var renderer = actor.GetComponent<SpriteRenderer>();
+                Sprite idle = renderer.sprite;
+                Vector3 before = actor.transform.position;
+                Time.timeScale = 0f;
+                leader.transform.position += Vector3.right;
+                formation.RenderFollowers(false, false, false);
+                Assert.That(Vector3.Distance(actor.transform.position, before),
+                    Is.LessThan(0.00001f),
+                    "Exploration followers must not slide while Time.timeScale is zero.");
+                formation.ShowAttackPose(1, null);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(renderer.sprite, Is.Not.SameAs(idle),
+                    "The real ORK attack still shows a short visible pose.");
+                yield return new WaitForSecondsRealtime(0.45f);
+                formation.RenderFollowers(true, false, false);
+                Assert.That(renderer.sprite, Is.SameAs(idle),
+                    "The ORK battle pause must not leave a rescuer stuck attacking.");
+            }
+            finally
+            {
+                Time.timeScale = oldScale;
+                Object.Destroy(root);
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator LeaderActionAndHitFeedbackExpireDuringPausedOrkClock()
         {
             // Model ORK's scaled-time pause without invoking a fake action or

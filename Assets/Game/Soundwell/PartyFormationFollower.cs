@@ -7,6 +7,12 @@ namespace Rpg.Soundwell
     public sealed class PartyFormationFollower : MonoBehaviour
     {
         private struct Sample { public float At; public Vector3 Position; }
+        // Exploration movement and trailing samples freeze with gameplay.
+        // ORK may pause Time.timeScale while selecting a battle action, but a
+        // brief hit/attack/guard/step visual must still return to its idle pose.
+        // Only the pose clock is unscaled; actual ORK turns stay in ORK.
+        private static float FormationClock => Time.time;
+        private static float CombatVisualClock => Time.unscaledTime;
         private static readonly string[] IdlePixels =
         {
             "................",
@@ -295,7 +301,7 @@ namespace Rpg.Soundwell
             checkpointAnchor = new Vector3(checkpoint.x, checkpoint.y, 0f);
             checkpointRegroupPending = true;
             ClearHistory();
-            AddHistory(new Sample { At = Time.time, Position = checkpointAnchor });
+            AddHistory(new Sample { At = FormationClock, Position = checkpointAnchor });
             for (int i = 1; i < actors.Length; i++)
             {
                 if (actors[i] == null)
@@ -322,15 +328,15 @@ namespace Rpg.Soundwell
                 LeaderRelocationThreshold;
             if (relocated)
                 ClearHistory();
-            AddHistory(new Sample { At = Time.time, Position = position });
-            while (historyCount > 2 && HistoryAt(1).At < Time.time - 0.7f)
+            AddHistory(new Sample { At = FormationClock, Position = position });
+            while (historyCount > 2 && HistoryAt(1).At < FormationClock - 0.7f)
                 DropOldestHistory();
             return relocated;
         }
 
         private Vector3 FollowSample()
         {
-            float desired = Time.time - config.FollowerLagSeconds;
+            float desired = FormationClock - config.FollowerLagSeconds;
             for (int i = historyCount - 1; i > 0; i--)
             {
                 Sample before = HistoryAt(i - 1), after = HistoryAt(i);
@@ -358,7 +364,7 @@ namespace Rpg.Soundwell
             // The first live snapshot establishes a baseline, not a hit.
             if (lastCompanionHp[index].HasValue &&
                 hp < lastCompanionHp[index].Value - 0.001f)
-                companionHitUntil[index] = Time.unscaledTime + CompanionHitSeconds;
+                companionHitUntil[index] = CombatVisualClock + CompanionHitSeconds;
             lastCompanionHp[index] = hp;
         }
 
@@ -380,16 +386,16 @@ namespace Rpg.Soundwell
                 Sprite walking = i == 2 ? hoodWalkingSprite : walkingSprite;
                 // Reuse the real ORK actor's existing sprite; a flash never
                 // duplicates the combatant or modifies its authoritative HP.
-                renderer.color = inBattle && Time.unscaledTime < companionHitUntil[i]
+                renderer.color = inBattle && CombatVisualClock < companionHitUntil[i]
                     ? CompanionHitTint : companionTints[i];
                 if (inBattle)
                 {
                     bool defending = i == 2 ? thirdDefending : secondDefending;
-                    renderer.sprite = Time.unscaledTime < companionAttackUntil[i]
+                    renderer.sprite = CombatVisualClock < companionAttackUntil[i]
                         ? (i == 2 ? hoodAttackSprite : attackSprite)
-                        : (defending || Time.unscaledTime < companionGuardUntil[i])
+                        : (defending || CombatVisualClock < companionGuardUntil[i])
                             ? (i == 2 ? hoodGuardSprite : guardSprite)
-                            : Time.unscaledTime < companionStepUntil[i] ? walking : idle;
+                            : CombatVisualClock < companionStepUntil[i] ? walking : idle;
                     continue;
                 }
                 Vector3 goal = pathPosition + WorldFormationOffset(i == 2
@@ -410,7 +416,7 @@ namespace Rpg.Soundwell
                 if (Mathf.Abs(delta.x) > 0.001f)
                     renderer.flipX = delta.x < 0f;
                 renderer.sprite = delta.sqrMagnitude > 0.000001f &&
-                    Mathf.FloorToInt(Time.time / config.WalkFrameSeconds) % 2 == 1
+                    Mathf.FloorToInt(FormationClock / config.WalkFrameSeconds) % 2 == 1
                         ? walking : idle;
             }
             if (checkpointRegroup)
@@ -420,7 +426,7 @@ namespace Rpg.Soundwell
         public void ShowGuardPose(int index, Transform threat, bool battleStarted)
         {
             if (index <= 0 || index >= actors.Length || actors[index] == null) return;
-            companionGuardUntil[index] = Time.unscaledTime + CompanionGuardPoseSeconds;
+            companionGuardUntil[index] = CombatVisualClock + CompanionGuardPoseSeconds;
             // A newly accepted ORK Guard must win over the previous action's
             // one-shot pose on the very next render, not briefly flash Attack
             // or Step again. ORK alone still owns the Defending flag.
@@ -441,7 +447,7 @@ namespace Rpg.Soundwell
         public void ShowAttackPose(int index, Transform threat)
         {
             if (index <= 0 || index >= actors.Length || actors[index] == null) return;
-            companionAttackUntil[index] = Time.unscaledTime + CompanionAttackPoseSeconds;
+            companionAttackUntil[index] = CombatVisualClock + CompanionAttackPoseSeconds;
             // Remove the old Guard/Step presentation window when a different
             // real action is accepted. Do not resurrect it after Attack fades.
             companionGuardUntil[index] = 0f;
@@ -463,7 +469,7 @@ namespace Rpg.Soundwell
         public void ShowStepPose(int index, Vector2 direction)
         {
             if (index <= 0 || index >= actors.Length || actors[index] == null) return;
-            companionStepUntil[index] = Time.unscaledTime + CompanionStepPoseSeconds;
+            companionStepUntil[index] = CombatVisualClock + CompanionStepPoseSeconds;
             // ORK movement is a new accepted action and must not replay the
             // previous turn's attack or timed guard art when it is rendered.
             companionAttackUntil[index] = 0f;
