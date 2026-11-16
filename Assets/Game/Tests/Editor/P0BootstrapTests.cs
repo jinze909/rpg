@@ -79,6 +79,17 @@ namespace Rpg.Tests.Editor
             InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
         }
 
+        [Test]
+        public void SoundwellAtlasValidationRemainsExplicitInsteadOfGlobalBuildInterceptor()
+        {
+            // P0 still validates the exact saved atlas; other game build
+            // profiles must not be intercepted by an unrelated Soundwell hook.
+            InvokeSoundwellSpriteAtlasSetup("Validate");
+            string setup = File.ReadAllText("Assets/Game/Editor/SoundwellSpriteAtlasSetup.cs");
+            Assert.That(setup, Does.Not.Contain("IPreprocessBuildWithReport"));
+            Assert.That(setup, Does.Not.Contain("OnPreprocessBuild("));
+        }
+
         [Test, Order(1)]
         public void Urp2DRendererIsTheOnlyActivePipeline()
         {
