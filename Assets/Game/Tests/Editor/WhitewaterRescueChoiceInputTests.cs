@@ -15,6 +15,42 @@ namespace Rpg.Tests.Editor
     // neither the authored choice nor a timer may automatically rescue Han Qiao.
     public sealed class WhitewaterRescueChoiceInputTests
     {
+
+        [Test]
+        public void SharedS00PixelRasterizerRetainsAuthoredCoatAndTransparentCorners()
+        {
+            var rasterizer = typeof(WhitewaterPrelude).Assembly.GetType(
+                "Rpg.Soundwell.SoundwellPixelSpriteBuilder");
+            Assert.That(rasterizer, Is.Not.Null);
+            var create = rasterizer.GetMethod("Create16Colored",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(create, Is.Not.Null);
+            var rows = new string[16];
+            for (int i = 0; i < rows.Length; i++)
+                rows[i] = "................";
+            rows[0] = "ck..............";
+            var coat = new Color32(73, 104, 186, 255);
+            var args = new object[] { rows, "shared S00 test coat", coat, null };
+            var sprite = (Sprite)create.Invoke(null, args);
+            var texture = (Texture2D)args[3];
+            try
+            {
+                Assert.That(texture, Is.Not.Null);
+                Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
+                Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(texture.GetPixel(0, 15), Is.EqualTo((Color)coat));
+                Assert.That(texture.GetPixel(1, 15),
+                    Is.EqualTo((Color)new Color32(24, 32, 41, 255)));
+                Assert.That(texture.GetPixel(3, 15).a, Is.Zero);
+            }
+            finally
+            {
+                Object.DestroyImmediate(sprite);
+                Object.DestroyImmediate(texture);
+            }
+        }
+
         [Test]
         public void EvacueePickupRequiresOverlappingPixelFootprints()
         {
