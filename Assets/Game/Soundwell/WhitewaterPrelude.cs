@@ -151,6 +151,9 @@ namespace Rpg.Soundwell
         // The v1.2 Tax Collector wrench beat consumes two separate earned
         // gameplay interactions; Makinom remains owner of the repair outcome.
         private int clampKnocks;
+        // The v1.2 wrench questions are a UI substate of the clamp approach;
+        // they do not advance the player's movement or repair phase.
+        private bool wrenchQuestionsOpen;
         // Only the third earned safe-line handoff completes S00-04 in v1.2.
         // These are the cook, the straggling wounded soldier and the
         // shield-bearing young soldier, in that fixed authored order.
@@ -341,6 +344,7 @@ namespace Rpg.Soundwell
             thirdBellStarted = false;
             phase = 0;
             clampKnocks = 0;
+            wrenchQuestionsOpen = false;
             // The existing InputSystemUIInputModule owns dialogue navigation.
             SoundwellInputAdapter.SetUiContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
@@ -692,6 +696,35 @@ namespace Rpg.Soundwell
             };
         }
 
+        private static Vector2[] TwoChoiceLayoutSlots(float aspect)
+        {
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                aspect = 16f / 9f;
+
+            // Keep the two authored wrench questions balanced instead of
+            // leaving the third, unused choice slot as an empty center gap.
+            if (aspect <= 0.95f)
+                return new[]
+                {
+                    new Vector2(0f, -150f), new Vector2(0f, -258f)
+                };
+
+            if (aspect >= 2.55f)
+            {
+                float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                return new[]
+                {
+                    new Vector2(-125f, halfHeight - 245f),
+                    new Vector2(125f, halfHeight - 245f)
+                };
+            }
+
+            return new[]
+            {
+                new Vector2(-125f, -192f), new Vector2(125f, -192f)
+            };
+        }
+
         private void RefreshStageLayout(bool force = false)
         {
             if (title == null || stageSubtitle == null || exit == null)
@@ -706,8 +739,14 @@ namespace Rpg.Soundwell
             stageSubtitle.rectTransform.anchoredPosition = slots[1];
             narration.rectTransform.anchoredPosition = slots[2];
             instructions.rectTransform.anchoredPosition = slots[3];
+            Vector2[] twoChoiceSlots = openChoicesEnglish != null &&
+                openChoicesEnglish.Length == 2 ? TwoChoiceLayoutSlots(aspect) : null;
             for (int i = 0; i < choices.Length; i++)
-                ((RectTransform)choices[i].transform).anchoredPosition = slots[i + 4];
+            {
+                Vector2 position = twoChoiceSlots != null && i < twoChoiceSlots.Length
+                    ? twoChoiceSlots[i] : slots[i + 4];
+                ((RectTransform)choices[i].transform).anchoredPosition = position;
+            }
             ((RectTransform)next.transform).anchoredPosition = slots[7];
             ((RectTransform)exit.transform).anchoredPosition = slots[8];
 
@@ -749,25 +788,50 @@ namespace Rpg.Soundwell
                 if (Maki.Initialized && Maki.Game?.Variables != null)
                     Maki.Game.Variables.Set(RollCallKey, choice + 1);
                 phase = 1;
+                wrenchQuestionsOpen = true;
                 HideChoices();
-                SoundwellInputAdapter.SetGameplayContext();
+                SoundwellInputAdapter.SetUiContext();
                 string replyEnglish = choice == 0 ? "Sergeant: 'Right.' "
                     : choice == 1 ? "Shen Li: 'In a hurry? Come see.' Sergeant: 'Two alive.' "
-                    : "The sergeant calls your name again. You answer '...Here.' 'Stay alert.' ";
+                    : "The sergeant calls your name a second time. You answer '...Here.' "
+                        + "The sergeant marks the list: 'Stay alert. Keep close when we cross the bridge.' ";
                 string replyChinese = choice == 0 ? "军士划一笔：“行。”"
                     : choice == 1 ? "沈砾：“催命呢？自己来看。”军士：“行，俩活人。”"
-                    : "军士又念了一遍你的名字。你：“……在。”军士：“别走神。”";
-                // Preserve the shared Ma Xiaoliu roll-call beat from v1.2
-                // rather than skipping straight from the player's reply to
-                // the clamp. RollCallKey retains its existing 1/2/3 ordering.
+                    : "军士又念了一遍你的名字。你：“……在。”"
+                        + "军士划一笔：“别走神，待会儿过桥紧着点。”";
+                // Keep the complete authored Ma Xiaoliu beat audible before
+                // the wrench questions; the scene script includes his belt,
+                // his latrine excuse and the soldiers' laugh.
                 narration.text = Copy(
-                    replyEnglish + "Ma Xiaoliu is called three times. As the sergeant raises his pen, Ma Xiaoliu rushes out: 'Here, here!' "
-                        + "Sergeant: 'Three unanswered calls and you are marked dead.' "
+                    replyEnglish + "Ma Xiaoliu is called three times. As the sergeant raises his pen, a soldier rushes out of the brush, pulling up his trousers: 'Here, here, here!' "
+                        + "The sergeant adds his name back: 'Three unanswered calls and you're marked dead, understand?' "
+                        + "Ma Xiaoliu nods while tying his belt: 'I know, I know! Next time I have to run to the latrine, I'll answer first!' The others laugh. "
                         + "Shen Li hands you the 'Tax Collector' wrench.",
-                    replyChinese + "军士连念“马小六”三遍，正要划名，他冲回来：“在在在！”"
-                        + "军士：“三遍没人答，你就是死人了！”沈砾递给你“税务官”扳手。");
-                instructions.text = Copy("WASD / left stick: reach the red clamp. E / Pad A: work. Esc / Pad B: back.",
-                    "WASD／左摇杆到红色缆桩。E／手柄 A 加固，Esc／手柄 B 返回。");
+                    replyChinese + "军士连念“马小六”三遍，正要划名，草丛里有人提着裤子冲出来。"
+                        + "马小六：“在在在！”军士把名字添回去：“三遍没人答，你就是死人了，知道吗？”"
+                        + "马小六一边系腰带一边点头：“知道了知道了！下回拉肚子也先应一声！”周围有人笑。"
+                        + "沈砾递给你“税务官”扳手。");
+                instructions.text = Copy(
+                    "Ask Shen Li why she named it that, or whether her own wrench has a name.",
+                    "问沈砾为什么这样叫，或问她手里的扳手叫什么。");
+                ShowChoices(new[] { "Why call it that?", "Does your wrench have a name?" },
+                    new[] { "为什么叫这个？", "你手里那把也有名字吗？" });
+            }
+            else if (phase == 1 && wrenchQuestionsOpen)
+            {
+                // Both authored questions lead to the same instruction; the
+                // second wrench's nickname is revealed after the two knocks.
+                if (choice > 1)
+                    return;
+                wrenchQuestionsOpen = false;
+                HideChoices();
+                SoundwellInputAdapter.SetGameplayContext();
+                narration.text = Copy(
+                    "Shen Li: 'Knock twice and it will listen. Try it.'",
+                    "沈砾：“敲两下，它才肯听话。试试。”");
+                instructions.text = Copy(
+                    "Reach the red clamp. Press E / Pad A twice; the first knock does not repair the bridge. Esc / Pad B: back.",
+                    "走近红色缆桩，按 E／手柄 A 敲两下；第一下不会修好桥。Esc／手柄 B 返回。");
             }
             else if (phase == 2)
             {
@@ -2170,12 +2234,17 @@ namespace Rpg.Soundwell
 
         private void ShowChoices(string[] english, string[] chinese)
         {
+            if (english == null || chinese == null || english.Length == 0 ||
+                english.Length != chinese.Length || english.Length > choices.Length)
+                throw new ArgumentException("S00 dialogue choices require matching authored English/Chinese labels.");
+
             openChoicesEnglish = english;
             openChoicesChinese = chinese;
             shownChoiceLanguage = null;
-            foreach (Button choice in choices)
-                choice.gameObject.SetActive(true);
+            for (int i = 0; i < choices.Length; i++)
+                choices[i].gameObject.SetActive(i < english.Length);
             RefreshOpenChoiceLanguage();
+            RefreshStageLayout(true);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(choices[0].gameObject);
         }
@@ -2188,7 +2257,12 @@ namespace Rpg.Soundwell
             shownChoiceLanguage = SoundwellUiLocalization.Language;
             string[] labels = Chinese ? openChoicesChinese : openChoicesEnglish;
             for (int i = 0; i < choiceLabels.Length; i++)
-                choiceLabels[i].text = labels[i];
+            {
+                bool visible = i < labels.Length;
+                choices[i].gameObject.SetActive(visible);
+                if (visible)
+                    choiceLabels[i].text = labels[i];
+            }
         }
 
         private void HideChoices()
@@ -2293,6 +2367,8 @@ namespace Rpg.Soundwell
                 RefreshEpilogueExitPosition();
                 return;
             }
+            if (phase == 1 && wrenchQuestionsOpen)
+                return;
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
                 phase != 12 && phase != 14 && phase != 15)
                 return;
