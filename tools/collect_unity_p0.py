@@ -105,6 +105,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
         "V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy",
+        "V12RollCallAndTaxCollectorDialogueKeepTheirFullAuthoredCopy":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.V12RollCallAndTaxCollectorDialogueKeepTheirFullAuthoredCopy",
         "ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater",
     },
