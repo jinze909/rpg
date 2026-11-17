@@ -955,10 +955,17 @@ namespace Rpg.Tests.Editor
                         "Opening S00 must create its playable stage.");
                     var root = activePrelude.gameObject;
 
-                    ClickChoice(activePrelude, 0); // Roll call: the player answers.
+                    ClickChoice(activePrelude, 0); // Earn the roll-call answer.
+                    Assert.That(activePrelude.Phase, Is.EqualTo(1));
+                    Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True,
+                        "The v1.2 wrench questions still require an authored answer.");
+                    Assert.That(FindButton(activePrelude, "S00 choice 0")
+                        .GetComponentInChildren<Text>(true).text,
+                        Is.EqualTo("Why call it that?"));
+                    ClickChoice(activePrelude, 0); // Ask Shen Li about Tax Collector.
                     Assert.That(activePrelude.Phase, Is.EqualTo(1));
                     Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
-                        "The roll call must return movement control to the gameplay action map.");
+                        "Only the answered wrench question returns movement to Gameplay.");
                     input.Press(keys.dKey);
                     float repairDeadline = Time.realtimeSinceStartup + 6f;
                     while (!activePrelude.CanRepair && Time.realtimeSinceStartup < repairDeadline)
