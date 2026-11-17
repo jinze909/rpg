@@ -1457,8 +1457,8 @@ namespace Rpg.Soundwell
             if (defenseEncounter == null)
             {
                 instructions.text = Copy(
-                    "The bridgehead ORK defence is not configured in this Bootstrap scene.",
-                    "当前 Bootstrap 场景尚未配置桥头 ORK 防守战。");
+                    "The bridgehead fight is unavailable. Return to the entrance and try again.",
+                    "桥头战斗暂时无法开始。请返回入口后重试。");
                 return;
             }
 
@@ -1466,8 +1466,8 @@ namespace Rpg.Soundwell
             if (!defenseStarted)
             {
                 instructions.text = Copy(
-                    "The bridgehead defence could not start. Leave the prologue and retry after the ORK party is ready.",
-                    "桥头防守战未能启动。请退出序章，待 ORK 队伍就绪后重试。");
+                    "The bridgehead fight could not begin. Return to the entrance and try again.",
+                    "桥头战斗未能开始。请返回入口后重试。");
                 return;
             }
 
@@ -1475,8 +1475,8 @@ namespace Rpg.Soundwell
                 "The three armed silhouettes reach the span. You and Shen Li hold the cable as the bridgehead closes into a real fight.",
                 "三个持械人影逼近桥面。你和沈砾仍扶着缆索，桥头的冲突终于变成真正的战斗。");
             instructions.text = Copy(
-                "Use Attack or Guard on the active ORK turn. The enemy squad takes its own ORK turns; the scene does not fake damage or victory.",
-                "在 ORK 当前回合选择攻击或防御。敌方小队也由 ORK 自己行动；场景不会伪造伤害或胜利。");
+                "On your turn, choose Attack or Guard. The enemy soldiers act on their own turns.",
+                "轮到你行动时选择攻击或防御；敌方士兵也会在他们的回合行动。");
         }
 
         private void OnWhitewaterDefenseCompleted(bool victory)
@@ -1701,8 +1701,8 @@ namespace Rpg.Soundwell
                 "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds; the armed figures are still advancing over the far span.",
                 "你在沈砾身边扶住缆索，把送来的绳卷拉上缆桩。它暂时绷住了，可对岸持械的人影仍在逼近。");
             instructions.text = Copy(
-                "Hold the cable. The guards are closing; an ORK bridgehead battle is about to begin. Choose Attack or Guard when your turn appears.",
-                "继续扶住缆索。守军正在逼近，ORK 桥头战斗即将开始。轮到你时选择攻击或防御。");
+                "Hold the cable. Enemy soldiers are closing in; the bridgehead fight is about to begin. Choose Attack or Guard when your turn appears.",
+                "继续扶住缆索。敌兵正在逼近，桥头战斗即将开始。轮到你时选择攻击或防御。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
