@@ -741,13 +741,16 @@ namespace Rpg.Soundwell
                     Maki.Game.Variables.Set(WorkshopPromiseKey, choice + 1);
                 phase = 5;
                 HideChoices();
+                // The workshop invitation remains a conversation choice,
+                // not a hidden promise that changes rescue or battle outcomes.
+                // These are the three authored reactions in v1.2 P0.
                 narration.text = Copy(
-                    choice == 0 ? "Shen Li: 'Then I'll remember. Don't complain if the jobs are small.'"
-                    : choice == 1 ? "Shen Li: 'Fair. Don't make a promise just for me.'"
-                    : "Shen Li: 'You can explain to customers why their pots are still at war.'",
-                    choice == 0 ? "沈砾：“那我先记着。到时别嫌活小。”"
-                    : choice == 1 ? "沈砾：“行，别为了我答应。”"
-                    : "沈砾：“你来负责跟客人解释，为什么他们的锅还在打仗。”");
+                    choice == 0 ? "Shen Li: 'All right. I'll owe you the wages for now.'"
+                    : choice == 1 ? "Shen Li: 'Fine if you don't come. I'll save you a chair. I'll charge for that, too.'"
+                    : "Shen Li: 'A smart mouth goes on the bill twice.'",
+                    choice == 0 ? "沈砾：“行。工钱先欠着。”"
+                    : choice == 1 ? "沈砾：“不来也行，我给你留把椅子。椅子也收钱。”"
+                    : "沈砾：“嘴贫的人，账上记两笔。”");
                 instructions.text = Copy("S00-02 complete. Your reply matters to this conversation, not the bridge's fate.",
                     "S00-02 完成：你的回答改变这一刻的对话，不改变断桥的历史。");
                 if (EventSystem.current != null)
@@ -1992,12 +1995,12 @@ namespace Rpg.Soundwell
             next.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "Shen Li checks the tight cable. 'After the war I want a shop: pots, doors, ordinary jobs. No more half-bridges. Will you come?'",
-                "沈砾试了试缆口：“打完这仗我开间铺子。接普通单，补锅，修门。谁再抬半座桥来，我就关门。你来不来？”");
+                "Shen Li: 'After this war I want to open a shop. Quartermaster or not, I'll take the jobs I choose. Will you come?'",
+                "沈砾：“等这仗打完，我要开间铺子。不管军需官批不批，谁来我就接谁的活。挑活的那种。你来不来？”");
             instructions.text = Copy("Answer honestly. The rescue and the later reunion are not decided here.",
                 "照你的心意回答。这句话不会替你决定后来谁能获救、怎样重逢。");
-            ShowChoices(new[] { "I'll come", "I can't promise", "What about my wages?" },
-                new[] { "我会来", "我现在答应不了", "那我的工钱怎么算？" });
+            ShowChoices(new[] { "I'll come.", "Maybe later.", "Fix that nut first." },
+                new[] { "来。", "再说吧。", "你先把那个螺母修好。" });
         }
 
         private void ShowChoices(string[] english, string[] chinese)
