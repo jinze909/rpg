@@ -830,8 +830,8 @@ namespace Rpg.Soundwell
                     "Shen Li: 'Knock twice and it will listen. Try it.'",
                     "沈砾：“敲两下，它才肯听话。试试。”");
                 instructions.text = Copy(
-                    "Reach the red clamp. Press E / Pad A twice; the first knock does not repair the bridge. Esc / Pad B: back.",
-                    "走近红色缆桩，按 E／手柄 A 敲两下；第一下不会修好桥。Esc／手柄 B 返回。");
+                    "WASD / left stick: reach the red clamp. Press E / Pad A twice; the first knock does not repair the bridge. Esc / Pad B: back.",
+                    "WASD／左摇杆走近红色缆桩，按 E／手柄 A 敲两下；第一下不会修好桥。Esc／手柄 B 返回。");
             }
             else if (phase == 2)
             {
