@@ -69,17 +69,17 @@ namespace Rpg.Tests.Editor
                 thirdBell.SetValue(prelude, true);
                 prelude.Close();
 
-                // The exit callback creates and begins M00 synchronously under this
-                // owner. Read its authoritative reference instead of racing a global
-                // object search during the S00 -> M00 handoff.
+                // The exit callback creates M00 under the live entry owner.
+                // Let Unity finish the frame's deferred Destroy/activation work,
+                // then read only that owner's child hierarchy (not a global search).
                 Assert.That(entry, Is.Not.Null,
                     "The S00 exit callback must keep its Bootstrap owner alive.");
-                memorial = Object.FindAnyObjectByType<M00MemorialSquare>();
+                yield return null;
+                memorial = entry.GetComponentInChildren<M00MemorialSquare>(true);
                 Assert.That(entry.MemorialSquareOpen, Is.True,
-                    "The earned third bell must hand off to M00 before the callback returns.");
+                    "The earned third bell must hand off to M00.");
                 Assert.That(memorial, Is.Not.Null,
                     "The earned third bell must open the authored M00 memorial scene.");
-                yield return null;
                 Assert.That(entry.MemorialSquareOpen, Is.True);
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform),
                     "M00 must be owned by the real entry controller.");
