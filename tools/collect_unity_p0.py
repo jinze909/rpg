@@ -36,6 +36,12 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # Require every test actually declared in the clean candidate; never accept
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
+    "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": {
+        "MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell":
+            "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell",
+        "MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions":
+            "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions",
+    },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint",

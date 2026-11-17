@@ -29,6 +29,7 @@ namespace Rpg.Soundwell
         private RectTransform prologueRect;
         private Canvas entryCanvas;
         private WhitewaterPrelude currentPrelude;
+        private M00MemorialSquare currentMemorial;
         // A UGUI Submit that closes S00 can be the same gamepad-A event
         // read by the entry menu on that frame. Do not treat it as a second
         // request to load the combat trial or reopen the prologue.
@@ -58,6 +59,7 @@ namespace Rpg.Soundwell
         public bool LastReturnCartKitRecovered => shownCartKitRecovered;
         public bool LastReturnSafeRouteMarked => shownSafeRouteMarked;
         public int LastReturnBeastContacts => shownBeastContacts;
+        public bool MemorialSquareOpen => currentMemorial != null;
 
         private void Awake()
         {
@@ -527,7 +529,7 @@ namespace Rpg.Soundwell
 
         public void OpenPrelude()
         {
-            if (currentPrelude != null || trialLoad != null ||
+            if (currentPrelude != null || currentMemorial != null || trialLoad != null ||
                 lastPreludeExitFrame == Time.frameCount)
                 return;
             entryCanvas.enabled = false;
@@ -536,8 +538,26 @@ namespace Rpg.Soundwell
             currentPrelude = scene.AddComponent<WhitewaterPrelude>();
             currentPrelude.Begin(() =>
             {
+                // The M00 jump is earned by the actual S00 third bell. Leaving
+                // early still returns to the normal entry screen.
+                bool openMemorial = currentPrelude != null && currentPrelude.ThirdBellStarted;
                 lastPreludeExitFrame = Time.frameCount;
                 currentPrelude = null;
+                if (openMemorial)
+                {
+                    entryCanvas.enabled = false;
+                    var memorialObject = new GameObject("M00 Memorial Square · playable opening");
+                    memorialObject.transform.SetParent(transform, false);
+                    currentMemorial = memorialObject.AddComponent<M00MemorialSquare>();
+                    currentMemorial.Begin(() =>
+                    {
+                        currentMemorial = null;
+                        entryCanvas.enabled = true;
+                        if (EventSystem.current != null)
+                            EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
+                    });
+                    return;
+                }
                 entryCanvas.enabled = true;
                 SoundwellInputAdapter.SetEntryContext();
                 if (EventSystem.current != null)
@@ -627,7 +647,7 @@ namespace Rpg.Soundwell
 
         public AsyncOperation OpenTrial()
         {
-            if (trialLoad != null || currentPrelude != null ||
+            if (trialLoad != null || currentPrelude != null || currentMemorial != null ||
                 lastPreludeExitFrame == Time.frameCount)
                 return trialLoad;
             // Enter commits the scene transition. Disable the other focused
