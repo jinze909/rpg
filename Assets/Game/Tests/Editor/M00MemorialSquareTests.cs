@@ -48,7 +48,15 @@ namespace Rpg.Tests.Editor
                 entry.enabled = false;
                 memorial = new GameObject("M00 memorial-square interaction test")
                     .AddComponent<M00MemorialSquare>();
-                memorial.Begin(() => closed = true);
+                try
+                {
+                    memorial.Begin(() => closed = true);
+                }
+                catch (System.Exception error)
+                {
+                    Debug.LogException(error);
+                    throw;
+                }
                 yield return null;
 
                 Assert.That(memorial.Phase, Is.Zero);
