@@ -804,8 +804,10 @@ namespace Rpg.Tests.Editor
                     Assert.That(workshop.gameObject.activeInHierarchy, Is.True);
                     workshop.onClick.Invoke();
                     Assert.That(activePrelude.Phase, Is.EqualTo(4));
-                    ClickChoice(activePrelude, 1); // A genuine, noncommittal workshop answer.
+                    ClickChoice(activePrelude, 1); // The v1.2 'maybe later' workshop answer.
                     Assert.That(activePrelude.Phase, Is.EqualTo(5));
+                    Assert.That(activePrelude.CurrentNarration, Does.Contain("save you a chair"),
+                        "The noncommittal P0 answer cannot become a binding promise.");
                     FindButton(activePrelude, "S00 continue to last boat").onClick.Invoke();
                     Assert.That(activePrelude.Phase, Is.EqualTo(6));
 
