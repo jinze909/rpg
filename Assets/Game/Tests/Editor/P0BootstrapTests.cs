@@ -109,6 +109,80 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SavedTilemapValidationDoesNotCloseAUsersAlreadyLoadedTrial()
+        {
+            const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
+            var active = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(trialPath);
+            bool openedHere = !active.IsValid() || !active.isLoaded;
+            if (openedHere)
+                active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            bool wasDirty = active.isDirty;
+            try
+            {
+                if (wasDirty)
+                {
+                    var error = Assert.Throws<InvalidOperationException>(
+                        () => InvokeSoundwellTilemapSetup("Validate"));
+                    Assert.That(error.Message, Does.Contain("Save or discard"));
+                }
+                else
+                {
+                    Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+                }
+                Assert.That(active.IsValid() && active.isLoaded, Is.True,
+                    "Read-only Tilemap validation may not close an author's opened scene.");
+                Assert.That(active.isDirty, Is.EqualTo(wasDirty),
+                    "Validation must preserve the editor scene's dirty state.");
+            }
+            finally
+            {
+                if (openedHere && active.IsValid() && active.isLoaded)
+                    EditorSceneManager.CloseScene(active, true);
+            }
+        }
+
+        [Test]
+        public void SavedTilemapValidationRejectsDirtyLoadedTrialWithoutClosingIt()
+        {
+            const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
+            var active = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(trialPath);
+            bool openedHere = !active.IsValid() || !active.isLoaded;
+            if (openedHere)
+                active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            bool wasDirty = active.isDirty;
+            if (!wasDirty)
+                EditorSceneManager.MarkSceneDirty(active);
+            try
+            {
+                var error = Assert.Throws<InvalidOperationException>(
+                    () => InvokeSoundwellTilemapSetup("Validate"));
+                Assert.That(error.Message, Does.Contain("Save or discard"));
+                Assert.That(active.IsValid() && active.isLoaded, Is.True,
+                    "A dirty scene must remain open when validation refuses to inspect it.");
+                Assert.That(active.isDirty, Is.True,
+                    "Validation must not clear an author's unsaved scene edits.");
+            }
+            finally
+            {
+                if (openedHere && active.IsValid() && active.isLoaded)
+                {
+                    // This test opened the scene itself, so discard its temporary
+                    // dirty flag by closing the isolated scene without saving.
+                    EditorSceneManager.CloseScene(active, true);
+                }
+                else if (!wasDirty && active.IsValid() && active.isLoaded)
+                {
+                    // Unity 6000.6 has no MarkSceneClean API. We changed only
+                    // the scene dirty flag, not its objects; saving restores the
+                    // original clean editor state without discarding authored data.
+                    if (!EditorSceneManager.SaveScene(active))
+                        throw new InvalidOperationException(
+                            "Unity could not restore the previously clean Soundwell scene after the dirty-state regression.");
+                }
+            }
+        }
+
+        [Test]
         public void TilemapFirstTimePreparationRejectsDirtyScenesBeforeResourceCreation()
         {
             // Unity CI can already have an unsaved untitled scene; creating
