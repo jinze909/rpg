@@ -19,7 +19,9 @@ namespace Rpg.Tests.Editor
         {
             InputTestFixture input = null;
             bool inputReady = false;
+            bool testBodyCompleted = false;
             string originalLanguage = null;
+            string cleanupFailure = null;
             M00MemorialSquare memorial = null;
             SoundwellEntrance entry = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -32,6 +34,8 @@ namespace Rpg.Tests.Editor
                 inputReady = true;
                 originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
+                    "The player sees the v1.2 scene title, not the internal S00 story ID.");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
 
                 // Enter M00 through the same earned S00 -> M00 transition used
@@ -77,7 +81,51 @@ namespace Rpg.Tests.Editor
                     "M00 must be owned by the real entry controller.");
                 yield return null;
 
+                // The real M00 UI must remain reachable after S00. Portrait
+                // used to clip the player; 5:1 hid instructions and return.
+                RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
+                    .Single(rect => rect.gameObject.name == "M00 responsive authored view");
+                RectTransform playerRect = memorial.GetComponentsInChildren<RectTransform>(true)
+                    .Single(rect => rect.gameObject.name == "M00 player");
+                RectTransform titleRect = memorial.GetComponentsInChildren<Text>(true)
+                    .Single(label => label.text == "Your Name Carved in Stone").rectTransform;
+                RectTransform guidanceRect = memorial.GetComponentsInChildren<Text>(true)
+                    .Single(label => label.text == memorial.CurrentInstructions).rectTransform;
+                RectTransform returnRect = memorial.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "M00 return to entry")
+                    .GetComponent<RectTransform>();
+                RectTransform choiceRect = memorial.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "M00 choice 3")
+                    .GetComponent<RectTransform>();
+                var visibleRects = new[] { playerRect, titleRect, guidanceRect,
+                    returnRect, choiceRect };
+                foreach (float aspect in new[] { 9f / 16f, 32f / 9f, 5f, 16f / 9f })
+                {
+                    memorial.LayoutForViewportAspect(aspect);
+                    float scale = authored.localScale.x;
+                    float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                    float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                    Assert.That(scale, Is.GreaterThan(0f));
+                    Assert.That(authored.localScale.y, Is.EqualTo(scale).Within(0.0001f));
+                    foreach (RectTransform rect in visibleRects)
+                    {
+                        Assert.That((Mathf.Abs(rect.anchoredPosition.x) +
+                                rect.sizeDelta.x * 0.5f) * scale,
+                            Is.LessThanOrEqualTo(halfWidth - 6f),
+                            rect.name + " clipped horizontally at " + aspect);
+                        Assert.That((Mathf.Abs(rect.anchoredPosition.y) +
+                                rect.sizeDelta.y * 0.5f) * scale,
+                            Is.LessThanOrEqualTo(halfHeight - 6f),
+                            rect.name + " clipped vertically at " + aspect);
+                    }
+                }
+                memorial.LayoutForViewportAspect(
+                    (float)Screen.width / Mathf.Max(1, Screen.height));
+
                 Assert.That(memorial.Phase, Is.Zero);
+                Assert.That(memorial.GetComponentsInChildren<Text>(true)
+                    .Any(label => label.text == "Your Name Carved in Stone"), Is.True,
+                    "The player-facing M00 title must not expose its development ID.");
                 Assert.That(memorial.CanInspectStatue, Is.False,
                     "The player must walk to the memorial before reading it.");
                 input.Press(keys.eKey);
@@ -165,17 +213,49 @@ namespace Rpg.Tests.Editor
                 Assert.That(entry.MemorialSquareOpen, Is.False);
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
+                testBodyCompleted = true;
             }
             finally
             {
-                if (memorial != null)
-                    memorial.Close();
-                if (!string.IsNullOrEmpty(originalLanguage))
-                    SoundwellUiLocalization.SetLanguage(originalLanguage);
-                if (inputReady && input != null)
-                    input.TearDown();
+                // Keep teardown from masking the real PlayMode assertion/exception.
+                // Each operation is isolated so the next run reports the exact failing step.
+                try
+                {
+                    if (memorial != null)
+                    {
+                        GameObject memorialObject = memorial.gameObject;
+                        if (memorialObject != null)
+                            Object.Destroy(memorialObject);
+                    }
+                }
+                catch (System.Exception exception)
+                {
+                    cleanupFailure = "M00 object cleanup failed: " + exception;
+                }
+
+                try
+                {
+                    if (!string.IsNullOrEmpty(originalLanguage))
+                        SoundwellUiLocalization.SetLanguage(originalLanguage);
+                }
+                catch (System.Exception exception)
+                {
+                    cleanupFailure = cleanupFailure ?? ("M00 locale cleanup failed: " + exception);
+                }
+
+                try
+                {
+                    if (inputReady && input != null)
+                        input.TearDown();
+                }
+                catch (System.Exception exception)
+                {
+                    cleanupFailure = cleanupFailure ?? ("M00 InputTestFixture cleanup failed: " + exception);
+                }
             }
             yield return new ExitPlayMode();
+            if (testBodyCompleted && !string.IsNullOrEmpty(cleanupFailure))
+                Assert.Fail(cleanupFailure);
         }
 
         [UnityTest]

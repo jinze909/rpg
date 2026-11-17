@@ -108,13 +108,13 @@ namespace Rpg.Tests.Editor
                 Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(
                     Rpg.Soundwell.SoundwellUiLocalization.English);
                 Assert.That(Rpg.Soundwell.WhitewaterPrelude.SceneTitle,
-                    Is.EqualTo("S00 · Whitewater Crossing"),
-                    "English S00 must not show a permanently Chinese-only stage title.");
+                    Is.EqualTo("Whitewater Crossing"),
+                    "The v1.2 English scene title must not expose the internal S00 identifier.");
                 Rpg.Soundwell.SoundwellUiLocalization.SetLanguage(
                     Rpg.Soundwell.SoundwellUiLocalization.Chinese);
                 Assert.That(Rpg.Soundwell.WhitewaterPrelude.SceneTitle,
-                    Is.EqualTo("S00 · 白水渡"),
-                    "The same stage title must preserve its authored Chinese name.");
+                    Is.EqualTo("白水渡"),
+                    "The v1.2 Chinese title must preserve the authored name without S00.");
             }
             finally
             {
