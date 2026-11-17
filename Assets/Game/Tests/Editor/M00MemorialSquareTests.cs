@@ -21,7 +21,7 @@ namespace Rpg.Tests.Editor
             bool inputReady = false;
             string originalLanguage = null;
             M00MemorialSquare memorial = null;
-            bool closed = false;
+            SoundwellEntrance entry = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
@@ -33,43 +33,48 @@ namespace Rpg.Tests.Editor
                 originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
-                // M00 is only entered through Bootstrap's project-owned
-                // EventSystem. The empty editor scene has no UI input module,
-                // so constructing the interaction in isolation can fail in
-                // InputSystemUIInputModule before any authored input is tested.
-                // Match the real playable entry path, and disable only Entry's
-                // polling so E is exclusively handled by the M00 scene.
+
+                // Enter M00 through the same earned S00 -> M00 transition used
+                // by the player. Do not construct the scene component in an
+                // unrelated root: its parent, entry callback and input handoff
+                // are part of the actual playable path being verified.
                 EditorSceneManager.LoadSceneInPlayMode(
                     "Assets/Game/Scenes/Bootstrap.unity",
                     new LoadSceneParameters(LoadSceneMode.Single));
-                yield return null;
-                var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+                float entryDeadline = Time.realtimeSinceStartup + 8f;
+                while (entry == null && Time.realtimeSinceStartup < entryDeadline)
+                {
+                    yield return null;
+                    entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+                }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
                 entry.enabled = false;
-                memorial = new GameObject("M00 memorial-square interaction test")
-                    .AddComponent<M00MemorialSquare>();
-                StackTraceLogType previousExceptionTrace =
-                    Application.GetStackTraceLogType(LogType.Exception);
-                string capturedExceptionStack = null;
-                Application.LogCallback captureException = (condition, stackTrace, type) =>
+
+                var currentPrelude = typeof(SoundwellEntrance).GetField("currentPrelude",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var thirdBell = typeof(WhitewaterPrelude).GetField("thirdBellStarted",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(currentPrelude, Is.Not.Null);
+                Assert.That(thirdBell, Is.Not.Null);
+
+                entry.OpenPrelude();
+                yield return null;
+                var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entry);
+                Assert.That(prelude, Is.Not.Null);
+                thirdBell.SetValue(prelude, true);
+                prelude.Close();
+
+                float memorialDeadline = Time.realtimeSinceStartup + 5f;
+                while (memorial == null && Time.realtimeSinceStartup < memorialDeadline)
                 {
-                    if (type == LogType.Exception &&
-                        condition.Contains("Value does not fall within the expected range"))
-                        capturedExceptionStack = stackTrace;
-                };
-                Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
-                Application.logMessageReceived += captureException;
-                try
-                {
-                    memorial.Begin(() => closed = true);
                     yield return null;
-                    Debug.Log("M00 initialization diagnostic stack: " + capturedExceptionStack);
+                    memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
                 }
-                finally
-                {
-                    Application.logMessageReceived -= captureException;
-                    Application.SetStackTraceLogType(LogType.Exception, previousExceptionTrace);
-                }
+                Assert.That(memorial, Is.Not.Null,
+                    "The earned third bell must open the authored M00 memorial scene.");
+                Assert.That(entry.MemorialSquareOpen, Is.True);
+                Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform),
+                    "M00 must be owned by the real entry controller.");
                 yield return null;
 
                 Assert.That(memorial.Phase, Is.Zero);
@@ -157,7 +162,7 @@ namespace Rpg.Tests.Editor
                     .Single(button => button.gameObject.name == "M00 return to entry")
                     .onClick.Invoke();
                 yield return null;
-                Assert.That(closed, Is.True);
+                Assert.That(entry.MemorialSquareOpen, Is.False);
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
             }
