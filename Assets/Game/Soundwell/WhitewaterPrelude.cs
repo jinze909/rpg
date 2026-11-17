@@ -163,6 +163,7 @@ namespace Rpg.Soundwell
         private string shownEvacueePickupLanguage;
         private string shownEvacueePickupBindings;
         private bool shownEvacueeSafeLineReachable;
+        private bool shownEvacueeSafeLineLaneAligned;
         private string shownEvacueeSafeLineLanguage;
         private string shownEvacueeSafeLineBindings;
         private Vector2 walker = new Vector2(-245f, 0f);
@@ -205,7 +206,11 @@ namespace Rpg.Soundwell
             // has lost the escort and is still waiting for the player to return.
             !evacueeWaiting && walker.x <= EvacueeSafeX &&
             evacuee.anchoredPosition.x <= EvacueeSafeX + 30f &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            // A handoff is only valid when the player and the survivor are
+            // physically on the same bridge lane, not merely within the
+            // broad clamp-tool radius. Otherwise the next pickup can be
+            // visibly unreachable from the previous off-lane handoff.
+            Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
         public bool CanTakeBridgePost => phase == 12 && bridgePost != null &&
             Mathf.Abs(walker.x - BridgePostX) <= BridgeStationReachX &&
             Mathf.Abs(walker.y) <= BridgeStationReachY;
@@ -1066,6 +1071,7 @@ namespace Rpg.Soundwell
             evacueeWaiting = false;
             evacueeWaitedOffLane = false;
             shownEvacueeSafeLineReachable = false;
+            shownEvacueeSafeLineLaneAligned = false;
             shownEvacueeSafeLineLanguage = null;
             shownEvacueeSafeLineBindings = null;
             SetEvacueeEscortCue(false);
@@ -1161,11 +1167,18 @@ namespace Rpg.Soundwell
                 // An early E / Pad A must explain why the physical safe-line
                 // handoff is unavailable, never silently count as evacuation.
                 if (!evacueeWaiting && instructions != null)
-                    instructions.text = walker.x > EvacueeSafeX || Mathf.Abs(walker.y) > RepairReach
-                        ? Copy("Not at the green safe line. Lead the evacuee west before confirming.",
-                            "尚未到绿色安全线。先带伤者向西撤离，再确认交接。")
-                        : Copy("Wait for the evacuee to reach the green safe line before confirming.",
-                            "请等伤者抵达绿色安全线，再确认交接。");
+                {
+                    bool laneAligned = evacuee != null &&
+                        Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
+                    instructions.text = !laneAligned
+                        ? Copy("Return to the bridge lane and meet the evacuee at the green safe line before confirming.",
+                            "回到桥面通道，在绿色安全线与伤者会合后再确认交接。")
+                        : walker.x > EvacueeSafeX
+                            ? Copy("Not at the green safe line. Lead the evacuee west before confirming.",
+                                "尚未到绿色安全线。先带伤者向西撤离，再确认交接。")
+                            : Copy("Wait for the evacuee to reach the green safe line before confirming.",
+                                "请等伤者抵达绿色安全线，再确认交接。");
+                }
                 return;
             }
             evacueesRescued++;
@@ -2310,6 +2323,8 @@ namespace Rpg.Soundwell
                 // Show readiness only after BOTH bodies have reached the real
                 // safe line. Keep the displayed action current after rebinds.
                 bool ready = CanDeliverEvacuee;
+                bool laneAligned = evacuee != null &&
+                    Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
                 string locale = SoundwellUiLocalization.Language;
                 string bindings = StationPromptBindingSignature();
                 if (ready && (!shownEvacueeSafeLineReachable ||
@@ -2318,11 +2333,24 @@ namespace Rpg.Soundwell
                     instructions.text = Copy(
                         "At the green safe line: press E / Pad A to confirm the evacuee is safe.",
                         "已到绿色安全线：按 E／手柄 A 确认伤者安全撤离。");
+                else if (!ready && !evacueeWaiting && !laneAligned &&
+                    (shownEvacueeSafeLineLaneAligned ||
+                     shownEvacueeSafeLineLanguage != locale ||
+                     shownEvacueeSafeLineBindings != bindings))
+                    instructions.text = Copy(
+                        "Return to the bridge lane to meet the evacuee at the green safe line.",
+                        "回到桥面通道，在绿色安全线与伤者会合。");
+                else if (!ready && !evacueeWaiting && laneAligned &&
+                    !shownEvacueeSafeLineLaneAligned)
+                    instructions.text = Copy(
+                        "Green: following. Stay close; press E / Pad A at the safe line.",
+                        "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
                 else if (!ready && shownEvacueeSafeLineReachable && !evacueeWaiting)
                     instructions.text = Copy(
                         "Green: following. Stay close; press E / Pad A at the safe line.",
                         "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
                 shownEvacueeSafeLineReachable = ready;
+                shownEvacueeSafeLineLaneAligned = laneAligned;
                 shownEvacueeSafeLineLanguage = locale;
                 shownEvacueeSafeLineBindings = bindings;
                 if (frame.Ring)

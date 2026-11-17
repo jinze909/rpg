@@ -1241,12 +1241,16 @@ namespace Rpg.Tests.Editor
 
                         input.Press(keys.wKey);
                         float regroupDeadline = Time.realtimeSinceStartup + 3f;
-                        while (follower.color.g <= follower.color.r && Time.realtimeSinceStartup < regroupDeadline)
+                        while ((follower.color.g <= follower.color.r ||
+                                Mathf.Abs(activePrelude.WalkerPosition.y) > 8f) &&
+                               Time.realtimeSinceStartup < regroupDeadline)
                             yield return null;
                         input.Release(keys.wKey);
                         yield return null;
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Returning to the follower must restore a visible green escort state.");
+                        Assert.That(Mathf.Abs(activePrelude.WalkerPosition.y), Is.LessThanOrEqualTo(8f),
+                            "A safe-line handoff must also return the player to the survivor's actual bridge lane.");
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("Green: following"),
                             "Regrouping must replace the previous amber recovery hint.");
                         Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"),
