@@ -860,14 +860,14 @@ class CompilerLogTests(unittest.TestCase):
 
 
 
-class NarrativeV11WritingBaselineTests(unittest.TestCase):
-    """Cross-document checks of authored v1.1 writing, not Unity implementation."""
+class NarrativeV12WritingBaselineTests(unittest.TestCase):
+    """Checks the authoritative v1.2 writing, never substitutes for Unity gameplay tests."""
 
     @staticmethod
     def docs():
         return Path(__file__).resolve().parents[1] / "docs/narrative"
 
-    def test_all_29_v11_chapter_routes_retain_sources_and_outline(self):
+    def test_all_29_v12_chapter_routes_retain_sources_and_outline(self):
         root = self.docs()
         outline = (root / "STORY_OUTLINE.md").read_text(encoding="utf-8")
         handoff = (root / "HANDOFF_FOR_CODEX.md").read_text(encoding="utf-8")
@@ -882,9 +882,9 @@ class NarrativeV11WritingBaselineTests(unittest.TestCase):
             filename = f"SCENE_SCRIPT_{chapter}.md"
             with self.subTest(chapter=chapter):
                 self.assertTrue((root / filename).is_file(), filename)
-                self.assertIn(chr(96) + filename + chr(96), outline)
+                self.assertIn(f"({filename})", outline)
 
-    def test_survivor_identity_and_st06_family_match_v11_sources(self):
+    def test_survivor_identity_and_st06_family_match_v12_sources(self):
         root = self.docs()
         characters = (root / "CHARACTERS.md").read_text(encoding="utf-8")
         facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
@@ -892,7 +892,8 @@ class NarrativeV11WritingBaselineTests(unittest.TestCase):
         st06 = (root / "SCENE_SCRIPT_ST06.md").read_text(encoding="utf-8")
         self.assertIn("蕊亚（欧林之妹", characters)
         self.assertIn("survivor_ruiya", facts)
-        self.assertIn("st06_state", facts)
+        self.assertIn("st_states", facts)
+        self.assertIn("survivor_taoji", facts)
         for document in (characters, regional, st06):
             self.assertIn("陶霁", document)
         for document in (regional, st06):
@@ -908,7 +909,7 @@ class NarrativeV11WritingBaselineTests(unittest.TestCase):
             self.assertIn(choice, m00)
         self.assertIn("identity_reveal", m00)
         self.assertIn("四十一个", m00)
-        for clue in ("m02_clue_cable", "m02_clue_log", "m02_clue_draft"):
+        for clue in ("缆口整齐", "桥夫旧记录", "战报底稿"):
             with self.subTest(clue=clue):
                 self.assertIn(clue, m02)
                 self.assertIn(clue, facts)
@@ -930,13 +931,49 @@ class NarrativeV11WritingBaselineTests(unittest.TestCase):
         self.assertIn("ST-04", regional)
         self.assertIn("RC-04", cases)
         self.assertIn("听雾", cases)
-        self.assertIn("skill_fog_mastery", facts)
+        self.assertIn("rc04_ding_yue", facts)
+        self.assertIn("听雾", facts)
 
 
-    def test_v11_document_links_resolve_in_place_without_old_combined_scripts(self):
+    def test_v12_m00_prompt_and_rollcall_are_independent(self):
+        root = self.docs()
+        m00 = (root / "SCENE_SCRIPT_M00.md").read_text(encoding="utf-8")
+        m01 = (root / "SCENE_SCRIPT_M01.md").read_text(encoding="utf-8")
+        facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
+        for doc in (m00, m01, facts):
+            self.assertIn("identity_reveal", doc)
+            self.assertIn("xiaodou_prompted", doc)
+        self.assertIn("若 M00 没有应声，但曾帮小豆提词", m01)
+        self.assertIn("不能因提过词就改写", m01)
+
+    def test_v12_optional_rescues_and_finale_do_not_override_player_choices(self):
+        root = self.docs()
+        m09 = (root / "SCENE_SCRIPT_M09.md").read_text(encoding="utf-8")
+        m15 = (root / "SCENE_SCRIPT_M15.md").read_text(encoding="utf-8")
+        m16 = (root / "SCENE_SCRIPT_M16.md").read_text(encoding="utf-8")
+        rc03 = (root / "SCENE_SCRIPT_RC03.md").read_text(encoding="utf-8")
+        for outcome in ("survivor_ruiya = 接出", "survivor_ruiya = 延后",
+                        "survivor_ruiya = 未接"):
+            self.assertIn(outcome, m09)
+        self.assertIn("默认十八个铺位、二十三个待安排的名字", m09)
+        self.assertIn("实际到场", m15)
+        self.assertIn("不触发强制会面", m16)
+        self.assertIn("不能算“改会章”已成功", rc03)
+
+    def test_v12_writing_boundary_remains_distinct_from_playable_s00(self):
+        root = self.docs()
+        baseline = (root.parent / "gameplay/BASELINE.md").read_text(encoding="utf-8")
+        handoff = (root / "HANDOFF_FOR_CODEX.md").read_text(encoding="utf-8")
+        self.assertIn("v1.2", baseline)
+        self.assertIn("唯一剧情写作权威", baseline)
+        self.assertIn("可玩叙事 P0", baseline)
+        self.assertIn("未实现", baseline)
+        self.assertIn("不是已实现内容", handoff)
+
+    def test_v12_document_links_resolve_in_place_without_old_combined_scripts(self):
         root = self.docs()
         project = root.parents[1]
-        # v1.1 replaces the withdrawn v1.0-only design extras. Excluding
+        # v1.2 also retires the withdrawn v1.0-only extras. Excluding
         # them from the count used to hide accidental reintroductions.
         historical = ("RPG_PROGRESSION_AND_REWARDS.md",
                       "WORLD_FLAVOR_AND_SLANG.md")
@@ -946,7 +983,7 @@ class NarrativeV11WritingBaselineTests(unittest.TestCase):
                                  f"Retired v1.0 draft has returned: {obsolete_name}")
         sources = sorted(root.glob("*.md"))
         self.assertEqual(len(sources), 39)
-        self.assertIn("v1.1", (root / "STORY_OUTLINE.md").read_text(encoding="utf-8"))
+        self.assertIn("v1.2", (root / "STORY_OUTLINE.md").read_text(encoding="utf-8"))
         obsolete = ("SCENE_SCRIPT_P0_M00.md", "SCENE_SCRIPT_M03_M12.md")
         for doc in sources:
             content = doc.read_text(encoding="utf-8")
