@@ -943,8 +943,17 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 input.Release(pad.buttonSouth);
                 yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1),
+                    "The first real wrench knock cannot finish the repair or open choices.");
+                Assert.That(prelude.CurrentNarration, Does.Contain("Tax Collector"));
+                Assert.That(prelude.CurrentInstructions, Does.Contain("second time"));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                input.Press(pad.buttonSouth);
+                yield return null;
+                input.Release(pad.buttonSouth);
+                yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(2),
-                    "Only a fresh pad A at the actual clamp may open the repair choices.");
+                    "Only the second fresh pad A at the actual clamp may open repair choices.");
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 Assert.That(EventSystem.current?.currentSelectedGameObject?.name,
                     Is.EqualTo("S00 choice 0"),
@@ -1366,6 +1375,12 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(prelude.CanRepair, Is.True,
                     "Walking to Shen Li's loose clamp must enable the real repair choice.");
+                input.Press(walker.eKey);
+                yield return null;
+                input.Release(walker.eKey);
+                yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1),
+                    "The first knock cannot already open the repair choices.");
                 input.Press(walker.eKey);
                 yield return null;
                 input.Release(walker.eKey);
