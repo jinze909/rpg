@@ -22,8 +22,6 @@ namespace Rpg.Tests.Editor
             bool testBodyCompleted = false;
             string originalLanguage = null;
             string cleanupFailure = null;
-            M00MemorialSquare memorial = null;
-            SoundwellEntrance entry = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
@@ -32,6 +30,9 @@ namespace Rpg.Tests.Editor
                 input = new InputTestFixture();
                 input.Setup();
                 inputReady = true;
+                // Acquire Unity object references only after the PlayMode domain reload.
+                M00MemorialSquare memorial = null;
+                SoundwellEntrance entry = null;
                 originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
@@ -59,8 +60,11 @@ namespace Rpg.Tests.Editor
                     BindingFlags.Instance | BindingFlags.NonPublic);
                 var thirdBell = typeof(WhitewaterPrelude).GetField("thirdBellStarted",
                     BindingFlags.Instance | BindingFlags.NonPublic);
+                var currentMemorial = typeof(SoundwellEntrance).GetField("currentMemorial",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(currentPrelude, Is.Not.Null);
                 Assert.That(thirdBell, Is.Not.Null);
+                Assert.That(currentMemorial, Is.Not.Null);
 
                 entry.OpenPrelude();
                 Assert.That(entry.enabled, Is.True,
@@ -84,7 +88,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(SceneManager.GetActiveScene().name,
                     Is.EqualTo(SoundwellEntrance.BootstrapSceneName),
                     "The M00 handoff must stay inside Bootstrap rather than reloading the trial.");
-                memorial = entry.GetComponentInChildren<M00MemorialSquare>(true);
+                memorial = (M00MemorialSquare)currentMemorial.GetValue(entry);
                 Assert.That(entry.MemorialSquareOpen, Is.True,
                     "The earned third bell must hand off to M00.");
                 Assert.That(memorial, Is.Not.Null,
@@ -236,9 +240,11 @@ namespace Rpg.Tests.Editor
                 // Each operation is isolated so the next run reports the exact failing step.
                 try
                 {
-                    if (memorial != null)
+                    M00MemorialSquare activeMemorial = Object.FindAnyObjectByType<M00MemorialSquare>(
+                        FindObjectsInactive.Include);
+                    if (activeMemorial != null)
                     {
-                        GameObject memorialObject = memorial.gameObject;
+                        GameObject memorialObject = activeMemorial.gameObject;
                         if (memorialObject != null)
                             Object.Destroy(memorialObject);
                     }
