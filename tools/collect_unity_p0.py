@@ -93,6 +93,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
         "OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
+        "V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy",
         "ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater",
     },
