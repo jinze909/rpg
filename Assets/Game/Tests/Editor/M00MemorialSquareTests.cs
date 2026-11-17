@@ -14,6 +14,7 @@ namespace Rpg.Tests.Editor
 {
     public sealed class M00MemorialSquareTests
     {
+        [Order(1)]
         [UnityTest]
         public IEnumerator MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions()
         {
@@ -282,6 +283,7 @@ namespace Rpg.Tests.Editor
                 Assert.Fail(cleanupFailure);
         }
 
+        [Order(2)]
         [UnityTest]
         public IEnumerator MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell()
         {
