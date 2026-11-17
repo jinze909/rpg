@@ -122,6 +122,8 @@ namespace Rpg.Soundwell
         private Text narration;
         private Text instructions;
         private Text title;
+        private Text stageSubtitle;
+        private float lastStageLayoutAspect = -1f;
         private Button exit;
         private Button next;
         private Action onExit;
@@ -332,7 +334,7 @@ namespace Rpg.Soundwell
 
             title = Label(canvas.transform, SceneTitle, 28,
                 new Vector2(0f, 209f), new Vector2(740f, 48f), Brass);
-            Label(canvas.transform, Copy("Night roll call · the last bridge",
+            stageSubtitle = Label(canvas.transform, Copy("Night roll call · the last bridge",
                 "夜点名 · 最后的浮桥"), 17, new Vector2(0f, 168f), new Vector2(750f, 34f), Ink);
             Panel(canvas.transform, "PLACEHOLDER 16px ferry water",
                 new Vector2(0f, 34f), new Vector2(790f, 180f),
@@ -587,6 +589,88 @@ namespace Rpg.Soundwell
             Label(exit.transform, Copy("Back to entry", "返回入口"), 14,
                 Vector2.zero, new Vector2(222f, 27f), Ink);
             ShowRollCall();
+            RefreshStageLayout(true);
+        }
+
+        // Keep real UGUI options reachable at extreme aspect ratios. The
+        // original 960x540 positions put left/right dialogue choices outside
+        // a portrait viewport and the lower action row below a 32:9 screen.
+        // Layout is presentation only: the same callbacks, ORK authority and
+        // Makinom choice outcomes remain wired to these exact buttons.
+        private static Vector2[] StageLayoutSlots(float aspect)
+        {
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                aspect = 16f / 9f;
+
+            if (aspect <= 0.95f)
+                return new[]
+                {
+                    new Vector2(0f, 209f), new Vector2(0f, 168f),
+                    new Vector2(0f, -45f), new Vector2(0f, -105f),
+                    new Vector2(0f, -150f), new Vector2(0f, -204f),
+                    new Vector2(0f, -258f), new Vector2(0f, -300f),
+                    new Vector2(0f, -343f)
+                };
+
+            if (aspect >= 2.55f)
+            {
+                float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                return new[]
+                {
+                    new Vector2(0f, halfHeight - 30f),
+                    new Vector2(0f, halfHeight - 75f),
+                    new Vector2(0f, halfHeight - 136f),
+                    new Vector2(0f, halfHeight - 198f),
+                    new Vector2(-250f, halfHeight - 245f),
+                    new Vector2(0f, halfHeight - 245f),
+                    new Vector2(250f, halfHeight - 245f),
+                    new Vector2(145f, halfHeight - 296f),
+                    new Vector2(-145f, halfHeight - 296f)
+                };
+            }
+
+            return new[]
+            {
+                new Vector2(0f, 209f), new Vector2(0f, 168f),
+                new Vector2(0f, -100f), new Vector2(0f, -143f),
+                new Vector2(-250f, -192f), new Vector2(0f, -192f),
+                new Vector2(250f, -192f), new Vector2(145f, -245f),
+                new Vector2(-145f, -245f)
+            };
+        }
+
+        private void RefreshStageLayout(bool force = false)
+        {
+            if (title == null || stageSubtitle == null || exit == null)
+                return;
+            float aspect = (float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height);
+            if (!force && Mathf.Abs(lastStageLayoutAspect - aspect) < 0.01f)
+                return;
+            lastStageLayoutAspect = aspect;
+            Vector2[] slots = StageLayoutSlots(aspect);
+            title.rectTransform.anchoredPosition = slots[0];
+            stageSubtitle.rectTransform.anchoredPosition = slots[1];
+            narration.rectTransform.anchoredPosition = slots[2];
+            instructions.rectTransform.anchoredPosition = slots[3];
+            for (int i = 0; i < choices.Length; i++)
+                ((RectTransform)choices[i].transform).anchoredPosition = slots[i + 4];
+            ((RectTransform)next.transform).anchoredPosition = slots[7];
+            ((RectTransform)exit.transform).anchoredPosition = slots[8];
+
+            // In portrait, constrain narrative copy to the actual Canvas
+            // width instead of letting labels bleed behind the entry screen.
+            float logicalWidth = Mathf.Sqrt(960f * 540f * aspect);
+            bool portrait = aspect <= 0.95f;
+            float textWidth = Mathf.Max(240f, logicalWidth - 30f);
+            title.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(740f, textWidth) : 740f);
+            stageSubtitle.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(750f, textWidth) : 750f);
+            narration.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(840f, textWidth) : 840f);
+            instructions.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(790f, textWidth) : 790f);
         }
 
         private void ShowRollCall()
@@ -2020,6 +2104,8 @@ namespace Rpg.Soundwell
             // Dialogue selection uses UI input, not the exploration motor.
             // Refresh visible options even when the player cannot walk.
             RefreshOpenChoiceLanguage();
+            if (phase < 17)
+                RefreshStageLayout();
             if (phase == 18)
             {
                 // Resizing after the final bell cannot hide the only exit.
