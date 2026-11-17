@@ -3,7 +3,7 @@
 “归来”为工作标题。本稿承接 [SCENE_SCRIPT_P0.md](SCENE_SCRIPT_P0.md) 与 [STORY_OUTLINE.md](STORY_OUTLINE.md)。方括号是玩家选项或操作。
 
 > **出场人物**：你、小豆、擦碑的老妇人（郝烈之母，RC-05 种子）、韩峤、两个穿旧军服的人（陆钧在场点）。
-> **记录事实**：`identity_reveal`（纪念日点名回应方式及第几遍）、`old_woman_stone`、`han_ransom_count`（固定为 41）。
+> **记录事实**：`identity_reveal`（纪念日点名回应方式及第几遍）、`xiaodou_prompted`（是否在台上忘词时帮小豆提词）、`old_woman_stone`、`han_ransom_count`（固定为 41）。
 > **章末留给玩家的问题**：念到我的名字，我应了。战报是谁写的？为什么说桥被烧了？
 
 ---
@@ -37,7 +37,7 @@
 
 （台下有人笑，孩子红了脸。）
 
-[上前提词：“谁带了多余的绳子。”]
+[上前提词：“谁带了多余的绳子。”]（仅选此项记录 `xiaodou_prompted = 是`）
 [绕开，去找人]
 [留在原地]
 
