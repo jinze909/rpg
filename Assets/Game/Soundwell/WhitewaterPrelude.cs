@@ -495,7 +495,7 @@ namespace Rpg.Soundwell
                 new Color(0.66f, 0.84f, 0.59f)).rectTransform;
             var evacueeFigure = Panel(canvas.transform, "S00 last evacuee",
                 new Vector2(EvacueeStartX, 12f), new Vector2(32f, 32f), Color.white);
-            evacueePixelSprite = MakeActorSprite("PLACEHOLDER 16px wounded evacuee",
+            evacueePixelSprite = MakeActorSprite("S00 16px pot-carrying cook",
                 EvacueePixels, new Color32(161, 126, 88, 255),
                 out evacueePixelTexture);
             evacueeFigure.sprite = evacueePixelSprite;
@@ -926,12 +926,12 @@ namespace Rpg.Soundwell
             if (phase == 8 && next != null)
             {
                 instructions.text = Copy(
-                    "Han Qiao is aboard. One more wounded evacuee is still on the bridge.",
-                    "韩峤已经上船。桥上还有一名伤者没撤离。");
+                    "Han Qiao is aboard. A cook with a pot on his back is stranded by the bridge railing.",
+                    "韩峤已经上船。桥栏边还有一个背着锅、走不动的炊事兵。");
                 next.gameObject.name = "S00 continue to final retreat";
                 Text label = next.GetComponentInChildren<Text>(true);
                 if (label != null)
-                    label.text = Copy("Cover the last evacuee", "掩护最后一名撤离者");
+                    label.text = Copy("Help the stranded cook", "扶起走不动的炊事兵");
                 next.gameObject.SetActive(true);
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(next.gameObject);
@@ -958,8 +958,8 @@ namespace Rpg.Soundwell
             evacueeSafeLine.gameObject.SetActive(true);
             SoundwellInputAdapter.SetGameplayContext();
             narration.text = Copy(
-                "The last boat pulls away. Enemy troops close in; a wounded evacuee is stuck beside the railing.",
-                "最后一条船离岸。敌军正在逼近，一名伤者还困在桥边的栏杆旁。");
+                "The last boat pulls away as enemy torches approach. A cook with a cooking pot on his back collapses by the railing: 'My legs won't move!'",
+                "最后一条船离岸，敌军火把正在逼近。一个背锅的炊事兵腿软，跌坐在栏杆旁：“我走不动了——腿不听使唤——”");
             instructions.text = Copy(
                 "Reach the amber evacuee, press E / Pad A, then lead them west to the green safe line.",
                 "走到金色伤者旁按 E／手柄 A，再带他向西走到绿色安全线。");
@@ -1054,8 +1054,8 @@ namespace Rpg.Soundwell
             shownEvacueeSafeLineBindings = null;
             SetEvacueeEscortCue(false);
             narration.text = Copy(
-                "You take the evacuee's arm. 'Keep behind me. Don't stop at the open span.'",
-                "你扶住伤者的胳膊：“跟在我后面，别停在空桥上。”");
+                "You pull the cook to his feet and take his arm. 'Stay close. We have to cross.'",
+                "你架起腿软的炊事兵：“跟紧我，咱们得过桥。”");
             instructions.text = Copy(
                 "Lead west. Green: following; amber: stopped. Press E / Pad A at the safe line.",
                 "向西带路：绿色表示跟随，橙色表示掉队；到安全线后按 E／手柄 A 确认撤离。");
@@ -1755,8 +1755,9 @@ namespace Rpg.Soundwell
             "................",
         };
 
-        // Water foam around Han Qiao, and a head bandage on the wounded
-        // evacuee, distinguish the two actual story figures at 2x scale.
+        // Water foam around Han Qiao and the cook's dark back-mounted pot
+        // distinguish the two story figures at 2x scale. This is only the
+        // first evacuation beat of v1.2; the later two remain to implement.
         private static readonly string[] HanQiaoPixels =
         {
             "................",
@@ -1780,14 +1781,14 @@ namespace Rpg.Soundwell
         private static readonly string[] EvacueePixels =
         {
             "................",
-            ".....wwwkk......",
-            "....wwffkk......",
+            ".....kkkk.......",
             "....kkffkk......",
-            ".....kffk.......",
-            "......kk........",
-            ".....kcck.......",
-            "....kcccck......",
-            "...gkcccckg.....",
+            "....kkffkk......",
+            ".....kffk...kk..",
+            "......kk...kkkk.",
+            ".....kcck..kggk.",
+            "....kcccckkggkk.",
+            "...gkcccckgkk...",
             "...gkcccckg.....",
             "....kbbbbk......",
             "....kcccck......",

@@ -1092,6 +1092,14 @@ namespace Rpg.Tests.Editor
                         float passengerDockX = inWater.anchoredPosition.x;
                         retreat.onClick.Invoke();
                         Assert.That(activePrelude.Phase, Is.EqualTo(9));
+                        Assert.That(activePrelude.CurrentNarration, Does.Contain("cooking pot"),
+                            "The first physical evacuation must introduce the pot-carrying cook from v1.2.");
+                        var cookFigure = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/S00 last evacuee")?.GetComponent<Image>();
+                        Assert.That(cookFigure, Is.Not.Null);
+                        Assert.That(cookFigure.sprite.name, Does.Contain("pot-carrying cook"),
+                            "A distinct cooking-pot silhouette must accompany the v1.2 dialogue.");
+                        Assert.That(cookFigure.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
                         Assert.That(soldierHelper.gameObject.activeInHierarchy, Is.False,
                             "The soldier must leave the rescue lane as the last boat departs.");
                         float departureDeadline = Time.realtimeSinceStartup + 3f;
@@ -1176,6 +1184,8 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(10));
+                        Assert.That(activePrelude.CurrentNarration, Does.Contain("pull the cook to his feet"),
+                            "The v1.2 cook must be helped only after a real, in-reach E action.");
                         var follower = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/S00 last evacuee").GetComponent<Image>();
                         var escortStatus = follower.transform.Find("S00 evacuee escort status")
