@@ -1039,6 +1039,10 @@ namespace Rpg.Tests.Editor
                     Assert.That(activePrelude.CurrentNarration, Does.Contain(
                         rescueChoice == 0 ? "You heave Han Qiao" :
                         rescueChoice == 1 ? "Shen Li's rope holds" : "The soldiers lift"));
+                    Assert.That(activePrelude.CurrentNarration, Does.Contain("Before the third watch"),
+                        "The earned rescue must deliver Han Qiao's v1.2 third-watch warning before the last boat.");
+                    Assert.That(activePrelude.CurrentNarration, Does.Contain("Not yet"),
+                        "The bridge has not finished crossing when Han Qiao is rescued.");
                     Assert.That(inWater.anchoredPosition.x, Is.GreaterThan(riverStartX),
                         "The officer must begin visibly moving only after the actual rescue.");
                     Assert.That(inWater.anchoredPosition.x,

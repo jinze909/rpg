@@ -888,12 +888,16 @@ namespace Rpg.Soundwell
                 soldierRescueHelper.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                rescueMethod == 0 ? "You heave Han Qiao clear. He is badly hurt, but alive."
-                : rescueMethod == 1 ? "Shen Li's rope holds. Together you pull Han Qiao clear, badly hurt but alive."
-                : "The soldiers lift on your count. Han Qiao comes free, badly hurt but alive.",
-                rescueMethod == 0 ? "你把韩峤拉上来了。他伤得很重，但还活着。"
-                : rescueMethod == 1 ? "沈砾的绳索绷住了。你们一起把韩峤拉出来。他伤得很重，但活着。"
-                : "士兵听你号令，一起把韩峤拉了上来。他伤得很重，但活着。");
+                rescueMethod == 0
+                    ? "You heave Han Qiao ashore. He clutches your sleeve: 'The bridge?' 'Not yet.' 'Before the third watch...' He faints."
+                    : rescueMethod == 1
+                        ? "Shen Li's rope holds. You haul Han Qiao ashore. 'The bridge?' 'Not yet.' 'Before the third watch...' He faints."
+                        : "The soldiers lift Han Qiao free. He grips your sleeve: 'The bridge?' 'Not yet.' 'Before the third watch...' He faints.",
+                rescueMethod == 0
+                    ? "你把韩峤拖上岸。他攥住你袖子：“……桥。桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。"
+                    : rescueMethod == 1
+                        ? "沈砾的绳索绷住，你们拉韩峤上岸。他问：“桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。"
+                        : "士兵帮你把韩峤拖上岸。他问：“桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。");
             instructions.text = Copy("The last boat is boarding Han Qiao. He will not witness the cable breaking.",
                 "韩峤上了最后一条船。他不会留在桥头看见断缆。");
             StartCoroutine(BoatTakesHanQiao());
