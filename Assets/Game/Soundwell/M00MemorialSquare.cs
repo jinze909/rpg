@@ -486,7 +486,7 @@ namespace Rpg.Soundwell
             else if (CanPromptChild)
                 objective = Copy("At the stage: press interact to respond to Xiaodou’s forgotten line.", "已到高台旁：按互动键回应小豆忘掉的台词。");
             else if (NearStage && !childForgotLine)
-                objective = Copy("Wait. Xiaodou is still reciting; he has not forgotten the line yet.", "稍等。小豆还在背词，还没有忘词。");
+                objective = Copy("Wait. Xiaodou is still reciting; she has not forgotten the line yet.", "稍等。小豆还在背词，还没有忘词。");
             else
                 objective = Copy("Approach the stage. Xiaodou is performing for the crowd.", "走近高台，小豆正在为人群表演。");
 
