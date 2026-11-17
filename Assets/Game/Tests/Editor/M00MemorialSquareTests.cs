@@ -22,6 +22,11 @@ namespace Rpg.Tests.Editor
             bool inputReady = false;
             bool testBodyCompleted = false;
             string cleanupFailure = null;
+            // Keep all cross-yield locals declared before domain reload.
+            // Only acquire live Unity object instances after PlayMode resumes.
+            M00MemorialSquare memorial = null;
+            SoundwellEntrance entry = null;
+            Keyboard keys = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
@@ -42,17 +47,13 @@ namespace Rpg.Tests.Editor
                 inputReady = true;
                 Debug.Log("RPG_M00_STEP: after InputTestFixture setup");
 
-                // Acquire Unity object references only after the PlayMode domain reload.
-                M00MemorialSquare memorial = null;
-                SoundwellEntrance entry = null;
-
                 // The second lifecycle test passes using this exact sequence:
                 // install the virtual keyboard before Bootstrap initializes
                 // its action maps, then load the production scene in PlayMode.
                 // A device-free isolated runtime during LoadSceneInPlayMode
                 // triggered a NullReferenceException before any M00 assertion.
                 Debug.Log("RPG_M00_STEP: before virtual Keyboard");
-                Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                keys = InputSystem.AddDevice<Keyboard>();
                 Assert.That(keys, Is.Not.Null);
                 Debug.Log("RPG_M00_STEP: before Bootstrap load");
                 EditorSceneManager.LoadSceneInPlayMode(
