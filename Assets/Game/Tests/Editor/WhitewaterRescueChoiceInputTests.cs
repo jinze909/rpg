@@ -655,16 +655,21 @@ namespace Rpg.Tests.Editor
 
                 Button first = FindButton(stage, "S00 choice 0");
                 Button second = FindButton(stage, "S00 choice 1");
+                Button delayed = FindButton(stage, "S00 choice 2");
                 Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("Here."));
                 Assert.That(second.GetComponentInChildren<Text>(true).text,
-                    Is.EqualTo("Raise your hand."));
+                    Is.EqualTo("Here. Has she fixed that nut?"));
+                Assert.That(delayed.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("...Here. (Second call)"));
                 Assert.That(stage.Phase, Is.Zero);
 
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
                 yield return null;
                 Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("在。"));
                 Assert.That(second.GetComponentInChildren<Text>(true).text,
-                    Is.EqualTo("举手示意"));
+                    Is.EqualTo("在。——她那个螺母，修好了吗？"));
+                Assert.That(delayed.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("……在。（第二遍应声）"));
                 Assert.That(stage.Phase, Is.Zero,
                     "Changing language cannot answer the roll call for the player.");
 
@@ -675,6 +680,49 @@ namespace Rpg.Tests.Editor
                 second.onClick.Invoke();
                 Assert.That(stage.Phase, Is.EqualTo(1),
                     "The original choice remains operable after both locale changes.");
+                Assert.That(stage.CurrentNarration, Does.Contain("Two alive."),
+                    "The v1.2 question about Shen Li's nut must earn its specific reply.");
+            }
+            finally
+            {
+                if (stage != null)
+                    stage.Close();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            WhitewaterPrelude stage = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                InputSystem.AddDevice<Keyboard>();
+                InputSystem.AddDevice<Gamepad>();
+                stage = new GameObject("v1.2 P0 rollcall delayed answer")
+                    .AddComponent<WhitewaterPrelude>();
+                stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                yield return null;
+                Assert.That(stage.Phase, Is.Zero);
+                ClickChoice(stage, 2);
+                Assert.That(stage.Phase, Is.EqualTo(1),
+                    "Only a real second-call answer may advance to the clamp.");
+                Assert.That(stage.CurrentNarration, Does.Contain("军士又念了一遍你的名字"),
+                    "The delayed answer may not be treated like an immediate greeting.");
+                Assert.That(stage.CurrentNarration, Does.Contain("别走神"));
+                Assert.That(stage.CurrentNarration, Does.Contain("马小六"));
+                Assert.That(stage.CurrentNarration, Does.Contain("三遍没人答"));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
             }
             finally
             {

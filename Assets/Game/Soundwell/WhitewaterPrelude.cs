@@ -679,8 +679,10 @@ namespace Rpg.Soundwell
                 "军士：“沈砾。”沈砾头也不抬：“在，修着呢。”\n军士接着念到你的名字。");
             instructions.text = Copy("Choose what you say; none of these is a skill check.",
                 "选择怎样应声。没有口才检定，也不会因此救不了谁。");
-            ShowChoices(new[] { "Here.", "Raise your hand.", "Make room first." },
-                new[] { "在。", "举手示意", "先给我腾个地方" });
+            // v1.2 P0: each reply is audible. The third reply occurs only
+            // after the sergeant calls the player's name a second time.
+            ShowChoices(new[] { "Here.", "Here. Has she fixed that nut?", "...Here. (Second call)" },
+                new[] { "在。", "在。——她那个螺母，修好了吗？", "……在。（第二遍应声）" });
         }
 
         private void Choose(int choice)
@@ -694,10 +696,21 @@ namespace Rpg.Soundwell
                 phase = 1;
                 HideChoices();
                 SoundwellInputAdapter.SetGameplayContext();
+                string replyEnglish = choice == 0 ? "Sergeant: 'Right.' "
+                    : choice == 1 ? "Shen Li: 'In a hurry? Come see.' Sergeant: 'Two alive.' "
+                    : "The sergeant calls your name again. You answer '...Here.' 'Stay alert.' ";
+                string replyChinese = choice == 0 ? "军士划一笔：“行。”"
+                    : choice == 1 ? "沈砾：“催命呢？自己来看。”军士：“行，俩活人。”"
+                    : "军士又念了一遍你的名字。你：“……在。”军士：“别走神。”";
+                // Preserve the shared Ma Xiaoliu roll-call beat from v1.2
+                // rather than skipping straight from the player's reply to
+                // the clamp. RollCallKey retains its existing 1/2/3 ordering.
                 narration.text = Copy(
-                    choice == 2 ? "Shen Li pushes a wrench toward you. 'This one's called Tax Collector. Two knocks before it works.'"
-                    : "Shen Li: 'Here. The other wrench is Tax Collector. It only listens after two knocks.'",
-                    "沈砾把一把扳手推到你脚边：“这把叫税务官。敲两下才肯听话。”");
+                    replyEnglish + "Ma Xiaoliu misses all three calls, then runs back: 'Here!' "
+                        + "Sergeant: 'Three unanswered calls and you are marked dead.' "
+                        + "Shen Li hands you the 'Tax Collector' wrench.",
+                    replyChinese + "军士连念“马小六”三遍，正要划名，他冲回来：“在在在！”"
+                        + "军士：“三遍没人答，你就是死人了！”沈砾递给你“税务官”扳手。");
                 instructions.text = Copy("WASD / left stick: reach the red clamp. E / Pad A: work. Esc / Pad B: back.",
                     "WASD／左摇杆到红色缆桩。E／手柄 A 加固，Esc／手柄 B 返回。");
             }
