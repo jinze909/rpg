@@ -29,22 +29,15 @@ namespace Rpg.Tests.Editor
                 // Select the test language only after the live Bootstrap owner exists.
                 yield return new EnterPlayMode(expectDomainReload: true);
                 yield return null;
-                input = new InputTestFixture();
-                input.Setup();
-                inputReady = true;
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
-                Keyboard keys = InputSystem.AddDevice<Keyboard>();
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: keyboard added " + (keys != null));
-                Assert.That(keys, Is.Not.Null, "The M00 physical-approach test needs a live keyboard.");
-                Assert.That(keys.eKey, Is.Not.Null);
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: authored copy and keyboard ready");
 
-                // Enter M00 through the same earned S00 -> M00 transition used
-                // by the player. Do not construct the scene component in an
-                // unrelated root: its parent, entry callback and input handoff
-                // are part of the actual playable path being verified.
+                // Load the real Bootstrap scene before installing the isolated test
+                // input runtime. Loading a single scene after InputTestFixture.Setup
+                // can invalidate its device/control handles while the test is still
+                // using them; M00 then receives no usable movement/interaction input.
+                // Keep the production entry owner alive throughout the S00 -> M00 handoff.
                 EditorSceneManager.LoadSceneInPlayMode(
                     "Assets/Game/Scenes/Bootstrap.unity",
                     new LoadSceneParameters(LoadSceneMode.Single));
@@ -55,8 +48,19 @@ namespace Rpg.Tests.Editor
                     entry = Object.FindFirstObjectByType<SoundwellEntrance>();
                 }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
+
+                // The test input runtime is now installed after scene loading, so its
+                // keyboard controls remain valid for the complete physical approach.
+                input = new InputTestFixture();
+                input.Setup();
+                inputReady = true;
+                Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                Assert.That(keys, Is.Not.Null, "The M00 physical-approach test needs a live keyboard.");
+                Assert.That(keys.eKey, Is.Not.Null);
+                SoundwellInputAdapter.EnsureEventSystem(entry.transform);
+                SoundwellInputAdapter.SetEntryContext();
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap entry found");
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap and isolated keyboard ready");
                 // Keep the production entry owner alive. SetUiContext below disables
                 // its Entry action map while S00/M00 owns input.
 
