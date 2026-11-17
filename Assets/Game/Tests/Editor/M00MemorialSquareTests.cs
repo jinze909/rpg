@@ -19,7 +19,9 @@ namespace Rpg.Tests.Editor
         {
             InputTestFixture input = null;
             bool inputReady = false;
+            bool testBodyCompleted = false;
             string originalLanguage = null;
+            string cleanupFailure = null;
             M00MemorialSquare memorial = null;
             SoundwellEntrance entry = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -32,6 +34,8 @@ namespace Rpg.Tests.Editor
                 inputReady = true;
                 originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
+                    "The player sees the v1.2 scene title, not the internal S00 story ID.");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
 
                 // Enter M00 through the same earned S00 -> M00 transition used
@@ -48,7 +52,8 @@ namespace Rpg.Tests.Editor
                     entry = Object.FindFirstObjectByType<SoundwellEntrance>();
                 }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
-                entry.enabled = false;
+                // Keep the production entry owner alive. SetUiContext below disables
+                // its Entry action map while S00/M00 owns input.
 
                 var currentPrelude = typeof(SoundwellEntrance).GetField("currentPrelude",
                     BindingFlags.Instance | BindingFlags.NonPublic);
@@ -58,18 +63,30 @@ namespace Rpg.Tests.Editor
                 Assert.That(thirdBell, Is.Not.Null);
 
                 entry.OpenPrelude();
+                Assert.That(entry.enabled, Is.True,
+                    "Entry remains enabled as the owner; the gameplay input context disables its Entry action map.");
                 yield return null;
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entry);
                 Assert.That(prelude, Is.Not.Null);
                 thirdBell.SetValue(prelude, true);
                 prelude.Close();
 
-                float memorialDeadline = Time.realtimeSinceStartup + 5f;
-                while (memorial == null && Time.realtimeSinceStartup < memorialDeadline)
-                {
-                    yield return null;
-                    memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
-                }
+                // The exit callback creates M00 under the live entry owner.
+                // Let Unity finish the frame's deferred Destroy/activation work,
+                // then read only that owner's child hierarchy (not a global search).
+                Assert.That(entry != null && entry.gameObject.activeInHierarchy, Is.True,
+                    "The S00 exit callback must keep its Bootstrap owner alive.");
+                yield return null;
+                Assert.That(entry != null && entry.gameObject.activeInHierarchy, Is.True,
+                    "The Bootstrap owner must survive deferred S00 destruction.");
+                Assert.That(entry.enabled, Is.True,
+                    "Entry remains enabled as the owner while M00 owns the input context.");
+                Assert.That(SceneManager.GetActiveScene().name,
+                    Is.EqualTo(SoundwellEntrance.BootstrapSceneName),
+                    "The M00 handoff must stay inside Bootstrap rather than reloading the trial.");
+                memorial = entry.GetComponentInChildren<M00MemorialSquare>(true);
+                Assert.That(entry.MemorialSquareOpen, Is.True,
+                    "The earned third bell must hand off to M00.");
                 Assert.That(memorial, Is.Not.Null,
                     "The earned third bell must open the authored M00 memorial scene.");
                 Assert.That(entry.MemorialSquareOpen, Is.True);
@@ -77,7 +94,51 @@ namespace Rpg.Tests.Editor
                     "M00 must be owned by the real entry controller.");
                 yield return null;
 
+                // The real M00 UI must remain reachable after S00. Portrait
+                // used to clip the player; 5:1 hid instructions and return.
+                RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
+                    .Single(rect => rect.gameObject.name == "M00 responsive authored view");
+                RectTransform playerRect = memorial.GetComponentsInChildren<RectTransform>(true)
+                    .Single(rect => rect.gameObject.name == "M00 player");
+                RectTransform titleRect = memorial.GetComponentsInChildren<Text>(true)
+                    .Single(label => label.text == "Your Name Carved in Stone").rectTransform;
+                RectTransform guidanceRect = memorial.GetComponentsInChildren<Text>(true)
+                    .Single(label => label.text == memorial.CurrentInstructions).rectTransform;
+                RectTransform returnRect = memorial.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "M00 return to entry")
+                    .GetComponent<RectTransform>();
+                RectTransform choiceRect = memorial.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "M00 choice 3")
+                    .GetComponent<RectTransform>();
+                var visibleRects = new[] { playerRect, titleRect, guidanceRect,
+                    returnRect, choiceRect };
+                foreach (float aspect in new[] { 9f / 16f, 32f / 9f, 5f, 16f / 9f })
+                {
+                    memorial.LayoutForViewportAspect(aspect);
+                    float scale = authored.localScale.x;
+                    float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                    float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                    Assert.That(scale, Is.GreaterThan(0f));
+                    Assert.That(authored.localScale.y, Is.EqualTo(scale).Within(0.0001f));
+                    foreach (RectTransform rect in visibleRects)
+                    {
+                        Assert.That((Mathf.Abs(rect.anchoredPosition.x) +
+                                rect.sizeDelta.x * 0.5f) * scale,
+                            Is.LessThanOrEqualTo(halfWidth - 6f),
+                            rect.name + " clipped horizontally at " + aspect);
+                        Assert.That((Mathf.Abs(rect.anchoredPosition.y) +
+                                rect.sizeDelta.y * 0.5f) * scale,
+                            Is.LessThanOrEqualTo(halfHeight - 6f),
+                            rect.name + " clipped vertically at " + aspect);
+                    }
+                }
+                memorial.LayoutForViewportAspect(
+                    (float)Screen.width / Mathf.Max(1, Screen.height));
+
                 Assert.That(memorial.Phase, Is.Zero);
+                Assert.That(memorial.GetComponentsInChildren<Text>(true)
+                    .Any(label => label.text == "Your Name Carved in Stone"), Is.True,
+                    "The player-facing M00 title must not expose its development ID.");
                 Assert.That(memorial.CanInspectStatue, Is.False,
                     "The player must walk to the memorial before reading it.");
                 input.Press(keys.eKey);
@@ -163,19 +224,53 @@ namespace Rpg.Tests.Editor
                     .onClick.Invoke();
                 yield return null;
                 Assert.That(entry.MemorialSquareOpen, Is.False);
+                Assert.That(entry.enabled, Is.True,
+                    "Closing M00 returns to the entry screen without disabling its owner.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
+                testBodyCompleted = true;
             }
             finally
             {
-                if (memorial != null)
-                    memorial.Close();
-                if (!string.IsNullOrEmpty(originalLanguage))
-                    SoundwellUiLocalization.SetLanguage(originalLanguage);
-                if (inputReady && input != null)
-                    input.TearDown();
+                // Keep teardown from masking the real PlayMode assertion/exception.
+                // Each operation is isolated so the next run reports the exact failing step.
+                try
+                {
+                    if (memorial != null)
+                    {
+                        GameObject memorialObject = memorial.gameObject;
+                        if (memorialObject != null)
+                            Object.Destroy(memorialObject);
+                    }
+                }
+                catch (System.Exception exception)
+                {
+                    cleanupFailure = "M00 object cleanup failed: " + exception;
+                }
+
+                try
+                {
+                    if (!string.IsNullOrEmpty(originalLanguage))
+                        SoundwellUiLocalization.SetLanguage(originalLanguage);
+                }
+                catch (System.Exception exception)
+                {
+                    cleanupFailure = cleanupFailure ?? ("M00 locale cleanup failed: " + exception);
+                }
+
+                try
+                {
+                    if (inputReady && input != null)
+                        input.TearDown();
+                }
+                catch (System.Exception exception)
+                {
+                    cleanupFailure = cleanupFailure ?? ("M00 InputTestFixture cleanup failed: " + exception);
+                }
             }
             yield return new ExitPlayMode();
+            if (testBodyCompleted && !string.IsNullOrEmpty(cleanupFailure))
+                Assert.Fail(cleanupFailure);
         }
 
         [UnityTest]
@@ -214,16 +309,20 @@ namespace Rpg.Tests.Editor
                 Assert.That(thirdBell, Is.Not.Null);
 
                 entrance.OpenPrelude();
+                Assert.That(entrance.enabled, Is.True);
                 yield return null;
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entrance);
                 Assert.That(prelude, Is.Not.Null);
                 thirdBell.SetValue(prelude, false);
                 prelude.Close();
                 yield return null;
+                Assert.That(entrance.enabled, Is.True,
+                    "An early S00 exit must leave the entry owner active.");
                 Assert.That(entrance.MemorialSquareOpen, Is.False,
                     "Leaving S00 before the earned third bell must not jump to M00.");
 
                 entrance.OpenPrelude();
+                Assert.That(entrance.enabled, Is.True);
                 yield return null;
                 prelude = (WhitewaterPrelude)currentPrelude.GetValue(entrance);
                 Assert.That(prelude, Is.Not.Null);
@@ -236,6 +335,8 @@ namespace Rpg.Tests.Editor
                 memorial.Close();
                 yield return null;
                 Assert.That(entrance.MemorialSquareOpen, Is.False);
+                Assert.That(entrance.enabled, Is.True,
+                    "Closing M00 must reactivate the entry controller.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
             }
             finally

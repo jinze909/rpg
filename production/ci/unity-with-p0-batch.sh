@@ -20,6 +20,20 @@ fi
 
 evidence="$GITHUB_WORKSPACE/${ARTIFACTS_PATH:-artifacts/p0}"
 mkdir -p "$evidence"
+
+# Recompile the game-owned runtime and Editor test assemblies from this exact
+# checkout. A stale ScriptAssemblies DLL can otherwise run an assertion from a
+# superseded candidate even though the source checkout is correct.
+project_root="$project_path"
+if [[ "$project_root" != /* ]]; then
+  project_root="$PWD/$project_root"
+fi
+assembly_dir="$project_root/Library/ScriptAssemblies"
+rm -f "$assembly_dir/Rpg.Soundwell.dll" \
+  "$assembly_dir/Rpg.Soundwell.pdb" \
+  "$assembly_dir/Rpg.Bootstrap.EditorTests.dll" \
+  "$assembly_dir/Rpg.Bootstrap.EditorTests.pdb"
+
 "$@"
 tests_exit=$?
 printf '%s\n' "$tests_exit" > "$evidence/test-editor-exit-code.txt"
