@@ -51,6 +51,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
         "FixedFormationCanFinishRescueAfterThreeOrkActions":
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.FixedFormationCanFinishRescueAfterThreeOrkActions",
+        "FormationPreferenceGamepadSubmitTogglesModeWithoutEnteringTrial":
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.FormationPreferenceGamepadSubmitTogglesModeWithoutEnteringTrial",
         "BattleStepChangesGateAssignmentFromSameOpening":
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleStepChangesGateAssignmentFromSameOpening",
         "BattleBackCancelEventRetreatsAndReleasesOrkParticipants":
