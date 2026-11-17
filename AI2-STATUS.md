@@ -1,9 +1,9 @@
 # AI2 当前状态
 
-> 截至 2026-11-16 的交付核对；实时分支、PR 和 CI 以 GitHub 为准，旧候选 SHA 不代表当前活动工作。
+> 截至 2026-11-17 的交付核对；实时分支、PR 和 CI 以 GitHub 为准，旧候选 SHA 不代表当前活动工作。
 
 - **唯一剧情写作基线**：《归来》v1.2，39 份 Markdown（含 29 份单章场景稿）已由 [PR #66](https://github.com/jinze909/rpg/pull/66) 入库，交付 SHA `b2f6f7dc560d366bd7801c43a560db9aae84fe1c`。v1.1 不再是并行剧情权威；v1.2 内标为待确认的创作提案仍须与已确定事实区分。**这是写作交付，不是新版剧情的 Unity 实现或验收。**
-- **已实现的独立玩法**：故事 003 的移动版声井救援代表环，两条路线、真实三名 ORK 队员的开闸／防御／攻击、可取消的战中移动和失败重试已有同 SHA 工程回归；见[故事卡](production/stories/003-soundwell-turn-rescue.md)。完整固定阵位可玩对照、后续成长／持久化及主观乐趣尚未验收。
+- **已实现的独立玩法**：故事 003 的移动版声井救援代表环与固定阵位救援闭环均有同 SHA 工程回归；固定阵位下三名 ORK 队员通过真实 New Input System Gamepad Submit 分别开闸／防御／攻击，随后完成物理护送与 ORK 救援奖励。dev SHA `80174a557cd27b0ba2570db0bfdab1e7a8037e13` 的 [Run 44141955284](https://github.com/jinze909/rpg/actions/runs/44141955284) 通过 111/111、零跳过、独立 Batch 与 `passed-clean-candidate`。测试中的护送移动由脚本控制，不代表端到端输入或真人体验验收；公平策略体验、后续成长／持久化及主观乐趣尚未验收。见[故事卡](production/stories/003-soundwell-turn-rescue.md)。
 - **现有 Unity S00（新版 P0 已部分落地）**：已有三种点名应声与马小六、税务官真实二次敲击、工坊邀请三种回应、韩峤获救与三更警告、三次须亲手完成的过桥撤离、桥头 ORK 防守、第三声钟与十二年后收场。三人撤离最终交付 `3c7c26043240812ccfc78009f876b8cbeb878a86` 的 [Unity ORK P0 Run 44011486336](https://github.com/jinze909/rpg/actions/runs/44011486336) 为 **105/105、passed-clean-candidate**。这些只是**已验的工程切片**，不等于 v1.2 整个 P0 场景稿、节奏／重玩跳过及 M00 已实现和体验验收。
 - **已交付的旧 S00 增量**：原 [PR #64](https://github.com/jinze909/rpg/pull/64) 的桥头重试去重及 [PR #65](https://github.com/jinze909/rpg/pull/65) 的超宽屏入口均已通过后续整合进入 dev，不再按“待整合”重复执行。历史 Run 只证明其原 SHA；当前按更新后的实际代码和同 SHA CI 验证。
 - **下一步**：继续对照 v1.2 检查 S00 的剩余台词与可玩性，并分段推进 M00；每一项新代码必须按最终候选 SHA 验证。完整叙事 P0／M00、跨章节事实续存、名册对账、完整点名机制与航行听雾仍未全量实现或验收。实时活动候选与 CI 只以 GitHub 为准，不从历史候选列表恢复。
