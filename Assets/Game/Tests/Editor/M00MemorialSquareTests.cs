@@ -40,10 +40,13 @@ namespace Rpg.Tests.Editor
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
-                Assert.That(PlayerPrefs.GetString(languageKey), Is.EqualTo(SoundwellUiLocalization.English));
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: saved English locale restored before scene use");
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: scene title read " + WhitewaterPrelude.SceneTitle);
-                Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
+                // PlayerPrefs is seeded before EnterPlayMode so the runtime
+                // initializer selects English. Avoid querying or changing it
+                // while the PlayMode test runtime is active.
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: before authored scene-title read");
+                string sceneTitle = WhitewaterPrelude.SceneTitle;
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: authored scene title read " + sceneTitle);
+                Assert.That(sceneTitle, Is.EqualTo("Whitewater Crossing"),
                     "The player sees the v1.2 scene title, not the internal S00 story ID.");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: keyboard added " + (keys != null));
@@ -279,19 +282,6 @@ namespace Rpg.Tests.Editor
 
                 try
                 {
-                    if (hadLanguagePreference)
-                        PlayerPrefs.SetString(languageKey, originalLanguage);
-                    else
-                        PlayerPrefs.DeleteKey(languageKey);
-                    PlayerPrefs.Save();
-                }
-                catch (System.Exception exception)
-                {
-                    cleanupFailure = cleanupFailure ?? ("M00 locale preference cleanup failed: " + exception);
-                }
-
-                try
-                {
                     if (inputReady && input != null)
                         input.TearDown();
                 }
@@ -301,6 +291,13 @@ namespace Rpg.Tests.Editor
                 }
             }
             yield return new ExitPlayMode();
+            // Restore editor preferences only after the PlayMode domain has
+            // exited; the test itself must not touch PlayerPrefs mid-runtime.
+            if (hadLanguagePreference)
+                PlayerPrefs.SetString(languageKey, originalLanguage);
+            else
+                PlayerPrefs.DeleteKey(languageKey);
+            PlayerPrefs.Save();
             if (testBodyCompleted && !string.IsNullOrEmpty(cleanupFailure))
                 Assert.Fail(cleanupFailure);
         }
