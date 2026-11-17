@@ -41,9 +41,13 @@ namespace Rpg.Tests.Editor
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
 
-                // Keep the production entry owner alive throughout the S00 -> M00 handoff.
-                // Create the virtual keyboard only after loading the scene: scene loading
-                // can invalidate device/control handles that existed before the handoff.
+                // The second lifecycle test passes using this exact sequence:
+                // install the virtual keyboard before Bootstrap initializes
+                // its action maps, then load the production scene in PlayMode.
+                // A device-free isolated runtime during LoadSceneInPlayMode
+                // triggered a NullReferenceException before any M00 assertion.
+                Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                Assert.That(keys, Is.Not.Null);
                 EditorSceneManager.LoadSceneInPlayMode(
                     "Assets/Game/Scenes/Bootstrap.unity",
                     new LoadSceneParameters(LoadSceneMode.Single));
@@ -55,9 +59,10 @@ namespace Rpg.Tests.Editor
                 }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
 
-                Keyboard keys = InputSystem.AddDevice<Keyboard>();
-                Assert.That(keys, Is.Not.Null, "The M00 physical-approach test needs a live keyboard.");
-                Assert.That(keys.eKey, Is.Not.Null);
+                Assert.That(keys.added, Is.True,
+                    "The virtual keyboard must survive the same Bootstrap load as the passing handoff test.");
+                Assert.That(keys.eKey, Is.Not.Null,
+                    "The M00 physical-approach test needs live keyboard controls.");
                 SoundwellInputAdapter.EnsureEventSystem(entry.transform);
                 SoundwellInputAdapter.SetEntryContext();
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
