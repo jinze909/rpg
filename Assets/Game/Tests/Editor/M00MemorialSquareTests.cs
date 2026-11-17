@@ -27,15 +27,20 @@ namespace Rpg.Tests.Editor
             {
                 // Let the normal runtime locale initializer run during PlayMode entry.
                 // Select the test language only after the live Bootstrap owner exists.
+                Debug.Log("RPG_M00_STEP: pre EnterPlayMode");
                 yield return new EnterPlayMode(expectDomainReload: true);
+                Debug.Log("RPG_M00_STEP: resumed after EnterPlayMode");
                 yield return null;
+                Debug.Log("RPG_M00_STEP: resumed after first frame");
 
                 // Bootstrap initializes the production action asset in Awake. Install
                 // the isolated test runtime first so its setup cannot invalidate the
                 // action maps that the live entry owner has already cached.
+                Debug.Log("RPG_M00_STEP: before InputTestFixture setup");
                 input = new InputTestFixture();
                 input.Setup();
                 inputReady = true;
+                Debug.Log("RPG_M00_STEP: after InputTestFixture setup");
 
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
@@ -46,11 +51,14 @@ namespace Rpg.Tests.Editor
                 // its action maps, then load the production scene in PlayMode.
                 // A device-free isolated runtime during LoadSceneInPlayMode
                 // triggered a NullReferenceException before any M00 assertion.
+                Debug.Log("RPG_M00_STEP: before virtual Keyboard");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 Assert.That(keys, Is.Not.Null);
+                Debug.Log("RPG_M00_STEP: before Bootstrap load");
                 EditorSceneManager.LoadSceneInPlayMode(
                     "Assets/Game/Scenes/Bootstrap.unity",
                     new LoadSceneParameters(LoadSceneMode.Single));
+                Debug.Log("RPG_M00_STEP: after Bootstrap load");
                 float entryDeadline = Time.realtimeSinceStartup + 8f;
                 while (entry == null && Time.realtimeSinceStartup < entryDeadline)
                 {
