@@ -19,6 +19,10 @@ namespace Rpg.Tests.Editor
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
+            // The input runtime and domain must both exist before a
+            // TestFixture resets the real InputSystem. M00 runs before
+            // the older Soundwell input suites in NUnit alphabetical order.
+            yield return null;
 
             var input = new InputTestFixture();
             input.Setup();
@@ -133,11 +137,16 @@ namespace Rpg.Tests.Editor
         [UnityTest]
         public IEnumerator MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell()
         {
-            var input = new InputTestFixture();
+            // Do not keep an InputTestFixture across EnterPlayMode's domain
+            // reload; a pre-reload object can turn into a null test runtime.
+            InputTestFixture input = null;
             bool inputReady = false;
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
                 yield return new EnterPlayMode(expectDomainReload: true);
+                yield return null;
+                input = new InputTestFixture();
                 input.Setup();
                 inputReady = true;
                 InputSystem.AddDevice<Keyboard>();
@@ -193,7 +202,7 @@ namespace Rpg.Tests.Editor
                 var prelude = Object.FindFirstObjectByType<WhitewaterPrelude>();
                 if (prelude != null)
                     prelude.Close();
-                if (inputReady)
+                if (inputReady && input != null)
                     input.TearDown();
             }
             yield return new ExitPlayMode();
