@@ -905,8 +905,10 @@ class NarrativeV12WritingBaselineTests(unittest.TestCase):
         m00 = (root / "SCENE_SCRIPT_M00.md").read_text(encoding="utf-8")
         m02 = (root / "SCENE_SCRIPT_M02.md").read_text(encoding="utf-8")
         facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
-        for choice in ("[应声：“在。”]", "[退出人群]"):
+        for choice in ("[应声：“在。”]", "[离开人群]"):
             self.assertIn(choice, m00)
+        self.assertEqual(m00.count("[应声：“在。”]"), 3)
+        self.assertEqual(m00.count("[离开人群]"), 3)
         self.assertIn("identity_reveal", m00)
         self.assertIn("四十一个", m00)
         for clue in ("缆口整齐", "桥夫旧记录", "战报底稿"):

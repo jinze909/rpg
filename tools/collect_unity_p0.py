@@ -97,6 +97,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/WhitewaterRescueChoiceInputTests.cs": {
         "PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
+        "CompletedS00ReplayCanSkipToM00OnlyAfterTheEarnedThirdBell":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.CompletedS00ReplayCanSkipToM00OnlyAfterTheEarnedThirdBell",
         "OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
         "V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy":
