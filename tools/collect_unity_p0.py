@@ -36,6 +36,12 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # Require every test actually declared in the clean candidate; never accept
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
+    "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": {
+        "MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell":
+            "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell",
+        "MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions":
+            "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions",
+    },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint",
@@ -51,6 +57,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/SoundwellOrkBattleTests.cs": {
         "FixedFormationCanFinishRescueAfterThreeOrkActions":
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.FixedFormationCanFinishRescueAfterThreeOrkActions",
+        "FormationPreferenceGamepadSubmitTogglesModeWithoutEnteringTrial":
+            "Rpg.Tests.Editor.SoundwellOrkBattleTests.FormationPreferenceGamepadSubmitTogglesModeWithoutEnteringTrial",
         "BattleStepChangesGateAssignmentFromSameOpening":
             "Rpg.Tests.Editor.SoundwellOrkBattleTests.BattleStepChangesGateAssignmentFromSameOpening",
         "BattleBackCancelEventRetreatsAndReleasesOrkParticipants":
@@ -81,6 +89,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.P0BootstrapTests.SoundwellAudioMuteSurvivesSceneRerouting",
     },
     "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs": {
+        "S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer":
+            "Rpg.Tests.Editor.SoundwellInputSystemTests.S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer",
         "GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial":
             "Rpg.Tests.Editor.SoundwellInputSystemTests.GamepadSubmitOnFocusedEntrySfxButtonDoesNotStartTheTrial",
         "WhitewaterCableRepairRequiresRealGamepadStickAndFreshSouthPress":
@@ -91,6 +101,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.PlayerAndSoldierRescuesBothRequireAnEarnedStationInteraction",
         "OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection":
             "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection",
+        "V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy",
+        "ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater":
+            "Rpg.Tests.Editor.WhitewaterRescueChoiceInputTests.ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater",
     },
     "Assets/Game/Tests/Editor/SoundwellThreatPreviewTests.cs": {
         "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":
@@ -193,10 +207,11 @@ def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
             continue
         if not re.search(r"\bclass\s+" + re.escape(path.stem) + r"\b", source):
             continue
-        declared.update(
-            f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
-            for match in test_pattern.finditer(source)
-        )
+        for match in test_pattern.finditer(source):
+            full_name = f"Rpg.Tests.Editor.{path.stem}.{match.group(1)}"
+            if full_name in declared:
+                raise ValueError(f"Duplicate NUnit test declaration: {full_name}")
+            declared.add(full_name)
     return declared
 
 

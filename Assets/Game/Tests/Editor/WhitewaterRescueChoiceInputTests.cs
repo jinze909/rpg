@@ -5,6 +5,7 @@ using Rpg.Soundwell;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.TestTools;
 
@@ -15,6 +16,374 @@ namespace Rpg.Tests.Editor
     // neither the authored choice nor a timer may automatically rescue Han Qiao.
     public sealed class WhitewaterRescueChoiceInputTests
     {
+        [Test]
+        public void S00NightBackdropHidesEntryScreenAtAnyCanvasAspect()
+        {
+            var root = new GameObject("S00 night backdrop test canvas",
+                typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                RectTransform canvas = root.GetComponent<RectTransform>();
+                var creator = typeof(WhitewaterPrelude).GetMethod(
+                    "CreateFullCanvasNightBackdrop",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(creator, Is.Not.Null);
+                var backdrop = (Image)creator.Invoke(null,
+                    new object[] { canvas });
+                Assert.That(backdrop.gameObject.name, Is.EqualTo("S00 night backdrop"));
+                Assert.That(backdrop.raycastTarget, Is.False,
+                    "Night scenery cannot intercept player movement or dialogue.");
+                Assert.That(backdrop.color,
+                    Is.EqualTo(new Color(0.045f, 0.070f, 0.095f)));
+                RectTransform bounds = backdrop.rectTransform;
+                Assert.That(bounds.anchorMin, Is.EqualTo(Vector2.zero));
+                Assert.That(bounds.anchorMax, Is.EqualTo(Vector2.one));
+                Assert.That(bounds.offsetMin, Is.EqualTo(Vector2.zero));
+                Assert.That(bounds.offsetMax, Is.EqualTo(Vector2.zero));
+                foreach (Vector2 viewport in new[]
+                {
+                    new Vector2(320f, 720f),
+                    new Vector2(960f, 540f),
+                    new Vector2(1600f, 540f)
+                })
+                {
+                    canvas.sizeDelta = viewport;
+                    Canvas.ForceUpdateCanvases();
+                    Assert.That(bounds.rect.width,
+                        Is.EqualTo(viewport.x).Within(0.01f));
+                    Assert.That(bounds.rect.height,
+                        Is.EqualTo(viewport.y).Within(0.01f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void S00ThirdBellBlackoutCoversAnyCanvasAspectWithoutBlockingReturn()
+        {
+            var root = new GameObject("S00 blackout canvas", typeof(RectTransform),
+                typeof(Canvas));
+            try
+            {
+                var canvas = root.GetComponent<RectTransform>();
+                var creator = typeof(WhitewaterPrelude).GetMethod(
+                    "CreateFullCanvasBlackout",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(creator, Is.Not.Null);
+                var image = (Image)creator.Invoke(null, new object[] { canvas });
+                Assert.That(image.gameObject.name,
+                    Is.EqualTo("S00 blackout after bridge collapse"));
+                Assert.That(image.color, Is.EqualTo(Color.clear));
+                Assert.That(image.raycastTarget, Is.False,
+                    "The black frame cannot block the return-to-entry UGUI button.");
+                RectTransform cover = image.rectTransform;
+                Assert.That(cover.anchorMin, Is.EqualTo(Vector2.zero));
+                Assert.That(cover.anchorMax, Is.EqualTo(Vector2.one));
+                Assert.That(cover.offsetMin, Is.EqualTo(Vector2.zero));
+                Assert.That(cover.offsetMax, Is.EqualTo(Vector2.zero));
+                // A stretch-anchored overlay adapts to either extreme viewport
+                // without another animation, camera or gameplay branch.
+                foreach (Vector2 viewport in new[]
+                {
+                    new Vector2(1200f, 540f), new Vector2(320f, 720f)
+                })
+                {
+                    canvas.sizeDelta = viewport;
+                    Canvas.ForceUpdateCanvases();
+                    Assert.That(cover.rect.width, Is.EqualTo(viewport.x).Within(0.01f));
+                    Assert.That(cover.rect.height, Is.EqualTo(viewport.y).Within(0.01f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void S00EndingTitleStaysWithinPortraitAndUltrawideCanvas()
+        {
+            var root = new GameObject("S00 epilogue canvas",
+                typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                var canvas = root.GetComponent<RectTransform>();
+                var creator = typeof(WhitewaterPrelude).GetMethod(
+                    "CreateResponsiveEpilogueCard",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(creator, Is.Not.Null);
+                var card = (Text)creator.Invoke(null,
+                    new object[] { canvas, "TWELVE YEARS LATER" });
+                Assert.That(card.gameObject.name, Is.EqualTo("S00 twelve years later"));
+                Assert.That(card.text, Is.EqualTo("TWELVE YEARS LATER"));
+                Assert.That(card.horizontalOverflow, Is.EqualTo(HorizontalWrapMode.Wrap));
+                Assert.That(card.resizeTextForBestFit, Is.True);
+                Assert.That(card.resizeTextMinSize, Is.LessThanOrEqualTo(12));
+                var rect = card.rectTransform;
+                Assert.That(rect.anchorMin, Is.EqualTo(new Vector2(0f, 0.5f)));
+                Assert.That(rect.anchorMax, Is.EqualTo(new Vector2(1f, 0.5f)));
+                foreach (Vector2 viewport in new[]
+                {
+                    new Vector2(320f, 720f), new Vector2(1200f, 540f)
+                })
+                {
+                    canvas.sizeDelta = viewport;
+                    Canvas.ForceUpdateCanvases();
+                    Assert.That(rect.rect.width,
+                        Is.EqualTo(viewport.x - 40f).Within(0.01f));
+                    Assert.That(rect.rect.height, Is.EqualTo(95f).Within(0.01f));
+                    Assert.That(rect.anchoredPosition.x, Is.EqualTo(0f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void S00WalkerPresentationSnapsToWholePixelsWithoutSnappingMovementMotor()
+        {
+            // The underlying movement/reach motor remains subpixel-precise;
+            // only the rendered 16px avatar is snapped to Canvas pixels.
+            var method = typeof(WhitewaterPrelude).GetMethod(
+                "PixelSnappedWalkerPosition",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+
+            Vector2 motorA = new Vector2(-245.49f, 0.49f);
+            Vector2 visualA = (Vector2)method.Invoke(null, new object[] { motorA });
+            Assert.That(visualA, Is.EqualTo(new Vector2(-245f, 12f)));
+            Assert.That(motorA, Is.EqualTo(new Vector2(-245.49f, 0.49f)),
+                "Rendering must never round the movement motor or station reach checks.");
+
+            Vector2 motorB = new Vector2(-245.51f, 0.51f);
+            Vector2 visualB = (Vector2)method.Invoke(null, new object[] { motorB });
+            Assert.That(visualB, Is.EqualTo(new Vector2(-246f, 13f)));
+            Assert.That(visualA.x, Is.EqualTo(Mathf.Round(visualA.x)));
+            Assert.That(visualB.y, Is.EqualTo(Mathf.Round(visualB.y)));
+        }
+
+
+        [Test]
+        public void S00EvacueePickupCueFollowsRealReachAndLocaleWithoutRescuing()
+        {
+            var root = new GameObject("S00 live civilian pickup cue");
+            var civilianObject = new GameObject("S00 civilian", typeof(RectTransform));
+            var promptObject = new GameObject("S00 instructions", typeof(RectTransform),
+                typeof(Text));
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                civilianObject.transform.SetParent(root.transform, false);
+                promptObject.transform.SetParent(root.transform, false);
+                var stage = root.AddComponent<WhitewaterPrelude>();
+                var civilian = civilianObject.GetComponent<RectTransform>();
+                civilian.anchoredPosition = new Vector2(-72f, 12f);
+                var prompt = promptObject.GetComponent<Text>();
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var owner = typeof(WhitewaterPrelude);
+                var phase = owner.GetField("phase", flags);
+                var walker = owner.GetField("walker", flags);
+                var evacuee = owner.GetField("evacuee", flags);
+                var instructions = owner.GetField("instructions", flags);
+                var refresh = owner.GetMethod("RefreshEvacueePickupReachCue", flags);
+                Assert.That(phase, Is.Not.Null);
+                Assert.That(walker, Is.Not.Null);
+                Assert.That(evacuee, Is.Not.Null);
+                Assert.That(instructions, Is.Not.Null);
+                Assert.That(refresh, Is.Not.Null);
+                phase.SetValue(stage, 9);
+                evacuee.SetValue(stage, civilian);
+                instructions.SetValue(stage, prompt);
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+
+                walker.SetValue(stage, new Vector2(40f, 0f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.False);
+                Assert.That(prompt.text, Does.Contain("Walk beside the amber evacuee"));
+
+                // Both states are unreachable; switching lanes still needs
+                // a different hint, even though the readiness bool is false.
+                walker.SetValue(stage, new Vector2(40f, -32f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.False);
+                Assert.That(prompt.text, Does.Contain("Return to the bridge lane"));
+                walker.SetValue(stage, new Vector2(40f, 0f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.False);
+                Assert.That(prompt.text, Does.Contain("Walk beside the amber evacuee"));
+                Assert.That(stage.Phase, Is.EqualTo(9));
+
+                walker.SetValue(stage, new Vector2(-45f, 0f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.True);
+                Assert.That(prompt.text, Does.Contain("Beside the amber evacuee"));
+                Assert.That(stage.Phase, Is.EqualTo(9),
+                    "A readiness cue must not start the escort or earn any rescue.");
+                prompt.text = "unchanged cached cue";
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Is.EqualTo("unchanged cached cue"),
+                    "An unchanged physical/locale state must not rewrite UI each frame.");
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Does.Contain("已到金色伤者身旁"));
+                walker.SetValue(stage, new Vector2(-45f, -32f));
+                refresh.Invoke(stage, null);
+                Assert.That(stage.CanHelpEvacuee, Is.False);
+                Assert.That(prompt.text, Does.Contain("桥面通道"));
+                Assert.That(stage.Phase, Is.EqualTo(9));
+
+                // Language also changes the unreachable warning, not just
+                // the nearby action. Never leak a phase-9 prompt into escort.
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Does.Contain("Return to the bridge lane"));
+                phase.SetValue(stage, 10);
+                prompt.text = "Escort underway — do not replace this prompt";
+                refresh.Invoke(stage, null);
+                Assert.That(prompt.text, Is.EqualTo("Escort underway — do not replace this prompt"));
+                Assert.That(stage.CanHelpEvacuee, Is.False);
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void S00StationBindingLabelsCacheUntilEffectiveControlsChange()
+        {
+            var root = new GameObject("S00 binding prompt cache test");
+            try
+            {
+                var stage = root.AddComponent<WhitewaterPrelude>();
+                var owner = typeof(WhitewaterPrelude);
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var signature = owner.GetMethod("StationPromptBindingSignature", flags);
+                var notify = owner.GetMethod("OnStationActionChanged", flags);
+                var cache = owner.GetField("cachedStationBindings", flags);
+                Assert.That(signature, Is.Not.Null);
+                Assert.That(notify, Is.Not.Null);
+                Assert.That(cache, Is.Not.Null);
+
+                string first = (string)signature.Invoke(stage, null);
+                Assert.That(cache.GetValue(stage), Is.EqualTo(first));
+                // A normal gameplay action must not re-query all five labels.
+                cache.SetValue(stage, "cached S00 bindings");
+                notify.Invoke(stage, new object[] { null, InputActionChange.ActionStarted });
+                Assert.That(signature.Invoke(stage, null), Is.EqualTo("cached S00 bindings"));
+                // An effective rebind must invalidate the cache and restore
+                // the actual Input System labels before the next cue frame.
+                notify.Invoke(stage, new object[] { null,
+                    InputActionChange.BoundControlsChanged });
+                Assert.That(signature.Invoke(stage, null), Is.EqualTo(first));
+                Assert.That(cache.GetValue(stage), Is.EqualTo(first));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void S00OrkRetryConsumesOnlyOneRealRetryOffer()
+        {
+            // Duplicate Submit and stale UI callbacks must not start two
+            // StartEncounter coroutines or reset the new ORK battle twice.
+            var root = new GameObject("S00 ORK retry one-shot guard");
+            try
+            {
+                var defense = root.AddComponent<WhitewaterDefenseEncounter>();
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterDefenseEncounter);
+                var active = type.GetField("active", flags);
+                var armed = type.GetField("retryArmed", flags);
+                var claim = type.GetMethod("TryClaimRetry", flags);
+                Assert.That(active, Is.Not.Null);
+                Assert.That(armed, Is.Not.Null);
+                Assert.That(claim, Is.Not.Null);
+
+                active.SetValue(defense, true);
+                armed.SetValue(defense, true);
+                Assert.That(claim.Invoke(defense, new object[] { false }),
+                    Is.EqualTo(false), "ORK must be ready before retry consumes the offer.");
+                Assert.That((bool)armed.GetValue(defense), Is.True);
+                Assert.That(claim.Invoke(defense, new object[] { true }),
+                    Is.EqualTo(true), "The first real retry is accepted.");
+                Assert.That(claim.Invoke(defense, new object[] { true }),
+                    Is.EqualTo(false), "Double Submit cannot start a second ORK battle.");
+                Assert.That((bool)armed.GetValue(defense), Is.False);
+
+                armed.SetValue(defense, true);
+                active.SetValue(defense, false);
+                Assert.That(claim.Invoke(defense, new object[] { true }),
+                    Is.EqualTo(false), "An abandoned encounter cannot restart.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void UnwonOrkEncounterCannotAdvanceS00ViaStaleContinueCallback()
+        {
+            // The Continue button is displayed only after ORK victory, but a
+            // stale or direct callback must still be denied by the owner.
+            var root = new GameObject("unwon S00 ORK defence");
+            try
+            {
+                var party = root.AddComponent<OrkPartyBridge>();
+                var defence = root.AddComponent<WhitewaterDefenseEncounter>();
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterDefenseEncounter);
+                var partyField = type.GetField("party", flags);
+                var activeField = type.GetField("active", flags);
+                var callbackField = type.GetField("onCompleted", flags);
+                var continueMethod = type.GetMethod("Continue", flags);
+                var retreatMethod = type.GetMethod("Retreat", flags);
+                Assert.That(partyField, Is.Not.Null);
+                Assert.That(activeField, Is.Not.Null);
+                Assert.That(callbackField, Is.Not.Null);
+                Assert.That(continueMethod, Is.Not.Null);
+                Assert.That(retreatMethod, Is.Not.Null);
+                partyField.SetValue(defence, party);
+                activeField.SetValue(defence, true);
+                int result = -1;
+                callbackField.SetValue(defence,
+                    new System.Action<bool>(won => result = won ? 1 : 0));
+
+                Assert.That(party.EncounterWon, Is.False);
+                continueMethod.Invoke(defence, null);
+                Assert.That(result, Is.EqualTo(-1),
+                    "Without an actual ORK win, Continue cannot grant the third bell.");
+                Assert.That(defence.IsActive, Is.True,
+                    "Rejecting a stale Continue must not silently end the encounter.");
+
+                retreatMethod.Invoke(defence, null);
+                Assert.That(result, Is.Zero,
+                    "The existing voluntary retreat must remain available.");
+                Assert.That(defence.IsActive, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
 
         [Test]
         public void SharedS00PixelRasterizerRetainsAuthoredCoatAndTransparentCorners()
@@ -85,6 +454,12 @@ namespace Rpg.Tests.Editor
                 walkerField.SetValue(prelude, new Vector2(-72f + 31f, 0f));
                 Assert.That(prelude.CanHelpEvacuee, Is.True,
                     "One pixel of body overlap on the bridge lane allows the escort.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, -28f));
+                Assert.That(prelude.CanHelpEvacuee, Is.False,
+                    "X contact and a valid lane position cannot rescue across a visible vertical gap.");
+                walkerField.SetValue(prelude, new Vector2(-72f + 31f, -16f));
+                Assert.That(prelude.CanHelpEvacuee, Is.True,
+                    "The actual actor footprints overlap vertically at the 28px edge.");
                 walkerField.SetValue(prelude, new Vector2(-72f + 31f, 29f));
                 Assert.That(prelude.CanHelpEvacuee, Is.False,
                     "Horizontal contact from below the walkable lane is insufficient.");
@@ -134,6 +509,139 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
+        public IEnumerator ThirdBellRequiresAnEarnedDefenseCompletionAndEndsAtTwelveYearsLater()
+        {
+            // Isolate the visual callback while the separate S00 full-path
+            // test proves the real ORK battle starts and accepts actions.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            WhitewaterPrelude stage = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                InputSystem.AddDevice<Keyboard>();
+                InputSystem.AddDevice<Gamepad>();
+                stage = new GameObject("S00 third bell regression")
+                    .AddComponent<WhitewaterPrelude>();
+                stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                yield return null;
+
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterPrelude);
+                var completion = type.GetMethod("OnWhitewaterDefenseCompleted", flags);
+                var phaseField = type.GetField("phase", flags);
+                var defenseStarted = type.GetField("defenseStarted", flags);
+                var beginDefense = type.GetMethod("BeginWhitewaterDefense", flags);
+                Assert.That(beginDefense, Is.Not.Null);
+                Assert.That(completion, Is.Not.Null);
+                Assert.That(phaseField, Is.Not.Null);
+                Assert.That(defenseStarted, Is.Not.Null);
+                var bell = stage.GetComponentInChildren<AudioSource>(true);
+                Assert.That(bell, Is.Not.Null);
+
+                completion.Invoke(stage, new object[] { true });
+                Assert.That(stage.Phase, Is.Zero,
+                    "A callback cannot skip roll call, rescue, and the ORK encounter.");
+                Assert.That(stage.ThirdBellStarted, Is.False);
+                phaseField.SetValue(stage, 16);
+                beginDefense.Invoke(stage, null);
+                Assert.That(stage.CurrentInstructions, Does.Not.Contain("ORK"),
+                    "Missing battle setup must not expose engine internals in playable copy.");
+                Assert.That(stage.CurrentInstructions, Does.Contain("Return to the entrance"));
+                completion.Invoke(stage, new object[] { true });
+                Assert.That(stage.ThirdBellStarted, Is.False,
+                    "Holding Shen Li's cable without the live ORK encounter cannot ring the third bell.");
+                Assert.That(bell.clip, Is.Null);
+
+                defenseStarted.SetValue(stage, true);
+                completion.Invoke(stage, new object[] { true });
+                Assert.That(stage.Phase, Is.EqualTo(17));
+                Assert.That(stage.ThirdBellStarted, Is.True);
+                Assert.That(stage.CurrentInstructions, Does.Not.Contain("ORK"),
+                    "Engine-specific acceptance language is not playable P0 dialogue.");
+                Assert.That(bell.clip, Is.Not.Null);
+                Assert.That(bell.clip.name, Does.Contain("third warning bell"));
+                Assert.That(bell.outputAudioMixerGroup, Is.Not.Null,
+                    "The scripted third bell must use the existing saved M6 SFX bus.");
+                Assert.That(bell.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
+                Assert.That(bell.clip.length, Is.InRange(1.25f, 1.35f));
+
+                var walkway = stage.transform.Find(
+                    "S00 Whitewater playable canvas/PLACEHOLDER bridge walkway") as RectTransform;
+                Assert.That(walkway, Is.Not.Null);
+                float deadline = Time.realtimeSinceStartup + 8f;
+                while (stage.Phase != 18 && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                Assert.That(stage.Phase, Is.EqualTo(18),
+                    "Only the earned win should reach the final blackout and historical title.");
+                Assert.That(walkway.sizeDelta.x, Is.LessThan(400f),
+                    "The far span must visibly fall, not merely change a caption.");
+                Assert.That(walkway.anchoredPosition.y, Is.LessThan(-20f));
+                var torches = stage.GetComponentsInChildren<Image>(true)
+                    .Where(image => image.gameObject.name ==
+                        "PLACEHOLDER S00 encircling torch light").ToArray();
+                Assert.That(torches.Length, Is.EqualTo(4),
+                    "The historical encirclement must show four existing lights.");
+                var torchSprite = torches[0].sprite;
+                Assert.That(torchSprite, Is.Not.Null);
+                Assert.That(torchSprite.pixelsPerUnit, Is.EqualTo(16f));
+                Assert.That(torchSprite.texture.width, Is.EqualTo(16));
+                Assert.That(torchSprite.texture.height, Is.EqualTo(16));
+                Assert.That(torchSprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(torchSprite.texture.GetPixel(7, 12).a,
+                    Is.GreaterThan(0.99f), "The flame must contain visible authored pixels.");
+                foreach (var torch in torches)
+                {
+                    Assert.That(torch.sprite, Is.SameAs(torchSprite),
+                        "The four lights must share one generated 16px texture.");
+                    Assert.That(torch.raycastTarget, Is.False,
+                        "Scenery cannot steal the final Exit button's input.");
+                    Assert.That(torch.rectTransform.sizeDelta,
+                        Is.EqualTo(new Vector2(32f, 32f)),
+                        "The S00 canvas must show each torch at exact 2x pixel scale.");
+                }
+                var blackout = stage.transform.Find(
+                    "S00 Whitewater playable canvas/S00 blackout after bridge collapse");
+                Assert.That(blackout, Is.Not.Null);
+                Assert.That(blackout.GetComponent<Image>().color.a,
+                    Is.GreaterThan(0.99f));
+                var card = stage.transform.Find(
+                    "S00 Whitewater playable canvas/S00 twelve years later");
+                Assert.That(card, Is.Not.Null);
+                Assert.That(card.GetComponent<Text>().text,
+                    Is.EqualTo("TWELVE YEARS LATER"));
+                var exit = FindButton(stage, "S00 return to Bootstrap");
+                Assert.That(exit.gameObject.activeInHierarchy, Is.True,
+                    "The final title cannot trap players in an unimplemented M00.");
+
+                completion.Invoke(stage, new object[] { true });
+                yield return null;
+                Assert.That(stage.Phase, Is.EqualTo(18),
+                    "An old duplicate victory callback must not restart the third bell.");
+                var sharedTorchTexture = torchSprite.texture;
+                stage.Close();
+                yield return null;
+                Assert.That(sharedTorchTexture == null, Is.True,
+                    "Closing the finished S00 must release its one generated torch texture.");
+                stage = null;
+            }
+            finally
+            {
+                if (stage != null)
+                    stage.Close();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
         public IEnumerator OpenS00ChoicesFollowLocaleWithoutAdvancingOrChangingSelection()
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -155,16 +663,21 @@ namespace Rpg.Tests.Editor
 
                 Button first = FindButton(stage, "S00 choice 0");
                 Button second = FindButton(stage, "S00 choice 1");
+                Button delayed = FindButton(stage, "S00 choice 2");
                 Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("Here."));
                 Assert.That(second.GetComponentInChildren<Text>(true).text,
-                    Is.EqualTo("Raise your hand."));
+                    Is.EqualTo("Here. Has she fixed that nut?"));
+                Assert.That(delayed.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("...Here. (Second call)"));
                 Assert.That(stage.Phase, Is.Zero);
 
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
                 yield return null;
                 Assert.That(first.GetComponentInChildren<Text>(true).text, Is.EqualTo("在。"));
                 Assert.That(second.GetComponentInChildren<Text>(true).text,
-                    Is.EqualTo("举手示意"));
+                    Is.EqualTo("在。——她那个螺母，修好了吗？"));
+                Assert.That(delayed.GetComponentInChildren<Text>(true).text,
+                    Is.EqualTo("……在。（第二遍应声）"));
                 Assert.That(stage.Phase, Is.Zero,
                     "Changing language cannot answer the roll call for the player.");
 
@@ -175,6 +688,49 @@ namespace Rpg.Tests.Editor
                 second.onClick.Invoke();
                 Assert.That(stage.Phase, Is.EqualTo(1),
                     "The original choice remains operable after both locale changes.");
+                Assert.That(stage.CurrentNarration, Does.Contain("Two alive."),
+                    "The v1.2 question about Shen Li's nut must earn its specific reply.");
+            }
+            finally
+            {
+                if (stage != null)
+                    stage.Close();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            WhitewaterPrelude stage = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                InputSystem.AddDevice<Keyboard>();
+                InputSystem.AddDevice<Gamepad>();
+                stage = new GameObject("v1.2 P0 rollcall delayed answer")
+                    .AddComponent<WhitewaterPrelude>();
+                stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                yield return null;
+                Assert.That(stage.Phase, Is.Zero);
+                ClickChoice(stage, 2);
+                Assert.That(stage.Phase, Is.EqualTo(1),
+                    "Only a real second-call answer may advance to the clamp.");
+                Assert.That(stage.CurrentNarration, Does.Contain("军士又念了一遍你的名字"),
+                    "The delayed answer may not be treated like an immediate greeting.");
+                Assert.That(stage.CurrentNarration, Does.Contain("别走神"));
+                Assert.That(stage.CurrentNarration, Does.Contain("马小六"));
+                Assert.That(stage.CurrentNarration, Does.Contain("三遍没人答"));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
             }
             finally
             {
@@ -202,15 +758,36 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 Gamepad pad = InputSystem.AddDevice<Gamepad>();
+                EditorSceneManager.LoadSceneInPlayMode(
+                    "Assets/Game/Scenes/Bootstrap.unity",
+                    new LoadSceneParameters(LoadSceneMode.Single));
+                float entranceDeadline = Time.realtimeSinceStartup + 5f;
+                var entrance = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
+                while (entrance == null && Time.realtimeSinceStartup < entranceDeadline)
+                {
+                    yield return null;
+                    entrance = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
+                }
+                Assert.That(entrance, Is.Not.Null,
+                    "The Bootstrap scene must expose the S00 entry after the input fixture is ready.");
+                var defense = entrance.GetComponent<WhitewaterDefenseEncounter>();
+                Assert.That(defense, Is.Not.Null,
+                    "The Bootstrap entrance must own the S00 ORK defence.");
+                Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True,
+                    "The Bootstrap entry must initialise the shared input adapter after fixture setup.");
                 foreach (int rescueChoice in new[] { 0, 1, 2 })
                 {
-                    var root = new GameObject("S00 alternate rescue input regression");
-                    activePrelude = root.AddComponent<WhitewaterPrelude>();
-                    activePrelude.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                    entrance.OpenPrelude();
                     yield return null;
+                    activePrelude = entrance.GetComponentInChildren<WhitewaterPrelude>(true);
+                    Assert.That(activePrelude, Is.Not.Null,
+                        "Opening S00 must create its playable stage.");
+                    var root = activePrelude.gameObject;
 
                     ClickChoice(activePrelude, 0); // Roll call: the player answers.
                     Assert.That(activePrelude.Phase, Is.EqualTo(1));
+                    Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                        "The roll call must return movement control to the gameplay action map.");
                     input.Press(keys.dKey);
                     float repairDeadline = Time.realtimeSinceStartup + 6f;
                     while (!activePrelude.CanRepair && Time.realtimeSinceStartup < repairDeadline)
@@ -218,12 +795,19 @@ namespace Rpg.Tests.Editor
                     input.Release(keys.dKey);
                     yield return null;
                     Assert.That(activePrelude.CanRepair, Is.True,
-                        "The player must physically reach the clamp before repairing.");
+                        $"The player must physically reach the clamp before repairing (walker={activePrelude.WalkerPosition}, gameplay={SoundwellInputAdapter.IsGameplayContextActive}).");
                     input.Press(keys.eKey);
                     yield return null;
                     input.Release(keys.eKey);
                     yield return null;
-                    Assert.That(activePrelude.Phase, Is.EqualTo(2));
+                    Assert.That(activePrelude.Phase, Is.EqualTo(1),
+                        "One knock cannot complete the v1.2 wrench interaction.");
+                    input.Press(keys.eKey);
+                    yield return null;
+                    input.Release(keys.eKey);
+                    yield return null;
+                    Assert.That(activePrelude.Phase, Is.EqualTo(2),
+                        "Two separate earned knocks must open the repair choices.");
                     ClickChoice(activePrelude, 0); // Brace the plate together.
                     Assert.That(activePrelude.Phase, Is.EqualTo(3));
 
@@ -235,8 +819,10 @@ namespace Rpg.Tests.Editor
                     Assert.That(workshop.gameObject.activeInHierarchy, Is.True);
                     workshop.onClick.Invoke();
                     Assert.That(activePrelude.Phase, Is.EqualTo(4));
-                    ClickChoice(activePrelude, 1); // A genuine, noncommittal workshop answer.
+                    ClickChoice(activePrelude, 1); // The v1.2 'maybe later' workshop answer.
                     Assert.That(activePrelude.Phase, Is.EqualTo(5));
+                    Assert.That(activePrelude.CurrentNarration, Does.Contain("save you a chair"),
+                        "The noncommittal P0 answer cannot become a binding promise.");
                     FindButton(activePrelude, "S00 continue to last boat").onClick.Invoke();
                     Assert.That(activePrelude.Phase, Is.EqualTo(6));
 
@@ -461,6 +1047,10 @@ namespace Rpg.Tests.Editor
                     Assert.That(activePrelude.CurrentNarration, Does.Contain(
                         rescueChoice == 0 ? "You heave Han Qiao" :
                         rescueChoice == 1 ? "Shen Li's rope holds" : "The soldiers lift"));
+                    Assert.That(activePrelude.CurrentNarration, Does.Contain("Before the third watch"),
+                        "The earned rescue must deliver Han Qiao's v1.2 third-watch warning before the last boat.");
+                    Assert.That(activePrelude.CurrentNarration, Does.Contain("Not yet"),
+                        "The bridge has not finished crossing when Han Qiao is rescued.");
                     Assert.That(inWater.anchoredPosition.x, Is.GreaterThan(riverStartX),
                         "The officer must begin visibly moving only after the actual rescue.");
                     Assert.That(inWater.anchoredPosition.x,
@@ -510,6 +1100,14 @@ namespace Rpg.Tests.Editor
                         float passengerDockX = inWater.anchoredPosition.x;
                         retreat.onClick.Invoke();
                         Assert.That(activePrelude.Phase, Is.EqualTo(9));
+                        Assert.That(activePrelude.CurrentNarration, Does.Contain("cooking pot"),
+                            "The first physical evacuation must introduce the pot-carrying cook from v1.2.");
+                        var cookFigure = activePrelude.transform.Find(
+                            "S00 Whitewater playable canvas/S00 last evacuee")?.GetComponent<Image>();
+                        Assert.That(cookFigure, Is.Not.Null);
+                        Assert.That(cookFigure.sprite.name, Does.Contain("pot-carrying cook"),
+                            "A distinct cooking-pot silhouette must accompany the v1.2 dialogue.");
+                        Assert.That(cookFigure.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
                         Assert.That(soldierHelper.gameObject.activeInHierarchy, Is.False,
                             "The soldier must leave the rescue lane as the last boat departs.");
                         float departureDeadline = Time.realtimeSinceStartup + 3f;
@@ -594,6 +1192,8 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(10));
+                        Assert.That(activePrelude.CurrentNarration, Does.Contain("pull the cook to his feet"),
+                            "The v1.2 cook must be helped only after a real, in-reach E action.");
                         var follower = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/S00 last evacuee").GetComponent<Image>();
                         var escortStatus = follower.transform.Find("S00 evacuee escort status")
@@ -649,12 +1249,16 @@ namespace Rpg.Tests.Editor
 
                         input.Press(keys.wKey);
                         float regroupDeadline = Time.realtimeSinceStartup + 3f;
-                        while (follower.color.g <= follower.color.r && Time.realtimeSinceStartup < regroupDeadline)
+                        while ((follower.color.g <= follower.color.r ||
+                                Mathf.Abs(activePrelude.WalkerPosition.y) > 8f) &&
+                               Time.realtimeSinceStartup < regroupDeadline)
                             yield return null;
                         input.Release(keys.wKey);
                         yield return null;
                         Assert.That(follower.color.g, Is.GreaterThan(follower.color.r),
                             "Returning to the follower must restore a visible green escort state.");
+                        Assert.That(Mathf.Abs(activePrelude.WalkerPosition.y), Is.LessThanOrEqualTo(8f),
+                            "A safe-line handoff must also return the player to the survivor's actual bridge lane.");
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("Green: following"),
                             "Regrouping must replace the previous amber recovery hint.");
                         Assert.That(escortStatus.text, Is.EqualTo("FOLLOW"),
@@ -691,9 +1295,63 @@ namespace Rpg.Tests.Editor
                         yield return null;
                         input.Release(keys.eKey);
                         yield return null;
-                        Assert.That(activePrelude.Phase, Is.EqualTo(11));
+                        Assert.That(activePrelude.Phase, Is.EqualTo(9),
+                            "The first cook handoff cannot skip the two later v1.2 rescues.");
+                        Assert.That(activePrelude.EvacueesRescued, Is.EqualTo(1));
                         Assert.That(escortStatus.gameObject.activeSelf, Is.False,
                             "The old follower status must disappear after safe arrival.");
+                        for (int person = 1; person < 3; person++)
+                        {
+                            Assert.That(activePrelude.CanHelpEvacuee, Is.False,
+                                "A new evacuee cannot be collected at the old safe line.");
+                            Image actor = activePrelude.transform.Find(
+                                "S00 Whitewater playable canvas/S00 last evacuee")
+                                .GetComponent<Image>();
+                            Assert.That(actor.sprite.name, person == 1
+                                ? Does.Contain("soldier ready")
+                                : Does.Contain("young soldier with shield"));
+                            if (person == 2)
+                            {
+                                Assert.That(actor.sprite.texture.filterMode,
+                                    Is.EqualTo(FilterMode.Point));
+                                Assert.That(actor.sprite.texture.GetPixel(14, 8).a,
+                                    Is.GreaterThan(0.9f),
+                                    "The third rescued soldier must visibly carry his shield.");
+                            }
+                            input.Press(keys.dKey);
+                            float personDeadline = Time.realtimeSinceStartup + 6f;
+                            while (!activePrelude.CanHelpEvacuee &&
+                                   Time.realtimeSinceStartup < personDeadline)
+                                yield return null;
+                            input.Release(keys.dKey);
+                            yield return null;
+                            Assert.That(activePrelude.CanHelpEvacuee, Is.True);
+                            input.Press(keys.eKey);
+                            yield return null;
+                            input.Release(keys.eKey);
+                            yield return null;
+                            Assert.That(activePrelude.Phase, Is.EqualTo(10));
+                            Assert.That(activePrelude.CurrentNarration,
+                                person == 1 ? Does.Contain("onto your back")
+                                : Does.Contain("shield"),
+                                "Each separate rescue must play its v1.2 physical response.");
+                            input.Press(keys.aKey);
+                            float personSafeDeadline = Time.realtimeSinceStartup + 7f;
+                            while (!activePrelude.CanDeliverEvacuee &&
+                                   Time.realtimeSinceStartup < personSafeDeadline)
+                                yield return null;
+                            input.Release(keys.aKey);
+                            yield return null;
+                            Assert.That(activePrelude.CanDeliverEvacuee, Is.True,
+                                "The next survivor must physically reach the safe line.");
+                            input.Press(keys.eKey);
+                            yield return null;
+                            input.Release(keys.eKey);
+                            yield return null;
+                            Assert.That(activePrelude.EvacueesRescued, Is.EqualTo(person + 1));
+                            Assert.That(activePrelude.Phase,
+                                Is.EqualTo(person == 1 ? 9 : 11));
+                        }
                         var coil = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
                         Assert.That(coil, Is.Not.Null);
@@ -734,6 +1392,9 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(13));
+                        Assert.That(activePrelude.CurrentNarration, Does.Contain(
+                            "cook, wounded soldier and young shield-bearer"),
+                            "Three real evacuations must not be retold as one generic survivor.");
 
                         var watch = FindButton(activePrelude, "S00 watch opposite bank");
                         watch.onClick.Invoke();
@@ -900,6 +1561,13 @@ namespace Rpg.Tests.Editor
                         Assert.That(cable.GetComponent<Image>().color.r, Is.GreaterThan(0.9f),
                             "Shen Li's strained cable must show the physical hold.");
                         Assert.That(activePrelude.CurrentNarration, Does.Contain("For a moment it holds"));
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("about to begin"),
+                            "Bracing the cable must prepare players for the earned ORK battle, not tell them to leave.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Contain("Attack or Guard"));
+                        Assert.That(activePrelude.CurrentInstructions, Does.Not.Contain("ORK"),
+                            "An earned bridgehead battle may not expose its internal RPG engine.");
+                        Assert.That(activePrelude.CurrentInstructions, Does.Not.Contain("Return to entry"),
+                            "The upcoming bridgehead encounter must not be described as a completed dead end.");
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.True);
                         Assert.That(bell.clip.name, Does.Contain("second warning bell"),
                             "Holding the cable must not invent a third bell or a fake ORK victory.");
@@ -953,6 +1621,24 @@ namespace Rpg.Tests.Editor
                             "Visual pressure must not skip into an unimplemented third-bell break.");
                         Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                         Assert.That(bell.clip.name, Does.Contain("second warning bell"));
+
+                        float battleDeadline = Time.realtimeSinceStartup + 35f;
+                        while (!defense.BattleInProgress &&
+                               Time.realtimeSinceStartup < battleDeadline)
+                            yield return null;
+                        Assert.That(defense.IsReady, Is.True,
+                            "The S00 ORK party must register before the bridgehead encounter.");
+                        Assert.That(defense.BattleInProgress, Is.True,
+                            "The three advancing silhouettes must resolve into a real ORK encounter, not a staged attack.");
+                        float actionDeadline = Time.realtimeSinceStartup + 8f;
+                        bool acceptedAction = false;
+                        while (!acceptedAction && Time.realtimeSinceStartup < actionDeadline)
+                        {
+                            acceptedAction = defense.TryAttack() || defense.TryGuard();
+                            yield return null;
+                        }
+                        Assert.That(acceptedAction, Is.True,
+                            "At least one live ORK chooser must accept a real Attack or Guard action.");
                     }
 
                     activePrelude.Close();

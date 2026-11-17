@@ -546,6 +546,10 @@ MonoBehaviour:
     m_Localized: "S00 · Cable held · Replay"
     m_Metadata:
       m_Items: []
+  - m_Id: 94572955267459
+    m_Localized: "S00 · Third bell heard · Replay"
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

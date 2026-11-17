@@ -5,6 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Audio;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -29,6 +30,7 @@ namespace Rpg.Soundwell
         private RectTransform prologueRect;
         private Canvas entryCanvas;
         private WhitewaterPrelude currentPrelude;
+        private M00MemorialSquare currentMemorial;
         // A UGUI Submit that closes S00 can be the same gamepad-A event
         // read by the entry menu on that frame. Do not treat it as a second
         // request to load the combat trial or reopen the prologue.
@@ -41,6 +43,9 @@ namespace Rpg.Soundwell
         private Font englishFont;
         private float layoutAspect = -1f;
         private string shownEntryPrompt;
+        private bool entryBindingHintDirty;
+        private float nextOutcomeRefreshAt;
+        private const float OutcomeRefreshInterval = 0.20f;
         private string shownPreludeProgressKey;
         private int shownOutcome = -1;
         private bool shownOutcomeRecorded;
@@ -55,6 +60,7 @@ namespace Rpg.Soundwell
         public bool LastReturnCartKitRecovered => shownCartKitRecovered;
         public bool LastReturnSafeRouteMarked => shownSafeRouteMarked;
         public int LastReturnBeastContacts => shownBeastContacts;
+        public bool MemorialSquareOpen => currentMemorial != null;
 
         private void Awake()
         {
@@ -193,11 +199,27 @@ namespace Rpg.Soundwell
         private void OnEnable()
         {
             SoundwellUiLocalization.Changed += RefreshLocalizedPresentation;
+            InputSystem.onActionChange += OnInputActionChanged;
+            // Refresh immediately when this screen is shown again.
+            entryBindingHintDirty = true;
+            nextOutcomeRefreshAt = 0f;
         }
 
         private void OnDisable()
         {
             SoundwellUiLocalization.Changed -= RefreshLocalizedPresentation;
+            InputSystem.onActionChange -= OnInputActionChanged;
+        }
+
+        private static bool ShouldRefreshBindingPrompt(InputActionChange change) =>
+            change == InputActionChange.BoundControlsChanged;
+
+        private void OnInputActionChanged(object source, InputActionChange change)
+        {
+            // Input System owns effective control changes; individual action
+            // presses must never trigger a new binding-label lookup.
+            if (ShouldRefreshBindingPrompt(change))
+                entryBindingHintDirty = true;
         }
 
         private void RefreshLocalizedPresentation()
@@ -225,8 +247,12 @@ namespace Rpg.Soundwell
         // The prologue button always starts from the opening; when a prior
         // visit exists it must say Replay, never falsely promise Resume.
         public static string PreludeProgressKey(bool evacueeSafe,
-            bool secondBellHeard, bool cableHeld)
+            bool secondBellHeard, bool cableHeld, bool thirdBellHeard = false)
         {
+            // This flag is earned only from the real S00 ORK victory callback.
+            // Earlier scene exits may only advertise what the player reached.
+            if (thirdBellHeard)
+                return "entry.whitewater_replay_third_bell";
             if (cableHeld)
                 return "entry.whitewater_replay_cable";
             if (secondBellHeard)
@@ -244,7 +270,8 @@ namespace Rpg.Soundwell
             string key = PreludeProgressKey(
                 state != null && state.GetInt(WhitewaterPrelude.EvacueeEscortedKey) != 0,
                 state != null && state.GetInt(WhitewaterPrelude.SecondBellKey) != 0,
-                state != null && state.GetInt(WhitewaterPrelude.CableHoldKey) != 0);
+                state != null && state.GetInt(WhitewaterPrelude.CableHoldKey) != 0,
+                state != null && state.GetInt(WhitewaterPrelude.ThirdBellKey) != 0);
             if (!force && key == shownPreludeProgressKey)
                 return;
             Text label = prologueButton.GetComponentInChildren<Text>();
@@ -445,20 +472,55 @@ namespace Rpg.Soundwell
                 prologueLabel.rectTransform.sizeDelta =
                     new Vector2(compact ? 210f : 242f, compact ? 28f : 33f);
             languageText.rectTransform.sizeDelta = new Vector2(compact ? 180f : 198f, 36f);
+
+            // CanvasScaler's geometric-mean scale makes the logical height
+            // just ~322 at 5:1. The normal y=-230 settings row is then fully
+            // offscreen, even though the window has ample horizontal space.
+            // Keep all five real buttons reachable in two clear columns.
+            if (layoutAspect >= 2.55f)
+            {
+                titleText.rectTransform.anchoredPosition = new Vector2(-270f, 101f);
+                entryRect.anchoredPosition = new Vector2(-270f, 15f);
+                footerText.rectTransform.anchoredPosition = new Vector2(-270f, -60f);
+                outcomeText.rectTransform.anchoredPosition = new Vector2(-270f, -112f);
+                outcomeText.rectTransform.sizeDelta = new Vector2(500f, 64f);
+
+                languageRect.anchoredPosition = new Vector2(300f, 105f);
+                prologueRect.anchoredPosition = new Vector2(300f, 52f);
+                formationRect.anchoredPosition = new Vector2(300f, -13f);
+                sfxRect.anchoredPosition = new Vector2(300f, -77f);
+            }
         }
 
         private void Update()
         {
-            // ORK may initialize after this scene's Awake/Start. Recheck the
-            // same Makinom source without creating a parallel summary flag.
-            RefreshReturnOutcome();
-            // The S00 scene lives on this Bootstrap canvas. Its Makinom
-            // markers can advance before returning here; show that progress
-            // without maintaining another quest flag or auto-resuming.
-            RefreshPreludeProgress();
-            // Remaps may occur while the Entry screen stays alive. Refresh
-            // only when the effective keyboard shortcut changes.
-            RefreshEntryShortcutHint();
+            // ORK can create or reactivate its own EventSystem after this
+            // component's Awake. While Entry is visible, restore the single
+            // New Input System UI owner and keep navigation/Submit enabled.
+            if (entryCanvas != null && entryCanvas.enabled)
+            {
+                EventSystem current = EventSystem.current;
+                if (current == null ||
+                    current.GetComponent<InputSystemUIInputModule>() == null ||
+                    !current.sendNavigationEvents)
+                    SoundwellInputAdapter.EnsureEventSystem(transform);
+            }
+
+            // Makinom lacks a public outcome/marker change notification.
+            // Poll its authoritative state at a bounded UI cadence.
+            if (Time.unscaledTime >= nextOutcomeRefreshAt)
+            {
+                RefreshReturnOutcome();
+                RefreshPreludeProgress();
+                nextOutcomeRefreshAt = Time.unscaledTime + OutcomeRefreshInterval;
+            }
+            // Effective remaps notify us through the Input System, so avoid
+            // per-frame binding-string lookups while the screen is idle.
+            if (entryBindingHintDirty)
+            {
+                entryBindingHintDirty = false;
+                RefreshEntryShortcutHint();
+            }
             float aspect = (float)Screen.width / Mathf.Max(Screen.height, 1);
             if (!Mathf.Approximately(aspect, layoutAspect))
                 LayoutForViewportAspect(aspect);
@@ -480,7 +542,7 @@ namespace Rpg.Soundwell
 
         public void OpenPrelude()
         {
-            if (currentPrelude != null || trialLoad != null ||
+            if (currentPrelude != null || currentMemorial != null || trialLoad != null ||
                 lastPreludeExitFrame == Time.frameCount)
                 return;
             entryCanvas.enabled = false;
@@ -489,8 +551,26 @@ namespace Rpg.Soundwell
             currentPrelude = scene.AddComponent<WhitewaterPrelude>();
             currentPrelude.Begin(() =>
             {
+                // The M00 jump is earned by the actual S00 third bell. Leaving
+                // early still returns to the normal entry screen.
+                bool openMemorial = currentPrelude != null && currentPrelude.ThirdBellStarted;
                 lastPreludeExitFrame = Time.frameCount;
                 currentPrelude = null;
+                if (openMemorial)
+                {
+                    entryCanvas.enabled = false;
+                    var memorialObject = new GameObject("M00 Memorial Square · playable opening");
+                    memorialObject.transform.SetParent(transform, false);
+                    currentMemorial = memorialObject.AddComponent<M00MemorialSquare>();
+                    currentMemorial.Begin(() =>
+                    {
+                        currentMemorial = null;
+                        entryCanvas.enabled = true;
+                        if (EventSystem.current != null)
+                            EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
+                    });
+                    return;
+                }
                 entryCanvas.enabled = true;
                 SoundwellInputAdapter.SetEntryContext();
                 if (EventSystem.current != null)
@@ -580,7 +660,7 @@ namespace Rpg.Soundwell
 
         public AsyncOperation OpenTrial()
         {
-            if (trialLoad != null || currentPrelude != null ||
+            if (trialLoad != null || currentPrelude != null || currentMemorial != null ||
                 lastPreludeExitFrame == Time.frameCount)
                 return trialLoad;
             // Enter commits the scene transition. Disable the other focused

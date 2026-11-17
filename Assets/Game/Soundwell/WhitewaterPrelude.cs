@@ -3,6 +3,7 @@ using System.Collections;
 using GamingIsLove.Makinom;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -22,6 +23,7 @@ namespace Rpg.Soundwell
         public const string SecondBellKey = "rpg.return.s00.second-bell";
         public const string FarBankWarningKey = "rpg.return.s00.far-bank-warning";
         public const string CableHoldKey = "rpg.return.s00.cable-hold";
+        public const string ThirdBellKey = "rpg.return.s00.third-bell";
         // The post must be physically beside Shen Li (at ClampX + 58), not
         // a disconnected marker halfway across the bridge.
         private const float BridgePostX = ClampX + 30f;
@@ -77,8 +79,10 @@ namespace Rpg.Soundwell
         private RectTransform soldierRescueHelper;
         private Sprite soldierReadySprite;
         private Sprite soldierHaulingSprite;
+        private Sprite youngSoldierShieldSprite;
         private Texture2D soldierReadyTexture;
         private Texture2D soldierHaulingTexture;
+        private Texture2D youngSoldierShieldTexture;
         private Texture2D shenLiRescueRopeTexture;
         private RectTransform lastBoat;
         private Texture2D lastBoatPixelTexture;
@@ -94,6 +98,7 @@ namespace Rpg.Soundwell
         private AudioSource bellAudio;
         private AudioClip firstBellClip;
         private AudioClip secondBellClip;
+        private AudioClip thirdBellClip;
         private Sprite playerPixelSprite;
         private Sprite shenLiPixelSprite;
         private Sprite shenLiBracingSprite;
@@ -104,20 +109,30 @@ namespace Rpg.Soundwell
         private Sprite hanQiaoPixelSprite;
         private Sprite evacueePixelSprite;
         private Sprite farBankGuardSprite;
+        private Sprite encirclingTorchSprite;
         private Sprite farBankGuardWalkSprite;
         private Sprite spareRopePixelSprite;
         private Texture2D hanQiaoPixelTexture;
         private Texture2D evacueePixelTexture;
         private Texture2D farBankGuardTexture;
+        private Texture2D encirclingTorchTexture;
         private Texture2D farBankGuardWalkTexture;
         private Texture2D spareRopePixelTexture;
         private Image cable;
+        private RectTransform bridgeWalkway;
+        private RectTransform bridgeCable;
         private Text narration;
         private Text instructions;
         private Text title;
+        private Text stageSubtitle;
+        private float lastStageLayoutAspect = -1f;
         private Button exit;
         private Button next;
         private Action onExit;
+        private WhitewaterDefenseEncounter defenseEncounter;
+        private bool defenseStarted;
+        private bool defenseWon;
+        private bool thirdBellStarted;
         private int phase;
         // S00 station prompts are keyed only to physical reach, phase and
         // selected locale. They never grant actions or copy Makinom state.
@@ -125,13 +140,30 @@ namespace Rpg.Soundwell
         private bool shownBridgeCueReachable;
         private string shownBridgeCueLanguage;
         private string shownBridgeCueBindings;
+        // The S00 movement motor still polls reachability every frame, but
+        // formatting five effective Input System binding labels is only
+        // necessary after the underlying controls actually change.
+        private bool stationBindingsDirty = true;
+        private string cachedStationBindings;
         private int rescueMethod;
+        // The v1.2 Tax Collector wrench beat consumes two separate earned
+        // gameplay interactions; Makinom remains owner of the repair outcome.
+        private int clampKnocks;
+        // Only the third earned safe-line handoff completes S00-04 in v1.2.
+        // These are the cook, the straggling wounded soldier and the
+        // shield-bearing young soldier, in that fixed authored order.
+        private int evacueesRescued;
         private bool shownRescueCueReachable;
         private string shownRescueCueLanguage;
         private string shownRescueCueBindings;
         private bool evacueeWaiting;
         private bool evacueeWaitedOffLane;
+        private bool shownEvacueePickupReachable;
+        private bool shownEvacueePickupOffLane;
+        private string shownEvacueePickupLanguage;
+        private string shownEvacueePickupBindings;
         private bool shownEvacueeSafeLineReachable;
+        private bool shownEvacueeSafeLineLaneAligned;
         private string shownEvacueeSafeLineLanguage;
         private string shownEvacueeSafeLineBindings;
         private Vector2 walker = new Vector2(-245f, 0f);
@@ -144,9 +176,12 @@ namespace Rpg.Soundwell
         // 13: reached bridge post; 14: second bell and the forward sightline;
         // 15: personally spotted troops and return to the cable;
         // 16: the player physically holds the cable beside Shen Li.
-        // ORK defence and the fixed third-bell break remain pending.
+        // Phase 17 is the earned, fixed third-bell break after ORK victory;
+        // phase 18 is the Twelve Years Later card, not a playable M00.
         public static string SceneTitle => Copy("S00 · Whitewater Crossing", "S00 · 白水渡");
         public int Phase => phase;
+        public int EvacueesRescued => evacueesRescued;
+        public bool ThirdBellStarted => thirdBellStarted;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
         public string CurrentInstructions => instructions != null ? instructions.text : string.Empty;
@@ -161,13 +196,21 @@ namespace Rpg.Soundwell
             ? evacuee.anchoredPosition : Vector2.zero;
         public bool CanHelpEvacuee => phase == 9 && evacuee != null &&
             Mathf.Abs(walker.x - evacuee.anchoredPosition.x) <= EvacueeContactReachX &&
-            Mathf.Abs(walker.y) <= EvacueeContactReachY;
+            // Stay on the bridge lane, and require actual sprite overlap in Y.
+            // A player below the lane can otherwise touch X while remaining
+            // visibly separated from the wounded civilian centered at Y=12.
+            Mathf.Abs(walker.y) <= EvacueeContactReachY &&
+            Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
         public bool CanDeliverEvacuee => phase == 10 && evacuee != null &&
             // Stopping near the line is not a rescue if the wounded follower
             // has lost the escort and is still waiting for the player to return.
             !evacueeWaiting && walker.x <= EvacueeSafeX &&
             evacuee.anchoredPosition.x <= EvacueeSafeX + 30f &&
-            Mathf.Abs(walker.y) <= RepairReach;
+            // A handoff is only valid when the player and the survivor are
+            // physically on the same bridge lane, not merely within the
+            // broad clamp-tool radius. Otherwise the next pickup can be
+            // visibly unreachable from the previous off-lane handoff.
+            Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
         public bool CanTakeBridgePost => phase == 12 && bridgePost != null &&
             Mathf.Abs(walker.x - BridgePostX) <= BridgeStationReachX &&
             Mathf.Abs(walker.y) <= BridgeStationReachY;
@@ -185,12 +228,36 @@ namespace Rpg.Soundwell
         // language. Keep station cues in sync with all controls they print:
         // walking, hauling and cancelling. This is UI-only and never writes
         // an input action, Makinom state or gameplay phase.
-        private static string StationPromptBindingSignature() =>
-            string.Concat(SoundwellInputAdapter.GameplayKeyboardMovementLabel(), "|",
+        private void OnEnable()
+        {
+            InputSystem.onActionChange += OnStationActionChanged;
+            stationBindingsDirty = true;
+        }
+
+        private void OnDisable()
+        {
+            InputSystem.onActionChange -= OnStationActionChanged;
+        }
+
+        private void OnStationActionChanged(object source, InputActionChange change)
+        {
+            if (change == InputActionChange.BoundControlsChanged)
+                stationBindingsDirty = true;
+        }
+
+        private string StationPromptBindingSignature()
+        {
+            if (!stationBindingsDirty && cachedStationBindings != null)
+                return cachedStationBindings;
+            cachedStationBindings = string.Concat(
+                SoundwellInputAdapter.GameplayKeyboardMovementLabel(), "|",
                 SoundwellInputAdapter.GameplayKeyboardInteractionLabel(), "|",
                 SoundwellInputAdapter.GameplayGamepadInteractionLabel(), "|",
                 SoundwellInputAdapter.GameplayKeyboardBackLabel(), "|",
                 SoundwellInputAdapter.GameplayGamepadBackLabel());
+            stationBindingsDirty = false;
+            return cachedStationBindings;
+        }
 
         private static bool Chinese => SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
         private static string Copy(string en, string zh)
@@ -251,7 +318,12 @@ namespace Rpg.Soundwell
         public void Begin(Action exitAction)
         {
             onExit = exitAction;
+            defenseEncounter = GetComponentInParent<WhitewaterDefenseEncounter>();
+            defenseStarted = false;
+            defenseWon = false;
+            thirdBellStarted = false;
             phase = 0;
+            clampKnocks = 0;
             // The existing InputSystemUIInputModule owns dialogue navigation.
             SoundwellInputAdapter.SetUiContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
@@ -274,22 +346,21 @@ namespace Rpg.Soundwell
             scaler.referenceResolution = new Vector2(960f, 540f);
             scaler.matchWidthOrHeight = 0.5f;
             canvas.gameObject.AddComponent<GraphicRaycaster>();
-            Panel(canvas.transform, "S00 night backdrop", new Vector2(0f, 0f),
-                new Vector2(960f, 540f), new Color(0.045f, 0.070f, 0.095f));
+            CreateFullCanvasNightBackdrop(canvas.transform);
 
             title = Label(canvas.transform, SceneTitle, 28,
                 new Vector2(0f, 209f), new Vector2(740f, 48f), Brass);
-            Label(canvas.transform, Copy("Night roll call · the last bridge",
+            stageSubtitle = Label(canvas.transform, Copy("Night roll call · the last bridge",
                 "夜点名 · 最后的浮桥"), 17, new Vector2(0f, 168f), new Vector2(750f, 34f), Ink);
             Panel(canvas.transform, "PLACEHOLDER 16px ferry water",
                 new Vector2(0f, 34f), new Vector2(790f, 180f),
                 new Color(0.11f, 0.21f, 0.26f));
-            Panel(canvas.transform, "PLACEHOLDER bridge walkway",
+            bridgeWalkway = Panel(canvas.transform, "PLACEHOLDER bridge walkway",
                 new Vector2(0f, 12f), new Vector2(720f, 58f),
-                new Color(0.34f, 0.29f, 0.23f));
-            Panel(canvas.transform, "PLACEHOLDER cable line",
+                new Color(0.34f, 0.29f, 0.23f)).rectTransform;
+            bridgeCable = Panel(canvas.transform, "PLACEHOLDER cable line",
                 new Vector2(0f, 67f), new Vector2(690f, 7f),
-                new Color(0.56f, 0.55f, 0.50f));
+                new Color(0.56f, 0.55f, 0.50f)).rectTransform;
             cable = Panel(canvas.transform, "Loose cable clamp",
                 new Vector2(ClampX, 12f), new Vector2(28f, 36f),
                 new Color(0.69f, 0.30f, 0.27f));
@@ -373,6 +444,9 @@ namespace Rpg.Soundwell
             soldierHaulingSprite = MakeActorSprite("S00 16px soldier hauling the line",
                 SoldierHaulingPixels, new Color32(89, 115, 131, 255),
                 out soldierHaulingTexture);
+            youngSoldierShieldSprite = MakeActorSprite("S00 16px slipping young soldier with shield",
+                YoungSoldierShieldPixels, new Color32(111, 128, 143, 255),
+                out youngSoldierShieldTexture);
             soldierFigure.sprite = soldierReadySprite;
             soldierRescueHelper = soldierFigure.rectTransform;
             soldierRescueHelper.gameObject.SetActive(false);
@@ -436,7 +510,7 @@ namespace Rpg.Soundwell
                 new Color(0.66f, 0.84f, 0.59f)).rectTransform;
             var evacueeFigure = Panel(canvas.transform, "S00 last evacuee",
                 new Vector2(EvacueeStartX, 12f), new Vector2(32f, 32f), Color.white);
-            evacueePixelSprite = MakeActorSprite("PLACEHOLDER 16px wounded evacuee",
+            evacueePixelSprite = MakeActorSprite("S00 16px pot-carrying cook",
                 EvacueePixels, new Color32(161, 126, 88, 255),
                 out evacueePixelTexture);
             evacueeFigure.sprite = evacueePixelSprite;
@@ -534,6 +608,88 @@ namespace Rpg.Soundwell
             Label(exit.transform, Copy("Back to entry", "返回入口"), 14,
                 Vector2.zero, new Vector2(222f, 27f), Ink);
             ShowRollCall();
+            RefreshStageLayout(true);
+        }
+
+        // Keep real UGUI options reachable at extreme aspect ratios. The
+        // original 960x540 positions put left/right dialogue choices outside
+        // a portrait viewport and the lower action row below a 32:9 screen.
+        // Layout is presentation only: the same callbacks, ORK authority and
+        // Makinom choice outcomes remain wired to these exact buttons.
+        private static Vector2[] StageLayoutSlots(float aspect)
+        {
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                aspect = 16f / 9f;
+
+            if (aspect <= 0.95f)
+                return new[]
+                {
+                    new Vector2(0f, 209f), new Vector2(0f, 168f),
+                    new Vector2(0f, -45f), new Vector2(0f, -105f),
+                    new Vector2(0f, -150f), new Vector2(0f, -204f),
+                    new Vector2(0f, -258f), new Vector2(0f, -300f),
+                    new Vector2(0f, -343f)
+                };
+
+            if (aspect >= 2.55f)
+            {
+                float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                return new[]
+                {
+                    new Vector2(0f, halfHeight - 30f),
+                    new Vector2(0f, halfHeight - 75f),
+                    new Vector2(0f, halfHeight - 136f),
+                    new Vector2(0f, halfHeight - 198f),
+                    new Vector2(-250f, halfHeight - 245f),
+                    new Vector2(0f, halfHeight - 245f),
+                    new Vector2(250f, halfHeight - 245f),
+                    new Vector2(145f, halfHeight - 296f),
+                    new Vector2(-145f, halfHeight - 296f)
+                };
+            }
+
+            return new[]
+            {
+                new Vector2(0f, 209f), new Vector2(0f, 168f),
+                new Vector2(0f, -100f), new Vector2(0f, -143f),
+                new Vector2(-250f, -192f), new Vector2(0f, -192f),
+                new Vector2(250f, -192f), new Vector2(145f, -245f),
+                new Vector2(-145f, -245f)
+            };
+        }
+
+        private void RefreshStageLayout(bool force = false)
+        {
+            if (title == null || stageSubtitle == null || exit == null)
+                return;
+            float aspect = (float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height);
+            if (!force && Mathf.Abs(lastStageLayoutAspect - aspect) < 0.01f)
+                return;
+            lastStageLayoutAspect = aspect;
+            Vector2[] slots = StageLayoutSlots(aspect);
+            title.rectTransform.anchoredPosition = slots[0];
+            stageSubtitle.rectTransform.anchoredPosition = slots[1];
+            narration.rectTransform.anchoredPosition = slots[2];
+            instructions.rectTransform.anchoredPosition = slots[3];
+            for (int i = 0; i < choices.Length; i++)
+                ((RectTransform)choices[i].transform).anchoredPosition = slots[i + 4];
+            ((RectTransform)next.transform).anchoredPosition = slots[7];
+            ((RectTransform)exit.transform).anchoredPosition = slots[8];
+
+            // In portrait, constrain narrative copy to the actual Canvas
+            // width instead of letting labels bleed behind the entry screen.
+            float logicalWidth = Mathf.Sqrt(960f * 540f * aspect);
+            bool portrait = aspect <= 0.95f;
+            float textWidth = Mathf.Max(240f, logicalWidth - 30f);
+            title.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(740f, textWidth) : 740f);
+            stageSubtitle.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(750f, textWidth) : 750f);
+            narration.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(840f, textWidth) : 840f);
+            instructions.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal, portrait ? Mathf.Min(790f, textWidth) : 790f);
         }
 
         private void ShowRollCall()
@@ -542,8 +698,10 @@ namespace Rpg.Soundwell
                 "军士：“沈砾。”沈砾头也不抬：“在，修着呢。”\n军士接着念到你的名字。");
             instructions.text = Copy("Choose what you say; none of these is a skill check.",
                 "选择怎样应声。没有口才检定，也不会因此救不了谁。");
-            ShowChoices(new[] { "Here.", "Raise your hand.", "Make room first." },
-                new[] { "在。", "举手示意", "先给我腾个地方" });
+            // v1.2 P0: each reply is audible. The third reply occurs only
+            // after the sergeant calls the player's name a second time.
+            ShowChoices(new[] { "Here.", "Here. Has she fixed that nut?", "...Here. (Second call)" },
+                new[] { "在。", "在。——她那个螺母，修好了吗？", "……在。（第二遍应声）" });
         }
 
         private void Choose(int choice)
@@ -557,10 +715,21 @@ namespace Rpg.Soundwell
                 phase = 1;
                 HideChoices();
                 SoundwellInputAdapter.SetGameplayContext();
+                string replyEnglish = choice == 0 ? "Sergeant: 'Right.' "
+                    : choice == 1 ? "Shen Li: 'In a hurry? Come see.' Sergeant: 'Two alive.' "
+                    : "The sergeant calls your name again. You answer '...Here.' 'Stay alert.' ";
+                string replyChinese = choice == 0 ? "军士划一笔：“行。”"
+                    : choice == 1 ? "沈砾：“催命呢？自己来看。”军士：“行，俩活人。”"
+                    : "军士又念了一遍你的名字。你：“……在。”军士：“别走神。”";
+                // Preserve the shared Ma Xiaoliu roll-call beat from v1.2
+                // rather than skipping straight from the player's reply to
+                // the clamp. RollCallKey retains its existing 1/2/3 ordering.
                 narration.text = Copy(
-                    choice == 2 ? "Shen Li pushes a wrench toward you. 'This one's called Tax Collector. Two knocks before it works.'"
-                    : "Shen Li: 'Here. The other wrench is Tax Collector. It only listens after two knocks.'",
-                    "沈砾把一把扳手推到你脚边：“这把叫税务官。敲两下才肯听话。”");
+                    replyEnglish + "Ma Xiaoliu is called three times. As the sergeant raises his pen, Ma Xiaoliu rushes out: 'Here, here!' "
+                        + "Sergeant: 'Three unanswered calls and you are marked dead.' "
+                        + "Shen Li hands you the 'Tax Collector' wrench.",
+                    replyChinese + "军士连念“马小六”三遍，正要划名，他冲回来：“在在在！”"
+                        + "军士：“三遍没人答，你就是死人了！”沈砾递给你“税务官”扳手。");
                 instructions.text = Copy("WASD / left stick: reach the red clamp. E / Pad A: work. Esc / Pad B: back.",
                     "WASD／左摇杆到红色缆桩。E／手柄 A 加固，Esc／手柄 B 返回。");
             }
@@ -591,15 +760,19 @@ namespace Rpg.Soundwell
                     Maki.Game.Variables.Set(WorkshopPromiseKey, choice + 1);
                 phase = 5;
                 HideChoices();
+                // The workshop invitation remains a conversation choice,
+                // not a hidden promise that changes rescue or battle outcomes.
+                // These are the three authored reactions in v1.2 P0.
                 narration.text = Copy(
-                    choice == 0 ? "Shen Li: 'Then I'll remember. Don't complain if the jobs are small.'"
-                    : choice == 1 ? "Shen Li: 'Fair. Don't make a promise just for me.'"
-                    : "Shen Li: 'You can explain to customers why their pots are still at war.'",
-                    choice == 0 ? "沈砾：“那我先记着。到时别嫌活小。”"
-                    : choice == 1 ? "沈砾：“行，别为了我答应。”"
-                    : "沈砾：“你来负责跟客人解释，为什么他们的锅还在打仗。”");
-                instructions.text = Copy("S00-02 complete. Your reply matters to this conversation, not the bridge's fate.",
-                    "S00-02 完成：你的回答改变这一刻的对话，不改变断桥的历史。");
+                    choice == 0 ? "Shen Li: 'All right. I'll owe you the wages for now.'"
+                    : choice == 1 ? "Shen Li: 'Fine if you don't come. I'll save you a chair. I'll charge for that, too.'"
+                    : "Shen Li: 'A smart mouth goes on the bill twice.'",
+                    choice == 0 ? "沈砾：“行。工钱先欠着。”"
+                    : choice == 1 ? "沈砾：“不来也行，我给你留把椅子。椅子也收钱。”"
+                    : "沈砾：“嘴贫的人，账上记两笔。”");
+                // Do not expose internal S00 prototype numbering in playable prose.
+                instructions.text = Copy("Someone cries out from the river. Go see who needs help near the last boat.",
+                    "河水里传来呼救声。去最后一条船附近看看是谁需要帮忙。");
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(exit.gameObject);
                 next.gameObject.name = "S00 continue to last boat";
@@ -731,12 +904,16 @@ namespace Rpg.Soundwell
                 soldierRescueHelper.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                rescueMethod == 0 ? "You heave Han Qiao clear. He is badly hurt, but alive."
-                : rescueMethod == 1 ? "Shen Li's rope holds. Together you pull Han Qiao clear, badly hurt but alive."
-                : "The soldiers lift on your count. Han Qiao comes free, badly hurt but alive.",
-                rescueMethod == 0 ? "你把韩峤拉上来了。他伤得很重，但还活着。"
-                : rescueMethod == 1 ? "沈砾的绳索绷住了。你们一起把韩峤拉出来。他伤得很重，但活着。"
-                : "士兵听你号令，一起把韩峤拉了上来。他伤得很重，但活着。");
+                rescueMethod == 0
+                    ? "You heave Han Qiao ashore. He clutches your sleeve: 'The bridge?' 'Not yet.' 'Before the third watch...' He faints."
+                    : rescueMethod == 1
+                        ? "Shen Li's rope holds. You haul Han Qiao ashore. 'The bridge?' 'Not yet.' 'Before the third watch...' He faints."
+                        : "The soldiers lift Han Qiao free. He grips your sleeve: 'The bridge?' 'Not yet.' 'Before the third watch...' He faints.",
+                rescueMethod == 0
+                    ? "你把韩峤拖上岸。他攥住你袖子：“……桥。桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。"
+                    : rescueMethod == 1
+                        ? "沈砾的绳索绷住，你们拉韩峤上岸。他问：“桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。"
+                        : "士兵帮你把韩峤拖上岸。他问：“桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。");
             instructions.text = Copy("The last boat is boarding Han Qiao. He will not witness the cable breaking.",
                 "韩峤上了最后一条船。他不会留在桥头看见断缆。");
             StartCoroutine(BoatTakesHanQiao());
@@ -765,12 +942,12 @@ namespace Rpg.Soundwell
             if (phase == 8 && next != null)
             {
                 instructions.text = Copy(
-                    "Han Qiao is aboard. One more wounded evacuee is still on the bridge.",
-                    "韩峤已经上船。桥上还有一名伤者没撤离。");
+                    "Han Qiao is aboard. A cook with a pot on his back is stranded by the bridge railing.",
+                    "韩峤已经上船。桥栏边还有一个背着锅、走不动的炊事兵。");
                 next.gameObject.name = "S00 continue to final retreat";
                 Text label = next.GetComponentInChildren<Text>(true);
                 if (label != null)
-                    label.text = Copy("Cover the last evacuee", "掩护最后一名撤离者");
+                    label.text = Copy("Help the stranded cook", "扶起走不动的炊事兵");
                 next.gameObject.SetActive(true);
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(next.gameObject);
@@ -782,6 +959,9 @@ namespace Rpg.Soundwell
             if (phase != 8 || next == null || !next.gameObject.activeInHierarchy)
                 return;
             phase = 9;
+            evacueesRescued = 0;
+            shownEvacueePickupLanguage = null;
+            shownEvacueePickupBindings = null;
             next.gameObject.SetActive(false);
             soldierRescueHelper.gameObject.SetActive(false);
             // The script says the last boat departs. Move the actual boat
@@ -789,14 +969,15 @@ namespace Rpg.Soundwell
             // of leaving Han Qiao visible on a stationary boat.
             StartCoroutine(LastBoatDeparts());
             evacuee.anchoredPosition = new Vector2(EvacueeStartX, 12f);
+            evacuee.GetComponent<Image>().sprite = evacueePixelSprite;
             evacuee.GetComponent<Image>().color = Color.white;
             evacueeEscortStatus.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(true);
             evacueeSafeLine.gameObject.SetActive(true);
             SoundwellInputAdapter.SetGameplayContext();
             narration.text = Copy(
-                "The last boat pulls away. Enemy troops close in; a wounded evacuee is stuck beside the railing.",
-                "最后一条船离岸。敌军正在逼近，一名伤者还困在桥边的栏杆旁。");
+                "The last boat pulls away as enemy torches approach. A cook with a cooking pot on his back collapses by the railing: 'My legs won't move!'",
+                "最后一条船离岸，敌军火把正在逼近。一个背锅的炊事兵腿软，跌坐在栏杆旁：“我走不动了——腿不听使唤——”");
             instructions.text = Copy(
                 "Reach the amber evacuee, press E / Pad A, then lead them west to the green safe line.",
                 "走到金色伤者旁按 E／手柄 A，再带他向西走到绿色安全线。");
@@ -834,6 +1015,39 @@ namespace Rpg.Soundwell
                 hanQiao.gameObject.SetActive(false);
         }
 
+        // The amber civilian is a physical pickup, not a dialogue shortcut.
+        // Show immediate on/off-lane reach feedback before a player presses E.
+        // This is UI only: it never changes phase, follower state or Makinom.
+        private void RefreshEvacueePickupReachCue()
+        {
+            if (phase != 9 || instructions == null || evacuee == null)
+                return;
+            bool reachable = CanHelpEvacuee;
+            bool offLane = Mathf.Abs(walker.y) > EvacueeContactReachY ||
+                Mathf.Abs(walker.y - evacuee.anchoredPosition.y) > EvacueeContactReachY;
+            string locale = SoundwellUiLocalization.Language;
+            string bindings = StationPromptBindingSignature();
+            // The civilian can remain unreachable while the player changes
+            // from distant-on-bridge to off-lane. Both hints must still refresh.
+            if (shownEvacueePickupLanguage == locale &&
+                shownEvacueePickupBindings == bindings &&
+                shownEvacueePickupReachable == reachable &&
+                shownEvacueePickupOffLane == offLane)
+                return;
+            shownEvacueePickupReachable = reachable;
+            shownEvacueePickupOffLane = offLane;
+            shownEvacueePickupLanguage = locale;
+            shownEvacueePickupBindings = bindings;
+            instructions.text = reachable
+                ? Copy("Beside the amber evacuee: press E / Pad A to help, then lead west.",
+                    "已到金色伤者身旁：按 E／手柄 A 搀扶，再向西带路。")
+                : offLane
+                    ? Copy("Return to the bridge lane beside the amber evacuee, then press E / Pad A.",
+                        "请回到金色伤者身旁的桥面通道，再按 E／手柄 A 搀扶。")
+                    : Copy("Walk beside the amber evacuee, then press E / Pad A to help.",
+                        "请走到金色伤者身旁，再按 E／手柄 A 搀扶。");
+        }
+
         private void HelpEvacuee()
         {
             if (!CanHelpEvacuee)
@@ -841,7 +1055,9 @@ namespace Rpg.Soundwell
                 // Pressing E away from the last wounded civilian must not
                 // silently discard the real input or grant an unearned escort.
                 if (phase == 9 && instructions != null)
-                    instructions.text = Mathf.Abs(walker.y) > EvacueeContactReachY
+                    instructions.text = Mathf.Abs(walker.y) > EvacueeContactReachY ||
+                        (evacuee != null &&
+                         Mathf.Abs(walker.y - evacuee.anchoredPosition.y) > EvacueeContactReachY)
                         ? Copy("Return to the bridge lane beside the amber evacuee, then press E / Pad A to help.",
                             "请回到金色伤者身旁的桥面通道，再按 E／手柄 A 搀扶。")
                         : Copy("Too far from the amber evacuee. Walk beside them, then press E / Pad A to help.",
@@ -849,15 +1065,25 @@ namespace Rpg.Soundwell
                 return;
             }
             phase = 10;
+            if (evacueesRescued == 2)
+                // The player's shield grip, not the timer, pulls the young
+                // soldier back onto the actual bridge lane.
+                evacuee.anchoredPosition = new Vector2(evacuee.anchoredPosition.x, 12f);
             evacueeWaiting = false;
             evacueeWaitedOffLane = false;
             shownEvacueeSafeLineReachable = false;
+            shownEvacueeSafeLineLaneAligned = false;
             shownEvacueeSafeLineLanguage = null;
             shownEvacueeSafeLineBindings = null;
             SetEvacueeEscortCue(false);
-            narration.text = Copy(
-                "You take the evacuee's arm. 'Keep behind me. Don't stop at the open span.'",
-                "你扶住伤者的胳膊：“跟在我后面，别停在空桥上。”");
+            narration.text = evacueesRescued == 0
+                ? Copy("You pull the cook to his feet and take his arm. 'Stay close. We have to cross.'",
+                    "你架起腿软的炊事兵：“跟紧我，咱们得过桥。”")
+                : evacueesRescued == 1
+                    ? Copy("You lift the straggling wounded soldier onto your back. The bridge is still under fire.",
+                        "你背起掉队的伤兵。敌军还在朝浮桥逼近。")
+                    : Copy("You brace the young soldier's shield and haul him back from the edge.",
+                        "你顶住年轻士兵的盾，把快滑下桥沿的他拉了回来。");
             instructions.text = Copy(
                 "Lead west. Green: following; amber: stopped. Press E / Pad A at the safe line.",
                 "向西带路：绿色表示跟随，橙色表示掉队；到安全线后按 E／手柄 A 确认撤离。");
@@ -909,7 +1135,9 @@ namespace Rpg.Soundwell
             // direction. Doubling back east to regroup must not abandon them
             // at their old position; an escort should recover without replay.
             // The waiting gap above still prevents teleporting a lost ally.
-            const float followOffset = 24f;
+            // A soldier carried on the back should remain directly beside
+            // the player rather than lag one whole sprite behind.
+            float followOffset = evacueesRescued == 1 ? 12f : 24f;
             float followTarget = at.x;
             if (walker.x < at.x - followOffset)
                 followTarget = walker.x + followOffset;
@@ -940,24 +1168,40 @@ namespace Rpg.Soundwell
                 // An early E / Pad A must explain why the physical safe-line
                 // handoff is unavailable, never silently count as evacuation.
                 if (!evacueeWaiting && instructions != null)
-                    instructions.text = walker.x > EvacueeSafeX || Mathf.Abs(walker.y) > RepairReach
-                        ? Copy("Not at the green safe line. Lead the evacuee west before confirming.",
-                            "尚未到绿色安全线。先带伤者向西撤离，再确认交接。")
-                        : Copy("Wait for the evacuee to reach the green safe line before confirming.",
-                            "请等伤者抵达绿色安全线，再确认交接。");
+                {
+                    bool laneAligned = evacuee != null &&
+                        Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
+                    instructions.text = !laneAligned
+                        ? Copy("Return to the bridge lane and meet the evacuee at the green safe line before confirming.",
+                            "回到桥面通道，在绿色安全线与伤者会合后再确认交接。")
+                        : walker.x > EvacueeSafeX
+                            ? Copy("Not at the green safe line. Lead the evacuee west before confirming.",
+                                "尚未到绿色安全线。先带伤者向西撤离，再确认交接。")
+                            : Copy("Wait for the evacuee to reach the green safe line before confirming.",
+                                "请等伤者抵达绿色安全线，再确认交接。");
+                }
                 return;
             }
+            evacueesRescued++;
+            evacueeEscortStatus.gameObject.SetActive(false);
+            if (evacueesRescued < 3)
+            {
+                SpawnNextEvacuee();
+                return;
+            }
+            // The shared Makinom result means the complete v1.2 group was
+            // rescued. Neither a pickup nor an intermediate delivery writes
+            // the final flag or advances the rope/bell history.
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(EvacueeEscortedKey, 1);
             phase = 11;
-            evacueeEscortStatus.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "One more person crosses the safe line. Enemy troops close in; Shen Li still watches the bridge cable.",
-                "又一人越过安全线。敌军越逼越近，沈砾仍在留意桥上的缆索。");
+                "All three are across: the cook, the wounded soldier, and the young shield-bearer. Enemy troops close in; Shen Li still watches the bridge cable.",
+                "三次拉人都完成了：炊事兵、掉队的伤兵和险些滑落桥沿的年轻士兵已安全过桥。敌军越逼越近，沈砾仍在留意桥上的缆索。");
             instructions.text = Copy(
-                "Call for spare rope to help the bridge crew. The ORK defence is a later slice.",
-                "呼喊多余的绳索，提醒桥头同伴。ORK 防守战仍属后续切片。");
+                "Call for spare rope to help the bridge crew.",
+                "呼喊多余的绳索，提醒桥头同伴。");
             next.gameObject.name = "S00 call for spare rope";
             Text label = next.GetComponentInChildren<Text>(true);
             if (label != null)
@@ -965,6 +1209,54 @@ namespace Rpg.Soundwell
             next.gameObject.SetActive(true);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(next.gameObject);
+        }
+
+        private void SpawnNextEvacuee()
+        {
+            // Stage 1 and 2 are distinct physical pickups using the same
+            // gameplay input and safe-line follower. Reusing the already
+            // tested lane avoids false instant rescues or another input owner.
+            phase = 9;
+            shownEvacueePickupLanguage = null;
+            shownEvacueePickupBindings = null;
+            shownEvacueePickupReachable = false;
+            shownEvacueePickupOffLane = false;
+            evacueeWaiting = false;
+            evacueeWaitedOffLane = false;
+            Image actor = evacuee.GetComponent<Image>();
+            actor.color = Color.white;
+            actor.sprite = evacueesRescued == 1
+                ? soldierReadySprite : youngSoldierShieldSprite;
+            evacuee.anchoredPosition = evacueesRescued == 1
+                ? new Vector2(-72f, 12f) : new Vector2(-15f, 12f);
+            evacueeEscortStatus.gameObject.SetActive(false);
+            SoundwellInputAdapter.SetGameplayContext();
+            narration.text = evacueesRescued == 1
+                ? Copy("Shen Li: 'Get him up! More wounded are falling behind!' A wounded soldier staggers beside the railing.",
+                    "沈砾：“把人拉起来！后面还有伤兵掉队！”一名掉队的伤兵踉跄着靠在桥栏旁。")
+                : Copy("A young soldier slips toward the bridge edge. His shield catches the rail; reach him before he falls.",
+                    "一个年轻士兵在湿滑的桥板上朝桥沿滑去，盾牌卡在栏杆上。快过去拉住他。");
+            instructions.text = Copy(
+                "Reach the amber figure with WASD / left stick and press E / Pad A. The next rescue has not been earned.",
+                "用 WASD／左摇杆走到金色人影身边，按 E／手柄 A 救援。下一次救援尚未完成。");
+            if (evacueesRescued == 2)
+                StartCoroutine(YoungSoldierSlips());
+        }
+
+        private IEnumerator YoungSoldierSlips()
+        {
+            // A visible, bounded slide toward the bridge edge. The actor
+            // never falls or grants rescue on a timer; only a real Ring
+            // press at the soldier ends this danger and begins the escort.
+            float elapsed = 0f;
+            while (phase == 9 && evacueesRescued == 2 &&
+                evacuee != null && elapsed < 1.1f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                evacuee.anchoredPosition = new Vector2(-15f,
+                    Mathf.Round(Mathf.Lerp(12f, -18f, Mathf.Clamp01(elapsed / 1.1f))));
+                yield return null;
+            }
         }
 
         private void CallForSpareRope()
@@ -991,8 +1283,8 @@ namespace Rpg.Soundwell
                 "You shout, 'Who has spare rope?' A coil reaches Shen Li at the clamp. The first bell sounds; she turns toward the strained cable.",
                 "你喊：“谁带了多余的绳子？”一卷绳索送到缆桩边的沈砾手里。第一声号钟响起，她转头望向吃紧的缆索。");
             instructions.text = Copy(
-                "WASD / left stick: reach Shen Li's amber bridge post; press E / Pad A to take position. ORK defence remains pending.",
-                "用 WASD／左摇杆走到沈砾附近金色桥头守位，按 E／手柄 A 就位。ORK 防守战仍待实现。");
+                "WASD / left stick: reach Shen Li's amber bridge post; press E / Pad A to take position.",
+                "用 WASD／左摇杆走到沈砾附近金色桥头守位，按 E／手柄 A 就位。");
             SoundwellInputAdapter.SetGameplayContext();
         }
 
@@ -1023,8 +1315,8 @@ namespace Rpg.Soundwell
                 Maki.Game.Variables.Set(BridgePostKey, 1);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "You take the bridge post beside Shen Li. The evacuee is safe; you face the approaching troops together.",
-                "你在沈砾身旁站定桥头守位。伤者已撤离，你们一起望向逼近的敌军。");
+                "You take the bridge post beside Shen Li. The cook, wounded soldier and young shield-bearer are all safe; you face the approaching troops together.",
+                "你在沈砾身旁站定桥头守位。炊事兵、伤兵和年轻士兵都已撤离，你们一起望向逼近的敌军。");
             instructions.text = Copy(
                 "Hold the post. Choose 'Watch the opposite bank' when ready; the third bell is still ahead.",
                 "守住桥头。准备好后选择“观察对岸”，第三声号钟尚未响起。");
@@ -1135,21 +1427,251 @@ namespace Rpg.Soundwell
                         Mathf.Round(x), Mathf.Round(figure.anchoredPosition.y));
                     // Authored pixel footwork tracks the existing visual motor.
                     // No second velocity, AI turn or combatant is introduced.
-                    // Pixel snapping can display the final standing tile
-                    // half a pixel before the continuous motor catches up.
-                    // When the guard is visibly at its destination, use the
-                    // idle sprite in that same frame (not the walking sprite).
-                    bool marching = Mathf.Round(x) < Mathf.Round(destinations[i]) &&
-                        x < destinations[i] - 0.01f;
-                    farBankThreats[i].sprite = marching &&
+                    // The displayed guard is snapped to whole pixels, but
+                    // its authored motor must still complete the full step.
+                    // Stop the walking sprite on the final visible pixel
+                    // without cutting off the subpixel motor prematurely.
+                    bool movingMotor = x < destinations[i] - 0.01f;
+                    bool visibleMarch = Mathf.Round(x) < Mathf.Round(destinations[i]);
+                    farBankThreats[i].sprite = visibleMarch &&
                         Mathf.FloorToInt(Time.unscaledTime / 0.16f) % 2 == 1
                             ? farBankGuardWalkSprite : farBankGuardSprite;
-                    approaching |= marching;
+                    approaching |= movingMotor;
                 }
                 if (!approaching && advancedAfterHold)
+                {
+                    BeginWhitewaterDefense();
                     yield break;
+                }
                 yield return null;
             }
+        }
+
+        private void BeginWhitewaterDefense()
+        {
+            if (phase != 16 || defenseStarted || defenseWon)
+                return;
+
+            if (defenseEncounter == null)
+                defenseEncounter = GetComponentInParent<WhitewaterDefenseEncounter>();
+            if (defenseEncounter == null)
+            {
+                instructions.text = Copy(
+                    "The bridgehead fight is unavailable. Return to the entrance and try again.",
+                    "桥头战斗暂时无法开始。请返回入口后重试。");
+                return;
+            }
+
+            defenseStarted = defenseEncounter.Begin(OnWhitewaterDefenseCompleted);
+            if (!defenseStarted)
+            {
+                instructions.text = Copy(
+                    "The bridgehead fight could not begin. Return to the entrance and try again.",
+                    "桥头战斗未能开始。请返回入口后重试。");
+                return;
+            }
+
+            narration.text = Copy(
+                "The three armed silhouettes reach the span. You and Shen Li hold the cable as the bridgehead closes into a real fight.",
+                "三个持械人影逼近桥面。你和沈砾仍扶着缆索，桥头的冲突终于变成真正的战斗。");
+            instructions.text = Copy(
+                "On your turn, choose Attack or Guard. The enemy soldiers act on their own turns.",
+                "轮到你行动时选择攻击或防御；敌方士兵也会在他们的回合行动。");
+        }
+
+        private void OnWhitewaterDefenseCompleted(bool victory)
+        {
+            // Only the active encounter may deliver this callback; a stage
+            // presentation, stale input or repeated completion cannot ring it.
+            if (phase != 16 || !defenseStarted)
+                return;
+            defenseStarted = false;
+            if (!victory)
+            {
+                Close();
+                return;
+            }
+
+            defenseWon = true;
+            StartCoroutine(PlayThirdBellCollapse());
+        }
+
+        // Historical S00 outcome is fixed, but never a reward for merely
+        // watching the approaching soldiers or bracing the cable. It follows
+        // only the live ORK encounter's accepted victory callback.
+        private IEnumerator PlayThirdBellCollapse()
+        {
+            if (phase != 16 || !defenseWon || thirdBellStarted)
+                yield break;
+            thirdBellStarted = true;
+            phase = 17;
+            SoundwellInputAdapter.SetUiContext();
+            if (next != null)
+                next.gameObject.SetActive(false);
+            if (Maki.Initialized && Maki.Game?.Variables != null)
+                Maki.Game.Variables.Set(ThirdBellKey, 1);
+            thirdBellClip = CreateThirdBellCue();
+            bellAudio.Stop();
+            bellAudio.clip = thirdBellClip;
+            bellAudio.Play();
+            narration.text = Copy(
+                "A third bell strikes. The bridgehead is held, but the far-side cable breaks in the firelight.",
+                "第三声钟响了。桥头虽守住，对岸的缆索却在火光里崩断。");
+            instructions.text = Copy(
+                "The far span is sinking. You did not see who severed the cable.",
+                "远端桥身正在沉没。你始终没看见是谁砍断了缆索。");
+
+            yield return new WaitForSecondsRealtime(0.4f);
+            if (phase != 17)
+                yield break;
+            // Only the far (left) section sinks. The near clamp and the
+            // original rescue interactions remain in the same scene graph.
+            float elapsed = 0f;
+            const float fallDuration = 1.1f;
+            while (phase == 17 && elapsed < fallDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / fallDuration);
+                if (bridgeWalkway != null)
+                {
+                    bridgeWalkway.sizeDelta = new Vector2(
+                        Mathf.Round(Mathf.Lerp(720f, 360f, t)), 58f);
+                    bridgeWalkway.anchoredPosition = new Vector2(
+                        Mathf.Round(180f * t), Mathf.Round(12f - 52f * t));
+                }
+                if (bridgeCable != null)
+                {
+                    bridgeCable.sizeDelta = new Vector2(
+                        Mathf.Round(Mathf.Lerp(690f, 330f, t)), 7f);
+                    bridgeCable.anchoredPosition = new Vector2(
+                        Mathf.Round(180f * t), Mathf.Round(67f - 36f * t));
+                }
+                yield return null;
+            }
+            if (phase != 17)
+                yield break;
+
+            narration.text = Copy(
+                "The far span disappears under the water. Shen Li catches your hand: 'Don't look at the water. Look at me.' Torches close in; the crowd tears you apart.",
+                "远端桥身沉入水下。沈砾抓住你的手：“别看水，看我。”四面火把亮起，人潮把你们冲开。");
+            instructions.text = string.Empty;
+            // Torches are existing noninteractive scenery, never an ORK squad.
+            // Use one shared point-filtered 16px sprite for all four lights,
+            // not four stretching solid rectangles or duplicate textures.
+            Transform canvasRoot = title.transform.parent;
+            encirclingTorchSprite = MakeActorSprite("S00 16px encircling torch",
+                EncirclingTorchPixels, new Color32(255, 115, 42, 255),
+                out encirclingTorchTexture);
+            var torchPositions = new[]
+            {
+                new Vector2(-307f, 108f), new Vector2(304f, 105f),
+                new Vector2(-293f, -25f), new Vector2(301f, -27f)
+            };
+            foreach (Vector2 torchPosition in torchPositions)
+            {
+                var torch = Panel(canvasRoot, "PLACEHOLDER S00 encircling torch light",
+                    torchPosition, new Vector2(32f, 32f), Color.white);
+                torch.sprite = encirclingTorchSprite;
+            }
+            yield return new WaitForSecondsRealtime(0.8f);
+            if (phase != 17)
+                yield break;
+
+            Image blackout = CreateFullCanvasBlackout(canvasRoot);
+            float fade = 0f;
+            while (phase == 17 && fade < 0.5f)
+            {
+                fade += Time.unscaledDeltaTime;
+                blackout.color = new Color(0f, 0f, 0f, Mathf.Clamp01(fade / 0.5f));
+                yield return null;
+            }
+            if (phase != 17)
+                yield break;
+            blackout.color = Color.black;
+            phase = 18;
+            CreateResponsiveEpilogueCard(canvasRoot,
+                Copy("TWELVE YEARS LATER", "十二年后"));
+            // M00 is still a separate playable story task. Reuse the real
+            // exit control rather than claiming a scene that does not exist.
+            exit.transform.SetAsLastSibling();
+            RefreshEpilogueExitPosition();
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        // The ending must always offer a clickable return to the entry
+        // screen. The 960x540 CanvasScaler uses the geometric mean of width
+        // and height; fixed y=-190 slips below the viewport on 32:9 screens.
+        private static Vector2 EpilogueExitPosition(float aspect)
+        {
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                aspect = 16f / 9f;
+            float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+            // A 29px button retains 12px of visible bottom breathing room.
+            return new Vector2(0f, Mathf.Max(-190f,
+                -halfHeight + 14.5f + 12f));
+        }
+
+        private void RefreshEpilogueExitPosition()
+        {
+            if (exit == null)
+                return;
+            float aspect = (float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height);
+            ((RectTransform)exit.transform).anchoredPosition =
+                EpilogueExitPosition(aspect);
+        }
+
+        // The title appears after the full-screen third-bell blackout. Its
+        // former fixed 780px width exceeded portrait canvas bounds, leaving
+        // the ending unreadable even though the blackout itself stretched.
+        // Keep a safe margin without altering the scene or ORK result.
+        private static Text CreateResponsiveEpilogueCard(
+            Transform canvasRoot, string message)
+        {
+            Text card = Label(canvasRoot, message, 35,
+                new Vector2(0f, 25f), new Vector2(-40f, 95f), Ink);
+            card.gameObject.name = "S00 twelve years later";
+            RectTransform rect = card.rectTransform;
+            rect.anchorMin = new Vector2(0f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.anchoredPosition = new Vector2(0f, 25f);
+            rect.sizeDelta = new Vector2(-40f, 95f);
+            card.horizontalOverflow = HorizontalWrapMode.Wrap;
+            card.resizeTextMinSize = 12;
+            return card;
+        }
+
+        // The prelude starts with a dark night sky. A fixed 960x540 panel
+        // does not cover a portrait or ultrawide CanvasScaler viewport and
+        // exposes the underlying entry screen around the walkable bridge.
+        // Only the backdrop stretches; authored 16px actors remain pixel-snapped.
+        private static Image CreateFullCanvasNightBackdrop(Transform canvasRoot)
+        {
+            Image backdrop = Panel(canvasRoot, "S00 night backdrop",
+                Vector2.zero, Vector2.zero, new Color(0.045f, 0.070f, 0.095f));
+            RectTransform bounds = backdrop.rectTransform;
+            bounds.anchorMin = Vector2.zero;
+            bounds.anchorMax = Vector2.one;
+            bounds.offsetMin = Vector2.zero;
+            bounds.offsetMax = Vector2.zero;
+            return backdrop;
+        }
+
+        // The same third-bell fade must cover the entire playable canvas
+        // on portrait and ultrawide screens. A fixed 960x540 center panel
+        // exposes scene edges after CanvasScaler adjusts the viewport.
+        // This is purely a visual overlay: it cannot affect the ORK victory.
+        private static Image CreateFullCanvasBlackout(Transform canvasRoot)
+        {
+            Image blackout = Panel(canvasRoot, "S00 blackout after bridge collapse",
+                Vector2.zero, Vector2.zero, Color.clear);
+            RectTransform cover = blackout.rectTransform;
+            cover.anchorMin = Vector2.zero;
+            cover.anchorMax = Vector2.one;
+            cover.offsetMin = Vector2.zero;
+            cover.offsetMax = Vector2.zero;
+            return blackout;
         }
 
         private void HoldCableAtPost()
@@ -1179,8 +1701,8 @@ namespace Rpg.Soundwell
                 "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds; the armed figures are still advancing over the far span.",
                 "你在沈砾身边扶住缆索，把送来的绳卷拉上缆桩。它暂时绷住了，可对岸持械的人影仍在逼近。");
             instructions.text = Copy(
-                "The cable is held for now, not saved. ORK bridge defence and the fixed third-bell break remain ahead. Return to entry.",
-                "缆索暂时撑住，并没有改变结局。ORK 桥头防守战与既定的第三声断桥仍在后续。可返回入口。");
+                "Hold the cable. Enemy soldiers are closing in; the bridgehead fight is about to begin. Choose Attack or Guard when your turn appears.",
+                "继续扶住缆索。敌兵正在逼近，桥头战斗即将开始。轮到你时选择攻击或防御。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
@@ -1223,6 +1745,9 @@ namespace Rpg.Soundwell
 
         private static AudioClip CreateSecondBellCue() =>
             CreateWarningBellCue("PLACEHOLDER S00 second warning bell", 440f);
+
+        private static AudioClip CreateThirdBellCue() =>
+            CreateWarningBellCue("PLACEHOLDER S00 third warning bell", 392f);
 
         private static AudioClip CreateWarningBellCue(string clipName, float frequency)
         {
@@ -1324,8 +1849,9 @@ namespace Rpg.Soundwell
             "................",
         };
 
-        // Water foam around Han Qiao, and a head bandage on the wounded
-        // evacuee, distinguish the two actual story figures at 2x scale.
+        // Water foam around Han Qiao and the cook's dark back-mounted pot
+        // distinguish the two story figures at 2x scale. This is only the
+        // first evacuation beat of v1.2; the later two remain to implement.
         private static readonly string[] HanQiaoPixels =
         {
             "................",
@@ -1349,17 +1875,39 @@ namespace Rpg.Soundwell
         private static readonly string[] EvacueePixels =
         {
             "................",
-            ".....wwwkk......",
-            "....wwffkk......",
+            ".....kkkk.......",
             "....kkffkk......",
-            ".....kffk.......",
-            "......kk........",
-            ".....kcck.......",
-            "....kcccck......",
-            "...gkcccckg.....",
+            "....kkffkk......",
+            ".....kffk...kk..",
+            "......kk...kkkk.",
+            ".....kcck..kggk.",
+            "....kcccckkggkk.",
+            "...gkcccckgkk...",
             "...gkcccckg.....",
             "....kbbbbk......",
             "....kcccck......",
+            "....kk..kk......",
+            "...kbb..bbk.....",
+            "...kk....kk.....",
+            "................",
+        };
+
+        // The third v1.2 rescue holds a distinct shield at the bridge edge.
+        // An unchanged cook sprite would conceal the authored danger.
+        private static readonly string[] YoungSoldierShieldPixels =
+        {
+            "................",
+            ".....kkkk.......",
+            "....kkffkk......",
+            "....kkffkk......",
+            ".....kffk.......",
+            "......kk........",
+            ".....kcck...bbbb",
+            "....kcccck..bbbb",
+            "...gkcccckg.bggb",
+            "...gkcccckg.bggb",
+            "....kbbbbk..bggb",
+            "....kcccck...bbb",
             "....kk..kk......",
             "...kbb..bbk.....",
             "...kk....kk.....",
@@ -1476,18 +2024,44 @@ namespace Rpg.Soundwell
             "................",
         };
 
+        // Fixed S00 encirclement already had four torches. Draw their
+        // flame and grip at the same 16px/2x scale as the bridge actors.
+        // f/g = hot flame, c = orange fire, h/k = wooden handle and rim.
+        private static readonly string[] EncirclingTorchPixels =
+        {
+            "................",
+            ".......g........",
+            "......gfg.......",
+            "......fcf.......",
+            ".....fcccf......",
+            "......ccc.......",
+            "......hch.......",
+            ".......h........",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......khk.......",
+            "......kkk.......",
+            "................",
+        };
+
         private static Sprite MakeActorSprite(string name, string[] art,
             Color32 coat, out Texture2D texture) =>
             SoundwellPixelSpriteBuilder.Create16Colored(art, name, coat, out texture);
 
         private void OnDestroy()
         {
+            defenseEncounter?.Stop();
             // AudioSource belongs to the scene canvas and stops with it.
             // Release the generated sample clip when the temporary scene ends.
             if (firstBellClip != null)
                 Destroy(firstBellClip);
             if (secondBellClip != null)
                 Destroy(secondBellClip);
+            if (thirdBellClip != null)
+                Destroy(thirdBellClip);
             if (playerPixelSprite != null)
                 Destroy(playerPixelSprite);
             if (shenLiPixelSprite != null)
@@ -1506,10 +2080,14 @@ namespace Rpg.Soundwell
                 Destroy(soldierReadySprite);
             if (soldierHaulingSprite != null)
                 Destroy(soldierHaulingSprite);
+            if (youngSoldierShieldSprite != null)
+                Destroy(youngSoldierShieldSprite);
             if (evacueePixelSprite != null)
                 Destroy(evacueePixelSprite);
             if (farBankGuardSprite != null)
                 Destroy(farBankGuardSprite);
+            if (encirclingTorchSprite != null)
+                Destroy(encirclingTorchSprite);
             if (farBankGuardWalkSprite != null)
                 Destroy(farBankGuardWalkSprite);
             if (spareRopePixelSprite != null)
@@ -1520,10 +2098,14 @@ namespace Rpg.Soundwell
                 Destroy(soldierReadyTexture);
             if (soldierHaulingTexture != null)
                 Destroy(soldierHaulingTexture);
+            if (youngSoldierShieldTexture != null)
+                Destroy(youngSoldierShieldTexture);
             if (evacueePixelTexture != null)
                 Destroy(evacueePixelTexture);
             if (farBankGuardTexture != null)
                 Destroy(farBankGuardTexture);
+            if (encirclingTorchTexture != null)
+                Destroy(encirclingTorchTexture);
             if (farBankGuardWalkTexture != null)
                 Destroy(farBankGuardWalkTexture);
             if (spareRopePixelTexture != null)
@@ -1542,12 +2124,12 @@ namespace Rpg.Soundwell
             next.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "Shen Li checks the tight cable. 'After the war I want a shop: pots, doors, ordinary jobs. No more half-bridges. Will you come?'",
-                "沈砾试了试缆口：“打完这仗我开间铺子。接普通单，补锅，修门。谁再抬半座桥来，我就关门。你来不来？”");
+                "Shen Li: 'After this war I want to open a shop. Quartermaster or not, I'll take the jobs I choose. Will you come?'",
+                "沈砾：“等这仗打完，我要开间铺子。不管军需官批不批，谁来我就接谁的活。挑活的那种。你来不来？”");
             instructions.text = Copy("Answer honestly. The rescue and the later reunion are not decided here.",
                 "照你的心意回答。这句话不会替你决定后来谁能获救、怎样重逢。");
-            ShowChoices(new[] { "I'll come", "I can't promise", "What about my wages?" },
-                new[] { "我会来", "我现在答应不了", "那我的工钱怎么算？" });
+            ShowChoices(new[] { "I'll come.", "Maybe later.", "Fix that nut first." },
+                new[] { "来。", "再说吧。", "你先把那个螺母修好。" });
         }
 
         private void ShowChoices(string[] english, string[] chinese)
@@ -1656,11 +2238,25 @@ namespace Rpg.Soundwell
             }
         }
 
+        // Preserve fractional world motor movement for accurate reach and
+        // input; only the 16px actor's Canvas presentation snaps to pixels.
+        // Rounding the motor each frame would freeze slow/short inputs.
+        private static Vector2 PixelSnappedWalkerPosition(Vector2 motor) =>
+            new Vector2(Mathf.Round(motor.x), Mathf.Round(12f + motor.y));
+
         private void Update()
         {
             // Dialogue selection uses UI input, not the exploration motor.
             // Refresh visible options even when the player cannot walk.
             RefreshOpenChoiceLanguage();
+            if (phase < 17)
+                RefreshStageLayout();
+            if (phase == 18)
+            {
+                // Resizing after the final bell cannot hide the only exit.
+                RefreshEpilogueExitPosition();
+                return;
+            }
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
                 phase != 12 && phase != 14 && phase != 15)
                 return;
@@ -1679,7 +2275,7 @@ namespace Rpg.Soundwell
                 WalkSpeed * Time.unscaledDeltaTime;
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
-            marker.anchoredPosition = new Vector2(walker.x, 12f + walker.y);
+            marker.anchoredPosition = PixelSnappedWalkerPosition(walker);
             RefreshBridgeStationReachCue();
             if (phase == 15)
             {
@@ -1717,6 +2313,7 @@ namespace Rpg.Soundwell
             }
             if (phase == 9)
             {
+                RefreshEvacueePickupReachCue();
                 if (frame.Ring)
                     HelpEvacuee();
                 return;
@@ -1727,6 +2324,8 @@ namespace Rpg.Soundwell
                 // Show readiness only after BOTH bodies have reached the real
                 // safe line. Keep the displayed action current after rebinds.
                 bool ready = CanDeliverEvacuee;
+                bool laneAligned = evacuee != null &&
+                    Mathf.Abs(walker.y - evacuee.anchoredPosition.y) <= EvacueeContactReachY;
                 string locale = SoundwellUiLocalization.Language;
                 string bindings = StationPromptBindingSignature();
                 if (ready && (!shownEvacueeSafeLineReachable ||
@@ -1735,11 +2334,24 @@ namespace Rpg.Soundwell
                     instructions.text = Copy(
                         "At the green safe line: press E / Pad A to confirm the evacuee is safe.",
                         "已到绿色安全线：按 E／手柄 A 确认伤者安全撤离。");
+                else if (!ready && !evacueeWaiting && !laneAligned &&
+                    (shownEvacueeSafeLineLaneAligned ||
+                     shownEvacueeSafeLineLanguage != locale ||
+                     shownEvacueeSafeLineBindings != bindings))
+                    instructions.text = Copy(
+                        "Return to the bridge lane to meet the evacuee at the green safe line.",
+                        "回到桥面通道，在绿色安全线与伤者会合。");
+                else if (!ready && !evacueeWaiting && laneAligned &&
+                    !shownEvacueeSafeLineLaneAligned)
+                    instructions.text = Copy(
+                        "Green: following. Stay close; press E / Pad A at the safe line.",
+                        "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
                 else if (!ready && shownEvacueeSafeLineReachable && !evacueeWaiting)
                     instructions.text = Copy(
                         "Green: following. Stay close; press E / Pad A at the safe line.",
                         "绿色：伤者正在跟随。保持靠近，到安全线按 E／手柄 A。");
                 shownEvacueeSafeLineReachable = ready;
+                shownEvacueeSafeLineLaneAligned = laneAligned;
                 shownEvacueeSafeLineLanguage = locale;
                 shownEvacueeSafeLineBindings = bindings;
                 if (frame.Ring)
@@ -1748,12 +2360,27 @@ namespace Rpg.Soundwell
             }
             if (frame.Ring && CanRepair)
             {
+                // Neither the first knock nor moving into tool reach may
+                // credit a repair. Each E / Pad A is an actual gameplay action.
+                clampKnocks++;
+                if (clampKnocks == 1)
+                {
+                    narration.text = Copy(
+                        "The 'Tax Collector' strikes the rusted nut once. It is still stuck.",
+                        "“税务官”敲了生锈的螺母第一下，还卡着。");
+                    instructions.text = Copy(
+                        "Strike the clamp a second time: E / Pad A. The bridge is not repaired yet.",
+                        "还要在缆桩敲第二下：E／手柄 A。桥还没有修好。");
+                    return;
+                }
                 phase = 2;
                 SoundwellInputAdapter.SetUiContext();
-                narration.text = Copy("Shen Li: 'The clamp is loose. How shall we brace it?'",
-                    "沈砾：“夹口松了。你想怎么固定？”");
-                instructions.text = Copy("The different methods all make the bridge safe.",
-                    "做法可以不同，目标都是让伤员安全通过。");
+                narration.text = Copy(
+                    "Two knocks loosen the nut. Shen Li: 'See? It understands. My wrench is called Inspector—leaks oil, but recognizes people. How shall we secure the cable and chain?'",
+                    "敲过两下，螺母终于松了。沈砾：“看，它懂。我手里这把叫‘监察员’，漏油，但认人。缆索和铁链怎么固定？”");
+                instructions.text = Copy(
+                    "Choose how to secure the chain; the repair has not been recorded yet.",
+                    "选择怎样固定铁链；尚未记入修缆结果。");
                 ShowChoices(new[] { "Hold the plate", "Set the wedge", "Ask her to show you" },
                     new[] { "扶住夹板", "塞进木楔", "请她先示范" });
             }
@@ -1779,9 +2406,10 @@ namespace Rpg.Soundwell
 
         public void Close()
         {
-            // Leaving the unfinished prologue never starts an ORK encounter or
-            // awards quest experience. Makinom retains only dialogue/repair
-            // outcomes already earned through real player interactions.
+            defenseEncounter?.Stop();
+            // Leaving the unfinished prologue never awards quest experience.
+            // Makinom retains only dialogue/repair outcomes already earned
+            // through real player interactions.
             Action callback = onExit;
             onExit = null;
             callback?.Invoke();

@@ -27,8 +27,8 @@ namespace Rpg.Tests.Editor
 
         // Keep preparation out of SetUp/OneTimeSetUp: UTF reruns them after domain reload.
         // A real Linux Player build can exceed NUnit's 180-second default.
-        [Test, Order(0), Timeout(900000)]
-        public void SavedConfigurationAndWiringAreValid()
+        [UnityTest, Order(0), Timeout(900000)]
+        public IEnumerator SavedConfigurationAndWiringAreValid()
         {
             Assert.That(Application.unityVersion, Is.EqualTo("6000.6.8f1"));
             Assert.That(Type.GetType("UnityEngine.UI.Button, UnityEngine.UI", throwOnError: true), Is.Not.Null);
@@ -74,6 +74,20 @@ namespace Rpg.Tests.Editor
                 "Running the command again must not rewrite the saved scene.");
             ValidateConfiguration();
             Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
+            // Unity queues an Editor compile after native Build Profile checks and
+            // bootstrap scene wiring. A synchronous NUnit Test starts the M11
+            // player build in that same editor update and intermittently gets
+            // "Error building Player because scripts are compiling". Give the
+            // editor a real update to drain pending work; do not skip the build
+            // or its strict ELF/scene/evidence checks.
+            yield return null;
+            double readyDeadline = EditorApplication.timeSinceStartup + 120d;
+            while (EditorApplication.isCompiling || EditorApplication.isUpdating)
+            {
+                if (EditorApplication.timeSinceStartup >= readyDeadline)
+                    Assert.Fail("M11 Linux Player build blocked by ongoing script compilation or asset import.");
+                yield return null;
+            }
             // Prepare must also persist URP normalization caused by the real Player build.
             // Verify rebuilds the same committed profiles and requires a clean checkout.
             InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
@@ -102,18 +116,128 @@ namespace Rpg.Tests.Editor
             bool openedHere = !active.IsValid() || !active.isLoaded;
             if (openedHere)
                 active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            bool wasDirty = active.isDirty;
             try
             {
-                Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+                if (wasDirty)
+                {
+                    var error = Assert.Throws<InvalidOperationException>(
+                        () => InvokeSoundwellTilemapSetup("Validate"));
+                    Assert.That(error.Message, Does.Contain("Save or discard"));
+                }
+                else
+                {
+                    Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+                }
                 Assert.That(active.IsValid() && active.isLoaded, Is.True,
                     "Read-only Tilemap validation may not close an author's opened scene.");
-                Assert.That(active.isDirty, Is.False);
+                Assert.That(active.isDirty, Is.EqualTo(wasDirty),
+                    "Validation must preserve the editor scene's dirty state.");
             }
             finally
             {
                 if (openedHere && active.IsValid() && active.isLoaded)
                     EditorSceneManager.CloseScene(active, true);
             }
+        }
+
+        [Test]
+        public void SavedTilemapValidationRejectsDirtyLoadedTrialWithoutClosingIt()
+        {
+            const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
+            var active = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(trialPath);
+            bool openedHere = !active.IsValid() || !active.isLoaded;
+            if (openedHere)
+                active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            bool wasDirty = active.isDirty;
+            if (!wasDirty)
+                EditorSceneManager.MarkSceneDirty(active);
+            try
+            {
+                var error = Assert.Throws<InvalidOperationException>(
+                    () => InvokeSoundwellTilemapSetup("Validate"));
+                Assert.That(error.Message, Does.Contain("Save or discard"));
+                Assert.That(active.IsValid() && active.isLoaded, Is.True,
+                    "A dirty scene must remain open when validation refuses to inspect it.");
+                Assert.That(active.isDirty, Is.True,
+                    "Validation must not clear an author's unsaved scene edits.");
+            }
+            finally
+            {
+                if (!wasDirty && active.IsValid() && active.isLoaded)
+                    EditorSceneManager.MarkSceneClean(active);
+                if (openedHere && active.IsValid() && active.isLoaded)
+                    EditorSceneManager.CloseScene(active, true);
+            }
+        }
+
+        [Test]
+        public void TilemapFirstTimePreparationRejectsDirtyScenesBeforeResourceCreation()
+        {
+            // Unity CI can already have an unsaved untitled scene; creating
+            // a second additive one throws before reaching the preflight.
+            // Exercise the exact decision without editing saved scene state.
+            var type = Type.GetType("Rpg.Editor.SoundwellTilemapSetup, Assembly-CSharp-Editor", true);
+            var gate = type.GetMethod("RequireCleanEditorScene",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(gate, Is.Not.Null);
+            Assert.DoesNotThrow(() => gate.Invoke(null,
+                new object[] { true, false, "Clean" }));
+            Assert.DoesNotThrow(() => gate.Invoke(null,
+                new object[] { false, true, "Unloaded" }));
+            var error = Assert.Throws<TargetInvocationException>(() =>
+                gate.Invoke(null, new object[] { true, true, "Unsaved scratch" }));
+            Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
+            Assert.That(error.InnerException.Message, Does.Contain("Unsaved scratch"));
+
+            // A correct guard called after creating assets would still leave
+            // an orphaned folder; prove the first call precedes first write.
+            string source = File.ReadAllText("Assets/Game/Editor/SoundwellTilemapSetup.cs");
+            int guardIndex = source.IndexOf("RefuseDirtyOpenScenes();", StringComparison.Ordinal);
+            int firstWrite = source.IndexOf("AssetDatabase.CreateFolder(", StringComparison.Ordinal);
+            Assert.That(guardIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(firstWrite, Is.GreaterThan(guardIndex));
+        }
+
+        [Test]
+        public void SavedTilemapValidationPreservesAnAlreadyLoadedTrialScene()
+        {
+            const string trialPath = "Assets/Game/Scenes/SoundwellTrial.unity";
+            var active = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(trialPath);
+            bool openedHere = !active.IsValid() || !active.isLoaded;
+            if (openedHere)
+                active = EditorSceneManager.OpenScene(trialPath, OpenSceneMode.Additive);
+            bool wasDirty = active.isDirty;
+            try
+            {
+                if (wasDirty)
+                    Assert.Throws<InvalidOperationException>(
+                        () => InvokeSoundwellTilemapSetup("Validate"),
+                        "Validation must reject unsaved wall geometry without closing the author's scene.");
+                else
+                    Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+
+                Assert.That(active.IsValid() && active.isLoaded, Is.True,
+                    "Read-only Tilemap validation may not close an author's already loaded scene.");
+                Assert.That(active.isDirty, Is.EqualTo(wasDirty),
+                    "Validation must not change or discard the open scene's dirty state.");
+            }
+            finally
+            {
+                if (openedHere && active.IsValid() && active.isLoaded)
+                    EditorSceneManager.CloseScene(active, true);
+            }
+        }
+
+        [Test]
+        public void SoundwellAtlasValidationRemainsExplicitInsteadOfGlobalBuildInterceptor()
+        {
+            // The P0 gate still validates saved atlas dependencies, while
+            // unrelated profiles must not require the Soundwell importer.
+            InvokeSoundwellSpriteAtlasSetup("Validate");
+            string setup = File.ReadAllText("Assets/Game/Editor/SoundwellSpriteAtlasSetup.cs");
+            Assert.That(setup, Does.Not.Contain("IPreprocessBuildWithReport"));
+            Assert.That(setup, Does.Not.Contain("OnPreprocessBuild("));
         }
 
         [Test, Order(1)]

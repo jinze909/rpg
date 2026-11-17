@@ -9,12 +9,12 @@
 
 | 阶段 | 本项目交付 | 当前状态 |
 | --- | --- | --- |
-| N0 | 建立“归来”[详细主线](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)与[地区故事](docs/narrative/REGIONAL_STORIES.md) v0.2，含点名、渡口谜线、五张归途中的脸及开场场景稿，供编剧与任务分解。 | 新版叙事写作基线已更新；未实现、未验收 |
+| N0 | 建立“归来”[详细主线](docs/narrative/STORY_OUTLINE.md)、[人物关系](docs/narrative/CHARACTERS.md)与[地区故事](docs/narrative/REGIONAL_STORIES.md) v1.2，含点名、渡口谜线、五张归途中的脸及开场场景稿，供编剧与任务分解。 | 新版叙事写作基线已更新；未实现、未验收 |
 | D0 | 深度讨论并写成[一页玩法基线](docs/gameplay/BASELINE.md)，区分已定、暂定与待验证，供后续任务读取。 | 文档审查通过；未实现、未试玩 |
 | P0 | 验证 Unity 工程和 ORK 启动。[001 · ORK 启动验证](production/stories/001-ork-bootstrap.md) | Unity 6000.6.8f1 干净提交验收通过。[CI](https://github.com/jinze909/rpg/actions/runs/42551491951/job/128948965800) |
 | P0-b | 建立脚本化冒烟、同 SHA 验证和基础帧时间、P95、GC 趋势采样。 | 已有声井冒烟、同 SHA 验证和 Editor 趋势采样；按场景补覆盖，不等同玩家设备性能验收 |
 | G1 | 标题、菜单和 HUD 使用 UGUI，验证键鼠与手柄焦点及分辨率适配。世界渲染走 SpriteRenderer / Tilemap，并检查排序层。 | 已有入口/操作/HUD、输入焦点与 SpriteRenderer/Tilemap；完整菜单、各设备/分辨率覆盖按实际缺口补验 |
-| N1 | 打磨新版[P0—M00 场景稿](docs/narrative/SCENE_SCRIPT_P0_M00.md)，按交接推进 M08—M11 连续人物场、ST-04 与其余名册案对白；检查具体行动、对白与因果。 | 新版场景稿已入库；剧情未实现、未验收，其余人物场与名册案对白仍待写 |
+| N1 | 按新版[P0](docs/narrative/SCENE_SCRIPT_P0.md) 与 [M00](docs/narrative/SCENE_SCRIPT_M00.md) 场景稿推进 Unity 实作与连续性，仍以 v1.2 全套 29 份独立分章为写作权威。 | v1.2 写作稿已入库；P0 已有点名、工坊、桥头三次撤离等部分工程切片，同 SHA Unity 回归不等于整章剧情/节奏验收；M00 完整实现未验收，跨章续存和其他玩法仍待实现 |
 | P2 | 按[首样本设计](docs/gameplay/FIRST_PLAYABLE.md)制作声井救援代表环，公平比较移动／固定阵位。 | [002](production/stories/002-soundwell-signal.md) 与 [003 移动版代表环](production/stories/003-soundwell-turn-rescue.md)工程验收通过；完整固定阵位模式、后续成长/持久化及主观乐趣仍未验收。故事、序幕与技术卡按真实依赖推进。 |
 
 **用户 2026-11-10 新决定：取消 M1–M11 高于玩法、剧情和故事 003 的强制优先级。** M1–M11 技术卡保留为可选择任务，与故事/玩法并列按价值、依赖、活动候选及真实 CI 结果确定开发顺序；任何 M 阶段均非故事开发的统一前置条件。已合入的阶段候选不再永久保留或复用；每次合入 `codex/dev` 后仅复核本次候选及其直接相关已完全取代的旧候选，按[清理规则](production/workflow.md#候选分支清理)及[自动清理 Actions](.github/workflows/close-merged-pending.yml)处理。正在运行的 CI 保持最终候选 SHA 不变并接续，失败时修复，不阻止在无依赖的独立候选上进行玩法、剧情或技术开发；实时任务状态以 [AI2-STATUS](AI2-STATUS.md) 和 GitHub 为准。

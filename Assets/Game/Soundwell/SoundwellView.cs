@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private readonly Sprite leaderGuardPixelSprite;
         private readonly SpriteRenderer leaderVisualRenderer;
         private readonly Sprite beastPixelSprite;
+        private readonly Sprite beastRecoilPixelSprite;
         private readonly Sprite surveyorPixelSprite;
         private readonly Sprite surveyorWalkPixelSprite;
         private readonly Sprite bellStandPixelSprite;
@@ -37,6 +38,7 @@ namespace Rpg.Soundwell
         private readonly Texture2D leaderWalkPixelTexture;
         private readonly Texture2D leaderGuardPixelTexture;
         private readonly Texture2D beastPixelTexture;
+        private readonly Texture2D beastRecoilPixelTexture;
         private readonly Texture2D surveyorPixelTexture;
         private readonly Texture2D surveyorWalkPixelTexture;
         private readonly Texture2D bellStandPixelTexture;
@@ -155,6 +157,8 @@ namespace Rpg.Soundwell
                 WithLeaderGuardShield(), out leaderGuardPixelTexture);
             beastPixelSprite = CreatePixelSprite("PLACEHOLDER 16px beast",
                 BeastPixels, out beastPixelTexture);
+            beastRecoilPixelSprite = CreatePixelSprite("SOUNDWELL 16px beast ORK hit recoil",
+                WithBeastRecoilPose(), out beastRecoilPixelTexture);
             surveyorPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor idle",
                 SurveyorPixels, out surveyorPixelTexture);
             surveyorWalkPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor walk",
@@ -603,7 +607,10 @@ namespace Rpg.Soundwell
             if (!active)
                 ResetPlayerAnimation();
             if (beastVisualRenderer != null)
+            {
                 beastVisualRenderer.color = beastBaseTint;
+                beastVisualRenderer.sprite = beastPixelSprite;
+            }
             layoutReady = false;
             attackTargetMarker.enabled = false;
             activeRescuerMarker.enabled = false;
@@ -929,6 +936,13 @@ namespace Rpg.Soundwell
             lastBattleLeaderHp = hp;
         }
 
+        // The last value comes from ORK's live combatant, not an inferred
+        // animation trigger. First observations, heals and repeated values
+        // cannot manufacture a hit pose or modify the authoritative HP.
+        private static bool HasRealOrkBeastDamage(float? previousHp, float currentHp) =>
+            previousHp.HasValue && !float.IsNaN(currentHp) &&
+            !float.IsInfinity(currentHp) && currentHp < previousHp.Value - 0.001f;
+
         public void RefreshBattleBeastHp(float hp)
         {
             if (beastVisualRenderer == null)
@@ -938,13 +952,16 @@ namespace Rpg.Soundwell
                 lastBattleBeastHp = null;
                 beastHitFlashUntil = float.NegativeInfinity;
                 beastVisualRenderer.color = beastBaseTint;
+                beastVisualRenderer.sprite = beastPixelSprite;
                 return;
             }
-            if (lastBattleBeastHp.HasValue && hp < lastBattleBeastHp.Value - 0.001f)
+            if (HasRealOrkBeastDamage(lastBattleBeastHp, hp))
                 beastHitFlashUntil = Time.unscaledTime + 0.30f;
             lastBattleBeastHp = hp;
-            beastVisualRenderer.color = Time.unscaledTime < beastHitFlashUntil
+            bool recoiling = Time.unscaledTime < beastHitFlashUntil;
+            beastVisualRenderer.color = recoiling
                 ? new Color(1f, 0.93f, 0.69f) : beastBaseTint;
+            beastVisualRenderer.sprite = recoiling ? beastRecoilPixelSprite : beastPixelSprite;
         }
 
         public void SetBattleReadout(string summary)
@@ -1666,6 +1683,7 @@ namespace Rpg.Soundwell
             Object.Destroy(leaderWalkPixelSprite);
             Object.Destroy(leaderGuardPixelSprite);
             Object.Destroy(beastPixelSprite);
+            Object.Destroy(beastRecoilPixelSprite);
             Object.Destroy(surveyorPixelSprite);
             Object.Destroy(surveyorWalkPixelSprite);
             Object.Destroy(bellStandPixelSprite);
@@ -1677,6 +1695,7 @@ namespace Rpg.Soundwell
             Object.Destroy(leaderWalkPixelTexture);
             Object.Destroy(leaderGuardPixelTexture);
             Object.Destroy(beastPixelTexture);
+            Object.Destroy(beastRecoilPixelTexture);
             Object.Destroy(surveyorPixelTexture);
             Object.Destroy(surveyorWalkPixelTexture);
             Object.Destroy(bellStandPixelTexture);
@@ -1764,6 +1783,17 @@ namespace Rpg.Soundwell
             "..###.......###.",
             "................",
         };
+
+        // Tilt the existing head and upper body one source pixel as a brief
+        // recoil pose. The feet and 16 PPU sprite footprint stay anchored;
+        // no extra Animator, collider, enemy actor or RPG state is created.
+        private static string[] WithBeastRecoilPose()
+        {
+            var recoiling = (string[])BeastPixels.Clone();
+            for (int row = 1; row <= 8; row++)
+                recoiling[row] = "." + recoiling[row].Substring(0, 15);
+            return recoiling;
+        }
 
         private static readonly string[] BeastPixels =
         {
@@ -1915,10 +1945,18 @@ namespace Rpg.Soundwell
         private static Sprite CreatePixelSprite(string name, string[] rows,
             out Texture2D texture)
         {
-            int height = rows.Length;
-            int width = height > 0 ? rows[0].Length : 0;
+            // The scene renders both 16x16 actors and 26x6 weak planks.
+            // Validate *all* source rows before creating any native texture;
+            // a malformed later row must not orphan Texture2D on scene retry.
+            texture = null;
+            int height = rows != null ? rows.Length : 0;
+            int width = height > 0 && rows[0] != null ? rows[0].Length : 0;
             if (!((width == 16 && height == 16) || (width == 26 && height == 6)))
                 throw new System.InvalidOperationException("Invalid source pixel grid dimensions.");
+            for (int y = 0; y < height; y++)
+                if (rows[y] == null || rows[y].Length != width)
+                    throw new System.InvalidOperationException("Inconsistent source pixel row width.");
+
             texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
             {
                 name = name,
@@ -1930,8 +1968,6 @@ namespace Rpg.Soundwell
             for (int y = 0; y < height; y++)
             {
                 string row = rows[height - 1 - y];
-                if (row.Length != width)
-                    throw new System.InvalidOperationException("Inconsistent source pixel row width.");
                 for (int x = 0; x < width; x++)
                 {
                     char value = row[x];

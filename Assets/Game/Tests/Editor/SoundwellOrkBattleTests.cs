@@ -30,6 +30,143 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellOrkBattleTests
     {
         [Test]
+        public void S00BridgeheadActionsRemainInViewOnUltrawideScreens()
+        {
+            var slots = typeof(WhitewaterDefenseEncounter).GetMethod(
+                "VerticalHudSlots",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(slots, Is.Not.Null);
+            Vector2 regular = (Vector2)slots.Invoke(null,
+                new object[] { 16f / 9f });
+            Assert.That(regular, Is.EqualTo(new Vector2(190f, -190f)),
+                "Ordinary 16:9 battle positioning must not change.");
+
+            // Under a CanvasScaler 960x540 MatchWidthOrHeight=0.5 the
+            // logical height collapses as a screen becomes wider.
+            foreach (float aspect in new[] { 32f / 9f, 5f })
+            {
+                float halfHeight = 0.5f *
+                    Mathf.Sqrt(960f * 540f / aspect);
+                Vector2 anchors = (Vector2)slots.Invoke(null,
+                    new object[] { aspect });
+                Assert.That(anchors.x + 22f,
+                    Is.LessThanOrEqualTo(halfHeight - 12f),
+                    "The 44px heading must not crop above the viewport.");
+                Assert.That(anchors.y - 26f,
+                    Is.GreaterThanOrEqualTo(-halfHeight + 12f),
+                    "The 52px Attack/Guard/Leave row must remain selectable.");
+                Assert.That(anchors.x, Is.GreaterThan(anchors.y));
+            }
+        }
+
+        [Test]
+        public void RetiredS00OrkHudFocusClearsOnlyItsOwnButtons()
+        {
+            var hud = new GameObject("S00 retiring defense HUD");
+            var action = new GameObject("Retired ORK Guard");
+            var unrelated = new GameObject("Other active menu button");
+            try
+            {
+                action.transform.SetParent(hud.transform, false);
+                var predicate = typeof(WhitewaterDefenseEncounter).GetMethod(
+                    "ShouldClearRetiredHudFocus",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(predicate, Is.Not.Null);
+                Assert.That(predicate.Invoke(null, new object[] { action, hud.transform }),
+                    Is.EqualTo(true), "A discarded ORK command must release gamepad focus.");
+                Assert.That(predicate.Invoke(null, new object[] { unrelated, hud.transform }),
+                    Is.EqualTo(false), "Closing defense must not steal another menu's focus.");
+                Assert.That(predicate.Invoke(null, new object[] { null, hud.transform }),
+                    Is.EqualTo(false));
+            }
+            finally
+            {
+                Object.DestroyImmediate(hud);
+                Object.DestroyImmediate(unrelated);
+            }
+        }
+
+        [Test]
+        public void PixelFormationPoseValidationRejectsMalformedRowsBeforeNativeAllocation()
+        {
+            // Formation sprites use Create16: unlike the coloured S00 helper,
+            // it previously allocated a Texture2D before discovering an
+            // invalid row. Do not leak native textures on retrying bad art.
+            var type = typeof(PartyFormationFollower).Assembly.GetType(
+                "Rpg.Soundwell.SoundwellPixelSpriteBuilder");
+            Assert.That(type, Is.Not.Null);
+            var method = type.GetMethod("Create16",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            const string invalidName = "S00 invalid pixel formation test allocation";
+            var good = Enumerable.Repeat("................", 16).ToArray();
+            var badShort = (string[])good.Clone();
+            badShort[15] = "....";
+            var badNull = (string[])good.Clone();
+            badNull[7] = null;
+
+            try
+            {
+                foreach (string[] rows in new string[][] { null, new string[15], badShort, badNull })
+                {
+                    object[] args = { rows, invalidName, null };
+                    var thrown = Assert.Throws<System.Reflection.TargetInvocationException>(
+                        () => { method.Invoke(null, args); });
+                    Assert.That(thrown.InnerException,
+                        Is.TypeOf<System.InvalidOperationException>());
+                    Assert.That(args[2], Is.Null,
+                        "Invalid art must not allocate or return a native texture.");
+                    Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
+                        .Any(t => t.name == invalidName), Is.False,
+                        "No orphaned native texture may survive the failed validation.");
+                }
+
+                good[0] = ".......#........";
+                object[] validArgs = { good, "S00 valid 16px test pose", null };
+                Sprite sprite = null;
+                Texture2D texture = null;
+                try
+                {
+                    sprite = (Sprite)method.Invoke(null, validArgs);
+                    texture = (Texture2D)validArgs[2];
+                    Assert.That(sprite, Is.Not.Null);
+                    Assert.That(texture, Is.Not.Null);
+                    Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
+                    Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
+                    Assert.That(texture.width, Is.EqualTo(16));
+                    Assert.That(texture.height, Is.EqualTo(16));
+                    Assert.That(texture.GetPixel(7, 15).a, Is.EqualTo(1f));
+                }
+                finally
+                {
+                    if (sprite != null)
+                        Object.DestroyImmediate(sprite);
+                    if (texture != null)
+                        Object.DestroyImmediate(texture);
+                }
+            }
+            finally
+            {
+                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
+                    .Where(t => t.name == invalidName))
+                    Object.DestroyImmediate(orphan);
+            }
+        }
+
+        [Test]
+        public void BattleReadoutRemainsEligibleForPartialOrExtendedOrkRosters()
+        {
+            Assert.That(OrkPartyBridge.HasReadoutRoster(0), Is.False);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(1), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(2), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(3), Is.True);
+            Assert.That(OrkPartyBridge.HasReadoutRoster(4), Is.True);
+        }
+
+        [Test]
         public void OrkControllerGuardCachesKnownMotorsBetweenFullSceneScans()
         {
             const System.Reflection.BindingFlags flags =
@@ -2200,6 +2337,7 @@ namespace Rpg.Tests.Editor
             }
             else
             {
+                AssertFixedFormationCannotStep(party, companion, "second");
                 Assert.That(guard.interactable, Is.True);
                 guard.onClick.Invoke();
             }
@@ -2209,6 +2347,8 @@ namespace Rpg.Tests.Editor
             Assert.That(gateCue.enabled, Is.False,
                 "A resolved gate action or an out-of-range chooser must clear its target cue.");
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(3 - companion));
+            if (!useStep)
+                AssertFixedFormationCannotStep(party, 3 - companion, "third");
             Assert.That(attack.interactable, Is.True);
             attack.onClick.Invoke();
             deadline = Time.realtimeSinceStartup + 8f;
@@ -2248,6 +2388,25 @@ namespace Rpg.Tests.Editor
             Assert.That(ORK.Control.InBattle, Is.False,
                 "Returning after victory must release ORK's battle control before replay.");
             yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
+        }
+
+        private static void AssertFixedFormationCannotStep(OrkPartyBridge party,
+            int actorIndex, string turn)
+        {
+            Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(actorIndex),
+                $"The {turn} fixed-formation turn must belong to rescuer {actorIndex + 1}.");
+            Vector2 before = party.Actors[actorIndex].transform.position;
+            Assert.That(party.CanStep(actorIndex, Vector2.right), Is.False,
+                $"Fixed formation must not offer a step to rescuer {actorIndex + 1} on the {turn} turn.");
+            Assert.That(party.TryStep(actorIndex, Vector2.right), Is.False,
+                $"Fixed formation must reject direct step requests for rescuer {actorIndex + 1} on the {turn} turn.");
+            Assert.That((Vector2)party.Actors[actorIndex].transform.position, Is.EqualTo(before),
+                $"Rejecting the {turn} step must leave rescuer {actorIndex + 1} in place.");
+            var move = GameObject.Find("Soundwell Move button")?.GetComponent<Button>();
+            Assert.That(move, Is.Not.Null,
+                "The in-battle Move command must remain present in fixed formation.");
+            Assert.That(move.interactable, Is.False,
+                $"The in-battle Move command must stay disabled on the {turn} turn.");
         }
 
         private static IEnumerator FinishFixedFormationRescue(SoundwellTrial trial,
@@ -2334,6 +2493,103 @@ namespace Rpg.Tests.Editor
                    Time.realtimeSinceStartup < deadline)
                 yield return null;
             yield return null;
+        }
+
+        [UnityTest, Order(32)]
+        public IEnumerator FormationPreferenceGamepadSubmitTogglesModeWithoutEnteringTrial()
+        {
+            bool hadPreference = PlayerPrefs.HasKey(OrkPartyBridge.FixedFormationPreferenceKey);
+            int previousPreference = PlayerPrefs.GetInt(OrkPartyBridge.FixedFormationPreferenceKey, 0);
+            InputTestFixture input = null;
+            bool inputReady = false;
+            Gamepad gamepad = null;
+            try
+            {
+                // The setting must be a real, reachable entry action. A single
+                // Pad A press is both UI Submit and the gameplay Interact input;
+                // it must toggle the focused option without also entering.
+                OrkPartyBridge.SetPreferredFixedFormation(false);
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                yield return new EnterPlayMode(expectDomainReload: true);
+
+                // Bootstrap initializes the production InputActions in Awake.
+                // Isolate the test input runtime first so queued Pad A state is
+                // deterministically delivered to both UGUI Submit and gameplay.
+                input = new InputTestFixture();
+                input.Setup();
+                inputReady = true;
+                gamepad = InputSystem.AddDevice<Gamepad>();
+                EditorSceneManager.LoadSceneInPlayMode(
+                    "Assets/Game/Scenes/Bootstrap.unity",
+                    new LoadSceneParameters(LoadSceneMode.Single));
+                yield return WaitForFrameworkInitialization();
+                // Let the live Entry owner reconcile any EventSystem that ORK
+                // creates after the scene component Awake methods have run.
+                yield return null;
+
+                var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+                Assert.That(entrance, Is.Not.Null);
+                var events = EventSystem.current;
+                Assert.That(events, Is.Not.Null);
+                Assert.That(events.GetComponent<InputSystemUIInputModule>(), Is.Not.Null,
+                    "Entry must use the project-owned New Input System UGUI module after ORK initializes.");
+                Assert.That(events.sendNavigationEvents, Is.True,
+                    "Visible Entry must accept UGUI navigation and Submit.");
+                var button = entrance.GetComponentsInChildren<Button>(true)
+                    .Single(item => item.gameObject.name == "Soundwell formation toggle");
+                var label = button.GetComponentInChildren<Text>();
+                Assert.That(button.interactable, Is.True);
+                Assert.That(label, Is.Not.Null);
+                Assert.That(label.text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("entry.formation_mobile")));
+
+                events.SetSelectedGameObject(button.gameObject);
+                Assert.That(events.currentSelectedGameObject, Is.SameAs(button.gameObject));
+                input.Press(gamepad.buttonSouth);
+
+                float deadline = Time.realtimeSinceStartup + 2f;
+                while (!OrkPartyBridge.PreferredFixedFormation &&
+                       Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+
+                Assert.That(OrkPartyBridge.PreferredFixedFormation, Is.True,
+                    "Pad A must activate the focused fixed-formation UGUI button.");
+                Assert.That(label.text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("entry.formation_fixed")));
+                Assert.That(SceneManager.GetActiveScene().name,
+                    Is.EqualTo(SoundwellEntrance.BootstrapSceneName),
+                    "The same Pad A event must not also commit the trial entry.");
+                Assert.That(button.interactable, Is.True,
+                    "Changing the next-encounter preference must leave Entry available.");
+
+                input.Press(gamepad.buttonSouth);
+                deadline = Time.realtimeSinceStartup + 2f;
+                while (OrkPartyBridge.PreferredFixedFormation &&
+                       Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+
+                Assert.That(OrkPartyBridge.PreferredFixedFormation, Is.False,
+                    "A second Pad A press must restore the mobile-step preference.");
+                Assert.That(label.text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("entry.formation_mobile")));
+                Assert.That(SceneManager.GetActiveScene().name,
+                    Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
+                Assert.That(button.interactable, Is.True);
+            }
+            finally
+            {
+                if (inputReady && input != null)
+                    input.TearDown();
+                if (hadPreference)
+                    PlayerPrefs.SetInt(OrkPartyBridge.FixedFormationPreferenceKey, previousPreference);
+                else
+                    PlayerPrefs.DeleteKey(OrkPartyBridge.FixedFormationPreferenceKey);
+                PlayerPrefs.Save();
+            }
         }
 
         private static IEnumerator WaitForFrameworkInitialization()

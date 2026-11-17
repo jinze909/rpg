@@ -195,6 +195,7 @@ namespace Rpg.Soundwell
         // effective Up/Left/Down/Right bindings after player rebinding.
         public static string GameplayKeyboardMovementLabel()
         {
+            string partialLabel = null;
             EnsureLoaded();
             for (int start = 0; start + 4 < move.bindings.Count; start++)
             {
@@ -205,38 +206,56 @@ namespace Rpg.Soundwell
                     string.IsNullOrWhiteSpace(move.bindings[start].effectivePath))
                     continue;
                 var labels = new string[4];
-                bool usable = true;
+                bool allDirectionsBound = true;
+                bool hasKeyboardDirection = false;
+                bool keyboardComposite = true;
                 for (int part = 0; part < 4; part++)
                 {
                     int index = start + part + 1;
                     var binding = move.bindings[index];
-                    if (!binding.isPartOfComposite ||
-                        string.IsNullOrEmpty(binding.effectivePath) ||
-                        !binding.effectivePath.StartsWith("<Keyboard>/",
-                            StringComparison.OrdinalIgnoreCase))
+                    if (!binding.isPartOfComposite)
                     {
-                        usable = false;
+                        keyboardComposite = false;
+                        break;
+                    }
+                    if (string.IsNullOrEmpty(binding.effectivePath))
+                    {
+                        // A genuinely unbound direction must never appear as
+                        // its old default key in a playable S00 prompt.
+                        labels[part] = "-";
+                        allDirectionsBound = false;
+                        continue;
+                    }
+                    if (!binding.effectivePath.StartsWith("<Keyboard>/",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        keyboardComposite = false;
                         break;
                     }
                     labels[part] = move.GetBindingDisplayString(index);
                     if (string.IsNullOrEmpty(labels[part]))
                     {
-                        usable = false;
-                        break;
+                        allDirectionsBound = false;
+                        labels[part] = "-";
                     }
+                    else
+                        hasKeyboardDirection = true;
                 }
-                if (usable)
-                {
-                    // 2DVector parts are Up, Down, Left, Right. Display the
-                    // familiar WASD/IJKL directional order, never the raw
-                    // composite label that ignores actual per-key overrides.
-                    return labels[0].Length == 1 && labels[1].Length == 1 &&
-                        labels[2].Length == 1 && labels[3].Length == 1
-                        ? labels[0] + labels[2] + labels[1] + labels[3]
-                        : labels[0] + "/" + labels[2] + "/" + labels[1] + "/" + labels[3];
-                }
+                if (!keyboardComposite || !hasKeyboardDirection)
+                    continue;
+                // 2DVector parts are Up, Down, Left, Right. Keep complete
+                // WASD/IJKL style prompts; when every composite is partial,
+                // show the surviving keys with '-' for unbound directions
+                // instead of hiding keyboard movement entirely.
+                string label = allDirectionsBound && labels.All(l => l.Length == 1)
+                    ? labels[0] + labels[2] + labels[1] + labels[3]
+                    : labels[0] + "/" + labels[2] + "/" + labels[1] + "/" + labels[3];
+                if (allDirectionsBound)
+                    return label;
+                if (partialLabel == null)
+                    partialLabel = label;
             }
-            return string.Empty;
+            return partialLabel ?? string.Empty;
         }
 
         // Both the action's button state and its physical bound controls are
@@ -400,6 +419,9 @@ namespace Rpg.Soundwell
             var active = eventSystem.GetComponents<BaseInputModule>().Where(m => m != null && m.enabled).ToArray();
             if (active.Length != 1 || active[0] != ui)
                 throw new InvalidOperationException("EventSystem must have exactly one active New Input UI module.");
+            // A previous battle HUD may have disabled navigation on the
+            // persistent EventSystem; visible Entry/M00 must restore Submit.
+            eventSystem.sendNavigationEvents = true;
             return eventSystem;
         }
 

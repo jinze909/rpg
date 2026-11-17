@@ -17,6 +17,110 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellInputSystemTests
     {
         [Test]
+        public void S00EndingReturnControlRemainsClickableOnUltrawideWindows()
+        {
+            var position = typeof(WhitewaterPrelude).GetMethod(
+                "EpilogueExitPosition",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(position, Is.Not.Null);
+            Vector2 standard = (Vector2)position.Invoke(null,
+                new object[] { 16f / 9f });
+            Assert.That(standard, Is.EqualTo(new Vector2(0f, -190f)),
+                "The authored 16:9 ending layout should not shift.");
+
+            foreach (float aspect in new[]
+            {
+                320f / 720f, 32f / 9f, 5f
+            })
+            {
+                Vector2 slot = (Vector2)position.Invoke(null,
+                    new object[] { aspect });
+                float halfHeight = 0.5f *
+                    Mathf.Sqrt(960f * 540f / aspect);
+                Assert.That(slot.x, Is.EqualTo(0f));
+                Assert.That(slot.y - 14.5f,
+                    Is.GreaterThanOrEqualTo(-halfHeight + 12f - 0.01f),
+                    "The full 29px return button must remain inside the bottom of the screen.");
+                Assert.That(slot.y + 14.5f,
+                    Is.LessThanOrEqualTo(halfHeight - 12f));
+            }
+            Assert.That((Vector2)position.Invoke(null,
+                new object[] { float.NaN }),
+                Is.EqualTo(standard),
+                "Invalid aspect values must not hide the only route out.");
+        }
+
+        [UnityTest]
+        public IEnumerator S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer()
+        {
+            // AudioMixer.SetFloat has no active mixer during EditMode import;
+            // exercise the real mute pathway after audio runtime startup.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var mixer = Resources.Load<UnityEngine.Audio.AudioMixer>(SoundwellAudioBus.MixerResource);
+            Assert.That(mixer, Is.Not.Null);
+            var root = new GameObject("S00 direct SFX fallback mute");
+            var source = root.AddComponent<AudioSource>();
+            bool hadPreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
+            bool originalMute = SoundwellAudioBus.IsMuted;
+            var route = typeof(SoundwellAudioBus).GetMethod("RouteWithMixer",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(route, Is.Not.Null);
+            try
+            {
+                LogAssert.Expect(LogType.Error,
+                    "M6 Soundwell AudioMixer asset is missing; using direct AudioSource mute fallback.");
+                Assert.That(route.Invoke(null, new object[] { source, null }), Is.EqualTo(false));
+                Assert.That(source.outputAudioMixerGroup, Is.Null);
+                Assert.That(source.mute, Is.EqualTo(originalMute));
+
+                // A valid mixer still accepts the player's SFX preference,
+                // but the already-fallback direct source must change too.
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, !originalMute), Is.True);
+                Assert.That(source.mute, Is.EqualTo(!originalMute));
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, originalMute), Is.True);
+                Assert.That(source.mute, Is.EqualTo(originalMute));
+
+                // Rejoining the actual SFX group removes fallback tracking.
+                Assert.That(route.Invoke(null, new object[] { source, mixer }), Is.EqualTo(true));
+                Assert.That(source.outputAudioMixerGroup?.name, Is.EqualTo("SFX"));
+                Assert.That(source.mute, Is.False);
+                Assert.That(SoundwellAudioBus.SetMuted(mixer, !originalMute), Is.True);
+                Assert.That(source.mute, Is.False,
+                    "A mixer-routed bell cannot retain a duplicate per-source mute.");
+            }
+            finally
+            {
+                SoundwellAudioBus.SetMuted(mixer, originalMute);
+                if (!hadPreference)
+                {
+                    PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                    PlayerPrefs.Save();
+                }
+                Object.Destroy(root);
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [Test]
+        public void EntryHintRefreshRespondsOnlyToEffectiveBindingChanges()
+        {
+            var filter = typeof(SoundwellEntrance).GetMethod(
+                "ShouldRefreshBindingPrompt",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(filter, Is.Not.Null);
+            Assert.That(filter.Invoke(null, new object[] {
+                InputActionChange.BoundControlsChanged }), Is.EqualTo(true));
+            Assert.That(filter.Invoke(null, new object[] {
+                InputActionChange.ActionStarted }), Is.EqualTo(false));
+            Assert.That(filter.Invoke(null, new object[] {
+                InputActionChange.ActionCanceled }), Is.EqualTo(false));
+        }
+
+        [Test]
         public void UnifiedHeldInputLatchConsumesReleaseBeforeAllowingNewPress()
         {
             // The adapter suppresses the opening press and its release, not
@@ -411,6 +515,50 @@ namespace Rpg.Tests.Editor
                         yield return null;
                     }
 
+                    // Some valid saved remaps leave a subset of keyboard
+                    // directions unbound in BOTH keyboard composites. The
+                    // remaining keys still move the actor; the prompt must
+                    // show them, not pretend only a gamepad can move.
+                    var arrowPaths = new[] { "<Keyboard>/upArrow", "<Keyboard>/downArrow",
+                        "<Keyboard>/leftArrow", "<Keyboard>/rightArrow" };
+                    var arrowIndices = arrowPaths.Select(path =>
+                        Enumerable.Range(0, moveAction.bindings.Count)
+                            .Single(i => moveAction.bindings[i].path == path)).ToArray();
+                    var previousArrows = arrowIndices.Select(i =>
+                        moveAction.bindings[i].overridePath).ToArray();
+                    try
+                    {
+                        moveAction.ApplyBindingOverride(moveIndices[0], "");
+                        foreach (int index in arrowIndices)
+                            moveAction.ApplyBindingOverride(index, "");
+                        Assert.That(SoundwellInputAdapter.GameplayKeyboardMovementLabel(),
+                            Is.EqualTo("-/J/K/L"),
+                            "A partial keyboard remap should show actual usable keys and an unbound Up.");
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        var partialRoot = new GameObject("S00 partial keyboard movement cue regression");
+                        var partialStage = partialRoot.AddComponent<WhitewaterPrelude>();
+                        partialStage.Begin(null);
+                        partialStage.GetComponentsInChildren<Button>(true)
+                            .Single(button => button.gameObject.name == "S00 choice 0")
+                            .onClick.Invoke();
+                        Assert.That(partialStage.CurrentInstructions, Does.Contain("-/J/K/L"));
+                        Assert.That(partialStage.CurrentInstructions, Does.Not.Contain("IJKL"),
+                            "The removed Up binding cannot be advertised as playable.");
+                        partialStage.Close();
+                        yield return null;
+                    }
+                    finally
+                    {
+                        moveAction.ApplyBindingOverride(moveIndices[0], remaps[0]);
+                        for (int i = 0; i < arrowIndices.Length; i++)
+                        {
+                            if (previousArrows[i] == null)
+                                moveAction.RemoveBindingOverride(arrowIndices[i]);
+                            else
+                                moveAction.ApplyBindingOverride(arrowIndices[i], previousArrows[i]);
+                        }
+                    }
+
                     // A player can retain gamepad Move while disabling all
                     // keyboard directions. Override the actual composite
                     // PARTS, not their roots: Input System 1.x can throw while
@@ -795,8 +943,21 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 input.Release(pad.buttonSouth);
                 yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1),
+                    "The first real wrench knock cannot finish the repair or open choices.");
+                Assert.That(prelude.CurrentNarration, Does.Contain("Tax Collector"));
+                Assert.That(prelude.CurrentInstructions, Does.Contain("second time"));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                input.Press(pad.buttonSouth);
+                yield return null;
+                input.Release(pad.buttonSouth);
+                yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(2),
-                    "Only a fresh pad A at the actual clamp may open the repair choices.");
+                    "Only the second fresh pad A at the actual clamp may open repair choices.");
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "监察员" : "Inspector"),
+                    "The earned second knock must introduce Shen Li's other tool nickname before M05.");
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 Assert.That(EventSystem.current?.currentSelectedGameObject?.name,
                     Is.EqualTo("S00 choice 0"),
@@ -943,6 +1104,65 @@ namespace Rpg.Tests.Editor
                         "The return result must not cover the entry instructions at aspect " + aspect);
                     Assert.That(resultBottom - sfxTop, Is.GreaterThanOrEqualTo(4f),
                         "The return result must not cover the SFX button at aspect " + aspect);
+                }
+                // On ultrawide CanvasScaler screens, the original y=-230
+                // settings row vanishes below the visible viewport. Check the
+                // real entry RectTransforms at both 32:9 and 5:1, including
+                // return text and each keyboard/gamepad-focusable button.
+                var entryControls = entry.GetComponentsInChildren<Button>(true);
+                var enterForLayout = entryControls.Single(button =>
+                    button.gameObject.name == "Enter Soundwell button");
+                var localeForLayout = entryControls.Single(button =>
+                    button.gameObject.name == "Soundwell entry Language button");
+                var prologueForLayout = entryControls.Single(button =>
+                    button.gameObject.name == "S00 Whitewater prologue button");
+                var entryLabels = entry.GetComponentsInChildren<Text>(true);
+                var titleForLayout = entryLabels.Single(t =>
+                    t.text == SoundwellUiLocalization.Get("entry.title")).rectTransform;
+                var footerForLayout = entryLabels.Single(t =>
+                    t.text == SoundwellUiLocalization.Get("entry.footer")).rectTransform;
+                var resultForLayout = entryLabels.Single(t =>
+                    t.text == entry.ReturnSummaryText &&
+                    t.rectTransform.sizeDelta.y >= 100f).rectTransform;
+                var allEntryRects = new[]
+                {
+                    titleForLayout, (RectTransform)enterForLayout.transform,
+                    footerForLayout, resultForLayout,
+                    (RectTransform)localeForLayout.transform,
+                    (RectTransform)prologueForLayout.transform,
+                    (RectTransform)formationButton.transform,
+                    (RectTransform)sfxButton.transform
+                };
+                foreach (float aspect in new[] { 32f / 9f, 5f })
+                {
+                    entry.LayoutForViewportAspect(aspect);
+                    float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                    float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                    for (int i = 0; i < allEntryRects.Length; i++)
+                    {
+                        RectTransform current = allEntryRects[i];
+                        float x = current.anchoredPosition.x;
+                        float y = current.anchoredPosition.y;
+                        float halfW = current.sizeDelta.x * 0.5f;
+                        float halfH = current.sizeDelta.y * 0.5f;
+                        Assert.That(Mathf.Abs(x) + halfW,
+                            Is.LessThanOrEqualTo(halfWidth - 12f),
+                            current.name + " exceeds the ultrawide canvas width at " + aspect);
+                        Assert.That(Mathf.Abs(y) + halfH,
+                            Is.LessThanOrEqualTo(halfHeight - 12f),
+                            current.name + " exceeds the ultrawide canvas height at " + aspect);
+                        for (int j = 0; j < i; j++)
+                        {
+                            RectTransform other = allEntryRects[j];
+                            float dx = Mathf.Abs(x - other.anchoredPosition.x);
+                            float dy = Mathf.Abs(y - other.anchoredPosition.y);
+                            float minX = (current.sizeDelta.x + other.sizeDelta.x) * 0.5f + 4f;
+                            float minY = (current.sizeDelta.y + other.sizeDelta.y) * 0.5f + 4f;
+                            Assert.That(dx >= minX || dy >= minY, Is.True,
+                                current.name + " overlaps " + other.name +
+                                " at ultrawide aspect " + aspect);
+                        }
+                    }
                 }
                 entry.LayoutForViewportAspect((float)Screen.width / Mathf.Max(Screen.height, 1));
                 EventSystem events = EventSystem.current;
@@ -1163,6 +1383,12 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 input.Release(walker.eKey);
                 yield return null;
+                Assert.That(prelude.Phase, Is.EqualTo(1),
+                    "The first knock cannot already open the repair choices.");
+                input.Press(walker.eKey);
+                yield return null;
+                input.Release(walker.eKey);
+                yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(2));
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 answer.onClick.Invoke();
@@ -1196,10 +1422,12 @@ namespace Rpg.Tests.Editor
                 jokingReply.onClick.Invoke();
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(5));
+                Assert.That(prelude.CurrentInstructions, Does.Not.Contain("S00-02"),
+                    "Internal prototype chapter numbers must not appear in player instructions.");
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
-                        ? "锅还在打仗" : "pots are still at war"),
-                    "The selected joke must get Shen Li's actual distinct response.");
+                        ? "嘴贫的人，账上记两笔" : "A smart mouth goes on the bill twice"),
+                    "The third v1.2 workshop choice must receive Shen Li's authored two-bill-marks reply.");
 
                 // S00-03: selecting a rescuer never teleports Han Qiao onto
                 // the boat. A real Gameplay action at the matching station
@@ -1337,11 +1565,46 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 input.Release(walker.eKey);
                 yield return null;
-                Assert.That(prelude.Phase, Is.EqualTo(11));
+                Assert.That(prelude.Phase, Is.EqualTo(9),
+                    "The first physical safe-line delivery cannot advance to the bell.");
+                Assert.That(prelude.EvacueesRescued, Is.EqualTo(1));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                for (int rescued = 1; rescued < 3; rescued++)
+                {
+                    Assert.That(prelude.CanHelpEvacuee, Is.False);
+                    input.Press(walker.dKey);
+                    float nextContactDeadline = Time.realtimeSinceStartup + 6f;
+                    while (!prelude.CanHelpEvacuee &&
+                           Time.realtimeSinceStartup < nextContactDeadline)
+                        yield return null;
+                    input.Release(walker.dKey);
+                    yield return null;
+                    Assert.That(prelude.CanHelpEvacuee, Is.True,
+                        "A separate gameplay approach must be earned for each survivor.");
+                    input.Press(walker.eKey);
+                    yield return null;
+                    input.Release(walker.eKey);
+                    yield return null;
+                    Assert.That(prelude.Phase, Is.EqualTo(10));
+                    input.Press(walker.aKey);
+                    float nextSafeDeadline = Time.realtimeSinceStartup + 7f;
+                    while (!prelude.CanDeliverEvacuee &&
+                           Time.realtimeSinceStartup < nextSafeDeadline)
+                        yield return null;
+                    input.Release(walker.aKey);
+                    yield return null;
+                    Assert.That(prelude.CanDeliverEvacuee, Is.True);
+                    input.Press(walker.eKey);
+                    yield return null;
+                    input.Release(walker.eKey);
+                    yield return null;
+                    Assert.That(prelude.EvacueesRescued, Is.EqualTo(rescued + 1));
+                    Assert.That(prelude.Phase, Is.EqualTo(rescued == 1 ? 9 : 11));
+                }
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
-                        ? "越过安全线" : "crosses the safe line"));
+                        ? "安全过桥" : "All three are across"));
 
                 // The rope call is an earned, optional follow-up, not a timed
                 // false win or a substitute for the pending ORK defence.

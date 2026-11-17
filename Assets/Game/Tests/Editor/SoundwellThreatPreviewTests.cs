@@ -35,6 +35,9 @@ namespace Rpg.Tests.Editor
                 }
             Assert.That(sfx, Is.Not.Null);
             var source = new GameObject("Fallback with stale SFX routing");
+            bool hadMutePreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
+            int originalMutePreference = PlayerPrefs.GetInt(SoundwellAudioBus.MutePreferenceKey, 0);
+            bool initiallyMuted = SoundwellAudioBus.IsMuted;
             try
             {
                 var bell = source.AddComponent<AudioSource>();
@@ -49,10 +52,88 @@ namespace Rpg.Tests.Editor
                     "Fallback must detach the old mixer before using source-level mute.");
                 Assert.That(bell.mute, Is.EqualTo(SoundwellAudioBus.IsMuted),
                     "The existing player mute preference must remain authoritative.");
+                Assert.That(SoundwellAudioBus.SetMuted(null, !initiallyMuted), Is.True,
+                    "Missing mixer must not prevent muting a live direct-fallback bell.");
+                Assert.That(SoundwellAudioBus.IsMuted, Is.EqualTo(!initiallyMuted));
+                Assert.That(bell.mute, Is.EqualTo(!initiallyMuted),
+                    "The audible fallback source must follow the new mute setting.");
             }
             finally
             {
+                // Restore both source state and persisted preference, including
+                // the distinction between absent and explicitly unmuted.
+                SoundwellAudioBus.SetMuted(null, initiallyMuted);
+                if (hadMutePreference)
+                    PlayerPrefs.SetInt(SoundwellAudioBus.MutePreferenceKey, originalMutePreference);
+                else
+                    PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                PlayerPrefs.Save();
                 Object.DestroyImmediate(source);
+            }
+        }
+
+        [Test]
+        public void BeastContactIgnoresDisabledOrNonSimulatedPlayer()
+        {
+            var root = new GameObject("inactive player contact trial");
+            var beast = new GameObject("inactive player contact beast");
+            var rescuer = new GameObject("inactive player contact rescuer");
+            try
+            {
+                var body = rescuer.AddComponent<Rigidbody2D>();
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.gravityScale = 0f;
+                Vector2 overlap = new Vector2(0.64f, 0f);
+                body.position = overlap;
+                var patrol = root.AddComponent<BeastPatrolAndChase>();
+                patrol.Configure(beast.transform, body, overlap);
+                int captures = 0;
+                patrol.PlayerCaught += () => captures++;
+
+                // A retired/replaced scene actor can retain a managed
+                // Rigidbody reference, but cannot be physically caught.
+                rescuer.SetActive(false);
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.Zero,
+                    "An inactive rescuer must not trigger an invisible checkpoint capture.");
+
+                rescuer.SetActive(true);
+                // EditMode does not guarantee the Rigidbody2D position set
+                // before SetActive(false) survives the physics re-registration.
+                // Re-establish genuine world contact before testing the latch.
+                body.simulated = true;
+                body.position = overlap;
+                Assert.That(body.position.x, Is.GreaterThan(0.55f),
+                    "The reactivated body must actually occupy the dangerous corridor.");
+                Assert.That(Vector2.Distance(body.position, patrol.Position),
+                    Is.LessThan(BeastPatrolAndChase.ContactRadius),
+                    "The reactivated body must genuinely overlap the visible beast.");
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(1),
+                    "Restoring the visible rescuer should re-arm legitimate beast contact.");
+
+                // A live object with suspended 2D physics is also not an
+                // active collision participant until simulation resumes.
+                body.simulated = false;
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(1));
+                body.simulated = true;
+                // The EditMode physics engine may reset the Rigidbody pose
+                // when simulation is re-enabled. Require an actual second
+                // overlap rather than an assumed stale transform position.
+                body.position = overlap;
+                Assert.That(body.position.x, Is.GreaterThan(0.55f));
+                Assert.That(Vector2.Distance(body.position, patrol.Position),
+                    Is.LessThan(BeastPatrolAndChase.ContactRadius));
+                patrol.Tick(BellSignal.Ready, overlap, false, false, true, false);
+                Assert.That(captures, Is.EqualTo(2),
+                    "Only a reactivated physical contact can count as another capture.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(rescuer);
+                Object.DestroyImmediate(beast);
+                Object.DestroyImmediate(root);
             }
         }
 

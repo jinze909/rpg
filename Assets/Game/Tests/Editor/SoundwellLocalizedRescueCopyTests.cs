@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
+using Rpg.Soundwell;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Localization.Tables;
@@ -13,6 +14,91 @@ namespace Rpg.Tests.Editor
     // key may never silently fall back to an English/raw key in the trial.
     public sealed class SoundwellLocalizedRescueCopyTests
     {
+        [Test]
+        public void S00BridgeheadPlayerCopyNeverShowsPrototypeOrEngineNames()
+        {
+            // A v1.2 character must not suddenly speak about ORK or an S00
+            // prototype in the battle title, waiting cue, retry or outcome.
+            // Both languages use these actual runtime constants; framework
+            // faults remain available in logs but not player-facing dialogue.
+            var fields = typeof(WhitewaterDefenseEncounter)
+                .GetFields(System.Reflection.BindingFlags.NonPublic |
+                           System.Reflection.BindingFlags.Static)
+                .Where(field => field.Name.StartsWith("PlayerCopy",
+                    StringComparison.Ordinal)).ToArray();
+            Assert.That(fields.Length, Is.EqualTo(16),
+                "Test all eight authored English/Chinese readout and title pairs.");
+            foreach (var field in fields)
+            {
+                string value = field.GetRawConstantValue() as string;
+                Assert.That(value, Is.Not.Null.And.Not.Empty, field.Name);
+                Assert.That(Regex.IsMatch(value,
+                    @"\b(?:ORK|Makinom|S00)\b|原型|调试", RegexOptions.IgnoreCase),
+                    Is.False, field.Name + " exposes engine/prototype copy.");
+            }
+        }
+
+        [Test]
+        public void AdaptiveLocalizedTitleSamplingClipsToActualCaptureRect()
+        {
+            var pixels = new Color32[120 * 80];
+            var bright = new Color32(235, 235, 235, 255);
+            pixels[62 * 120 + 20] = bright;
+            pixels[62 * 120 + 28] = bright;
+            pixels[62 * 120 + 60] = bright; // outside title
+            var title = new RectInt(10, 50, 30, 25);
+            int count = SoundwellSmokeHost.CountLocalizedGlyphPixels(
+                pixels, 120, 80, title);
+            Assert.That(count, Is.EqualTo(2));
+            Assert.That(SoundwellSmokeHost.CountLocalizedGlyphPixels(
+                pixels, 120, 80, new RectInt(130, 100, 15, 20)), Is.Zero);
+            Assert.That(SoundwellSmokeHost.CountLocalizedGlyphPixels(
+                pixels, 120, 80, new RectInt(0, 0, 0, 20)), Is.Zero);
+        }
+
+        [Test]
+        public void S00DialogueChoicesAndNavigationRemainVisibleAtExtremeAspects()
+        {
+            var layout = typeof(WhitewaterPrelude).GetMethod("StageLayoutSlots",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(layout, Is.Not.Null);
+            foreach (float aspect in new[] { 9f / 16f, 0.95f, 32f / 9f, 5f })
+            {
+                var slots = (Vector2[])layout.Invoke(null, new object[] { aspect });
+                Assert.That(slots.Length, Is.EqualTo(9));
+                float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                for (int choice = 4; choice <= 6; choice++)
+                {
+                    Assert.That(Mathf.Abs(slots[choice].x) + 116f,
+                        Is.LessThanOrEqualTo(halfWidth - 6f),
+                        "The complete 232px choice must remain clickable.");
+                    Assert.That(Mathf.Abs(slots[choice].y) + 25f,
+                        Is.LessThanOrEqualTo(halfHeight - 5f),
+                        "The complete 50px choice must stay inside the canvas.");
+                }
+                foreach (int button in new[] { 7, 8 })
+                {
+                    Assert.That(Mathf.Abs(slots[button].x) + 114f,
+                        Is.LessThanOrEqualTo(halfWidth - 6f));
+                    Assert.That(Mathf.Abs(slots[button].y) + 14.5f,
+                        Is.LessThanOrEqualTo(halfHeight - 6f),
+                        "Continue and return are needed to leave the prelude.");
+                }
+                // Portrait stacks decisions; ultrawide keeps the intended
+                // left-to-right choice order while compressing vertical gaps.
+                if (aspect <= 0.95f)
+                    Assert.That(slots[4].y, Is.GreaterThan(slots[5].y));
+                else
+                    Assert.That(slots[4].x, Is.LessThan(slots[5].x));
+            }
+            Vector2[] regular = (Vector2[])layout.Invoke(null,
+                new object[] { 16f / 9f });
+            Assert.That(regular[4], Is.EqualTo(new Vector2(-250f, -192f)));
+            Assert.That(regular[8], Is.EqualTo(new Vector2(-145f, -245f)));
+        }
+
         [Test]
         public void WhitewaterPreludeTitleMatchesSelectedSceneLanguage()
         {
@@ -48,6 +134,15 @@ namespace Rpg.Tests.Editor
             Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, true),
                 Is.EqualTo("entry.whitewater_replay_cable"),
                 "Bracing the cable must not claim ORK defence or a completed third bell.");
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, true, true),
+                Is.EqualTo("entry.whitewater_replay_third_bell"),
+                "Only the earned third-bell Makinom flag can advance the replay label.");
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(true, true, true, false),
+                Is.EqualTo("entry.whitewater_replay_cable"),
+                "A replay which reaches the clamp must not invent the third bell.");
+            Assert.That(Rpg.Soundwell.SoundwellEntrance.PreludeProgressKey(false, false, false, true),
+                Is.EqualTo("entry.whitewater_replay_third_bell"),
+                "The real third-bell flag is authoritative even if older markers were cleared.");
 
             var en = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-en");
             var zh = Resources.Load<StringTable>("Soundwell/Localization/SoundwellUI-zh-Hans");
@@ -57,7 +152,8 @@ namespace Rpg.Tests.Editor
             {
                 "entry.whitewater_replay_evacuee",
                 "entry.whitewater_replay_bell",
-                "entry.whitewater_replay_cable"
+                "entry.whitewater_replay_cable",
+                "entry.whitewater_replay_third_bell"
             })
             {
                 Assert.That(en.GetEntry(key)?.LocalizedValue, Does.Contain("Replay"),
