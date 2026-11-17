@@ -2104,20 +2104,34 @@ namespace Rpg.Tests.Editor
         [UnityTest, Order(31)]
         public IEnumerator FixedFormationCanFinishRescueAfterThreeOrkActions()
         {
-            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
-            yield return WaitForFrameworkInitialization();
 
+            InputTestFixture input = null;
+            bool inputReady = false;
             bool hadPreference = PlayerPrefs.HasKey(OrkPartyBridge.FixedFormationPreferenceKey);
             int previousPreference = PlayerPrefs.GetInt(OrkPartyBridge.FixedFormationPreferenceKey, 0);
             try
             {
+                // Install the test input runtime before Bootstrap creates its
+                // production InputActions and EventSystem UI module.
+                input = new InputTestFixture();
+                input.Setup();
+                inputReady = true;
+                Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
+                EditorSceneManager.LoadSceneInPlayMode(
+                    "Assets/Game/Scenes/Bootstrap.unity",
+                    new LoadSceneParameters(LoadSceneMode.Single));
+                yield return WaitForFrameworkInitialization();
+
                 OrkPartyBridge.SetPreferredFixedFormation(true);
                 yield return CompareGateAssignment(false, new Vector2[5], new float[4],
-                    completeRescue: true);
+                    completeRescue: true, input: input, gamepad: gamepad);
             }
             finally
             {
+                if (inputReady && input != null)
+                    input.TearDown();
                 if (hadPreference)
                     PlayerPrefs.SetInt(OrkPartyBridge.FixedFormationPreferenceKey, previousPreference);
                 else
@@ -2127,7 +2141,8 @@ namespace Rpg.Tests.Editor
         }
 
         private static IEnumerator CompareGateAssignment(bool useStep, Vector2[] opening,
-            float[] openingHealth, bool completeRescue = false)
+            float[] openingHealth, bool completeRescue = false,
+            InputTestFixture input = null, Gamepad gamepad = null)
         {
             var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
             Assert.That(entrance, Is.Not.Null);
@@ -2301,7 +2316,11 @@ namespace Rpg.Tests.Editor
             Assert.That(gate.interactable && guard.interactable, Is.True);
             Assert.That(gateCue.enabled, Is.True,
                 "A live ORK chooser in reach must visibly mark the real gate.");
-            (useStep ? guard : gate).onClick.Invoke();
+            Button firstAction = useStep ? guard : gate;
+            if (gamepad != null)
+                yield return SubmitGamepadButton(input, gamepad, firstAction);
+            else
+                firstAction.onClick.Invoke();
 
             yield return WaitForNextGateComparisonTurn(party, 0);
             int companion = party.ChoosingRescuerIndex;
@@ -2339,7 +2358,10 @@ namespace Rpg.Tests.Editor
             {
                 AssertFixedFormationCannotStep(party, companion, "second");
                 Assert.That(guard.interactable, Is.True);
-                guard.onClick.Invoke();
+                if (gamepad != null)
+                    yield return SubmitGamepadButton(input, gamepad, guard);
+                else
+                    guard.onClick.Invoke();
             }
 
             yield return WaitForNextGateComparisonTurn(party, companion);
@@ -2350,7 +2372,10 @@ namespace Rpg.Tests.Editor
             if (!useStep)
                 AssertFixedFormationCannotStep(party, 3 - companion, "third");
             Assert.That(attack.interactable, Is.True);
-            attack.onClick.Invoke();
+            if (gamepad != null)
+                yield return SubmitGamepadButton(input, gamepad, attack);
+            else
+                attack.onClick.Invoke();
             deadline = Time.realtimeSinceStartup + 8f;
             while (!trial.DirectCombatComplete && Time.realtimeSinceStartup < deadline)
                 yield return null;
@@ -2407,6 +2432,30 @@ namespace Rpg.Tests.Editor
                 "The in-battle Move command must remain present in fixed formation.");
             Assert.That(move.interactable, Is.False,
                 $"The in-battle Move command must stay disabled on the {turn} turn.");
+        }
+
+        private static IEnumerator SubmitGamepadButton(InputTestFixture input,
+            Gamepad gamepad, Button button)
+        {
+            Assert.That(input, Is.Not.Null);
+            Assert.That(gamepad, Is.Not.Null);
+            Assert.That(gamepad.added, Is.True);
+            Assert.That(button, Is.Not.Null);
+            Assert.That(button.interactable, Is.True);
+
+            EventSystem events = EventSystem.current;
+            Assert.That(events, Is.Not.Null);
+            Assert.That(events.GetComponent<InputSystemUIInputModule>(), Is.Not.Null,
+                "Fixed formation combat must use the project's New Input System UI module.");
+            Assert.That(events.sendNavigationEvents, Is.True,
+                "The live battle menu must accept gamepad Submit.");
+            events.SetSelectedGameObject(button.gameObject);
+            Assert.That(events.currentSelectedGameObject, Is.SameAs(button.gameObject));
+
+            input.Press(gamepad.buttonSouth);
+            yield return null;
+            input.Release(gamepad.buttonSouth);
+            yield return null;
         }
 
         private static IEnumerator FinishFixedFormationRescue(SoundwellTrial trial,

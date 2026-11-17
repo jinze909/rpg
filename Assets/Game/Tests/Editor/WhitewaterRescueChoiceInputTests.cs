@@ -1,4 +1,5 @@
 using System.Collections;
+using GamingIsLove.Makinom;
 using System.Linq;
 using NUnit.Framework;
 using Rpg.Soundwell;
@@ -634,6 +635,91 @@ namespace Rpg.Tests.Editor
             {
                 if (stage != null)
                     stage.Close();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                SoundwellInputAdapter.SetUiContext();
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
+        }
+
+        [UnityTest]
+        public IEnumerator CompletedS00ReplayCanSkipToM00OnlyAfterTheEarnedThirdBell()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+
+            var input = new InputTestFixture();
+            input.Setup();
+            SoundwellEntrance entry = null;
+            WhitewaterPrelude stage = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            int originalThirdBell = 0;
+            bool savedThirdBell = false;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                InputSystem.AddDevice<Keyboard>();
+                InputSystem.AddDevice<Gamepad>();
+                EditorSceneManager.LoadSceneInPlayMode(
+                    "Assets/Game/Scenes/Bootstrap.unity",
+                    new LoadSceneParameters(LoadSceneMode.Single));
+                float deadline = Time.realtimeSinceStartup + 10f;
+                while (Time.realtimeSinceStartup < deadline &&
+                    (entry == null || !Maki.Initialized || Maki.Game?.Variables == null))
+                {
+                    yield return null;
+                    entry = UnityEngine.Object.FindAnyObjectByType<SoundwellEntrance>();
+                }
+                Assert.That(entry, Is.Not.Null);
+                Assert.That(Maki.Initialized && Maki.Game?.Variables != null, Is.True,
+                    "The replay gate must read the real Makinom progress owner.");
+                originalThirdBell = Maki.Game.Variables.GetInt(WhitewaterPrelude.ThirdBellKey);
+                savedThirdBell = true;
+
+                Maki.Game.Variables.Set(WhitewaterPrelude.ThirdBellKey, 0);
+                entry.OpenPrelude();
+                yield return null;
+                stage = entry.GetComponentInChildren<WhitewaterPrelude>(true);
+                Assert.That(stage, Is.Not.Null);
+                Button skip = FindButton(stage, "S00 skip completed prologue");
+                Assert.That(skip.gameObject.activeInHierarchy, Is.False,
+                    "A first playthrough cannot bypass the earned S00 sequence.");
+                stage.Close();
+                stage = null;
+                yield return null;
+
+                Maki.Game.Variables.Set(WhitewaterPrelude.ThirdBellKey, 1);
+                entry.OpenPrelude();
+                yield return null;
+                stage = entry.GetComponentInChildren<WhitewaterPrelude>(true);
+                Assert.That(stage, Is.Not.Null);
+                skip = FindButton(stage, "S00 skip completed prologue");
+                Assert.That(skip.gameObject.activeInHierarchy, Is.True,
+                    "Only a saved third-bell completion may expose the replay skip.");
+                Text label = skip.GetComponentInChildren<Text>(true);
+                Assert.That(label.text, Is.EqualTo("Skip completed prologue"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(label.text, Is.EqualTo("跳过已完成的序章"),
+                    "The skip control must follow the live saved language.");
+                Assert.That(stage.Phase, Is.Zero,
+                    "The replay skip is available before the player starts the roll call.");
+
+                skip.onClick.Invoke();
+                Assert.That(stage.ThirdBellStarted, Is.True);
+                Assert.That(entry.MemorialSquareOpen, Is.True,
+                    "The skip must use the normal entry-owned transition into M00.");
+                Assert.That(Maki.Game.Variables.GetInt(WhitewaterPrelude.ThirdBellKey),
+                    Is.EqualTo(1), "Skipping must preserve, not re-award, the earned third bell.");
+                yield return null;
+                Assert.That(entry.MemorialSquareOpen, Is.True);
+                Assert.That(UnityEngine.Object.FindAnyObjectByType<M00MemorialSquare>(), Is.Not.Null);
+            }
+            finally
+            {
+                if (stage != null)
+                    stage.Close();
+                if (savedThirdBell && Maki.Initialized && Maki.Game?.Variables != null)
+                    Maki.Game.Variables.Set(WhitewaterPrelude.ThirdBellKey, originalThirdBell);
                 SoundwellUiLocalization.SetLanguage(originalLanguage);
                 SoundwellInputAdapter.SetUiContext();
                 input.TearDown();

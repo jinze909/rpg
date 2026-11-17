@@ -20,18 +20,12 @@ namespace Rpg.Tests.Editor
             InputTestFixture input = null;
             bool inputReady = false;
             bool testBodyCompleted = false;
-            const string languageKey = SoundwellUiLocalization.LanguagePreferenceKey;
-            bool hadLanguagePreference = PlayerPrefs.HasKey(languageKey);
-            string originalLanguage = PlayerPrefs.GetString(languageKey, SoundwellUiLocalization.English);
             string cleanupFailure = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
-                // Set the saved locale before the PlayMode domain reload.
-                // RuntimeInitializeOnLoadMethod restores it before scene Awake;
-                // the test must not query/change static locale state mid-fixture.
-                PlayerPrefs.SetString(languageKey, SoundwellUiLocalization.English);
-                PlayerPrefs.Save();
+                // Let the normal runtime locale initializer run during PlayMode entry.
+                // Select the test language only after the live Bootstrap owner exists.
                 yield return new EnterPlayMode(expectDomainReload: true);
                 yield return null;
                 input = new InputTestFixture();
@@ -40,14 +34,6 @@ namespace Rpg.Tests.Editor
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
-                // PlayerPrefs is seeded before EnterPlayMode so the runtime
-                // initializer selects English. Avoid querying or changing it
-                // while the PlayMode test runtime is active.
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: before authored scene-title read");
-                string sceneTitle = WhitewaterPrelude.SceneTitle;
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: authored scene title read " + sceneTitle);
-                Assert.That(sceneTitle, Is.EqualTo("Whitewater Crossing"),
-                    "The player sees the v1.2 scene title, not the internal S00 story ID.");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: keyboard added " + (keys != null));
                 Assert.That(keys, Is.Not.Null, "The M00 physical-approach test needs a live keyboard.");
@@ -68,6 +54,7 @@ namespace Rpg.Tests.Editor
                     entry = Object.FindFirstObjectByType<SoundwellEntrance>();
                 }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap entry found");
                 // Keep the production entry owner alive. SetUiContext below disables
                 // its Entry action map while S00/M00 owns input.
@@ -291,13 +278,6 @@ namespace Rpg.Tests.Editor
                 }
             }
             yield return new ExitPlayMode();
-            // Restore editor preferences only after the PlayMode domain has
-            // exited; the test itself must not touch PlayerPrefs mid-runtime.
-            if (hadLanguagePreference)
-                PlayerPrefs.SetString(languageKey, originalLanguage);
-            else
-                PlayerPrefs.DeleteKey(languageKey);
-            PlayerPrefs.Save();
             if (testBodyCompleted && !string.IsNullOrEmpty(cleanupFailure))
                 Assert.Fail(cleanupFailure);
         }

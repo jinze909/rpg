@@ -128,6 +128,8 @@ namespace Rpg.Soundwell
         private float lastStageLayoutAspect = -1f;
         private Button exit;
         private Button next;
+        private Button skipCompletedReplay;
+        private Text skipCompletedReplayLabel;
         private Action onExit;
         private WhitewaterDefenseEncounter defenseEncounter;
         private bool defenseStarted;
@@ -231,12 +233,27 @@ namespace Rpg.Soundwell
         private void OnEnable()
         {
             InputSystem.onActionChange += OnStationActionChanged;
+            SoundwellUiLocalization.Changed += RefreshCompletedReplayLabel;
             stationBindingsDirty = true;
         }
 
         private void OnDisable()
         {
             InputSystem.onActionChange -= OnStationActionChanged;
+            SoundwellUiLocalization.Changed -= RefreshCompletedReplayLabel;
+        }
+
+        private void RefreshCompletedReplayLabel()
+        {
+            if (skipCompletedReplayLabel != null)
+                skipCompletedReplayLabel.text = Copy(
+                    "Skip completed prologue", "跳过已完成的序章");
+        }
+
+        private static bool HasEarnedThirdBell()
+        {
+            return Maki.Initialized && Maki.Game?.Variables != null &&
+                Maki.Game.Variables.GetInt(ThirdBellKey) != 0;
         }
 
         private void OnStationActionChanged(object source, InputActionChange change)
@@ -607,6 +624,23 @@ namespace Rpg.Soundwell
                 .Initialize(Close);
             Label(exit.transform, Copy("Back to entry", "返回入口"), 14,
                 Vector2.zero, new Vector2(222f, 27f), Ink);
+
+            // A completed S00 can be skipped on replay, but never resumed from
+            // an unearned checkpoint. The existing Makinom third-bell fact is
+            // the sole gate; this button grants no battle or quest reward.
+            skipCompletedReplay = Button(canvas.transform,
+                "S00 skip completed prologue", Vector2.zero,
+                new Vector2(180f, 28f), SkipCompletedPrologue);
+            skipCompletedReplay.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
+                .Initialize(Close);
+            RectTransform skipRect = (RectTransform)skipCompletedReplay.transform;
+            skipRect.anchorMin = skipRect.anchorMax = new Vector2(1f, 1f);
+            skipRect.anchoredPosition = new Vector2(-18f, -18f);
+            skipRect.sizeDelta = new Vector2(180f, 28f);
+            skipCompletedReplayLabel = Label(skipCompletedReplay.transform, "", 13,
+                Vector2.zero, new Vector2(176f, 26f), Ink);
+            skipCompletedReplay.gameObject.SetActive(HasEarnedThirdBell());
+            RefreshCompletedReplayLabel();
             ShowRollCall();
             RefreshStageLayout(true);
         }
@@ -710,6 +744,8 @@ namespace Rpg.Soundwell
                 return;
             if (phase == 0)
             {
+                if (skipCompletedReplay != null)
+                    skipCompletedReplay.gameObject.SetActive(false);
                 if (Maki.Initialized && Maki.Game?.Variables != null)
                     Maki.Game.Variables.Set(RollCallKey, choice + 1);
                 phase = 1;
@@ -2402,6 +2438,20 @@ namespace Rpg.Soundwell
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(next.gameObject);
             }
+        }
+
+        private void SkipCompletedPrologue()
+        {
+            if (phase != 0 || skipCompletedReplay == null ||
+                !skipCompletedReplay.gameObject.activeInHierarchy || !HasEarnedThirdBell())
+                return;
+
+            // Reuse the normal earned S00 -> M00 owner callback. Do not replay
+            // the third-bell animation, finish another quest, or mint rewards.
+            skipCompletedReplay.interactable = false;
+            thirdBellStarted = true;
+            phase = 17;
+            Close();
         }
 
         public void Close()
