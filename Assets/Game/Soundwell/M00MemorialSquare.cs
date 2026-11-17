@@ -237,7 +237,7 @@ namespace Rpg.Soundwell
                 new Color(0.48f, 0.52f, 0.49f));
 
             Label(canvas.transform,
-                Copy("M00 · Your Name Carved in Stone", "M00 · 你的名字刻在石头上"),
+                Copy("Your Name Carved in Stone", "你的名字刻在石头上"),
                 27, Ink, new Vector2(0f, 232f), new Vector2(820f, 38f));
             Label(canvas.transform,
                 Copy("Memorial Day · Linchao Harbor", "纪念日 · 临潮港"),

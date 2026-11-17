@@ -32,6 +32,8 @@ namespace Rpg.Tests.Editor
                 inputReady = true;
                 originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
+                    "The player sees the v1.2 scene title, not the internal S00 story ID.");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
 
                 // Enter M00 through the same earned S00 -> M00 transition used
@@ -78,6 +80,9 @@ namespace Rpg.Tests.Editor
                 yield return null;
 
                 Assert.That(memorial.Phase, Is.Zero);
+                Assert.That(memorial.GetComponentsInChildren<Text>(true)
+                    .Any(label => label.text == "Your Name Carved in Stone"), Is.True,
+                    "The player-facing M00 title must not expose its development ID.");
                 Assert.That(memorial.CanInspectStatue, Is.False,
                     "The player must walk to the memorial before reading it.");
                 input.Press(keys.eKey);
