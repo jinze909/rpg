@@ -725,7 +725,7 @@ namespace Rpg.Soundwell
                 // rather than skipping straight from the player's reply to
                 // the clamp. RollCallKey retains its existing 1/2/3 ordering.
                 narration.text = Copy(
-                    replyEnglish + "Ma Xiaoliu misses all three calls, then runs back: 'Here!' "
+                    replyEnglish + "Ma Xiaoliu is called three times. As the sergeant raises his pen, Ma Xiaoliu rushes out: 'Here, here!' "
                         + "Sergeant: 'Three unanswered calls and you are marked dead.' "
                         + "Shen Li hands you the 'Tax Collector' wrench.",
                     replyChinese + "军士连念“马小六”三遍，正要划名，他冲回来：“在在在！”"
@@ -770,8 +770,9 @@ namespace Rpg.Soundwell
                     choice == 0 ? "沈砾：“行。工钱先欠着。”"
                     : choice == 1 ? "沈砾：“不来也行，我给你留把椅子。椅子也收钱。”"
                     : "沈砾：“嘴贫的人，账上记两笔。”");
-                instructions.text = Copy("S00-02 complete. Your reply matters to this conversation, not the bridge's fate.",
-                    "S00-02 完成：你的回答改变这一刻的对话，不改变断桥的历史。");
+                // Do not expose internal S00 prototype numbering in playable prose.
+                instructions.text = Copy("Someone cries out from the river. Go see who needs help near the last boat.",
+                    "河水里传来呼救声。去最后一条船附近看看是谁需要帮忙。");
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(exit.gameObject);
                 next.gameObject.name = "S00 continue to last boat";
@@ -1314,8 +1315,8 @@ namespace Rpg.Soundwell
                 Maki.Game.Variables.Set(BridgePostKey, 1);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "You take the bridge post beside Shen Li. The evacuee is safe; you face the approaching troops together.",
-                "你在沈砾身旁站定桥头守位。伤者已撤离，你们一起望向逼近的敌军。");
+                "You take the bridge post beside Shen Li. The cook, wounded soldier and young shield-bearer are all safe; you face the approaching troops together.",
+                "你在沈砾身旁站定桥头守位。炊事兵、伤兵和年轻士兵都已撤离，你们一起望向逼近的敌军。");
             instructions.text = Copy(
                 "Hold the post. Choose 'Watch the opposite bank' when ready; the third bell is still ahead.",
                 "守住桥头。准备好后选择“观察对岸”，第三声号钟尚未响起。");
@@ -1517,8 +1518,8 @@ namespace Rpg.Soundwell
                 "A third bell strikes. The bridgehead is held, but the far-side cable breaks in the firelight.",
                 "第三声钟响了。桥头虽守住，对岸的缆索却在火光里崩断。");
             instructions.text = Copy(
-                "The third bell is a fixed part of the night. The ORK battle has ended; this does not invent another fight.",
-                "第三声钟是这一夜既定的结局。ORK 战斗已经结束；这里不会伪造另一场战斗。");
+                "The far span is sinking. You did not see who severed the cable.",
+                "远端桥身正在沉没。你始终没看见是谁砍断了缆索。");
 
             yield return new WaitForSecondsRealtime(0.4f);
             if (phase != 17)
@@ -2375,8 +2376,8 @@ namespace Rpg.Soundwell
                 phase = 2;
                 SoundwellInputAdapter.SetUiContext();
                 narration.text = Copy(
-                    "Two knocks loosen the nut. Shen Li: 'How shall we tighten the cable and chain?'",
-                    "敲过两下，螺母终于松了。沈砾：“怎么把缆索和铁链收紧？”");
+                    "Two knocks loosen the nut. Shen Li: 'See? It understands. My wrench is called Inspector—leaks oil, but recognizes people. How shall we secure the cable and chain?'",
+                    "敲过两下，螺母终于松了。沈砾：“看，它懂。我手里这把叫‘监察员’，漏油，但认人。缆索和铁链怎么固定？”");
                 instructions.text = Copy(
                     "Choose how to secure the chain; the repair has not been recorded yet.",
                     "选择怎样固定铁链；尚未记入修缆结果。");

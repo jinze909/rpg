@@ -556,6 +556,8 @@ namespace Rpg.Tests.Editor
                 completion.Invoke(stage, new object[] { true });
                 Assert.That(stage.Phase, Is.EqualTo(17));
                 Assert.That(stage.ThirdBellStarted, Is.True);
+                Assert.That(stage.CurrentInstructions, Does.Not.Contain("ORK"),
+                    "Engine-specific acceptance language is not playable P0 dialogue.");
                 Assert.That(bell.clip, Is.Not.Null);
                 Assert.That(bell.clip.name, Does.Contain("third warning bell"));
                 Assert.That(bell.outputAudioMixerGroup, Is.Not.Null,
@@ -1384,6 +1386,9 @@ namespace Rpg.Tests.Editor
                         input.Release(keys.eKey);
                         yield return null;
                         Assert.That(activePrelude.Phase, Is.EqualTo(13));
+                        Assert.That(activePrelude.CurrentNarration, Does.Contain(
+                            "cook, wounded soldier and young shield-bearer"),
+                            "Three real evacuations must not be retold as one generic survivor.");
 
                         var watch = FindButton(activePrelude, "S00 watch opposite bank");
                         watch.onClick.Invoke();

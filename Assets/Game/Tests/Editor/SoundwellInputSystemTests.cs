@@ -954,6 +954,10 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(2),
                     "Only the second fresh pad A at the actual clamp may open repair choices.");
+                Assert.That(prelude.CurrentNarration, Does.Contain(
+                    SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                        ? "监察员" : "Inspector"),
+                    "The earned second knock must introduce Shen Li's other tool nickname before M05.");
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 Assert.That(EventSystem.current?.currentSelectedGameObject?.name,
                     Is.EqualTo("S00 choice 0"),
@@ -1418,6 +1422,8 @@ namespace Rpg.Tests.Editor
                 jokingReply.onClick.Invoke();
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(5));
+                Assert.That(prelude.CurrentInstructions, Does.Not.Contain("S00-02"),
+                    "Internal prototype chapter numbers must not appear in player instructions.");
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
                         ? "嘴贫的人，账上记两笔" : "A smart mouth goes on the bill twice"),
