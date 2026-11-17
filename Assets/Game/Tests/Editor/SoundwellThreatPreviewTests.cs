@@ -35,6 +35,9 @@ namespace Rpg.Tests.Editor
                 }
             Assert.That(sfx, Is.Not.Null);
             var source = new GameObject("Fallback with stale SFX routing");
+            bool hadMutePreference = PlayerPrefs.HasKey(SoundwellAudioBus.MutePreferenceKey);
+            int originalMutePreference = PlayerPrefs.GetInt(SoundwellAudioBus.MutePreferenceKey, 0);
+            bool initiallyMuted = SoundwellAudioBus.IsMuted;
             try
             {
                 var bell = source.AddComponent<AudioSource>();
@@ -49,9 +52,22 @@ namespace Rpg.Tests.Editor
                     "Fallback must detach the old mixer before using source-level mute.");
                 Assert.That(bell.mute, Is.EqualTo(SoundwellAudioBus.IsMuted),
                     "The existing player mute preference must remain authoritative.");
+                Assert.That(SoundwellAudioBus.SetMuted(null, !initiallyMuted), Is.True,
+                    "Missing mixer must not prevent muting a live direct-fallback bell.");
+                Assert.That(SoundwellAudioBus.IsMuted, Is.EqualTo(!initiallyMuted));
+                Assert.That(bell.mute, Is.EqualTo(!initiallyMuted),
+                    "The audible fallback source must follow the new mute setting.");
             }
             finally
             {
+                // Restore both source state and persisted preference, including
+                // the distinction between absent and explicitly unmuted.
+                SoundwellAudioBus.SetMuted(null, initiallyMuted);
+                if (hadMutePreference)
+                    PlayerPrefs.SetInt(SoundwellAudioBus.MutePreferenceKey, originalMutePreference);
+                else
+                    PlayerPrefs.DeleteKey(SoundwellAudioBus.MutePreferenceKey);
+                PlayerPrefs.Save();
                 Object.DestroyImmediate(source);
             }
         }
