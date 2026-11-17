@@ -153,7 +153,6 @@ namespace Rpg.Soundwell
 
         private Canvas canvas;
         private RectTransform player;
-        private Image playerImage;
         private Image oldWomanImage;
         private Image childImage;
         private Text narration;
@@ -295,7 +294,6 @@ namespace Rpg.Soundwell
             playerImage.rectTransform.sizeDelta = new Vector2(32f, 32f);
             playerImage.gameObject.name = "M00 player";
             playerImage.raycastTarget = false;
-            this.playerImage = playerImage;
 
             instructions = Label(canvas.transform, "", 15, Ink,
                 new Vector2(0f, -224f), new Vector2(880f, 34f));
@@ -513,6 +511,7 @@ namespace Rpg.Soundwell
         private void InspectOldWoman()
         {
             oldWomanStoneObserved = true;
+            oldWomanImage.color = new Color(1f, 0.93f, 0.82f);
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(OldWomanStoneKey, 1);
             phase = 3;

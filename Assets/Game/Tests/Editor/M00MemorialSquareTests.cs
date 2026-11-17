@@ -130,11 +130,13 @@ namespace Rpg.Tests.Editor
         public IEnumerator MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell()
         {
             var input = new InputTestFixture();
-            input.Setup();
+            bool inputReady = false;
             try
             {
-                InputSystem.AddDevice<Keyboard>();
                 yield return new EnterPlayMode(expectDomainReload: true);
+                input.Setup();
+                inputReady = true;
+                InputSystem.AddDevice<Keyboard>();
                 EditorSceneManager.LoadSceneInPlayMode(
                     "Assets/Game/Scenes/Bootstrap.unity",
                     new LoadSceneParameters(LoadSceneMode.Single));
@@ -184,7 +186,11 @@ namespace Rpg.Tests.Editor
                 var memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
                 if (memorial != null)
                     memorial.Close();
-                input.TearDown();
+                var prelude = Object.FindFirstObjectByType<WhitewaterPrelude>();
+                if (prelude != null)
+                    prelude.Close();
+                if (inputReady)
+                    input.TearDown();
             }
             yield return new ExitPlayMode();
         }
