@@ -33,6 +33,49 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00DialogueChoicesAndNavigationRemainVisibleAtExtremeAspects()
+        {
+            var layout = typeof(WhitewaterPrelude).GetMethod("StageLayoutSlots",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(layout, Is.Not.Null);
+            foreach (float aspect in new[] { 9f / 16f, 0.95f, 32f / 9f, 5f })
+            {
+                var slots = (Vector2[])layout.Invoke(null, new object[] { aspect });
+                Assert.That(slots.Length, Is.EqualTo(9));
+                float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                for (int choice = 4; choice <= 6; choice++)
+                {
+                    Assert.That(Mathf.Abs(slots[choice].x) + 116f,
+                        Is.LessThanOrEqualTo(halfWidth - 6f),
+                        "The complete 232px choice must remain clickable.");
+                    Assert.That(Mathf.Abs(slots[choice].y) + 25f,
+                        Is.LessThanOrEqualTo(halfHeight - 5f),
+                        "The complete 50px choice must stay inside the canvas.");
+                }
+                foreach (int button in new[] { 7, 8 })
+                {
+                    Assert.That(Mathf.Abs(slots[button].x) + 114f,
+                        Is.LessThanOrEqualTo(halfWidth - 6f));
+                    Assert.That(Mathf.Abs(slots[button].y) + 14.5f,
+                        Is.LessThanOrEqualTo(halfHeight - 6f),
+                        "Continue and return are needed to leave the prelude.");
+                }
+                // Portrait stacks decisions; ultrawide keeps the intended
+                // left-to-right choice order while compressing vertical gaps.
+                if (aspect <= 0.95f)
+                    Assert.That(slots[4].y, Is.GreaterThan(slots[5].y));
+                else
+                    Assert.That(slots[4].x, Is.LessThan(slots[5].x));
+            }
+            Vector2[] regular = (Vector2[])layout.Invoke(null,
+                new object[] { 16f / 9f });
+            Assert.That(regular[4], Is.EqualTo(new Vector2(-250f, -192f)));
+            Assert.That(regular[8], Is.EqualTo(new Vector2(-145f, -245f)));
+        }
+
+        [Test]
         public void WhitewaterPreludeTitleMatchesSelectedSceneLanguage()
         {
             string previous = Rpg.Soundwell.SoundwellUiLocalization.Language;
