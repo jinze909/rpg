@@ -1420,8 +1420,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(prelude.Phase, Is.EqualTo(5));
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
-                        ? "锅还在打仗" : "pots are still at war"),
-                    "The selected joke must get Shen Li's actual distinct response.");
+                        ? "嘴贫的人，账上记两笔" : "A smart mouth goes on the bill twice"),
+                    "The third v1.2 workshop choice must receive Shen Li's authored two-bill-marks reply.");
 
                 // S00-03: selecting a rescuer never teleports Han Qiao onto
                 // the boat. A real Gameplay action at the matching station
