@@ -1,14 +1,12 @@
 # AI2 当前状态
 
-- 《归来》v1.2 叙事写作基线已更新，未实现、未验收。
+> 截至 2026-11-16 的交付核对；实时分支、PR 和 CI 以 GitHub 为准，旧候选 SHA 不代表当前活动工作。
 
-本页只保留当前接力，不代替实时 GitHub 核对。故事 003 移动版代表环的工程验收与技术基线见[故事卡](production/stories/003-soundwell-turn-rescue.md)；M1–M11 另见[现代化事实核查](docs/technical/MODERNIZATION_VERIFIED_STATUS.md)。
+- **唯一剧情写作基线**：《归来》v1.2，39 份 Markdown（含 29 份单章场景稿）已由 [PR #66](https://github.com/jinze909/rpg/pull/66) 入库，交付 SHA `b2f6f7dc560d366bd7801c43a560db9aae84fe1c`。v1.1 不再是并行剧情权威；v1.2 内标为待确认的创作提案仍须与已确定事实区分。**这是写作交付，不是新版剧情的 Unity 实现或验收。**
+- **已实现的独立玩法**：故事 003 的移动版声井救援代表环，两条路线、真实三名 ORK 队员的开闸／防御／攻击、可取消的战中移动和失败重试已有同 SHA 工程回归；见[故事卡](production/stories/003-soundwell-turn-rescue.md)。完整固定阵位可玩对照、后续成长／持久化及主观乐趣尚未验收。
+- **现有 Unity S00**：桥头 ORK 防守、胜利后第三声号钟和断桥、结尾返回控件已在实际游戏代码中实现，并经 [dev Unity ORK P0 Run 43991999900](https://github.com/jinze909/rpg/actions/runs/43991999900) 对 `591222ee949543f731b647ba35b5c8f2957f26f3` 验证。**它不是 v1.2 的完整叙事 P0 剧本**；现行 v1.2 写作稿不能被旧 S00 工程通过结果冒充已实现。
+- **待整合的独立候选（不是 dev 已交付）**：桥头重试单次消费 [PR #64](https://github.com/jinze909/rpg/pull/64)，SHA `78db1809dbbe337e0ea498c43ddccd757cd29a92`，[Run 43993206310](https://github.com/jinze909/rpg/actions/runs/43993206310) 成功；超宽屏入口布局的最新整合候选 [PR #65](https://github.com/jinze909/rpg/pull/65)，SHA `75a12212a2b63d30976ce514f5f8ad1ac7b96b79`，[Run 43994385748](https://github.com/jinze909/rpg/actions/runs/43994385748) 成功。两者均基于先前 dev；因 v1.2 文档交付后 dev 已前移，必须在新 HEAD 整合并验证**新最终 SHA**，不得直接引用旧绿色结论交付。
+- **下一步**：按 v1.2 为写作权威继续 P0／M00 连续性和落地评估；并接续 PR #64、#65 的最新 dev 整合与验收。名册对账、点名 UI、听雾操作及新版可玩 P0 仍须独立制作／验收，不因 39 份稿件已入库而标为完成。
+- **智能体验证边界**：有真实输入、画面、音频或操作证据时报告适用范围；AI 自动通关和技术绿色不能证明真人乐趣，见[问题记录](production/KNOWN_ISSUES.md)。
 
-- **当前目标**。故事 003 已完成本轮移动版工程验收；按既有《归来》序幕 S00 白水渡继续，尚未完成的桥头 ORK 防守及第三声断桥必须逐项真实实现，不能用演出代替战斗。
-- **已交付**。侧铃引兽与正面 ORK 战斗均可实际救出并护送测路人；三人各执行开闸、保护、攻击，走位可预览/取消、受物理阻挡并改变开闸者，战败可返回安全点重试。
-- **工程验收**。`43dbbbd1c58f67f0f8d6db8c37805b08b322b1ce` [Run 43491809580](https://github.com/jinze909/rpg/actions/runs/43491809580) 与 `e3588faf4828f3d6c28b0387dbc017127e8c019b` [Run 43493853419](https://github.com/jinze909/rpg/actions/runs/43493853419) 分别 30/30 且 `passed-clean-candidate`，均已合入 dev。完整固定阵位版本、成长/持久化与主观体验仍属后续范围。
-- **活动候选**。S00 第二声号钟与对岸灯火候选 `81e0daf9ae67697f5a655770965beade0232c6ec`，以最终 [Run 43495410695](https://github.com/jinze909/rpg/actions/runs/43495410695) 为准；旧 SHA 在隔离输入测试中直接读取尚未初始化的 Makinom 而失败，已修复并重新验证，不复用旧失败的结论。
-- **实现下一步**。核验 S00 最新 SHA，成功则按最新 dev 安全整合并重新验证；失败按实际日志修正。同段落后续是保留 ORK 权威的桥头防守与既定第三声断桥，不跳过战斗。
-- **智能体验证下一步**。观察声井两路线的操作反馈、站位收益与负担，以及序幕桥头音画和人物回应；主观乐趣证据仍不足，见[问题记录](production/KNOWN_ISSUES.md)。
-
-历史候选和原始证据留在故事卡及 Actions；本页不替代实时分支、CI 和产物检查。
+历史工程细节与证据保留在故事卡和 Actions，不从旧接力记录恢复废弃剧情。
