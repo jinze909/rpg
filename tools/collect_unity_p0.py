@@ -102,6 +102,12 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping":
             "Rpg.Tests.Editor.SoundwellThreatPreviewTests.SideBellLureDisplaysRealPursuitAndExpiresAfterWrapping",
     },
+    "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": {
+        "MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions":
+            "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions",
+        "MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell":
+            "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell",
+    },
 }
 # Standalone editor [Test] methods must be included in the exact test
 # manifest too. The UnityTest registry below only recognizes IEnumerator,
