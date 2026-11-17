@@ -149,6 +149,45 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00TwoQuestionWrenchChoicesStayCenteredAtExtremeAspects()
+        {
+            var layout = typeof(WhitewaterPrelude).GetMethod("TwoChoiceLayoutSlots",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(layout, Is.Not.Null);
+            foreach (float aspect in new[] { 9f / 16f, 0.95f, 16f / 9f, 32f / 9f, 5f })
+            {
+                var slots = (Vector2[])layout.Invoke(null, new object[] { aspect });
+                Assert.That(slots.Length, Is.EqualTo(2));
+                float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                foreach (Vector2 position in slots)
+                {
+                    Assert.That(Mathf.Abs(position.x) + 116f,
+                        Is.LessThanOrEqualTo(halfWidth - 6f),
+                        "Both authored questions must remain fully clickable.");
+                    Assert.That(Mathf.Abs(position.y) + 25f,
+                        Is.LessThanOrEqualTo(halfHeight - 5f),
+                        "Both authored questions must remain inside the viewport.");
+                }
+
+                if (aspect <= 0.95f)
+                {
+                    Assert.That(slots[0].x, Is.EqualTo(0f));
+                    Assert.That(slots[1].x, Is.EqualTo(0f));
+                    Assert.That(slots[0].y, Is.GreaterThan(slots[1].y),
+                        "Portrait must stack the two questions in authored order.");
+                }
+                else
+                {
+                    Assert.That(slots[0].x, Is.LessThan(0f));
+                    Assert.That(slots[1].x, Is.GreaterThan(0f));
+                    Assert.That(slots[0].y, Is.EqualTo(slots[1].y));
+                }
+            }
+        }
+
+        [Test]
         public void S00WalkerPresentationSnapsToWholePixelsWithoutSnappingMovementMotor()
         {
             // The underlying movement/reach motor remains subpixel-precise;
@@ -789,7 +828,7 @@ namespace Rpg.Tests.Editor
         }
 
         [UnityTest]
-        public IEnumerator V12RollCallDelayedAnswerAndMaXiaoliuHaveDistinctEarnedCopy()
+        public IEnumerator V12RollCallAndTaxCollectorDialogueKeepTheirFullAuthoredCopy()
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             yield return new EnterPlayMode(expectDomainReload: true);
@@ -800,23 +839,69 @@ namespace Rpg.Tests.Editor
             string originalLanguage = SoundwellUiLocalization.Language;
             try
             {
-                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
                 InputSystem.AddDevice<Keyboard>();
                 InputSystem.AddDevice<Gamepad>();
-                stage = new GameObject("v1.2 P0 rollcall delayed answer")
-                    .AddComponent<WhitewaterPrelude>();
-                stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
-                yield return null;
-                Assert.That(stage.Phase, Is.Zero);
-                ClickChoice(stage, 2);
-                Assert.That(stage.Phase, Is.EqualTo(1),
-                    "Only a real second-call answer may advance to the clamp.");
-                Assert.That(stage.CurrentNarration, Does.Contain("军士又念了一遍你的名字"),
-                    "The delayed answer may not be treated like an immediate greeting.");
-                Assert.That(stage.CurrentNarration, Does.Contain("别走神"));
-                Assert.That(stage.CurrentNarration, Does.Contain("马小六"));
-                Assert.That(stage.CurrentNarration, Does.Contain("三遍没人答"));
-                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                foreach (string language in new[]
+                {
+                    SoundwellUiLocalization.Chinese,
+                    SoundwellUiLocalization.English
+                })
+                {
+                    bool chinese = language == SoundwellUiLocalization.Chinese;
+                    SoundwellUiLocalization.SetLanguage(language);
+                    stage = new GameObject("v1.2 P0 rollcall and Tax Collector dialogue")
+                        .AddComponent<WhitewaterPrelude>();
+                    stage.Begin(() => SoundwellInputAdapter.SetEntryContext());
+                    yield return null;
+                    Assert.That(stage.Phase, Is.Zero);
+                    ClickChoice(stage, 2);
+                    Assert.That(stage.Phase, Is.EqualTo(1),
+                        "The delayed answer records the roll call before the wrench questions.");
+                    Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True,
+                        "The player must answer the authored wrench questions before walking.");
+
+                    if (chinese)
+                    {
+                        Assert.That(stage.CurrentNarration, Does.Contain("军士又念了一遍你的名字"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("别走神，待会儿过桥紧着点。"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("草丛里有人提着裤子冲出来"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("三遍没人答，你就是死人了，知道吗？"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("下回拉肚子也先应一声！"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("周围有人笑"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("税务官"));
+                        Assert.That(FindButton(stage, "S00 choice 0").GetComponentInChildren<Text>(true).text,
+                            Is.EqualTo("为什么叫这个？"));
+                        Assert.That(FindButton(stage, "S00 choice 1").GetComponentInChildren<Text>(true).text,
+                            Is.EqualTo("你手里那把也有名字吗？"));
+                    }
+                    else
+                    {
+                        Assert.That(stage.CurrentNarration, Does.Contain("Keep close when we cross the bridge."));
+                        Assert.That(stage.CurrentNarration, Does.Contain("pulling up his trousers"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("you're marked dead, understand?"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("I'll answer first!"));
+                        Assert.That(stage.CurrentNarration, Does.Contain("The others laugh."));
+                        Assert.That(stage.CurrentNarration, Does.Contain("Tax Collector"));
+                        Assert.That(FindButton(stage, "S00 choice 0").GetComponentInChildren<Text>(true).text,
+                            Is.EqualTo("Why call it that?"));
+                        Assert.That(FindButton(stage, "S00 choice 1").GetComponentInChildren<Text>(true).text,
+                            Is.EqualTo("Does your wrench have a name?"));
+                    }
+
+                    Assert.That(FindButton(stage, "S00 choice 0").gameObject.activeSelf, Is.True);
+                    Assert.That(FindButton(stage, "S00 choice 1").gameObject.activeSelf, Is.True);
+                    Assert.That(FindButton(stage, "S00 choice 2").gameObject.activeSelf, Is.False,
+                        "The two authored questions must not invent a third response.");
+                    ClickChoice(stage, chinese ? 0 : 1);
+                    Assert.That(stage.Phase, Is.EqualTo(1));
+                    Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                        "Movement begins only after the player has chosen a wrench question.");
+                    Assert.That(stage.CurrentNarration, Does.Contain(
+                        chinese ? "敲两下，它才肯听话。试试。" : "Knock twice and it will listen. Try it."));
+                    stage.Close();
+                    yield return null;
+                    stage = null;
+                }
             }
             finally
             {
