@@ -16,6 +16,25 @@ namespace Rpg.Soundwell
         private static readonly Color Ink = new Color(0.87f, 0.90f, 0.88f);
         private static readonly Color Brass = new Color(0.91f, 0.72f, 0.40f);
 
+        // All authored player-visible bridgehead copy lives here. Internal
+        // ORK diagnostics stay in logs, never in HUD dialogue or titles.
+        private const string PlayerCopyTitleEnglish = "WHITEWATER BRIDGEHEAD";
+        private const string PlayerCopyTitleChinese = "白水渡桥头";
+        private const string PlayerCopyPreparingEnglish = "The defenders are gathering at the bridge…";
+        private const string PlayerCopyPreparingChinese = "守桥的人正在桥头集结……";
+        private const string PlayerCopyUnavailableEnglish = "The defence could not begin. Return to the harbor entrance.";
+        private const string PlayerCopyUnavailableChinese = "守桥行动未能开始。请返回港口入口。";
+        private const string PlayerCopyStartFailureEnglish = "The defence could not start. Regroup and try again.";
+        private const string PlayerCopyStartFailureChinese = "守桥行动未能开始。重新整队，再试一次。";
+        private const string PlayerCopyFirstTurnEnglish = "The guard squad is approaching. Your defenders are taking position…";
+        private const string PlayerCopyFirstTurnChinese = "持矛守军正在逼近，守桥的人正在各就各位……";
+        private const string PlayerCopyInactiveEnglish = "The defence did not begin. Regroup and try again.";
+        private const string PlayerCopyInactiveChinese = "桥头防守尚未开始。重新整队，再试一次。";
+        private const string PlayerCopyDefeatEnglish = "The guard squad still holds the span. Regroup and try again.";
+        private const string PlayerCopyDefeatChinese = "持矛守军仍控制着桥面。重新整队，再试一次。";
+        private const string PlayerCopyVictoryEnglish = "The bridgehead is held. Return to Shen Li at the strained cable.";
+        private const string PlayerCopyVictoryChinese = "桥头守住了。回到沈砾身边，缆索仍然绷紧。";
+
         private OrkPartyBridge party;
         private Canvas hud;
         private Text heading;
@@ -101,7 +120,7 @@ namespace Rpg.Soundwell
 
         private IEnumerator StartEncounter()
         {
-            SetReadout("Preparing the ORK bridgehead party…", "正在准备 ORK 桥头队伍……");
+            SetReadout(PlayerCopyPreparingEnglish, PlayerCopyPreparingChinese);
             float readyDeadline = Time.realtimeSinceStartup + 35f;
             while (ShouldWaitForPartyInitialization(active, party.IsReady,
                        party.InitializationError, Time.realtimeSinceStartup,
@@ -113,10 +132,13 @@ namespace Rpg.Soundwell
 
             if (!party.IsReady)
             {
-                string error = string.IsNullOrEmpty(party.InitializationError)
-                    ? string.Empty : " " + party.InitializationError;
-                ShowRetry("The ORK party did not initialize." + error,
-                    "ORK 队伍未能初始化。" + error, false);
+                // The full framework diagnostic belongs in the developer log,
+                // not on the player's story screen (including its localization).
+                if (!string.IsNullOrEmpty(party.InitializationError))
+                    Debug.LogError("S00 bridge defence initialization failed: " +
+                        party.InitializationError);
+                ShowRetry(PlayerCopyUnavailableEnglish,
+                    PlayerCopyUnavailableChinese, false);
                 yield break;
             }
 
@@ -125,13 +147,13 @@ namespace Rpg.Soundwell
 
             if (!party.TryStartDirectEncounter())
             {
-                ShowRetry("ORK could not start the bridgehead encounter. Retry when the battle system is ready.",
-                    "ORK 无法启动桥头遭遇战。战斗系统就绪后可以重试。", true);
+                ShowRetry(PlayerCopyStartFailureEnglish,
+                    PlayerCopyStartFailureChinese, true);
                 yield break;
             }
 
-            SetReadout("The guard squad is closing. Waiting for the first ORK turn…",
-                "持矛守军正在逼近，等待 ORK 首个回合……");
+            SetReadout(PlayerCopyFirstTurnEnglish,
+                PlayerCopyFirstTurnChinese);
             float battleDeadline = Time.realtimeSinceStartup + 12f;
             while (active && !party.BattleInProgress &&
                    !party.EncounterStartFailed && !party.EncounterWon &&
@@ -150,8 +172,8 @@ namespace Rpg.Soundwell
 
             if (!party.BattleInProgress)
             {
-                ShowRetry("The ORK encounter did not become active. No victory was recorded; retry the defence.",
-                    "ORK 遭遇战未能进入活动状态。没有记录胜利；请重试防守。", true);
+                ShowRetry(PlayerCopyInactiveEnglish,
+                    PlayerCopyInactiveChinese, true);
                 yield break;
             }
 
@@ -165,8 +187,8 @@ namespace Rpg.Soundwell
 
                 if (party.EncounterFailed || party.EncounterStartFailed)
                 {
-                    ShowRetry("The guard squad still holds the span. Regroup and retry the ORK defence.",
-                        "持矛守军仍控制着桥面。重新整队，再次进行 ORK 防守。", true);
+                    ShowRetry(PlayerCopyDefeatEnglish,
+                        PlayerCopyDefeatChinese, true);
                     yield break;
                 }
 
@@ -268,9 +290,8 @@ namespace Rpg.Soundwell
         private void ShowVictory()
         {
             retryArmed = false;
-            SetReadout(
-                "The ORK party has held the bridgehead. Continue to return to Shen Li and the strained cable.",
-                "ORK 队伍守住了桥头。继续后返回沈砾身边，缆索仍然绷紧。");
+            SetReadout(PlayerCopyVictoryEnglish,
+                PlayerCopyVictoryChinese);
             attackButton.gameObject.SetActive(false);
             guardButton.gameObject.SetActive(false);
             retryButton.gameObject.SetActive(false);
@@ -389,11 +410,11 @@ namespace Rpg.Soundwell
             backdrop.raycastTarget = false;
 
             heading = SoundwellView.AddLabel(hud.transform,
-                Copy("S00 · WHITEWATER BRIDGEHEAD", "S00 · 白水渡桥头"), 26,
+                Copy(PlayerCopyTitleEnglish, PlayerCopyTitleChinese), 26,
                 Brass, new Vector2(0f, 190f), new Vector2(820f, 44f));
             heading.alignment = TextAnchor.MiddleCenter;
             readout = SoundwellView.AddLabel(hud.transform,
-                Copy("Preparing the ORK bridgehead party…", "正在准备 ORK 桥头队伍……"),
+                Copy(PlayerCopyPreparingEnglish, PlayerCopyPreparingChinese),
                 18, Ink, new Vector2(0f, 28f), new Vector2(820f, 250f));
             readout.alignment = TextAnchor.MiddleCenter;
             readout.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -547,7 +568,7 @@ namespace Rpg.Soundwell
                 Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
             if (heading != null)
             {
-                heading.text = Copy("S00 · WHITEWATER BRIDGEHEAD", "S00 · 白水渡桥头");
+                heading.text = Copy(PlayerCopyTitleEnglish, PlayerCopyTitleChinese);
                 heading.font = font;
             }
             RefreshButtonCaption(attackButton, "Attack", "攻击", font);

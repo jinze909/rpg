@@ -15,6 +15,30 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellLocalizedRescueCopyTests
     {
         [Test]
+        public void S00BridgeheadPlayerCopyNeverShowsPrototypeOrEngineNames()
+        {
+            // A v1.2 character must not suddenly speak about ORK or an S00
+            // prototype in the battle title, waiting cue, retry or outcome.
+            // Both languages use these actual runtime constants; framework
+            // faults remain available in logs but not player-facing dialogue.
+            var fields = typeof(WhitewaterDefenseEncounter)
+                .GetFields(System.Reflection.BindingFlags.NonPublic |
+                           System.Reflection.BindingFlags.Static)
+                .Where(field => field.Name.StartsWith("PlayerCopy",
+                    StringComparison.Ordinal)).ToArray();
+            Assert.That(fields.Length, Is.EqualTo(16),
+                "Test all eight authored English/Chinese readout and title pairs.");
+            foreach (var field in fields)
+            {
+                string value = field.GetRawConstantValue() as string;
+                Assert.That(value, Is.Not.Null.And.Not.Empty, field.Name);
+                Assert.That(Regex.IsMatch(value,
+                    @"\b(?:ORK|Makinom|S00)\b|原型|调试", RegexOptions.IgnoreCase),
+                    Is.False, field.Name + " exposes engine/prototype copy.");
+            }
+        }
+
+        [Test]
         public void AdaptiveLocalizedTitleSamplingClipsToActualCaptureRect()
         {
             var pixels = new Color32[120 * 80];
