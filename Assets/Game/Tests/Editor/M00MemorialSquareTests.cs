@@ -30,6 +30,7 @@ namespace Rpg.Tests.Editor
                 input = new InputTestFixture();
                 input.Setup();
                 inputReady = true;
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: input runtime ready");
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
@@ -38,6 +39,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
                     "The player sees the v1.2 scene title, not the internal S00 story ID.");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                Assert.That(keys, Is.Not.Null, "The M00 physical-approach test needs a live keyboard.");
+                Assert.That(keys.eKey, Is.Not.Null);
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: authored copy and keyboard ready");
 
                 // Enter M00 through the same earned S00 -> M00 transition used
                 // by the player. Do not construct the scene component in an
@@ -53,6 +57,7 @@ namespace Rpg.Tests.Editor
                     entry = Object.FindFirstObjectByType<SoundwellEntrance>();
                 }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap entry found");
                 // Keep the production entry owner alive. SetUiContext below disables
                 // its Entry action map while S00/M00 owns input.
 
@@ -70,10 +75,12 @@ namespace Rpg.Tests.Editor
                 Assert.That(entry.enabled, Is.True,
                     "Entry remains enabled as the owner; the gameplay input context disables its Entry action map.");
                 yield return null;
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: S00 opened");
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entry);
                 Assert.That(prelude, Is.Not.Null);
                 thirdBell.SetValue(prelude, true);
                 prelude.Close();
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: earned M00 handoff invoked");
 
                 // The exit callback creates M00 under the live entry owner.
                 // Let Unity finish the frame's deferred Destroy/activation work,
@@ -96,7 +103,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(entry.MemorialSquareOpen, Is.True);
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform),
                     "M00 must be owned by the real entry controller.");
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: memorial remains under live owner");
                 yield return null;
+                Assert.That(memorial != null, Is.True, "M00 must remain active after the handoff frame.");
 
                 // The real M00 UI must remain reachable after S00. Portrait
                 // used to clip the player; 5:1 hid instructions and return.
@@ -138,6 +147,7 @@ namespace Rpg.Tests.Editor
                 }
                 memorial.LayoutForViewportAspect(
                     (float)Screen.width / Mathf.Max(1, Screen.height));
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: responsive view checked");
 
                 Assert.That(memorial.Phase, Is.Zero);
                 Assert.That(memorial.GetComponentsInChildren<Text>(true)
@@ -166,6 +176,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(memorial.Phase, Is.EqualTo(1));
                 Assert.That(memorial.CurrentNarration, Does.Contain("Third Brigade"));
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: statue interaction completed");
 
                 memorial.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "M00 choice 0")
@@ -192,12 +203,15 @@ namespace Rpg.Tests.Editor
                     "M00's English roster must match the authored third squad of twelve in RC-05, never a platoon.");
                 Assert.That(memorial.CurrentNarration, Does.Not.Contain("3rd Platoon"));
                 Assert.That(memorial.Phase, Is.EqualTo(3));
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: old-woman interaction completed");
 
                 float forgottenDeadline = Time.realtimeSinceStartup + 3f;
                 while (!memorial.ChildLineText.Contains("...the bridge") &&
                        Time.realtimeSinceStartup < forgottenDeadline)
                     yield return null;
+                Assert.That(memorial != null, Is.True, "M00 was destroyed before Xiaodou forgot the line.");
                 Assert.That(memorial.ChildLineText, Does.Contain("...the bridge"));
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: Xiaodou forgets the line");
 
                 input.Press(keys.aKey);
                 float stageDeadline = Time.realtimeSinceStartup + 5f;
@@ -223,6 +237,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(memorial.CurrentNarration, Does.Contain("Who has spare rope?"),
                     "M00 must echo the exact P0 rope call instead of using an altered English paraphrase.");
                 Assert.That(memorial.CurrentNarration, Does.Not.Contain("Who brought the spare rope?"));
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: Xiaodou prompt completed");
                 memorial.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "M00 return to entry")
                     .onClick.Invoke();
