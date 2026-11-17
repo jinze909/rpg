@@ -2495,6 +2495,103 @@ namespace Rpg.Tests.Editor
             yield return null;
         }
 
+        [UnityTest, Order(32)]
+        public IEnumerator FormationPreferenceGamepadSubmitTogglesModeWithoutEnteringTrial()
+        {
+            bool hadPreference = PlayerPrefs.HasKey(OrkPartyBridge.FixedFormationPreferenceKey);
+            int previousPreference = PlayerPrefs.GetInt(OrkPartyBridge.FixedFormationPreferenceKey, 0);
+            InputTestFixture input = null;
+            bool inputReady = false;
+            Gamepad gamepad = null;
+            try
+            {
+                // The setting must be a real, reachable entry action. A single
+                // Pad A press is both UI Submit and the gameplay Interact input;
+                // it must toggle the focused option without also entering.
+                OrkPartyBridge.SetPreferredFixedFormation(false);
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                yield return new EnterPlayMode(expectDomainReload: true);
+
+                // Bootstrap initializes the production InputActions in Awake.
+                // Isolate the test input runtime first so queued Pad A state is
+                // deterministically delivered to both UGUI Submit and gameplay.
+                input = new InputTestFixture();
+                input.Setup();
+                inputReady = true;
+                gamepad = InputSystem.AddDevice<Gamepad>();
+                EditorSceneManager.LoadSceneInPlayMode(
+                    "Assets/Game/Scenes/Bootstrap.unity",
+                    new LoadSceneParameters(LoadSceneMode.Single));
+                yield return WaitForFrameworkInitialization();
+                // Let the live Entry owner reconcile any EventSystem that ORK
+                // creates after the scene component Awake methods have run.
+                yield return null;
+
+                var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
+                Assert.That(entrance, Is.Not.Null);
+                var events = EventSystem.current;
+                Assert.That(events, Is.Not.Null);
+                Assert.That(events.GetComponent<InputSystemUIInputModule>(), Is.Not.Null,
+                    "Entry must use the project-owned New Input System UGUI module after ORK initializes.");
+                Assert.That(events.sendNavigationEvents, Is.True,
+                    "Visible Entry must accept UGUI navigation and Submit.");
+                var button = entrance.GetComponentsInChildren<Button>(true)
+                    .Single(item => item.gameObject.name == "Soundwell formation toggle");
+                var label = button.GetComponentInChildren<Text>();
+                Assert.That(button.interactable, Is.True);
+                Assert.That(label, Is.Not.Null);
+                Assert.That(label.text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("entry.formation_mobile")));
+
+                events.SetSelectedGameObject(button.gameObject);
+                Assert.That(events.currentSelectedGameObject, Is.SameAs(button.gameObject));
+                input.Press(gamepad.buttonSouth);
+
+                float deadline = Time.realtimeSinceStartup + 2f;
+                while (!OrkPartyBridge.PreferredFixedFormation &&
+                       Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+
+                Assert.That(OrkPartyBridge.PreferredFixedFormation, Is.True,
+                    "Pad A must activate the focused fixed-formation UGUI button.");
+                Assert.That(label.text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("entry.formation_fixed")));
+                Assert.That(SceneManager.GetActiveScene().name,
+                    Is.EqualTo(SoundwellEntrance.BootstrapSceneName),
+                    "The same Pad A event must not also commit the trial entry.");
+                Assert.That(button.interactable, Is.True,
+                    "Changing the next-encounter preference must leave Entry available.");
+
+                input.Press(gamepad.buttonSouth);
+                deadline = Time.realtimeSinceStartup + 2f;
+                while (OrkPartyBridge.PreferredFixedFormation &&
+                       Time.realtimeSinceStartup < deadline)
+                    yield return null;
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+
+                Assert.That(OrkPartyBridge.PreferredFixedFormation, Is.False,
+                    "A second Pad A press must restore the mobile-step preference.");
+                Assert.That(label.text,
+                    Is.EqualTo(SoundwellUiLocalization.Get("entry.formation_mobile")));
+                Assert.That(SceneManager.GetActiveScene().name,
+                    Is.EqualTo(SoundwellEntrance.BootstrapSceneName));
+                Assert.That(button.interactable, Is.True);
+            }
+            finally
+            {
+                if (inputReady && input != null)
+                    input.TearDown();
+                if (hadPreference)
+                    PlayerPrefs.SetInt(OrkPartyBridge.FixedFormationPreferenceKey, previousPreference);
+                else
+                    PlayerPrefs.DeleteKey(OrkPartyBridge.FixedFormationPreferenceKey);
+                PlayerPrefs.Save();
+            }
+        }
+
         private static IEnumerator WaitForFrameworkInitialization()
         {
             double deadline = EditorApplication.timeSinceStartup + 30;
