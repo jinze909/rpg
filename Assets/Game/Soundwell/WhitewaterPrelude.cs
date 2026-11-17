@@ -328,8 +328,7 @@ namespace Rpg.Soundwell
             scaler.referenceResolution = new Vector2(960f, 540f);
             scaler.matchWidthOrHeight = 0.5f;
             canvas.gameObject.AddComponent<GraphicRaycaster>();
-            Panel(canvas.transform, "S00 night backdrop", new Vector2(0f, 0f),
-                new Vector2(960f, 540f), new Color(0.045f, 0.070f, 0.095f));
+            CreateFullCanvasNightBackdrop(canvas.transform);
 
             title = Label(canvas.transform, SceneTitle, 28,
                 new Vector2(0f, 209f), new Vector2(740f, 48f), Brass);
@@ -1393,10 +1392,32 @@ namespace Rpg.Soundwell
             // M00 is still a separate playable story task. Reuse the real
             // exit control rather than claiming a scene that does not exist.
             exit.transform.SetAsLastSibling();
-            ((RectTransform)exit.transform).anchoredPosition =
-                new Vector2(0f, -190f);
+            RefreshEpilogueExitPosition();
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
+        }
+
+        // The ending must always offer a clickable return to the entry
+        // screen. The 960x540 CanvasScaler uses the geometric mean of width
+        // and height; fixed y=-190 slips below the viewport on 32:9 screens.
+        private static Vector2 EpilogueExitPosition(float aspect)
+        {
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                aspect = 16f / 9f;
+            float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+            // A 29px button retains 12px of visible bottom breathing room.
+            return new Vector2(0f, Mathf.Max(-190f,
+                -halfHeight + 14.5f + 12f));
+        }
+
+        private void RefreshEpilogueExitPosition()
+        {
+            if (exit == null)
+                return;
+            float aspect = (float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height);
+            ((RectTransform)exit.transform).anchoredPosition =
+                EpilogueExitPosition(aspect);
         }
 
         // The title appears after the full-screen third-bell blackout. Its
@@ -1417,6 +1438,22 @@ namespace Rpg.Soundwell
             card.horizontalOverflow = HorizontalWrapMode.Wrap;
             card.resizeTextMinSize = 12;
             return card;
+        }
+
+        // The prelude starts with a dark night sky. A fixed 960x540 panel
+        // does not cover a portrait or ultrawide CanvasScaler viewport and
+        // exposes the underlying entry screen around the walkable bridge.
+        // Only the backdrop stretches; authored 16px actors remain pixel-snapped.
+        private static Image CreateFullCanvasNightBackdrop(Transform canvasRoot)
+        {
+            Image backdrop = Panel(canvasRoot, "S00 night backdrop",
+                Vector2.zero, Vector2.zero, new Color(0.045f, 0.070f, 0.095f));
+            RectTransform bounds = backdrop.rectTransform;
+            bounds.anchorMin = Vector2.zero;
+            bounds.anchorMax = Vector2.one;
+            bounds.offsetMin = Vector2.zero;
+            bounds.offsetMax = Vector2.zero;
+            return backdrop;
         }
 
         // The same third-bell fade must cover the entire playable canvas
@@ -1983,6 +2020,12 @@ namespace Rpg.Soundwell
             // Dialogue selection uses UI input, not the exploration motor.
             // Refresh visible options even when the player cannot walk.
             RefreshOpenChoiceLanguage();
+            if (phase == 18)
+            {
+                // Resizing after the final bell cannot hide the only exit.
+                RefreshEpilogueExitPosition();
+                return;
+            }
             if (phase != 1 && phase != 7 && phase != 9 && phase != 10 &&
                 phase != 12 && phase != 14 && phase != 15)
                 return;

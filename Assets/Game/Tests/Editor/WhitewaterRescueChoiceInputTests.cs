@@ -17,6 +17,52 @@ namespace Rpg.Tests.Editor
     public sealed class WhitewaterRescueChoiceInputTests
     {
         [Test]
+        public void S00NightBackdropHidesEntryScreenAtAnyCanvasAspect()
+        {
+            var root = new GameObject("S00 night backdrop test canvas",
+                typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                RectTransform canvas = root.GetComponent<RectTransform>();
+                var creator = typeof(WhitewaterPrelude).GetMethod(
+                    "CreateFullCanvasNightBackdrop",
+                    System.Reflection.BindingFlags.Static |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(creator, Is.Not.Null);
+                var backdrop = (Image)creator.Invoke(null,
+                    new object[] { canvas });
+                Assert.That(backdrop.gameObject.name, Is.EqualTo("S00 night backdrop"));
+                Assert.That(backdrop.raycastTarget, Is.False,
+                    "Night scenery cannot intercept player movement or dialogue.");
+                Assert.That(backdrop.color,
+                    Is.EqualTo(new Color(0.045f, 0.070f, 0.095f)));
+                RectTransform bounds = backdrop.rectTransform;
+                Assert.That(bounds.anchorMin, Is.EqualTo(Vector2.zero));
+                Assert.That(bounds.anchorMax, Is.EqualTo(Vector2.one));
+                Assert.That(bounds.offsetMin, Is.EqualTo(Vector2.zero));
+                Assert.That(bounds.offsetMax, Is.EqualTo(Vector2.zero));
+                foreach (Vector2 viewport in new[]
+                {
+                    new Vector2(320f, 720f),
+                    new Vector2(960f, 540f),
+                    new Vector2(1600f, 540f)
+                })
+                {
+                    canvas.sizeDelta = viewport;
+                    Canvas.ForceUpdateCanvases();
+                    Assert.That(bounds.rect.width,
+                        Is.EqualTo(viewport.x).Within(0.01f));
+                    Assert.That(bounds.rect.height,
+                        Is.EqualTo(viewport.y).Within(0.01f));
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void S00ThirdBellBlackoutCoversAnyCanvasAspectWithoutBlockingReturn()
         {
             var root = new GameObject("S00 blackout canvas", typeof(RectTransform),

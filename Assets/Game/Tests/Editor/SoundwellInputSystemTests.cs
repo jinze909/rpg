@@ -16,6 +16,41 @@ namespace Rpg.Tests.Editor
 {
     public sealed class SoundwellInputSystemTests
     {
+        [Test]
+        public void S00EndingReturnControlRemainsClickableOnUltrawideWindows()
+        {
+            var position = typeof(WhitewaterPrelude).GetMethod(
+                "EpilogueExitPosition",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(position, Is.Not.Null);
+            Vector2 standard = (Vector2)position.Invoke(null,
+                new object[] { 16f / 9f });
+            Assert.That(standard, Is.EqualTo(new Vector2(0f, -190f)),
+                "The authored 16:9 ending layout should not shift.");
+
+            foreach (float aspect in new[]
+            {
+                320f / 720f, 32f / 9f, 5f
+            })
+            {
+                Vector2 slot = (Vector2)position.Invoke(null,
+                    new object[] { aspect });
+                float halfHeight = 0.5f *
+                    Mathf.Sqrt(960f * 540f / aspect);
+                Assert.That(slot.x, Is.EqualTo(0f));
+                Assert.That(slot.y - 14.5f,
+                    Is.GreaterThanOrEqualTo(-halfHeight + 12f - 0.01f),
+                    "The full 29px return button must remain inside the bottom of the screen.");
+                Assert.That(slot.y + 14.5f,
+                    Is.LessThanOrEqualTo(halfHeight - 12f));
+            }
+            Assert.That((Vector2)position.Invoke(null,
+                new object[] { float.NaN }),
+                Is.EqualTo(standard),
+                "Invalid aspect values must not hide the only route out.");
+        }
+
         [UnityTest]
         public IEnumerator S00DirectAudioFallbackTracksMuteAndRejoinsRealMixer()
         {
