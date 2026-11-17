@@ -167,6 +167,17 @@ namespace Rpg.Soundwell
             return (float)Mathf.Clamp(targetPixel, minPixel, maxPixel) / PixelsPerUnit;
         }
 
+        // Preserve the existing isolated relative-pan contract for smoke
+        // validation and non-translated callers. The live camera above uses
+        // PixelSafeWorldPan so relocated rooms snap in world coordinates.
+        internal static float PixelSafeHorizontalPan(float target, float maxPan)
+        {
+            int maxPixels = Mathf.Max(0, Mathf.FloorToInt(maxPan * PixelsPerUnit));
+            int pixels = Mathf.Clamp(Mathf.RoundToInt(target * PixelsPerUnit),
+                -maxPixels, maxPixels);
+            return (float)pixels / PixelsPerUnit;
+        }
+
         private void LateUpdate()
         {
             RefreshFraming();
