@@ -29,15 +29,21 @@ namespace Rpg.Tests.Editor
                 // Select the test language only after the live Bootstrap owner exists.
                 yield return new EnterPlayMode(expectDomainReload: true);
                 yield return null;
+
+                // Bootstrap initializes the production action asset in Awake. Install
+                // the isolated test runtime first so its setup cannot invalidate the
+                // action maps that the live entry owner has already cached.
+                input = new InputTestFixture();
+                input.Setup();
+                inputReady = true;
+
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
 
-                // Load the real Bootstrap scene before installing the isolated test
-                // input runtime. Loading a single scene after InputTestFixture.Setup
-                // can invalidate its device/control handles while the test is still
-                // using them; M00 then receives no usable movement/interaction input.
                 // Keep the production entry owner alive throughout the S00 -> M00 handoff.
+                // Create the virtual keyboard only after loading the scene: scene loading
+                // can invalidate device/control handles that existed before the handoff.
                 EditorSceneManager.LoadSceneInPlayMode(
                     "Assets/Game/Scenes/Bootstrap.unity",
                     new LoadSceneParameters(LoadSceneMode.Single));
@@ -49,11 +55,6 @@ namespace Rpg.Tests.Editor
                 }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
 
-                // The test input runtime is now installed after scene loading, so its
-                // keyboard controls remain valid for the complete physical approach.
-                input = new InputTestFixture();
-                input.Setup();
-                inputReady = true;
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 Assert.That(keys, Is.Not.Null, "The M00 physical-approach test needs a live keyboard.");
                 Assert.That(keys.eKey, Is.Not.Null);
