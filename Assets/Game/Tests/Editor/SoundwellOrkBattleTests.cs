@@ -31,6 +31,58 @@ namespace Rpg.Tests.Editor
     public sealed class SoundwellOrkBattleTests
     {
         [Test]
+        public void TranslatedSoundwellCameraSnapsWorldPixelsWithoutCroppingRoomEdges()
+        {
+            // A translated trial origin is not guaranteed to lie on a 16-PPU
+            // grid. The physical camera target must, while both exits remain
+            // inside the same authored lens/pan bounds.
+            var method = typeof(SoundwellCameraRig).GetMethod("PixelSafeWorldPan",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            foreach (float origin in new[] { -2.19f, -0.03125f, 0f, 0.18f, 3.117f })
+            {
+                foreach (float limit in new[] { 0.125f, 0.28f, 0.85f })
+                {
+                    foreach (float delta in new[] { -9f, -0.19f, -0.015f,
+                        0f, 0.015f, 0.19f, 9f })
+                    {
+                        float worldPan = (float)method.Invoke(null,
+                            new object[] { origin, delta, limit });
+                        Assert.That(worldPan * SoundwellCameraRig.PixelsPerUnit,
+                            Is.EqualTo(Mathf.Round(worldPan *
+                                SoundwellCameraRig.PixelsPerUnit)).Within(0.0001f),
+                            "A translated room must not leave its final camera target on a subpixel.");
+                        Assert.That(Mathf.Abs(worldPan - origin),
+                            Is.LessThanOrEqualTo(limit + 0.0001f),
+                            "Snapping world pixels must not hide a visible exit.");
+                    }
+                }
+            }
+
+            // At the original grid-aligned room origin the historic camera
+            // framing stays identical, including its conservative edge clamp.
+            foreach (float delta in new[] { -2f, -0.18f, 0f, 0.18f, 2f })
+            {
+                const float limit = 0.28f;
+                int safePixels = Mathf.FloorToInt(limit *
+                    SoundwellCameraRig.PixelsPerUnit);
+                float historic = (float)Mathf.Clamp(Mathf.RoundToInt(delta *
+                    SoundwellCameraRig.PixelsPerUnit), -safePixels, safePixels) /
+                    SoundwellCameraRig.PixelsPerUnit;
+                float actual = (float)method.Invoke(null,
+                    new object[] { 0f, delta, limit });
+                Assert.That(actual, Is.EqualTo(historic),
+                    "Untranslated camera behavior and lens framing must not change.");
+            }
+
+            // If no whole pixel is physically inside the allowed pan range,
+            // preserving the room is more important than forcing a crop.
+            float noRoomToPan = (float)method.Invoke(null,
+                new object[] { 0.013f, 0.02f, 0.003f });
+            Assert.That(noRoomToPan, Is.EqualTo(0.013f));
+        }
+        [Test]
         public void S00BridgeheadActionsRemainInViewOnUltrawideScreens()
         {
             var slots = typeof(WhitewaterDefenseEncounter).GetMethod(

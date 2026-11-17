@@ -132,9 +132,14 @@ namespace Rpg.Soundwell
             // Quantize and clamp BOTH screen-axis pans after transforming to
             // world space: a local X follow becomes world Y at 90 degrees.
             // Clamping before rotation let a far exit leave the screen.
-            float x = PixelSafeHorizontalPan(followWorld.x, availablePanX);
-            float y = PixelSafeHorizontalPan(followWorld.y, availablePanY);
-            framingTarget.position = trialRoot.position + new Vector3(x, y, 0f);
+            // The scene root can move by a fractional world pixel when the
+            // authored trial is translated or rotated. Snap the FINAL world
+            // target, not just its local follow delta, without allowing the
+            // camera to pan beyond the visible room's world-axis margins.
+            Vector3 roomOrigin = trialRoot.position;
+            float x = PixelSafeWorldPan(roomOrigin.x, followWorld.x, availablePanX);
+            float y = PixelSafeWorldPan(roomOrigin.y, followWorld.y, availablePanY);
+            framingTarget.position = new Vector3(x, y, roomOrigin.z);
 
             if (virtualCamera == null)
                 return;
@@ -145,8 +150,26 @@ namespace Rpg.Soundwell
             virtualCamera.Lens = lens;
         }
 
-        // Keep camera framing on whole 16-PPU pixels AND inside the lens's
-        // available world-space pan at arbitrary aspect ratios.
+        // Choose a whole WORLD pixel inside the actual world-axis pan range.
+        // Quantizing only the follow delta leaves half-pixel camera targets
+        // when a scene root is moved to a fractional world coordinate.
+        internal static float PixelSafeWorldPan(float origin, float delta, float maxPan)
+        {
+            if (float.IsNaN(origin) || float.IsInfinity(origin))
+                return 0f;
+            float limit = Mathf.Max(0f, FiniteOrDefault(maxPan, 0f));
+            float safeDelta = FiniteOrDefault(delta, 0f);
+            int minPixel = Mathf.CeilToInt((origin - limit) * PixelsPerUnit);
+            int maxPixel = Mathf.FloorToInt((origin + limit) * PixelsPerUnit);
+            if (minPixel > maxPixel)
+                return origin; // No complete pixel fits; never crop the room.
+            int targetPixel = Mathf.RoundToInt((origin + safeDelta) * PixelsPerUnit);
+            return (float)Mathf.Clamp(targetPixel, minPixel, maxPixel) / PixelsPerUnit;
+        }
+
+        // Preserve the existing isolated relative-pan contract for smoke
+        // validation and non-translated callers. The live camera above uses
+        // PixelSafeWorldPan so relocated rooms snap in world coordinates.
         internal static float PixelSafeHorizontalPan(float target, float maxPan)
         {
             int maxPixels = Mathf.Max(0, Mathf.FloorToInt(maxPan * PixelsPerUnit));
