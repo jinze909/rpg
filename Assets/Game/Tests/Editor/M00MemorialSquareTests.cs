@@ -63,8 +63,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(thirdBell, Is.Not.Null);
 
                 entry.OpenPrelude();
-                Assert.That(entry.enabled, Is.False,
-                    "The entry controller remains the live owner but stops polling while S00 owns input.");
+                Assert.That(entry.enabled, Is.True,
+                    "Entry remains enabled as the owner; the gameplay input context disables its Entry action map.");
                 yield return null;
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entry);
                 Assert.That(prelude, Is.Not.Null);
@@ -74,13 +74,13 @@ namespace Rpg.Tests.Editor
                 // The exit callback creates M00 under the live entry owner.
                 // Let Unity finish the frame's deferred Destroy/activation work,
                 // then read only that owner's child hierarchy (not a global search).
-                Assert.That(entry, Is.Not.Null,
+                Assert.That(entry != null && entry.gameObject.activeInHierarchy, Is.True,
                     "The S00 exit callback must keep its Bootstrap owner alive.");
                 yield return null;
-                Assert.That(entry, Is.Not.Null,
+                Assert.That(entry != null && entry.gameObject.activeInHierarchy, Is.True,
                     "The Bootstrap owner must survive deferred S00 destruction.");
-                Assert.That(entry.enabled, Is.False,
-                    "The entry controller must remain paused while M00 owns input.");
+                Assert.That(entry.enabled, Is.True,
+                    "Entry remains enabled as the owner while M00 owns the input context.");
                 Assert.That(SceneManager.GetActiveScene().name,
                     Is.EqualTo(SoundwellEntrance.BootstrapSceneName),
                     "The M00 handoff must stay inside Bootstrap rather than reloading the trial.");
@@ -225,7 +225,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(entry.MemorialSquareOpen, Is.False);
                 Assert.That(entry.enabled, Is.True,
-                    "Closing M00 must reactivate the entry controller.");
+                    "Closing M00 returns to the entry screen without disabling its owner.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
                 testBodyCompleted = true;
@@ -309,7 +309,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(thirdBell, Is.Not.Null);
 
                 entrance.OpenPrelude();
-                Assert.That(entrance.enabled, Is.False);
+                Assert.That(entrance.enabled, Is.True);
                 yield return null;
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entrance);
                 Assert.That(prelude, Is.Not.Null);
@@ -317,12 +317,12 @@ namespace Rpg.Tests.Editor
                 prelude.Close();
                 yield return null;
                 Assert.That(entrance.enabled, Is.True,
-                    "An early S00 exit must reactivate the entry controller.");
+                    "An early S00 exit must leave the entry owner active.");
                 Assert.That(entrance.MemorialSquareOpen, Is.False,
                     "Leaving S00 before the earned third bell must not jump to M00.");
 
                 entrance.OpenPrelude();
-                Assert.That(entrance.enabled, Is.False);
+                Assert.That(entrance.enabled, Is.True);
                 yield return null;
                 prelude = (WhitewaterPrelude)currentPrelude.GetValue(entrance);
                 Assert.That(prelude, Is.Not.Null);

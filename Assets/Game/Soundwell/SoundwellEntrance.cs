@@ -494,6 +494,12 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
+            // Keep this component as the live owner of S00/M00, but do not
+            // poll the hidden Entry screen while a child story owns input.
+            // The active gameplay InputAction map already disables Entry.
+            if (currentPrelude != null || currentMemorial != null)
+                return;
+
             // ORK can create or reactivate its own EventSystem after this
             // component's Awake. While Entry is visible, restore the single
             // New Input System UI owner and keep navigation/Submit enabled.
@@ -546,9 +552,8 @@ namespace Rpg.Soundwell
                 lastPreludeExitFrame == Time.frameCount)
                 return;
             entryCanvas.enabled = false;
-            // The hidden entry controller must stop polling while the child
-            // story owns input; keep this component alive as the scene owner.
-            enabled = false;
+            // Keep this owner component enabled. The gameplay input context
+            // disables the Entry action map while S00/M00 owns the screen.
             var scene = new GameObject("S00 Whitewater Bridge · playable opening");
             scene.transform.SetParent(transform, false);
             currentPrelude = scene.AddComponent<WhitewaterPrelude>();
@@ -569,14 +574,12 @@ namespace Rpg.Soundwell
                     {
                         currentMemorial = null;
                         entryCanvas.enabled = true;
-                        enabled = true;
                         if (EventSystem.current != null)
                             EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
                     });
                     return;
                 }
                 entryCanvas.enabled = true;
-                enabled = true;
                 SoundwellInputAdapter.SetEntryContext();
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
