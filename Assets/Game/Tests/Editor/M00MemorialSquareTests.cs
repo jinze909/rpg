@@ -20,26 +20,28 @@ namespace Rpg.Tests.Editor
             InputTestFixture input = null;
             bool inputReady = false;
             bool testBodyCompleted = false;
-            string originalLanguage = null;
+            const string languageKey = SoundwellUiLocalization.LanguagePreferenceKey;
+            bool hadLanguagePreference = PlayerPrefs.HasKey(languageKey);
+            string originalLanguage = PlayerPrefs.GetString(languageKey, SoundwellUiLocalization.English);
             string cleanupFailure = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
+                // Set the saved locale before the PlayMode domain reload.
+                // RuntimeInitializeOnLoadMethod restores it before scene Awake;
+                // the test must not query/change static locale state mid-fixture.
+                PlayerPrefs.SetString(languageKey, SoundwellUiLocalization.English);
+                PlayerPrefs.Save();
                 yield return new EnterPlayMode(expectDomainReload: true);
                 yield return null;
                 input = new InputTestFixture();
                 input.Setup();
                 inputReady = true;
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: input runtime ready");
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: before locale property access");
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
-                originalLanguage = SoundwellUiLocalization.Language;
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: saved locale captured " + originalLanguage);
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: before SetLanguage");
-                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: locale set to English");
+                Assert.That(PlayerPrefs.GetString(languageKey), Is.EqualTo(SoundwellUiLocalization.English));
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: saved English locale restored before scene use");
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: scene title read " + WhitewaterPrelude.SceneTitle);
                 Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
                     "The player sees the v1.2 scene title, not the internal S00 story ID.");
@@ -277,12 +279,15 @@ namespace Rpg.Tests.Editor
 
                 try
                 {
-                    if (!string.IsNullOrEmpty(originalLanguage))
-                        SoundwellUiLocalization.SetLanguage(originalLanguage);
+                    if (hadLanguagePreference)
+                        PlayerPrefs.SetString(languageKey, originalLanguage);
+                    else
+                        PlayerPrefs.DeleteKey(languageKey);
+                    PlayerPrefs.Save();
                 }
                 catch (System.Exception exception)
                 {
-                    cleanupFailure = cleanupFailure ?? ("M00 locale cleanup failed: " + exception);
+                    cleanupFailure = cleanupFailure ?? ("M00 locale preference cleanup failed: " + exception);
                 }
 
                 try
