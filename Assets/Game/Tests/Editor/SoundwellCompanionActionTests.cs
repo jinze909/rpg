@@ -247,7 +247,7 @@ namespace Rpg.Tests.Editor
                 setReadout.Invoke(defence, new object[] { "The party is preparing", "队伍正在准备" });
 
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
-                Assert.That(heading.text, Is.EqualTo("S00 · 白水渡桥头"));
+                Assert.That(heading.text, Is.EqualTo("白水渡桥头"));
                 Assert.That(attack.GetComponentInChildren<Text>().text, Is.EqualTo("攻击"));
                 Assert.That(retry.GetComponentInChildren<Text>().text, Is.EqualTo("重试"));
                 Assert.That(readout.text, Is.EqualTo("队伍正在准备"));
@@ -255,7 +255,7 @@ namespace Rpg.Tests.Editor
                     "Live S00 CJK copy must use the pinned real glyph font.");
 
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
-                Assert.That(heading.text, Is.EqualTo("S00 · WHITEWATER BRIDGEHEAD"));
+                Assert.That(heading.text, Is.EqualTo("WHITEWATER BRIDGEHEAD"));
                 Assert.That(attack.GetComponentInChildren<Text>().text, Is.EqualTo("Attack"));
                 Assert.That(readout.text, Is.EqualTo("The party is preparing"));
                 owner.GetField("hud", flags).SetValue(defence, null);
