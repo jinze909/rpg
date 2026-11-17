@@ -966,8 +966,11 @@ class NarrativeV12WritingBaselineTests(unittest.TestCase):
         handoff = (root / "HANDOFF_FOR_CODEX.md").read_text(encoding="utf-8")
         self.assertIn("v1.2", baseline)
         self.assertIn("唯一剧情写作权威", baseline)
-        self.assertIn("可玩叙事 P0", baseline)
-        self.assertIn("未实现", baseline)
+        self.assertIn("P0 的基础应声选项", baseline)
+        self.assertIn("独立原型部分实现", baseline)
+        self.assertIn("整章剧情", baseline)
+        self.assertIn("未验收", baseline)
+        self.assertIn("M00 三遍点名", baseline)
         self.assertIn("不是已实现内容", handoff)
 
     def test_v12_document_links_resolve_in_place_without_old_combined_scripts(self):
