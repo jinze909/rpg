@@ -536,6 +536,8 @@ namespace Rpg.Tests.Editor
                 var completion = type.GetMethod("OnWhitewaterDefenseCompleted", flags);
                 var phaseField = type.GetField("phase", flags);
                 var defenseStarted = type.GetField("defenseStarted", flags);
+                var beginDefense = type.GetMethod("BeginWhitewaterDefense", flags);
+                Assert.That(beginDefense, Is.Not.Null);
                 Assert.That(completion, Is.Not.Null);
                 Assert.That(phaseField, Is.Not.Null);
                 Assert.That(defenseStarted, Is.Not.Null);
@@ -547,6 +549,10 @@ namespace Rpg.Tests.Editor
                     "A callback cannot skip roll call, rescue, and the ORK encounter.");
                 Assert.That(stage.ThirdBellStarted, Is.False);
                 phaseField.SetValue(stage, 16);
+                beginDefense.Invoke(stage, null);
+                Assert.That(stage.CurrentInstructions, Does.Not.Contain("ORK"),
+                    "Missing battle setup must not expose engine internals in playable copy.");
+                Assert.That(stage.CurrentInstructions, Does.Contain("Return to the entrance"));
                 completion.Invoke(stage, new object[] { true });
                 Assert.That(stage.ThirdBellStarted, Is.False,
                     "Holding Shen Li's cable without the live ORK encounter cannot ring the third bell.");
@@ -1558,6 +1564,8 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("about to begin"),
                             "Bracing the cable must prepare players for the earned ORK battle, not tell them to leave.");
                         Assert.That(activePrelude.CurrentInstructions, Does.Contain("Attack or Guard"));
+                        Assert.That(activePrelude.CurrentInstructions, Does.Not.Contain("ORK"),
+                            "An earned bridgehead battle may not expose its internal RPG engine.");
                         Assert.That(activePrelude.CurrentInstructions, Does.Not.Contain("Return to entry"),
                             "The upcoming bridgehead encounter must not be described as a completed dead end.");
                         Assert.That(approaching.gameObject.activeInHierarchy, Is.True);
