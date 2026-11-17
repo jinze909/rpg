@@ -1,6 +1,6 @@
 # AI2 当前状态
 
-- 叙事写作基线已更新，未实现、未验收。
+- 《归来》v1.2 叙事写作基线已更新，未实现、未验收。
 
 本页只保留当前接力，不代替实时 GitHub 核对。故事 003 移动版代表环的工程验收与技术基线见[故事卡](production/stories/003-soundwell-turn-rescue.md)；M1–M11 另见[现代化事实核查](docs/technical/MODERNIZATION_VERIFIED_STATUS.md)。
 

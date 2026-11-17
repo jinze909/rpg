@@ -4,13 +4,13 @@ Unity 2D RPG 工程。当前工作剧情为“归来”：被宣布战死的主�
 
 ## 剧情与内容设计
 
-**好玩第一，一切建立在好玩的基础上。** 当前剧情 v0.2 是写作与任务分解基线，本版剧情演出尚未实现、真实玩家试玩未进行，不以文本规模证明质量。
+**好玩第一，一切建立在好玩的基础上。** 当前剧情 v1.2 是唯一写作与任务分解基线，本版剧情演出尚未实现、真实玩家试玩未进行，不以文本规模证明质量。
 
 - [详细主线大纲](docs/narrative/STORY_OUTLINE.md)：世界、序章至尾声、关键行动、路线与结局。
 - [人物与关系](docs/narrative/CHARACTERS.md)：核心人物、沈砾重逢后的双向成长、合作与分离。
 - [地区与长期故事](docs/narrative/REGIONAL_STORIES.md)：六条有自身人物冲突和回访变化的地方线。
 - [卖点与开场](docs/narrative/PITCH_AND_HOOK.md)：点名、“在”与白水渡序幕的叙事钩子。
-- [P0—M00 场景稿](docs/narrative/SCENE_SCRIPT_P0_M00.md)：新版开场写作基线，未实现、未验收。
+- [P0](docs/narrative/SCENE_SCRIPT_P0.md) 与 [M00](docs/narrative/SCENE_SCRIPT_M00.md) 场景稿：新版开场写作基线，未实现、未验收。
 - [叙事事实登记](docs/narrative/NARRATIVE_FACTS.md) · [写作准则](docs/narrative/NARRATIVE_GUIDE.md) · [名册案](docs/narrative/ROSTER_CASES.md) · [闲聊](docs/narrative/BANTER_LINES.md) · [验证计划](docs/narrative/VALIDATION_PLAN.md)。
 - [一页玩法基线](docs/gameplay/BASELINE.md)：已定体验、暂定原型条件、移动/固定阵位对照与乐趣裁决边界。
 

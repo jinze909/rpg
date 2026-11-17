@@ -1,4 +1,4 @@
-# 《归来》验证计划 v1.1
+# 《归来》验证计划 v1.2
 
 “归来”为工作标题。本文回答一个问题：在大规模制作之前，怎么知道这个故事能不能吸引玩家。这是建议流程，不是已经做过的测试。数字门槛是我给的参考值，不是业界标准。依据见 [NARRATIVE_GUIDE.md](NARRATIVE_GUIDE.md) 第八节。
 
@@ -40,7 +40,7 @@
 
 ## 测试四：朗读会（半天）
 
-用 SCENE_SCRIPT_P0.md、SCENE_SCRIPT_M00.md、SCENE_SCRIPT_M03.md、SCENE_SCRIPT_M12.md、SCENE_SCRIPT_RC02.md 和 SCENE_SCRIPT_ST06.md，找三到五个人轮流读，记录哪里笑了、哪里静了、哪里有人想打断。
+用 [SCENE_SCRIPT_P0.md](SCENE_SCRIPT_P0.md)、[SCENE_SCRIPT_M00.md](SCENE_SCRIPT_M00.md)、[SCENE_SCRIPT_M03.md](SCENE_SCRIPT_M03.md)、[SCENE_SCRIPT_M12.md](SCENE_SCRIPT_M12.md)、[SCENE_SCRIPT_RC02.md](SCENE_SCRIPT_RC02.md) 和 [SCENE_SCRIPT_ST06.md](SCENE_SCRIPT_ST06.md)（及全套 29 份单章剧本），找三到五个人轮流读，记录哪里笑了、哪里静了、哪里有人想打断。
 
 ## 测试五：试玩版（有玩法之后）
 

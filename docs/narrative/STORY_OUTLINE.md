@@ -1,6 +1,6 @@
-# 《归来》剧情大纲 v1.1（含剧透）
+# 《归来》剧情大纲 v1.2（含剧透）
 
-“归来”为工作标题，不是已确认的商业名称。本稿保留 v0.1 的主线骨架：被宣布战死的主人公归国，渡海救沈砾，中段重逢，后半共同争取幸存者的归途。新增的有：渡口之夜的谜线、抚恤的账、“名字与回声”的母题、点名与名册、听雾、五位被领回的人、五条名册案。这些新增内容以本包 v1.1 为写作权威，仍是可改的叙事基线；不表示相应玩法已实现或通过验收。
+“归来”为工作标题，不是已确认的商业名称。本稿保留 v0.1 的主线骨架：被宣布战死的主人公归国，渡海救沈砾，中段重逢，后半共同争取幸存者的归途。新增的有：渡口之夜的谜线、抚恤的账、“名字与回声”的母题、点名与名册、听雾、五位被领回的人、五条名册案。这些新增内容以 v1.2 为现行剧情写作基线；涉及的玩法与表现仍须评估，未实现、未验收。
 
 人物详情见 [CHARACTERS.md](CHARACTERS.md)，地区故事见 [REGIONAL_STORIES.md](REGIONAL_STORIES.md)，写作准则见 [NARRATIVE_GUIDE.md](NARRATIVE_GUIDE.md)。
 
@@ -120,7 +120,7 @@
 
 #### M01 · 回家的人先学会敲门
 
-**画面。** 姜婶开门，手里还拿着擀面杖，愣了很久，把擀面杖放在地上，转身进屋，抱出一只铁盒：十二年的抚恤单据，每个月她多留的一点钱，旁边写着“万一他回来要还”。小豆在门后探出头：“她是真的吗？”
+**画面。** 姜婶开门，手里还拿着擀面杖，愣了很久，把擀面杖放在地上，转身进屋，抱出一只铁盒：十二年的抚恤单据，每个月她多留的一点钱，旁边写着“万一人回来要还”。小豆在门后探出头：“这人是真的吗？”
 
 **揭示。** 抚恤一直发到姜婶手里。她用这笔钱养大了小豆，让孩子上了学。她没占便宜，她只是活着。
 
@@ -142,7 +142,7 @@
 
 **转折。** 一批赎人文件证明鲁斯把部分俘虏转记为债工，准备在监察到达前拆散转运。伊蕾能提供合法登岛窗口，但命令不了私人押运队。
 
-**独立窗口。** 柳翎离团、河灯争冠、钟岭调查、白苇日常，都在这一段开放。至少有一种基础筹备不依赖地方故事。
+**独立窗口。** 柳翎离团（ST-01 第一阶段）、河灯争冠（ST-02）、钟岭调查（ST-03、ST-04）与白苇桥西镇日常探访都在这一段开放（陶霁归乡正篇 ST-06 则在 M07 营救回航后开放）。至少有一种基础筹备不依赖地方故事。
 
 #### M03 · 海边的旧军旗
 
@@ -218,7 +218,7 @@
 
 #### M08 · 这一顿饭不用换来灾难
 
-**饭桌。** 临潮或镜湾，你们在一间不属于任何人的小院里摆了桌。沈砾嫌桌子不平，当场拿锯子锯了一块脚。姜婶带来一锅汤，打量她：“你就是那个修东西的？”沈砾回：“你就是那个煲汤的？他在矿里念叨了十二年，说你汤里总放姜，难喝。”姜婶斜了你一眼，沈砾笑出声。
+**饭桌。** 临潮或镜湾，你们在一间不属于任何人的小院里摆了桌。沈砾嫌桌子不平，当场拿锯子锯了一块脚。姜婶带来一锅汤，打量她：“你就是那个修东西的？”沈砾回：“你就是那个煲汤的？某人在矿里念叨了十二年，说你汤里总放姜，难喝。”姜婶斜了你一眼，沈砾笑出声。
 
 **人。** 小七第一次在没有顶的地方吃饭，一直抬头看天，问：“它不会塌吗？”陶霁一声不吭，把摇晃的桌脚垫平。姜婶给小七盛了第二碗，没问他叫什么。欧林一晚上给东岸写了三封信，撕了两封。门口多了一箱药和一张没署名的纸条：“需要人手，随时来。”字迹你认得，是陆钧的。
 
@@ -280,7 +280,7 @@
 
 #### M12 · 一面旗帜不等于每个人
 
-**对质。** 你和陆钧在钟楼下。他摆出救回家园亲人的名单、多年真实付出的船款，也摆出他的数字：“桥这头一万四千，桥那头一千一百。我现在睡不着，还会再数一遍。得数还是对的。”他说完抬头看钟楼。钟声响起时，他的嘴唇也在动：他也会数到三。
+**对质。** 你和陆钧在钟楼下。他摆出救回家园亲人的名单、多年真实付出的船款，也摆出他的数字：“桥这头一万四千，桥那头一千一百。我现在睡不着，还是会再数一遍。得数还是对的。”他说完抬头看钟楼。钟声响起时，他的嘴唇也在动：他也会数到三。
 
 你也摆出你亲眼看到的：被他的副手扣下的人，被征用的私人船只，那些说“不想再打”的人。
 
@@ -338,7 +338,7 @@
 
 **下落待查的人。** 尾声交代已核实的消息、接续寻找的具体责任人、通路是否可用。留作真实的未完之事，不用一段胜利旁白宣布全部获救，也不用他们的缺席抹掉已经兑现的团圆。
 
-#### M16 · 一个普通的下午（可玩尾声，约 25 到 35 分钟）
+#### M16 · 一个普通的下午（可玩尾声，约 20 到 30 分钟）
 
 **目的。** 点名之后，给玩家一个慢下来的收束：重逢、信、日常，没有目标标记，没有战斗。选择的后果让玩家自己走一遍，不让旁白宣布。
 
@@ -374,49 +374,49 @@
 - **赤盐营救成功是共同节点。** 后续选择不追溯删除已经落脚的人。
 - **战斗失败后的重试，与叙事选择造成的后果分开。**
 - **主人公性别外观、战斗形式、恋爱系统、篇幅与区域任务数量、小游戏均未锁定。** 文中“战斗、潜入、调查、交涉”是戏剧行动要求，不表示都已实现，也不要求每次遭遇都有全部解法。
-- **点名、名册、听雾、五位被领回的人和五条名册案属于 v1.1 写作基线，具体操作与成本仍待玩法评估。** 名册案不设强制门槛，没做不会卡住主线。名册对账需要玩法侧评估后，再决定做到什么程度。M16 与“之后的一夜”能否实现也待评估。
-- **阿鸢是 v1.1 写作中唯一可能永久离开的角色（玩法待评估）。** 前提：事先明确警告，且总有足够准备的办法让他活着。这一条可整条删除，不影响其他部分。
-- **验收：** 已附 P0 与 M00、ST-06 的可朗读场景稿；本包已包含 29 份分章场景稿；下一步是连贯性复核和文字原型评估；Unity 基础验收后用实际游玩检验角色吸引力。纸面审查和链接检查不能代替试玩。验证流程见 [VALIDATION_PLAN.md](VALIDATION_PLAN.md)，同伴闲聊见 [BANTER_LINES.md](BANTER_LINES.md)。
+- **点名、名册、听雾、五位被领回的人、五条名册案属于待确认的新增设定。** 名册案不设强制门槛，没做不会卡住主线。名册对账需要玩法侧评估后，再决定做到什么程度。M16 与“之后的一夜”能否实现也待评估。
+- **阿鸢是全作唯一可能永久离开的人（待确认）。** 前提：事先明确警告，且总有足够准备的办法让他活着。这一条可整条删除，不影响其他部分。
+- **验收：** 已附全剧 29 份单章可朗读场景稿（`SCENE_SCRIPT_P0.md`、`M00`–`M16`、`RC01`–`RC05`、`ST01`–`ST06`）；Unity 基础验收后用实际游玩检验角色吸引力。纸面审查和链接检查不能代替试玩。验证流程见 [VALIDATION_PLAN.md](VALIDATION_PLAN.md)，同伴闲聊见 [BANTER_LINES.md](BANTER_LINES.md)。
 
 ## 7. 项目对接
 
-- 配套文档：[人物](CHARACTERS.md) · [地区故事](REGIONAL_STORIES.md) · [叙事事实登记](NARRATIVE_FACTS.md) · [卖点与开场](PITCH_AND_HOOK.md) · [写作准则](NARRATIVE_GUIDE.md) · [P0 场景稿](SCENE_SCRIPT_P0.md) · [M00 场景稿](SCENE_SCRIPT_M00.md) · [ST-06 场景稿](SCENE_SCRIPT_ST06.md) · [M03 场景稿](SCENE_SCRIPT_M03.md) · [M12 场景稿](SCENE_SCRIPT_M12.md) · [RC-02 场景稿](SCENE_SCRIPT_RC02.md) · [名册案](ROSTER_CASES.md) · [同伴闲聊](BANTER_LINES.md) · [验证计划](VALIDATION_PLAN.md) · [当前项目状态](../../AI2-STATUS.md)
+- 配套文档：[人物](CHARACTERS.md) · [地区故事](REGIONAL_STORIES.md) · [叙事事实登记](NARRATIVE_FACTS.md) · [卖点与开场](PITCH_AND_HOOK.md) · [写作准则](NARRATIVE_GUIDE.md) · [P0 场景稿](SCENE_SCRIPT_P0.md) · [M00 场景稿](SCENE_SCRIPT_M00.md) · [M03 场景稿](SCENE_SCRIPT_M03.md) · [M12 场景稿](SCENE_SCRIPT_M12.md) · [RC-02 场景稿](SCENE_SCRIPT_RC02.md) · [ST-06 场景稿](SCENE_SCRIPT_ST06.md) · [名册案](ROSTER_CASES.md) · [同伴闲聊](BANTER_LINES.md) · [验证计划](VALIDATION_PLAN.md) · [交接说明](HANDOFF_FOR_CODEX.md) · [当前项目状态](../../AI2-STATUS.md)（全套 29 份单章场景稿见下表索引）
 - 当前玩法状态见[一页基线](../gameplay/BASELINE.md)，以它为准。“战斗、潜入、调查、交涉”是戏剧行动要求，不表示都已实现。
 - 技术 P0 继续按[故事001](../../production/stories/001-ork-bootstrap.md)验收。
 - 职责划分沿用：ORK 管任务与存档，Makinom 管交互与剧情，Unity 管表现。叙事事实登记表不是已实现的变量或 API。
 - Unity 导入、编译、Play Mode、任务演出、剧情分支执行、存读档与真实玩家试玩，均不属于本次交付证据。
 
 
-### 全剧 29 份完整可朗读场景剧本索引（对应本大纲各章节与支线）
+### 全剧 29 份单章可朗读场景稿索引
 
-| 类别 | 文件名 | 章节标题 | 对应大纲章节 |
+| 类别 | 文件 | 章节标题 | 对应章节 |
 | --- | --- | --- | --- |
-| 序章 | `SCENE_SCRIPT_P0.md` | P0 · 白水渡 | 4. 序章 P0 |
-| 开篇 | `SCENE_SCRIPT_M00.md` | M00 · 你的名字刻在石头上 | 4. 序章 M00 |
-| 开篇 | `SCENE_SCRIPT_M01.md` | M01 · 回家的人先学会敲门 | 4. 序章 M01 |
-| 第一幕 | `SCENE_SCRIPT_M02.md` | M02 · 一条船，几个主意 | 4. 第一幕 M02 |
-| 第一幕 | `SCENE_SCRIPT_M03.md` | M03 · 海边的旧军旗 | 4. 第一幕 M03 |
-| 第一幕 | `SCENE_SCRIPT_M04.md` | M04 · 出发前的灯 | 4. 第一幕 M04 |
-| 第二幕 | `SCENE_SCRIPT_M05.md` | M05 · 海的另一边也有人过日子 | 4. 第二幕 M05 |
-| 第二幕 | `SCENE_SCRIPT_M06.md` | M06 · 她没有在原地等你 | 4. 第二幕 M06 |
-| 第二幕 | `SCENE_SCRIPT_M07.md` | M07 · 把还活着的人带出来 | 4. 第二幕 M07 |
-| 中场 | `SCENE_SCRIPT_M08.md` | M08 · 这一顿饭不用换来灾难 | 4. 中场 M08 |
-| 第三幕 | `SCENE_SCRIPT_M09.md` | M09 · 两份名单 | 4. 第三幕 M09 |
-| 第三幕 | `SCENE_SCRIPT_M10.md` | M10 · 镜湾的邀请 | 4. 第三幕 M10 |
-| 第三幕 | `SCENE_SCRIPT_M11.md` | M11 · 这次轮到她来找你 | 4. 第三幕 M11 |
-| 第三幕 | `SCENE_SCRIPT_M12.md` | M12 · 一面旗帜不等于每个人 | 4. 第三幕 M12 |
-| 第三幕 | `SCENE_SCRIPT_M13.md` | M13 · 出发以前，每个人都要回答 | 4. 第三幕 M13 |
-| 第四幕 | `SCENE_SCRIPT_M14.md` | M14 · 同一个海峡，不同的进场 | 4. 第四幕 M14 |
-| 第四幕 | `SCENE_SCRIPT_M15.md` | M15 · 会盟桌外的人 | 4. 第四幕 M15 |
-| 尾声 | `SCENE_SCRIPT_M16.md` | M16 · 一个普通的下午 | 4. 第四幕 M16 |
-| 名册案 | `SCENE_SCRIPT_RC01.md` | RC-01 · 砚叔的两个家 | ROSTER_CASES RC-01 |
-| 名册案 | `SCENE_SCRIPT_RC02.md` | RC-02 · 借来的名字 | ROSTER_CASES RC-02 |
-| 名册案 | `SCENE_SCRIPT_RC03.md` | RC-03 · 白矶岛的多数 | ROSTER_CASES RC-03 |
-| 名册案 | `SCENE_SCRIPT_RC04.md` | RC-04 · 盐雾里的应声 | ROSTER_CASES RC-04 |
-| 名册案 | `SCENE_SCRIPT_RC05.md` | RC-05 · 山上的第三班 | ROSTER_CASES RC-05 |
-| 地区故事 | `SCENE_SCRIPT_ST01.md` | ST-01 · 借来的掌声 | REGIONAL_STORIES ST-01 |
-| 地区故事 | `SCENE_SCRIPT_ST02.md` | ST-02 · 河面上两盏头灯 | REGIONAL_STORIES ST-02 |
-| 地区故事 | `SCENE_SCRIPT_ST03.md` | ST-03 · 第三声钟 | REGIONAL_STORIES ST-03 |
-| 地区故事 | `SCENE_SCRIPT_ST04.md` | ST-04 · 钟岭的回声会咬人 | REGIONAL_STORIES ST-04 |
-| 地区故事 | `SCENE_SCRIPT_ST05.md` | ST-05 · 两扇门的乔迁宴 | REGIONAL_STORIES ST-05 |
-| 地区故事 | `SCENE_SCRIPT_ST06.md` | ST-06 · 旧铺的新招牌 | REGIONAL_STORIES ST-06 |
+| 序章 | [SCENE_SCRIPT_P0.md](SCENE_SCRIPT_P0.md) | P0 · 白水渡 | 4. 序章 P0 |
+| 序章 | [SCENE_SCRIPT_M00.md](SCENE_SCRIPT_M00.md) | M00 · 你的名字刻在石头上 | 4. 序章 M00 |
+| 序章 | [SCENE_SCRIPT_M01.md](SCENE_SCRIPT_M01.md) | M01 · 回家的人先学会敲门 | 4. 序章 M01 |
+| 第一幕 | [SCENE_SCRIPT_M02.md](SCENE_SCRIPT_M02.md) | M02 · 一条船，几个主意 | 4. 第一幕 M02 |
+| 第一幕 | [SCENE_SCRIPT_M03.md](SCENE_SCRIPT_M03.md) | M03 · 海边的旧军旗 | 4. 第一幕 M03 |
+| 第一幕 | [SCENE_SCRIPT_M04.md](SCENE_SCRIPT_M04.md) | M04 · 出发前的灯 | 4. 第一幕 M04 |
+| 第二幕 | [SCENE_SCRIPT_M05.md](SCENE_SCRIPT_M05.md) | M05 · 海的另一边也有人过日子 | 4. 第二幕 M05 |
+| 第二幕 | [SCENE_SCRIPT_M06.md](SCENE_SCRIPT_M06.md) | M06 · 她没有在原地等你 | 4. 第二幕 M06 |
+| 第二幕 | [SCENE_SCRIPT_M07.md](SCENE_SCRIPT_M07.md) | M07 · 把还活着的人带出来 | 4. 第二幕 M07 |
+| 中场 | [SCENE_SCRIPT_M08.md](SCENE_SCRIPT_M08.md) | M08 · 这一顿饭不用换来灾难 | 4. 中场 M08 |
+| 第三幕 | [SCENE_SCRIPT_M09.md](SCENE_SCRIPT_M09.md) | M09 · 两份名单 | 4. 第三幕 M09 |
+| 第三幕 | [SCENE_SCRIPT_M10.md](SCENE_SCRIPT_M10.md) | M10 · 镜湾的邀请 | 4. 第三幕 M10 |
+| 第三幕 | [SCENE_SCRIPT_M11.md](SCENE_SCRIPT_M11.md) | M11 · 这次轮到她来找你 | 4. 第三幕 M11 |
+| 第三幕 | [SCENE_SCRIPT_M12.md](SCENE_SCRIPT_M12.md) | M12 · 一面旗帜不等于每个人 | 4. 第三幕 M12 |
+| 第三幕 | [SCENE_SCRIPT_M13.md](SCENE_SCRIPT_M13.md) | M13 · 出发以前，每个人都要回答 | 4. 第三幕 M13 |
+| 第四幕 | [SCENE_SCRIPT_M14.md](SCENE_SCRIPT_M14.md) | M14 · 同一个海峡，不同的进场 | 4. 第四幕 M14 |
+| 第四幕 | [SCENE_SCRIPT_M15.md](SCENE_SCRIPT_M15.md) | M15 · 会盟桌外的人 | 4. 第四幕 M15 |
+| 尾声 | [SCENE_SCRIPT_M16.md](SCENE_SCRIPT_M16.md) | M16 · 一个普通的下午 | 4. 第四幕 M16 |
+| 名册案 | [SCENE_SCRIPT_RC01.md](SCENE_SCRIPT_RC01.md) | RC-01 · 砚叔的两个家 | ROSTER_CASES RC-01 |
+| 名册案 | [SCENE_SCRIPT_RC02.md](SCENE_SCRIPT_RC02.md) | RC-02 · 借来的名字 | ROSTER_CASES RC-02 |
+| 名册案 | [SCENE_SCRIPT_RC03.md](SCENE_SCRIPT_RC03.md) | RC-03 · 白矶岛的多数 | ROSTER_CASES RC-03 |
+| 名册案 | [SCENE_SCRIPT_RC04.md](SCENE_SCRIPT_RC04.md) | RC-04 · 盐雾里的应声 | ROSTER_CASES RC-04 |
+| 名册案 | [SCENE_SCRIPT_RC05.md](SCENE_SCRIPT_RC05.md) | RC-05 · 山上的第三班 | ROSTER_CASES RC-05 |
+| 地区故事 | [SCENE_SCRIPT_ST01.md](SCENE_SCRIPT_ST01.md) | ST-01 · 借来的掌声 | REGIONAL_STORIES ST-01 |
+| 地区故事 | [SCENE_SCRIPT_ST02.md](SCENE_SCRIPT_ST02.md) | ST-02 · 河面上两盏头灯 | REGIONAL_STORIES ST-02 |
+| 地区故事 | [SCENE_SCRIPT_ST03.md](SCENE_SCRIPT_ST03.md) | ST-03 · 第三声钟 | REGIONAL_STORIES ST-03 |
+| 地区故事 | [SCENE_SCRIPT_ST04.md](SCENE_SCRIPT_ST04.md) | ST-04 · 钟岭的回声会咬人 | REGIONAL_STORIES ST-04 |
+| 地区故事 | [SCENE_SCRIPT_ST05.md](SCENE_SCRIPT_ST05.md) | ST-05 · 两扇门的乔迁宴 | REGIONAL_STORIES ST-05 |
+| 地区故事 | [SCENE_SCRIPT_ST06.md](SCENE_SCRIPT_ST06.md) | ST-06 · 旧铺的新招牌 | REGIONAL_STORIES ST-06 |
