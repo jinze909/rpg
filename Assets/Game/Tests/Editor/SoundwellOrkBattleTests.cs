@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using GamingIsLove.Makinom;
 using GamingIsLove.ORKFramework;
@@ -2077,17 +2078,38 @@ namespace Rpg.Tests.Editor
 
             bool hadFormationPreference = PlayerPrefs.HasKey(OrkPartyBridge.FixedFormationPreferenceKey);
             int previousFormation = PlayerPrefs.GetInt(OrkPartyBridge.FixedFormationPreferenceKey, 0);
+            Random.State previousRandomState = Random.state;
             try
             {
                 var opening = new Vector2[5];
                 var openingHealth = new float[4];
+                var fixedPartyHealth = new float[3];
+                var mobilePartyHealth = new float[3];
+
                 OrkPartyBridge.SetPreferredFixedFormation(true);
-                yield return CompareGateAssignment(false, opening, openingHealth);
+                // Reset Unity's encounter RNG before each replay so the
+                // comparison isolates formation choice, not a different
+                // random combat sequence.
+                Random.InitState(31003);
+                yield return CompareGateAssignment(false, opening, openingHealth,
+                    resolvedPartyHealth: fixedPartyHealth);
+
                 OrkPartyBridge.SetPreferredFixedFormation(false);
-                yield return CompareGateAssignment(true, opening, openingHealth);
+                Random.InitState(31003);
+                yield return CompareGateAssignment(true, opening, openingHealth,
+                    resolvedPartyHealth: mobilePartyHealth);
+
+                string outcome = "RPG_SOUNDWELL_MODE_HEALTH:" +
+                    "fixed_remaining=" + FormatHealth(fixedPartyHealth) +
+                    ":step_remaining=" + FormatHealth(mobilePartyHealth) +
+                    ":fixed_damage=" + FormatDamage(openingHealth, fixedPartyHealth) +
+                    ":step_damage=" + FormatDamage(openingHealth, mobilePartyHealth);
+                LogAssert.Expect(UnityEngine.LogType.Log, outcome);
+                Debug.Log(outcome);
             }
             finally
             {
+                Random.state = previousRandomState;
                 if (hadFormationPreference)
                     PlayerPrefs.SetInt(OrkPartyBridge.FixedFormationPreferenceKey, previousFormation);
                 else
@@ -2142,7 +2164,8 @@ namespace Rpg.Tests.Editor
 
         private static IEnumerator CompareGateAssignment(bool useStep, Vector2[] opening,
             float[] openingHealth, bool completeRescue = false,
-            InputTestFixture input = null, Gamepad gamepad = null)
+            InputTestFixture input = null, Gamepad gamepad = null,
+            float[] resolvedPartyHealth = null)
         {
             var entrance = Object.FindFirstObjectByType<SoundwellEntrance>();
             Assert.That(entrance, Is.Not.Null);
@@ -2381,6 +2404,12 @@ namespace Rpg.Tests.Editor
                 yield return null;
             Assert.That(trial.DirectCombatComplete, Is.True,
                 "Both assignments must win after the same three primary actions.");
+            if (resolvedPartyHealth != null)
+            {
+                Assert.That(resolvedPartyHealth.Length, Is.EqualTo(party.Members.Count));
+                for (int i = 0; i < party.Members.Count; i++)
+                    resolvedPartyHealth[i] = (float)party.Members[i].Status[1].GetValue();
+            }
             // ORK can present the next choice while an earlier action is queued.
             // Inspect the latch after real action resolution, not during selection.
             Assert.That(trial.GateOpen, Is.True,
@@ -2414,6 +2443,14 @@ namespace Rpg.Tests.Editor
                 "Returning after victory must release ORK's battle control before replay.");
             yield return null; // Let the new Bootstrap entry initialize before opening the next trial.
         }
+
+        private static string FormatHealth(float[] values) =>
+            string.Join("/", values.Select(value =>
+                value.ToString("0.##", CultureInfo.InvariantCulture)));
+
+        private static string FormatDamage(float[] opening, float[] ending) =>
+            string.Join("/", ending.Select((value, index) =>
+                (opening[index] - value).ToString("0.##", CultureInfo.InvariantCulture)));
 
         private static void AssertFixedFormationCannotStep(OrkPartyBridge party,
             int actorIndex, string turn)
