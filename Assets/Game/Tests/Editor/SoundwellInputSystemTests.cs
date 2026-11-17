@@ -1092,6 +1092,65 @@ namespace Rpg.Tests.Editor
                     Assert.That(resultBottom - sfxTop, Is.GreaterThanOrEqualTo(4f),
                         "The return result must not cover the SFX button at aspect " + aspect);
                 }
+                // On ultrawide CanvasScaler screens, the original y=-230
+                // settings row vanishes below the visible viewport. Check the
+                // real entry RectTransforms at both 32:9 and 5:1, including
+                // return text and each keyboard/gamepad-focusable button.
+                var entryControls = entry.GetComponentsInChildren<Button>(true);
+                var enterForLayout = entryControls.Single(button =>
+                    button.gameObject.name == "Enter Soundwell button");
+                var localeForLayout = entryControls.Single(button =>
+                    button.gameObject.name == "Soundwell entry Language button");
+                var prologueForLayout = entryControls.Single(button =>
+                    button.gameObject.name == "S00 Whitewater prologue button");
+                var entryLabels = entry.GetComponentsInChildren<Text>(true);
+                var titleForLayout = entryLabels.Single(t =>
+                    t.text == SoundwellUiLocalization.Get("entry.title")).rectTransform;
+                var footerForLayout = entryLabels.Single(t =>
+                    t.text == SoundwellUiLocalization.Get("entry.footer")).rectTransform;
+                var resultForLayout = entryLabels.Single(t =>
+                    t.text == entry.ReturnSummaryText &&
+                    t.rectTransform.sizeDelta.y >= 100f).rectTransform;
+                var allEntryRects = new[]
+                {
+                    titleForLayout, (RectTransform)enterForLayout.transform,
+                    footerForLayout, resultForLayout,
+                    (RectTransform)localeForLayout.transform,
+                    (RectTransform)prologueForLayout.transform,
+                    (RectTransform)formationButton.transform,
+                    (RectTransform)sfxButton.transform
+                };
+                foreach (float aspect in new[] { 32f / 9f, 5f })
+                {
+                    entry.LayoutForViewportAspect(aspect);
+                    float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                    float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                    for (int i = 0; i < allEntryRects.Length; i++)
+                    {
+                        RectTransform current = allEntryRects[i];
+                        float x = current.anchoredPosition.x;
+                        float y = current.anchoredPosition.y;
+                        float halfW = current.sizeDelta.x * 0.5f;
+                        float halfH = current.sizeDelta.y * 0.5f;
+                        Assert.That(Mathf.Abs(x) + halfW,
+                            Is.LessThanOrEqualTo(halfWidth - 12f),
+                            current.name + " exceeds the ultrawide canvas width at " + aspect);
+                        Assert.That(Mathf.Abs(y) + halfH,
+                            Is.LessThanOrEqualTo(halfHeight - 12f),
+                            current.name + " exceeds the ultrawide canvas height at " + aspect);
+                        for (int j = 0; j < i; j++)
+                        {
+                            RectTransform other = allEntryRects[j];
+                            float dx = Mathf.Abs(x - other.anchoredPosition.x);
+                            float dy = Mathf.Abs(y - other.anchoredPosition.y);
+                            float minX = (current.sizeDelta.x + other.sizeDelta.x) * 0.5f + 4f;
+                            float minY = (current.sizeDelta.y + other.sizeDelta.y) * 0.5f + 4f;
+                            Assert.That(dx >= minX || dy >= minY, Is.True,
+                                current.name + " overlaps " + other.name +
+                                " at ultrawide aspect " + aspect);
+                        }
+                    }
+                }
                 entry.LayoutForViewportAspect((float)Screen.width / Mathf.Max(Screen.height, 1));
                 EventSystem events = EventSystem.current;
                 Assert.That(events, Is.Not.Null);

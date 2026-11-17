@@ -469,6 +469,24 @@ namespace Rpg.Soundwell
                 prologueLabel.rectTransform.sizeDelta =
                     new Vector2(compact ? 210f : 242f, compact ? 28f : 33f);
             languageText.rectTransform.sizeDelta = new Vector2(compact ? 180f : 198f, 36f);
+
+            // CanvasScaler's geometric-mean scale makes the logical height
+            // just ~322 at 5:1. The normal y=-230 settings row is then fully
+            // offscreen, even though the window has ample horizontal space.
+            // Keep all five real buttons reachable in two clear columns.
+            if (layoutAspect >= 2.55f)
+            {
+                titleText.rectTransform.anchoredPosition = new Vector2(-270f, 101f);
+                entryRect.anchoredPosition = new Vector2(-270f, 15f);
+                footerText.rectTransform.anchoredPosition = new Vector2(-270f, -60f);
+                outcomeText.rectTransform.anchoredPosition = new Vector2(-270f, -112f);
+                outcomeText.rectTransform.sizeDelta = new Vector2(500f, 64f);
+
+                languageRect.anchoredPosition = new Vector2(300f, 105f);
+                prologueRect.anchoredPosition = new Vector2(300f, 52f);
+                formationRect.anchoredPosition = new Vector2(300f, -13f);
+                sfxRect.anchoredPosition = new Vector2(300f, -77f);
+            }
         }
 
         private void Update()
