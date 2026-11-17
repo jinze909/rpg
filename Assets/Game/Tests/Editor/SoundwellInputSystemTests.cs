@@ -16,6 +16,26 @@ namespace Rpg.Tests.Editor
 {
     public sealed class SoundwellInputSystemTests
     {
+        // S00 v1.2 deliberately keeps UGUI ownership after roll call until
+        // the player asks one of Shen Li's two authored wrench questions.
+        // Every live-input regression must earn movement through both choices.
+        private static void FinishRollCallAndWrenchQuestion(WhitewaterPrelude stage)
+        {
+            Assert.That(stage.Phase, Is.Zero);
+            Button firstChoice = stage.GetComponentsInChildren<Button>(true)
+                .Single(b => b.gameObject.name == "S00 choice 0");
+            firstChoice.onClick.Invoke();
+            Assert.That(stage.Phase, Is.EqualTo(1));
+            Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True,
+                "The wrench question must remain a real dialogue choice.");
+            Assert.That(firstChoice.GetComponentInChildren<Text>(true).text,
+                Is.EqualTo(SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                    ? "为什么叫这个？" : "Why call it that?"));
+            firstChoice.onClick.Invoke();
+            Assert.That(stage.Phase, Is.EqualTo(1));
+            Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
+                "Gameplay input begins only after choosing a wrench question.");
+        }
         [Test]
         public void S00EndingReturnControlRemainsClickableOnUltrawideWindows()
         {
@@ -446,9 +466,7 @@ namespace Rpg.Tests.Editor
                         var stageRoot = new GameObject("S00 rebound interaction hint regression");
                         var stage = stageRoot.AddComponent<WhitewaterPrelude>();
                         stage.Begin(null);
-                        stage.GetComponentsInChildren<Button>(true)
-                            .Single(button => button.gameObject.name == "S00 choice 0")
-                            .onClick.Invoke();
+                        FinishRollCallAndWrenchQuestion(stage);
                         string expected = locale == SoundwellUiLocalization.Chinese
                             ? "R／手柄 " + padBinding : "R / Pad " + padBinding;
                         string outdatedKey = locale == SoundwellUiLocalization.Chinese
@@ -504,9 +522,7 @@ namespace Rpg.Tests.Editor
                         var stageRoot = new GameObject("S00 rebound movement hint regression");
                         var stage = stageRoot.AddComponent<WhitewaterPrelude>();
                         stage.Begin(null);
-                        stage.GetComponentsInChildren<Button>(true)
-                            .Single(button => button.gameObject.name == "S00 choice 0")
-                            .onClick.Invoke();
+                        FinishRollCallAndWrenchQuestion(stage);
                         Assert.That(stage.CurrentInstructions, Does.Contain("IJKL"),
                             "S00 walking instructions must follow physical Move overrides.");
                         Assert.That(stage.CurrentInstructions, Does.Not.Contain("WASD"),
@@ -538,9 +554,7 @@ namespace Rpg.Tests.Editor
                         var partialRoot = new GameObject("S00 partial keyboard movement cue regression");
                         var partialStage = partialRoot.AddComponent<WhitewaterPrelude>();
                         partialStage.Begin(null);
-                        partialStage.GetComponentsInChildren<Button>(true)
-                            .Single(button => button.gameObject.name == "S00 choice 0")
-                            .onClick.Invoke();
+                        FinishRollCallAndWrenchQuestion(partialStage);
                         Assert.That(partialStage.CurrentInstructions, Does.Contain("-/J/K/L"));
                         Assert.That(partialStage.CurrentInstructions, Does.Not.Contain("IJKL"),
                             "The removed Up binding cannot be advertised as playable.");
@@ -582,9 +596,7 @@ namespace Rpg.Tests.Editor
                         var joystickStageRoot = new GameObject("S00 gamepad-only movement cue regression");
                         var joystickStage = joystickStageRoot.AddComponent<WhitewaterPrelude>();
                         joystickStage.Begin(null);
-                        joystickStage.GetComponentsInChildren<Button>(true)
-                            .Single(button => button.gameObject.name == "S00 choice 0")
-                            .onClick.Invoke();
+                        FinishRollCallAndWrenchQuestion(joystickStage);
                         Assert.That(joystickStage.CurrentInstructions, Does.Contain("left stick"));
                         Assert.That(joystickStage.CurrentInstructions, Does.Not.Contain("IJKL"),
                             "S00 must not advertise disabled keyboard directions.");
@@ -646,9 +658,7 @@ namespace Rpg.Tests.Editor
                         var stageRoot = new GameObject("S00 rebound Back hint regression");
                         var stage = stageRoot.AddComponent<WhitewaterPrelude>();
                         stage.Begin(null);
-                        stage.GetComponentsInChildren<Button>(true)
-                            .Single(button => button.gameObject.name == "S00 choice 0")
-                            .onClick.Invoke();
+                        FinishRollCallAndWrenchQuestion(stage);
                         string expected = locale == SoundwellUiLocalization.Chinese
                             ? keyBack + "／手柄 " + padBack
                             : keyBack + " / Pad " + padBack;
@@ -911,9 +921,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
 
                 Assert.That(prelude.Phase, Is.EqualTo(0));
-                prelude.GetComponentsInChildren<Button>(true)
-                    .Single(b => b.gameObject.name == "S00 choice 0")
-                    .onClick.Invoke();
+                FinishRollCallAndWrenchQuestion(prelude);
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(1));
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
@@ -1339,7 +1347,7 @@ namespace Rpg.Tests.Editor
 
                 var answer = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 choice 0");
-                answer.onClick.Invoke();
+                FinishRollCallAndWrenchQuestion(prelude);
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(1));
                 Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True,
@@ -1364,7 +1372,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(prelude, Is.Not.Null, "S00 must be replayable after cancel.");
                 answer = prelude.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "S00 choice 0");
-                answer.onClick.Invoke();
+                FinishRollCallAndWrenchQuestion(prelude);
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(1));
 
