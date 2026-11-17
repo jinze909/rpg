@@ -63,6 +63,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(thirdBell, Is.Not.Null);
 
                 entry.OpenPrelude();
+                Assert.That(entry.enabled, Is.False,
+                    "The entry controller remains the live owner but stops polling while S00 owns input.");
                 yield return null;
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entry);
                 Assert.That(prelude, Is.Not.Null);
@@ -75,6 +77,13 @@ namespace Rpg.Tests.Editor
                 Assert.That(entry, Is.Not.Null,
                     "The S00 exit callback must keep its Bootstrap owner alive.");
                 yield return null;
+                Assert.That(entry, Is.Not.Null,
+                    "The Bootstrap owner must survive deferred S00 destruction.");
+                Assert.That(entry.enabled, Is.False,
+                    "The entry controller must remain paused while M00 owns input.");
+                Assert.That(SceneManager.GetActiveScene().name,
+                    Is.EqualTo(SoundwellEntrance.BootstrapSceneName),
+                    "The M00 handoff must stay inside Bootstrap rather than reloading the trial.");
                 memorial = entry.GetComponentInChildren<M00MemorialSquare>(true);
                 Assert.That(entry.MemorialSquareOpen, Is.True,
                     "The earned third bell must hand off to M00.");
@@ -215,6 +224,8 @@ namespace Rpg.Tests.Editor
                     .onClick.Invoke();
                 yield return null;
                 Assert.That(entry.MemorialSquareOpen, Is.False);
+                Assert.That(entry.enabled, Is.True,
+                    "Closing M00 must reactivate the entry controller.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
                 testBodyCompleted = true;
@@ -298,16 +309,20 @@ namespace Rpg.Tests.Editor
                 Assert.That(thirdBell, Is.Not.Null);
 
                 entrance.OpenPrelude();
+                Assert.That(entrance.enabled, Is.False);
                 yield return null;
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entrance);
                 Assert.That(prelude, Is.Not.Null);
                 thirdBell.SetValue(prelude, false);
                 prelude.Close();
                 yield return null;
+                Assert.That(entrance.enabled, Is.True,
+                    "An early S00 exit must reactivate the entry controller.");
                 Assert.That(entrance.MemorialSquareOpen, Is.False,
                     "Leaving S00 before the earned third bell must not jump to M00.");
 
                 entrance.OpenPrelude();
+                Assert.That(entrance.enabled, Is.False);
                 yield return null;
                 prelude = (WhitewaterPrelude)currentPrelude.GetValue(entrance);
                 Assert.That(prelude, Is.Not.Null);
@@ -320,6 +335,8 @@ namespace Rpg.Tests.Editor
                 memorial.Close();
                 yield return null;
                 Assert.That(entrance.MemorialSquareOpen, Is.False);
+                Assert.That(entrance.enabled, Is.True,
+                    "Closing M00 must reactivate the entry controller.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
             }
             finally

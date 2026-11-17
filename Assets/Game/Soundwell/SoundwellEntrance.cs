@@ -5,6 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Audio;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -493,6 +494,18 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
+            // ORK can create or reactivate its own EventSystem after this
+            // component's Awake. While Entry is visible, restore the single
+            // New Input System UI owner and keep navigation/Submit enabled.
+            if (entryCanvas != null && entryCanvas.enabled)
+            {
+                EventSystem current = EventSystem.current;
+                if (current == null ||
+                    current.GetComponent<InputSystemUIInputModule>() == null ||
+                    !current.sendNavigationEvents)
+                    SoundwellInputAdapter.EnsureEventSystem(transform);
+            }
+
             // Makinom lacks a public outcome/marker change notification.
             // Poll its authoritative state at a bounded UI cadence.
             if (Time.unscaledTime >= nextOutcomeRefreshAt)
@@ -533,6 +546,9 @@ namespace Rpg.Soundwell
                 lastPreludeExitFrame == Time.frameCount)
                 return;
             entryCanvas.enabled = false;
+            // The hidden entry controller must stop polling while the child
+            // story owns input; keep this component alive as the scene owner.
+            enabled = false;
             var scene = new GameObject("S00 Whitewater Bridge · playable opening");
             scene.transform.SetParent(transform, false);
             currentPrelude = scene.AddComponent<WhitewaterPrelude>();
@@ -553,12 +569,14 @@ namespace Rpg.Soundwell
                     {
                         currentMemorial = null;
                         entryCanvas.enabled = true;
+                        enabled = true;
                         if (EventSystem.current != null)
                             EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
                     });
                     return;
                 }
                 entryCanvas.enabled = true;
+                enabled = true;
                 SoundwellInputAdapter.SetEntryContext();
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);

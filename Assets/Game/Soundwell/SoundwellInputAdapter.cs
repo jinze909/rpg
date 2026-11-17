@@ -419,6 +419,9 @@ namespace Rpg.Soundwell
             var active = eventSystem.GetComponents<BaseInputModule>().Where(m => m != null && m.enabled).ToArray();
             if (active.Length != 1 || active[0] != ui)
                 throw new InvalidOperationException("EventSystem must have exactly one active New Input UI module.");
+            // A previous battle HUD may have disabled navigation on the
+            // persistent EventSystem; visible Entry/M00 must restore Submit.
+            eventSystem.sendNavigationEvents = true;
             return eventSystem;
         }
 

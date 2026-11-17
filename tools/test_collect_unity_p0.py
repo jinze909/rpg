@@ -905,8 +905,8 @@ class NarrativeV12WritingBaselineTests(unittest.TestCase):
         m00 = (root / "SCENE_SCRIPT_M00.md").read_text(encoding="utf-8")
         m02 = (root / "SCENE_SCRIPT_M02.md").read_text(encoding="utf-8")
         facts = (root / "NARRATIVE_FACTS.md").read_text(encoding="utf-8")
-        # M00 v1.2 has one response/leave window per call. An answer
-        # immediately stops further calls; leaving is not an answer.
+        for choice in ("[应声：“在。”]", "[离开人群]"):
+            self.assertIn(choice, m00)
         self.assertEqual(m00.count("[应声：“在。”]"), 3)
         self.assertEqual(m00.count("[离开人群]"), 3)
         self.assertIn("一旦你应声，立即停止", m00)
