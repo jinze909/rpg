@@ -115,8 +115,16 @@ namespace Rpg.Soundwell
 
         public static bool SetMuted(AudioMixer mixer, bool muted)
         {
+            // If the authored mixer fails, a bell already routed through the
+            // direct-source fallback must still obey the player's SFX toggle.
+            // Do not claim success when neither a mixer nor a live fallback
+            // source can be controlled.
             if (mixer == null || !mixer.SetFloat(VolumeParameter, muted ? -80f : 0f))
-                return false;
+            {
+                directMuteSources.RemoveAll(source => source == null);
+                if (directMuteSources.Count == 0)
+                    return false;
+            }
             PlayerPrefs.SetInt(MutePreferenceKey, muted ? 1 : 0);
             PlayerPrefs.Save();
             // The mixer cannot mute a source that previously fell back to
