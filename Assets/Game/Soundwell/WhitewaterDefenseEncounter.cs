@@ -30,6 +30,9 @@ namespace Rpg.Soundwell
         private Coroutine encounterRoutine;
         private Action<bool> onCompleted;
         private bool active;
+        // Only a displayed retry may start another ORK encounter. Consumed
+        // synchronously to reject duplicate gamepad Submit/cached callbacks.
+        private bool retryArmed;
         private float layoutAspect = -1f;
 
         public bool IsActive => active;
@@ -77,6 +80,7 @@ namespace Rpg.Soundwell
 
             onCompleted = completed;
             active = true;
+            retryArmed = false;
             SoundwellInputAdapter.SetUiContext();
             BuildHud();
             if (!party.enabled)
@@ -250,6 +254,7 @@ namespace Rpg.Soundwell
 
         private void ShowRetry(string english, string chinese, bool canRetry)
         {
+            retryArmed = canRetry;
             SetReadout(english, chinese);
             attackButton.gameObject.SetActive(false);
             guardButton.gameObject.SetActive(false);
@@ -262,6 +267,7 @@ namespace Rpg.Soundwell
 
         private void ShowVictory()
         {
+            retryArmed = false;
             SetReadout(
                 "The ORK party has held the bridgehead. Continue to return to Shen Li and the strained cable.",
                 "ORK 队伍守住了桥头。继续后返回沈砾身边，缆索仍然绷紧。");
@@ -273,9 +279,20 @@ namespace Rpg.Soundwell
             EventSystem.current?.SetSelectedGameObject(continueButton.gameObject);
         }
 
+        // The real retry UGUI button can receive more than one Submit in a
+        // frame. Consume the offered retry before resetting ORK or launching
+        // any coroutine; later stale callbacks cannot restart the battle.
+        private bool TryClaimRetry(bool partyReady)
+        {
+            if (!active || !partyReady || !retryArmed)
+                return false;
+            retryArmed = false;
+            return true;
+        }
+
         private void Retry()
         {
-            if (!active || party == null || !party.IsReady)
+            if (party == null || !TryClaimRetry(party.IsReady))
                 return;
 
             if (party.BattleStarted)
@@ -321,6 +338,7 @@ namespace Rpg.Soundwell
         public void Stop()
         {
             active = false;
+            retryArmed = false;
             if (encounterRoutine != null)
             {
                 StopCoroutine(encounterRoutine);

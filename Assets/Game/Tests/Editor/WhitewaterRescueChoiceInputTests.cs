@@ -298,6 +298,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void S00OrkRetryConsumesOnlyOneRealRetryOffer()
+        {
+            // Duplicate Submit and stale UI callbacks must not start two
+            // StartEncounter coroutines or reset the new ORK battle twice.
+            var root = new GameObject("S00 ORK retry one-shot guard");
+            try
+            {
+                var defense = root.AddComponent<WhitewaterDefenseEncounter>();
+                var flags = System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic;
+                var type = typeof(WhitewaterDefenseEncounter);
+                var active = type.GetField("active", flags);
+                var armed = type.GetField("retryArmed", flags);
+                var claim = type.GetMethod("TryClaimRetry", flags);
+                Assert.That(active, Is.Not.Null);
+                Assert.That(armed, Is.Not.Null);
+                Assert.That(claim, Is.Not.Null);
+
+                active.SetValue(defense, true);
+                armed.SetValue(defense, true);
+                Assert.That(claim.Invoke(defense, new object[] { false }),
+                    Is.EqualTo(false), "ORK must be ready before retry consumes the offer.");
+                Assert.That((bool)armed.GetValue(defense), Is.True);
+                Assert.That(claim.Invoke(defense, new object[] { true }),
+                    Is.EqualTo(true), "The first real retry is accepted.");
+                Assert.That(claim.Invoke(defense, new object[] { true }),
+                    Is.EqualTo(false), "Double Submit cannot start a second ORK battle.");
+                Assert.That((bool)armed.GetValue(defense), Is.False);
+
+                armed.SetValue(defense, true);
+                active.SetValue(defense, false);
+                Assert.That(claim.Invoke(defense, new object[] { true }),
+                    Is.EqualTo(false), "An abandoned encounter cannot restart.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void UnwonOrkEncounterCannotAdvanceS00ViaStaleContinueCallback()
         {
             // The Continue button is displayed only after ORK victory, but a
