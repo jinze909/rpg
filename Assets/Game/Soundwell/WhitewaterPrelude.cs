@@ -79,8 +79,10 @@ namespace Rpg.Soundwell
         private RectTransform soldierRescueHelper;
         private Sprite soldierReadySprite;
         private Sprite soldierHaulingSprite;
+        private Sprite youngSoldierShieldSprite;
         private Texture2D soldierReadyTexture;
         private Texture2D soldierHaulingTexture;
+        private Texture2D youngSoldierShieldTexture;
         private Texture2D shenLiRescueRopeTexture;
         private RectTransform lastBoat;
         private Texture2D lastBoatPixelTexture;
@@ -147,6 +149,10 @@ namespace Rpg.Soundwell
         // The v1.2 Tax Collector wrench beat consumes two separate earned
         // gameplay interactions; Makinom remains owner of the repair outcome.
         private int clampKnocks;
+        // Only the third earned safe-line handoff completes S00-04 in v1.2.
+        // These are the cook, the straggling wounded soldier and the
+        // shield-bearing young soldier, in that fixed authored order.
+        private int evacueesRescued;
         private bool shownRescueCueReachable;
         private string shownRescueCueLanguage;
         private string shownRescueCueBindings;
@@ -173,6 +179,7 @@ namespace Rpg.Soundwell
         // phase 18 is the Twelve Years Later card, not a playable M00.
         public static string SceneTitle => Copy("S00 · Whitewater Crossing", "S00 · 白水渡");
         public int Phase => phase;
+        public int EvacueesRescued => evacueesRescued;
         public bool ThirdBellStarted => thirdBellStarted;
         public Vector2 WalkerPosition => walker;
         public string CurrentNarration => narration != null ? narration.text : string.Empty;
@@ -432,6 +439,9 @@ namespace Rpg.Soundwell
             soldierHaulingSprite = MakeActorSprite("S00 16px soldier hauling the line",
                 SoldierHaulingPixels, new Color32(89, 115, 131, 255),
                 out soldierHaulingTexture);
+            youngSoldierShieldSprite = MakeActorSprite("S00 16px slipping young soldier with shield",
+                YoungSoldierShieldPixels, new Color32(111, 128, 143, 255),
+                out youngSoldierShieldTexture);
             soldierFigure.sprite = soldierReadySprite;
             soldierRescueHelper = soldierFigure.rectTransform;
             soldierRescueHelper.gameObject.SetActive(false);
@@ -943,6 +953,7 @@ namespace Rpg.Soundwell
             if (phase != 8 || next == null || !next.gameObject.activeInHierarchy)
                 return;
             phase = 9;
+            evacueesRescued = 0;
             shownEvacueePickupLanguage = null;
             shownEvacueePickupBindings = null;
             next.gameObject.SetActive(false);
@@ -952,6 +963,7 @@ namespace Rpg.Soundwell
             // of leaving Han Qiao visible on a stationary boat.
             StartCoroutine(LastBoatDeparts());
             evacuee.anchoredPosition = new Vector2(EvacueeStartX, 12f);
+            evacuee.GetComponent<Image>().sprite = evacueePixelSprite;
             evacuee.GetComponent<Image>().color = Color.white;
             evacueeEscortStatus.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(true);
@@ -1047,15 +1059,24 @@ namespace Rpg.Soundwell
                 return;
             }
             phase = 10;
+            if (evacueesRescued == 2)
+                // The player's shield grip, not the timer, pulls the young
+                // soldier back onto the actual bridge lane.
+                evacuee.anchoredPosition = new Vector2(evacuee.anchoredPosition.x, 12f);
             evacueeWaiting = false;
             evacueeWaitedOffLane = false;
             shownEvacueeSafeLineReachable = false;
             shownEvacueeSafeLineLanguage = null;
             shownEvacueeSafeLineBindings = null;
             SetEvacueeEscortCue(false);
-            narration.text = Copy(
-                "You pull the cook to his feet and take his arm. 'Stay close. We have to cross.'",
-                "你架起腿软的炊事兵：“跟紧我，咱们得过桥。”");
+            narration.text = evacueesRescued == 0
+                ? Copy("You pull the cook to his feet and take his arm. 'Stay close. We have to cross.'",
+                    "你架起腿软的炊事兵：“跟紧我，咱们得过桥。”")
+                : evacueesRescued == 1
+                    ? Copy("You lift the straggling wounded soldier onto your back. The bridge is still under fire.",
+                        "你背起掉队的伤兵。敌军还在朝浮桥逼近。")
+                    : Copy("You brace the young soldier's shield and haul him back from the edge.",
+                        "你顶住年轻士兵的盾，把快滑下桥沿的他拉了回来。");
             instructions.text = Copy(
                 "Lead west. Green: following; amber: stopped. Press E / Pad A at the safe line.",
                 "向西带路：绿色表示跟随，橙色表示掉队；到安全线后按 E／手柄 A 确认撤离。");
@@ -1107,7 +1128,9 @@ namespace Rpg.Soundwell
             // direction. Doubling back east to regroup must not abandon them
             // at their old position; an escort should recover without replay.
             // The waiting gap above still prevents teleporting a lost ally.
-            const float followOffset = 24f;
+            // A soldier carried on the back should remain directly beside
+            // the player rather than lag one whole sprite behind.
+            float followOffset = evacueesRescued == 1 ? 12f : 24f;
             float followTarget = at.x;
             if (walker.x < at.x - followOffset)
                 followTarget = walker.x + followOffset;
@@ -1145,14 +1168,23 @@ namespace Rpg.Soundwell
                             "请等伤者抵达绿色安全线，再确认交接。");
                 return;
             }
+            evacueesRescued++;
+            evacueeEscortStatus.gameObject.SetActive(false);
+            if (evacueesRescued < 3)
+            {
+                SpawnNextEvacuee();
+                return;
+            }
+            // The shared Makinom result means the complete v1.2 group was
+            // rescued. Neither a pickup nor an intermediate delivery writes
+            // the final flag or advances the rope/bell history.
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(EvacueeEscortedKey, 1);
             phase = 11;
-            evacueeEscortStatus.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "One more person crosses the safe line. Enemy troops close in; Shen Li still watches the bridge cable.",
-                "又一人越过安全线。敌军越逼越近，沈砾仍在留意桥上的缆索。");
+                "All three are across: the cook, the wounded soldier, and the young shield-bearer. Enemy troops close in; Shen Li still watches the bridge cable.",
+                "三次拉人都完成了：炊事兵、掉队的伤兵和险些滑落桥沿的年轻士兵已安全过桥。敌军越逼越近，沈砾仍在留意桥上的缆索。");
             instructions.text = Copy(
                 "Call for spare rope to help the bridge crew.",
                 "呼喊多余的绳索，提醒桥头同伴。");
@@ -1163,6 +1195,54 @@ namespace Rpg.Soundwell
             next.gameObject.SetActive(true);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(next.gameObject);
+        }
+
+        private void SpawnNextEvacuee()
+        {
+            // Stage 1 and 2 are distinct physical pickups using the same
+            // gameplay input and safe-line follower. Reusing the already
+            // tested lane avoids false instant rescues or another input owner.
+            phase = 9;
+            shownEvacueePickupLanguage = null;
+            shownEvacueePickupBindings = null;
+            shownEvacueePickupReachable = false;
+            shownEvacueePickupOffLane = false;
+            evacueeWaiting = false;
+            evacueeWaitedOffLane = false;
+            Image actor = evacuee.GetComponent<Image>();
+            actor.color = Color.white;
+            actor.sprite = evacueesRescued == 1
+                ? soldierReadySprite : youngSoldierShieldSprite;
+            evacuee.anchoredPosition = evacueesRescued == 1
+                ? new Vector2(-72f, 12f) : new Vector2(-15f, 12f);
+            evacueeEscortStatus.gameObject.SetActive(false);
+            SoundwellInputAdapter.SetGameplayContext();
+            narration.text = evacueesRescued == 1
+                ? Copy("Shen Li: 'Get him up! More wounded are falling behind!' A wounded soldier staggers beside the railing.",
+                    "沈砾：“把人拉起来！后面还有伤兵掉队！”一名掉队的伤兵踉跄着靠在桥栏旁。")
+                : Copy("A young soldier slips toward the bridge edge. His shield catches the rail; reach him before he falls.",
+                    "一个年轻士兵在湿滑的桥板上朝桥沿滑去，盾牌卡在栏杆上。快过去拉住他。");
+            instructions.text = Copy(
+                "Reach the amber figure with WASD / left stick and press E / Pad A. The next rescue has not been earned.",
+                "用 WASD／左摇杆走到金色人影身边，按 E／手柄 A 救援。下一次救援尚未完成。");
+            if (evacueesRescued == 2)
+                StartCoroutine(YoungSoldierSlips());
+        }
+
+        private IEnumerator YoungSoldierSlips()
+        {
+            // A visible, bounded slide toward the bridge edge. The actor
+            // never falls or grants rescue on a timer; only a real Ring
+            // press at the soldier ends this danger and begins the escort.
+            float elapsed = 0f;
+            while (phase == 9 && evacueesRescued == 2 &&
+                evacuee != null && elapsed < 1.1f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                evacuee.anchoredPosition = new Vector2(-15f,
+                    Mathf.Round(Mathf.Lerp(12f, -18f, Mathf.Clamp01(elapsed / 1.1f))));
+                yield return null;
+            }
         }
 
         private void CallForSpareRope()
@@ -1798,6 +1878,28 @@ namespace Rpg.Soundwell
             "................",
         };
 
+        // The third v1.2 rescue holds a distinct shield at the bridge edge.
+        // An unchanged cook sprite would conceal the authored danger.
+        private static readonly string[] YoungSoldierShieldPixels =
+        {
+            "................",
+            ".....kkkk.......",
+            "....kkffkk......",
+            "....kkffkk......",
+            ".....kffk.......",
+            "......kk........",
+            ".....kcck...bbbb",
+            "....kcccck..bbbb",
+            "...gkcccckg.bggb",
+            "...gkcccckg.bggb",
+            "....kbbbbk..bggb",
+            "....kcccck...bbb",
+            "....kk..kk......",
+            "...kbb..bbk.....",
+            "...kk....kk.....",
+            "................",
+        };
+
         // Helmet, shoulder armour and an upright spear remain recognizable
         // at native 16px and exact 2x UI scale, unlike the blue player sprite.
         // The silhouette is local presentation, not a new combat participant.
@@ -1964,6 +2066,8 @@ namespace Rpg.Soundwell
                 Destroy(soldierReadySprite);
             if (soldierHaulingSprite != null)
                 Destroy(soldierHaulingSprite);
+            if (youngSoldierShieldSprite != null)
+                Destroy(youngSoldierShieldSprite);
             if (evacueePixelSprite != null)
                 Destroy(evacueePixelSprite);
             if (farBankGuardSprite != null)
@@ -1980,6 +2084,8 @@ namespace Rpg.Soundwell
                 Destroy(soldierReadyTexture);
             if (soldierHaulingTexture != null)
                 Destroy(soldierHaulingTexture);
+            if (youngSoldierShieldTexture != null)
+                Destroy(youngSoldierShieldTexture);
             if (evacueePixelTexture != null)
                 Destroy(evacueePixelTexture);
             if (farBankGuardTexture != null)

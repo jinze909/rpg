@@ -1283,9 +1283,63 @@ namespace Rpg.Tests.Editor
                         yield return null;
                         input.Release(keys.eKey);
                         yield return null;
-                        Assert.That(activePrelude.Phase, Is.EqualTo(11));
+                        Assert.That(activePrelude.Phase, Is.EqualTo(9),
+                            "The first cook handoff cannot skip the two later v1.2 rescues.");
+                        Assert.That(activePrelude.EvacueesRescued, Is.EqualTo(1));
                         Assert.That(escortStatus.gameObject.activeSelf, Is.False,
                             "The old follower status must disappear after safe arrival.");
+                        for (int person = 1; person < 3; person++)
+                        {
+                            Assert.That(activePrelude.CanHelpEvacuee, Is.False,
+                                "A new evacuee cannot be collected at the old safe line.");
+                            Image actor = activePrelude.transform.Find(
+                                "S00 Whitewater playable canvas/S00 last evacuee")
+                                .GetComponent<Image>();
+                            Assert.That(actor.sprite.name, person == 1
+                                ? Does.Contain("soldier ready")
+                                : Does.Contain("young soldier with shield"));
+                            if (person == 2)
+                            {
+                                Assert.That(actor.sprite.texture.filterMode,
+                                    Is.EqualTo(FilterMode.Point));
+                                Assert.That(actor.sprite.texture.GetPixel(14, 8).a,
+                                    Is.GreaterThan(0.9f),
+                                    "The third rescued soldier must visibly carry his shield.");
+                            }
+                            input.Press(keys.dKey);
+                            float personDeadline = Time.realtimeSinceStartup + 6f;
+                            while (!activePrelude.CanHelpEvacuee &&
+                                   Time.realtimeSinceStartup < personDeadline)
+                                yield return null;
+                            input.Release(keys.dKey);
+                            yield return null;
+                            Assert.That(activePrelude.CanHelpEvacuee, Is.True);
+                            input.Press(keys.eKey);
+                            yield return null;
+                            input.Release(keys.eKey);
+                            yield return null;
+                            Assert.That(activePrelude.Phase, Is.EqualTo(10));
+                            Assert.That(activePrelude.CurrentNarration,
+                                person == 1 ? Does.Contain("onto your back")
+                                : Does.Contain("shield"),
+                                "Each separate rescue must play its v1.2 physical response.");
+                            input.Press(keys.aKey);
+                            float personSafeDeadline = Time.realtimeSinceStartup + 7f;
+                            while (!activePrelude.CanDeliverEvacuee &&
+                                   Time.realtimeSinceStartup < personSafeDeadline)
+                                yield return null;
+                            input.Release(keys.aKey);
+                            yield return null;
+                            Assert.That(activePrelude.CanDeliverEvacuee, Is.True,
+                                "The next survivor must physically reach the safe line.");
+                            input.Press(keys.eKey);
+                            yield return null;
+                            input.Release(keys.eKey);
+                            yield return null;
+                            Assert.That(activePrelude.EvacueesRescued, Is.EqualTo(person + 1));
+                            Assert.That(activePrelude.Phase,
+                                Is.EqualTo(person == 1 ? 9 : 11));
+                        }
                         var coil = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
                         Assert.That(coil, Is.Not.Null);

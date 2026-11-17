@@ -1559,11 +1559,46 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 input.Release(walker.eKey);
                 yield return null;
-                Assert.That(prelude.Phase, Is.EqualTo(11));
+                Assert.That(prelude.Phase, Is.EqualTo(9),
+                    "The first physical safe-line delivery cannot advance to the bell.");
+                Assert.That(prelude.EvacueesRescued, Is.EqualTo(1));
+                Assert.That(SoundwellInputAdapter.IsGameplayContextActive, Is.True);
+                for (int rescued = 1; rescued < 3; rescued++)
+                {
+                    Assert.That(prelude.CanHelpEvacuee, Is.False);
+                    input.Press(walker.dKey);
+                    float nextContactDeadline = Time.realtimeSinceStartup + 6f;
+                    while (!prelude.CanHelpEvacuee &&
+                           Time.realtimeSinceStartup < nextContactDeadline)
+                        yield return null;
+                    input.Release(walker.dKey);
+                    yield return null;
+                    Assert.That(prelude.CanHelpEvacuee, Is.True,
+                        "A separate gameplay approach must be earned for each survivor.");
+                    input.Press(walker.eKey);
+                    yield return null;
+                    input.Release(walker.eKey);
+                    yield return null;
+                    Assert.That(prelude.Phase, Is.EqualTo(10));
+                    input.Press(walker.aKey);
+                    float nextSafeDeadline = Time.realtimeSinceStartup + 7f;
+                    while (!prelude.CanDeliverEvacuee &&
+                           Time.realtimeSinceStartup < nextSafeDeadline)
+                        yield return null;
+                    input.Release(walker.aKey);
+                    yield return null;
+                    Assert.That(prelude.CanDeliverEvacuee, Is.True);
+                    input.Press(walker.eKey);
+                    yield return null;
+                    input.Release(walker.eKey);
+                    yield return null;
+                    Assert.That(prelude.EvacueesRescued, Is.EqualTo(rescued + 1));
+                    Assert.That(prelude.Phase, Is.EqualTo(rescued == 1 ? 9 : 11));
+                }
                 Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                 Assert.That(prelude.CurrentNarration, Does.Contain(
                     SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
-                        ? "越过安全线" : "crosses the safe line"));
+                        ? "安全过桥" : "All three are across"));
 
                 // The rope call is an earned, optional follow-up, not a timed
                 // false win or a substitute for the pending ORK defence.
