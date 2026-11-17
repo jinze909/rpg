@@ -164,10 +164,21 @@ namespace Rpg.Tests.Editor
             }
             finally
             {
-                if (!wasDirty && active.IsValid() && active.isLoaded)
-                    EditorSceneManager.MarkSceneClean(active);
                 if (openedHere && active.IsValid() && active.isLoaded)
+                {
+                    // This test opened the scene itself, so discard its temporary
+                    // dirty flag by closing the isolated scene without saving.
                     EditorSceneManager.CloseScene(active, true);
+                }
+                else if (!wasDirty && active.IsValid() && active.isLoaded)
+                {
+                    // Unity 6000.6 has no MarkSceneClean API. We changed only
+                    // the scene dirty flag, not its objects; saving restores the
+                    // original clean editor state without discarding authored data.
+                    if (!EditorSceneManager.SaveScene(active))
+                        throw new InvalidOperationException(
+                            "Unity could not restore the previously clean Soundwell scene after the dirty-state regression.");
+                }
             }
         }
 
