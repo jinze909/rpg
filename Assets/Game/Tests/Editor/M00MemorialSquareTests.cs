@@ -48,14 +48,27 @@ namespace Rpg.Tests.Editor
                 entry.enabled = false;
                 memorial = new GameObject("M00 memorial-square interaction test")
                     .AddComponent<M00MemorialSquare>();
+                StackTraceLogType previousExceptionTrace =
+                    Application.GetStackTraceLogType(LogType.Exception);
+                string capturedExceptionStack = null;
+                Application.LogCallback captureException = (condition, stackTrace, type) =>
+                {
+                    if (type == LogType.Exception &&
+                        condition.Contains("Value does not fall within the expected range"))
+                        capturedExceptionStack = stackTrace;
+                };
+                Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
+                Application.logMessageReceived += captureException;
                 try
                 {
                     memorial.Begin(() => closed = true);
+                    yield return null;
+                    Debug.Log("M00 initialization diagnostic stack: " + capturedExceptionStack);
                 }
-                catch (System.Exception error)
+                finally
                 {
-                    Debug.LogException(error);
-                    throw;
+                    Application.logMessageReceived -= captureException;
+                    Application.SetStackTraceLogType(LogType.Exception, previousExceptionTrace);
                 }
                 yield return null;
 
