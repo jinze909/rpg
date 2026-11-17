@@ -144,6 +144,9 @@ namespace Rpg.Soundwell
         private bool stationBindingsDirty = true;
         private string cachedStationBindings;
         private int rescueMethod;
+        // The v1.2 Tax Collector wrench beat consumes two separate earned
+        // gameplay interactions; Makinom remains owner of the repair outcome.
+        private int clampKnocks;
         private bool shownRescueCueReachable;
         private string shownRescueCueLanguage;
         private string shownRescueCueBindings;
@@ -308,6 +311,7 @@ namespace Rpg.Soundwell
             defenseWon = false;
             thirdBellStarted = false;
             phase = 0;
+            clampKnocks = 0;
             // The existing InputSystemUIInputModule owns dialogue navigation.
             SoundwellInputAdapter.SetUiContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
@@ -2216,12 +2220,27 @@ namespace Rpg.Soundwell
             }
             if (frame.Ring && CanRepair)
             {
+                // Neither the first knock nor moving into tool reach may
+                // credit a repair. Each E / Pad A is an actual gameplay action.
+                clampKnocks++;
+                if (clampKnocks == 1)
+                {
+                    narration.text = Copy(
+                        "The 'Tax Collector' strikes the rusted nut once. It is still stuck.",
+                        "“税务官”敲了生锈的螺母第一下，还卡着。");
+                    instructions.text = Copy(
+                        "Strike the clamp a second time: E / Pad A. The bridge is not repaired yet.",
+                        "还要在缆桩敲第二下：E／手柄 A。桥还没有修好。");
+                    return;
+                }
                 phase = 2;
                 SoundwellInputAdapter.SetUiContext();
-                narration.text = Copy("Shen Li: 'The clamp is loose. How shall we brace it?'",
-                    "沈砾：“夹口松了。你想怎么固定？”");
-                instructions.text = Copy("The different methods all make the bridge safe.",
-                    "做法可以不同，目标都是让伤员安全通过。");
+                narration.text = Copy(
+                    "Two knocks loosen the nut. Shen Li: 'How shall we tighten the cable and chain?'",
+                    "敲过两下，螺母终于松了。沈砾：“怎么把缆索和铁链收紧？”");
+                instructions.text = Copy(
+                    "Choose how to secure the chain; the repair has not been recorded yet.",
+                    "选择怎样固定铁链；尚未记入修缆结果。");
                 ShowChoices(new[] { "Hold the plate", "Set the wedge", "Ask her to show you" },
                     new[] { "扶住夹板", "塞进木楔", "请她先示范" });
             }

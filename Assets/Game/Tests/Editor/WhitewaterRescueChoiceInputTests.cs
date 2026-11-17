@@ -792,7 +792,14 @@ namespace Rpg.Tests.Editor
                     yield return null;
                     input.Release(keys.eKey);
                     yield return null;
-                    Assert.That(activePrelude.Phase, Is.EqualTo(2));
+                    Assert.That(activePrelude.Phase, Is.EqualTo(1),
+                        "One knock cannot complete the v1.2 wrench interaction.");
+                    input.Press(keys.eKey);
+                    yield return null;
+                    input.Release(keys.eKey);
+                    yield return null;
+                    Assert.That(activePrelude.Phase, Is.EqualTo(2),
+                        "Two separate earned knocks must open the repair choices.");
                     ClickChoice(activePrelude, 0); // Brace the plate together.
                     Assert.That(activePrelude.Phase, Is.EqualTo(3));
 
