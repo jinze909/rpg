@@ -31,11 +31,13 @@ namespace Rpg.Tests.Editor
                 input.Setup();
                 inputReady = true;
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: input runtime ready");
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: before locale property access");
                 // Acquire Unity object references only after the PlayMode domain reload.
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
                 originalLanguage = SoundwellUiLocalization.Language;
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: saved locale captured " + originalLanguage);
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: before SetLanguage");
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: locale set to English");
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: scene title read " + WhitewaterPrelude.SceneTitle);
