@@ -524,7 +524,7 @@ namespace Rpg.Soundwell
             crowdLine.gameObject.SetActive(false);
             childImage.color = Color.white;
             narration.text = Copy(
-                "She is wiping the name “3rd Brigade, 1st Battalion, 3rd Platoon · Hao Lie.” Someone presses past; she steps aside half a pace without arguing. When they pass, she resumes.",
+                "She is wiping the name “3rd Brigade, 1st Battalion, 3rd Squad · Hao Lie.” Someone presses past; she steps aside half a pace without arguing. When they pass, she resumes.",
                 "她擦的名字是“第三旅一营三班·郝烈”。有人挤过来，她不争，只往旁边让了半步，等那人走了又继续擦。");
             RefreshObjective();
         }

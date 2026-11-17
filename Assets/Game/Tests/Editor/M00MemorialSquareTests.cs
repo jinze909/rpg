@@ -84,6 +84,9 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(memorial.OldWomanStoneObserved, Is.True,
                     "The memorial fact is earned only by inspecting the woman.");
+                Assert.That(memorial.CurrentNarration, Does.Contain("3rd Squad"),
+                    "M00's English roster must match the authored third squad of twelve in RC-05, never a platoon.");
+                Assert.That(memorial.CurrentNarration, Does.Not.Contain("3rd Platoon"));
                 Assert.That(memorial.Phase, Is.EqualTo(3));
 
                 float forgottenDeadline = Time.realtimeSinceStartup + 3f;
