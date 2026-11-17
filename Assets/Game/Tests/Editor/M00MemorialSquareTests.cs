@@ -33,6 +33,19 @@ namespace Rpg.Tests.Editor
                 originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                // M00 is only entered through Bootstrap's project-owned
+                // EventSystem. The empty editor scene has no UI input module,
+                // so constructing the interaction in isolation can fail in
+                // InputSystemUIInputModule before any authored input is tested.
+                // Match the real playable entry path, and disable only Entry's
+                // polling so E is exclusively handled by the M00 scene.
+                EditorSceneManager.LoadSceneInPlayMode(
+                    "Assets/Game/Scenes/Bootstrap.unity",
+                    new LoadSceneParameters(LoadSceneMode.Single));
+                yield return null;
+                var entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+                Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
+                entry.enabled = false;
                 memorial = new GameObject("M00 memorial-square interaction test")
                     .AddComponent<M00MemorialSquare>();
                 memorial.Begin(() => closed = true);
