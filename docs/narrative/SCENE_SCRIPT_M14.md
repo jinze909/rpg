@@ -3,7 +3,7 @@
 “归来”为工作标题。本稿为第四幕终局行动，承接 [STORY_OUTLINE.md](STORY_OUTLINE.md) 与 [CHARACTERS.md](CHARACTERS.md)。三条进场共享同一个空间：回澜关、近岸码头、旧运渠和外海接应点。方括号是玩家选项或操作。
 
 > **出场人物**：你、沈砾、祁雀、阿鸢、欧林、小七、陶霁、陆钧、伊蕾、韩峤（及名册案支援者）。
-> **读取事实**：`lu_confession`、`shen_relation`、`rc04_ding_yue`、`rc05_third_squad`、`conscription`、`landing_capacity`。
+> **读取事实**：`lu_confession`、`shen_relation`、`rc04_ding_yue`、`rc05_third_squad`、`conscription`、`landing_capacity`、`crew_ayuan_risk_acceptance`。
 > **写入事实**：`crew_ayuan`（安全 / 重伤退出 / 没能回来）、`conscription`、`landing_capacity`。
 > **章末留给玩家的问题**：三条路，哪一条才是回家？
 
@@ -61,6 +61,7 @@
 ## 阿鸢的高风险位置结算（写入 `crew_ayuan`）
 
 在路线 B **钟楼下层连通关门机构的联动信号绳**（与主角敲钟的钟绳不是同一根），或路线 C 的运渠口闸处，舵手**阿鸢**守在必守的位置。**路线 A 不把阿鸢送去 B/C 的高风险哨位，默认安全。**
-- **若你在 M13 投入了足够的准备**（人手、替代通路、事先布置的接应）：阿鸢在接应下顺利撤回船上，**一定活着**（`crew_ayuan = 安全`）。
-- **只有在你已得到祁雀明确警告、准备不足，并在 M13 单独明确选择仍坚持让他上时**（仅确认路线 B／C 不足以触发）：阿鸢为了守住闸口，可能重伤退出航行（`crew_ayuan = 重伤退出`），或没能回来（`crew_ayuan = 没能回来`）。
+- **若路线 A，或路线 B/C 且 `crew_ayuan_risk_acceptance = 已补齐准备`**：阿鸢不被派往无接应的高风险位置，或在完整接应下顺利撤回船上，**一定活着**（`crew_ayuan = 安全`）。
+- **只有路线 B/C 且 `crew_ayuan_risk_acceptance = 准备不足但明确接受`**：阿鸢为了守住闸口，才可能重伤退出航行（`crew_ayuan = 重伤退出`），或没能回来（`crew_ayuan = 没能回来`）。
+- **若该字段缺失或仍为 `未确认`**：M14 不得开始 B/C 高风险行动，返回 M13 补齐准备或改走路线 A；不能由 M14 默认推定玩家接受风险。
 （战斗失败后的重试不改变此结果。）
