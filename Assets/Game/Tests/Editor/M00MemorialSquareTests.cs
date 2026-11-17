@@ -108,6 +108,9 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(memorial.XiaodouPrompted, Is.True);
                 Assert.That(memorial.Phase, Is.EqualTo(5));
+                Assert.That(memorial.CurrentNarration, Does.Contain("Who has spare rope?"),
+                    "M00 must echo the exact P0 rope call instead of using an altered English paraphrase.");
+                Assert.That(memorial.CurrentNarration, Does.Not.Contain("Who brought the spare rope?"));
                 memorial.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "M00 return to entry")
                     .onClick.Invoke();

@@ -44,7 +44,7 @@ namespace Rpg.Soundwell
         };
         private static readonly string[] XiaodouChoiceEnglish =
         {
-            "Step forward and prompt: “Who brought the spare rope?”",
+            "Step forward and prompt: “Who has spare rope?”",
             "Turn away and go look for someone.",
             "Stay where you are."
         };
@@ -577,15 +577,15 @@ namespace Rpg.Soundwell
             HideChoices();
             SoundwellInputAdapter.SetUiContext();
             narration.text = index == 0
-                ? Copy("You step forward and give Xiaodou the line: “Who brought the spare rope?”",
+                ? Copy("You step forward and give Xiaodou the line: “Who has spare rope?”",
                     "你上前提词：“谁带了多余的绳子。”")
                 : index == 1
                     ? Copy("You turn away from the stage and go look for someone.",
                         "你绕开高台，去找人。")
                     : Copy("You stay where you are.", "你留在原地。");
             instructions.text = Copy(
-                "This M00 opening segment is complete. Return to the entry screen.",
-                "M00 开场段落已完成。返回入口画面。");
+                "The ceremony continues beyond the square. Return to the harbor entrance for now.",
+                "纪念仪式还在继续，暂时先返回港口入口。");
             returnButton.gameObject.SetActive(true);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(returnButton.gameObject);
