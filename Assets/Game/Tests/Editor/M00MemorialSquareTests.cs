@@ -83,11 +83,8 @@ namespace Rpg.Tests.Editor
                     BindingFlags.Instance | BindingFlags.NonPublic);
                 var thirdBell = typeof(WhitewaterPrelude).GetField("thirdBellStarted",
                     BindingFlags.Instance | BindingFlags.NonPublic);
-                var currentMemorial = typeof(SoundwellEntrance).GetField("currentMemorial",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(currentPrelude, Is.Not.Null);
                 Assert.That(thirdBell, Is.Not.Null);
-                Assert.That(currentMemorial, Is.Not.Null);
 
                 entry.OpenPrelude();
                 Assert.That(entry.enabled, Is.True,
@@ -113,7 +110,11 @@ namespace Rpg.Tests.Editor
                 Assert.That(SceneManager.GetActiveScene().name,
                     Is.EqualTo(SoundwellEntrance.BootstrapSceneName),
                     "The M00 handoff must stay inside Bootstrap rather than reloading the trial.");
-                memorial = (M00MemorialSquare)currentMemorial.GetValue(entry);
+                // A reflected FieldInfo is an editor-domain object, not a
+                // stable reference across [UnityTest] PlayMode yields. Inspect
+                // the live owner's actual child hierarchy after the handoff
+                // rather than carrying reflection metadata across frames.
+                memorial = entry.GetComponentInChildren<M00MemorialSquare>(true);
                 Assert.That(entry.MemorialSquareOpen, Is.True,
                     "The earned third bell must hand off to M00.");
                 Assert.That(memorial, Is.Not.Null,
