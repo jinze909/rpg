@@ -35,10 +35,14 @@ namespace Rpg.Tests.Editor
                 M00MemorialSquare memorial = null;
                 SoundwellEntrance entry = null;
                 originalLanguage = SoundwellUiLocalization.Language;
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: saved locale captured " + originalLanguage);
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: locale set to English");
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: scene title read " + WhitewaterPrelude.SceneTitle);
                 Assert.That(WhitewaterPrelude.SceneTitle, Is.EqualTo("Whitewater Crossing"),
                     "The player sees the v1.2 scene title, not the internal S00 story ID.");
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: keyboard added " + (keys != null));
                 Assert.That(keys, Is.Not.Null, "The M00 physical-approach test needs a live keyboard.");
                 Assert.That(keys.eKey, Is.Not.Null);
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored copy and keyboard ready");
