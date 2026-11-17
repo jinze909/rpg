@@ -178,7 +178,7 @@ namespace Rpg.Soundwell
         // 16: the player physically holds the cable beside Shen Li.
         // Phase 17 is the earned, fixed third-bell break after ORK victory;
         // phase 18 is the Twelve Years Later card, not a playable M00.
-        public static string SceneTitle => Copy("S00 · Whitewater Crossing", "S00 · 白水渡");
+        public static string SceneTitle => Copy("Whitewater Crossing", "白水渡");
         public int Phase => phase;
         public int EvacueesRescued => evacueesRescued;
         public bool ThirdBellStarted => thirdBellStarted;
