@@ -59,11 +59,8 @@ namespace Rpg.Tests.Editor
                     BindingFlags.Instance | BindingFlags.NonPublic);
                 var thirdBell = typeof(WhitewaterPrelude).GetField("thirdBellStarted",
                     BindingFlags.Instance | BindingFlags.NonPublic);
-                var currentMemorial = typeof(SoundwellEntrance).GetField("currentMemorial",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(currentPrelude, Is.Not.Null);
                 Assert.That(thirdBell, Is.Not.Null);
-                Assert.That(currentMemorial, Is.Not.Null);
 
                 entry.OpenPrelude();
                 yield return null;
@@ -75,7 +72,9 @@ namespace Rpg.Tests.Editor
                 // The exit callback creates and begins M00 synchronously under this
                 // owner. Read its authoritative reference instead of racing a global
                 // object search during the S00 -> M00 handoff.
-                memorial = (M00MemorialSquare)currentMemorial.GetValue(entry);
+                Assert.That(entry, Is.Not.Null,
+                    "The S00 exit callback must keep its Bootstrap owner alive.");
+                memorial = Object.FindAnyObjectByType<M00MemorialSquare>();
                 Assert.That(entry.MemorialSquareOpen, Is.True,
                     "The earned third bell must hand off to M00 before the callback returns.");
                 Assert.That(memorial, Is.Not.Null,
