@@ -17,20 +17,20 @@ namespace Rpg.Tests.Editor
         [UnityTest]
         public IEnumerator MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions()
         {
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            yield return new EnterPlayMode(expectDomainReload: true);
-            // The input runtime and domain must both exist before a
-            // TestFixture resets the real InputSystem. M00 runs before
-            // the older Soundwell input suites in NUnit alphabetical order.
-            yield return null;
-
-            var input = new InputTestFixture();
-            input.Setup();
-            string originalLanguage = SoundwellUiLocalization.Language;
+            InputTestFixture input = null;
+            bool inputReady = false;
+            string originalLanguage = null;
             M00MemorialSquare memorial = null;
             bool closed = false;
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
+                yield return new EnterPlayMode(expectDomainReload: true);
+                yield return null;
+                input = new InputTestFixture();
+                input.Setup();
+                inputReady = true;
+                originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
                 memorial = new GameObject("M00 memorial-square interaction test")
@@ -131,8 +131,10 @@ namespace Rpg.Tests.Editor
             {
                 if (memorial != null)
                     memorial.Close();
-                SoundwellUiLocalization.SetLanguage(originalLanguage);
-                input.TearDown();
+                if (!string.IsNullOrEmpty(originalLanguage))
+                    SoundwellUiLocalization.SetLanguage(originalLanguage);
+                if (inputReady && input != null)
+                    input.TearDown();
             }
             yield return new ExitPlayMode();
         }
