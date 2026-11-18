@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.TestTools;
 
 namespace Rpg.Tests.Editor
@@ -130,8 +131,15 @@ namespace Rpg.Tests.Editor
                 runtimeView = new M02BridgeInquiryView(owner.transform, inquiry,
                     _ => completions++);
 
+                // A new EventSystem activates its Input System UI module on
+                // the next frames. Sending Submit earlier never reaches UGUI.
+                yield return null;
+                yield return null;
+                Assert.That(events.currentInputModule,
+                    Is.TypeOf<InputSystemUIInputModule>());
                 events.SetSelectedGameObject(runtimeView.ContinueButton.gameObject);
                 input.Press(pad.buttonSouth);
+                yield return null;
                 yield return null;
                 input.Release(pad.buttonSouth);
                 yield return null;
@@ -144,6 +152,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(completions, Is.Zero);
 
                 input.Press(pad.buttonSouth);
+                yield return null;
                 yield return null;
                 input.Release(pad.buttonSouth);
                 yield return null;
