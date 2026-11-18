@@ -40,6 +40,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne":
             "Rpg.Tests.Editor.M00HanRansomFactsTests.PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne",
     },
+    "Assets/Game/Tests/Editor/M03LuJunInputTests.cs": {
+        "ShipOpeningMovesGamepadFocusOffTheReusedOfficialVoyageButton":
+            "Rpg.Tests.Editor.M03LuJunInputTests.ShipOpeningMovesGamepadFocusOffTheReusedOfficialVoyageButton",
+    },
     "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": {
         "MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell":
             "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell",
