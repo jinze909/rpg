@@ -41,9 +41,15 @@ namespace Rpg.Tests.Editor
                 variables.Set(M02OfficialDockFacts.LivingRegistrationStampedKey, 0);
                 variables.Set(M02MissingReturnFacts.ApprovalKey, 0);
                 variables.Set(M02QiQueDebtFacts.DebtKnownKey, 1);
-                variables.Set(M03LuJunFacts.ConfessionKey, 0);
-                variables.Set(M03LuJunFacts.SecrecyKey, 0);
-                variables.Set(M03LuJunFacts.VoyageKey, 0);
+                // A previous visit qualified for an official ship and heard the secret.
+                var previousVisit = new M03LuJunEncounter(M02BridgeEvidence.WarReportDraft, true);
+                previousVisit.Begin();
+                previousVisit.ObserveRollCall();
+                previousVisit.Ask(M03LuJunOpening.AskWhoCutBridge);
+                previousVisit.Respond(M03ConfessionResponse.RemainSilent);
+                previousVisit.AnswerSecrecy(M03SecrecyAnswer.PromiseSecrecy);
+                previousVisit.ChooseVoyage(M03VoyageChoice.MixedWithOfficial);
+                Assert.That(M03LuJunFacts.TryRecord(previousVisit), Is.True);
 
                 owner = new GameObject("M02 to M03 live opening owner");
                 var opening = owner.AddComponent<ReturnOpeningContinuation>();
@@ -69,8 +75,12 @@ namespace Rpg.Tests.Editor
                 Button roll = FindButton(owner, "M03 Lu Jun advance");
                 Assert.That(roll.gameObject.activeInHierarchy, Is.True,
                     "The night-to-camp handoff must open an actual M03 scene.");
-                Assert.That(variables.GetInt(M03LuJunFacts.VoyageKey), Is.Zero,
-                    "Night-time chart discussion must not book a ship.");
+                Assert.That(M03LuJunFacts.TryRead(out M03LuConfession pendingConfession,
+                    out M03SecrecyAnswer pendingSecrecy, out M03VoyageChoice? pendingVoyage), Is.True);
+                Assert.That(pendingConfession, Is.EqualTo(M03LuConfession.NotAsked));
+                Assert.That(pendingSecrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+                Assert.That(pendingVoyage, Is.Null,
+                    "A fresh camp visit must not inherit the previously selected official route.");
                 Assert.That(deliveries, Is.Zero);
 
                 // Both the original and the extended three-name roll call

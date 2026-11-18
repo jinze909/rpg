@@ -188,6 +188,18 @@ namespace Rpg.Soundwell
         public const string SecrecyKey = "rpg.return.m03.lu-secrecy-promise";
         public const string VoyageKey = "rpg.return.m03.voyage-path";
 
+        internal static bool TryResetForNewVisit()
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+
+            variables.Set(ConfessionKey, 0);
+            variables.Set(SecrecyKey, 0);
+            variables.Set(VoyageKey, 0);
+            return true;
+        }
+
         public static bool TryRecord(M03LuJunEncounter encounter)
         {
             if (encounter == null)
