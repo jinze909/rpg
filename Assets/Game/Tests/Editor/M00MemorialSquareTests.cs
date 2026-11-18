@@ -106,13 +106,14 @@ namespace Rpg.Tests.Editor
                 // destruction frame, before any authored-interaction assertion.
                 prelude.Close();
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: third-bell close returned");
-                // The separate handoff test verifies the Bootstrap owner's
-                // CurrentMemorial and its return lifecycle. This test verifies
-                // the actual authored scene and its physical interaction path.
-                // Locate the scene instance after the callback rather than
-                // retaining the test fixture's owner reference through reloads.
-                memorial = Object.FindAnyObjectByType<M00MemorialSquare>(
-                    FindObjectsInactive.Include);
+                // The entry owner is the production authority for the scene.
+                // Look up its synchronous handoff result rather than scanning
+                // Unity's global object registry during the destruction frame.
+                // The separate test covers the owner/return lifecycle; this
+                // one continues into the authored physical interaction path.
+                Assert.That(entry, Is.Not.Null,
+                    "The S00 third-bell transition must preserve its Bootstrap owner.");
+                memorial = entry.CurrentMemorial;
                 Assert.That(memorial, Is.Not.Null,
                     "The third-bell callback must instantiate the playable M00 scene.");
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 instance found");
