@@ -307,11 +307,11 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267349
-    m_Localized: "正面路线：指挥 ORK 小队迎战，或把野兽引到侧铃架。"
+    m_Localized: "正面路线：带队迎战野兽，或用铜铃把它引到侧铃架。"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267350
-    m_Localized: "正面路线：指挥 ORK 小队迎战，也可以检查附近足迹寻找其他方案。"
+    m_Localized: "正面路线：带队迎战野兽，也可以查看附近的足迹，另找一条路。"
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267351

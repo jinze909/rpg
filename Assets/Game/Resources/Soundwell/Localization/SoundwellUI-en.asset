@@ -311,11 +311,11 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267349
-    m_Localized: "DIRECT ROUTE: Engage the ORK party, or lure the beast toward the SIDE BELL STAND."
+    m_Localized: "DIRECT ROUTE: Face the beast with your party, or draw it toward the SIDE BELL STAND."
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267350
-    m_Localized: "DIRECT ROUTE: Engage the beast with the ORK party, or inspect nearby tracks for another approach."
+    m_Localized: "DIRECT ROUTE: Face the beast with your party, or inspect the nearby tracks for another way in."
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267351
