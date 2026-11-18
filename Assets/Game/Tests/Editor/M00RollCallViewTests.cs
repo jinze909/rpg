@@ -111,6 +111,57 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LiveLocaleChangeUpdatesEveryRollCallLabelWithoutResettingTheResponse()
+        {
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                M00RollCallSequence sequence = Begin();
+                view = new M00RollCallView(root.transform, sequence, null);
+                Text heading = Array.Find(root.GetComponentsInChildren<Text>(true),
+                    label => label.text == "THE TWELFTH-YEAR ROLL CALL");
+                Assert.That(heading, Is.Not.Null);
+                Font englishFont = heading.font;
+                Assert.That(Label(view.ContinueButton), Is.EqualTo("Continue"));
+
+                view.GetChoiceButton(1).onClick.Invoke();
+                Assert.That(view.IsWaitingForNextCall, Is.True);
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+
+                // No explicit Refresh call: the real locale-change event must
+                // update labels even while the name is between attempts.
+                Assert.That(heading.text, Is.EqualTo("第十二年的点名"));
+                Assert.That(Label(view.ContinueButton), Is.EqualTo("继续"));
+                Assert.That(view.SpeakerText.text, Is.EqualTo(view.CurrentBeat.SpeakerLine));
+                Assert.That(view.GuidanceText.text, Is.EqualTo(view.CurrentBeat.Guidance));
+                Assert.That(heading.font, Is.SameAs(view.SpeakerText.font));
+                Assert.That(sequence.CallsMade, Is.EqualTo(1));
+                Assert.That(sequence.Outcome, Is.EqualTo(M00RollCallOutcome.Pending));
+
+                Assert.That(view.AdvanceAfterUnansweredCall(), Is.True);
+                Assert.That(Label(view.GetChoiceButton(0)),
+                    Is.EqualTo(view.CurrentBeat.Choices[0]));
+                Assert.That(view.GetChoiceButton(0).GetComponentInChildren<Text>(true).font,
+                    Is.SameAs(view.SpeakerText.font));
+                view.GetChoiceButton(0).onClick.Invoke();
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(heading.text, Is.EqualTo("THE TWELFTH-YEAR ROLL CALL"));
+                Assert.That(Label(view.ContinueButton), Is.EqualTo("Continue"));
+                Assert.That(heading.font, Is.SameAs(englishFont),
+                    "Switching back to EN must restore the Latin face, not keep the CJK font.");
+                Assert.That(sequence.Outcome, Is.EqualTo(M00RollCallOutcome.AnsweredSecond));
+                Assert.That(sequence.CallsMade, Is.EqualTo(2));
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+            }
+        }
+
+        [Test]
         public void ViewFitsPortraitAndUltrawideWithoutChangingRollCallState()
         {
             M00RollCallSequence sequence = Begin();
