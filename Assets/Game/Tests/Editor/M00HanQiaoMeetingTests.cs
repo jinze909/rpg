@@ -36,7 +36,7 @@ namespace Rpg.Tests.Editor
             sequence.ChooseOpening(choice);
             var beat = M00HanQiaoMeetingDialogue.Describe(sequence, true);
 
-            Assert.That(sequence.HanRansomCount, Is.EqualTo(41));
+            Assert.That(M00HanQiaoMeetingSequence.HanRansomCount, Is.EqualTo(41));
             Assert.That(beat.Stage, Is.EqualTo(M00HanQiaoMeetingStage.RansomCount));
             Assert.That(beat.Text, Does.Contain("四十一个"));
             Assert.That(beat.CanContinue, Is.True);
