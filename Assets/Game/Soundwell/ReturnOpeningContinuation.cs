@@ -9,6 +9,8 @@ namespace Rpg.Soundwell
     {
         private M00HanQiaoMeetingView meeting;
         private M01WestLaneView westLane;
+        private M01DockBriefingView dock;
+        private M02HarborVisit harborVisit;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -65,7 +67,22 @@ namespace Rpg.Soundwell
                 !M01HomecomingResponse.TryRecordPensionChoice(pensionChoice.Value))
                 return;
 
+            M01PensionChoice recordedChoice = pensionChoice.Value;
             pensionChoice = null;
+            westLane.Dispose();
+            westLane = null;
+            dock = new M01DockBriefingView(transform, () => OpenHarbor(recordedChoice));
+        }
+
+        private void OpenHarbor(M01PensionChoice recordedChoice)
+        {
+            dock.Dispose();
+            dock = null;
+            harborVisit = new M02HarborVisit(transform, recordedChoice, CloseOpening);
+        }
+
+        private void CloseOpening()
+        {
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -81,11 +98,13 @@ namespace Rpg.Soundwell
                 FinishAfterRecordingChoice();
 
             float aspect = (float)Mathf.Max(1, Screen.width) / Mathf.Max(1, Screen.height);
+            harborVisit?.Tick(aspect);
             if (!Mathf.Approximately(aspect, layoutAspect))
             {
                 layoutAspect = aspect;
                 meeting?.LayoutForViewportAspect(aspect);
                 westLane?.LayoutForViewportAspect(aspect);
+                dock?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -93,6 +112,8 @@ namespace Rpg.Soundwell
         {
             meeting?.Dispose();
             westLane?.Dispose();
+            dock?.Dispose();
+            harborVisit?.Dispose();
             onFinished = null;
         }
     }
