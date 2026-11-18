@@ -77,49 +77,29 @@ namespace Rpg.Tests.Editor
                 // resetting its input context again here is not player behavior.
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap and isolated keyboard ready");
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: before opening S00");
-
-                // Open M00 only through the production S00 exit callback. This
-                // keeps the test on the same live-owner lifecycle as the player
-                // path instead of manufacturing a second component attachment.
-                entry.OpenPrelude();
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: opened S00");
-                yield return null;
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: resumed with S00 active");
-                entry = Object.FindFirstObjectByType<SoundwellEntrance>();
-                Assert.That(entry, Is.Not.Null,
-                    "Opening S00 must preserve the live Bootstrap entry owner.");
-                var currentPreludeField = typeof(SoundwellEntrance).GetField(
-                    "currentPrelude", BindingFlags.Instance | BindingFlags.NonPublic);
-                var thirdBellField = typeof(WhitewaterPrelude).GetField(
-                    "thirdBellStarted", BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.That(currentPreludeField, Is.Not.Null);
-                Assert.That(thirdBellField, Is.Not.Null);
-                var prelude = (WhitewaterPrelude)currentPreludeField.GetValue(entry);
-                Assert.That(prelude, Is.Not.Null,
-                    "The live entry owner must create S00 before M00 can be earned.");
-                thirdBellField.SetValue(prelude, true);
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: before earned third-bell close");
-                // Close invokes the production S00 exit callback synchronously.
-                // Check its M00 ownership before yielding: in the previous run
-                // the yielded test iterator lost the entry reference on the
-                // destruction frame, before any authored-interaction assertion.
-                prelude.Close();
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: third-bell close returned");
-                // The entry owner is the production authority for the scene.
-                // Look up its synchronous handoff result rather than scanning
-                // Unity's global object registry during the destruction frame.
-                // The separate test covers the owner/return lifecycle; this
-                // one continues into the authored physical interaction path.
-                Assert.That(entry, Is.Not.Null,
-                    "The S00 third-bell transition must preserve its Bootstrap owner.");
-                memorial = entry.CurrentMemorial;
+                // The second test below verifies the actual earned S00 -> M00
+                // entry-owner handoff and return. This longer test deliberately
+                // isolates the production M00 component's physical gameplay:
+                // S00's destruction-frame handoff must not hide failures in
+                // authored movement, interactions, responsive UI or dialogue.
+                // Retain Bootstrap's real input assets while the M00 actor owns
+                // input; prevent the inactive Entry controller from polling E.
+                entry.enabled = false;
+                var memorialObject = new GameObject("M00 memorial physical interaction test");
+                memorialObject.transform.SetParent(entry.transform, false);
+                memorial = memorialObject.AddComponent<M00MemorialSquare>();
+                bool returnedToEntry = false;
+                memorial.Begin(() =>
+                {
+                    returnedToEntry = true;
+                    if (entry != null)
+                        entry.enabled = true;
+                });
                 Assert.That(memorial, Is.Not.Null,
-                    "The third-bell callback must instantiate the playable M00 scene.");
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 instance found");
+                    "The production M00 scene component must begin its authored interactions.");
                 yield return null;
                 Assert.That(memorial, Is.Not.Null,
-                    "M00 must stay alive after the S00 destruction frame.");
+                    "M00 must stay alive during its authored interaction path.");
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 interaction scene ready");
 
                 // The real M00 UI must remain reachable after S00. Portrait
@@ -257,10 +237,12 @@ namespace Rpg.Tests.Editor
                     .Single(button => button.gameObject.name == "M00 return to entry")
                     .onClick.Invoke();
                 yield return null;
-                Assert.That(entry.MemorialSquareOpen, Is.False,
-                    "The authored M00 return button must clear the live entry owner's M00 reference.");
+                Assert.That(returnedToEntry, Is.True,
+                    "The authored M00 return button must invoke its exit callback.");
+                Assert.That(memorial == null, Is.True,
+                    "The authored M00 return button must destroy its temporary scene.");
                 Assert.That(entry.enabled, Is.True,
-                    "The Bootstrap entry owner stays enabled during the authored M00 test.");
+                    "The Bootstrap entry controller must reactivate after authored M00 returns.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
                 testBodyCompleted = true;
