@@ -29,6 +29,21 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public Button LeaveButton => leaveButton;
 
+        // When the M01 player did not choose public registration, the first
+        // button is intentionally hidden. Focus another available conversation
+        // action instead of jumping straight to "Leave" on keyboard/gamepad.
+        public Button PreferredFocusTarget
+        {
+            get
+            {
+                foreach (Button action in actionButtons)
+                    if (action != null && action.gameObject.activeInHierarchy)
+                        return action;
+                return leaveButton != null && leaveButton.gameObject.activeInHierarchy
+                    ? leaveButton : null;
+            }
+        }
+
         public M02HarborDeskView(Transform parent, M01PensionChoice pensionChoice,
             Action<M02HarborDeskOutcome> onFinished)
         {
@@ -134,7 +149,7 @@ namespace Rpg.Soundwell
             leaveLabel.text = chinese ? "离开港务署" : "Leave the harbor office";
             leaveButton.gameObject.SetActive(!delivered);
             SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                actionButtons[0].gameObject.activeInHierarchy ? actionButtons[0] : leaveButton);
+                PreferredFocusTarget);
         }
 
         private void Choose(M02HarborDeskAction action)
