@@ -97,14 +97,12 @@ namespace Rpg.Tests.Editor
                 thirdBellField.SetValue(prelude, true);
                 prelude.Close();
                 yield return null;
-                // The second lifecycle test has a verified passing path: retain
-                // the live entry owner captured before S00 Close, and reacquire
-                // the scene M00 component after the destruction frame.
-                // Finding an inactive replacement owner here previously caused
-                // a NullReferenceException in Unity's yielded test continuation.
+                // Keep the live Bootstrap owner across S00's destruction frame.
+                // Its authoritative M00 reference avoids an unreliable global
+                // scene registry lookup during the yielded PlayMode transition.
                 Assert.That(entry, Is.Not.Null,
                     "The earned third-bell handoff must preserve the original Bootstrap owner.");
-                memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
+                memorial = entry.CurrentMemorial;
                 Assert.That(memorial, Is.Not.Null,
                     "The earned third-bell exit must create the visible authored M00.");
                 Assert.That(entry.MemorialSquareOpen, Is.True,
