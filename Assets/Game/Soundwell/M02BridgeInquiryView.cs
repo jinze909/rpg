@@ -224,7 +224,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed)
                 return;
-            if (inquiry.Location == M02EvidenceLocation.FerryWarehouse)
+            bool enteringArchive = inquiry.Location == M02EvidenceLocation.FerryWarehouse;
+            if (enteringArchive)
                 inquiry.LeaveWarehouse();
             else if (inquiry.Location == M02EvidenceLocation.HarborArchive)
             {
@@ -235,6 +236,22 @@ namespace Rpg.Soundwell
                 listener?.Invoke(inquiry.Found);
             }
             Refresh();
+
+            // Continue stays visible in both rooms. KeepDialogFocus preserves
+            // the current selection, but a second gamepad Submit would
+            // immediately leave the archive without showing its unread draft.
+            // Direct focus to the new evidence, without reading it for free.
+            if (enteringArchive && !disposed && Application.isPlaying)
+            {
+                EventSystem system = EventSystem.current;
+                if (system != null && !system.alreadySelecting &&
+                    system.currentSelectedGameObject == continueButton.gameObject)
+                {
+                    Button first = PreferredFocusTarget;
+                    if (first != null && first != continueButton)
+                        system.SetSelectedGameObject(first.gameObject);
+                }
+            }
         }
 
         public void Dispose()
