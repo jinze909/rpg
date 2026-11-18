@@ -33,7 +33,22 @@ namespace Rpg.Tests.Editor
             M03LuJunEncounter result = null;
             view = new M03LuJunView(root.transform, M02BridgeEvidence.WarReportDraft,
                 false, e => { callbacks++; result = e; });
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.VisitingVeterans));
+            for (int beat = 1; beat <= 3; beat++)
+            {
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(view.RollCallBeat, Is.EqualTo(beat));
+                Assert.That(view.Dialogue.text, Does.Contain("Qian Mancang"));
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.VisitingVeterans),
+                    "The player must hear all three unanswered calls before approaching.");
+            }
+            Assert.That(view.Dialogue.text, Does.Contain("thirty-seven nights"));
+            Assert.That(view.Dialogue.text, Does.Contain("\n"),
+                "Each roll call should be displayed as separate readable lines.");
+            Assert.That(view.Dialogue.text, Does.Not.Contain("\\n"),
+                "Do not print literal backslash-n characters to the player.");
             view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingOpening));
             view.GetChoiceButton(2).onClick.Invoke();
             Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
             Assert.That(view.Encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
@@ -54,7 +69,8 @@ namespace Rpg.Tests.Editor
             view = new M03LuJunView(root.transform, M02BridgeEvidence.FerrymanLog,
                 true, _ => callbacks++);
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
-            view.AdvanceButton.onClick.Invoke();
+            for (int beat = 0; beat < 4; beat++)
+                view.AdvanceButton.onClick.Invoke();
             view.GetChoiceButton(0).onClick.Invoke();
             Assert.That(view.Dialogue.text, Does.Contain("总帅令"));
             Assert.That(view.Encounter.Confession, Is.EqualTo(M03LuConfession.AskedWithEvidence));

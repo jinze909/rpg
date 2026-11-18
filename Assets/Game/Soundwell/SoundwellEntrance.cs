@@ -61,6 +61,7 @@ namespace Rpg.Soundwell
         public bool LastReturnSafeRouteMarked => shownSafeRouteMarked;
         public int LastReturnBeastContacts => shownBeastContacts;
         public bool MemorialSquareOpen => currentMemorial != null;
+        public M00MemorialSquare CurrentMemorialSquare => currentMemorial;
 
         private void Awake()
         {
@@ -494,6 +495,10 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
+            // Keep ownership of the story objects without polling the hidden Entry UI.
+            if (currentPrelude != null || currentMemorial != null)
+                return;
+
             // ORK can create or reactivate its own EventSystem after this
             // component's Awake. While Entry is visible, restore the single
             // New Input System UI owner and keep navigation/Submit enabled.

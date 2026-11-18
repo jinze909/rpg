@@ -24,10 +24,12 @@ namespace Rpg.Soundwell
         private Action<M03LuJunEncounter> onFinished;
         private bool disposed;
         private bool delivered;
+        private int rollCallBeat;
 
         public M03LuJunEncounter Encounter => encounter;
         public Text Dialogue => dialogue;
         public Button AdvanceButton => advance;
+        public int RollCallBeat => rollCallBeat;
 
         private Button PreferredFocusTarget
         {
@@ -125,7 +127,9 @@ namespace Rpg.Soundwell
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = dialogue.font = advanceLabel.font = font;
             heading.text = chinese ? "海边旧营 · 陆钧的名册" : "OLD GUARD CAMP · LU JUN'S ROLL";
-            dialogue.text = M03LuJunCopy.Narration(encounter, chinese);
+            dialogue.text = encounter.Stage == M03LuJunStage.VisitingVeterans
+                ? M03LuJunCopy.RollCallMoment(rollCallBeat, chinese)
+                : M03LuJunCopy.Narration(encounter, chinese);
             string[] options = M03LuJunCopy.Choices(encounter, chinese);
             for (int i = 0; i < choices.Length; i++)
             {
@@ -136,7 +140,9 @@ namespace Rpg.Soundwell
                     eligible &= encounter.CanChoose((M03VoyageChoice)i);
                 choices[i].gameObject.SetActive(eligible);
             }
-            advanceLabel.text = chinese ? "听完点名，向陆钧走去" : "After the roll, approach Lu Jun";
+            advanceLabel.text = rollCallBeat < 3
+                ? (chinese ? "继续听点名" : "Listen to the next name")
+                : (chinese ? "听完点名，向陆钧走去" : "After the roll, approach Lu Jun");
             advance.gameObject.SetActive(!delivered &&
                 encounter.Stage == M03LuJunStage.VisitingVeterans);
             if (!delivered)
@@ -181,7 +187,12 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered || encounter.Stage != M03LuJunStage.VisitingVeterans)
                 return;
-            encounter.ObserveRollCall();
+            // The third unanswered name must actually be heard before the
+            // opening questions become available.
+            if (rollCallBeat < 3)
+                rollCallBeat++;
+            else
+                encounter.ObserveRollCall();
             Refresh();
             FocusFirstActionAfterStageChange();
         }

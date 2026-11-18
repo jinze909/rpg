@@ -245,12 +245,17 @@ class BuildProfilePlayerEvidenceTests(unittest.TestCase):
 
     def test_requires_real_build_and_global_scene_list(self):
         self.assertEqual(validate_build_profile_player(self.sample()), [])
-        for key, changed in [
-            ("executable_bytes", 0), ("target", 1), ("development_build", False),
-            ("scenes", []), ("scripting_backend", "Other"), ("save_restart_passed", False),
+        for name, changed in [
+            ("no_executable", 0), ("non_linux", 1), ("test_as_release", False),
+            ("wrong_scenes", []), ("bad_backend", "Other"),
+            ("missing_restart", False)
         ]:
-            with self.subTest(key=key):
+            with self.subTest(name=name):
                 report = self.sample()
+                key = {"no_executable": "executable_bytes", "non_linux": "target",
+                       "test_as_release": "development_build", "wrong_scenes": "scenes",
+                       "bad_backend": "scripting_backend",
+                       "missing_restart": "save_restart_passed"}[name]
                 report[key] = changed
                 self.assertTrue(validate_build_profile_player(report))
 
@@ -938,7 +943,16 @@ class NarrativeV12WritingBaselineTests(unittest.TestCase):
             self.assertIn(choice, m00)
         self.assertEqual(m00.count("[应声：“在。”]"), 3)
         self.assertEqual(m00.count("[离开人群]"), 3)
-        self.assertIn("identity_reveal", m00)
+        self.assertIn("一旦你应声，立即停止", m00)
+        for outcome in ("应声第1遍", "应声第2遍", "应声第3遍",
+                        "沉默", "离开人群"):
+            with self.subTest(outcome=outcome):
+                self.assertIn("identity_reveal = " + outcome, m00)
+                self.assertIn(outcome, facts)
+        m01 = (root / "SCENE_SCRIPT_M01.md").read_text(encoding="utf-8")
+        m10 = (root / "SCENE_SCRIPT_M10.md").read_text(encoding="utf-8")
+        self.assertIn("identity_reveal in {应声第1遍, 应声第2遍, 应声第3遍}", m01)
+        self.assertIn("identity_reveal == 应声第3遍", m10)
         self.assertIn("四十一个", m00)
         for clue in ("缆口整齐", "桥夫旧记录", "战报底稿"):
             with self.subTest(clue=clue):

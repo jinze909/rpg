@@ -19,16 +19,23 @@ namespace Rpg.Tests.Editor
         [UnityTest]
         public IEnumerator MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions()
         {
+            // Create the gameplay iterator after Unity reloads its domain.
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return null;
+            yield return ExerciseMemorialAfterPlayModeReload();
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator ExerciseMemorialAfterPlayModeReload()
+        {
             InputTestFixture input = null;
             bool inputReady = false;
             string originalLanguage = null;
             M00MemorialSquare memorial = null;
             SoundwellEntrance entry = null;
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
-                yield return new EnterPlayMode(expectDomainReload: true);
-                yield return null;
                 input = new InputTestFixture();
                 input.Setup();
                 inputReady = true;
@@ -51,7 +58,6 @@ namespace Rpg.Tests.Editor
                     entry = Object.FindFirstObjectByType<SoundwellEntrance>();
                 }
                 Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
-                entry.enabled = false;
 
                 var currentPrelude = typeof(SoundwellEntrance).GetField("currentPrelude",
                     BindingFlags.Instance | BindingFlags.NonPublic);
@@ -67,18 +73,16 @@ namespace Rpg.Tests.Editor
                 thirdBell.SetValue(prelude, true);
                 prelude.Close();
 
-                float memorialDeadline = Time.realtimeSinceStartup + 5f;
-                while (memorial == null && Time.realtimeSinceStartup < memorialDeadline)
-                {
-                    yield return null;
-                    memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
-                }
+                yield return null;
+                Assert.That(entry.enabled, Is.True, "The Bootstrap owner must remain enabled during M00.");
+                memorial = entry.CurrentMemorialSquare;
                 Assert.That(memorial, Is.Not.Null,
                     "The earned third bell must open the authored M00 memorial scene.");
                 Assert.That(entry.MemorialSquareOpen, Is.True);
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform),
                     "M00 must be owned by the real entry controller.");
                 yield return null;
+                AssertMemorialFitsViewport(memorial);
 
                 Assert.That(memorial.Phase, Is.Zero);
                 Assert.That(memorial.CanInspectStatue, Is.False,
@@ -230,14 +234,54 @@ namespace Rpg.Tests.Editor
             }
             finally
             {
-                if (memorial != null)
-                    memorial.Close();
+                // ExitPlayMode owns the remaining scene teardown.
                 if (!string.IsNullOrEmpty(originalLanguage))
                     SoundwellUiLocalization.SetLanguage(originalLanguage);
                 if (inputReady && input != null)
                     input.TearDown();
             }
-            yield return new ExitPlayMode();
+        }
+
+        private static void AssertMemorialFitsViewport(M00MemorialSquare memorial)
+        {
+            RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
+                .Single(rect => rect.gameObject.name == "M00 responsive authored view");
+            RectTransform playerRect = memorial.GetComponentsInChildren<RectTransform>(true)
+                .Single(rect => rect.gameObject.name == "M00 player");
+            RectTransform titleRect = memorial.GetComponentsInChildren<Text>(true)
+                .Single(label => label.text == "Your Name Carved in Stone").rectTransform;
+            RectTransform instructionsRect = memorial.GetComponentsInChildren<Text>(true)
+                .Single(label => label.text == memorial.CurrentInstructions).rectTransform;
+            RectTransform rollCallRect = memorial.GetComponentsInChildren<Button>(true)
+                .Single(button => button.gameObject.name == "M00 begin roll call")
+                .GetComponent<RectTransform>();
+            RectTransform choiceRect = memorial.GetComponentsInChildren<Button>(true)
+                .Single(button => button.gameObject.name == "M00 choice 3")
+                .GetComponent<RectTransform>();
+            var visibleRects = new[] { playerRect, titleRect, instructionsRect,
+                rollCallRect, choiceRect };
+            foreach (float aspect in new[] { 9f / 16f, 32f / 9f, 5f, 16f / 9f })
+            {
+                memorial.LayoutForViewportAspect(aspect);
+                float scale = authored.localScale.x;
+                float halfWidth = 0.5f * Mathf.Sqrt(960f * 540f * aspect);
+                float halfHeight = 0.5f * Mathf.Sqrt(960f * 540f / aspect);
+                Assert.That(scale, Is.GreaterThan(0f));
+                Assert.That(authored.localScale.y, Is.EqualTo(scale).Within(0.0001f));
+                foreach (RectTransform rect in visibleRects)
+                {
+                    Assert.That((Mathf.Abs(rect.anchoredPosition.x) +
+                            rect.sizeDelta.x * 0.5f) * scale,
+                        Is.LessThanOrEqualTo(halfWidth - 6f),
+                        rect.name + " clipped horizontally at " + aspect);
+                    Assert.That((Mathf.Abs(rect.anchoredPosition.y) +
+                            rect.sizeDelta.y * 0.5f) * scale,
+                        Is.LessThanOrEqualTo(halfHeight - 6f),
+                        rect.name + " clipped vertically at " + aspect);
+                }
+            }
+            memorial.LayoutForViewportAspect(
+                (float)Mathf.Max(1, Screen.width) / Mathf.Max(1, Screen.height));
         }
 
         private static IEnumerator VisitHarborThroughTheWarehouse(M00MemorialSquare memorial)
@@ -319,6 +363,28 @@ namespace Rpg.Tests.Editor
                 "Reading Qi Que's chart must not silently select the route.");
             nightContinue.onClick.Invoke();
             yield return null;
+
+            // The current opening now leads to Lu Jun's camp instead of
+            // returning to Entry as soon as Qi Que's night conversation ends.
+            // Finish the real UGUI handoff and assert the chosen voyage is
+            // persisted, rather than weakening the old Entry assertion.
+            Button campRoll = NamedButton(memorial, "M03 Lu Jun advance");
+            Assert.That(campRoll.gameObject.activeInHierarchy, Is.True);
+            for (int beat = 0; beat < 6 && campRoll.gameObject.activeInHierarchy; beat++)
+                campRoll.onClick.Invoke();
+            Assert.That(campRoll.gameObject.activeInHierarchy, Is.False,
+                "The shore roll must finish before Lu Jun offers dialogue choices.");
+            NamedButton(memorial, "M03 Lu Jun option 2").onClick.Invoke();
+            Button officialRoute = NamedButton(memorial, "M03 Lu Jun option 2");
+            Assert.That(officialRoute.gameObject.activeInHierarchy, Is.True,
+                "The stamped M02 approval must unlock Han Qiao's official route.");
+            officialRoute.onClick.Invoke();
+            yield return null;
+            Assert.That(M03LuJunFacts.TryRead(out M03LuConfession confession,
+                out M03SecrecyAnswer secrecy, out M03VoyageChoice? voyage), Is.True);
+            Assert.That(confession, Is.EqualTo(M03LuConfession.NotAsked));
+            Assert.That(secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+            Assert.That(voyage, Is.EqualTo(M03VoyageChoice.HanQiaoOfficial));
         }
 
         private static Button NamedButton(M00MemorialSquare memorial, string name)
@@ -380,7 +446,7 @@ namespace Rpg.Tests.Editor
                 prelude.Close();
                 yield return null;
                 Assert.That(entrance.MemorialSquareOpen, Is.True);
-                var memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
+                var memorial = entrance.CurrentMemorialSquare;
                 Assert.That(memorial, Is.Not.Null);
                 memorial.Close();
                 Assert.That(entrance.OpenTrial(), Is.Null,
