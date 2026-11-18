@@ -428,7 +428,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(currentPrelude, Is.Not.Null);
                 Assert.That(thirdBell, Is.Not.Null);
 
-                var languageButton = GameObject.Find("Soundwell language toggle")
+                var languageButton = GameObject.Find("Soundwell entry Language button")
                     ?.GetComponent<UnityEngine.UI.Button>();
                 Assert.That(languageButton, Is.Not.Null);
                 Assert.That(languageButton.IsActive(), Is.True);
