@@ -234,7 +234,7 @@ namespace Rpg.Editor
                     var start = new ProcessStartInfo
                     {
                         FileName = Path.GetFullPath(executable),
-                        Arguments = $"-batchmode -nographics -rpg-save-restart {phase} -logFile \\"{log}\\"",
+                        Arguments = $"-batchmode -nographics -rpg-save-restart {phase} -logFile \"{log}\"",
                         WorkingDirectory = Directory.GetCurrentDirectory(),
                         UseShellExecute = false,
                     };
