@@ -119,16 +119,16 @@ namespace Rpg.Soundwell
                         : "You mention the loan in Han Qiao's ledger. Qi Que stops mid-reach: 'Han Qiao talks too much. Yes, my ship is still mortgaged under his office. I feared you would find someone else.'";
                 case M02QiQueNightStage.OfferingCake:
                     return chinese
-                        ? "祁雀把桂花糕塞进你手里：“我答应送你去赤盐是认真的。”她正准备摊开海峡图。"
+                        ? "祁雀把桂花糕塞进你手里：“我说过要帮你去赤盐，这话算数。”她正准备摊开海峡图。"
                         : "Qi Que presses the cake into your hand. 'I meant it when I promised to help you reach Red Salt.' She opens her sea chart.";
                 case M02QiQueNightStage.ReviewingChart:
                     return chinese
-                        ? "祁雀：“去海边见见陆钧，或到镇上转转。等你想好走哪条渠道，随时回来找我。”此刻只看到了计划，还没订船或确定航路。"
-                        : "Qi Que: 'Visit Lu Jun on the coast, or look around town. Come back when you decide how to travel.' You have discussed a plan, not booked a ship or chosen a route.";
+                        ? "祁雀：“先去海边见见陆钧，听听他的条件。要是看中了我的商路，咱们再到码头商量。”你看过了海图，还没订船或确定航路。"
+                        : "Qi Que: 'Visit Lu Jun on the coast and hear his terms. If you want my route, we can work out the details at the dock.' You've seen the chart but not booked a ship or chosen a route.";
                 case M02QiQueNightStage.Finished:
                     return chinese
-                        ? "你记下她的提议，离开货栈；船和抚恤仍须按各自手续办理。"
-                        : "You leave with her offer in mind. Ships and pension records still require their proper steps.";
+                        ? "你记下她的提议，离开货栈，动身去海边见陆钧。"
+                        : "You leave the warehouse with her offer in mind and head to the coast to see Lu Jun.";
                 default:
                     throw new InvalidOperationException("Begin the M02 night scene first.");
             }

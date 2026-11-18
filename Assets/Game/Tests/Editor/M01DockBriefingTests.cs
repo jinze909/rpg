@@ -26,6 +26,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(briefing.InspectedLead, Is.Null);
                 Assert.That(M01DockBriefingDialogue.Describe(briefing, true).Text,
                     Does.Contain("桂花糕"), "reply: " + reply);
+                Assert.That(M01DockBriefingDialogue.Describe(briefing, false).Text,
+                    Does.Contain("owes the shipyard for repairs"), "reply: " + reply);
                 briefing.ContinueAfterCake();
                 Assert.That(briefing.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
             }
