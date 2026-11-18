@@ -1,0 +1,87 @@
+using System;
+using NUnit.Framework;
+using Rpg.Soundwell;
+using UnityEngine;
+
+namespace Rpg.Tests.Editor
+{
+    public sealed class M01DockBriefingViewTests
+    {
+        private GameObject root;
+        private M01DockBriefingView view;
+        private string previousLanguage;
+
+        [SetUp]
+        public void SetUp()
+        {
+            previousLanguage = SoundwellUiLocalization.Language;
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            root = new GameObject("M01 dock view test root");
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            view?.Dispose();
+            if (root != null)
+                UnityEngine.Object.DestroyImmediate(root);
+            SoundwellUiLocalization.SetLanguage(previousLanguage);
+        }
+
+        [Test]
+        public void ActualButtonsRequireOpeningReplyAndCakeBeforeRouteComparison()
+        {
+            int calls = 0;
+            view = new M01DockBriefingView(root.transform, () => calls++);
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.AwaitingOpeningReply));
+            Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.False);
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.AwaitingOpeningReply));
+            view.GetChoiceButton(2).onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.OfferingCake));
+            Assert.That(view.Dialogue.text, Does.Contain("osmanthus cake"));
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
+            Assert.That(view.InspectedLead, Is.Null);
+            view.GetChoiceButton(0).onClick.Invoke();
+            Assert.That(view.Dialogue.text, Does.Contain("living registration"));
+            view.GetChoiceButton(1).onClick.Invoke();
+            Assert.That(view.Dialogue.text, Does.Contain("Third Brigade flag"));
+            view.GetChoiceButton(2).onClick.Invoke();
+            Assert.That(view.Dialogue.text, Does.Contain("small ship"));
+            view.AdvanceButton.onClick.Invoke();
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.Complete));
+        }
+
+        [Test]
+        public void ChineseCopyAndScreenAspectChangesDoNotChoosePassage()
+        {
+            view = new M01DockBriefingView(root.transform, () => { });
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(view.Dialogue.text, Does.Contain("祁雀"));
+            view.GetChoiceButton(0).onClick.Invoke();
+            Assert.That(view.Dialogue.text, Does.Contain("桂花糕"));
+            view.AdvanceButton.onClick.Invoke();
+            view.GetChoiceButton(2).onClick.Invoke();
+            Assert.That(view.Dialogue.text, Does.Contain("十几个人"));
+            view.LayoutForViewportAspect(9f / 16f);
+            view.LayoutForViewportAspect(32f / 9f);
+            Assert.That(view.InspectedLead, Is.EqualTo(M01VoyageLead.QiQueMerchantRoute));
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
+        }
+
+        [Test]
+        public void DisposingViewDoesNotFinishStoryOrRetainListener()
+        {
+            int calls = 0;
+            view = new M01DockBriefingView(root.transform, () => calls++);
+            view.GetChoiceButton(1).onClick.Invoke();
+            view.Dispose();
+            view.AdvanceButton.onClick.Invoke();
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(calls, Is.Zero);
+        }
+    }
+}

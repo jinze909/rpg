@@ -9,6 +9,7 @@ namespace Rpg.Soundwell
     {
         private M00HanQiaoMeetingView meeting;
         private M01WestLaneView westLane;
+        private M01DockBriefingView dock;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -66,6 +67,15 @@ namespace Rpg.Soundwell
                 return;
 
             pensionChoice = null;
+            westLane?.Dispose();
+            westLane = null;
+            dock = new M01DockBriefingView(transform, FinishDock);
+        }
+
+        private void FinishDock()
+        {
+            dock?.Dispose();
+            dock = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -86,6 +96,7 @@ namespace Rpg.Soundwell
                 layoutAspect = aspect;
                 meeting?.LayoutForViewportAspect(aspect);
                 westLane?.LayoutForViewportAspect(aspect);
+                dock?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -93,6 +104,7 @@ namespace Rpg.Soundwell
         {
             meeting?.Dispose();
             westLane?.Dispose();
+            dock?.Dispose();
             onFinished = null;
         }
     }
