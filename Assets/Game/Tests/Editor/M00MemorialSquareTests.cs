@@ -81,6 +81,10 @@ namespace Rpg.Tests.Editor
                 // keeps the test on the same live-owner lifecycle as the player
                 // path instead of manufacturing a second component attachment.
                 entry.OpenPrelude();
+                yield return null;
+                entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+                Assert.That(entry, Is.Not.Null,
+                    "Opening S00 must preserve the live Bootstrap entry owner.");
                 var currentPreludeField = typeof(SoundwellEntrance).GetField(
                     "currentPrelude", BindingFlags.Instance | BindingFlags.NonPublic);
                 var thirdBellField = typeof(WhitewaterPrelude).GetField(
@@ -93,6 +97,9 @@ namespace Rpg.Tests.Editor
                 thirdBellField.SetValue(prelude, true);
                 prelude.Close();
                 yield return null;
+                entry = Object.FindFirstObjectByType<SoundwellEntrance>();
+                Assert.That(entry, Is.Not.Null,
+                    "The earned third-bell handoff must preserve the live entry owner.");
                 memorial = entry.CurrentMemorial;
                 Assert.That(memorial, Is.Not.Null,
                     "The earned third-bell S00 exit must create the live M00 component.");
