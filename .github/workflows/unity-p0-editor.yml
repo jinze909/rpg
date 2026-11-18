@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           mode="${REQUESTED_MODE:-$(cat production/ci/p0-mode.txt)}"
-          case "$mode" in prepare|verify) ;; *) echo 'Invalid P0 mode'; exit 1 ;; esac
+          case "$mode" in prepare|verify|windows) ;; *) echo 'Invalid P0 mode'; exit 1 ;; esac
           case "$LICENSE_METHOD" in personal|serial|file|floating) ;; *) echo 'Invalid UNITY_LICENSE_METHOD'; exit 1 ;; esac
           printf 'mode=%s\n' "$mode" >> "$GITHUB_OUTPUT"
           printf 'owner=%s:%s\n' "$(id -u)" "$(id -g)" >> "$GITHUB_OUTPUT"
@@ -104,25 +104,37 @@ jobs:
           # On a fresh import, Unity runs the API Updater before it compiles UGUI.
           # Keep the pinned DLL intact and assert its UGUI/TMP linkage in the test.
           test_parameters='-testFilter Rpg.Tests.Editor.P0BootstrapTests -disable-assembly-updater Makinom2.UnityUI.dll'
+          image='unityci/editor@sha256:61efa80c3a17cf384da97465536f938f854dc9c5b5f3a8d9ee0173550b35c584'
           if [[ "$P0_MODE" == prepare ]]; then
             test_parameters+=' -rpgPrepareDefaults'
           fi
           if [[ "$P0_MODE" == verify && -f Assets/Game/Scenes/SoundwellTrial.unity ]]; then
             test_parameters=${test_parameters/Rpg.Tests.Editor.P0BootstrapTests/Rpg.Tests.Editor}
           fi
+          if [[ "$P0_MODE" == windows ]]; then
+            image='unityci/editor@sha256:1631e4a1b4a654ea46e12e04c055681ec54273efb7abf6df2d81a5c952cdf89a'
+            test_parameters='-buildTarget Win64 -testFilter Rpg.Tests.Windows.WindowsPlayerBuildTests -disable-assembly-updater Makinom2.UnityUI.dll'
+          fi
           # The Action emits --no-coverageEnabled, rejected by this CLI's parser.
           "$cli_dir/game-ci" test --docker --dockerShmSize=1025m --engine=unity . \
             --testPlatforms=editmode --engineVersion=6000.6.8f1 --coverageEnabled=false \
-            --customImage=unityci/editor@sha256:61efa80c3a17cf384da97465536f938f854dc9c5b5f3a8d9ee0173550b35c584 \
+            --customImage="$image" \
             --customParameters="$test_parameters" --artifactsPath=artifacts/p0 --chownFilesTo="$P0_OWNER"
 
       - name: Collect exact evidence and reject incomplete or dirty verification
-        if: always() && steps.phase.outputs.mode != ''
+        if: always() && steps.phase.outputs.mode != '' && steps.phase.outputs.mode != 'windows'
         env:
           P0_MODE: ${{ steps.phase.outputs.mode }}
           P0_EXPECTED_SHA: ${{ inputs.revision }}
           P0_UNITY_ACTION_OUTCOME: ${{ steps.unity.outcome }}
         run: python3 tools/collect_unity_p0.py "$P0_MODE"
+
+      - name: Check Windows64 build evidence
+        if: steps.phase.outputs.mode == 'windows'
+        run: |
+          test "$(cat artifacts/p0/test-editor-exit-code.txt)" = 0
+          grep -Fx 'RPG_WINDOWS_PLAYER_BUILT' artifacts/p0/editmode.log
+          test -z "$(git status --porcelain -- Assets Packages ProjectSettings)"
 
       - name: Preserve logs, test XML, package lock, and candidate files
         if: always()

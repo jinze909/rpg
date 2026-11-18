@@ -22,9 +22,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'prepare creates a reviewable candidate; verify requires saved configuration'
+        description: 'prepare saves configuration; verify runs the Linux suite; windows checks a Windows64 build'
         type: choice
-        options: [verify, prepare]
+        options: [verify, prepare, windows]
         default: verify
 
 permissions:
@@ -41,6 +41,7 @@ concurrency:
 
 jobs:
   evidence:
+    if: inputs.mode != 'windows'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
