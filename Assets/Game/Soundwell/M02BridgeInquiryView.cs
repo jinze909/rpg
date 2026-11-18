@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -10,6 +11,13 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class M02BridgeInquiryView : IDisposable
     {
+        private static readonly M02BridgeEvidence[] WarehouseClues =
+        {
+            M02BridgeEvidence.CleanCableCut,
+            M02BridgeEvidence.FerrymanLog,
+            M02BridgeEvidence.ThirdBellSignal
+        };
+
         private readonly M02BridgeInquiry inquiry;
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
@@ -28,6 +36,30 @@ namespace Rpg.Soundwell
         public Button ContinueButton => continueButton;
         public Text Narrative => narrative;
         public M02BridgeInquiry Inquiry => inquiry;
+
+        // Prefer undiscovered evidence, not an already-read clue or a hidden
+        // archive choice. A player can still deliberately skip via Continue.
+        public Button PreferredFocusTarget
+        {
+            get
+            {
+                if (disposed || inquiry.Location == M02EvidenceLocation.Finished)
+                    return null;
+                if (inquiry.Location == M02EvidenceLocation.FerryWarehouse)
+                {
+                    for (int i = 0; i < WarehouseClues.Length; i++)
+                        if (clueButtons[i].gameObject.activeInHierarchy &&
+                            !inquiry.Has(WarehouseClues[i]))
+                            return clueButtons[i];
+                }
+                else if (inquiry.Location == M02EvidenceLocation.HarborArchive &&
+                         clueButtons[0].gameObject.activeInHierarchy &&
+                         !inquiry.Has(M02BridgeEvidence.WarReportDraft))
+                    return clueButtons[0];
+
+                return continueButton.gameObject.activeInHierarchy ? continueButton : null;
+            }
+        }
 
         public M02BridgeInquiryView(Transform parent,
             M02BridgeInquiry inquiry, Action<M02BridgeEvidence> onCompleted,
@@ -132,12 +164,6 @@ namespace Rpg.Soundwell
                 ? "\n\n" + M02BridgeInquiryCopy.ClueText(inquiry.LastExamined.Value, chinese)
                 : string.Empty);
 
-            M02BridgeEvidence[] warehouseClues =
-            {
-                M02BridgeEvidence.CleanCableCut,
-                M02BridgeEvidence.FerrymanLog,
-                M02BridgeEvidence.ThirdBellSignal
-            };
             string[] en = { "Examine the severed cable", "Read the keeper's log", "Ask about the three bells" };
             string[] zh = { "检查断缆", "翻看守桥旧记录", "询问三声钟" };
             for (int i = 0; i < clueButtons.Length; i++)
@@ -148,7 +174,7 @@ namespace Rpg.Soundwell
                 clueLabels[i].font = font;
                 if (warehouse)
                     clueLabels[i].text = (chinese ? zh[i] : en[i]) +
-                        (inquiry.Has(warehouseClues[i]) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
+                        (inquiry.Has(WarehouseClues[i]) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
                 else if (archive)
                     clueLabels[i].text = chinese ? "调阅战报底稿" : "Read the draft battle report";
             }
@@ -158,28 +184,40 @@ namespace Rpg.Soundwell
                     ? (chinese ? "结束调查" : "Finish investigating")
                     : (chinese ? "调查结束" : "Inquiry complete");
             continueButton.gameObject.SetActive(location != M02EvidenceLocation.Finished);
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                location == M02EvidenceLocation.Finished ? null : clueButtons[0].gameObject.activeInHierarchy
-                    ? clueButtons[0] : continueButton);
+            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
         }
 
         private void Examine(int index)
         {
             if (disposed || completed)
                 return;
+            bool newlyObserved = false;
             if (inquiry.Location == M02EvidenceLocation.FerryWarehouse)
             {
-                M02BridgeEvidence clue = index == 0 ? M02BridgeEvidence.CleanCableCut :
-                    index == 1 ? M02BridgeEvidence.FerrymanLog : M02BridgeEvidence.ThirdBellSignal;
-                if (inquiry.Examine(clue))
+                M02BridgeEvidence clue = WarehouseClues[index];
+                newlyObserved = inquiry.Examine(clue);
+                if (newlyObserved)
                     onObserved?.Invoke(clue);
             }
             else if (inquiry.Location == M02EvidenceLocation.HarborArchive && index == 0)
             {
-                if (inquiry.Examine(M02BridgeEvidence.WarReportDraft))
+                newlyObserved = inquiry.Examine(M02BridgeEvidence.WarReportDraft);
+                if (newlyObserved)
                     onObserved?.Invoke(M02BridgeEvidence.WarReportDraft);
             }
+
             Refresh();
+            // KeepDialogFocus intentionally respects an existing selected
+            // button. After a fresh discovery, advance keyboard/gamepad
+            // selection to the next unread clue (or Continue) instead.
+            if (newlyObserved && !disposed && Application.isPlaying &&
+                EventSystem.current != null && !EventSystem.current.alreadySelecting &&
+                EventSystem.current.currentSelectedGameObject == clueButtons[index].gameObject)
+            {
+                Button next = PreferredFocusTarget;
+                if (next != null && next != clueButtons[index])
+                    EventSystem.current.SetSelectedGameObject(next.gameObject);
+            }
         }
 
         private void Advance()
