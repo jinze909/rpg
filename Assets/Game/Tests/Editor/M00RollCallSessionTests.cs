@@ -85,6 +85,28 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedOwnerDoesNotLeaveDeadTextSubscribedToLocaleChanges()
+        {
+            string previousLanguage = SoundwellUiLocalization.Language;
+            session.Begin(_ => { });
+            // Simulate a scene unload without calling the view's Dispose.
+            // A stale locale delegate previously tried to mutate destroyed Text.
+            UnityEngine.Object.DestroyImmediate(root);
+            root = null;
+            try
+            {
+                string nextLanguage = previousLanguage == SoundwellUiLocalization.Chinese
+                    ? SoundwellUiLocalization.English
+                    : SoundwellUiLocalization.Chinese;
+                Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(nextLanguage));
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+            }
+        }
+
+        [Test]
         public void CannotStartOverOrBeginWithoutCompletionCallback()
         {
             Assert.Throws<ArgumentNullException>(() => session.Begin(null));

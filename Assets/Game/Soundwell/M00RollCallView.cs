@@ -142,6 +142,14 @@ namespace Rpg.Soundwell
         public void Refresh()
         {
             ThrowIfDisposed();
+            // A Unity GameObject may be destroyed outside this view's Dispose
+            // method (notably by a scene unload or an EditMode test fixture).
+            // Detach the global locale listener before touching dead UGUI Text.
+            if (canvasObject == null || title == null)
+            {
+                Dispose();
+                return;
+            }
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             CurrentBeat = M00RollCallDialogue.Describe(sequence, chinese);
             title.text = Copy("THE TWELFTH-YEAR ROLL CALL", "第十二年的点名");
