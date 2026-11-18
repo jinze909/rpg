@@ -1,6 +1,12 @@
+using System.Collections;
 using NUnit.Framework;
 using Rpg.Soundwell;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.TestTools;
 
 namespace Rpg.Tests.Editor
 {
@@ -101,6 +107,66 @@ namespace Rpg.Tests.Editor
             view.ContinueButton.onClick.Invoke();
             Assert.That(view.PreferredFocusTarget, Is.Null);
             Assert.That(inquiry.Found, Is.EqualTo(M02BridgeEvidence.None));
+        }
+
+        [UnityTest]
+        public IEnumerator GamepadEnteringArchiveFocusesUnreadDraftBeforeFinish()
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return null;
+
+            var input = new InputTestFixture();
+            input.Setup();
+            var owner = new GameObject("M02 live archive focus");
+            M02BridgeInquiryView runtimeView = null;
+            try
+            {
+                Gamepad pad = InputSystem.AddDevice<Gamepad>();
+                EventSystem events = SoundwellInputAdapter.EnsureEventSystem(owner.transform);
+                SoundwellInputAdapter.SetUiContext();
+                var inquiry = new M02BridgeInquiry();
+                inquiry.Begin();
+                int completions = 0;
+                runtimeView = new M02BridgeInquiryView(owner.transform, inquiry,
+                    _ => completions++);
+
+                // A new EventSystem activates its Input System UI module on
+                // the next frames. Sending Submit earlier never reaches UGUI.
+                yield return null;
+                yield return null;
+                Assert.That(events.currentInputModule,
+                    Is.TypeOf<InputSystemUIInputModule>());
+                events.SetSelectedGameObject(runtimeView.ContinueButton.gameObject);
+                input.Press(pad.buttonSouth);
+                yield return null;
+                yield return null;
+                input.Release(pad.buttonSouth);
+                yield return null;
+
+                Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.HarborArchive));
+                Assert.That(inquiry.Found, Is.EqualTo(M02BridgeEvidence.None));
+                Assert.That(events.currentSelectedGameObject,
+                    Is.SameAs(runtimeView.GetEvidenceButton(0).gameObject),
+                    "Entering the archive must not leave Submit on Finish.");
+                Assert.That(completions, Is.Zero);
+
+                input.Press(pad.buttonSouth);
+                yield return null;
+                yield return null;
+                input.Release(pad.buttonSouth);
+                yield return null;
+                Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.HarborArchive));
+                Assert.That(inquiry.Found, Is.EqualTo(M02BridgeEvidence.WarReportDraft));
+                Assert.That(completions, Is.Zero);
+            }
+            finally
+            {
+                runtimeView?.Dispose();
+                Object.Destroy(owner);
+                input.TearDown();
+            }
+            yield return new ExitPlayMode();
         }
 
         [Test]
