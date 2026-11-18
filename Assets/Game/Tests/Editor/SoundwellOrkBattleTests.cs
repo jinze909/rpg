@@ -1217,7 +1217,14 @@ namespace Rpg.Tests.Editor
                 party.Members[0].Status[1].GetValue()));
             float beastHpBeforeAttack = party.Beast.Status[1].GetValue();
             var attackUser = party.Members[party.ReadyBaseAttackerIndex];
-            var configuredAttack = ORK.Abilities.Get(0).GetLevel(1).active;
+            var attackSetting = attackUser.Abilities.GetCurrentBaseAttack().Setting;
+            var prototypeDefault = ORK.Abilities.Get(0);
+            Assert.That(attackSetting, Is.Not.SameAs(prototypeDefault));
+            Assert.That(prototypeDefault.GetLevel(1).active, Is.Null,
+                "Entering Soundwell must leave the original placeholder ability untouched.");
+            Assert.That(ORK.Abilities.Get(attackSetting.GUID), Is.SameAs(attackSetting));
+            Assert.That(ORK.Combatants.Get(attackUser.Setting.GUID), Is.SameAs(attackUser.Setting));
+            var configuredAttack = attackSetting.GetLevel(1).active;
             var configuredTarget = configuredAttack.targetChange[0];
             var configuredStatusChange = configuredTarget.change[0].settings;
             string damagePipelineSnapshot =

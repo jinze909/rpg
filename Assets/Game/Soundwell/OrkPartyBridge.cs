@@ -158,68 +158,6 @@ namespace Rpg.Soundwell
                 yield break;
             }
 
-            // ORK's installed default ability asset has an AbilityLevel 1
-            // without an ActiveAbility payload. A base-attack shortcut alone
-            // is not an attack: CanChoose/CanUse always return false when its
-            // active level is null (confirmed by Unity run 43050554632).
-            // Configure the missing active definition on ORK's own ability,
-            // before any Soundwell combatants are registered. The real ORK
-            // ability and action resolver still own targeting, costs, turns,
-            // damage and victory; this never writes HP or fabricates an action.
-            Ability soundwellAttack = ORK.Abilities.Get(0);
-            AbilityLevel attackLevel = soundwellAttack != null
-                ? soundwellAttack.GetLevel(1) : null;
-            if (attackLevel == null)
-            {
-                Fail("Soundwell ORK base attack is missing its saved level 1.");
-                yield break;
-            }
-            if (attackLevel.active == null)
-                attackLevel.active = new ActiveAbility();
-            // The vendor starter battle system can route actions through
-            // system-wide schematics that never calculate their outcomes.
-            // Override those for this one unanimated test attack: ORK's
-            // built-in no-animation path calculates user/target changes.
-            // Do not change vendor settings or apply HP directly.
-            attackLevel.active.replaceSystemActionSchematics = true;
-            attackLevel.active.systemActionSchematics = new BattleSystemActionSchematicsSettings();
-            // A selectable ORK base-attack shortcut alone deals no damage:
-            // the frozen starter ability has no target status changes. Give
-            // this Soundwell prototype a whole HP status step so that ORK's
-            // integer-valued HP does not round fractional damage to zero.
-            // The player's UGUI action still uses ORK's real turn resolver.
-            // This is game-owned runtime setup, not a second HP authority.
-            if (attackLevel.active.targetChange == null ||
-                attackLevel.active.targetChange.Length == 0)
-            {
-                StatusValueAsset hpAsset = ORK.StatusValues.GetAsset(1);
-                if (hpAsset == null)
-                {
-                    Fail("Soundwell base attack cannot resolve ORK HP asset ID 1.");
-                    yield break;
-                }
-                var hpChange = new StatusValueStatusChangeType
-                {
-                    simpleOperator = SimpleOperator.Add,
-                    changeValue = new FloatValue<GameObjectSelection>(-1f)
-                };
-                hpChange.status.SetAsset(hpAsset);
-                attackLevel.active.targetChange = new[]
-                {
-                    new TargetStatusChange
-                    {
-                        change = new[]
-                        {
-                            new StatusChangeType
-                            {
-                                type = typeof(StatusValueStatusChangeType).ToString(),
-                                settings = hpChange
-                            }
-                        }
-                    }
-                };
-            }
-
             movementController = GetComponent<PartyMovement2D>();
             if (movementController == null)
             {
