@@ -941,7 +941,16 @@ class NarrativeV12WritingBaselineTests(unittest.TestCase):
             self.assertIn(choice, m00)
         self.assertEqual(m00.count("[应声：“在。”]"), 3)
         self.assertEqual(m00.count("[离开人群]"), 3)
-        self.assertIn("identity_reveal", m00)
+        self.assertIn("一旦你应声，立即停止", m00)
+        for outcome in ("应声第1遍", "应声第2遍", "应声第3遍",
+                        "沉默", "离开人群"):
+            with self.subTest(outcome=outcome):
+                self.assertIn("identity_reveal = " + outcome, m00)
+                self.assertIn(outcome, facts)
+        m01 = (root / "SCENE_SCRIPT_M01.md").read_text(encoding="utf-8")
+        m10 = (root / "SCENE_SCRIPT_M10.md").read_text(encoding="utf-8")
+        self.assertIn("identity_reveal in {应声第1遍, 应声第2遍, 应声第3遍}", m01)
+        self.assertIn("identity_reveal == 应声第3遍", m10)
         self.assertIn("四十一个", m00)
         for clue in ("缆口整齐", "桥夫旧记录", "战报底稿"):
             with self.subTest(clue=clue):

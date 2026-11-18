@@ -152,6 +152,8 @@ namespace Rpg.Soundwell
         };
 
         private Canvas canvas;
+        private RectTransform authoredView;
+        private float lastViewAspect = -1f;
         private RectTransform player;
         private Image oldWomanImage;
         private Image childImage;
@@ -223,26 +225,36 @@ namespace Rpg.Soundwell
             scaler.matchWidthOrHeight = 0.5f;
             canvasObject.AddComponent<GraphicRaycaster>();
 
-            Panel(canvas.transform, "M00 daylight harbor sky",
+            // Fit the authored 960x540 logical scene inside portrait and ultrawide
+            // viewports without changing player motion or Makinom facts.
+            var viewObject = new GameObject("M00 responsive authored view",
+                typeof(RectTransform));
+            viewObject.transform.SetParent(canvas.transform, false);
+            authoredView = (RectTransform)viewObject.transform;
+            authoredView.anchorMin = authoredView.anchorMax = new Vector2(0.5f, 0.5f);
+            authoredView.anchoredPosition = Vector2.zero;
+            authoredView.sizeDelta = new Vector2(960f, 540f);
+
+            Panel(authoredView, "M00 daylight harbor sky",
                 Vector2.zero, new Vector2(960f, 540f),
                 new Color(0.69f, 0.78f, 0.77f));
-            Panel(canvas.transform, "M00 distant harbor water",
+            Panel(authoredView, "M00 distant harbor water",
                 new Vector2(0f, 34f), new Vector2(960f, 115f),
                 new Color(0.35f, 0.57f, 0.61f));
-            Panel(canvas.transform, "M00 memorial square paving",
+            Panel(authoredView, "M00 memorial square paving",
                 new Vector2(0f, -112f), new Vector2(960f, 220f),
                 new Color(0.61f, 0.62f, 0.57f));
-            Panel(canvas.transform, "M00 crowd line",
+            Panel(authoredView, "M00 crowd line",
                 new Vector2(0f, -4f), new Vector2(900f, 22f),
                 new Color(0.48f, 0.52f, 0.49f));
 
-            Label(canvas.transform,
-                Copy("M00 · Your Name Carved in Stone", "M00 · 你的名字刻在石头上"),
+            Label(authoredView,
+                Copy("Your Name Carved in Stone", "你的名字刻在石头上"),
                 27, Ink, new Vector2(0f, 232f), new Vector2(820f, 38f));
-            Label(canvas.transform,
+            Label(authoredView,
                 Copy("Twelve years later · Linchao Harbor Memorial Day", "十二年后 · 临潮港纪念日"),
                 16, Ink, new Vector2(0f, 201f), new Vector2(820f, 28f));
-            narration = Label(canvas.transform,
+            narration = Label(authoredView,
                 Copy("Daytime. Linchao Harbor. The sea wind carries a vendor’s call for “hero sugar figures.” Children line up to touch the memorial; one patch of stone has been polished bright.",
                     "白天。临潮港。海风里有人叫卖“英雄糖人”。孩子们排着队，摸石碑上刻的字，那一块已经摸得发亮。"),
                 16, Ink, new Vector2(0f, 151f), new Vector2(870f, 66f));
@@ -250,41 +262,41 @@ namespace Rpg.Soundwell
 
             // The polished memorial stone and the statue remain visible from
             // the start. The epitaph is revealed only after a real approach.
-            Panel(canvas.transform, "M00 memorial stone",
+            Panel(authoredView, "M00 memorial stone",
                 new Vector2(StatueX, 29f), new Vector2(118f, 112f), Stone);
-            var statueObject = Panel(canvas.transform, "M00 memorial statue",
+            var statueObject = Panel(authoredView, "M00 memorial statue",
                 new Vector2(StatueX, 112f), new Vector2(40f, 40f),
                 Color.white, statueSprite);
             statueObject.rectTransform.sizeDelta = new Vector2(40f, 40f);
-            inscription = Label(canvas.transform, "", 12, Ink,
+            inscription = Label(authoredView, "", 12, Ink,
                 new Vector2(StatueX, 25f), new Vector2(190f, 102f));
             inscription.gameObject.SetActive(false);
 
-            oldWomanImage = Panel(canvas.transform, "M00 old woman wiping Hao Lie’s name",
+            oldWomanImage = Panel(authoredView, "M00 old woman wiping Hao Lie’s name",
                 new Vector2(OldWomanX, LaneY), new Vector2(32f, 32f),
                 Color.white, oldWomanSprite);
             // The blue-cuffed former soldiers watch from the crowd edge.
-            Panel(canvas.transform, "M00 blue-cuffed watcher left",
+            Panel(authoredView, "M00 blue-cuffed watcher left",
                 new Vector2(-275f, LaneY), new Vector2(32f, 32f),
                 Color.white, watcherSprite);
-            Panel(canvas.transform, "M00 blue-cuffed watcher right",
+            Panel(authoredView, "M00 blue-cuffed watcher right",
                 new Vector2(-230f, LaneY), new Vector2(32f, 32f),
                 new Color(0.88f, 0.93f, 0.95f), watcherSprite);
 
-            Panel(canvas.transform, "M00 small stage",
+            Panel(authoredView, "M00 small stage",
                 new Vector2(StageX, 28f), new Vector2(176f, 18f),
                 new Color(0.37f, 0.25f, 0.18f));
-            childImage = Panel(canvas.transform, "M00 Xiaodou in oversized uniform",
+            childImage = Panel(authoredView, "M00 Xiaodou in oversized uniform",
                 new Vector2(StageX, 72f), new Vector2(32f, 32f),
                 Color.white, childSprite);
-            childLine = Label(canvas.transform, "", 16, Ink,
+            childLine = Label(authoredView, "", 16, Ink,
                 new Vector2(StageX, 132f), new Vector2(360f, 30f));
             childLine.gameObject.SetActive(false);
-            crowdLine = Label(canvas.transform, "", 13, Ink,
+            crowdLine = Label(authoredView, "", 13, Ink,
                 new Vector2(StageX, 108f), new Vector2(360f, 24f));
             crowdLine.gameObject.SetActive(false);
 
-            var playerImage = Panel(canvas.transform, "M00 player",
+            var playerImage = Panel(authoredView, "M00 player",
                 new Vector2(walker.x, LaneY), new Vector2(32f, 32f),
                 Color.white, playerSprite);
             player = playerImage.rectTransform;
@@ -295,7 +307,7 @@ namespace Rpg.Soundwell
             playerImage.gameObject.name = "M00 player";
             playerImage.raycastTarget = false;
 
-            instructions = Label(canvas.transform, "", 15, Ink,
+            instructions = Label(authoredView, "", 15, Ink,
                 new Vector2(0f, -224f), new Vector2(880f, 34f));
             for (int i = 0; i < choices.Length; i++)
                 choices[i] = CreateChoiceButton(i,
@@ -304,6 +316,7 @@ namespace Rpg.Soundwell
                 Copy("Attend the roll call", "参加正式点名"),
                 new Vector2(0f, -165f), new Vector2(300f, 42f), BeginRollCall);
             rollCallButton.gameObject.SetActive(false);
+            RefreshViewLayout();
         }
 
         private void CreateSprites()
@@ -368,7 +381,7 @@ namespace Rpg.Soundwell
         {
             var obj = new GameObject(name,
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            obj.transform.SetParent(canvas.transform, false);
+            obj.transform.SetParent(authoredView, false);
             var rect = (RectTransform)obj.transform;
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
@@ -396,8 +409,36 @@ namespace Rpg.Soundwell
 
         private bool NearStage => WithinReach(StageX);
 
+        // CanvasScaler's geometric-mean factor leaves logical width
+        // sqrt(960*540*aspect) and height sqrt(960*540/aspect). Scale only
+        // the view, never the stored actor coordinates or Makinom facts.
+        public void LayoutForViewportAspect(float aspect)
+        {
+            if (authoredView == null || !(aspect > 0f) ||
+                float.IsNaN(aspect) || float.IsInfinity(aspect))
+                return;
+            float width = Mathf.Sqrt(960f * 540f * aspect);
+            float height = Mathf.Sqrt(960f * 540f / aspect);
+            float scale = Mathf.Min(1f, Mathf.Min(width / 960f, height / 540f));
+            if (scale < 1f)
+                scale *= 0.95f;
+            authoredView.localScale = new Vector3(scale, scale, 1f);
+            lastViewAspect = aspect;
+        }
+
+        private void RefreshViewLayout()
+        {
+            if (authoredView == null)
+                return;
+            float aspect = (float)Mathf.Max(1, Screen.width) /
+                Mathf.Max(1, Screen.height);
+            if (Mathf.Abs(aspect - lastViewAspect) > 0.001f)
+                LayoutForViewportAspect(aspect);
+        }
+
         private void Update()
         {
+            RefreshViewLayout();
             if (phase != 0 && phase != 2 && phase != 3)
                 return;
 
