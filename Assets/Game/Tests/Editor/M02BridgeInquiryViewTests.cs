@@ -73,6 +73,56 @@ namespace Rpg.Tests.Editor
             Assert.That(received, Is.EqualTo(M02BridgeEvidence.None));
         }
 
+
+        [Test]
+        public void NewCluesNotifyHostImmediatelyAndRevisitingDoesNotDuplicateThem()
+        {
+            var inquiry = new M02BridgeInquiry();
+            inquiry.Begin();
+            M02BridgeEvidence saved = M02BridgeEvidence.None;
+            int observations = 0;
+            int completed = 0;
+            view = new M02BridgeInquiryView(root.transform, inquiry,
+                clues =>
+                {
+                    completed++;
+                    Assert.That(clues, Is.EqualTo(saved));
+                },
+                clue =>
+                {
+                    observations++;
+                    saved = M02BridgeEvidenceFacts.MergeObserved(saved, clue);
+                });
+
+            view.GetEvidenceButton(0).onClick.Invoke();
+            view.GetEvidenceButton(0).onClick.Invoke();
+            Assert.That(observations, Is.EqualTo(1));
+            Assert.That(saved, Is.EqualTo(M02BridgeEvidence.CleanCableCut));
+            view.ContinueButton.onClick.Invoke();
+            view.GetEvidenceButton(0).onClick.Invoke();
+            Assert.That(saved, Is.EqualTo(M02BridgeEvidence.CleanCableCut |
+                M02BridgeEvidence.WarReportDraft));
+            Assert.That(observations, Is.EqualTo(2));
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(completed, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void DestroyingTheViewDoesNotEraseAnAlreadyObservedClue()
+        {
+            var inquiry = new M02BridgeInquiry();
+            inquiry.Begin();
+            M02BridgeEvidence saved = M02BridgeEvidence.None;
+            int completed = 0;
+            view = new M02BridgeInquiryView(root.transform, inquiry,
+                _ => completed++, clue => saved = M02BridgeEvidenceFacts.MergeObserved(saved, clue));
+            view.GetEvidenceButton(1).onClick.Invoke();
+            view.Dispose();
+            view.GetEvidenceButton(2).onClick.Invoke();
+            Assert.That(saved, Is.EqualTo(M02BridgeEvidence.FerrymanLog));
+            Assert.That(completed, Is.Zero);
+        }
+
         [Test]
         public void SceneTeardownUnsubscribesLocaleAndDisposesSafely()
         {
