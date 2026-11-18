@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -29,18 +30,39 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public Button LeaveButton => leaveButton;
 
-        // When the M01 player did not choose public registration, the first
-        // button is intentionally hidden. Focus another available conversation
-        // action instead of jumping straight to "Leave" on keyboard/gamepad.
+        // Prefer subjects the player has not heard yet. Everything remains
+        // independently selectable for revisits, but default focus should
+        // not make keyboard/gamepad users repeat one already-heard response.
         public Button PreferredFocusTarget
         {
             get
             {
-                foreach (Button action in actionButtons)
-                    if (action != null && action.gameObject.activeInHierarchy)
-                        return action;
+                if (disposed || delivered)
+                    return null;
+                for (int i = 0; i < actionButtons.Length; i++)
+                    if (actionButtons[i] != null &&
+                        actionButtons[i].gameObject.activeInHierarchy &&
+                        !ActionAlreadyDiscussed((M02HarborDeskAction)i))
+                        return actionButtons[i];
                 return leaveButton != null && leaveButton.gameObject.activeInHierarchy
                     ? leaveButton : null;
+            }
+        }
+
+        private bool ActionAlreadyDiscussed(M02HarborDeskAction action)
+        {
+            switch (action)
+            {
+                case M02HarborDeskAction.PresentLivingRegistration:
+                    return desk.LivingRegistryStamped;
+                case M02HarborDeskAction.AskAboutQiQueShip:
+                    return desk.QiQueDebtDiscovered;
+                case M02HarborDeskAction.AskAboutLuJunEscort:
+                    return desk.LuJunEscortDiscussed;
+                case M02HarborDeskAction.AssistTransferList:
+                    return desk.TransferAssistanceAccepted;
+                default:
+                    return false;
             }
         }
 
@@ -142,7 +164,9 @@ namespace Rpg.Soundwell
             for (int i = 0; i < actionButtons.Length; i++)
             {
                 actionLabels[i].font = font;
-                actionLabels[i].text = chinese ? zh[i] : en[i];
+                actionLabels[i].text = (chinese ? zh[i] : en[i]) +
+                    (ActionAlreadyDiscussed((M02HarborDeskAction)i)
+                        ? (chinese ? "（已谈）" : " (discussed)") : string.Empty);
                 actionButtons[i].gameObject.SetActive(!delivered &&
                     (i != 0 || desk.CanPresentLivingPapers));
             }
@@ -161,8 +185,21 @@ namespace Rpg.Soundwell
             if (action == M02HarborDeskAction.PresentLivingRegistration &&
                 !desk.CanPresentLivingPapers)
                 return;
-            desk.Act(action);
+            bool newlyDiscussed = desk.Act(action);
             Refresh();
+            // The chosen button remains available to reread its dialogue, so
+            // KeepDialogFocus intentionally keeps it selected. After a new
+            // answer, shift a pad/keyboard user to the next unheard subject
+            // without silently activating it or changing any story facts.
+            if (newlyDiscussed && Application.isPlaying &&
+                EventSystem.current != null && !EventSystem.current.alreadySelecting &&
+                EventSystem.current.currentSelectedGameObject ==
+                    actionButtons[(int)action].gameObject)
+            {
+                Button next = PreferredFocusTarget;
+                if (next != null && next.gameObject.activeInHierarchy)
+                    EventSystem.current.SetSelectedGameObject(next.gameObject);
+            }
         }
 
         private void Leave()

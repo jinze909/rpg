@@ -79,6 +79,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FocusMovesThroughUnheardSubjectsAndNeverCreatesAStampOrVoyage()
+        {
+            int delivered = 0;
+            view = new M02HarborDeskView(root.transform,
+                M01PensionChoice.KeepIdentityUnregistered, _ => delivered++);
+
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetActionButton(1)));
+            view.GetActionButton(1).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetActionButton(2)));
+            Assert.That(view.GetActionButton(1)
+                .GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("(discussed)"));
+
+            // Repeating a known question remains possible, but is never the
+            // next suggested action. Nor does it grant official registration.
+            view.GetActionButton(1).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetActionButton(2)));
+            Assert.That(view.Desk.LivingRegistryStamped, Is.False);
+            view.GetActionButton(2).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetActionButton(3)));
+            view.GetActionButton(3).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.LeaveButton));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(view.GetActionButton(2)
+                .GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("（已谈）"));
+            Assert.That(delivered, Is.Zero);
+            Assert.That(view.Desk.Stage, Is.EqualTo(M02HarborDeskStage.Discussing));
+            view.LeaveButton.onClick.Invoke();
+            Assert.That(delivered, Is.EqualTo(1));
+            Assert.That(view.PreferredFocusTarget, Is.Null);
+        }
+
+        [Test]
         public void DisposalDetachesLocaleListenerAndDropsUndeliveredOutcome()
         {
             int calls = 0;
