@@ -72,16 +72,20 @@ namespace Rpg.Tests.Editor
                     "The virtual keyboard must survive the same Bootstrap load as the passing handoff test.");
                 Assert.That(keys.eKey, Is.Not.Null,
                     "The M00 physical-approach test needs live keyboard controls.");
-                SoundwellInputAdapter.EnsureEventSystem(entry.transform);
-                SoundwellInputAdapter.SetEntryContext();
+                // Bootstrap already owns the EventSystem and entry action map.
+                // The passing handoff regression uses that same owner unchanged;
+                // resetting its input context again here is not player behavior.
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap and isolated keyboard ready");
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: before opening S00");
 
                 // Open M00 only through the production S00 exit callback. This
                 // keeps the test on the same live-owner lifecycle as the player
                 // path instead of manufacturing a second component attachment.
                 entry.OpenPrelude();
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: opened S00");
                 yield return null;
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: resumed with S00 active");
                 entry = Object.FindFirstObjectByType<SoundwellEntrance>();
                 Assert.That(entry, Is.Not.Null,
                     "Opening S00 must preserve the live Bootstrap entry owner.");
@@ -95,11 +99,13 @@ namespace Rpg.Tests.Editor
                 Assert.That(prelude, Is.Not.Null,
                     "The live entry owner must create S00 before M00 can be earned.");
                 thirdBellField.SetValue(prelude, true);
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: before earned third-bell close");
                 // Close invokes the production S00 exit callback synchronously.
                 // Check its M00 ownership before yielding: in the previous run
                 // the yielded test iterator lost the entry reference on the
                 // destruction frame, before any authored-interaction assertion.
                 prelude.Close();
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: third-bell close returned");
                 // The live Bootstrap owner is still here on the callback frame,
                 // and M00 should already exist before the coroutine advances.
                 Assert.That(entry, Is.Not.Null,
