@@ -126,6 +126,63 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ConfessionReactionsGetDistinctBilingualRepliesBeforeSecrecy()
+        {
+            var reactions = new[]
+            {
+                M03ConfessionResponse.YouShouldHaveToldThem,
+                M03ConfessionResponse.YouChoseForThem,
+                M03ConfessionResponse.RemainSilent
+            };
+            var zh = new[] { "我每晚都在想", "还在替他们决定", "没有催你" };
+            var en = new[] { "why I waited", "still deciding for them", "without speaking" };
+
+            for (int i = 0; i < reactions.Length; i++)
+            {
+                var encounter = new M03LuJunEncounter(M02BridgeEvidence.None, false);
+                encounter.Begin();
+                encounter.ObserveRollCall();
+                encounter.Ask(M03LuJunOpening.AskWhoCutBridge);
+                encounter.Respond(reactions[i]);
+                Assert.That(encounter.Stage, Is.EqualTo(M03LuJunStage.ReplyingToSecrecyRequest));
+                Assert.That(encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+                Assert.That(M03LuJunCopy.Narration(encounter, true),
+                    Does.Contain(zh[i]).And.Contain("别告诉他们"));
+                Assert.That(M03LuJunCopy.Narration(encounter, false),
+                    Does.Contain(en[i]).And.Contain("Please don't tell them"));
+            }
+        }
+
+        [Test]
+        public void SecrecyChoicesGetDistinctBilingualFarewellsWithoutGrantingOfficialPassage()
+        {
+            var answers = new[]
+            {
+                M03SecrecyAnswer.PromiseSecrecy,
+                M03SecrecyAnswer.Undecided,
+                M03SecrecyAnswer.RefuseSecrecy
+            };
+            var zh = new[] { "你什么也不欠我", "决定了告诉我", "每一个名字后面" };
+            var en = new[] { "owe me nothing", "when you decide", "behind every name" };
+
+            for (int i = 0; i < answers.Length; i++)
+            {
+                var encounter = new M03LuJunEncounter(M02BridgeEvidence.None, false);
+                encounter.Begin();
+                encounter.ObserveRollCall();
+                encounter.Ask(M03LuJunOpening.AskWhoCutBridge);
+                encounter.Respond(M03ConfessionResponse.RemainSilent);
+                encounter.AnswerSecrecy(answers[i]);
+                Assert.That(encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+                Assert.That(M03LuJunCopy.Narration(encounter, true),
+                    Does.Contain(zh[i]).And.Contain("官船必须已有正式盖印"));
+                Assert.That(M03LuJunCopy.Narration(encounter, false),
+                    Does.Contain(en[i]).And.Contain("Official passage requires"));
+                Assert.That(encounter.CanChoose(M03VoyageChoice.HanQiaoOfficial), Is.False);
+            }
+        }
+
+        [Test]
         public void InvalidTransitionsAndIncompletePersistenceAreRejected()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>

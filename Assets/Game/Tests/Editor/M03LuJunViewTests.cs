@@ -76,8 +76,10 @@ namespace Rpg.Tests.Editor
             Assert.That(view.Encounter.Confession, Is.EqualTo(M03LuConfession.AskedWithEvidence));
             view.GetChoiceButton(1).onClick.Invoke();
             Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ReplyingToSecrecyRequest));
+            Assert.That(view.Dialogue.text, Does.Contain("还在替他们决定"));
             view.GetChoiceButton(2).onClick.Invoke();
             Assert.That(view.Encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.RefuseSecrecy));
+            Assert.That(view.Dialogue.text, Does.Contain("每一个名字后面"));
             view.GetChoiceButton(2).onClick.Invoke();
             Assert.That(callbacks, Is.EqualTo(1));
             Assert.That(view.Encounter.VoyagePathValue, Is.EqualTo("韩峤船坞"));

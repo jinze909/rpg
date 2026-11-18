@@ -272,17 +272,60 @@ namespace Rpg.Soundwell
                         ? "陆钧：“总帅令。三更。工兵队。我接到命令，第三旅不撤。桥这头一万四千，桥那头一千一百。我没说，是因为一说，防线天亮前就散了。我用他们的不知道，换了他们的命。”"
                         : "Lu Jun: 'The marshal's order. Third watch. Engineers. I obeyed. Fourteen thousand here, eleven hundred beyond. If I'd told them, the line would have broken before dawn. I traded their ignorance for their lives.'";
                 case M03LuJunStage.ReplyingToSecrecyRequest:
-                    return chinese
-                        ? "陆钧：“他们的家人以为自己的儿子是死守桥头的英雄。别告诉他们。”你并没有义务替他隐瞒。"
-                        : "Lu Jun: 'Their families believe their sons died holding the bridge. Please don't tell them.' You are not obligated to keep his secret.";
+                    // React to the player's actual accusation before requesting secrecy.
+                    string reaction;
+                    switch (e.Reaction)
+                    {
+                        case M03ConfessionResponse.YouShouldHaveToldThem:
+                            reaction = chinese
+                                ? "陆钧：对。我每晚都在想这句话。现在去说，他们会问我为什么现在才说，我答不上来。"
+                                : "Lu Jun: 'Yes. I think of that every night. If I tell them now, they'll ask why I waited. I have no answer.'";
+                            break;
+                        case M03ConfessionResponse.YouChoseForThem:
+                            reaction = chinese
+                                ? "陆钧：是。我到现在还在替他们决定，你看出来了。"
+                                : "Lu Jun: 'Yes. I am still deciding for them. You saw it.'";
+                            break;
+                        case M03ConfessionResponse.RemainSilent:
+                            reaction = chinese
+                                ? "（陆钧等了很久，没有开口，也没有催你。）"
+                                : "(Lu Jun waits a long time without speaking or pressing you.)";
+                            break;
+                        default:
+                            throw new InvalidOperationException("The confession needs a response before secrecy.");
+                    }
+                    return reaction + (chinese
+                        ? "\n陆钧：他们的家人以为自己的儿子死守桥头。别告诉他们。你不必替我隐瞒。"
+                        : "\nLu Jun: 'Their families believe their sons died defending the bridge. Please don't tell them. You owe me no promise.'");
                 case M03LuJunStage.ChoosingVoyage:
                     // The two non-bridge openings are distinct authored
                     // conversations, not a generic "didn't ask" placeholder.
                     // Neither discloses the bridge order nor triggers secrecy.
                     string preface;
                     if (e.Confession != M03LuConfession.NotAsked)
-                        preface = chinese ? "陆钧让你自己决定如何对待这份真相。" :
-                            "Lu Jun leaves the choice of what to do with the truth to you.";
+                    {
+                        // The farewell belongs to the player's explicit secrecy answer.
+                        switch (e.Secrecy)
+                        {
+                            case M03SecrecyAnswer.PromiseSecrecy:
+                                preface = chinese
+                                    ? "陆钧：谢谢。（停）你什么也不欠我。"
+                                    : "Lu Jun: 'Thank you. (A pause.) You owe me nothing.'";
+                                break;
+                            case M03SecrecyAnswer.Undecided:
+                                preface = chinese
+                                    ? "陆钧：好。决定了告诉我一声，我不拦你。"
+                                    : "Lu Jun: 'All right. Tell me when you decide. I won't stop you.'";
+                                break;
+                            case M03SecrecyAnswer.RefuseSecrecy:
+                                preface = chinese
+                                    ? "陆钧：那我也不拦你。你去说时，先想想每一个名字后面站着几个人。"
+                                    : "Lu Jun: 'I won't stop you. Before you tell them, think of the people behind every name.'";
+                                break;
+                            default:
+                                throw new InvalidOperationException("A heard confession needs an explicit secrecy answer.");
+                        }
+                    }
                     else if (e.Opening == M03LuJunOpening.FindMyName)
                         preface = chinese
                             ? "陆钧把名册翻到你的名字：“我没划。你要我划，也得你自己说。”他没有提起断桥旧案，也没有请你守秘。"
