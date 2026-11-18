@@ -227,11 +227,15 @@ namespace Rpg.Editor
             {
                 foreach (string phase in new[] { "write", "read" })
                 {
-                    string log = Path.Combine(evidence, $"ork-save-{phase}.log");
+                    // The Player must log to the same absolute path the
+                    // Editor inspects, independent of its launch directory.
+                    string log = Path.GetFullPath(Path.Combine(evidence,
+                        $"ork-save-{phase}.log"));
                     var start = new ProcessStartInfo
                     {
                         FileName = Path.GetFullPath(executable),
-                        Arguments = $"-batchmode -nographics -rpg-save-restart {phase} -logFile {log}",
+                        Arguments = $"-batchmode -nographics -rpg-save-restart {phase} -logFile \\"{log}\\"",
+                        WorkingDirectory = Directory.GetCurrentDirectory(),
                         UseShellExecute = false,
                     };
                     start.EnvironmentVariables["XDG_CONFIG_HOME"] = sandbox;
@@ -242,17 +246,36 @@ namespace Rpg.Editor
                     {
                         player.Kill();
                         player.WaitForExit();
-                        throw new InvalidOperationException($"Save regression timed out ({phase}). See {log}.");
+                        throw new InvalidOperationException($"Save regression timed out ({phase}). " +
+                            DescribePlayerFailure(log));
                     }
                     string marker = "RPG_ORK_SAVE_RESTART_" + phase.ToUpperInvariant();
                     if (player.ExitCode != 0 || !File.Exists(log) || !File.ReadAllText(log).Contains(marker))
-                        throw new InvalidOperationException($"Save regression failed ({phase}). See {log}.");
+                        throw new InvalidOperationException($"Save regression failed ({phase}); " +
+                            $"Player exit code {player.ExitCode}. " + DescribePlayerFailure(log));
                 }
             }
             finally
             {
                 Directory.Delete(sandbox, recursive: true);
             }
+        }
+
+        private static string DescribePlayerFailure(string log)
+        {
+            if (!File.Exists(log))
+                return "No Player log at " + log +
+                    "; check the child process launch and -logFile argument.";
+            // Put the game's own failure message into Actions rather than
+            // forcing a human to download a ZIP just to diagnose the next run.
+            string content = File.ReadAllText(log);
+            const string failure = "ORK save restart regression failed.";
+            int marker = content.LastIndexOf(failure, StringComparison.Ordinal);
+            if (marker >= 0)
+                return "Player log: " + content.Substring(marker,
+                    Math.Min(1600, content.Length - marker));
+            return "Player log tail: " +
+                content.Substring(Math.Max(0, content.Length - 1600));
         }
     }
 }
