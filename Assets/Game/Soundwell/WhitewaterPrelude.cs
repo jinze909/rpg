@@ -804,11 +804,11 @@ namespace Rpg.Soundwell
                 // his latrine excuse and the soldiers' laugh.
                 narration.text = Copy(
                     replyEnglish + "Ma Xiaoliu is called three times. As the sergeant raises his pen, a soldier rushes out of the brush, pulling up his trousers: 'Here, here, here!' "
-                        + "The sergeant adds his name back: 'Three unanswered calls and you're marked dead, understand?' "
+                        + "The sergeant stops his pen beside the name: 'Three unanswered calls and you're marked dead, understand?' "
                         + "Ma Xiaoliu nods while tying his belt: 'I know, I know! Next time I have to run to the latrine, I'll answer first!' The others laugh. "
                         + "Shen Li hands you the 'Tax Collector' wrench.",
                     replyChinese + "军士连念“马小六”三遍，正要划名，草丛里有人提着裤子冲出来。"
-                        + "马小六：“在在在！”军士把名字添回去：“三遍没人答，你就是死人了，知道吗？”"
+                        + "马小六：“在在在！”军士收住笔：“三遍没人答，你就是死人了，知道吗？”"
                         + "马小六一边系腰带一边点头：“知道了知道了！下回拉肚子也先应一声！”周围有人笑。"
                         + "沈砾递给你“税务官”扳手。");
                 instructions.text = Copy(
@@ -1014,8 +1014,8 @@ namespace Rpg.Soundwell
                     : rescueMethod == 1
                         ? "沈砾的绳索绷住，你们拉韩峤上岸。他问：“桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。"
                         : "士兵帮你把韩峤拖上岸。他问：“桥过了没有？”你：“还没有。”“三更前……得过完……”他昏了过去。");
-            instructions.text = Copy("The last boat is boarding Han Qiao. He will not witness the cable breaking.",
-                "韩峤上了最后一条船。他不会留在桥头看见断缆。");
+            instructions.text = Copy("The medics carry Han Qiao onto the last boat across.",
+                "医官把昏过去的韩峤抬上最后一条过河的小船。");
             StartCoroutine(BoatTakesHanQiao());
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
@@ -1481,8 +1481,8 @@ namespace Rpg.Soundwell
                 new Color(0.87f, 0.67f, 0.29f);
             SoundwellInputAdapter.SetGameplayContext();
             narration.text = Copy(
-                "Three armed silhouettes appear where the far-bank lamps vanished. You warn Shen Li and the bridge crew. The cable is still under strain.",
-                "对岸灯火熄灭处出现三道持械人影。你向沈砾和桥头同伴发出警告，缆索仍在吃力地绷着。");
+                "Three armed silhouettes appear where the far-bank lamps vanished. You cannot make out their uniforms. You warn Shen Li and the bridge crew. The cable is still under strain.",
+                "对岸熄灯的地方出现三道人影。你看不清他们穿哪一边的军服，便朝沈砾和桥头同伴示警。缆索仍绷得发紧。");
             instructions.text = Copy(
                 "WASD / left stick: return to Shen Li's amber cable post; press E / Pad A to hold the cable. The attackers are not defeated.",
                 "用 WASD／左摇杆返回沈砾身边金色缆桩，按 E／手柄 A 一起扶住缆索。敌军仍未被击退。");
@@ -1572,8 +1572,8 @@ namespace Rpg.Soundwell
             }
 
             narration.text = Copy(
-                "The three armed silhouettes reach the span. You and Shen Li hold the cable as the bridgehead closes into a real fight.",
-                "三个持械人影逼近桥面。你和沈砾仍扶着缆索，桥头的冲突终于变成真正的战斗。");
+                "Spear points reach the bridgehead. On the dark far bank, you can no longer make out the figures. Shen Li grips the cable as you turn to hold the crossing.",
+                "持矛的人逼到桥头。对岸已经看不清人影。沈砾攥紧缆索，你转身守桥。");
             instructions.text = Copy(
                 "On your turn, choose Attack or Guard. The enemy soldiers act on their own turns.",
                 "轮到你行动时选择攻击或防御；敌方士兵也会在他们的回合行动。");
@@ -1618,8 +1618,8 @@ namespace Rpg.Soundwell
                 "A third bell strikes. The bridgehead is held, but the far-side cable breaks in the firelight.",
                 "第三声钟响了。桥头虽守住，对岸的缆索却在火光里崩断。");
             instructions.text = Copy(
-                "The far span is sinking. You did not see who severed the cable.",
-                "远端桥身正在沉没。你始终没看见是谁砍断了缆索。");
+                "The far span is sinking. The cable gave way before the fire reached it.",
+                "远端桥身正在下沉。火还没烧到缆索，缆索就断了。");
 
             yield return new WaitForSecondsRealtime(0.4f);
             if (phase != 17)
@@ -2224,8 +2224,8 @@ namespace Rpg.Soundwell
             next.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "Shen Li: 'After this war I want to open a shop. Quartermaster or not, I'll take the jobs I choose. Will you come?'",
-                "沈砾：“等这仗打完，我要开间铺子。不管军需官批不批，谁来我就接谁的活。挑活的那种。你来不来？”");
+                "Shen Li: 'After this war I want to open a shop. Let the quartermaster keep his paperwork. Anyone can bring me a job. I'll choose which ones to take. Will you come?'",
+                "沈砾：“等这仗打完，我要开间铺子。军需官爱批不批，谁都能来问。活儿接不接，我自己挑。你来不来？”");
             instructions.text = Copy("Answer honestly. The rescue and the later reunion are not decided here.",
                 "照你的心意回答。这句话不会替你决定后来谁能获救、怎样重逢。");
             ShowChoices(new[] { "I'll come.", "Maybe later.", "Fix that nut first." },
@@ -2292,8 +2292,8 @@ namespace Rpg.Soundwell
                     break;
                 case 14:
                     instructions.text = Copy(
-                        "Reach the amber lookout with WASD / left stick, then press E / Pad A to spot the troops.",
-                        "用 WASD／左摇杆走到金色瞭望点，再按 E／手柄 A 辨认敌军。");
+                        "Reach the amber lookout with WASD / left stick, then press E / Pad A to see what moved.",
+                        "用 WASD／左摇杆走到金色瞭望点，再按 E／手柄 A 查看对岸动静。");
                     break;
                 case 15:
                     instructions.text = Copy(
@@ -2337,8 +2337,8 @@ namespace Rpg.Soundwell
                     break;
                 case 14:
                     instructions.text = Copy(
-                        "At the amber lookout: press E / Pad A to identify the troops. WASD / left stick to reposition.",
-                        "已到金色瞭望点：按 E／手柄 A 辨认敌军，WASD／左摇杆可调整位置。");
+                        "At the amber lookout: press E / Pad A to see what moved. WASD / left stick to reposition.",
+                        "已到金色瞭望点：按 E／手柄 A 查看对岸动静，WASD／左摇杆可调整位置。");
                     break;
                 case 15:
                     instructions.text = Copy(

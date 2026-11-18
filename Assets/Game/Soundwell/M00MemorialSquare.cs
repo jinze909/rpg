@@ -240,7 +240,7 @@ namespace Rpg.Soundwell
                 Copy("M00 · Your Name Carved in Stone", "M00 · 你的名字刻在石头上"),
                 27, Ink, new Vector2(0f, 232f), new Vector2(820f, 38f));
             Label(canvas.transform,
-                Copy("Memorial Day · Linchao Harbor", "纪念日 · 临潮港"),
+                Copy("Twelve years later · Linchao Harbor Memorial Day", "十二年后 · 临潮港纪念日"),
                 16, Ink, new Vector2(0f, 201f), new Vector2(820f, 28f));
             narration = Label(canvas.transform,
                 Copy("Daytime. Linchao Harbor. The sea wind carries a vendor’s call for “hero sugar figures.” Children line up to touch the memorial; one patch of stone has been polished bright.",
@@ -518,7 +518,7 @@ namespace Rpg.Soundwell
             childForgotLine = false;
             stageStartedAt = Time.unscaledTime;
             childLine.text = Copy(
-                "Xiaodou (loudly): “Where there’s a bridge, I’m there!”",
+                "Xiaodou (loudly): “While the bridge stands, so do I!”",
                 "小豆（台词，背得很响）：桥在我在！");
             childLine.gameObject.SetActive(true);
             crowdLine.gameObject.SetActive(false);
@@ -584,8 +584,8 @@ namespace Rpg.Soundwell
                         "你绕开高台，去找人。")
                     : Copy("You stay where you are.", "你留在原地。");
             instructions.text = Copy(
-                "The ceremony continues beyond the square. Return to the harbor entrance for now.",
-                "纪念仪式还在继续，暂时先返回港口入口。");
+                "Behind you, the crowd quiets for the roll call. Return to the harbor entrance.",
+                "身后的人群静下来，点名就要开始。返回港口入口。");
             returnButton.gameObject.SetActive(true);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(returnButton.gameObject);

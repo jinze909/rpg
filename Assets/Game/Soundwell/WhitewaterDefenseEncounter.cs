@@ -26,12 +26,12 @@ namespace Rpg.Soundwell
         private const string PlayerCopyUnavailableChinese = "守桥行动未能开始。请返回港口入口。";
         private const string PlayerCopyStartFailureEnglish = "The defence could not start. Regroup and try again.";
         private const string PlayerCopyStartFailureChinese = "守桥行动未能开始。重新整队，再试一次。";
-        private const string PlayerCopyFirstTurnEnglish = "The guard squad is approaching. Your defenders are taking position…";
-        private const string PlayerCopyFirstTurnChinese = "持矛守军正在逼近，守桥的人正在各就各位……";
+        private const string PlayerCopyFirstTurnEnglish = "Spearmen are closing in. Your defenders are taking position…";
+        private const string PlayerCopyFirstTurnChinese = "持矛的人正在逼近，守桥的人正在各就各位……";
         private const string PlayerCopyInactiveEnglish = "The defence did not begin. Regroup and try again.";
         private const string PlayerCopyInactiveChinese = "桥头防守尚未开始。重新整队，再试一次。";
-        private const string PlayerCopyDefeatEnglish = "The guard squad still holds the span. Regroup and try again.";
-        private const string PlayerCopyDefeatChinese = "持矛守军仍控制着桥面。重新整队，再试一次。";
+        private const string PlayerCopyDefeatEnglish = "The spearmen still hold the span. Regroup and try again.";
+        private const string PlayerCopyDefeatChinese = "持矛的人仍占着桥面。重新整队，再试一次。";
         private const string PlayerCopyVictoryEnglish = "The bridgehead is held. Return to Shen Li at the strained cable.";
         private const string PlayerCopyVictoryChinese = "桥头守住了。回到沈砾身边，缆索仍然绷紧。";
 
@@ -219,7 +219,7 @@ namespace Rpg.Soundwell
             string snapshot = party.BuildBattleReadout();
             string beastLabel = SoundwellUiLocalization.Get("battle.beast");
             if (!string.IsNullOrEmpty(beastLabel))
-                snapshot = snapshot.Replace(beastLabel, Copy("SPEAR GUARD SQUAD", "持矛守军小队"));
+                snapshot = snapshot.Replace(beastLabel, Copy("SPEAR SQUAD", "持矛小队"));
             readoutEnglish = null;
             readoutChinese = null;
             readout.text = snapshot;
