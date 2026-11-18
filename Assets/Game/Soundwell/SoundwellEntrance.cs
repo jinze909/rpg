@@ -502,7 +502,7 @@ namespace Rpg.Soundwell
             // ORK can create or reactivate its own EventSystem after this
             // component's Awake. While Entry is visible, restore the single
             // New Input System UI owner and keep navigation/Submit enabled.
-            if (entryCanvas != null && entryCanvas.enabled)
+            if (entryCanvas != null && entryCanvas.isActiveAndEnabled)
             {
                 EventSystem current = EventSystem.current;
                 if (current == null ||
@@ -550,7 +550,9 @@ namespace Rpg.Soundwell
             if (currentPrelude != null || currentMemorial != null || trialLoad != null ||
                 lastOpeningExitFrame == Time.frameCount)
                 return;
-            entryCanvas.enabled = false;
+            // Hide the Selectables and raycaster with the Canvas so a stale
+            // focus or pointer event cannot submit an invisible entry button.
+            entryCanvas.gameObject.SetActive(false);
             var scene = new GameObject("S00 Whitewater Bridge · playable opening");
             scene.transform.SetParent(transform, false);
             currentPrelude = scene.AddComponent<WhitewaterPrelude>();
@@ -563,7 +565,6 @@ namespace Rpg.Soundwell
                 currentPrelude = null;
                 if (openMemorial)
                 {
-                    entryCanvas.enabled = false;
                     var memorialObject = new GameObject("M00 Memorial Square · playable opening");
                     memorialObject.transform.SetParent(transform, false);
                     currentMemorial = memorialObject.AddComponent<M00MemorialSquare>();
@@ -571,13 +572,13 @@ namespace Rpg.Soundwell
                     {
                         lastOpeningExitFrame = Time.frameCount;
                         currentMemorial = null;
-                        entryCanvas.enabled = true;
+                        entryCanvas.gameObject.SetActive(true);
                         if (EventSystem.current != null)
                             EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
                     });
                     return;
                 }
-                entryCanvas.enabled = true;
+                entryCanvas.gameObject.SetActive(true);
                 SoundwellInputAdapter.SetEntryContext();
                 if (EventSystem.current != null)
                     EventSystem.current.SetSelectedGameObject(prologueButton.gameObject);
