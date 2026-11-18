@@ -239,21 +239,18 @@ class BuildProfilePlayerEvidenceTests(unittest.TestCase):
                        "Assets/Game/Scenes/SoundwellTrial.unity"],
             "result": "Succeeded", "development_build": True,
             "total_errors": 0, "executable_bytes": 40000,
-            "build_report_bytes": 90000, "data_directory_present": True,
+            "build_report_bytes": 90000, "data_directory_present": True, "save_restart_passed": True,
             "environment": "Unity Linux Editor CI; real Player; not a user device",
         }
 
     def test_requires_real_build_and_global_scene_list(self):
         self.assertEqual(validate_build_profile_player(self.sample()), [])
-        for name, changed in [
-            ("no_executable", 0), ("non_linux", 1), ("test_as_release", False),
-            ("wrong_scenes", []), ("bad_backend", "Other")
+        for key, changed in [
+            ("executable_bytes", 0), ("target", 1), ("development_build", False),
+            ("scenes", []), ("scripting_backend", "Other"), ("save_restart_passed", False),
         ]:
-            with self.subTest(name=name):
+            with self.subTest(key=key):
                 report = self.sample()
-                key = {"no_executable": "executable_bytes", "non_linux": "target",
-                       "test_as_release": "development_build", "wrong_scenes": "scenes",
-                       "bad_backend": "scripting_backend"}[name]
                 report[key] = changed
                 self.assertTrue(validate_build_profile_player(report))
 
