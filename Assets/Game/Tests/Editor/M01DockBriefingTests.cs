@@ -6,21 +6,29 @@ namespace Rpg.Tests.Editor
 {
     public sealed class M01DockBriefingTests
     {
-        [TestCase(M01DockReply.AskAboutOldDebt)]
-        [TestCase(M01DockReply.TeaseTheUglyCup)]
-        [TestCase(M01DockReply.AskForShipToRedSalt)]
-        public void EveryOpeningReplyLeadsToCakeBeforeTheRouteMap(M01DockReply reply)
+        [Test]
+        public void EveryOpeningReplyLeadsToCakeBeforeTheRouteMap()
         {
-            var briefing = new M01DockBriefing();
-            briefing.Begin();
-            briefing.Reply(reply);
-            Assert.That(briefing.Stage, Is.EqualTo(M01DockStage.OfferingCake));
-            Assert.That(briefing.OpeningReply, Is.EqualTo(reply));
-            Assert.That(briefing.InspectedLead, Is.Null);
-            Assert.That(M01DockBriefingDialogue.Describe(briefing, true).Text,
-                Does.Contain("桂花糕"));
-            briefing.ContinueAfterCake();
-            Assert.That(briefing.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
+            // Cover all three branches without adding unmatched parameterized
+            // case names to the exact Unity test acceptance manifest.
+            foreach (M01DockReply reply in new[]
+            {
+                M01DockReply.AskAboutOldDebt,
+                M01DockReply.TeaseTheUglyCup,
+                M01DockReply.AskForShipToRedSalt
+            })
+            {
+                var briefing = new M01DockBriefing();
+                briefing.Begin();
+                briefing.Reply(reply);
+                Assert.That(briefing.Stage, Is.EqualTo(M01DockStage.OfferingCake));
+                Assert.That(briefing.OpeningReply, Is.EqualTo(reply));
+                Assert.That(briefing.InspectedLead, Is.Null);
+                Assert.That(M01DockBriefingDialogue.Describe(briefing, true).Text,
+                    Does.Contain("桂花糕"), "reply: " + reply);
+                briefing.ContinueAfterCake();
+                Assert.That(briefing.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
+            }
         }
 
         [Test]
