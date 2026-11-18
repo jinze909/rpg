@@ -6,7 +6,7 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-owned UGUI for M02's optional investigation. It only reports
-    /// observed clues; the hosting Makinom interaction persists them later.
+    /// observed clues; the host may persist each new discovery immediately.
     /// </summary>
     public sealed class M02BridgeInquiryView : IDisposable
     {
@@ -21,6 +21,7 @@ namespace Rpg.Soundwell
         private readonly Text continueLabel;
         private readonly Font latinFont;
         private Action<M02BridgeEvidence> onCompleted;
+        private Action<M02BridgeEvidence> onObserved;
         private bool disposed;
         private bool completed;
 
@@ -29,7 +30,8 @@ namespace Rpg.Soundwell
         public M02BridgeInquiry Inquiry => inquiry;
 
         public M02BridgeInquiryView(Transform parent,
-            M02BridgeInquiry inquiry, Action<M02BridgeEvidence> onCompleted)
+            M02BridgeInquiry inquiry, Action<M02BridgeEvidence> onCompleted,
+            Action<M02BridgeEvidence> onObserved = null)
         {
             if (parent == null)
                 throw new ArgumentNullException(nameof(parent));
@@ -42,6 +44,7 @@ namespace Rpg.Soundwell
 
             this.inquiry = inquiry;
             this.onCompleted = onCompleted;
+            this.onObserved = onObserved;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             canvasObject = new GameObject("M02 bridge evidence canvas",
                 typeof(RectTransform), typeof(Canvas));
@@ -168,10 +171,14 @@ namespace Rpg.Soundwell
             {
                 M02BridgeEvidence clue = index == 0 ? M02BridgeEvidence.CleanCableCut :
                     index == 1 ? M02BridgeEvidence.FerrymanLog : M02BridgeEvidence.ThirdBellSignal;
-                inquiry.Examine(clue);
+                if (inquiry.Examine(clue))
+                    onObserved?.Invoke(clue);
             }
             else if (inquiry.Location == M02EvidenceLocation.HarborArchive && index == 0)
-                inquiry.Examine(M02BridgeEvidence.WarReportDraft);
+            {
+                if (inquiry.Examine(M02BridgeEvidence.WarReportDraft))
+                    onObserved?.Invoke(M02BridgeEvidence.WarReportDraft);
+            }
             Refresh();
         }
 
@@ -198,6 +205,7 @@ namespace Rpg.Soundwell
                 return;
             disposed = true;
             onCompleted = null;
+            onObserved = null;
             SoundwellUiLocalization.Changed -= Refresh;
             foreach (Button button in clueButtons)
                 if (button != null)
