@@ -428,8 +428,14 @@ namespace Rpg.Tests.Editor
                 Assert.That(currentPrelude, Is.Not.Null);
                 Assert.That(thirdBell, Is.Not.Null);
 
+                var languageButton = GameObject.Find("Soundwell language toggle")
+                    ?.GetComponent<UnityEngine.UI.Button>();
+                Assert.That(languageButton, Is.Not.Null);
+                Assert.That(languageButton.IsActive(), Is.True);
                 entrance.OpenPrelude();
                 yield return null;
+                Assert.That(languageButton.IsActive(), Is.False,
+                    "Opening Whitewater must disable invisible entry controls.");
                 var prelude = (WhitewaterPrelude)currentPrelude.GetValue(entrance);
                 Assert.That(prelude, Is.Not.Null);
                 thirdBell.SetValue(prelude, false);
@@ -437,6 +443,8 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(entrance.MemorialSquareOpen, Is.False,
                     "Leaving S00 before the earned third bell must not jump to M00.");
+                Assert.That(languageButton.IsActive(), Is.True,
+                    "Returning to Bootstrap must restore its controls.");
 
                 entrance.OpenPrelude();
                 yield return null;
@@ -446,9 +454,12 @@ namespace Rpg.Tests.Editor
                 prelude.Close();
                 yield return null;
                 Assert.That(entrance.MemorialSquareOpen, Is.True);
+                Assert.That(languageButton.IsActive(), Is.False,
+                    "The memorial must keep the entry controls inactive.");
                 var memorial = entrance.CurrentMemorialSquare;
                 Assert.That(memorial, Is.Not.Null);
                 memorial.Close();
+                Assert.That(languageButton.IsActive(), Is.True);
                 Assert.That(entrance.OpenTrial(), Is.Null,
                     "A callback in the same frame as leaving M00 must not launch the trial.");
                 entrance.OpenPrelude();
