@@ -66,7 +66,7 @@ jobs:
               q=urllib.request.Request("https://api.github.com"+path,headers=HEADERS)
               with urllib.request.urlopen(q,timeout=30) as response:
                   return json.load(response)
-          def pages(path,key=None,limit=500):
+          def pages(path,key=None,limit=500,allow_prefix=False):
               items=[]
               for n in range(1,limit//100+2):
                   sep="&" if "?" in path else "?"
@@ -74,6 +74,8 @@ jobs:
                   batch=response[key] if key else response
                   check(isinstance(batch,list),"invalid API page")
                   items+=batch
+                  if allow_prefix and len(items)>=limit:
+                      return items[:limit]
                   check(len(items)<=limit,"API page limit reached")
                   if len(batch)<100:return items
               raise RuntimeError("API page limit exceeded")
@@ -113,9 +115,11 @@ jobs:
           def verified_ancestors():
               global VERIFIED_ANCESTORS
               if VERIFIED_ANCESTORS is None:
-                  # One repository-wide read; no fresh CI or extra schedules.
+                  # A bounded scan of the newest runs can prove retirement
+                  # when it finds an exact match. A missing proof keeps the ref.
+                  # Branch-specific activity checks still require every page.
                   all_runs=pages("/repos/"+REPO+"/actions/runs","workflow_runs",
-                                 limit=2000)
+                                 limit=2000,allow_prefix=True)
                   valid=[r for r in all_runs
                          if r.get("name")=="Unity ORK P0" and
                          r.get("status")=="completed" and
