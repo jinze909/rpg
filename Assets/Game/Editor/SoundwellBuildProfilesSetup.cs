@@ -42,6 +42,7 @@ namespace Rpg.Editor
             public long build_report_bytes;
             public bool data_directory_present;
             public bool save_restart_passed;
+            public bool portrait_hud_passed;
             public string environment =
                 "Unity 6000.6.8f1 Linux Editor CI; actual Linux Player build; not a user device";
         }
@@ -195,7 +196,10 @@ namespace Rpg.Editor
                 throw new InvalidOperationException("The real built Player has no scene data directory.");
             bool ranSaveRegression = Application.platform == RuntimePlatform.LinuxEditor;
             if (ranSaveRegression)
+            {
                 VerifySaveAcrossPlayerRestart(executable);
+                VerifyPortraitHud(executable);
+            }
             var result = new BuildEvidence
             {
                 unity_version = Application.unityVersion,
@@ -211,6 +215,7 @@ namespace Rpg.Editor
                 build_report_bytes = (long)report.summary.totalSize,
                 data_directory_present = dataFound,
                 save_restart_passed = ranSaveRegression,
+                portrait_hud_passed = ranSaveRegression,
             };
             Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
             File.WriteAllText(ResultPath, JsonUtility.ToJson(result, true) + "\n");
@@ -231,34 +236,60 @@ namespace Rpg.Editor
                     // Editor inspects, independent of its launch directory.
                     string log = Path.GetFullPath(Path.Combine(evidence,
                         $"ork-save-{phase}.log"));
-                    var start = new ProcessStartInfo
-                    {
-                        FileName = Path.GetFullPath(executable),
-                        Arguments = $"-batchmode -nographics -rpg-save-restart {phase} -logFile \"{log}\"",
-                        WorkingDirectory = Directory.GetCurrentDirectory(),
-                        UseShellExecute = false,
-                    };
-                    start.EnvironmentVariables["XDG_CONFIG_HOME"] = sandbox;
-                    using var player = Process.Start(start);
-                    if (player == null)
-                        throw new InvalidOperationException($"Could not launch save regression ({phase}).");
-                    if (!player.WaitForExit(90000))
-                    {
-                        player.Kill();
-                        player.WaitForExit();
-                        throw new InvalidOperationException($"Save regression timed out ({phase}). " +
-                            DescribePlayerFailure(log));
-                    }
-                    string marker = "RPG_ORK_SAVE_RESTART_" + phase.ToUpperInvariant();
-                    if (player.ExitCode != 0 || !File.Exists(log) || !File.ReadAllText(log).Contains(marker))
-                        throw new InvalidOperationException($"Save regression failed ({phase}); " +
-                            $"Player exit code {player.ExitCode}. " + DescribePlayerFailure(log));
+                    RunPlayerRegression(executable, $"-batchmode -nographics -rpg-save-restart {phase}",
+                        log, "RPG_ORK_SAVE_RESTART_" + phase.ToUpperInvariant(), sandbox);
                 }
             }
             finally
             {
                 Directory.Delete(sandbox, recursive: true);
             }
+        }
+
+        private static void VerifyPortraitHud(string executable)
+        {
+            string evidence = Path.GetFullPath(Path.GetDirectoryName(ResultPath));
+            string screenshot = Path.Combine(evidence, "soundwell-player-portrait.png");
+            string sandbox = Path.GetFullPath(Path.Combine(BuildDirectory, Guid.NewGuid().ToString("N")));
+            Directory.CreateDirectory(sandbox);
+            try
+            {
+                RunPlayerRegression(executable,
+                    $"-force-glcore -screen-fullscreen 0 -screen-width 320 -screen-height 800 -rpg-portrait-hud \"{screenshot}\"",
+                    Path.Combine(evidence, "soundwell-portrait.log"), "RPG_SOUNDWELL_PORTRAIT_HUD_VALIDATED", sandbox);
+                if (!File.Exists(screenshot) || new FileInfo(screenshot).Length == 0)
+                    throw new InvalidOperationException("Portrait regression did not capture the Player viewport.");
+            }
+            finally
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+
+        private static void RunPlayerRegression(string executable, string arguments, string log,
+            string marker, string sandbox)
+        {
+            var start = new ProcessStartInfo
+            {
+                FileName = Path.GetFullPath(executable),
+                Arguments = arguments + $" -logFile \"{log}\"",
+                WorkingDirectory = Directory.GetCurrentDirectory(),
+                UseShellExecute = false,
+            };
+            start.EnvironmentVariables["XDG_CONFIG_HOME"] = sandbox;
+            using var player = Process.Start(start);
+            if (player == null)
+                throw new InvalidOperationException($"Could not launch Player regression for {log}.");
+            if (!player.WaitForExit(90000))
+            {
+                player.Kill();
+                player.WaitForExit();
+                throw new InvalidOperationException($"Player regression timed out for {log}. " +
+                    DescribePlayerFailure(log));
+            }
+            if (player.ExitCode != 0 || !File.Exists(log) || !File.ReadAllText(log).Contains(marker))
+                throw new InvalidOperationException($"Player regression failed for {log}. " +
+                    $"Player exit code {player.ExitCode}. " + DescribePlayerFailure(log));
         }
 
         private static string DescribePlayerFailure(string log)
