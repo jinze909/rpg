@@ -120,11 +120,12 @@ namespace Rpg.Soundwell
         {
             if (!luJunPending || luJun != null || onFinished == null ||
                 !M02BridgeEvidenceFacts.TryRead(out M02BridgeEvidence evidence) ||
-                !M02OfficialDockFacts.TryReadEffective(out bool officialStamp))
+                !M02OfficialDockFacts.TryReadEffective(out bool officialStamp) ||
+                !M03LuJunFacts.TryResetForNewVisit())
                 return;
 
-            // Read only observed clues and the effective M02 approval;
-            // an earlier wish to register cannot unlock the official ship.
+            // Use this visit's evidence and stamp. Previous M03 answers
+            // must not count as choices made during the new camp visit.
             luJunPending = false;
             luJun = new M03LuJunView(transform, evidence, officialStamp, FinishLuJun);
         }
