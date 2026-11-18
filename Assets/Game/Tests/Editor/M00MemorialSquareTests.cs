@@ -22,84 +22,37 @@ namespace Rpg.Tests.Editor
             bool inputReady = false;
             bool testBodyCompleted = false;
             string cleanupFailure = null;
-            // Keep all cross-yield locals declared before domain reload.
-            // Only acquire live Unity object instances after PlayMode resumes.
+            // All live test objects are created after the PlayMode domain reload.
             M00MemorialSquare memorial = null;
-            SoundwellEntrance entry = null;
             Keyboard keys = null;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             try
             {
-                // Let the normal runtime locale initializer run during PlayMode entry.
-                // Select the test language only after the live Bootstrap owner exists.
-                Debug.Log("RPG_M00_STEP: pre EnterPlayMode");
+                // This fixture validates real M00 walking, dialogue and
+                // UGUI independently of loading an entirely new scene while
+                // an EnterPlayMode iterator is still resuming. The separate
+                // test below exercises the genuine S00 -> M00 Bootstrap
+                // handoff, including the exit callback.
                 yield return new EnterPlayMode(expectDomainReload: true);
-                Debug.Log("RPG_M00_STEP: resumed after EnterPlayMode");
                 yield return null;
-                Debug.Log("RPG_M00_STEP: resumed after first frame");
 
-                // Bootstrap initializes the production action asset in Awake. Install
-                // the isolated test runtime first so its setup cannot invalidate the
-                // action maps that the live entry owner has already cached.
-                Debug.Log("RPG_M00_STEP: before InputTestFixture setup");
                 input = new InputTestFixture();
                 input.Setup();
                 inputReady = true;
-                Debug.Log("RPG_M00_STEP: after InputTestFixture setup");
-
-                // The second lifecycle test passes using this exact sequence:
-                // install the virtual keyboard before Bootstrap initializes
-                // its action maps, then load the production scene in PlayMode.
-                // A device-free isolated runtime during LoadSceneInPlayMode
-                // triggered a NullReferenceException before any M00 assertion.
-                Debug.Log("RPG_M00_STEP: before virtual Keyboard");
                 keys = InputSystem.AddDevice<Keyboard>();
                 Assert.That(keys, Is.Not.Null);
-                Debug.Log("RPG_M00_STEP: before Bootstrap load");
-                EditorSceneManager.LoadSceneInPlayMode(
-                    "Assets/Game/Scenes/Bootstrap.unity",
-                    new LoadSceneParameters(LoadSceneMode.Single));
-                Debug.Log("RPG_M00_STEP: after Bootstrap load");
-                float entryDeadline = Time.realtimeSinceStartup + 8f;
-                while (entry == null && Time.realtimeSinceStartup < entryDeadline)
-                {
-                    yield return null;
-                    entry = Object.FindFirstObjectByType<SoundwellEntrance>();
-                }
-                Assert.That(entry, Is.Not.Null, "M00 requires the live Bootstrap input/UI owner.");
-
-                Assert.That(keys.added, Is.True,
-                    "The virtual keyboard must survive the same Bootstrap load as the passing handoff test.");
                 Assert.That(keys.eKey, Is.Not.Null,
-                    "The M00 physical-approach test needs live keyboard controls.");
-                // Bootstrap already owns the EventSystem and entry action map.
-                // The passing handoff regression uses that same owner unchanged;
-                // resetting its input context again here is not player behavior.
+                    "The physical M00 interactions require a live keyboard.");
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
-                Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap and isolated keyboard ready");
-                // The second test below verifies the actual earned S00 -> M00
-                // entry-owner handoff and return. This longer test deliberately
-                // isolates the production M00 component's physical gameplay:
-                // S00's destruction-frame handoff must not hide failures in
-                // authored movement, interactions, responsive UI or dialogue.
-                // Retain Bootstrap's real input assets while the M00 actor owns
-                // input; prevent the inactive Entry controller from polling E.
-                entry.enabled = false;
-                var memorialObject = new GameObject("M00 memorial physical interaction test");
-                memorialObject.transform.SetParent(entry.transform, false);
+
+                var memorialObject = new GameObject("M00 authored interaction component");
                 memorial = memorialObject.AddComponent<M00MemorialSquare>();
                 bool returnedToEntry = false;
-                memorial.Begin(() =>
-                {
-                    returnedToEntry = true;
-                    if (entry != null)
-                        entry.enabled = true;
-                });
-                Assert.That(memorial, Is.Not.Null,
-                    "The production M00 scene component must begin its authored interactions.");
+                memorial.Begin(() => returnedToEntry = true);
+                Assert.That(memorial, Is.Not.Null);
                 yield return null;
                 Assert.That(memorial, Is.Not.Null,
-                    "M00 must stay alive during its authored interaction path.");
+                    "The real M00 component must survive its opening frame.");
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 interaction scene ready");
 
                 // The real M00 UI must remain reachable after S00. Portrait
@@ -241,8 +194,6 @@ namespace Rpg.Tests.Editor
                     "The authored M00 return button must invoke its exit callback.");
                 Assert.That(memorial == null, Is.True,
                     "The authored M00 return button must destroy its temporary scene.");
-                Assert.That(entry.enabled, Is.True,
-                    "The Bootstrap entry controller must reactivate after authored M00 returns.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
                 testBodyCompleted = true;
