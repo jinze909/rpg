@@ -42,6 +42,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions":
             "Rpg.Tests.Editor.M00MemorialSquareTests.MemorialOpeningRequiresPhysicalApproachAndRecordsAuthoredActions",
     },
+    "Assets/Game/Tests/Editor/M00RollCallFactsTests.cs": {
+        "WritesAndReadsAllFiveSettledOutcomesThroughMakinomVariables":
+            "Rpg.Tests.Editor.M00RollCallFactsTests.WritesAndReadsAllFiveSettledOutcomesThroughMakinomVariables",
+    },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint",
