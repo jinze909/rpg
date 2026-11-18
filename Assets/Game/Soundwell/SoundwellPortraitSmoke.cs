@@ -72,7 +72,11 @@ namespace Rpg.Soundwell
                 Fail("The battle readout or Retreat button is outside the viewport.");
                 yield break;
             }
-            var image = ScreenCapture.CaptureScreenshotAsTexture();
+            // The player runtime is built with a restricted Unity module set.
+            // Read back the presented frame without referencing ScreenCapture.
+            var image = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0f, 0f, Screen.width, Screen.height), 0, 0);
+            image.Apply(false);
             File.WriteAllBytes(screenshot, image.EncodeToPNG());
             Destroy(image);
             Debug.Log("RPG_SOUNDWELL_PORTRAIT_HUD_VALIDATED");
