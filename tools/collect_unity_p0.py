@@ -36,13 +36,13 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # Require every test actually declared in the clean candidate; never accept
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
-    "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs": {
-        "PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne":
-            "Rpg.Tests.Editor.M00HanRansomFactsTests.PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne",
-    },
     "Assets/Game/Tests/Editor/M03LuJunInputTests.cs": {
         "ShipOpeningMovesGamepadFocusOffTheReusedOfficialVoyageButton":
             "Rpg.Tests.Editor.M03LuJunInputTests.ShipOpeningMovesGamepadFocusOffTheReusedOfficialVoyageButton",
+    },
+    "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs": {
+        "PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne":
+            "Rpg.Tests.Editor.M00HanRansomFactsTests.PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne",
     },
     "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": {
         "MemorialOpeningIsChainedOnlyAfterTheEarnedThirdBell":

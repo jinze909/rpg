@@ -222,6 +222,8 @@ namespace Rpg.Tests.Editor
                     "This records the request for review, while the narrative pension path stays unresolved.");
                 Assert.That(M01HomecomingResponse.PensionPathFor(M01PensionChoice.RequestMissingReturnReview),
                     Is.EqualTo("未处理"));
+                Assert.That(entry.MemorialSquareOpen, Is.True);
+                yield return VisitHarborThroughTheWarehouse(memorial);
                 Assert.That(entry.MemorialSquareOpen, Is.False);
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
@@ -236,6 +238,66 @@ namespace Rpg.Tests.Editor
                     input.TearDown();
             }
             yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator VisitHarborThroughTheWarehouse(M00MemorialSquare memorial)
+        {
+            var variables = Maki.Game.Variables;
+            variables.Set(M02OfficialDockFacts.LivingRegistrationStampedKey, 1);
+            variables.Set(M02MissingReturnFacts.ApprovalKey, 1);
+            variables.Set(M02BridgeEvidenceFacts.EvidenceKey, (int)M02BridgeEvidence.ThirdBellSignal);
+
+            NamedButton(memorial, "M01 dock option 2").onClick.Invoke();
+            NamedButton(memorial, "M01 dock continue").onClick.Invoke();
+            Assert.That(EventSystem.current.currentSelectedGameObject,
+                Is.EqualTo(NamedButton(memorial, "M01 dock option 0").gameObject));
+            for (int route = 0; route < 3; route++)
+                NamedButton(memorial, "M01 dock option " + route).onClick.Invoke();
+            Assert.That(variables.GetInt(M01HomecomingResponse.PensionChoiceKey), Is.EqualTo(3));
+
+            NamedButton(memorial, "M01 dock continue").onClick.Invoke();
+            yield return null;
+            Assert.That(M02OfficialDockFacts.TryReadEffective(out bool official), Is.True);
+            Assert.That(official, Is.False, "An earlier replay stamp cannot approve this visit.");
+            Assert.That(M02BridgeEvidenceFacts.TryRead(out M02BridgeEvidence observed), Is.True);
+            Assert.That(observed, Is.EqualTo(M02BridgeEvidence.None));
+            Assert.That(memorial.GetComponentsInChildren<Button>().Any(button =>
+                button.gameObject.name == "M02 office action 0"), Is.False,
+                "Asking for missing-return review does not enable living registration.");
+            NamedButton(memorial, "M02 office action 1").onClick.Invoke();
+            NamedButton(memorial, "M02 harbor leave").onClick.Invoke();
+            yield return null;
+            Assert.That(M02QiQueDebtFacts.TryRead(out bool debtKnown), Is.True);
+            Assert.That(debtKnown, Is.True);
+
+            NamedButton(memorial, "M02 evidence 0").onClick.Invoke();
+            M02BridgeEvidenceFacts.TryRead(out observed);
+            Assert.That(observed, Is.EqualTo(M02BridgeEvidence.CleanCableCut),
+                "An inspected clue must reach the story store before leaving the warehouse.");
+            NamedButton(memorial, "M02 continue").onClick.Invoke();
+            NamedButton(memorial, "M02 evidence 0").onClick.Invoke();
+            NamedButton(memorial, "M02 continue").onClick.Invoke();
+            yield return null;
+
+            Assert.That(memorial.GetComponentsInChildren<Button>().Any(button =>
+                button.gameObject.name == "M02 stamp approved review"), Is.False);
+            NamedButton(memorial, "M02 ask for review").onClick.Invoke();
+            M02OfficialDockFacts.TryReadEffective(out official);
+            Assert.That(official, Is.False, "Requesting review never unlocks an official ship.");
+            NamedButton(memorial, "M02 stamp approved review").onClick.Invoke();
+            NamedButton(memorial, "M02 return to harbor").onClick.Invoke();
+            yield return null;
+
+            Assert.That(M02OfficialDockFacts.TryReadEffective(out official), Is.True);
+            Assert.That(official, Is.True);
+            Assert.That(M02MissingReturnFacts.TryReadApproved(out bool approved), Is.True);
+            Assert.That(approved, Is.True);
+            Assert.That(variables.GetInt(M02OfficialDockFacts.LivingRegistrationStampedKey), Is.Zero);
+            Assert.That(variables.GetInt(M01HomecomingResponse.PensionChoiceKey),
+                Is.EqualTo(3), "M02 must retain the actual choice made in West Lane.");
+            M02BridgeEvidenceFacts.TryRead(out observed);
+            Assert.That(observed, Is.EqualTo(M02BridgeEvidence.CleanCableCut |
+                M02BridgeEvidence.WarReportDraft));
         }
 
         private static Button NamedButton(M00MemorialSquare memorial, string name)
@@ -300,6 +362,11 @@ namespace Rpg.Tests.Editor
                 var memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
                 Assert.That(memorial, Is.Not.Null);
                 memorial.Close();
+                Assert.That(entrance.OpenTrial(), Is.Null,
+                    "A callback in the same frame as leaving M00 must not launch the trial.");
+                entrance.OpenPrelude();
+                Assert.That(currentPrelude.GetValue(entrance), Is.Null,
+                    "Leaving M00 must not reopen the prologue on the same frame.");
                 yield return null;
                 Assert.That(entrance.MemorialSquareOpen, Is.False);
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);

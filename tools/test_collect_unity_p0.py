@@ -3,6 +3,8 @@
 import unittest
 import re
 import tempfile
+import json
+from contextlib import chdir
 from unittest.mock import patch
 from tempfile import SpooledTemporaryFile
 import install_ork
@@ -33,7 +35,7 @@ import hashlib
 import io
 from zipfile import ZipFile
 
-from restore_unity_p0 import validate_candidate_contents
+from restore_unity_p0 import restore, validate_candidate_contents
 
 
 class VendorManifestBoundaryTests(unittest.TestCase):
@@ -68,6 +70,36 @@ class VendorManifestBoundaryTests(unittest.TestCase):
 
 
 class CandidateRestorePreflightTests(unittest.TestCase):
+    def test_missing_required_output_keeps_existing_files_and_mode(self):
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            output = Path("ProjectSettings/EditorSettings.asset")
+            output.parent.mkdir()
+            output.write_bytes(b"old settings")
+            mode = Path("production/ci/p0-mode.txt")
+            mode.parent.mkdir(parents=True)
+            mode.write_text("prepare\n")
+            evidence = Path("evidence")
+            evidence.mkdir()
+            generated = b"new settings"
+            source_sha = "a" * 40
+            (evidence / "validation.json").write_text(json.dumps({
+                "source_sha": source_sha,
+                "mode": "prepare",
+                "status": "prepared-candidate",
+                "changed_files_sha256": {
+                    output.as_posix(): hashlib.sha256(generated).hexdigest(),
+                },
+            }))
+            with ZipFile(evidence / "candidate-files.zip", "w") as archive:
+                archive.writestr(output.as_posix(), generated)
+
+            with patch("restore_unity_p0.subprocess.check_output", return_value=source_sha):
+                with self.assertRaisesRegex(ValueError, "lacks required Unity output"):
+                    restore(evidence)
+
+            self.assertEqual(output.read_bytes(), b"old settings")
+            self.assertEqual(mode.read_text(), "prepare\n")
+
     def test_corrupt_later_member_is_rejected_before_any_file_is_written(self):
         package = io.BytesIO()
         with ZipFile(package, "w") as z:

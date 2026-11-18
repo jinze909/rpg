@@ -56,6 +56,31 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RouteChartFocusStartsAtFirstLeadWithoutBookingPassage()
+        {
+            int completed = 0;
+            view = new M01DockBriefingView(root.transform, () => completed++);
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetChoiceButton(0)));
+            view.GetChoiceButton(1).onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.OfferingCake));
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.AdvanceButton));
+
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetChoiceButton(0)),
+                "The first route should be available to keyboard/gamepad after accepting cake.");
+            Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.True,
+                "Skipping optional route inspection remains a deliberate choice.");
+            Assert.That(view.InspectedLead, Is.Null);
+            Assert.That(completed, Is.Zero);
+
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.Complete));
+            Assert.That(view.PreferredFocusTarget, Is.Null);
+            Assert.That(completed, Is.EqualTo(1));
+        }
+
+        [Test]
         public void ChineseCopyAndScreenAspectChangesDoNotChoosePassage()
         {
             view = new M01DockBriefingView(root.transform, () => { });

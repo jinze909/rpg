@@ -342,14 +342,28 @@ namespace Rpg.Soundwell
             if (quest == null)
                 return false;
 
-            var experience = new QuestExperienceReward
+            var reward = setting.reward;
+            var authoredExperience = reward.experience;
+            if (authoredExperience.Length == 0)
             {
-                combatantScope = MenuCombatantScope.Group,
-                rewardValue = new FloatValue<GameObjectSelection>(RescueExperience)
-            };
-            experience.status.SetAsset(ORK.StatusValues.GetAsset(ExperienceStatus));
-            setting.reward.experience = new[] { experience };
-            quest.SetFinished(members[0], false, false, true, false, false);
+                var experience = new QuestExperienceReward
+                {
+                    combatantScope = MenuCombatantScope.Group,
+                    rewardValue = new FloatValue<GameObjectSelection>(RescueExperience)
+                };
+                experience.status.SetAsset(ORK.StatusValues.GetAsset(ExperienceStatus));
+                reward.experience = new[] { experience };
+            }
+            try
+            {
+                // ORK grants rewards synchronously inside SetFinished.
+                quest.SetFinished(members[0], false, false, true, false, false);
+            }
+            finally
+            {
+                if (authoredExperience.Length == 0)
+                    reward.experience = authoredExperience;
+            }
             return quest.IsFinished();
         }
 
