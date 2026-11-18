@@ -119,7 +119,7 @@ namespace Rpg.Soundwell
                         : "You mention the loan in Han Qiao's ledger. Qi Que stops mid-reach: 'Han Qiao talks too much. Yes, my ship is still mortgaged under his office. I feared you would find someone else.'";
                 case M02QiQueNightStage.OfferingCake:
                     return chinese
-                        ? "祁雀把桂花糕塞进你手里：“我答应送你去赤盐是认真的。”她正准备摊开海峡图。"
+                        ? "祁雀把桂花糕塞进你手里：“我说过要帮你去赤盐，这话算数。”她正准备摊开海峡图。"
                         : "Qi Que presses the cake into your hand. 'I meant it when I promised to help you reach Red Salt.' She opens her sea chart.";
                 case M02QiQueNightStage.ReviewingChart:
                     return chinese

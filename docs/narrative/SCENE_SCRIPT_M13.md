@@ -3,7 +3,7 @@
 “归来”为工作标题。本稿承接 [STORY_OUTLINE.md](STORY_OUTLINE.md)、[CHARACTERS.md](CHARACTERS.md) 与 [BANTER_LINES.md](BANTER_LINES.md)。方括号是玩家选项或操作。
 
 > **出场人物**：你、沈砾、祁雀、阿鸢、欧林、小七、陶霁、伊蕾、韩峤。
-> **读取事实**：`truth_disclosure`、`shen_relation`、`pension_path`、`han_ledger_use`、`supply_contract`、`voyage_path`、`qi_debt_known`、`survivor_liang`、`survivor_ruiya`、`st_states`。
+> **读取事实**：`truth_disclosure`、`shen_relation`、`pension_path`、`harbor_registration`、`han_ledger_use`、`supply_contract`、`voyage_path`、`qi_debt_known`、`survivor_liang`、`survivor_ruiya`、`st_states`。
 > **写入事实**：`landing_capacity`、`crew_ayuan_risk_acceptance`（已补齐准备 / 准备不足但明确接受 / 路线A不进入高风险哨位 / 未确认）、`final_route_choice`（A/B/C，只有实际确认启程才写入）、`crew_ayuan_assignment`（本人自愿值守 / 已落实替代班组 / 未落实）、确认启动封航下的终局行动。
 > **章末留给玩家的问题**：谁愿意跟我去？
 
@@ -37,7 +37,7 @@
 3. **被接出者去处**：核对安置点与分批计划（受 `survivor_ruiya`、`survivor_liang` 影响）；
 4. **具体供给**：核对 M10 合同是否签妥、覆盖哪些人及粮何时到。尚未签妥时先落实分批补给或借粮，已断的山路粮线另记缺口；
 5. **盟友的条件**：伊蕾仍有监察资格、韩峤仍持港务授权且本人愿承担时，才核对各自能签的凭证；已去职的韩峤只提供证词，另核现任港务担保；否则检查确已送达的监察副本、商会港务担保与实际替代人员，不让离队者隔空签约；
-6. **姜婶的那笔账**：核对 `pension_path` 在补偿账上留下的数字。
+6. **姜婶的那笔账**：以 `pension_path` 查原决定，再核对实际盖印的官署登记、已送达的账单和已付金额；已获准分期按实入账，只说要公开或提出申请不能算作登记已生效。
 （所有项目都有最低可行方案：借贷、分批、额外行动或牺牲某项便利；没完成的支线不会封锁主线。）
 
 **【风险与警告】**

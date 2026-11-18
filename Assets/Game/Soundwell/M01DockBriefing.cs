@@ -178,8 +178,8 @@ namespace Rpg.Soundwell
                 case M01DockStage.OfferingCake:
                     return new M01DockBeat(briefing.Stage,
                         chinese
-                            ? "祁雀听完沈砾的事，从点心匣里递来一块桂花糕：先尝块糕。——出海的事，我算过了。船坞维修费和船工的工钱，还都等着我付。"
-                            : "Qi Que hears you out about Shen Li, offers you an osmanthus cake, and says, 'I've done the sums.' Her ship still needs repairs and her crew still needs paying.",
+                            ? "祁雀听完沈砾的事，从点心匣里递来一块桂花糕：先尝块糕。——出海的事，我算过了。修船的账还欠着，船工也等着领薪水。我还在攒钱开一家自己的远航商号。"
+                            : "Qi Que hears you out about Shen Li, offers you an osmanthus cake, and says, 'I've done the sums.' She still owes the shipyard for repairs, her crew needs paying, and she's saving to open her own trading house.",
                         Array.Empty<string>(), true, false);
 
                 case M01DockStage.ReviewingRoutes:
