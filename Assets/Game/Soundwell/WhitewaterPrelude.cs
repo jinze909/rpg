@@ -2226,8 +2226,8 @@ namespace Rpg.Soundwell
             narration.text = Copy(
                 "Shen Li: 'After this war I want to open a shop. Let the quartermaster keep his paperwork. Anyone can bring me a job. I'll choose which ones to take. Will you come?'",
                 "沈砾：“等这仗打完，我要开间铺子。军需官爱批不批，谁都能来问。活儿接不接，我自己挑。你来不来？”");
-            instructions.text = Copy("Answer honestly. The rescue and the later reunion are not decided here.",
-                "照你的心意回答。这句话不会替你决定后来谁能获救、怎样重逢。");
+            instructions.text = Copy("Tell Shen Li what you think of her plan.",
+                "告诉沈砾你的想法。");
             ShowChoices(new[] { "I'll come.", "Maybe later.", "Fix that nut first." },
                 new[] { "来。", "再说吧。", "你先把那个螺母修好。" });
         }

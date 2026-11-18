@@ -3,7 +3,7 @@
 “归来”为工作标题。本稿承接 [STORY_OUTLINE.md](STORY_OUTLINE.md)、[CHARACTERS.md](CHARACTERS.md) 与 [BANTER_LINES.md](BANTER_LINES.md)。方括号是玩家选项或操作。
 
 > **出场人物**：你、沈砾、祁雀、欧林、蕊亚、陆钧的招募人（及名册案归来者）。
-> **读取事实**：`voyage_path`、`qi_debt_known`、`shen_relation`、`pension_path`、`rescue_route_cost`、`rescue_priority`、`rc01_chen_yan`–`rc05_third_squad`（已完成的名册案）。
+> **读取事实**：`voyage_path`、`qi_debt_known`、`shen_relation`、港务署实际生效的身份登记、`rescue_route_cost`、`rescue_priority`、`rc01_chen_yan`–`rc05_third_squad`（已完成的名册案）。
 > **写入事实**：`world_notices`（第二则预兆）、`survivor_ruiya`、`shen_relation`、`landing_capacity`。
 > **章末留给玩家的问题**：两份名单，谁的承诺先算数？
 

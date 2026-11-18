@@ -3,7 +3,7 @@
 “归来”为工作标题。本稿承接 [STORY_OUTLINE.md](STORY_OUTLINE.md) 与 [CHARACTERS.md](CHARACTERS.md)。方括号是玩家选项或操作。
 
 > **出场人物**：你、陆钧、缺腿的老兵、做木匠的旧兵、矿区线人。
-> **读取事实**：`bridge_evidence`、`pension_path`（是否已取得正式活人或“失踪归还”登记）。
+> **读取事实**：`bridge_evidence`、港务署盖印生效的活人或“失踪归还”登记。
 > **写入事实**：`lu_confession`（早问 / 带证据晚问 / 未问）、`lu_secrecy_promise`（已答应 / 尚未决定 / 明确拒绝 / 未触发）、`voyage_path`。
 > **章末留给玩家的问题**：如果我问了桥，他为什么承认、要我替他守什么？如果没问，他愿意给船的代价又是什么？
 

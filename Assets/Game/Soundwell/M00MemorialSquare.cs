@@ -584,8 +584,8 @@ namespace Rpg.Soundwell
                         "你绕开高台，去找人。")
                     : Copy("You stay where you are.", "你留在原地。");
             instructions.text = Copy(
-                "The crowd quiets for the roll call. Return to the harbor entrance.",
-                "广场上的人群静下来，点名就要开始。返回港口入口。");
+                "The performance is over. Return to the harbor entrance.",
+                "广场小戏散场了。返回港口入口。");
             returnButton.gameObject.SetActive(true);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(returnButton.gameObject);
