@@ -39,11 +39,22 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(events.currentInputModule, Is.TypeOf<InputSystemUIInputModule>());
                 events.SetSelectedGameObject(view.AdvanceButton.gameObject);
-                input.Press(gamepad.buttonSouth);
-                yield return null;
-                yield return null;
-                input.Release(gamepad.buttonSouth);
-                yield return null;
+                for (int beat = 1; beat <= 4; beat++)
+                {
+                    input.Press(gamepad.buttonSouth);
+                    yield return null;
+                    yield return null;
+                    input.Release(gamepad.buttonSouth);
+                    yield return null;
+                    if (beat <= 3)
+                    {
+                        Assert.That(view.Encounter.Stage,
+                            Is.EqualTo(M03LuJunStage.VisitingVeterans));
+                        Assert.That(view.RollCallBeat, Is.EqualTo(beat));
+                        Assert.That(events.currentSelectedGameObject,
+                            Is.SameAs(view.AdvanceButton.gameObject));
+                    }
+                }
                 Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingOpening));
                 Assert.That(events.currentSelectedGameObject,
                     Is.SameAs(view.GetChoiceButton(0).gameObject));
