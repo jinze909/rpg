@@ -124,6 +124,7 @@ namespace Rpg.Soundwell
         private bool waitingForEscortLeader;
         private bool layoutReady;
         private bool compactHud;
+        private float layoutCanvasWidth;
         private float pulseStarted = float.NegativeInfinity;
         private bool mutedPulse;
         // Purely visual: ORK owns whether Guard is legal and whether the turn was spent.
@@ -972,20 +973,30 @@ namespace Rpg.Soundwell
 
         private void ArrangeActionHud(float viewportAspect)
         {
+            Rect viewport = ((RectTransform)actionCanvas.transform).rect;
+            if (viewport.width <= 0f || viewport.height <= 0f)
+                return;
+
             // Below landscape width, use two bottom rows instead of a tall
             // right-hand stack. This leaves the trial and its world-space hints
             // clear while keeping the action targets inside the visible viewport.
-            bool compact = viewportAspect <= 1.25f;
-            if (layoutReady && compactHud == compact)
+            // The Pixel Perfect Camera crops the world independently of this overlay.
+            bool compact = Mathf.Min(viewportAspect, viewport.width / viewport.height) <= 1.25f ||
+                viewport.height < 330f;
+            if (layoutReady && compactHud == compact && Mathf.Approximately(layoutCanvasWidth, viewport.width))
                 return;
             layoutReady = true;
             compactHud = compact;
+            layoutCanvasWidth = viewport.width;
+            float contentWidth = Mathf.Max(1f, viewport.width - 24f);
 
             // Reserve the bottom row for combat so the retreat button does
             // not cover the beast or its target cue in the right-hand room.
             if (battleMode)
             {
-                float width = compact ? 116f : 146f;
+                int columns = compact ? 3 : 5;
+                float width = Mathf.Clamp((contentWidth - (columns - 1) * 8f) / columns,
+                    1f, compact ? 116f : 146f);
                 var commands = new[] { attackButton, guardButton, openGateButton,
                     moveButton, backButton };
                 for (int i = 0; i < commands.Length; i++)
@@ -998,13 +1009,9 @@ namespace Rpg.Soundwell
                         ? new Vector2((i < 3 ? i - 1f : i - 3.5f) * (width + 8f),
                             i < 3 ? 12f : 60f)
                         : new Vector2((i - 2f) * (width + 8f), 12f);
-                    var label = commands[i].GetComponentInChildren<Text>();
-                    label.rectTransform.sizeDelta = new Vector2(width - 8f, 38f);
-                    label.resizeTextForBestFit = true;
-                    label.resizeTextMinSize = 10;
-                    label.resizeTextMaxSize = 15;
+                    FitActionCaption(commands[i], width, 38f, 15);
                 }
-                float selectWidth = compact ? 88f : 115f;
+                float selectWidth = Mathf.Clamp((contentWidth - 18f) / 4f, 1f, compact ? 88f : 115f);
                 float selectY = compact ? 112f : 64f;
                 for (int i = 0; i < moveDirectionButtons.Length; i++)
                 {
@@ -1014,25 +1021,34 @@ namespace Rpg.Soundwell
                     rect.sizeDelta = new Vector2(selectWidth, 39f);
                     rect.anchoredPosition = new Vector2(
                         (i - 1.5f) * (selectWidth + 6f), selectY);
+                    FitActionCaption(moveDirectionButtons[i], selectWidth, 35f, 15);
                 }
+                float confirmGap = compact ? 31f : 10f;
+                float confirmWidth = Mathf.Clamp((contentWidth - confirmGap) / 2f,
+                    1f, compact ? 151f : 172f);
                 foreach (var button in new[] { confirmMoveButton, cancelMoveButton })
                 {
                     var rect = (RectTransform)button.transform;
                     rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
                     rect.pivot = new Vector2(0.5f, 0f);
-                    rect.sizeDelta = new Vector2(compact ? 151f : 172f, 38f);
+                    rect.sizeDelta = new Vector2(confirmWidth, 38f);
                     rect.anchoredPosition = new Vector2(
-                        button == confirmMoveButton ? -91f : 91f, selectY + 43f);
-                    var label = button.GetComponentInChildren<Text>();
-                    label.resizeTextForBestFit = true;
-                    label.resizeTextMinSize = 10;
-                    label.resizeTextMaxSize = 14;
+                        (button == confirmMoveButton ? -0.5f : 0.5f) * (confirmWidth + confirmGap),
+                        selectY + 43f);
+                    FitActionCaption(button, confirmWidth, 34f, 14);
                 }
+                var readout = battleReadout.rectTransform;
+                readout.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,
+                    Mathf.Clamp(viewport.width - 40f, 1f, 460f));
+                battleReadout.resizeTextForBestFit = viewport.width < 500f;
+                battleReadout.resizeTextMinSize = 11;
+                battleReadout.resizeTextMaxSize = 17;
                 return;
             }
 
             var buttons = new[] { ringButton, wrapButton, retryButton, backButton,
                 carryButton, gateButton };
+            float compactWidth = Mathf.Clamp((contentWidth - 20f) / 2f, 1f, 190f);
             for (int i = 0; i < buttons.Length; i++)
             {
                 var rect = (RectTransform)buttons[i].transform;
@@ -1040,9 +1056,9 @@ namespace Rpg.Soundwell
                 {
                     rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
                     rect.pivot = new Vector2(0.5f, 0f);
-                    rect.anchoredPosition = new Vector2(i % 2 == 0 ? -105f : 105f,
+                    rect.anchoredPosition = new Vector2((i % 2 == 0 ? -0.5f : 0.5f) * (compactWidth + 20f),
                         i < 2 ? 138f : i < 4 ? 80f : 22f);
-                    rect.sizeDelta = new Vector2(190f, 46f);
+                    rect.sizeDelta = new Vector2(compactWidth, 46f);
                 }
                 else
                 {
@@ -1051,18 +1067,16 @@ namespace Rpg.Soundwell
                     rect.anchoredPosition = new Vector2(-16f, -26f - i * 52f);
                     rect.sizeDelta = new Vector2(198f, 44f);
                 }
+                FitActionCaption(buttons[i], rect.sizeDelta.x, 38f, 15);
             }
 
-            var backLabel = backButton.GetComponentInChildren<Text>();
-            backLabel.rectTransform.sizeDelta = new Vector2(190f, 38f);
-            backLabel.resizeTextForBestFit = false;
             var statusRect = menuStatus.rectTransform;
             if (compact)
             {
                 statusRect.anchorMin = statusRect.anchorMax = new Vector2(0.5f, 0f);
                 statusRect.pivot = new Vector2(0.5f, 0f);
                 statusRect.anchoredPosition = new Vector2(0f, 202f);
-                statusRect.sizeDelta = new Vector2(435f, 36f);
+                statusRect.sizeDelta = new Vector2(Mathf.Min(435f, contentWidth), 36f);
             }
             else
             {
@@ -1071,6 +1085,15 @@ namespace Rpg.Soundwell
                 statusRect.anchoredPosition = new Vector2(20f, -15f);
                 statusRect.sizeDelta = new Vector2(440f, 34f);
             }
+        }
+
+        private static void FitActionCaption(UnityEngine.UI.Button button, float width, float height, int maxSize)
+        {
+            var label = button.GetComponentInChildren<UnityEngine.UI.Text>();
+            label.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, width - 8f), height);
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 10;
+            label.resizeTextMaxSize = maxSize;
         }
 
         private bool IsActionSelection(GameObject selected) =>

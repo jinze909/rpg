@@ -7,25 +7,28 @@ namespace Rpg.Tests.Editor
 {
     public sealed class M04XiaodouFarewellTests
     {
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TeachingTheRealLineUsesActualPriorPromptHistory(bool prompted)
+        [Test]
+        public void TeachingTheRealLineUsesActualPriorPromptHistory()
         {
-            var farewell = new M04XiaodouFarewell(prompted);
-            Assert.Throws<InvalidOperationException>(() => M04XiaodouFarewellFacts.TryRecord(farewell));
-            farewell.Begin();
-            farewell.ReceiveCandy();
-            farewell.AnswerChild(M04XiaodouAnswer.TeachRealLine);
-            string zh = M04XiaodouFarewellCopy.Describe(farewell, true);
-            string en = M04XiaodouFarewellCopy.Describe(farewell, false);
-            Assert.That(zh, Does.Contain("谁带了多余的绳子"));
-            Assert.That(en, Does.Contain("Who has spare rope"));
-            Assert.That(zh, Does.Contain("已经过了桥").And.Contain("稳住主缆"));
-            Assert.That(en, Does.Contain("were already across").And.Contain("The main cable"));
-            Assert.That(zh.Contains("帮我提词"), Is.EqualTo(prompted));
-            farewell.SayGoodbye();
-            Assert.That(farewell.TaughtRealLine, Is.True);
-            Assert.That(M04XiaodouFarewellCopy.Choices(farewell, true), Is.Empty);
+            // Keep both previously learned line histories in one test inventory entry.
+            foreach (bool prompted in new[] { true, false })
+            {
+                var farewell = new M04XiaodouFarewell(prompted);
+                Assert.Throws<InvalidOperationException>(() => M04XiaodouFarewellFacts.TryRecord(farewell));
+                farewell.Begin();
+                farewell.ReceiveCandy();
+                farewell.AnswerChild(M04XiaodouAnswer.TeachRealLine);
+                string zh = M04XiaodouFarewellCopy.Describe(farewell, true);
+                string en = M04XiaodouFarewellCopy.Describe(farewell, false);
+                Assert.That(zh, Does.Contain("谁带了多余的绳子"));
+                Assert.That(en, Does.Contain("Who has spare rope"));
+                Assert.That(zh, Does.Contain("已经过了桥").And.Contain("稳住主缆"));
+                Assert.That(en, Does.Contain("were already across").And.Contain("The main cable"));
+                Assert.That(zh.Contains("帮我提词"), Is.EqualTo(prompted));
+                farewell.SayGoodbye();
+                Assert.That(farewell.TaughtRealLine, Is.True);
+                Assert.That(M04XiaodouFarewellCopy.Choices(farewell, true), Is.Empty);
+            }
         }
 
         [Test]
