@@ -1329,12 +1329,16 @@ namespace Rpg.Tests.Editor
                 "Returning to the surveyor must restore the normal follow sprite.");
             Assert.That(trial.RescueComplete, Is.False,
                 "Near the exit is not equivalent to bringing the survivor all the way home.");
+            var questReward = ORK.Quests.Get(SoundwellOrkParty.RescueQuestGuid).reward;
+            var authoredExperience = questReward.experience;
             MoveTestLeader(playerBody, safe);
             deadline = Time.realtimeSinceStartup + 15f;
             while (!trial.RescueComplete && Time.realtimeSinceStartup < deadline)
                 yield return null;
             Assert.That(trial.RescueComplete, Is.True,
                 "The noncombat route must complete only when the actual survivor reaches RETREAT.");
+            Assert.That(questReward.experience, Is.SameAs(authoredExperience),
+                "Settlement must leave the shared ORK reward definition intact.");
             AssertRescueReward(party);
             Assert.That(Vector2.Distance(trial.SurveyorWorldPosition, safe),
                 Is.LessThanOrEqualTo(0.98f));
