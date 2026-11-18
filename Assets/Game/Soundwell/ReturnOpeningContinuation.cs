@@ -12,10 +12,13 @@ namespace Rpg.Soundwell
         private M01DockBriefingView dock;
         private M02HarborVisit harborVisit;
         private M02QiQueNightView qiQueNight;
+        private M03LuJunView luJun;
+        private M03LuJunEncounter completedLuJun;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
         private bool qiQueNightPending;
+        private bool luJunPending;
         private M01PensionChoice? pensionChoice;
         private float layoutAspect;
 
@@ -102,13 +105,50 @@ namespace Rpg.Soundwell
             // Only a question asked at Han Qiao's desk reveals the mortgage.
             // The night conversation neither invents that discovery nor books a ship.
             qiQueNightPending = false;
-            qiQueNight = new M02QiQueNightView(transform, debtKnown, CloseOpening);
+            qiQueNight = new M02QiQueNightView(transform, debtKnown, QueueLuJun);
+        }
+
+        private void QueueLuJun()
+        {
+            qiQueNight?.Dispose();
+            qiQueNight = null;
+            luJunPending = true;
+            OpenLuJunWhenReady();
+        }
+
+        private void OpenLuJunWhenReady()
+        {
+            if (!luJunPending || luJun != null || onFinished == null ||
+                !M02BridgeEvidenceFacts.TryRead(out M02BridgeEvidence evidence) ||
+                !M02OfficialDockFacts.TryReadEffective(out bool officialStamp))
+                return;
+
+            // Read only observed clues and the effective M02 approval;
+            // an earlier wish to register cannot unlock the official ship.
+            luJunPending = false;
+            luJun = new M03LuJunView(transform, evidence, officialStamp, FinishLuJun);
+        }
+
+        private void FinishLuJun(M03LuJunEncounter result)
+        {
+            completedLuJun = result;
+            RecordLuJunWhenReady();
+        }
+
+        private void RecordLuJunWhenReady()
+        {
+            if (completedLuJun == null || !M03LuJunFacts.TryRecord(completedLuJun))
+                return;
+            completedLuJun = null;
+            CloseOpening();
         }
 
         private void CloseOpening()
         {
             qiQueNight?.Dispose();
             qiQueNight = null;
+            luJun?.Dispose();
+            luJun = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -127,6 +167,10 @@ namespace Rpg.Soundwell
             harborVisit?.Tick(aspect);
             if (qiQueNightPending)
                 OpenQiQueNightWhenReady();
+            if (luJunPending)
+                OpenLuJunWhenReady();
+            if (completedLuJun != null)
+                RecordLuJunWhenReady();
             if (!Mathf.Approximately(aspect, layoutAspect))
             {
                 layoutAspect = aspect;
@@ -134,6 +178,7 @@ namespace Rpg.Soundwell
                 westLane?.LayoutForViewportAspect(aspect);
                 dock?.LayoutForViewportAspect(aspect);
                 qiQueNight?.LayoutForViewportAspect(aspect);
+                luJun?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -144,6 +189,7 @@ namespace Rpg.Soundwell
             dock?.Dispose();
             harborVisit?.Dispose();
             qiQueNight?.Dispose();
+            luJun?.Dispose();
             onFinished = null;
         }
     }

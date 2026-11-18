@@ -363,6 +363,28 @@ namespace Rpg.Tests.Editor
                 "Reading Qi Que's chart must not silently select the route.");
             nightContinue.onClick.Invoke();
             yield return null;
+
+            // The current opening now leads to Lu Jun's camp instead of
+            // returning to Entry as soon as Qi Que's night conversation ends.
+            // Finish the real UGUI handoff and assert the chosen voyage is
+            // persisted, rather than weakening the old Entry assertion.
+            Button campRoll = NamedButton(memorial, "M03 Lu Jun advance");
+            Assert.That(campRoll.gameObject.activeInHierarchy, Is.True);
+            for (int beat = 0; beat < 6 && campRoll.gameObject.activeInHierarchy; beat++)
+                campRoll.onClick.Invoke();
+            Assert.That(campRoll.gameObject.activeInHierarchy, Is.False,
+                "The shore roll must finish before Lu Jun offers dialogue choices.");
+            NamedButton(memorial, "M03 Lu Jun option 2").onClick.Invoke();
+            Button officialRoute = NamedButton(memorial, "M03 Lu Jun option 2");
+            Assert.That(officialRoute.gameObject.activeInHierarchy, Is.True,
+                "The stamped M02 approval must unlock Han Qiao's official route.");
+            officialRoute.onClick.Invoke();
+            yield return null;
+            Assert.That(M03LuJunFacts.TryRead(out M03LuConfession confession,
+                out M03SecrecyAnswer secrecy, out M03VoyageChoice? voyage), Is.True);
+            Assert.That(confession, Is.EqualTo(M03LuConfession.NotAsked));
+            Assert.That(secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+            Assert.That(voyage, Is.EqualTo(M03VoyageChoice.HanQiaoOfficial));
         }
 
         private static Button NamedButton(M00MemorialSquare memorial, string name)
