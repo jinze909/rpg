@@ -4,8 +4,10 @@
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
+import shutil
 import subprocess
 import sys
+import tempfile
 from zipfile import ZipFile
 
 
@@ -144,6 +146,61 @@ def validate_candidate_contents(archive, hashes):
     return checked
 
 
+def apply_outputs(outputs):
+    """Stage every file before replacing any checkout path."""
+    destinations = {Path(name) for name in outputs}
+    for path in destinations:
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise ValueError(f"Unity output destination is not a regular file: {path}")
+        for parent in path.parents:
+            if parent in destinations or parent.is_symlink() or (
+                    parent.exists() and not parent.is_dir()):
+                raise ValueError(f"Unity output parent is not a directory: {parent}")
+
+    # Keep staging on the checkout filesystem so replace is atomic per file.
+    scratch = Path(tempfile.mkdtemp(prefix=".unity-restore-", dir="."))
+    staged = []
+    replaced = []
+    directories = []
+    keep_backups = False
+    try:
+        for index, (name, data) in enumerate(outputs.items()):
+            path = Path(name)
+            incoming = scratch / f"{index}.incoming"
+            incoming.write_bytes(data)
+            backup = None
+            if path.is_file():
+                backup = scratch / f"{index}.original"
+                shutil.copy2(path, backup)
+                shutil.copymode(backup, incoming)
+            staged.append((path, incoming, backup))
+
+        try:
+            for path, incoming, backup in staged:
+                for parent in reversed(path.parents):
+                    if not parent.exists():
+                        parent.mkdir()
+                        directories.append(parent)
+                incoming.replace(path)
+                replaced.append((path, backup))
+        except OSError:
+            try:
+                for path, backup in reversed(replaced):
+                    if backup is None:
+                        path.unlink()
+                    else:
+                        backup.replace(path)
+                for directory in reversed(directories):
+                    directory.rmdir()
+            except OSError as rollback_error:
+                keep_backups = True
+                raise RuntimeError(f"Unity restore rollback failed. Backups remain in {scratch}.") from rollback_error
+            raise
+    finally:
+        if not keep_backups:
+            shutil.rmtree(scratch)
+
+
 def restore(evidence):
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     report = json.loads((evidence / "validation.json").read_text())
@@ -168,12 +225,9 @@ def restore(evidence):
         for name in REQUIRED_OUTPUTS:
             if name not in checked and not Path(name).is_file():
                 raise ValueError(f"Candidate lacks required Unity output: {name}")
-        for name, data in checked.items():
-            path = Path(name)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
 
-    Path("production/ci/p0-mode.txt").write_text("verify\n")
+    checked["production/ci/p0-mode.txt"] = b"verify\n"
+    apply_outputs(checked)
 
 
 if __name__ == "__main__":
