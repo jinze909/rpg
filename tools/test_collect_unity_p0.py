@@ -70,6 +70,78 @@ class VendorManifestBoundaryTests(unittest.TestCase):
 
 
 class CandidateRestorePreflightTests(unittest.TestCase):
+    def build_complete_evidence(self, outputs):
+        for path in (
+                "Assets/Game/Scenes/Bootstrap.unity",
+                "Assets/Gaming Is Love/_Data/Project.asset",
+                "Packages/packages-lock.json"):
+            required = Path(path)
+            required.parent.mkdir(parents=True, exist_ok=True)
+            required.write_bytes(b"already present")
+        mode = Path("production/ci/p0-mode.txt")
+        mode.parent.mkdir(parents=True)
+        mode.write_text("prepare\n")
+        evidence = Path("evidence")
+        evidence.mkdir()
+        sha = "a" * 40
+        (evidence / "validation.json").write_text(json.dumps({
+            "source_sha": sha, "mode": "prepare", "status": "prepared-candidate",
+            "changed_files_sha256": {
+                name: hashlib.sha256(data).hexdigest() for name, data in outputs.items()
+            },
+        }))
+        with ZipFile(evidence / "candidate-files.zip", "w") as archive:
+            for name, data in outputs.items():
+                archive.writestr(name, data)
+        return evidence, sha, mode
+
+    def test_directory_destination_is_rejected_before_overwriting_settings(self):
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            first = Path("ProjectSettings/EditorSettings.asset")
+            blocked = Path("ProjectSettings/GraphicsSettings.asset")
+            blocked.mkdir(parents=True)
+            first.write_bytes(b"old settings")
+            evidence, sha, mode = self.build_complete_evidence({
+                first.as_posix(): b"new settings", blocked.as_posix(): b"graphics",
+            })
+
+            with patch("restore_unity_p0.subprocess.check_output", return_value=sha):
+                with self.assertRaises((OSError, ValueError)):
+                    restore(evidence)
+
+            self.assertEqual(first.read_bytes(), b"old settings")
+            self.assertTrue(blocked.is_dir())
+            self.assertEqual(mode.read_text(), "prepare\n")
+
+    def test_rename_failure_restores_original_bytes_mode_and_new_paths(self):
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            first = Path("ProjectSettings/EditorSettings.asset")
+            first.parent.mkdir()
+            first.write_bytes(b"old settings")
+            first.chmod(0o640)
+            created = Path("Assets/Gaming Is Love/_Data/New/Build.asset")
+            meta = created.with_suffix(".asset.meta")
+            evidence, sha, mode = self.build_complete_evidence({
+                first.as_posix(): b"new settings",
+                created.as_posix(): b"generated", meta.as_posix(): b"metadata",
+            })
+            replace = Path.replace
+
+            def fail_at_meta(source, destination):
+                if destination == meta:
+                    raise PermissionError("injected apply failure")
+                return replace(source, destination)
+
+            with patch("restore_unity_p0.subprocess.check_output", return_value=sha), \
+                    patch.object(Path, "replace", fail_at_meta):
+                with self.assertRaisesRegex(PermissionError, "injected apply failure"):
+                    restore(evidence)
+
+            self.assertEqual(first.read_bytes(), b"old settings")
+            self.assertEqual(first.stat().st_mode & 0o777, 0o640)
+            self.assertFalse(created.parent.exists())
+            self.assertEqual(mode.read_text(), "prepare\n")
+
     def test_missing_required_output_keeps_existing_files_and_mode(self):
         with tempfile.TemporaryDirectory() as directory, chdir(directory):
             output = Path("ProjectSettings/EditorSettings.asset")
