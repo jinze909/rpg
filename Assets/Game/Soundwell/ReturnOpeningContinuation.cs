@@ -11,9 +11,11 @@ namespace Rpg.Soundwell
         private M01WestLaneView westLane;
         private M01DockBriefingView dock;
         private M02HarborVisit harborVisit;
+        private M02QiQueNightView qiQueNight;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
+        private bool qiQueNightPending;
         private M01PensionChoice? pensionChoice;
         private float layoutAspect;
 
@@ -78,11 +80,35 @@ namespace Rpg.Soundwell
         {
             dock.Dispose();
             dock = null;
-            harborVisit = new M02HarborVisit(transform, recordedChoice, CloseOpening);
+            harborVisit = new M02HarborVisit(transform, recordedChoice, QueueQiQueNight);
+        }
+
+        private void QueueQiQueNight()
+        {
+            // M02's completed office and review are no longer active while
+            // the optional dock-warehouse conversation is on screen.
+            harborVisit?.Dispose();
+            harborVisit = null;
+            qiQueNightPending = true;
+            OpenQiQueNightWhenReady();
+        }
+
+        private void OpenQiQueNightWhenReady()
+        {
+            if (!qiQueNightPending || qiQueNight != null || onFinished == null ||
+                !M02QiQueDebtFacts.TryRead(out bool debtKnown))
+                return;
+
+            // Only a question asked at Han Qiao's desk reveals the mortgage.
+            // The night conversation neither invents that discovery nor books a ship.
+            qiQueNightPending = false;
+            qiQueNight = new M02QiQueNightView(transform, debtKnown, CloseOpening);
         }
 
         private void CloseOpening()
         {
+            qiQueNight?.Dispose();
+            qiQueNight = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -99,12 +125,15 @@ namespace Rpg.Soundwell
 
             float aspect = (float)Mathf.Max(1, Screen.width) / Mathf.Max(1, Screen.height);
             harborVisit?.Tick(aspect);
+            if (qiQueNightPending)
+                OpenQiQueNightWhenReady();
             if (!Mathf.Approximately(aspect, layoutAspect))
             {
                 layoutAspect = aspect;
                 meeting?.LayoutForViewportAspect(aspect);
                 westLane?.LayoutForViewportAspect(aspect);
                 dock?.LayoutForViewportAspect(aspect);
+                qiQueNight?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -114,6 +143,7 @@ namespace Rpg.Soundwell
             westLane?.Dispose();
             dock?.Dispose();
             harborVisit?.Dispose();
+            qiQueNight?.Dispose();
             onFinished = null;
         }
     }

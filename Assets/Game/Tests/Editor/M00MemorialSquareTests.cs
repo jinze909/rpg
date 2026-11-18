@@ -298,6 +298,27 @@ namespace Rpg.Tests.Editor
             M02BridgeEvidenceFacts.TryRead(out observed);
             Assert.That(observed, Is.EqualTo(M02BridgeEvidence.CleanCableCut |
                 M02BridgeEvidence.WarReportDraft));
+
+            // M02 now continues to the night warehouse before returning to Entry.
+            // Asking Han Qiao about the loan must be the only reason Qi Que
+            // discloses it; the office result has already been persisted.
+            Button nightContinue = NamedButton(memorial, "M02 Qi Que continue");
+            Assert.That(nightContinue.gameObject.activeInHierarchy, Is.True);
+            Assert.That(memorial.GetComponentsInChildren<Text>().Any(text =>
+                text.text.Contains("Qi Que is about to offer another osmanthus cake")), Is.True);
+            nightContinue.onClick.Invoke();
+            Assert.That(memorial.GetComponentsInChildren<Text>().Any(text =>
+                text.text.Contains("mortgaged")), Is.True);
+            Assert.That(memorial.GetComponentsInChildren<Button>().Any(button =>
+                button.gameObject.name == "M02 office action 1"), Is.False,
+                "The earlier office choices cannot remain actionable at night.");
+            nightContinue.onClick.Invoke();
+            nightContinue.onClick.Invoke();
+            Assert.That(memorial.GetComponentsInChildren<Text>().Any(text =>
+                text.text.Contains("not booked a ship")), Is.True,
+                "Reading Qi Que's chart must not silently select the route.");
+            nightContinue.onClick.Invoke();
+            yield return null;
         }
 
         private static Button NamedButton(M00MemorialSquare memorial, string name)
