@@ -63,10 +63,24 @@ namespace Rpg.Soundwell
             {
                 yield return EnterTrial();
                 var party = FindFirstObjectByType<OrkPartyBridge>();
-                if (party == null || !party.IsReady || !party.SettleRescue() ||
-                    !HasRescueExperience(party.Members) || !M02QiQueDebtFacts.TryRecordDiscovered())
+                if (party == null || !party.IsReady)
                 {
-                    Fail("Could not record the ORK rescue reward and Makinom chapter fact.");
+                    Fail("The three-member ORK party never became ready after scene load.");
+                    yield break;
+                }
+                if (!party.SettleRescue())
+                {
+                    Fail("The ORK rescue quest could not be marked finished.");
+                    yield break;
+                }
+                if (!HasRescueExperience(party.Members))
+                {
+                    Fail("The ORK rescue quest finished without granting all three experience rewards.");
+                    yield break;
+                }
+                if (!M02QiQueDebtFacts.TryRecordDiscovered())
+                {
+                    Fail("The live Makinom chapter variables did not accept the debt discovery fact.");
                     yield break;
                 }
                 var trial = FindFirstObjectByType<SoundwellTrial>();
@@ -125,10 +139,16 @@ namespace Rpg.Soundwell
             if (entrance != null)
             {
                 yield return entrance.OpenTrial();
+                // Scene activation and trial UI readiness are not sufficient:
+                // ORK creates and registers the three real combatants in a
+                // separate coroutine. Do not settle the quest on that race.
                 yield return WaitFor(() =>
                 {
                     var trial = FindFirstObjectByType<SoundwellTrial>();
-                    return trial != null && trial.IsReady;
+                    var party = FindFirstObjectByType<OrkPartyBridge>();
+                    return trial != null && trial.IsReady &&
+                        party != null && party.IsReady &&
+                        Maki.Initialized && Maki.Game?.Variables != null;
                 });
             }
         }
