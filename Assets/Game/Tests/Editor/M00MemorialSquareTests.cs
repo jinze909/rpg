@@ -76,31 +76,27 @@ namespace Rpg.Tests.Editor
                 SoundwellInputAdapter.SetEntryContext();
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: Bootstrap and isolated keyboard ready");
-                // The following test exercises the real authored M00 UI and input
-                // in the Bootstrap scene. The second test below independently
-                // verifies the earned S00 third-bell handoff and return lifecycle.
-                // Do not couple physical-approach assertions to a second
-                // editor PlayMode transition/owner search.
-                Debug.Log("RPG_M00_DIAG: before memorial GameObject");
-                var memorialObject = new GameObject(
-                    "M00 Memorial Square · interaction regression");
-                Debug.Log("RPG_M00_DIAG: after memorial GameObject");
-                memorialObject.transform.SetParent(entry.transform, false);
-                Debug.Log("RPG_M00_DIAG: after memorial parent");
-                memorial = memorialObject.AddComponent<M00MemorialSquare>();
-                Debug.Log("RPG_M00_DIAG: after memorial AddComponent");
-                bool memorialExited = false;
-                try
-                {
-                    Debug.Log("RPG_M00_DIAG: before memorial Begin");
-                    memorial.Begin(() => memorialExited = true);
-                    Debug.Log("RPG_M00_DIAG: after memorial Begin");
-                }
-                catch (System.Exception exception)
-                {
-                    Debug.LogException(exception);
-                    throw;
-                }
+
+                // Open M00 only through the production S00 exit callback. This
+                // keeps the test on the same live-owner lifecycle as the player
+                // path instead of manufacturing a second component attachment.
+                entry.OpenPrelude();
+                var currentPreludeField = typeof(SoundwellEntrance).GetField(
+                    "currentPrelude", BindingFlags.Instance | BindingFlags.NonPublic);
+                var thirdBellField = typeof(WhitewaterPrelude).GetField(
+                    "thirdBellStarted", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(currentPreludeField, Is.Not.Null);
+                Assert.That(thirdBellField, Is.Not.Null);
+                var prelude = (WhitewaterPrelude)currentPreludeField.GetValue(entry);
+                Assert.That(prelude, Is.Not.Null,
+                    "The live entry owner must create S00 before M00 can be earned.");
+                thirdBellField.SetValue(prelude, true);
+                prelude.Close();
+                yield return null;
+                memorial = entry.CurrentMemorial;
+                Assert.That(memorial, Is.Not.Null,
+                    "The earned third-bell S00 exit must create the live M00 component.");
+                Assert.That(entry.MemorialSquareOpen, Is.True);
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform));
                 yield return null;
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 interaction scene ready");
@@ -240,8 +236,8 @@ namespace Rpg.Tests.Editor
                     .Single(button => button.gameObject.name == "M00 return to entry")
                     .onClick.Invoke();
                 yield return null;
-                Assert.That(memorialExited, Is.True,
-                    "The authored M00 return button must invoke its scene exit.");
+                Assert.That(entry.MemorialSquareOpen, Is.False,
+                    "The authored M00 return button must clear the live entry owner's M00 reference.");
                 Assert.That(entry.enabled, Is.True,
                     "The Bootstrap entry owner stays enabled during the authored M00 test.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
