@@ -233,11 +233,12 @@ def discover_editor_nunit_tests(source_root, mode, has_soundwell_scene):
 
 def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
     """Match the candidate's declared tests and retain strict XML equality."""
+    full_suite = mode == "verify" and has_soundwell_scene
     expected = set(EXPECTED_TESTS)
     expected.update(discover_editor_nunit_tests(source_root, mode, has_soundwell_scene))
     for relative_path, declared_tests in ADDITIONAL_EDITOR_TESTS.items():
         path = source_root / relative_path
-        if not path.is_file():
+        if (not full_suite and path.stem != "P0BootstrapTests") or not path.is_file():
             continue
         content = path.read_text(encoding="utf-8")
         for method_name, test_name in declared_tests.items():
@@ -248,23 +249,23 @@ def expected_tests_for(mode, has_soundwell_scene, source_root=Path(".")):
             )
             if re.search(signature, content):
                 expected.add(test_name)
-    if mode == "verify" and has_soundwell_scene:
+    if full_suite:
         expected.update(SOUNDWELL_TESTS)
         expected.update(INPUT_SYSTEM_TESTS)
         expected.update(ORK_UI_TESTS)
-        for relative_path, declared_tests in ADDITIONAL_SOUNDWELL_TESTS.items():
-            path = source_root / relative_path
-            if not path.is_file():
-                continue
-            content = path.read_text(encoding="utf-8")
-            for method_name, test_name in declared_tests.items():
-                signature = (
-                    r"\[UnityTest(?:,\s*[^\]]+)?\]\s*"
-                    r"(?:\[[^\]]+\]\s*)*"
-                    r"public\s+IEnumerator\s+" + re.escape(method_name) + r"\s*\("
-                )
-                if re.search(signature, content):
-                    expected.add(test_name)
+    for relative_path, declared_tests in ADDITIONAL_SOUNDWELL_TESTS.items():
+        path = source_root / relative_path
+        if (not full_suite and path.stem != "P0BootstrapTests") or not path.is_file():
+            continue
+        content = path.read_text(encoding="utf-8")
+        for method_name, test_name in declared_tests.items():
+            signature = (
+                r"\[UnityTest(?:,\s*[^\]]+)?\]\s*"
+                r"(?:\[[^\]]+\]\s*)*"
+                r"public\s+IEnumerator\s+" + re.escape(method_name) + r"\s*\("
+            )
+            if re.search(signature, content):
+                expected.add(test_name)
     return expected
 
 

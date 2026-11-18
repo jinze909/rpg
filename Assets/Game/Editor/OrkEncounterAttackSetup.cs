@@ -89,6 +89,7 @@ namespace Rpg.Editor
             AssetDatabase.CreateAsset(asset, path);
             var entry = new DataObject();
             entry.SetAsset("asset", asset);
+            settings.RemoveArray<DataObject>("assets");
             settings.Set("assets", items.Append(entry).ToArray());
             registry.Data = settings.GetDataFile(registry.Data.name, false, DataFile.SaveFormatType.ByteArray);
             EditorUtility.SetDirty(registry);

@@ -569,6 +569,10 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 encoding="utf-8"
             )
             self.assertEqual(len(expected_tests_for("verify", True, source_root=source_root)), 12)
+            prepare_tests = EXPECTED_TESTS | {
+                "Rpg.Tests.Editor.P0BootstrapTests.SoundwellAudioMuteSurvivesSceneRerouting",
+            }
+            self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), prepare_tests)
 
             input_file = source_root / "Assets/Game/Tests/Editor/SoundwellInputSystemTests.cs"
             input_file.write_text(
@@ -611,7 +615,7 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 "Rpg.Tests.Editor.SoundwellTrialTests.PlayerLanguageChoiceSurvivesFreshPlayAndUpdatesEntryUi",
                 expected,
             )
-            self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
+            self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), prepare_tests)
             # A newly declared bell-only rescue must be included in the exact
             # same-SHA acceptance set, not treated as an unexpected extra test.
             localized_file.write_text(
@@ -626,7 +630,7 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
                 "Rpg.Tests.Editor.SoundwellTrialTests.BellOnlyRescueWorksWithoutOptionalCluesOrEscortRope",
                 with_bell,
             )
-            self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), EXPECTED_TESTS)
+            self.assertEqual(expected_tests_for("prepare", True, source_root=source_root), prepare_tests)
             # An ORK attack-animation UnityTest must also be part of the
             # strict same-SHA manifest; actual Unity success alone is insufficient.
             localized_file.write_text(
