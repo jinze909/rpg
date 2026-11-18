@@ -58,6 +58,52 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void GamepadFocusPrefersUnreadCluesThenContinueWithoutRevealingAnyForFree()
+        {
+            var inquiry = new M02BridgeInquiry();
+            inquiry.Begin();
+            view = new M02BridgeInquiryView(root.transform, inquiry, _ => { });
+
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetEvidenceButton(0)));
+            Assert.That(inquiry.Found, Is.EqualTo(M02BridgeEvidence.None));
+            view.GetEvidenceButton(0).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetEvidenceButton(1)));
+            view.GetEvidenceButton(1).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetEvidenceButton(2)));
+            view.GetEvidenceButton(2).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.ContinueButton));
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.HarborArchive));
+            Assert.That(view.GetEvidenceButton(1).gameObject.activeSelf, Is.False);
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetEvidenceButton(0)));
+            view.GetEvidenceButton(0).onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.ContinueButton));
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.Finished));
+            Assert.That(view.PreferredFocusTarget, Is.Null);
+            Assert.That(inquiry.Found, Is.EqualTo(
+                M02BridgeEvidence.CleanCableCut |
+                M02BridgeEvidence.FerrymanLog |
+                M02BridgeEvidence.ThirdBellSignal |
+                M02BridgeEvidence.WarReportDraft));
+        }
+
+        [Test]
+        public void SkippingWarehouseKeepsArchiveFocusOnUnseenDraft()
+        {
+            var inquiry = new M02BridgeInquiry();
+            inquiry.Begin();
+            view = new M02BridgeInquiryView(root.transform, inquiry, _ => { });
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetEvidenceButton(0)));
+            Assert.That(inquiry.Found, Is.EqualTo(M02BridgeEvidence.None));
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(view.PreferredFocusTarget, Is.Null);
+            Assert.That(inquiry.Found, Is.EqualTo(M02BridgeEvidence.None));
+        }
+
+        [Test]
         public void PlayerMaySkipEveryClueAndSwitchLocaleWithoutChangingFacts()
         {
             var inquiry = new M02BridgeInquiry();
