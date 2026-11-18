@@ -1,10 +1,12 @@
 using System.Collections;
 using System.Linq;
 using System.Reflection;
+using GamingIsLove.Makinom;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -33,6 +35,7 @@ namespace Rpg.Tests.Editor
                 originalLanguage = SoundwellUiLocalization.Language;
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Keyboard keys = InputSystem.AddDevice<Keyboard>();
+                Gamepad gamepad = InputSystem.AddDevice<Gamepad>();
 
                 // Enter M00 through the same earned S00 -> M00 transition used
                 // by the player. Do not construct the scene component in an
@@ -158,10 +161,67 @@ namespace Rpg.Tests.Editor
                 Assert.That(memorial.CurrentNarration, Does.Contain("Who has spare rope?"),
                     "M00 must echo the exact P0 rope call instead of using an altered English paraphrase.");
                 Assert.That(memorial.CurrentNarration, Does.Not.Contain("Who brought the spare rope?"));
-                memorial.GetComponentsInChildren<Button>(true)
-                    .Single(button => button.gameObject.name == "M00 return to entry")
-                    .onClick.Invoke();
+                var variables = Maki.Game.Variables;
+                Assert.That(variables.GetInt(M00MemorialSquare.XiaodouPromptedKey), Is.EqualTo(1));
+                variables.Set(M00RollCallFacts.IdentityRevealKey, 0);
+                variables.Set(M00HanRansomFacts.CountKey, 0);
+                variables.Set(M01HomecomingResponse.PensionChoiceKey, 0);
+
+                Assert.That(EventSystem.current.currentSelectedGameObject.name,
+                    Is.EqualTo("M00 begin roll call"));
+                input.Press(gamepad.buttonSouth);
                 yield return null;
+                input.Release(gamepad.buttonSouth);
+                yield return null;
+
+                var rollCall = memorial.GetComponent<M00RollCallSession>();
+                Assert.That(rollCall, Is.Not.Null);
+                Assert.That(rollCall.Sequence.CallsMade, Is.EqualTo(1));
+                Assert.That(rollCall.Sequence.Outcome, Is.EqualTo(M00RollCallOutcome.Pending),
+                    "The Submit that opens the ritual cannot also answer the first call.");
+                Assert.That(EventSystem.current.currentSelectedGameObject,
+                    Is.EqualTo(rollCall.View.GetChoiceButton(0).gameObject));
+
+                rollCall.View.GetChoiceButton(1).onClick.Invoke();
+                float nextCallDeadline = Time.realtimeSinceStartup + 4f;
+                while (rollCall.Sequence.CallsMade == 1 && Time.realtimeSinceStartup < nextCallDeadline)
+                    yield return null;
+                Assert.That(rollCall.Sequence.CallsMade, Is.EqualTo(2));
+                rollCall.View.GetChoiceButton(0).onClick.Invoke();
+                Assert.That(rollCall.Sequence.CallsMade, Is.EqualTo(2));
+                rollCall.View.ContinueButton.onClick.Invoke();
+                Assert.That(M00RollCallFacts.TryRead(out M00RollCallOutcome outcome), Is.True);
+                Assert.That(outcome, Is.EqualTo(M00RollCallOutcome.AnsweredSecond));
+                Assert.That(variables.GetInt(M00HanRansomFacts.CountKey), Is.Zero);
+
+                Button meetingChoice = NamedButton(memorial, "M00 Han Qiao choice 0");
+                Assert.That(EventSystem.current.currentSelectedGameObject,
+                    Is.EqualTo(meetingChoice.gameObject));
+                Assert.That(meetingChoice.GetComponentInChildren<Text>().text,
+                    Is.EqualTo("The battle report says I died."));
+                meetingChoice.onClick.Invoke();
+                Assert.That(variables.GetInt(M00HanRansomFacts.CountKey), Is.EqualTo(41));
+                NamedButton(memorial, "M00 Han Qiao continue").onClick.Invoke();
+                NamedButton(memorial, "M00 Han Qiao choice 1").onClick.Invoke();
+                NamedButton(memorial, "M00 Han Qiao continue").onClick.Invoke();
+
+                Button westLaneProgress = NamedButton(memorial, "M01 West Lane continue");
+                Assert.That(EventSystem.current.currentSelectedGameObject,
+                    Is.EqualTo(westLaneProgress.gameObject));
+                westLaneProgress.onClick.Invoke();
+                Assert.That(westLaneProgress.GetComponentInParent<Canvas>()
+                    .GetComponentsInChildren<Text>().Any(label =>
+                        label.text.Contains("answered the roll call in the square today")), Is.True,
+                    "Xiaodou recognizes the recorded public answer before the separate stage prompt.");
+                westLaneProgress.onClick.Invoke();
+                NamedButton(memorial, "M01 pension choice 2").onClick.Invoke();
+                Assert.That(variables.GetInt(M01HomecomingResponse.PensionChoiceKey), Is.Zero);
+                westLaneProgress.onClick.Invoke();
+                yield return null;
+                Assert.That(variables.GetInt(M01HomecomingResponse.PensionChoiceKey), Is.EqualTo(3),
+                    "This records the request for review, while the narrative pension path stays unresolved.");
+                Assert.That(M01HomecomingResponse.PensionPathFor(M01PensionChoice.RequestMissingReturnReview),
+                    Is.EqualTo("未处理"));
                 Assert.That(entry.MemorialSquareOpen, Is.False);
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
@@ -176,6 +236,12 @@ namespace Rpg.Tests.Editor
                     input.TearDown();
             }
             yield return new ExitPlayMode();
+        }
+
+        private static Button NamedButton(M00MemorialSquare memorial, string name)
+        {
+            return memorial.GetComponentsInChildren<Button>()
+                .Single(button => button.gameObject.name == name);
         }
 
         [UnityTest]

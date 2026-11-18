@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.InputSystem.UI;
@@ -350,6 +351,23 @@ namespace Rpg.Soundwell
             RequireBinding(carry, "<Keyboard>/f"); RequireBinding(carry, "<Gamepad>/leftShoulder");
             RequireBinding(gate, "<Keyboard>/g"); RequireBinding(gate, "<Gamepad>/rightShoulder");
             RequireBinding(toggleMenu, "<Keyboard>/tab"); RequireBinding(toggleMenu, "<Gamepad>/start");
+        }
+
+        internal static void KeepDialogFocus(Transform dialog, Button firstVisible)
+        {
+            EventSystem system = EventSystem.current;
+            if (!Application.isPlaying || system == null || system.alreadySelecting)
+                return;
+
+            GameObject current = system.currentSelectedGameObject;
+            bool insideDialog = current != null && current.transform.IsChildOf(dialog);
+            if (insideDialog && current.activeInHierarchy)
+                return;
+
+            if (firstVisible != null)
+                system.SetSelectedGameObject(firstVisible.gameObject);
+            else if (insideDialog)
+                system.SetSelectedGameObject(null);
         }
 
         public static EventSystem EnsureEventSystem(Transform owner)

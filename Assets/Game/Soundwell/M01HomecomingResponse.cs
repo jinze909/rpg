@@ -1,22 +1,34 @@
 using System;
+using GamingIsLove.Makinom;
 
 namespace Rpg.Soundwell
 {
     public enum M01PensionChoice
     {
-        RegisterLivingIdentity,
-        KeepIdentityUnregistered,
-        RequestMissingReturnReview,
-        LeaveWithoutDecision
+        RegisterLivingIdentity = 0,
+        KeepIdentityUnregistered = 1,
+        RequestMissingReturnReview = 2,
+        LeaveWithoutDecision = 3
     }
 
     /// <summary>
     /// The first M01 homecoming consequences from the v1.2 scene script.
-    /// Pure dialogue/decision logic: M00 remains the identity-fact writer,
-    /// Makinom owns scene facts and ORK remains the save authority.
+    /// M00 remains the identity-fact writer. Makinom owns the M01 decision,
+    /// from which later chapters can distinguish a review request from leaving.
     /// </summary>
     public static class M01HomecomingResponse
     {
+        public const string PensionChoiceKey = "rpg.return.m01.pension-choice";
+
+        internal static bool TryRecordPensionChoice(M01PensionChoice choice)
+        {
+            if (!Maki.Initialized || Maki.Game?.Variables == null)
+                return false;
+
+            // Stored values 1–4 represent the four decisions; 0 means no choice was recorded.
+            Maki.Game.Variables.Set(PensionChoiceKey, (int)choice + 1);
+            return true;
+        }
         public static bool AnsweredAtMemorial(M00RollCallOutcome outcome)
         {
             switch (outcome)

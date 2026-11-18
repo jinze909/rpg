@@ -161,7 +161,7 @@ namespace Rpg.Soundwell
         private Text childLine;
         private Text crowdLine;
         private Button[] choices = new Button[4];
-        private Button returnButton;
+        private Button rollCallButton;
         private Sprite playerSprite;
         private Sprite oldWomanSprite;
         private Sprite childSprite;
@@ -183,7 +183,7 @@ namespace Rpg.Soundwell
         private bool closing;
 
         // 0: approach statue; 1: statue reaction; 2: approach old woman;
-        // 3: approach Xiaodou; 4: prompt/leave/stay choice; 5: return.
+        // 3: approach Xiaodou; 4: prompt/leave/stay choice; 5: before roll call; 6: continuation.
         public int Phase => phase;
         public Vector2 WalkerPosition => walker;
         public bool OldWomanStoneObserved => oldWomanStoneObserved;
@@ -300,10 +300,10 @@ namespace Rpg.Soundwell
             for (int i = 0; i < choices.Length; i++)
                 choices[i] = CreateChoiceButton(i,
                     new Vector2(0f, -34f - i * 43f));
-            returnButton = CreateButton("M00 return to entry",
-                Copy("Return to entry", "返回入口"),
-                new Vector2(0f, -165f), new Vector2(300f, 42f), Close);
-            returnButton.gameObject.SetActive(false);
+            rollCallButton = CreateButton("M00 begin roll call",
+                Copy("Attend the roll call", "参加正式点名"),
+                new Vector2(0f, -165f), new Vector2(300f, 42f), BeginRollCall);
+            rollCallButton.gameObject.SetActive(false);
         }
 
         private void CreateSprites()
@@ -584,11 +584,21 @@ namespace Rpg.Soundwell
                         "你绕开高台，去找人。")
                     : Copy("You stay where you are.", "你留在原地。");
             instructions.text = Copy(
-                "The performance is over. Return to the harbor entrance.",
-                "广场小戏散场了。返回港口入口。");
-            returnButton.gameObject.SetActive(true);
+                "The performance ends. Han Qiao is reading the last page of names at the memorial.",
+                "广场小戏散场了。碑前，韩峤正在念最后一页名单。");
+            rollCallButton.gameObject.SetActive(true);
             if (EventSystem.current != null)
-                EventSystem.current.SetSelectedGameObject(returnButton.gameObject);
+                EventSystem.current.SetSelectedGameObject(rollCallButton.gameObject);
+        }
+
+        private void BeginRollCall()
+        {
+            if (closing || phase != 5)
+                return;
+
+            phase = 6;
+            canvas.gameObject.SetActive(false);
+            gameObject.AddComponent<ReturnOpeningContinuation>().Begin(Close);
         }
 
         private void HideChoices()
@@ -608,6 +618,7 @@ namespace Rpg.Soundwell
             if (closing)
                 return;
             closing = true;
+            gameObject.SetActive(false);
             SoundwellInputAdapter.SetEntryContext();
             Action callback = onExit;
             onExit = null;
