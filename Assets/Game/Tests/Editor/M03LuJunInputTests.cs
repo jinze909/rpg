@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
@@ -32,11 +33,18 @@ namespace Rpg.Tests.Editor
                 view = new M03LuJunView(owner.transform, M02BridgeEvidence.None,
                     true, _ => delivered++);
 
-                Assert.That(events.currentSelectedGameObject, Is.SameAs(view.AdvanceButton.gameObject));
+                // A fresh EventSystem must activate its input module before
+                // the first press, just as it does on the normal entry route.
+                yield return null;
+                yield return null;
+                Assert.That(events.currentInputModule, Is.TypeOf<InputSystemUIInputModule>());
+                events.SetSelectedGameObject(view.AdvanceButton.gameObject);
                 input.Press(gamepad.buttonSouth);
+                yield return null;
                 yield return null;
                 input.Release(gamepad.buttonSouth);
                 yield return null;
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingOpening));
                 Assert.That(events.currentSelectedGameObject,
                     Is.SameAs(view.GetChoiceButton(0).gameObject));
 
@@ -44,6 +52,7 @@ namespace Rpg.Tests.Editor
                 // to "official ship" after the opening answer has been chosen.
                 events.SetSelectedGameObject(view.GetChoiceButton(2).gameObject);
                 input.Press(gamepad.buttonSouth);
+                yield return null;
                 yield return null;
                 input.Release(gamepad.buttonSouth);
                 yield return null;
