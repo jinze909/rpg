@@ -97,13 +97,22 @@ namespace Rpg.Tests.Editor
                 thirdBellField.SetValue(prelude, true);
                 prelude.Close();
                 yield return null;
-                entry = Object.FindFirstObjectByType<SoundwellEntrance>();
-                Assert.That(entry, Is.Not.Null,
-                    "The earned third-bell handoff must preserve the live entry owner.");
-                memorial = entry.CurrentMemorial;
-                Assert.That(memorial, Is.Not.Null,
-                    "The earned third-bell S00 exit must create the live M00 component.");
-                Assert.That(entry.MemorialSquareOpen, Is.True);
+                entry = Object.FindAnyObjectByType<SoundwellEntrance>(
+                    FindObjectsInactive.Include);
+                Assert.That(entry != null, Is.True,
+                    "The earned third-bell handoff must preserve a live Bootstrap entry owner.");
+                // A UnityTest continuation can resume with stale managed object
+                // references after the S00 object is destroyed. Resolve the
+                // authored M00 through the live Bootstrap hierarchy, exactly
+                // as the already-passing handoff regression does, then assert
+                // that the owner also retained the same M00 instance.
+                memorial = entry.GetComponentInChildren<M00MemorialSquare>(true);
+                Assert.That(memorial != null, Is.True,
+                    "The earned third-bell exit must create an M00 child on the live owner.");
+                Assert.That(entry.MemorialSquareOpen, Is.True,
+                    "The live entry owner must retain the M00 reference after S00 closes.");
+                Assert.That(entry.CurrentMemorial, Is.SameAs(memorial),
+                    "The owner must track the visible authored M00 child, not a stale instance.");
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform));
                 yield return null;
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 interaction scene ready");
