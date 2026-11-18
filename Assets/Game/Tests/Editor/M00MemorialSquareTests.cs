@@ -222,7 +222,24 @@ namespace Rpg.Tests.Editor
                     "This records the request for review, while the narrative pension path stays unresolved.");
                 Assert.That(M01HomecomingResponse.PensionPathFor(M01PensionChoice.RequestMissingReturnReview),
                     Is.EqualTo("未处理"));
-                Assert.That(entry.MemorialSquareOpen, Is.False);
+                // The M01 opening now continues into Qi Que's warehouse.
+                // M00 stays open until the player hears her offer and leaves;
+                // ending West Lane alone must not abandon the authored scene.
+                Assert.That(entry.MemorialSquareOpen, Is.True);
+                Button dockOpening = NamedButton(memorial, "M01 dock option 2");
+                Assert.That(EventSystem.current.currentSelectedGameObject,
+                    Is.EqualTo(NamedButton(memorial, "M01 dock option 0").gameObject));
+                dockOpening.onClick.Invoke();
+                Button dockContinue = NamedButton(memorial, "M01 dock continue");
+                Assert.That(dockContinue.gameObject.activeInHierarchy, Is.True);
+                dockContinue.onClick.Invoke();
+                NamedButton(memorial, "M01 dock option 1").onClick.Invoke();
+                Assert.That(entry.MemorialSquareOpen, Is.True,
+                    "Reviewing a route lead does not automatically secure passage or exit M01.");
+                dockContinue.onClick.Invoke();
+                yield return null;
+                Assert.That(entry.MemorialSquareOpen, Is.False,
+                    "The M00 entry closes only after the complete M01 dock conversation.");
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);
                 memorial = null;
             }
