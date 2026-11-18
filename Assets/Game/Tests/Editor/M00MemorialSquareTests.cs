@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
@@ -81,12 +82,26 @@ namespace Rpg.Tests.Editor
                 // verifies the earned S00 third-bell handoff and return lifecycle.
                 // Do not couple physical-approach assertions to a second
                 // editor PlayMode transition/owner search.
+                Debug.Log("RPG_M00_DIAG: before memorial GameObject");
                 var memorialObject = new GameObject(
                     "M00 Memorial Square · interaction regression");
+                Debug.Log("RPG_M00_DIAG: after memorial GameObject");
                 memorialObject.transform.SetParent(entry.transform, false);
+                Debug.Log("RPG_M00_DIAG: after memorial parent");
                 memorial = memorialObject.AddComponent<M00MemorialSquare>();
+                Debug.Log("RPG_M00_DIAG: after memorial AddComponent");
                 bool memorialExited = false;
-                memorial.Begin(() => memorialExited = true);
+                try
+                {
+                    Debug.Log("RPG_M00_DIAG: before memorial Begin");
+                    memorial.Begin(() => memorialExited = true);
+                    Debug.Log("RPG_M00_DIAG: after memorial Begin");
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception);
+                    throw;
+                }
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform));
                 yield return null;
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 interaction scene ready");
