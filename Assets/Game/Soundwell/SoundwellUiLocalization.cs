@@ -49,7 +49,17 @@ namespace Rpg.Soundwell
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void RestoreSavedLanguage()
         {
-            string saved = PlayerPrefs.GetString(LanguagePreferenceKey, English);
+            // Preferences may be unavailable during an isolated Editor domain reload.
+            // A missing or unreadable preference must never block the first scene.
+            string saved = English;
+            try
+            {
+                saved = PlayerPrefs.GetString(LanguagePreferenceKey, English);
+            }
+            catch (Exception)
+            {
+                saved = English;
+            }
             language = saved == Chinese ? Chinese : English;
         }
 
