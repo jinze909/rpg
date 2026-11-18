@@ -141,6 +141,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            // UnityEvent.Invoke can still call an inactive button. Re-check
+            // the domain gate to prevent a second or unauthorized stamp.
+            if (action == M02HarborDeskAction.PresentLivingRegistration &&
+                !desk.CanPresentLivingPapers)
+                return;
             desk.Act(action);
             Refresh();
         }

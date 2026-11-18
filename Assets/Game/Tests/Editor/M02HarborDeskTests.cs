@@ -21,18 +21,25 @@ namespace Rpg.Tests.Editor
             Assert.That(outcome.OfficialShipOffered, Is.True);
         }
 
-        [TestCase(M01PensionChoice.KeepIdentityUnregistered)]
-        [TestCase(M01PensionChoice.RequestMissingReturnReview)]
-        [TestCase(M01PensionChoice.LeaveWithoutDecision)]
-        public void WithoutPublicChoiceOfficialRegistrationIsNotGranted(
-            M01PensionChoice prior)
+        [Test]
+        public void WithoutPublicChoiceOfficialRegistrationIsNotGranted()
         {
-            var desk = new M02HarborDesk(prior);
-            desk.Begin();
-            Assert.That(desk.CanPresentLivingPapers, Is.False);
-            Assert.Throws<InvalidOperationException>(() =>
-                desk.Act(M02HarborDeskAction.PresentLivingRegistration));
-            Assert.That(desk.Finish().OfficialShipOffered, Is.False);
+            // Keep all three historical paths covered under one exact test
+            // identity accepted by the P0 NUnit manifest.
+            foreach (M01PensionChoice prior in new[]
+            {
+                M01PensionChoice.KeepIdentityUnregistered,
+                M01PensionChoice.RequestMissingReturnReview,
+                M01PensionChoice.LeaveWithoutDecision
+            })
+            {
+                var desk = new M02HarborDesk(prior);
+                desk.Begin();
+                Assert.That(desk.CanPresentLivingPapers, Is.False, "prior: " + prior);
+                Assert.Throws<InvalidOperationException>(() =>
+                    desk.Act(M02HarborDeskAction.PresentLivingRegistration), "prior: " + prior);
+                Assert.That(desk.Finish().OfficialShipOffered, Is.False, "prior: " + prior);
+            }
         }
 
         [Test]
