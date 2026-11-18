@@ -241,16 +241,16 @@ namespace Rpg.Soundwell
                         : "At dusk the old soldiers wear ordinary clothes with blue cloth at their cuffs. Lu Jun pays a disabled veteran's care and lets a carpenter leave freely. At night he opens the roll of thirty names.";
                 case 1:
                     return chinese
-                        ? "陆钧：第三旅，一营。赵得福。\\n有人答：在。\\n陆钧：钱满仓。\\n（一拍沉默，没有回应。）"
-                        : "Lu Jun: 'Third Brigade, First Battalion. Zhao Defu.'\\nA voice: 'Here.'\\nLu Jun: 'Qian Mancang.'\\n(A beat of silence. No answer.)";
+                        ? "陆钧：第三旅，一营。赵得福。\n有人答：在。\n陆钧：钱满仓。\n（一拍沉默，没有回应。）"
+                        : "Lu Jun: 'Third Brigade, First Battalion. Zhao Defu.'\nA voice: 'Here.'\nLu Jun: 'Qian Mancang.'\n(A beat of silence. No answer.)";
                 case 2:
                     return chinese
-                        ? "陆钧又念：钱满仓。\\n（仍然没有人回答。他没有划去那个名字。）"
-                        : "Lu Jun calls again: 'Qian Mancang.'\\n(No answer. He does not strike out the name.)";
+                        ? "陆钧又念：钱满仓。\n（仍然没有人回答。他没有划去那个名字。）"
+                        : "Lu Jun calls again: 'Qian Mancang.'\n(No answer. He does not strike out the name.)";
                 case 3:
                     return chinese
-                        ? "陆钧第三次念：钱满仓。\\n（三遍无人应。他轻轻点了点名字，接着念。）\\n老兵低声说：每晚三十个，念完整本要三十七晚。他已经念了好几遍。"
-                        : "Lu Jun calls a third time: 'Qian Mancang.'\\n(No answer. He taps the name and keeps reading.)\\nA veteran whispers: thirty names a night, thirty-seven nights for the whole book. He has read it many times.";
+                        ? "陆钧第三次念：钱满仓。\n（三遍无人应。他轻轻点了点名字，接着念。）\n老兵低声说：每晚三十个，念完整本要三十七晚。他已经念了好几遍。"
+                        : "Lu Jun calls a third time: 'Qian Mancang.'\n(No answer. He taps the name and keeps reading.)\nA veteran whispers: thirty names a night, thirty-seven nights for the whole book. He has read it many times.";
                 default:
                     throw new ArgumentOutOfRangeException(nameof(beat));
             }

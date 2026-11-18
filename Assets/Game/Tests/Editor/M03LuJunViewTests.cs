@@ -43,6 +43,10 @@ namespace Rpg.Tests.Editor
                     "The player must hear all three unanswered calls before approaching.");
             }
             Assert.That(view.Dialogue.text, Does.Contain("thirty-seven nights"));
+            Assert.That(view.Dialogue.text, Does.Contain("\n"),
+                "Each roll call should be displayed as separate readable lines.");
+            Assert.That(view.Dialogue.text, Does.Not.Contain("\\n"),
+                "Do not print literal backslash-n characters to the player.");
             view.AdvanceButton.onClick.Invoke();
             Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingOpening));
             view.GetChoiceButton(2).onClick.Invoke();
