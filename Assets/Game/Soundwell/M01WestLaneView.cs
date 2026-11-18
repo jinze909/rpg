@@ -191,7 +191,7 @@ namespace Rpg.Soundwell
                     break;
                 case M01WestLaneStage.Concluded:
                     dialogue.text = DecisionSummary(chinese);
-                    progressLabel.text = chinese ? "返回港口入口" : "Return to the harbor entrance";
+                    progressLabel.text = chinese ? "去码头货栈" : "Go to the warehouse";
                     break;
                 default:
                     throw new InvalidOperationException("Unknown West Lane scene stage.");
