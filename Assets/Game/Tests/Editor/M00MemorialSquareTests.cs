@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
@@ -97,7 +96,7 @@ namespace Rpg.Tests.Editor
                     memorial.Begin(() => memorialExited = true);
                     Debug.Log("RPG_M00_DIAG: after memorial Begin");
                 }
-                catch (Exception exception)
+                catch (System.Exception exception)
                 {
                     Debug.LogException(exception);
                     throw;
