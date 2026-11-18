@@ -147,7 +147,7 @@ namespace Rpg.Soundwell
                             : "Han Qiao points to the seat across the table: 'Sit down and have something warm. ...You're not dead.'",
                         chinese
                             ? new[] { "战报上写我死了。", "你认出我了。", "沈砾呢？" }
-                            : new[] { "Your report says I died.", "You recognized me.", "Where is Shen Li?" },
+                            : new[] { "The battle report says I died.", "You recognized me.", "Where is Shen Li?" },
                         false, false);
 
                 case M00HanQiaoMeetingStage.RansomCount:
@@ -177,7 +177,7 @@ namespace Rpg.Soundwell
                     return new M00HanQiaoMeetingBeat(sequence.Stage,
                         chinese
                             ? "韩峤（停了一拍）：船的事，明天来港务署谈。你今晚先去西巷看一眼姜婶——十二年前你留的紧急联系人是她，抚恤一直发在她手里。\n\n（韩峤起身去倒茶。桌上，他的赎俘账册摊开着。最后一页，你的名字被墨涂过，涂了又写，写了又涂。）\n\n镜头停在那一页。"
-                            : "Han Qiao pauses. 'We'll discuss the ship at the harbor office tomorrow. Tonight, go see Auntie Jiang in West Lane. You left her as your emergency contact twelve years ago; your pension has been paid to her ever since.'\n\n(Han Qiao gets up to pour tea. His ransom ledger lies open on the table. On the last page, your name has been inked out, written back in, and inked out again.)\n\nThe camera holds on that page.",
+                            : "Han Qiao pauses. 'We'll discuss the ship at the harbor office tomorrow. Tonight, go see Auntie Jiang in West Lane. You left her as your emergency contact twelve years ago; she's been receiving the death benefits in your name ever since.'\n\n(Han Qiao gets up to pour tea. His ransom ledger lies open on the table. On the last page, your name has been inked out, written back in, and inked out again.)\n\nThe camera holds on that page.",
                         NoChoices, true, false);
 
                 case M00HanQiaoMeetingStage.Complete:

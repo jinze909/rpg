@@ -38,7 +38,7 @@ namespace Rpg.Soundwell
 
         /// <summary>
         /// Answering the roll call takes precedence over helping Xiaodou with
-        /// his stage line. Prompting alone never fabricates a public answer.
+        /// her stage line. Prompting alone never fabricates a public answer.
         /// Pending/missing identity follows the authored silent default.
         /// </summary>
         public static string XiaodouGreeting(

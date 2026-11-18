@@ -21,7 +21,7 @@ namespace Rpg.Tests.Editor
             }));
             Assert.That(english.Choices, Is.EqualTo(new[]
             {
-                "Your report says I died.", "You recognized me.", "Where is Shen Li?"
+                "The battle report says I died.", "You recognized me.", "Where is Shen Li?"
             }));
             Assert.That(chinese.CanContinue, Is.False);
         }
@@ -109,6 +109,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(sequence.NextStepChoice, Is.EqualTo(choice));
                 Assert.That(beat.Stage, Is.EqualTo(M00HanQiaoMeetingStage.Closing));
                 Assert.That(beat.Text, Does.Contain("姜婶"));
+                Assert.That(M00HanQiaoMeetingDialogue.Describe(sequence, false).Text,
+                    Does.Contain("death benefits in your name"));
                 Assert.That(beat.Text, Does.Contain("赎俘账册"));
                 Assert.That(beat.Text, Does.Contain("涂了又写，写了又涂"),
                     "The ledger's inked-out name must follow the authoritative M00 script.");
