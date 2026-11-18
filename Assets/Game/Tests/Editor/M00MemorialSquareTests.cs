@@ -97,22 +97,20 @@ namespace Rpg.Tests.Editor
                 thirdBellField.SetValue(prelude, true);
                 prelude.Close();
                 yield return null;
-                entry = Object.FindAnyObjectByType<SoundwellEntrance>(
-                    FindObjectsInactive.Include);
-                Assert.That(entry != null, Is.True,
-                    "The earned third-bell handoff must preserve a live Bootstrap entry owner.");
-                // A UnityTest continuation can resume with stale managed object
-                // references after the S00 object is destroyed. Resolve the
-                // authored M00 through the live Bootstrap hierarchy, exactly
-                // as the already-passing handoff regression does, then assert
-                // that the owner also retained the same M00 instance.
-                memorial = entry.GetComponentInChildren<M00MemorialSquare>(true);
-                Assert.That(memorial != null, Is.True,
-                    "The earned third-bell exit must create an M00 child on the live owner.");
+                // The second lifecycle test has a verified passing path: retain
+                // the live entry owner captured before S00 Close, and reacquire
+                // the scene M00 component after the destruction frame.
+                // Finding an inactive replacement owner here previously caused
+                // a NullReferenceException in Unity's yielded test continuation.
+                Assert.That(entry, Is.Not.Null,
+                    "The earned third-bell handoff must preserve the original Bootstrap owner.");
+                memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
+                Assert.That(memorial, Is.Not.Null,
+                    "The earned third-bell exit must create the visible authored M00.");
                 Assert.That(entry.MemorialSquareOpen, Is.True,
-                    "The live entry owner must retain the M00 reference after S00 closes.");
+                    "The original entry owner must still track the M00 instance.");
                 Assert.That(entry.CurrentMemorial, Is.SameAs(memorial),
-                    "The owner must track the visible authored M00 child, not a stale instance.");
+                    "The original owner must track the visible authored M00, not a replacement.");
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform));
                 yield return null;
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 interaction scene ready");
