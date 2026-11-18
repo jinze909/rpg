@@ -57,7 +57,9 @@ namespace Rpg.Tests.Editor
             Assert.That(view.CurrentBeat.Finished, Is.False);
             Assert.That(view.AdvanceAfterUnansweredCall(), Is.True);
             Assert.That(view.CallsMade, Is.EqualTo(2));
-            Assert.That(view.CurrentBeat.SpeakerLine, Does.Contain("第二遍"));
+            Assert.That(view.CurrentBeat.SpeakerLine,
+                Does.Contain(SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                    ? "第二遍" : "call 2"));
             Assert.That(ActiveChoices(), Is.EqualTo(3));
 
             view.GetChoiceButton(0).onClick.Invoke();
@@ -82,7 +84,9 @@ namespace Rpg.Tests.Editor
             Assert.That(view.CallsMade, Is.EqualTo(3));
             Assert.That(view.CurrentBeat.Finished, Is.True);
             Assert.That(view.CurrentBeat.IdentityRevealValue, Is.EqualTo("离开人群"));
-            Assert.That(view.CurrentBeat.SpeakerLine, Does.Contain("离开的方向"));
+            Assert.That(view.CurrentBeat.SpeakerLine,
+                Does.Contain(SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                    ? "离开的方向" : "where you left"));
             Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
         }
 
@@ -100,7 +104,9 @@ namespace Rpg.Tests.Editor
 
             Assert.That(sequence.Outcome, Is.EqualTo(M00RollCallOutcome.Silent));
             Assert.That(view.CurrentBeat.IdentityRevealValue, Is.EqualTo("沉默"));
-            Assert.That(view.CurrentBeat.SpeakerLine, Does.Contain("人群"));
+            Assert.That(view.CurrentBeat.SpeakerLine,
+                Does.Contain(SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                    ? "人群里找到你" : "finds you in the crowd"));
             Assert.That(ActiveChoices(), Is.Zero);
         }
 
