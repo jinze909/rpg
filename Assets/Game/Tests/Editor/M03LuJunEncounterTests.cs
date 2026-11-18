@@ -64,6 +64,33 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void NameAndShipOpeningsHaveDistinctAuthoredRepliesWithoutInventedConfession()
+        {
+            var names = new M03LuJunEncounter(M02BridgeEvidence.WarReportDraft, false);
+            names.Begin();
+            names.ObserveRollCall();
+            names.Ask(M03LuJunOpening.FindMyName);
+            Assert.That(M03LuJunCopy.Narration(names, true), Does.Contain("我没划"));
+            Assert.That(M03LuJunCopy.Narration(names, false), Does.Contain("I never struck"));
+            Assert.That(M03LuJunCopy.Narration(names, false), Does.Not.Contain("tideway"));
+            Assert.That(names.Confession, Is.EqualTo(M03LuConfession.NotAsked));
+            Assert.That(names.Secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+
+            var passage = new M03LuJunEncounter(M02BridgeEvidence.None, false);
+            passage.Begin();
+            passage.ObserveRollCall();
+            passage.Ask(M03LuJunOpening.NeedAShip);
+            Assert.That(M03LuJunCopy.Narration(passage, true), Does.Contain("护卫"));
+            Assert.That(M03LuJunCopy.Narration(passage, false), Does.Contain("escort costs"));
+            Assert.That(M03LuJunCopy.Narration(passage, false), Does.Not.Contain("I never struck"));
+            Assert.That(passage.Confession, Is.EqualTo(M03LuConfession.NotAsked));
+            Assert.That(passage.Secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+            Assert.That(passage.CanChoose(M03VoyageChoice.HanQiaoOfficial), Is.False);
+            passage.ChooseVoyage(M03VoyageChoice.QiQueMerchant);
+            Assert.That(passage.VoyagePathValue, Is.EqualTo("祁雀商路"));
+        }
+
+        [Test]
         public void NoStampedOfficialRegistrationCannotGrantAnOfficialShip()
         {
             var encounter = new M03LuJunEncounter(M02BridgeEvidence.None, false);

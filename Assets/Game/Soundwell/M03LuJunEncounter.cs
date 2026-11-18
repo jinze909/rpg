@@ -250,11 +250,24 @@ namespace Rpg.Soundwell
                         ? "陆钧：“他们的家人以为自己的儿子是死守桥头的英雄。别告诉他们。”你并没有义务替他隐瞒。"
                         : "Lu Jun: 'Their families believe their sons died holding the bridge. Please don't tell them.' You are not obligated to keep his secret.";
                 case M03LuJunStage.ChoosingVoyage:
-                    string preface = e.Confession == M03LuConfession.NotAsked
-                        ? (chinese ? "你没有问桥，他也没有吐露旧案，更没有提出保密请求。" :
-                            "You did not ask about the bridge; Lu Jun disclosed no secret and made no secrecy request.")
-                        : (chinese ? "陆钧让你自己决定如何对待这份真相。" :
-                            "Lu Jun leaves the choice of what to do with the truth to you.");
+                    // The two non-bridge openings are distinct authored
+                    // conversations, not a generic "didn't ask" placeholder.
+                    // Neither discloses the bridge order nor triggers secrecy.
+                    string preface;
+                    if (e.Confession != M03LuConfession.NotAsked)
+                        preface = chinese ? "陆钧让你自己决定如何对待这份真相。" :
+                            "Lu Jun leaves the choice of what to do with the truth to you.";
+                    else if (e.Opening == M03LuJunOpening.FindMyName)
+                        preface = chinese
+                            ? "陆钧把名册翻到你的名字：“我没划。你要我划，也得你自己说。”他没有提起断桥旧案，也没有请你守秘。"
+                            : "Lu Jun opens the roll at your name: 'I never struck it out. If you want it removed, say so yourself.' He offers no bridge confession or secrecy request.";
+                    else if (e.Opening == M03LuJunOpening.NeedAShip)
+                        preface = chinese
+                            ? "陆钧先谈潮道、护卫和旧军旗的条件。你暂时没有问桥，他也没有透露旧案或索要保密承诺。"
+                            : "Lu Jun begins with the tideway, escort costs, and his old brigade flag. You haven't asked about the bridge; he reveals no secret and requests no promise.";
+                    else
+                        preface = chinese ? "你还没有问桥，他也没有提出保密请求。" :
+                            "You have not asked about the bridge, and Lu Jun has made no secrecy request.";
                     return preface + (chinese
                         ? "\n护航须公开挂第三旅旧军旗；也可选择祁雀民船，或借潮道资料与其他渠道混合。官船必须已有正式盖印。"
                         : "\nAn escort requires openly flying the Third Brigade flag. You may use Qi Que's merchant route or combine tide charts with another route. Official passage requires a stamped registration.");
