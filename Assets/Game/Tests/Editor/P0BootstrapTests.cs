@@ -44,6 +44,8 @@ namespace Rpg.Tests.Editor
                 {
                     CreateDefaultProject();
                 }
+                Type.GetType("Rpg.Editor.OrkEncounterAttackSetup, Assembly-CSharp-Editor", true)
+                    .GetMethod("Prepare", BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
                 InvokeUrpSetup("Prepare");
                 InvokeSoundwellAnimationSetup("Prepare");
                 InvokeSoundwellTilemapSetup("Prepare");
