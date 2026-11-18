@@ -304,13 +304,17 @@ namespace Rpg.Soundwell
             }
 
             var previousGroup = ORK.Game.PlayerHandler.GetGroup(0);
-            var previousMembers = previousGroup.GetGroup();
-            if (previousMembers.Count == members.Count && previousGroup.BattleSystem == PlayerGroup.BattleSystem)
+            var previousMembers = previousGroup?.GetGroup();
+            if (previousMembers != null && previousMembers.Count == members.Count)
             {
-                // The saved ORK group survives scene replacement. New scene
-                // actors get its banked experience and fresh encounter HP.
+                // A loaded ORK group can reconstruct its BattleSystem wrapper
+                // independently of this scene's new Group. Match real actor
+                // settings and party size instead of requiring those transient
+                // runtime BattleSystem objects to be reference-equal.
+                // Transfer only ORK-owned banked experience, never HP.
                 for (int i = 0; i < members.Count; i++)
-                    if (previousMembers[i].Setting == members[i].Setting)
+                    if (previousMembers[i] != null &&
+                        previousMembers[i].Setting == members[i].Setting)
                         members[i].Status[ExperienceStatus].LoadGame(
                             previousMembers[i].Status[ExperienceStatus].SaveGame());
             }
@@ -331,7 +335,14 @@ namespace Rpg.Soundwell
             var quests = ORK.Game.Quests;
             Quest quest = quests.GetQuest(setting);
             if (quest?.IsFinished() == true)
+            {
+                // Completing a quest is persistent, but the scene's playable
+                // party is newly registered after load/re-entry. Keep ORK's
+                // active player group attached to those actors even when no
+                // second reward is due.
+                AssignPlayerGroup();
                 return true;
+            }
 
             AssignPlayerGroup();
             if (quest == null)

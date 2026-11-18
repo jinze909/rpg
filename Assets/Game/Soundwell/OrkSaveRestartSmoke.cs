@@ -120,10 +120,20 @@ namespace Rpg.Soundwell
 
                 yield return EnterTrial();
                 var party = FindFirstObjectByType<OrkPartyBridge>();
-                if (party == null || !party.IsReady || !party.SettleRescue() ||
-                    !HasRescueExperience(party.Members))
+                if (party == null || !party.IsReady)
                 {
-                    Fail("A settled rescue must keep its experience without granting it twice after reentry.");
+                    Fail("Re-entering the trial did not register the ORK party.");
+                    yield break;
+                }
+                if (!party.SettleRescue())
+                {
+                    Fail("A restored ORK rescue quest lost its finished state after reentry.");
+                    yield break;
+                }
+                if (!HasRescueExperience(party.Members))
+                {
+                    Fail("The re-entered party lost or duplicated its ORK experience: " +
+                        DescribeExperience(party.Members));
                     yield break;
                 }
                 Debug.Log("RPG_ORK_SAVE_RESTART_READ");
@@ -168,6 +178,17 @@ namespace Rpg.Soundwell
                 if (member.Status[OrkPartyBridge.ExperienceStatus].GetValue() != OrkPartyBridge.RescueExperience)
                     return false;
             return true;
+        }
+
+        private static string DescribeExperience(IReadOnlyList<Combatant> members)
+        {
+            if (members == null)
+                return "party=null";
+            var values = new string[members.Count];
+            for (int i = 0; i < members.Count; i++)
+                values[i] = members[i] == null ? "missing" :
+                    members[i].Status[OrkPartyBridge.ExperienceStatus].GetValue().ToString();
+            return "members=" + members.Count + " XP=[" + string.Join(",", values) + "]";
         }
 
         private static void Fail(string reason)
