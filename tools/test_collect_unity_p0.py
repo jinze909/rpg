@@ -371,8 +371,8 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             full_name = "Rpg.Tests.Editor.SoundwellLocalizedRescueCopyTests." + method
             case_file.write_text("[Test] public void " + method + "() { }",
                                  encoding="utf-8")
-            for mode in ("verify", "prepare"):
-                self.assertIn(full_name, expected_tests_for(mode, True, source_root))
+            self.assertIn(full_name, expected_tests_for("verify", True, source_root))
+            self.assertNotIn(full_name, expected_tests_for("prepare", True, source_root))
             case_file.write_text("public void " + method + "() { }",
                                  encoding="utf-8")
             self.assertNotIn(full_name, expected_tests_for("verify", True, source_root))
@@ -387,7 +387,7 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
             case_file.write_text("[Test] public void " + method + "() { }",
                                  encoding="utf-8")
             self.assertIn(full_name, expected_tests_for("verify", True, source_root))
-            self.assertIn(full_name, expected_tests_for("prepare", True, source_root))
+            self.assertNotIn(full_name, expected_tests_for("prepare", True, source_root))
             # No source method, no expected test: neither missing tests nor
             # arbitrary unexpected test names may pass the P0 acceptance set.
             case_file.write_text("public void " + method + "() { }",
@@ -405,7 +405,7 @@ class SoundwellAcceptanceContractTests(unittest.TestCase):
                 "[Test] public void " + method + "() { }", encoding="utf-8"
             )
             self.assertIn(full_name, expected_tests_for("verify", True, source_root))
-            self.assertIn(full_name, expected_tests_for("prepare", True, source_root))
+            self.assertNotIn(full_name, expected_tests_for("prepare", True, source_root))
             # A source-level name alone must not be accepted without NUnit's
             # Test attribute; the collector still rejects unexpected results.
             test_file.write_text(
