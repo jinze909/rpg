@@ -251,6 +251,159 @@ jobs:
                   "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
           }
           ARCHIVED={
+              "codex/pending/guilai-v1-canon-conflict-resolution-nov16": {
+                  "head": "e181d8234031534254f7103cfbbe1dab188a23fc",
+                  "verified": "74fb8c6311a5452c08d9978f9cfc152c374ba56d",
+                  "run": 44267366431,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "archive_tag": "refs/tags/archive/guilai-v1/canon-conflict-resolution-nov16",
+                  "reason": "Retire non-canonical v1.0 working files after the v1.2 handoff. Archive the exact original commit before removing its pending branch; unique old proposals remain retrievable.",
+                  "blobs": {
+                      "docs/gameplay/BASELINE.md": "ef89ade52c804a272c79ffbd5e34736fec3fb577",
+                      "docs/narrative/STORY_OUTLINE.md": "2b8ac5d8e983c712d5449b5886729c6fda1d2672",
+                      "docs/narrative/NARRATIVE_FACTS.md": "b625155cc149df2c141f0d9192b822b8bbaedc9d",
+                      "docs/narrative/HANDOFF_FOR_CODEX.md": "cacc21c91dcaf4a90e777d9ed7fa5ef692cb495d",
+                  },
+              },
+              "codex/pending/guilai-v1-consistency-nov16": {
+                  "head": "575a4eaaec6564424eee552d83d80014bb4759f5",
+                  "verified": "74fb8c6311a5452c08d9978f9cfc152c374ba56d",
+                  "run": 44267366431,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "archive_tag": "refs/tags/archive/guilai-v1/consistency-nov16",
+                  "reason": "Retire non-canonical v1.0 working files after the v1.2 handoff. Archive the exact original commit before removing its pending branch; unique old proposals remain retrievable.",
+                  "blobs": {
+                      "docs/gameplay/BASELINE.md": "ef89ade52c804a272c79ffbd5e34736fec3fb577",
+                      "docs/narrative/STORY_OUTLINE.md": "2b8ac5d8e983c712d5449b5886729c6fda1d2672",
+                      "docs/narrative/NARRATIVE_FACTS.md": "b625155cc149df2c141f0d9192b822b8bbaedc9d",
+                      "docs/narrative/HANDOFF_FOR_CODEX.md": "cacc21c91dcaf4a90e777d9ed7fa5ef692cb495d",
+                  },
+              },
+              "codex/pending/m00-han-ransom-facts-nov18": {
+                  "head": "8dbf06d72bbfd28c106c0edb6dd14f8681568bee",
+                  "verified": "867db78329f21691c7f783e1cc4446e3dbfe18c6",
+                  "run": 44271989923,
+                  "original_run": 44257090559,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "The delivered meeting records the canonical forty-one at the authored reveal and retains the PlayMode persistence and legacy-save test.",
+                  "blobs": {
+                      "Assets/Game/Soundwell/M00HanRansomFacts.cs": "21e2c7f6121f7e01b9dbf87dbea18c88419b6a4d",
+                      "Assets/Game/Soundwell/M00HanRansomFacts.cs.meta": "6b1578d7d1111dd38f38ab04dd8941b5c329113c",
+                      "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs": "47dfa008e2a8305d3f5ccfb7559735ba9e63e593",
+                      "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs.meta": "940e58e4de0e4b742b52827460a2f2aa34f685c3",
+                      "tools/collect_unity_p0.py": "797d146c14d83f466887f37a865e9de51ac0e23f",
+                      "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": "56f22374fd6598be951f3bc656a08d6645e4ed32",
+                      "Assets/Game/Soundwell/ReturnOpeningContinuation.cs": "f975b5f5982f7cdf169cec1e835cbdd496c9b4d3",
+                  },
+              },
+              "codex/pending/m00-hanqiao-meeting-view-nov18": {
+                  "head": "68ab462b1f063834358fb4c043b96ee7984add10",
+                  "verified": "867db78329f21691c7f783e1cc4446e3dbfe18c6",
+                  "run": 44271989923,
+                  "original_run": 44257867743,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "The delivered bilingual view keeps all authored meeting choices and regressions, adds confirmation at the ransom reveal, and continues to West Lane.",
+                  "blobs": {
+                      "Assets/Game/Soundwell/M00HanQiaoMeetingView.cs": "6c405c783d9ede48539ed3ddbd755b119ac6b48f",
+                      "Assets/Game/Soundwell/M00HanQiaoMeetingView.cs.meta": "9cef7fe73094dd7b6c69c9d88913d4c6b4b45b0b",
+                      "Assets/Game/Tests/Editor/M00HanQiaoMeetingViewTests.cs": "2082f598a7fac3fdc51622dcd9a85b0f55043fa5",
+                      "Assets/Game/Tests/Editor/M00HanQiaoMeetingViewTests.cs.meta": "b75e350650caed9d2000a699766c7098ba129849",
+                      "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": "56f22374fd6598be951f3bc656a08d6645e4ed32",
+                      "Assets/Game/Soundwell/ReturnOpeningContinuation.cs": "f975b5f5982f7cdf169cec1e835cbdd496c9b4d3",
+                  },
+              },
+              "codex/pending/m00-rollcall-session-nov18": {
+                  "head": "06914e80f52b42c4a998bc72deac6fe3e73f8de8",
+                  "verified": "867db78329f21691c7f783e1cc4446e3dbfe18c6",
+                  "run": 44271989923,
+                  "original_run": 44256911336,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "The delivered three-call session keeps its timing, input choices, persisted outcome and regressions, with focus and view teardown in the actual route.",
+                  "blobs": {
+                      "Assets/Game/Soundwell/M00RollCallSession.cs": "a92dc4996184bf0c510f504d2d1e2857bfce281b",
+                      "Assets/Game/Soundwell/M00RollCallSession.cs.meta": "53d0838dd57400f7e5ddbf2fbf8fa86197f496ce",
+                      "Assets/Game/Soundwell/M00RollCallView.cs": "15bf26c8193eae1c4f5b7b0ceb8f202f9a6f02f1",
+                      "Assets/Game/Tests/Editor/M00RollCallSessionTests.cs": "7590e1ea97ed64ad650aaa83a9770917ac32a919",
+                      "Assets/Game/Tests/Editor/M00RollCallSessionTests.cs.meta": "a7195a91dc3ecb4911cbabe4b27063c47da5fe9c",
+                      "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": "56f22374fd6598be951f3bc656a08d6645e4ed32",
+                      "Assets/Game/Soundwell/ReturnOpeningContinuation.cs": "f975b5f5982f7cdf169cec1e835cbdd496c9b4d3",
+                  },
+              },
+              "codex/pending/m01-west-lane-iron-box-view-nov18": {
+                  "head": "c11dfc6545ec256959dacdccb6397066e624c158",
+                  "verified": "867db78329f21691c7f783e1cc4446e3dbfe18c6",
+                  "run": 44271989923,
+                  "original_run": 44267827043,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "The delivered West Lane view retains the trunk and pension choices and tests, reads M00 facts, and records the selected choice without treating it as approved registration.",
+                  "blobs": {
+                      "Assets/Game/Soundwell/M01WestLaneView.cs": "85e1269578162cceed2d0e5247aa8d9165ecd921",
+                      "Assets/Game/Soundwell/M01WestLaneView.cs.meta": "8c75a9164d712b6f13d5e8d8da8ee5af212417b3",
+                      "Assets/Game/Tests/Editor/M01WestLaneViewTests.cs": "3fde7cbdcd88203d6005d97045ee8364b4d5f840",
+                      "Assets/Game/Tests/Editor/M01WestLaneViewTests.cs.meta": "f7eba8f0254ab27131cffa12cbce110b32755331",
+                      "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": "56f22374fd6598be951f3bc656a08d6645e4ed32",
+                      "Assets/Game/Soundwell/ReturnOpeningContinuation.cs": "f975b5f5982f7cdf169cec1e835cbdd496c9b4d3",
+                  },
+              },
+              "codex/pending/m00-han-ransom-count-integration-nov18": {
+                  "head": "0caec8cdb541a878e2dd4694672400cbc3516279",
+                  "verified": "867db78329f21691c7f783e1cc4446e3dbfe18c6",
+                  "run": 44271989923,
+                  "original_run": 44268626016,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "The delivered meeting records the canonical forty-one at the authored reveal and retains the PlayMode persistence and legacy-save test.",
+                  "blobs": {
+                      "Assets/Game/Soundwell/M00HanRansomFacts.cs": "21e2c7f6121f7e01b9dbf87dbea18c88419b6a4d",
+                      "Assets/Game/Soundwell/M00HanRansomFacts.cs.meta": "6b1578d7d1111dd38f38ab04dd8941b5c329113c",
+                      "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs": "47dfa008e2a8305d3f5ccfb7559735ba9e63e593",
+                      "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs.meta": "940e58e4de0e4b742b52827460a2f2aa34f685c3",
+                      "tools/collect_unity_p0.py": "797d146c14d83f466887f37a865e9de51ac0e23f",
+                      "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": "56f22374fd6598be951f3bc656a08d6645e4ed32",
+                      "Assets/Game/Soundwell/ReturnOpeningContinuation.cs": "f975b5f5982f7cdf169cec1e835cbdd496c9b4d3",
+                  },
+              },
+              "codex/pending/m00-rollcall-session-rebased-nov18": {
+                  "head": "43808048ef9c8c7b9bf862c89c135b005b43ea49",
+                  "verified": "867db78329f21691c7f783e1cc4446e3dbfe18c6",
+                  "run": 44271989923,
+                  "original_run": 44268544655,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "The delivered three-call session keeps its timing, input choices, persisted outcome and regressions, with focus and view teardown in the actual route.",
+                  "blobs": {
+                      "Assets/Game/Soundwell/M00RollCallSession.cs": "a92dc4996184bf0c510f504d2d1e2857bfce281b",
+                      "Assets/Game/Soundwell/M00RollCallSession.cs.meta": "53d0838dd57400f7e5ddbf2fbf8fa86197f496ce",
+                      "Assets/Game/Soundwell/M00RollCallView.cs": "15bf26c8193eae1c4f5b7b0ceb8f202f9a6f02f1",
+                      "Assets/Game/Tests/Editor/M00RollCallSessionTests.cs": "7590e1ea97ed64ad650aaa83a9770917ac32a919",
+                      "Assets/Game/Tests/Editor/M00RollCallSessionTests.cs.meta": "a7195a91dc3ecb4911cbabe4b27063c47da5fe9c",
+                      "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": "56f22374fd6598be951f3bc656a08d6645e4ed32",
+                      "Assets/Game/Soundwell/ReturnOpeningContinuation.cs": "f975b5f5982f7cdf169cec1e835cbdd496c9b4d3",
+                  },
+              },
+              "codex/pending/m00-hanqiao-meeting-view-integration-nov18": {
+                  "head": "e766b227a54d9044098d6b44a9969446db093eda",
+                  "verified": "867db78329f21691c7f783e1cc4446e3dbfe18c6",
+                  "run": 44271989923,
+                  "original_run": 44268924042,
+                  "ancestor": True,
+                  "pin_verified_snapshot": True,
+                  "reason": "The delivered bilingual view keeps all authored meeting choices and regressions, adds confirmation at the ransom reveal, and continues to West Lane.",
+                  "blobs": {
+                      "Assets/Game/Soundwell/M00HanQiaoMeetingView.cs": "6c405c783d9ede48539ed3ddbd755b119ac6b48f",
+                      "Assets/Game/Soundwell/M00HanQiaoMeetingView.cs.meta": "9cef7fe73094dd7b6c69c9d88913d4c6b4b45b0b",
+                      "Assets/Game/Tests/Editor/M00HanQiaoMeetingViewTests.cs": "2082f598a7fac3fdc51622dcd9a85b0f55043fa5",
+                      "Assets/Game/Tests/Editor/M00HanQiaoMeetingViewTests.cs.meta": "b75e350650caed9d2000a699766c7098ba129849",
+                      "Assets/Game/Tests/Editor/M00MemorialSquareTests.cs": "56f22374fd6598be951f3bc656a08d6645e4ed32",
+                      "Assets/Game/Soundwell/ReturnOpeningContinuation.cs": "f975b5f5982f7cdf169cec1e835cbdd496c9b4d3",
+                  },
+              },
               "codex/pending/narrative-rollcall-state-machine-nov17": {
                   "head": "df17d69c0cec3d896f8e1614e1c423e388849b2b",
                   "verified": "74fb8c6311a5452c08d9978f9cfc152c374ba56d",
@@ -933,11 +1086,21 @@ jobs:
                       method="exact changed-file snapshot in verified dev history"
                       if proof:snapshot_proven+=1
                   check(proof,"no validated ancestor or exact snapshot replacement")
+                  archive_tag=ARCHIVED[name].get("archive_tag") if historical else None
+                  if archive_tag:
+                      check(re.fullmatch(r"refs/tags/archive/guilai-v1/[a-z0-9-]+", archive_tag),
+                            "invalid legacy narrative tag")
+                      archived=git("ls-remote","--tags","--refs","origin",archive_tag).splitlines()
+                      if not archived:
+                          git("push","origin",sha+":"+archive_tag)
+                          archived=git("ls-remote","--tags","--refs","origin",archive_tag).splitlines()
+                      check(archived==[sha+"\t"+archive_tag],"legacy draft tag does not match original head")
+                      print("ARCHIVED "+name+" at "+sha+" as "+archive_tag,flush=True)
                   check(api("/repos/"+REPO+"/git/ref/heads/codex/dev")["object"]["sha"]==dev,
                         "dev moved")
-                  check(name not in {p["head"]["ref"] for p in
-                                     pages("/repos/"+REPO+"/pulls?state=open")},
-                        "new open PR")
+                  check(name not in {p[side]["ref"] for p in
+                                     pages("/repos/"+REPO+"/pulls?state=open")
+                                     for side in ("head","base")}, "new open PR")
                   fresh=api("/repos/"+REPO+"/branches/"+urllib.parse.quote(name,safe=""))
                   check(fresh["commit"]["sha"]==sha and not fresh.get("protected"),
                         "remote HEAD changed or protected")
