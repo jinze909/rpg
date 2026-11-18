@@ -35,7 +35,7 @@ namespace Rpg.Tests.Editor
             Assert.Throws<InvalidOperationException>(() => night.DiscussDebt());
             night.AcceptCake();
             Assert.That(M02QiQueNightDialogue.Describe(night, false),
-                Does.Contain("not booked a ship"));
+                Does.Contain("Visit Lu Jun on the coast").And.Contain("not booked a ship"));
             night.Leave();
             Assert.That(night.DebtAlreadyKnown, Is.False);
             Assert.That(night.DebtConfronted, Is.False);
@@ -70,7 +70,7 @@ namespace Rpg.Tests.Editor
                     night.DiscussDebt();
                 night.AcceptCake();
                 Assert.That(M02QiQueNightDialogue.Describe(night, true),
-                    Does.Contain("还没订船或确定航路"));
+                    Does.Contain("去海边见见陆钧").And.Contain("还没订船或确定航路"));
                 night.Leave();
             }
         }

@@ -16,7 +16,10 @@ namespace Rpg.Tests.Editor
             encounter.Ask(M03LuJunOpening.AskWhoCutBridge);
             Assert.That(encounter.Confession, Is.EqualTo(M03LuConfession.AskedWithEvidence));
             Assert.That(encounter.Stage, Is.EqualTo(M03LuJunStage.RespondingToConfession));
-            Assert.That(M03LuJunCopy.Narration(encounter, true), Does.Contain("一万四千"));
+            Assert.That(M03LuJunCopy.Narration(encounter, true),
+                Does.Contain("一万四千").And.Contain("十二年没睡好"));
+            Assert.That(M03LuJunCopy.Narration(encounter, false),
+                Does.Contain("The Third Brigade was to hold its ground").And.Contain("line up and surrender"));
             encounter.Respond(M03ConfessionResponse.YouChoseForThem);
             Assert.That(encounter.Stage, Is.EqualTo(M03LuJunStage.ReplyingToSecrecyRequest));
             encounter.AnswerSecrecy(M03SecrecyAnswer.RefuseSecrecy);
@@ -81,7 +84,7 @@ namespace Rpg.Tests.Editor
             passage.ObserveRollCall();
             passage.Ask(M03LuJunOpening.NeedAShip);
             Assert.That(M03LuJunCopy.Narration(passage, true), Does.Contain("护卫"));
-            Assert.That(M03LuJunCopy.Narration(passage, false), Does.Contain("escort costs"));
+            Assert.That(M03LuJunCopy.Narration(passage, false), Does.Contain("tideway chart"));
             Assert.That(M03LuJunCopy.Narration(passage, false), Does.Not.Contain("I never struck"));
             Assert.That(passage.Confession, Is.EqualTo(M03LuConfession.NotAsked));
             Assert.That(passage.Secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
@@ -162,8 +165,8 @@ namespace Rpg.Tests.Editor
                 M03SecrecyAnswer.Undecided,
                 M03SecrecyAnswer.RefuseSecrecy
             };
-            var zh = new[] { "你什么也不欠我", "决定了告诉我", "每一个名字后面" };
-            var en = new[] { "owe me nothing", "when you decide", "behind every name" };
+            var zh = new[] { "你什么也不欠我", "决定了告诉我", "如果你决定说" };
+            var en = new[] { "owe me nothing", "when you decide", "If you decide to tell them" };
 
             for (int i = 0; i < answers.Length; i++)
             {

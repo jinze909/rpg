@@ -269,8 +269,15 @@ namespace Rpg.Soundwell
                         : "Lu Jun closes the roll. 'You came earlier than I expected.' Ask about the bridge, the names, or passage.";
                 case M03LuJunStage.RespondingToConfession:
                     return chinese
-                        ? "陆钧：“总帅令。三更。工兵队。我接到命令，第三旅不撤。桥这头一万四千，桥那头一千一百。我没说，是因为一说，防线天亮前就散了。我用他们的不知道，换了他们的命。”"
-                        : "Lu Jun: 'The marshal's order. Third watch. Engineers. I obeyed. Fourteen thousand here, eleven hundred beyond. If I'd told them, the line would have broken before dawn. I traded their ignorance for their lives.'";
+                        ? "陆钧：“总帅令。三更，工兵队断桥。第三旅不撤。我接了命令。\n" +
+                          "桥这头一万四千，桥那头一千一百。我没说。说了，防线天亮前就散了。可到了天亮，还有人排队投降。\n" +
+                          "我用他们的不知道，换了他们的命。这个选择，我十二年没睡好。”"
+                        : "Lu Jun: 'The marshal's order. The engineers cut the bridge in the third watch. " +
+                          "The Third Brigade was to hold its ground. I obeyed.\n" +
+                          "Fourteen thousand on this side, eleven hundred on the other. I kept quiet. " +
+                          "If I'd told them, the line would have broken before dawn. " +
+                          "But come dawn, there were still men alive to line up and surrender.\n" +
+                          "I traded their ignorance for their lives. I haven't slept well in twelve years.'";
                 case M03LuJunStage.ReplyingToSecrecyRequest:
                     // React to the player's actual accusation before requesting secrecy.
                     string reaction;
@@ -295,8 +302,8 @@ namespace Rpg.Soundwell
                             throw new InvalidOperationException("The confession needs a response before secrecy.");
                     }
                     return reaction + (chinese
-                        ? "\n陆钧：他们的家人以为自己的儿子死守桥头。别告诉他们。你不必替我隐瞒。"
-                        : "\nLu Jun: 'Their families believe their sons died defending the bridge. Please don't tell them. You owe me no promise.'");
+                        ? "\n陆钧：他们的家人以为自己的儿子是死守桥头的英雄。你拿走这个，他们还剩什么？别告诉他们。"
+                        : "\nLu Jun: 'Their families believe their sons died as heroes defending the bridge. Take that away and what do they have left? Please don't tell them.'");
                 case M03LuJunStage.ChoosingVoyage:
                     // The two non-bridge openings are distinct authored
                     // conversations, not a generic "didn't ask" placeholder.
@@ -319,8 +326,8 @@ namespace Rpg.Soundwell
                                 break;
                             case M03SecrecyAnswer.RefuseSecrecy:
                                 preface = chinese
-                                    ? "陆钧：那我也不拦你。你去说时，先想想每一个名字后面站着几个人。"
-                                    : "Lu Jun: 'I won't stop you. Before you tell them, think of the people behind every name.'";
+                                    ? "陆钧：我不会拦你。如果你决定说，先想想每一个名字后面站着几个人。"
+                                    : "Lu Jun: 'I won't stop you. If you decide to tell them, think of the people behind every name.'";
                                 break;
                             default:
                                 throw new InvalidOperationException("A heard confession needs an explicit secrecy answer.");
@@ -328,12 +335,12 @@ namespace Rpg.Soundwell
                     }
                     else if (e.Opening == M03LuJunOpening.FindMyName)
                         preface = chinese
-                            ? "陆钧把名册翻到你的名字：“我没划。你要我划，也得你自己说。”他没有提起断桥旧案，也没有请你守秘。"
-                            : "Lu Jun opens the roll at your name: 'I never struck it out. If you want it removed, say so yourself.' He offers no bridge confession or secrecy request.";
+                            ? "陆钧把名册翻到你的名字：“我没划。你要我划，也得你自己说。”他把名册留在那一页。"
+                            : "Lu Jun opens the roll at your name: 'I never struck it out. If you want it removed, say so yourself.' He leaves the roll open on that page.";
                     else if (e.Opening == M03LuJunOpening.NeedAShip)
                         preface = chinese
-                            ? "陆钧先谈潮道、护卫和旧军旗的条件。你暂时没有问桥，他也没有透露旧案或索要保密承诺。"
-                            : "Lu Jun begins with the tideway, escort costs, and his old brigade flag. You haven't asked about the bridge; he reveals no secret and requests no promise.";
+                            ? "陆钧用指尖在潮道图上划了一道：“这里有人认路。要我派护卫，船上得挂第三旅的旗。”"
+                            : "Lu Jun traces a line on the tideway chart. 'I know someone who can guide you through here. If you want my escort, fly the Third Brigade flag.'";
                     else
                         preface = chinese ? "你还没有问桥，他也没有提出保密请求。" :
                             "You have not asked about the bridge, and Lu Jun has made no secrecy request.";
