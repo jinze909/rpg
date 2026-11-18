@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using Process = System.Diagnostics.Process;
+using ProcessStartInfo = System.Diagnostics.ProcessStartInfo;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Profile;
@@ -39,6 +41,7 @@ namespace Rpg.Editor
             public long executable_bytes;
             public long build_report_bytes;
             public bool data_directory_present;
+            public bool save_restart_passed;
             public string environment =
                 "Unity 6000.6.8f1 Linux Editor CI; actual Linux Player build; not a user device";
         }
@@ -190,6 +193,9 @@ namespace Rpg.Editor
             bool dataFound = Directory.Exists(BuildDirectory + "/Soundwell_Data");
             if (!dataFound)
                 throw new InvalidOperationException("The real built Player has no scene data directory.");
+            bool ranSaveRegression = Application.platform == RuntimePlatform.LinuxEditor;
+            if (ranSaveRegression)
+                VerifySaveAcrossPlayerRestart(executable);
             var result = new BuildEvidence
             {
                 unity_version = Application.unityVersion,
@@ -204,10 +210,72 @@ namespace Rpg.Editor
                 executable_bytes = playerFile.Length,
                 build_report_bytes = (long)report.summary.totalSize,
                 data_directory_present = dataFound,
+                save_restart_passed = ranSaveRegression,
             };
             Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
             File.WriteAllText(ResultPath, JsonUtility.ToJson(result, true) + "\n");
             Debug.Log("RPG_SOUNDWELL_LINUX_PLAYER_BUILT");
+        }
+
+        private static void VerifySaveAcrossPlayerRestart(string executable)
+        {
+            string evidence = Path.GetDirectoryName(ResultPath);
+            Directory.CreateDirectory(evidence);
+            string sandbox = Path.GetFullPath(Path.Combine(BuildDirectory, Guid.NewGuid().ToString("N")));
+            Directory.CreateDirectory(sandbox);
+            try
+            {
+                foreach (string phase in new[] { "write", "read" })
+                {
+                    // The Player must log to the same absolute path the
+                    // Editor inspects, independent of its launch directory.
+                    string log = Path.GetFullPath(Path.Combine(evidence,
+                        $"ork-save-{phase}.log"));
+                    var start = new ProcessStartInfo
+                    {
+                        FileName = Path.GetFullPath(executable),
+                        Arguments = $"-batchmode -nographics -rpg-save-restart {phase} -logFile \"{log}\"",
+                        WorkingDirectory = Directory.GetCurrentDirectory(),
+                        UseShellExecute = false,
+                    };
+                    start.EnvironmentVariables["XDG_CONFIG_HOME"] = sandbox;
+                    using var player = Process.Start(start);
+                    if (player == null)
+                        throw new InvalidOperationException($"Could not launch save regression ({phase}).");
+                    if (!player.WaitForExit(90000))
+                    {
+                        player.Kill();
+                        player.WaitForExit();
+                        throw new InvalidOperationException($"Save regression timed out ({phase}). " +
+                            DescribePlayerFailure(log));
+                    }
+                    string marker = "RPG_ORK_SAVE_RESTART_" + phase.ToUpperInvariant();
+                    if (player.ExitCode != 0 || !File.Exists(log) || !File.ReadAllText(log).Contains(marker))
+                        throw new InvalidOperationException($"Save regression failed ({phase}); " +
+                            $"Player exit code {player.ExitCode}. " + DescribePlayerFailure(log));
+                }
+            }
+            finally
+            {
+                Directory.Delete(sandbox, recursive: true);
+            }
+        }
+
+        private static string DescribePlayerFailure(string log)
+        {
+            if (!File.Exists(log))
+                return "No Player log at " + log +
+                    "; check the child process launch and -logFile argument.";
+            // Put the game's own failure message into Actions rather than
+            // forcing a human to download a ZIP just to diagnose the next run.
+            string content = File.ReadAllText(log);
+            const string failure = "ORK save restart regression failed.";
+            int marker = content.LastIndexOf(failure, StringComparison.Ordinal);
+            if (marker >= 0)
+                return "Player log: " + content.Substring(marker,
+                    Math.Min(1600, content.Length - marker));
+            return "Player log tail: " +
+                content.Substring(Math.Max(0, content.Length - 1600));
         }
     }
 }

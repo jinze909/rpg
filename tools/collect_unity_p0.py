@@ -467,7 +467,7 @@ def validate_build_profile_player(report):
         "target": "StandaloneLinux64",
         "test_profile": "Assets/Settings/Build Profiles/Soundwell Test Linux.asset",
         "result": "Succeeded", "development_build": True,
-        "total_errors": 0, "data_directory_present": True,
+        "total_errors": 0, "data_directory_present": True, "save_restart_passed": True,
     }
     for k, v in expected.items():
         if report.get(k) != v or type(report.get(k)) != type(v):
