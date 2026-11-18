@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -29,6 +30,22 @@ namespace Rpg.Soundwell
         public M01VoyageLead? InspectedLead => briefing.InspectedLead;
         public Text Dialogue => dialogue;
         public Button AdvanceButton => advanceButton;
+
+        // When opening the route chart, prefer the first explorable lead.
+        // Leaving is still allowed, but a repeated pad Submit must not
+        // accidentally skip the offers without showing their choices.
+        public Button PreferredFocusTarget
+        {
+            get
+            {
+                if (disposed || delivered)
+                    return null;
+                return briefing.Stage == M01DockStage.AwaitingOpeningReply ||
+                    briefing.Stage == M01DockStage.ReviewingRoutes
+                    ? choices[0]
+                    : briefing.Stage == M01DockStage.OfferingCake ? advanceButton : null;
+            }
+        }
 
         public M01DockBriefingView(Transform parent, Action onFinished)
         {
@@ -134,9 +151,7 @@ namespace Rpg.Soundwell
             if (!delivered)
             {
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                    briefing.Stage == M01DockStage.AwaitingOpeningReply ||
-                    briefing.Stage == M01DockStage.ReviewingRoutes
-                        ? choices[0] : advanceButton);
+                    PreferredFocusTarget);
             }
         }
 
@@ -163,6 +178,16 @@ namespace Rpg.Soundwell
             {
                 briefing.ContinueAfterCake();
                 Refresh();
+                // KeepDialogFocus preserves an active selected control.
+                // Continue remains active in ReviewingRoutes, so specifically
+                // move keyboard/gamepad focus to the first route when the
+                // player's last Submit came from Continue.
+                EventSystem system = EventSystem.current;
+                if (Application.isPlaying && system != null &&
+                    !system.alreadySelecting &&
+                    system.currentSelectedGameObject == advanceButton.gameObject &&
+                    choices[0].gameObject.activeInHierarchy)
+                    system.SetSelectedGameObject(choices[0].gameObject);
                 return;
             }
             if (briefing.Stage != M01DockStage.ReviewingRoutes)
