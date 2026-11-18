@@ -240,6 +240,7 @@ class BuildProfilePlayerEvidenceTests(unittest.TestCase):
             "result": "Succeeded", "development_build": True,
             "total_errors": 0, "executable_bytes": 40000,
             "build_report_bytes": 90000, "data_directory_present": True, "save_restart_passed": True,
+            "portrait_hud_passed": True,
             "environment": "Unity Linux Editor CI; real Player; not a user device",
         }
 
@@ -248,14 +249,14 @@ class BuildProfilePlayerEvidenceTests(unittest.TestCase):
         for name, changed in [
             ("no_executable", 0), ("non_linux", 1), ("test_as_release", False),
             ("wrong_scenes", []), ("bad_backend", "Other"),
-            ("missing_restart", False)
+            ("missing_restart", False), ("portrait_hud", False),
         ]:
             with self.subTest(name=name):
                 report = self.sample()
                 key = {"no_executable": "executable_bytes", "non_linux": "target",
                        "test_as_release": "development_build", "wrong_scenes": "scenes",
                        "bad_backend": "scripting_backend",
-                       "missing_restart": "save_restart_passed"}[name]
+                       "missing_restart": "save_restart_passed", "portrait_hud": "portrait_hud_passed"}[name]
                 report[key] = changed
                 self.assertTrue(validate_build_profile_player(report))
 
