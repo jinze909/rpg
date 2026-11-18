@@ -46,6 +46,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "WritesAndReadsAllFiveSettledOutcomesThroughMakinomVariables":
             "Rpg.Tests.Editor.M00RollCallFactsTests.WritesAndReadsAllFiveSettledOutcomesThroughMakinomVariables",
     },
+    "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs": {
+        "PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne":
+            "Rpg.Tests.Editor.M00HanRansomFactsTests.PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne",
+    },
     "Assets/Game/Tests/Editor/SoundwellCompanionActionTests.cs": {
         "RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint":
             "Rpg.Tests.Editor.SoundwellCompanionActionTests.RotatedTrialFollowersKeepLocalOffsetsAtSpawnAndCheckpoint",
