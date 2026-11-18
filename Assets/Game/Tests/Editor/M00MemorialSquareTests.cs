@@ -95,11 +95,13 @@ namespace Rpg.Tests.Editor
                 Assert.That(prelude, Is.Not.Null,
                     "The live entry owner must create S00 before M00 can be earned.");
                 thirdBellField.SetValue(prelude, true);
+                // Close invokes the production S00 exit callback synchronously.
+                // Check its M00 ownership before yielding: in the previous run
+                // the yielded test iterator lost the entry reference on the
+                // destruction frame, before any authored-interaction assertion.
                 prelude.Close();
-                yield return null;
-                // Keep the live Bootstrap owner across S00's destruction frame.
-                // Its authoritative M00 reference avoids an unreliable global
-                // scene registry lookup during the yielded PlayMode transition.
+                // The live Bootstrap owner is still here on the callback frame,
+                // and M00 should already exist before the coroutine advances.
                 Assert.That(entry, Is.Not.Null,
                     "The earned third-bell handoff must preserve the original Bootstrap owner.");
                 memorial = entry.CurrentMemorial;
@@ -110,7 +112,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(entry.CurrentMemorial, Is.SameAs(memorial),
                     "The original owner must track the visible authored M00, not a replacement.");
                 Assert.That(memorial.transform.parent, Is.EqualTo(entry.transform));
+                Debug.Log("RPG_M00_LIFECYCLE_TEST: handoff verified before S00 destruction frame");
                 yield return null;
+                Assert.That(memorial, Is.Not.Null,
+                    "M00 must stay alive after the S00 destruction frame.");
                 Debug.Log("RPG_M00_LIFECYCLE_TEST: authored M00 interaction scene ready");
 
                 // The real M00 UI must remain reachable after S00. Portrait
