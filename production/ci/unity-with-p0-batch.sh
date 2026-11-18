@@ -30,6 +30,15 @@ printf '%s\n' "$tests_exit" > "$evidence/test-editor-exit-code.txt"
   -logFile "$evidence/batch.log"
 batch_exit=$?
 printf '%s\n' "$batch_exit" > "$evidence/batch-editor-exit-code.txt"
+if [[ "$batch_exit" -ne 0 ]]; then
+  # The independent Unity process writes diagnostics to batch.log, not the
+  # Actions console. Expose bounded failure evidence without changing gates.
+  echo 'P0 independent batch failed; relevant Unity diagnostics:'
+  grep -nE 'error CS[0-9]+|error [A-Z]+[0-9]+|Scripts have compiler errors|Compilation failed|Aborting batchmode|Exception:' \
+    "$evidence/batch.log" | head -n 60 || true
+  echo 'P0 independent batch log tail:'
+  tail -n 60 "$evidence/batch.log" || true
+fi
 if [[ "$tests_exit" -ne 0 || "$batch_exit" -ne 0 ]]; then
   exit 1
 fi
