@@ -62,7 +62,7 @@ namespace Rpg.Editor
 
             combatant = ScriptableObject.CreateInstance<CombatantAsset>();
             combatant.SetData(baseCombatant.Settings.GetData());
-            combatant.Settings.GUID = "5ea2d095-4060-41e4-861d-2b01fc75e933";
+            combatant.Settings.GUID = OrkPartyBridge.PrototypeCombatantGuid;
             combatant.Settings.EditorName = "Prototype Combatant";
             var selection = new ActiveAbilitySelection();
             selection.ability.SetAsset(attack);

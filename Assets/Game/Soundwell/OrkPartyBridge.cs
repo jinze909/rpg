@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
     // Explicit ORK readiness drives movement and formation; no update-order hack.
     public class OrkPartyBridge : MonoBehaviour
     {
+        public const string PrototypeCombatantGuid = "5ea2d095-4060-41e4-861d-2b01fc75e933";
         public static string RescueQuestGuid => SoundwellPartyConfig.Load().RescueQuestGuid;
         public static int RescueExperience => SoundwellPartyConfig.Load().RescueExperience;
         public static int ExperienceStatus => SoundwellPartyConfig.Load().ExperienceStatus;
@@ -250,9 +251,12 @@ namespace Rpg.Soundwell
                 // settings and party size instead of requiring those transient
                 // runtime BattleSystem objects to be reference-equal.
                 // Transfer only ORK-owned banked experience, never HP.
+                var legacySetting = defaultCombatant.Settings.GUID == PrototypeCombatantGuid &&
+                    RescueSettled ? ORK.Combatants.Get(0) : null;
                 for (int i = 0; i < members.Count; i++)
                     if (previousMembers[i] != null &&
-                        previousMembers[i].Setting == members[i].Setting)
+                        (previousMembers[i].Setting == members[i].Setting ||
+                         (legacySetting != null && previousMembers[i].Setting == legacySetting)))
                         members[i].Status[ExperienceStatus].LoadGame(
                             previousMembers[i].Status[ExperienceStatus].SaveGame());
             }

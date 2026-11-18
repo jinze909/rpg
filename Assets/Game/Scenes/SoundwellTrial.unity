@@ -261,11 +261,6 @@ MonoBehaviour:
   beast: {fileID: 2131}
   safePoint: {fileID: 2141}
   trialCamera: {fileID: 1002}
-  safePointPlayerReach: 1.1
-  surveyorSafeArrivalReach: 0.9
-  routeMarkerArrivalReach: 0.2
-  cartKitArrivalReach: 0.2
-  returnedBeastLocalY: -0.95
 --- !u!114 &2103
 MonoBehaviour:
   m_ObjectHideFlags: 0

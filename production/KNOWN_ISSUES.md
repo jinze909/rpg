@@ -39,12 +39,13 @@
 
 - 类型与状态。已修复场景恢复时的同帧输入穿透、声井卸载期间的迟到回调，以及救援结算后共享奖励配置被改写。接力时按包含这些改动的最终提交核对 Unity 验证。
 - 证据。回归检查在广场退出的同一帧重试两个入口，并在无战斗救援结算前后比对同一个 ORK 奖励定义，同时检查经验到账及重复结算。[审计前基线 Unity Run](https://github.com/jinze909/rpg/actions/runs/44339936453)
-- 剩余风险。声井战斗初始化仍在运行时覆盖 ORK 默认攻击的系统行动 Schematic。新增使用不同攻击定义的遭遇前，将声井攻击写成独立的 ORK 数据，并验证切换遭遇时各自使用自己的攻击定义。
+- 后续修复。白水渡和声井改用单独注册的 ORK 原型战斗单位及普攻。回归检查原型攻击走 ORK 原生结算，且进入声井不改写原默认攻击。[数据生成与原生回归](https://github.com/jinze909/rpg/actions/runs/44371817356)
 
 ## ENG-002 · 存档与平台验收
 
-- 类型与状态。验收缺口。现有回归覆盖 ORK 任务数据序列化、场景重载和经验不重复发放。下次扩展跨章节状态时，优先加上实际写盘、退出进程和读档的端到端测试，检查章节选择、任务及奖励状态。
-- 证据。现有 Linux Test Player 可构建。对应产物中的窄屏截图会把 UGUI 操作层临时切成 Screen Space Camera，不能据此验收运行时 Screen Space Overlay 的排版。Windows 构建及窄屏实际操作仍待验证。[Unity 构建与截图归档](https://github.com/jinze909/rpg/actions/runs/44339936453)
+- 存档。Linux Test Player 已分两个实际进程写入和读取 ORK 存档，覆盖完成任务、三名队员经验、章节事实及重进声井去重。游戏界面的存读档入口仍待接线。[存档重启回归](https://github.com/jinze909/rpg/actions/runs/44401944986)
+- 平台。Windows64 x64 Mono 构建可按需运行并校验 PE、运行库和场景数据。Windows 原生启动仍待验证。[Windows 构建](https://github.com/jinze909/rpg/actions/runs/44371259560)
+- 窄屏。临潮广场布局已通过 Play Mode 控件边界检查。声井的窄屏截图会临时切换 UGUI 渲染模式，声井运行时排版仍待实测。[广场布局回归](https://github.com/jinze909/rpg/actions/runs/44370360856)
 
 ## ENG-003 · 第三方依赖发布记录
 

@@ -211,6 +211,64 @@ AudioListener:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1000}
   m_Enabled: 1
+--- !u!1 &53490849
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 53490851}
+  - component: {fileID: 53490850}
+  m_Layer: 0
+  m_Name: ORK Game Starter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &53490850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 53490849}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 641052753, guid: 2f433824042009943be1767c00adb2ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ORKFramework3.dll::GamingIsLove.ORKFramework.Components.ORKGameStarter
+  useAssetBundle: 0
+  project: {fileID: 11400000, guid: 6399175f8fb0e7d15b9d7334c2afc640, type: 2}
+  assetBundle:
+    assetName: 
+    assetBundleName: 
+    pathOrigin: 1
+    path: 
+    loadType: 0
+    loadAsync: 0
+  startGame: 0
+  schematicAsset: {fileID: 0}
+  loadStartMenuScene: 0
+  callStartMenu: 0
+  callAfter: 0
+--- !u!4 &53490851
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 53490849}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2200
 GameObject:
   m_ObjectHideFlags: 0
@@ -258,8 +316,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f11321b76470454998d1693f8033c8b2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &2203
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -270,8 +328,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b2f3a7c94d1e4b2aa6c8f0d3e5a79124, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &2204
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -282,9 +340,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a34132ca1f344420a2bf4f0f45cd912e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  battleArenaHalfExtents: {x: 6.7, y: 2.85}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &2205
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -295,8 +352,8 @@ MonoBehaviour:
   m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c713b40717374490a2c0e3267121d61e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   leader: {fileID: 2301}
   beast: {fileID: 2311}
   playerFaction: {fileID: 11400000, guid: 74f59b827fd1780d389ae2bae3ebc92f, type: 2}
@@ -364,64 +421,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2201}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &53490849
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 53490851}
-  - component: {fileID: 53490850}
-  m_Layer: 0
-  m_Name: ORK Game Starter
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &53490850
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 53490849}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 641052753, guid: 2f433824042009943be1767c00adb2ed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ORKFramework3.dll::GamingIsLove.ORKFramework.Components.ORKGameStarter
-  useAssetBundle: 0
-  project: {fileID: 11400000, guid: 6399175f8fb0e7d15b9d7334c2afc640, type: 2}
-  assetBundle:
-    assetName: 
-    assetBundleName: 
-    pathOrigin: 1
-    path: 
-    loadType: 0
-    loadAsync: 0
-  startGame: 0
-  schematicAsset: {fileID: 0}
-  loadStartMenuScene: 0
-  callStartMenu: 0
-  callAfter: 0
---- !u!4 &53490851
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 53490849}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

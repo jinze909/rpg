@@ -36,7 +36,7 @@ permissions:
 # Scope the gate to a branch: successive commits on that SAME branch still
 # supersede stale queued checks, but independent candidates retain their CI.
 concurrency:
-  group: unity-ork-p0-${{ github.ref }}
+  group: unity-ork-p0-${{ github.ref }}${{ inputs.mode == 'windows' && '-windows' || '' }}
   cancel-in-progress: false
 
 jobs:

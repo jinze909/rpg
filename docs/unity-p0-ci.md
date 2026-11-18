@@ -10,6 +10,7 @@
 
 - `prepare`：在可审查候选中由 Unity 保存配置/资产/包锁，产物最多为 `prepared-candidate`。需要回写时 publish 以受控写权限写回原候选，随后显式检出最终 SHA 执行 verify；不依赖 Token push 自动再触发。
 - `verify`：要求已提交配置存在，真实导入、编译、两次 Play、受影响故事测试与独立 batch 成功。收集器检查候选实际声明的必需测试、标记、退出码、画面/构建等产物及干净源文件状态，结果为 `passed-clean-candidate` 才可验收。
+- `windows` 由 Actions 手动触发。使用相同版本的 Unity Windows Build Support 交叉构建 Windows64 Mono Player，检查可执行文件和运行库。报告对应所选提交，Windows 设备上的启动另行验证。
 - `prepare` 成功、分支绿色或旧 SHA 结果均不替代最终 SHA 的验证。测试直接扣HP只证明结算后的逻辑，不能代替玩家 Attack/选目标。
 
 ## 精确证据复用
