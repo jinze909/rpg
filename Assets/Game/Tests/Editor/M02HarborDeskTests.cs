@@ -83,6 +83,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OfficialDockFactRejectsUnstampedM01IntentAndAcceptsOnlyAnM02Stamp()
+        {
+            var undecided = new M02HarborDesk(M01PensionChoice.RegisterLivingIdentity);
+            undecided.Begin();
+            var unstamped = undecided.Finish();
+            Assert.That(unstamped.OfficialShipOffered, Is.False);
+            Assert.Throws<InvalidOperationException>(() =>
+                M02OfficialDockFacts.TryRecordLivingRegistration(unstamped));
+            Assert.Throws<ArgumentNullException>(() =>
+                M02OfficialDockFacts.TryRecordLivingRegistration(null));
+
+            var stampedDesk = new M02HarborDesk(M01PensionChoice.RegisterLivingIdentity);
+            stampedDesk.Begin();
+            stampedDesk.Act(M02HarborDeskAction.PresentLivingRegistration);
+            var stamped = stampedDesk.Finish();
+            Assert.That(stamped.OfficialShipOffered, Is.True);
+            Assert.That(M02OfficialDockFacts.IsEffective(stamped.LivingRegistryStamped, false),
+                Is.True);
+        }
+
+        [Test]
+        public void OfficialDockAllowsEitherRecordedApprovalButNeverJustAnApplication()
+        {
+            Assert.That(M02OfficialDockFacts.IsEffective(false, false), Is.False);
+            Assert.That(M02OfficialDockFacts.IsEffective(true, false), Is.True);
+            Assert.That(M02OfficialDockFacts.IsEffective(false, true), Is.True);
+            Assert.That(M02OfficialDockFacts.IsEffective(true, true), Is.True);
+
+            var missingReturn = new M02MissingReturnReview(
+                M01PensionChoice.RequestMissingReturnReview,
+                M02BridgeEvidence.CleanCableCut, false);
+            missingReturn.Begin();
+            missingReturn.Request();
+            var unapproved = missingReturn.Leave();
+            Assert.That(unapproved.Approved, Is.False);
+            Assert.That(M02OfficialDockFacts.IsEffective(false, unapproved.Approved),
+                Is.False, "An unapproved missing-return application cannot unlock the official dock.");
+        }
+
+        [Test]
         public void InvalidActionsAndCompletedSessionCannotMutateHistory()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>

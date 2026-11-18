@@ -1,4 +1,5 @@
 using System;
+using GamingIsLove.Makinom;
 
 namespace Rpg.Soundwell
 {
@@ -117,6 +118,48 @@ namespace Rpg.Soundwell
         public bool QiQueDebtDiscovered { get; }
         public bool TransferAssistanceAccepted { get; }
         public bool OfficialShipOffered => LivingRegistryStamped;
+    }
+
+    /// <summary>
+    /// The official dock requires a real M02 stamp: either living papers
+    /// accepted at this desk or the separate missing-return approval.
+    /// M01's stated intention and an unapproved M02 request cannot book it.
+    /// Makinom owns these facts; ORK owns the save lifecycle.
+    /// </summary>
+    public static class M02OfficialDockFacts
+    {
+        public const string LivingRegistrationStampedKey =
+            "rpg.return.m02.living-registration-stamped";
+
+        public static bool IsEffective(bool livingRegistrationStamped,
+            bool missingReturnApproved) =>
+            livingRegistrationStamped || missingReturnApproved;
+
+        public static bool TryRecordLivingRegistration(M02HarborDeskOutcome outcome)
+        {
+            if (outcome == null)
+                throw new ArgumentNullException(nameof(outcome));
+            if (!outcome.LivingRegistryStamped)
+                throw new InvalidOperationException(
+                    "Only the observed M02 living-registration stamp can unlock official passage.");
+            if (!Maki.Initialized || Maki.Game?.Variables == null)
+                return false;
+            Maki.Game.Variables.Set(LivingRegistrationStampedKey, 1);
+            return true;
+        }
+
+        public static bool TryReadEffective(out bool officialRegistrationEffective)
+        {
+            officialRegistrationEffective = false;
+            if (!Maki.Initialized || Maki.Game?.Variables == null)
+                return false;
+
+            var variables = Maki.Game.Variables;
+            officialRegistrationEffective = IsEffective(
+                variables.GetInt(LivingRegistrationStampedKey) == 1,
+                variables.GetInt(M02MissingReturnFacts.ApprovalKey) == 1);
+            return true;
+        }
     }
 
     public static class M02HarborDeskDialogue
