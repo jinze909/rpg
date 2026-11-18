@@ -17,10 +17,17 @@ LINUX_EDITOR_PACKAGES = {
     "com.unity.toolchain.linux-x86_64-linux",
 }
 
+REQUIRED_OUTPUTS = (
+    "Assets/Game/Scenes/Bootstrap.unity",
+    "Assets/Gaming Is Love/_Data/Project.asset",
+    "ProjectSettings/EditorSettings.asset",
+    "Packages/packages-lock.json",
+)
+
 
 def allowed_path(name):
     path = PurePosixPath(name)
-    if path.is_absolute() or ".." in path.parts or path.as_posix() != name:
+    if "\\" in name or path.is_absolute() or ".." in path.parts or path.as_posix() != name:
         return False
     if name in {
         # M11: native Unity-authored Linux Debug/Test Build Profiles.
@@ -158,19 +165,14 @@ def restore(evidence):
         # Do not partially apply a candidate if the LAST file has a bad
         # digest or missing .meta. Verification precedes every write.
         checked = validate_candidate_contents(archive, hashes)
+        for name in REQUIRED_OUTPUTS:
+            if name not in checked and not Path(name).is_file():
+                raise ValueError(f"Candidate lacks required Unity output: {name}")
         for name, data in checked.items():
             path = Path(name)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
 
-    for name in (
-        "Assets/Game/Scenes/Bootstrap.unity",
-        "Assets/Gaming Is Love/_Data/Project.asset",
-        "ProjectSettings/EditorSettings.asset",
-        "Packages/packages-lock.json",
-    ):
-        if not Path(name).is_file():
-            raise ValueError(f"Candidate lacks required Unity output: {name}")
     Path("production/ci/p0-mode.txt").write_text("verify\n")
 
 

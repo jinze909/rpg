@@ -67,7 +67,7 @@ namespace Rpg.Soundwell
                 () => ApplyInput(movement, false, false, false, false, true),
                 () =>
                 {
-                    if (orkParty == null)
+                    if (!CanAcceptBattleInput)
                         return;
                     // ORK alone decides eligibility, actor and target. Animate
                     // only the displayed leader after ORK accepts that actor's
@@ -79,7 +79,7 @@ namespace Rpg.Soundwell
                 },
                 () =>
                 {
-                    if (orkParty == null)
+                    if (!CanAcceptBattleInput)
                         return;
                     int defender = orkParty.ChoosingRescuerIndex;
                     // ORK alone accepts Guard and advances the combat turn.
@@ -88,7 +88,15 @@ namespace Rpg.Soundwell
                     if (orkParty.TryGuard() && defender == 0)
                         view.AnimatePlayerGuard();
                 },
-                () => orkParty?.TryOperateGate(canReachBattleGate, () => variables.Set(GateKey, 1)),
+                () =>
+                {
+                    if (CanAcceptBattleInput)
+                        orkParty.TryOperateGate(canReachBattleGate, () =>
+                        {
+                            if (bootstrapLoad == null)
+                                variables.Set(GateKey, 1);
+                        });
+                },
                 () =>
                 {
                     // UGUI Cancel closes the exploration focus menu, but in the
@@ -105,7 +113,7 @@ namespace Rpg.Soundwell
                 {
                     // The world-space pose follows an actual ORK movement
                     // acceptance; rejected previews draw no fake step.
-                    bool accepted = orkParty != null && orkParty.TryStep(actor, direction);
+                    bool accepted = CanAcceptBattleInput && orkParty.TryStep(actor, direction);
                     if (accepted && actor == 0)
                         view.AnimatePlayerBattleStep(direction);
                     return accepted;
@@ -119,7 +127,7 @@ namespace Rpg.Soundwell
 
         protected void Update()
         {
-            if (!IsReady || !ReadInput || DirectCombatStarted)
+            if (!IsReady || bootstrapLoad != null || !ReadInput || DirectCombatStarted)
                 return;
 
             if (SoundwellInputAdapter.ToggleMenuPressed())
@@ -160,11 +168,16 @@ namespace Rpg.Soundwell
 
         protected void FixedUpdate()
         {
+            if (bootstrapLoad != null)
+                return;
             if (DirectCombatStarted)
                 movement = Vector2.zero;
             partyMovement?.ApplyMovement(movement, IsReady && IsCarrying,
                 IsReady && !DirectCombatStarted);
         }
+
+        private bool CanAcceptBattleInput => IsReady && bootstrapLoad == null &&
+            DirectCombatStarted && orkParty != null;
 
     }
 }

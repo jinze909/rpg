@@ -300,6 +300,11 @@ namespace Rpg.Tests.Editor
                 var memorial = Object.FindFirstObjectByType<M00MemorialSquare>();
                 Assert.That(memorial, Is.Not.Null);
                 memorial.Close();
+                Assert.That(entrance.OpenTrial(), Is.Null,
+                    "A callback in the same frame as leaving M00 must not launch the trial.");
+                entrance.OpenPrelude();
+                Assert.That(currentPrelude.GetValue(entrance), Is.Null,
+                    "Leaving M00 must not reopen the prologue on the same frame.");
                 yield return null;
                 Assert.That(entrance.MemorialSquareOpen, Is.False);
                 Assert.That(SoundwellInputAdapter.IsEntryContextActive, Is.True);

@@ -12,7 +12,7 @@ namespace Rpg.Soundwell
     {
         protected void LateUpdate()
         {
-            if (!IsReady)
+            if (!IsReady || bootstrapLoad != null)
                 return;
 
             // ORK can instantiate its own UI root after the initial scene setup.
@@ -133,7 +133,7 @@ namespace Rpg.Soundwell
             // Makinom owns the rescue outcome. Neither opening the gate nor
             // reaching safety alone is enough: the survivor must physically
             // make it back to the same marked retreat point.
-            if (bootstrapLoad == null && SurveyorEscorting && !RescueComplete && AtSafePoint &&
+            if (SurveyorEscorting && !RescueComplete && AtSafePoint &&
                 Vector2.Distance(view.SurveyorWorldPosition, safePoint.position) <= surveyorSafeArrivalReach &&
                 orkParty != null && orkParty.SettleRescue())
                 variables.Set(RescueKey, 1);

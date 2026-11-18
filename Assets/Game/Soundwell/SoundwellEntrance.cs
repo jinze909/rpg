@@ -34,7 +34,7 @@ namespace Rpg.Soundwell
         // A UGUI Submit that closes S00 can be the same gamepad-A event
         // read by the entry menu on that frame. Do not treat it as a second
         // request to load the combat trial or reopen the prologue.
-        private int lastPreludeExitFrame = -1;
+        private int lastOpeningExitFrame = -1;
         private Button languageButton;
         private RectTransform languageRect;
         private Text languageText;
@@ -543,7 +543,7 @@ namespace Rpg.Soundwell
         public void OpenPrelude()
         {
             if (currentPrelude != null || currentMemorial != null || trialLoad != null ||
-                lastPreludeExitFrame == Time.frameCount)
+                lastOpeningExitFrame == Time.frameCount)
                 return;
             entryCanvas.enabled = false;
             var scene = new GameObject("S00 Whitewater Bridge · playable opening");
@@ -554,7 +554,7 @@ namespace Rpg.Soundwell
                 // The M00 jump is earned by the actual S00 third bell. Leaving
                 // early still returns to the normal entry screen.
                 bool openMemorial = currentPrelude != null && currentPrelude.ThirdBellStarted;
-                lastPreludeExitFrame = Time.frameCount;
+                lastOpeningExitFrame = Time.frameCount;
                 currentPrelude = null;
                 if (openMemorial)
                 {
@@ -564,6 +564,7 @@ namespace Rpg.Soundwell
                     currentMemorial = memorialObject.AddComponent<M00MemorialSquare>();
                     currentMemorial.Begin(() =>
                     {
+                        lastOpeningExitFrame = Time.frameCount;
                         currentMemorial = null;
                         entryCanvas.enabled = true;
                         if (EventSystem.current != null)
@@ -661,7 +662,7 @@ namespace Rpg.Soundwell
         public AsyncOperation OpenTrial()
         {
             if (trialLoad != null || currentPrelude != null || currentMemorial != null ||
-                lastPreludeExitFrame == Time.frameCount)
+                lastOpeningExitFrame == Time.frameCount)
                 return trialLoad;
             // Enter commits the scene transition. Disable the other focused
             // UGUI settings on the same frame, before the async scene unload,
