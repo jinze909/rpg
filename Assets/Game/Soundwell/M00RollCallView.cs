@@ -19,11 +19,14 @@ namespace Rpg.Soundwell
         private readonly M00RollCallSequence sequence;
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
+        private readonly Font englishFont;
+        private readonly Text title;
         private readonly Text speaker;
         private readonly Text guidance;
         private readonly Button[] choiceButtons = new Button[3];
         private readonly Text[] choiceLabels = new Text[3];
         private readonly Button continueButton;
+        private readonly Text continueLabel;
         private Action<M00RollCallOutcome> onContinue;
         private bool disposed;
         private float lastViewAspect = -1f;
@@ -49,6 +52,7 @@ namespace Rpg.Soundwell
 
             this.sequence = sequence;
             this.onContinue = onContinue;
+            englishFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
             canvasObject = new GameObject("M00 twelfth-year roll call canvas",
                 typeof(RectTransform), typeof(Canvas));
@@ -76,7 +80,7 @@ namespace Rpg.Soundwell
             CreatePanel(authoredView, "M00 roll call paper panel",
                 Vector2.zero, new Vector2(900f, 470f), Paper);
 
-            CreateLabel(authoredView,
+            title = CreateLabel(authoredView,
                 Copy("THE TWELFTH-YEAR ROLL CALL", "第十二年的点名"),
                 25, Gold, new Vector2(0f, 184f), new Vector2(820f, 42f));
 
@@ -100,7 +104,7 @@ namespace Rpg.Soundwell
             }
 
             continueButton = CreateButton(authoredView, "M00 roll call continue",
-                new Vector2(0f, -188f), new Vector2(340f, 48f), out Text continueLabel);
+                new Vector2(0f, -188f), new Vector2(340f, 48f), out continueLabel);
             continueLabel.text = Copy("Continue", "继续");
             continueButton.onClick.AddListener(Continue);
             continueButton.gameObject.SetActive(false);
@@ -108,6 +112,9 @@ namespace Rpg.Soundwell
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
                 Mathf.Max(1, Screen.height));
             Refresh();
+            // The active roll call must follow the existing global UI language
+            // immediately, including its persistent heading and finish button.
+            SoundwellUiLocalization.Changed += Refresh;
         }
 
         public Button GetChoiceButton(int index)
@@ -137,12 +144,23 @@ namespace Rpg.Soundwell
             ThrowIfDisposed();
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             CurrentBeat = M00RollCallDialogue.Describe(sequence, chinese);
+            title.text = Copy("THE TWELFTH-YEAR ROLL CALL", "第十二年的点名");
+            continueLabel.text = Copy("Continue", "继续");
+            // Use the pinned CJK font for Chinese and restore the real Latin
+            // font on EN, rather than passing a previously selected CJK font
+            // back as the English fallback on the next locale change.
+            Font font = SoundwellUiLocalization.PresentationFont(englishFont);
+            title.font = font;
+            speaker.font = font;
+            guidance.font = font;
+            continueLabel.font = font;
             speaker.text = CurrentBeat.SpeakerLine;
             guidance.text = CurrentBeat.Guidance;
 
             for (int i = 0; i < choiceButtons.Length; i++)
             {
                 bool visible = i < CurrentBeat.Choices.Length;
+                choiceLabels[i].font = font;
                 choiceButtons[i].gameObject.SetActive(visible);
                 if (visible)
                 {
@@ -178,6 +196,7 @@ namespace Rpg.Soundwell
             if (disposed)
                 return;
             disposed = true;
+            SoundwellUiLocalization.Changed -= Refresh;
             onContinue = null;
             foreach (Button button in choiceButtons)
                 if (button != null)
