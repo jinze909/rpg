@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -27,6 +28,21 @@ namespace Rpg.Soundwell
         public M03LuJunEncounter Encounter => encounter;
         public Text Dialogue => dialogue;
         public Button AdvanceButton => advance;
+
+        private Button PreferredFocusTarget
+        {
+            get
+            {
+                if (disposed || delivered)
+                    return null;
+                if (advance.gameObject.activeInHierarchy)
+                    return advance;
+                foreach (Button option in choices)
+                    if (option != null && option.gameObject.activeInHierarchy)
+                        return option;
+                return null;
+            }
+        }
 
         public M03LuJunView(Transform parent, M02BridgeEvidence evidence,
             bool officialRegistrationEffective, Action<M03LuJunEncounter> onFinished)
@@ -124,19 +140,7 @@ namespace Rpg.Soundwell
             advance.gameObject.SetActive(!delivered &&
                 encounter.Stage == M03LuJunStage.VisitingVeterans);
             if (!delivered)
-            {
-                Button focus = advance.gameObject.activeInHierarchy ? advance : null;
-                if (focus == null)
-                {
-                    for (int i = 0; i < choices.Length; i++)
-                        if (choices[i].gameObject.activeInHierarchy)
-                        {
-                            focus = choices[i];
-                            break;
-                        }
-                }
-                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, focus);
-            }
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
         }
 
         private void Choose(int index)
@@ -170,6 +174,7 @@ namespace Rpg.Soundwell
                     return;
             }
             Refresh();
+            FocusFirstActionAfterStageChange();
         }
 
         private void Advance()
@@ -178,6 +183,24 @@ namespace Rpg.Soundwell
                 return;
             encounter.ObserveRollCall();
             Refresh();
+            FocusFirstActionAfterStageChange();
+        }
+
+        // The same UGUI button index carries a different answer after each
+        // dialogue stage. Retaining its focus can turn a second pad Submit
+        // into an unintended ship booking rather than a deliberate choice.
+        private void FocusFirstActionAfterStageChange()
+        {
+            EventSystem system = EventSystem.current;
+            if (system == null || system.alreadySelecting)
+                return;
+            GameObject selected = system.currentSelectedGameObject;
+            if (selected == null || !selected.transform.IsChildOf(canvasObject.transform))
+                return;
+            Button first = PreferredFocusTarget;
+            if (first != null && first.gameObject.activeInHierarchy &&
+                selected != first.gameObject)
+                system.SetSelectedGameObject(first.gameObject);
         }
 
         public void Dispose()
