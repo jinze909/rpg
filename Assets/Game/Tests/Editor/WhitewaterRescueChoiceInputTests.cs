@@ -736,9 +736,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(skip.gameObject.activeInHierarchy, Is.True,
                     "Only a saved third-bell completion may expose the replay skip.");
                 Text label = skip.GetComponentInChildren<Text>(true);
-                Assert.That(label.text, Is.EqualTo("Skip completed prologue"));
+                Assert.That(label.text, Is.EqualTo("Skip to Memorial Day"));
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
-                Assert.That(label.text, Is.EqualTo("跳过已完成的序章"),
+                Assert.That(label.text, Is.EqualTo("跳到临潮纪念日"),
                     "The skip control must follow the live saved language.");
                 Assert.That(stage.Phase, Is.Zero,
                     "The replay skip is available before the player starts the roll call.");
@@ -1807,7 +1807,19 @@ namespace Rpg.Tests.Editor
                         Assert.That(defense.IsReady, Is.True,
                             "The S00 ORK party must register before the bridgehead encounter.");
                         Assert.That(defense.BattleInProgress, Is.True,
-                            "The three advancing silhouettes must resolve into a real ORK encounter, not a staged attack.");
+                            "The bridgehead must enter a live ORK encounter.");
+                        yield return null;
+                        var battleReadout = GameObject.Find("S00 bridge defence readout")?.GetComponent<Text>();
+                        Assert.That(battleReadout, Is.Not.Null);
+                        Assert.That(battleReadout.text, Does.Contain("HOLD THE CROSSING"));
+                        Assert.That(battleReadout.text, Does.Contain("Defender"));
+                        Assert.That(battleReadout.text, Does.Contain("Spear squad"));
+                        Assert.That(battleReadout.text, Does.Not.Contain("ORK").And.Not.Contain("PLACEHOLDER"));
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                        Assert.That(battleReadout.text, Does.Contain("守住渡口"));
+                        Assert.That(battleReadout.text, Does.Contain("守桥队员"));
+                        Assert.That(battleReadout.text, Does.Contain("持矛小队"));
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                         float actionDeadline = Time.realtimeSinceStartup + 8f;
                         bool acceptedAction = false;
                         while (!acceptedAction && Time.realtimeSinceStartup < actionDeadline)

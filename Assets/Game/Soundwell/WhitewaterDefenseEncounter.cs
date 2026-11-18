@@ -32,8 +32,8 @@ namespace Rpg.Soundwell
         private const string PlayerCopyInactiveChinese = "桥头防守尚未开始。重新整队，再试一次。";
         private const string PlayerCopyDefeatEnglish = "The spearmen still hold the span. Regroup and try again.";
         private const string PlayerCopyDefeatChinese = "持矛的人仍占着桥面。重新整队，再试一次。";
-        private const string PlayerCopyVictoryEnglish = "The bridgehead is held. Return to Shen Li at the strained cable.";
-        private const string PlayerCopyVictoryChinese = "桥头守住了。回到沈砾身边，缆索仍然绷紧。";
+        private const string PlayerCopyVictoryEnglish = "The bridgehead is held. Shen Li is still by the strained cable.";
+        private const string PlayerCopyVictoryChinese = "桥头守住了。沈砾还守在绷紧的缆索旁。";
 
         private OrkPartyBridge party;
         private Canvas hud;
@@ -216,10 +216,10 @@ namespace Rpg.Soundwell
             if (party == null || !party.BattleInProgress)
                 return;
 
-            string snapshot = party.BuildBattleReadout();
-            string beastLabel = SoundwellUiLocalization.Get("battle.beast");
-            if (!string.IsNullOrEmpty(beastLabel))
-                snapshot = snapshot.Replace(beastLabel, Copy("SPEAR SQUAD", "持矛小队"));
+            string snapshot = party.BuildBattleReadout(
+                Copy("HOLD THE CROSSING", "守住渡口"),
+                Copy("Defender", "守桥队员"),
+                Copy("Spear squad", "持矛小队"));
             readoutEnglish = null;
             readoutChinese = null;
             readout.text = snapshot;
@@ -416,6 +416,7 @@ namespace Rpg.Soundwell
             readout = SoundwellView.AddLabel(hud.transform,
                 Copy(PlayerCopyPreparingEnglish, PlayerCopyPreparingChinese),
                 18, Ink, new Vector2(0f, 28f), new Vector2(820f, 250f));
+            readout.gameObject.name = "S00 bridge defence readout";
             readout.alignment = TextAnchor.MiddleCenter;
             readout.horizontalOverflow = HorizontalWrapMode.Wrap;
             readout.verticalOverflow = VerticalWrapMode.Overflow;

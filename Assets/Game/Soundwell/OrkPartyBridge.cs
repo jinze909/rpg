@@ -444,14 +444,15 @@ namespace Rpg.Soundwell
         /// </summary>
         public static bool HasReadoutRoster(int memberCount) => memberCount > 0;
 
-        public string BuildBattleReadout()
+        public string BuildBattleReadout(string heading = null, string allyLabel = null,
+            string opponentLabel = null)
         {
             // Combatant retirement may shrink the ORK roster during a battle.
             // Remaining active members should keep their live HP/action HUD.
             if (!BattleInProgress || !HasReadoutRoster(members.Count) || Beast == null)
                 return string.Empty;
 
-            var text = new StringBuilder(SoundwellUiLocalization.Get("battle.heading"))
+            var text = new StringBuilder(heading ?? SoundwellUiLocalization.Get("battle.heading"))
                 .Append(" - ").Append(SoundwellUiLocalization.Get(
                     fixedFormationForEncounter ? "battle.formation_fixed" :
                     "battle.formation_mobile")).Append('\n');
@@ -464,7 +465,7 @@ namespace Rpg.Soundwell
                 if (member == null || !IsActiveBattleSceneActor(member.GameObject) ||
                     i >= actors.Count || !IsActiveBattleSceneActor(actors[i]))
                     continue;
-                text.Append(SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
+                text.Append(allyLabel ?? SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
                     .Append("  ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                     .Append(member.Status[1].GetValue());
                 if (member.Battle.Defending)
@@ -484,7 +485,7 @@ namespace Rpg.Soundwell
                 }
                 text.Append('\n');
             }
-            text.Append(SoundwellUiLocalization.Get("battle.beast")).Append("  ")
+            text.Append(opponentLabel ?? SoundwellUiLocalization.Get("battle.beast")).Append("  ")
                 .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                 .Append(Beast.Status[1].GetValue());
             // A disabled Attack button is not a pending ORK menu if the

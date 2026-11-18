@@ -250,7 +250,7 @@ namespace Rpg.Soundwell
         {
             if (skipCompletedReplayLabel != null)
                 skipCompletedReplayLabel.text = Copy(
-                    "Skip completed prologue", "跳过已完成的序章");
+                    "Skip to Memorial Day", "跳到临潮纪念日");
         }
 
         private static bool HasEarnedThirdBell()
@@ -1484,8 +1484,8 @@ namespace Rpg.Soundwell
                 "Three armed silhouettes appear where the far-bank lamps vanished. You cannot make out their uniforms. You warn Shen Li and the bridge crew. The cable is still under strain.",
                 "对岸熄灯的地方出现三道人影。你看不清他们穿哪一边的军服，便朝沈砾和桥头同伴示警。缆索仍绷得发紧。");
             instructions.text = Copy(
-                "WASD / left stick: return to Shen Li's amber cable post; press E / Pad A to hold the cable. The attackers are not defeated.",
-                "用 WASD／左摇杆返回沈砾身边金色缆桩，按 E／手柄 A 一起扶住缆索。敌军仍未被击退。");
+                "WASD / left stick: return to Shen Li's amber cable post; press E / Pad A to hold the cable. The bridgehead is still exposed.",
+                "用 WASD／左摇杆返回沈砾身边金色缆桩，按 E／手柄 A 一起扶住缆索。桥头仍无遮拦。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(null);
         }
@@ -1798,11 +1798,11 @@ namespace Rpg.Soundwell
                 shenLiFigure.sprite = shenLiBracingSprite;
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
-                "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds; the armed figures are still advancing over the far span.",
-                "你在沈砾身边扶住缆索，把送来的绳卷拉上缆桩。它暂时绷住了，可对岸持械的人影仍在逼近。");
+                "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds. There is still movement across the river.",
+                "你在沈砾身边扶住缆索，把送来的绳卷拉上缆桩。缆索暂时稳住。河对岸还有动静。");
             instructions.text = Copy(
-                "Hold the cable. Enemy soldiers are closing in; the bridgehead fight is about to begin. Choose Attack or Guard when your turn appears.",
-                "继续扶住缆索。敌兵正在逼近，桥头战斗即将开始。轮到你时选择攻击或防御。");
+                "Hold the cable. There are spears at the bridgehead. The fight is about to begin. Choose Attack or Guard when your turn appears.",
+                "继续扶住缆索。桥头有人举矛逼近，战斗即将开始。轮到你时选择攻击或防御。");
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(exit.gameObject);
         }
