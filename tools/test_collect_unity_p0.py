@@ -142,6 +142,28 @@ class CandidateRestorePreflightTests(unittest.TestCase):
             self.assertFalse(created.parent.exists())
             self.assertEqual(mode.read_text(), "prepare\n")
 
+    def test_interrupt_after_atomic_replace_restores_original_file(self):
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            output = Path("ProjectSettings/EditorSettings.asset")
+            output.parent.mkdir()
+            output.write_bytes(b"original")
+            evidence, sha, mode = self.build_complete_evidence({output.as_posix(): b"replacement"})
+            replace = Path.replace
+
+            def interrupt_after_replace(source, destination):
+                result = replace(source, destination)
+                if source.suffix == ".incoming" and destination == output:
+                    raise KeyboardInterrupt()
+                return result
+
+            with patch("restore_unity_p0.subprocess.check_output", return_value=sha), \
+                    patch.object(Path, "replace", interrupt_after_replace):
+                with self.assertRaises(KeyboardInterrupt):
+                    restore(evidence)
+
+            self.assertEqual(output.read_bytes(), b"original")
+            self.assertEqual(mode.read_text(), "prepare\n")
+
     def test_missing_required_output_keeps_existing_files_and_mode(self):
         with tempfile.TemporaryDirectory() as directory, chdir(directory):
             output = Path("ProjectSettings/EditorSettings.asset")

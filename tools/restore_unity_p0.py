@@ -160,7 +160,7 @@ def apply_outputs(outputs):
     # Keep staging on the checkout filesystem so replace is atomic per file.
     scratch = Path(tempfile.mkdtemp(prefix=".unity-restore-", dir="."))
     staged = []
-    replaced = []
+    attempted = []
     directories = []
     keep_backups = False
     try:
@@ -179,20 +179,24 @@ def apply_outputs(outputs):
             for path, incoming, backup in staged:
                 for parent in reversed(path.parents):
                     if not parent.exists():
-                        parent.mkdir()
                         directories.append(parent)
+                        parent.mkdir()
+                attempted.append((path, incoming, backup))
                 incoming.replace(path)
-                replaced.append((path, backup))
-        except OSError:
+        except (OSError, KeyboardInterrupt):
             try:
-                for path, backup in reversed(replaced):
+                for path, incoming, backup in reversed(attempted):
+                    # A signal can arrive just after rename succeeds.
+                    if incoming.exists():
+                        continue
                     if backup is None:
                         path.unlink()
                     else:
                         backup.replace(path)
                 for directory in reversed(directories):
-                    directory.rmdir()
-            except OSError as rollback_error:
+                    if directory.exists():
+                        directory.rmdir()
+            except (OSError, KeyboardInterrupt) as rollback_error:
                 keep_backups = True
                 raise RuntimeError(f"Unity restore rollback failed. Backups remain in {scratch}.") from rollback_error
             raise
