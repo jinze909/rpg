@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Rpg.Soundwell
 {
     /// <summary>Connects the M02 office, clue search and review to the live opening.</summary>
-    internal sealed class M02HarborVisit : IDisposable
+    public sealed class M02HarborVisit : IDisposable
     {
         private readonly Transform parent;
         private readonly M01PensionChoice priorChoice;
@@ -21,19 +21,29 @@ namespace Rpg.Soundwell
         private bool finishedInquiry;
         private float layoutAspect;
 
-        internal M02HarborVisit(Transform parent, M01PensionChoice priorChoice, Action onFinished)
+        public M02HarborVisit(Transform parent, M01PensionChoice priorChoice, Action onFinished)
         {
+            if (parent == null)
+                throw new ArgumentNullException(nameof(parent));
+            if (onFinished == null)
+                throw new ArgumentNullException(nameof(onFinished));
             this.parent = parent;
             this.priorChoice = priorChoice;
             this.onFinished = onFinished;
             Tick((float)Mathf.Max(1, Screen.width) / Mathf.Max(1, Screen.height));
         }
 
-        internal void Tick(float aspect)
+        public void Tick(float aspect)
         {
             if (onFinished == null)
                 return;
+            if (parent == null)
+            {
+                Dispose();
+                return;
+            }
 
+            bool validAspect = !float.IsNaN(aspect) && !float.IsInfinity(aspect) && aspect > 0f;
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;
             if (variables != null)
             {
@@ -46,6 +56,8 @@ namespace Rpg.Soundwell
                     variables.Set(M02BridgeEvidenceFacts.EvidenceKey, 0);
                     variables.Set(M02QiQueDebtFacts.DebtKnownKey, 0);
                     desk = new M02HarborDeskView(parent, priorChoice, LeaveDesk);
+                    if (layoutAspect > 0f)
+                        desk.LayoutForViewportAspect(layoutAspect);
                     started = true;
                 }
 
@@ -63,6 +75,8 @@ namespace Rpg.Soundwell
                     if (reviewOutcome.Approved && !M02MissingReturnFacts.TryRecordApproved(reviewOutcome))
                         return;
                     reviewOutcome = null;
+                    review?.Dispose();
+                    review = null;
                     Action completed = onFinished;
                     onFinished = null;
                     completed?.Invoke();
@@ -70,7 +84,7 @@ namespace Rpg.Soundwell
                 }
             }
 
-            if (!Mathf.Approximately(layoutAspect, aspect))
+            if (validAspect && !Mathf.Approximately(layoutAspect, aspect))
             {
                 layoutAspect = aspect;
                 desk?.LayoutForViewportAspect(aspect);
@@ -96,6 +110,8 @@ namespace Rpg.Soundwell
             var investigation = new M02BridgeInquiry();
             investigation.Begin();
             inquiry = new M02BridgeInquiryView(parent, investigation, FinishInquiry, ObserveClue);
+            if (layoutAspect > 0f)
+                inquiry.LayoutForViewportAspect(layoutAspect);
         }
 
         private void ObserveClue(M02BridgeEvidence clue)
@@ -131,6 +147,8 @@ namespace Rpg.Soundwell
             inquiry = null;
             review = new M02MissingReturnView(parent, priorChoice, evidenceFound,
                 deskOutcome.TransferAssistanceAccepted, outcome => reviewOutcome = outcome);
+            if (layoutAspect > 0f)
+                review.LayoutForViewportAspect(layoutAspect);
         }
 
         public void Dispose()
