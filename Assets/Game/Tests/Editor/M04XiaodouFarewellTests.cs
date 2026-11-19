@@ -64,6 +64,64 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InterruptedFarewellWritePreservesEachChoiceAndAllowsOneRetry()
+        {
+            foreach (var answer in new[]
+            {
+                M04XiaodouAnswer.TeachRealLine,
+                M04XiaodouAnswer.KeepStageLine
+            })
+            {
+                var root = new GameObject("M04 Xiaodou retry " + answer);
+                M04XiaodouFarewellView view = null;
+                try
+                {
+                    int attempts = 0;
+                    int saved = 0;
+                    bool interrupt = true;
+                    view = new M04XiaodouFarewellView(root.transform, true, farewell =>
+                    {
+                        attempts++;
+                        Assert.That(farewell.Stage, Is.EqualTo(M04FarewellStage.Complete));
+                        Assert.That(farewell.Answer, Is.EqualTo(answer));
+                        Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.False);
+                        // Reentrant direct submit while host is saving must
+                        // not invoke this callback a second time.
+                        view.AdvanceButton.onClick.Invoke();
+                        view.GetChoiceButton(0).onClick.Invoke();
+                        if (interrupt)
+                            throw new InvalidOperationException("Interrupted Makinom write");
+                        saved++;
+                    });
+
+                    view.AdvanceButton.onClick.Invoke();
+                    view.GetChoiceButton((int)answer).onClick.Invoke();
+                    Assert.Throws<InvalidOperationException>(() =>
+                        view.AdvanceButton.onClick.Invoke());
+                    Assert.That(attempts, Is.EqualTo(1));
+                    Assert.That(saved, Is.Zero);
+                    Assert.That(view.Encounter.Stage,
+                        Is.EqualTo(M04FarewellStage.HearingResponse));
+                    Assert.That(view.Encounter.Answer, Is.EqualTo(answer));
+                    Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.True);
+
+                    interrupt = false;
+                    view.AdvanceButton.onClick.Invoke();
+                    Assert.That(attempts, Is.EqualTo(2));
+                    Assert.That(saved, Is.EqualTo(1));
+                    Assert.That(view.Encounter.Stage, Is.EqualTo(M04FarewellStage.Complete));
+                    view.AdvanceButton.onClick.Invoke();
+                    Assert.That(saved, Is.EqualTo(1));
+                }
+                finally
+                {
+                    view?.Dispose();
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void UguiRequiresARealDecisionAndDeliversResultExactlyOnce()
         {
             var root = new GameObject("M04 farewell test root");
