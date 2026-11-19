@@ -364,6 +364,16 @@ namespace Rpg.Soundwell
                 .Append(ledger.DeclinedCount)
                 .Append(chinese ? "；待更正阵亡差异：" : "; pending dead-roll discrepancies: ")
                 .Append(ledger.UnresolvedDiscrepancyCount);
+            if (ledger.BookedCount > verifiedBerths)
+            {
+                int excess = ledger.BookedCount - verifiedBerths;
+                copy.AppendLine();
+                copy.Append(chinese ? "铺位不足：请先取消 " : "Overbooked: unbook ")
+                    .Append(excess)
+                    .Append(chinese ? " 个占位，再完成对账。" :
+                        excess == 1 ? " berth before finishing." :
+                            " berths before finishing.");
+            }
             return copy.ToString();
         }
 

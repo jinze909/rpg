@@ -145,8 +145,10 @@ namespace Rpg.Tests.Editor
         {
             var root = new GameObject("Roster capacity reduction view");
             M04RosterReconciliationView view = null;
+            string previousLanguage = SoundwellUiLocalization.Language;
             try
             {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 var ledger = new M04RosterLedger();
                 ledger.AddEntry("dock-01", "Confirmed 1", M04RosterStatus.ConfirmedAtDock);
                 ledger.AddEntry("dock-02", "Confirmed 2", M04RosterStatus.ConfirmedAtDock);
@@ -164,6 +166,10 @@ namespace Rpg.Tests.Editor
                 // Do not silently publish an overbooked reconciliation.
                 view.SetVerifiedBerths(1);
                 Assert.That(view.Summary.text, Does.Contain("2/1"));
+                Assert.That(view.Summary.text, Does.Contain("Overbooked: unbook 1 berth before finishing."));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Summary.text, Does.Contain("铺位不足：请先取消 1 个占位"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Assert.That(view.FinishButton.interactable, Is.False);
                 view.FinishButton.onClick.Invoke();
                 Assert.That(completed, Is.Zero,
@@ -174,6 +180,7 @@ namespace Rpg.Tests.Editor
                 view.SetVerifiedBerths(1);
                 view.UnbookButton.onClick.Invoke();
                 Assert.That(ledger.BookedCount, Is.EqualTo(1));
+                Assert.That(view.Summary.text, Does.Not.Contain("Overbooked"));
                 Assert.That(view.FinishButton.interactable, Is.True);
 
                 view.FinishButton.onClick.Invoke();
@@ -184,6 +191,7 @@ namespace Rpg.Tests.Editor
             finally
             {
                 view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
