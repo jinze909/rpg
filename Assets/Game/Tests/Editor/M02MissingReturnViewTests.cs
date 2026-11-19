@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -70,6 +71,42 @@ namespace Rpg.Tests.Editor
             view.LeaveButton.onClick.Invoke();
             Assert.That(received.Requested, Is.True);
             Assert.That(received.Approved, Is.False);
+        }
+
+        [Test]
+        public void FailedHostCallbackKeepsStampedApprovalRetryableAndBlocksReentrancy()
+        {
+            int attempts = 0;
+            M02MissingReturnOutcome delivered = null;
+            view = new M02MissingReturnView(root.transform,
+                M01PensionChoice.RequestMissingReturnReview,
+                M02BridgeEvidence.WarReportDraft, false, outcome =>
+                {
+                    attempts++;
+                    if (attempts == 1)
+                    {
+                        view.LeaveButton.onClick.Invoke();
+                        throw new InvalidOperationException("Simulated Makinom save failure");
+                    }
+                    delivered = outcome;
+                });
+            view.RequestButton.onClick.Invoke();
+            view.StampButton.onClick.Invoke();
+            Assert.That(view.Review.Approved, Is.True);
+
+            Assert.Throws<InvalidOperationException>(() => view.LeaveButton.onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(view.Review.Stage, Is.EqualTo(M02ReviewStage.AtOffice));
+            Assert.That(view.Review.Approved, Is.True);
+            Assert.That(view.LeaveButton.gameObject.activeSelf, Is.True);
+
+            view.LeaveButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(view.Review.Stage, Is.EqualTo(M02ReviewStage.Completed));
+            Assert.That(delivered, Is.Not.Null);
+            Assert.That(delivered.Requested, Is.True);
+            Assert.That(delivered.Approved, Is.True);
+            Assert.That(view.LeaveButton.gameObject.activeSelf, Is.False);
         }
 
         [Test]
