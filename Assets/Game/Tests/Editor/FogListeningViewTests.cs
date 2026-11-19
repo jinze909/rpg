@@ -1,0 +1,182 @@
+using System;
+using NUnit.Framework;
+using Rpg.Soundwell;
+using UnityEngine;
+
+namespace Rpg.Tests.Editor
+{
+    public sealed class FogListeningViewTests
+    {
+        [Test]
+        public void FocusListenButtonClarifiesLowClarityCueAndDisablesWhenExhausted()
+        {
+            var root = new GameObject("Fog view focus");
+            FogListeningView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var session = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 35) },
+                    maxListenFocus: 1,
+                    maxHullIntegrity: 2);
+
+                view = new FogListeningView(root.transform, session, _ => { });
+                Assert.That(view.FocusButton.interactable, Is.True);
+                Assert.That(view.CueText.text, Does.Contain("Sound is faint in the fog"));
+
+                view.FocusButton.onClick.Invoke();
+                Assert.That(session.RemainingFocus, Is.Zero);
+                Assert.That(view.FocusButton.interactable, Is.False);
+                Assert.That(view.CueText.text, Does.Contain("Low reef surf"));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ContinueButtonStaysBlockedUntilSessionCompletesEvenOnDirectClick()
+        {
+            var root = new GameObject("Fog view continue guard");
+            FogListeningView view = null;
+            try
+            {
+                var session = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 80) },
+                    maxListenFocus: 1,
+                    maxHullIntegrity: 2);
+
+                int finished = 0;
+                view = new FogListeningView(root.transform, session, _ => finished++);
+                Assert.That(view.ContinueButton.interactable, Is.False);
+
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(finished, Is.Zero);
+                Assert.That(session.IsComplete, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void HelmButtonsResolveHazardSignalAndDeliverCompletedSessionOnce()
+        {
+            var root = new GameObject("Fog view helm");
+            FogListeningView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var session = new FogListeningSession(
+                    new[]
+                    {
+                        new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 70),
+                        new FogListeningCue(FogBearing.Starboard, FogCueKind.SignalResponse, 80, requiresReceiverLamp: true)
+                    },
+                    maxListenFocus: 2,
+                    maxHullIntegrity: 2);
+
+                int delivered = 0;
+                FogListeningSession result = null;
+                view = new FogListeningView(root.transform, session, s => { delivered++; result = s; });
+
+                view.PortButton.onClick.Invoke();
+                Assert.That(session.AvoidedHazards, Is.EqualTo(1));
+                Assert.That(view.CueText.text, Does.Contain("signal lamp"));
+
+                view.SignalButton.onClick.Invoke();
+                Assert.That(session.MatchedSignals, Is.EqualTo(1));
+                Assert.That(session.Succeeded, Is.True);
+                Assert.That(view.ContinueButton.interactable, Is.True);
+                Assert.That(view.HoldButton.interactable, Is.False);
+
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(delivered, Is.EqualTo(1));
+                Assert.That(result, Is.SameAs(session));
+
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(delivered, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ChangingLocaleUpdatesHeadingsAndCueReadoutWithoutMutatingSession()
+        {
+            var root = new GameObject("Fog view locale");
+            FogListeningView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var session = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Port, FogCueKind.FogBell, 75) },
+                    maxListenFocus: 2,
+                    maxHullIntegrity: 2);
+
+                view = new FogListeningView(root.transform, session, _ => { });
+                Assert.That(view.CueText.text, Does.Contain("Distinct fog bell"));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.StatusText.text, Does.Contain("听雾专注：2/2"));
+                Assert.That(view.CueText.text, Does.Contain("雾钟节律清晰"));
+                Assert.That(session.CurrentStep, Is.Zero);
+                Assert.That(session.RemainingFocus, Is.EqualTo(2));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void HullFailureEndsSessionAndViewportAspectScalingStaysSafe()
+        {
+            var root = new GameObject("Fog view hull failure");
+            FogListeningView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                var session = new FogListeningSession(
+                    new[]
+                    {
+                        new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 70),
+                        new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 90)
+                    },
+                    maxListenFocus: 1,
+                    maxHullIntegrity: 1);
+
+                view = new FogListeningView(root.transform, session, _ => { });
+                foreach (float ratio in new[] { 9f / 16f, 32f / 9f, 16f / 9f })
+                    view.LayoutForViewportAspect(ratio);
+
+                view.HoldButton.onClick.Invoke();
+                Assert.That(session.IsComplete, Is.True);
+                Assert.That(session.Succeeded, Is.False);
+                Assert.That(view.CueText.text, Does.Contain("船体受损过重"));
+                Assert.That(view.ContinueButton.interactable, Is.True);
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+    }
+}
