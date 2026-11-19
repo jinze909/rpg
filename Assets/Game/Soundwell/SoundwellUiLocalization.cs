@@ -23,6 +23,16 @@ namespace Rpg.Soundwell
         private static StringTable englishTable;
         private static StringTable chineseTable;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            language = English;
+            Changed = null;
+            cjkFont = null;
+            englishTable = null;
+            chineseTable = null;
+        }
+
         private static StringTable RequireSavedTable(string code)
         {
             bool chinese = code == Chinese;

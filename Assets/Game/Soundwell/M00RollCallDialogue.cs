@@ -15,7 +15,7 @@ namespace Rpg.Soundwell
             CallNumber = callNumber;
             SpeakerLine = speakerLine;
             Guidance = guidance;
-            Choices = choices;
+            Choices = choices ?? Array.Empty<string>();
             IdentityRevealValue = identityRevealValue;
             Finished = finished;
         }
@@ -26,7 +26,7 @@ namespace Rpg.Soundwell
         public string[] Choices { get; }
         public string IdentityRevealValue { get; }
         public bool Finished { get; }
-        public bool CanRespond => Choices.Length == 3;
+        public bool CanRespond => Choices != null && Choices.Length == 3;
     }
 
     public static class M00RollCallDialogue
@@ -77,24 +77,21 @@ namespace Rpg.Soundwell
             }
 
             string spoken = chinese
-                ? "韩峤（第" + ChineseNumber(call) + "遍）：“（你的名字。）”"
+                ? "韩峤（第" + ChineseNumber(call) + "遍）：“(你的名字。)”"
                 : "Han Qiao (call " + call + "): '(Your name.)'";
 
             if (sequence.HasLeftCrowd)
                 return new M00RollCallBeat(call, spoken,
-                    chinese ? "你已经离开人群。韩峤仍须念完三遍，没有新的应声选项。"
-                            : "You have left the crowd. Han Qiao still completes all three calls; there is no response window.",
+                    chinese ? "你已经离开人群。韩峤仍须念完三遍，没有新的应声选项。" : "You have left the crowd. Han Qiao still completes all three calls; there is no response window.",
                     NoChoices, null, false);
 
             if (!sequence.IsAwaitingResponse)
                 return new M00RollCallBeat(call, spoken,
-                    chinese ? "这一遍无人应声；韩峤停一拍，准备下一遍。"
-                            : "No answer this time. Han Qiao pauses before the next call.",
+                    chinese ? "这一遍无人应声；韩峤停一拍，准备下一遍。" : "No answer this time. Han Qiao pauses before the next call.",
                     NoChoices, null, false);
 
             return new M00RollCallBeat(call, spoken,
-                chinese ? "你可以现在应声、保持沉默，或离开人群。"
-                        : "Answer now, remain silent, or leave the crowd.",
+                chinese ? "你可以现在应声、保持沉默，或离开人群。" : "Answer now, remain silent, or leave the crowd.",
                 chinese
                     ? new[] { "应声：“在。”", "继续沉默", "离开人群" }
                     : new[] { "Answer: Here.", "Remain silent", "Leave the crowd" },
