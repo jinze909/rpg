@@ -92,7 +92,9 @@ namespace Rpg.Soundwell
             heading.font = details.font = confirmLabel.font = backLabel.font = font;
             heading.text = zh ? "启航前 · 船位与接应核验" : "BEFORE DEPARTURE · VOYAGE CHECK";
             details.text = M04DepartureReadinessCopy.Describe(manifest, zh);
-            confirmLabel.text = zh ? "确认准备齐全" : "Confirm readiness";
+            confirmLabel.text = manifest.DepartureConfirmed
+                ? (zh ? "准备已确认" : "Readiness confirmed")
+                : (zh ? "确认准备齐全" : "Confirm readiness");
             backLabel.text = zh ? "返回准备" : "Return to preparations";
             bool active = !delivered && !navigatingBack;
             confirm.interactable = active && !manifest.DepartureConfirmed &&
@@ -115,17 +117,20 @@ namespace Rpg.Soundwell
             try
             {
                 if (!manifest.ConfirmDeparture(onConfirmed))
-                {
                     delivered = false;
+                // On successful host acknowledgment the manifest is now
+                // confirmed. Show that state, not the stale "may confirm"
+                // invitation left on screen before the callback.
+                if (!disposed)
                     Refresh();
-                }
             }
             catch
             {
                 // Interrupted Makinom writes are not a successful departure.
                 // The manifest transaction has rolled its in-memory flag back.
                 delivered = false;
-                Refresh();
+                if (!disposed)
+                    Refresh();
                 throw;
             }
         }
@@ -177,8 +182,14 @@ namespace Rpg.Soundwell
             copy.AppendLine();
             if (blockers.Length == 0)
             {
-                copy.AppendLine(chinese ? "船只与登岸接应均已核实，可以申请正式确认。" :
-                    "The ship and landing arrangements are verified. You may confirm this plan.");
+                if (manifest.DepartureConfirmed)
+                    copy.AppendLine(chinese
+                        ? "本航次启航准备已经确认；这并不表示船只已经实际启航。"
+                        : "Departure readiness has been confirmed; this does not mean the vessel has already sailed.");
+                else
+                    copy.AppendLine(chinese
+                        ? "船只与登岸接应均已核实，可以申请正式确认。"
+                        : "The ship and landing arrangements are verified. You may confirm this plan.");
                 // Report only verified supplies from the manifest; never
                 // invent a named ship, pilot or landing contact from a route.
                 copy.Append(chinese ? "船只：" : "Vessel: ").Append(manifest.ActualHull);
