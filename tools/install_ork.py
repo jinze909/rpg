@@ -16,7 +16,7 @@ VENDOR_ROOTS = (
 )
 
 
-def read_package(package):
+def read_package(package, expected_sha256=PACKAGE_SHA256):
     """Check the pinned archive and stream large asset payloads into bounded spools.
 
     .meta and pathname entries remain small bytes. The caller owns the
@@ -28,12 +28,13 @@ def read_package(package):
             digest = hashlib.sha256()
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(block)
-            if digest.hexdigest() != PACKAGE_SHA256:
+            if digest.hexdigest() != expected_sha256:
                 raise ValueError(f"Package SHA-256 mismatch: {digest.hexdigest()}")
             stream.seek(0)
             entries = {}
             with gzip.GzipFile(fileobj=stream) as payload, tarfile.open(
-                    fileobj=payload, mode="r|") as archive:
+                fileobj=payload, mode="r|"
+            ) as archive:
                 for member in archive:
                     entry, _, kind = member.name.rpartition("/")
                     if not member.isfile() or kind not in {"pathname", "asset.meta", "asset"}:
@@ -69,9 +70,14 @@ def read_package(package):
                 path.is_absolute()
                 or ".." in path.parts
                 or "\\" in raw_path
+                or path.as_posix() != raw_path
                 or not any(path == root or root in path.parents for root in VENDOR_ROOTS)
             ):
                 raise ValueError(f"Unexpected asset path: {raw_path!r}")
+            if "asset.meta" not in entry:
+                raise ValueError(f"Asset entry lacks metadata: {raw_path!r}")
+            if path in files:
+                raise ValueError(f"Duplicate asset path in Unity package: {raw_path!r}")
             files[PurePosixPath(f"{path}.meta")] = entry["asset.meta"]
             if "asset" in entry:
                 files[path] = entry["asset"]
@@ -103,14 +109,20 @@ def matches_existing_asset(target, data):
                 return False
 
 
-def install(files):
+def _check_repo_symlinks(project, relative):
+    current = project
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"Refusing to write through a symlink: {current}")
+
+
+def install(files, project_root=None):
+    project = PROJECT if project_root is None else Path(project_root)
     missing = {}
     for relative, data in files.items():
-        target = PROJECT.joinpath(*relative.parts)
-        for path in (target, *target.relative_to(PROJECT).parents):
-            candidate = path if path.is_absolute() else PROJECT / path
-            if candidate.is_symlink():
-                raise ValueError(f"Refusing to write through a symlink: {candidate}")
+        _check_repo_symlinks(project, relative)
+        target = project.joinpath(*relative.parts)
         if target.exists():
             if data is None:
                 if not target.is_dir():
@@ -144,7 +156,7 @@ def install(files):
         for target in reversed(created):
             if target.is_dir():
                 target.rmdir()
-            else:
+            elif target.exists():
                 target.unlink()
         raise
     return len(created)
