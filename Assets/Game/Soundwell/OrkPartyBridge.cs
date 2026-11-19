@@ -303,7 +303,7 @@ namespace Rpg.Soundwell
             {
                 var experience = new QuestExperienceReward
                 {
-                    combatantScope = MenuCombatantsScope.Group,
+                    combatantScope = MenuCombatantScope.Group,
                     rewardValue = new FloatValue<GameObjectSelection>(RescueExperience)
                 };
                 experience.status.SetAsset(ORK.StatusValues.GetAsset(ExperienceStatus));
