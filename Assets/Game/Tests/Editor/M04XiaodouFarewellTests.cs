@@ -8,6 +8,29 @@ namespace Rpg.Tests.Editor
     public sealed class M04XiaodouFarewellTests
     {
         [Test]
+        public void XiaodouReadDistinguishesUnplayedFarewellFromAnExplicitStageLine()
+        {
+            bool taught;
+            Assert.That(M04XiaodouFarewellFacts.TryRead((Func<string, int>)null, out taught),
+                Is.False);
+            Assert.That(taught, Is.False);
+            foreach (int value in new[] { 0, -1, 3, int.MaxValue })
+            {
+                Assert.That(M04XiaodouFarewellFacts.TryRead(key =>
+                {
+                    Assert.That(key, Is.EqualTo(M04XiaodouFarewellFacts.RealLineKey));
+                    return value;
+                }, out taught), Is.False, "Invalid/unset farewell fact: " + value);
+                Assert.That(taught, Is.False);
+            }
+
+            Assert.That(M04XiaodouFarewellFacts.TryRead(_ => 2, out taught), Is.True);
+            Assert.That(taught, Is.False, "Explicitly keeping the play's line is recorded.");
+            Assert.That(M04XiaodouFarewellFacts.TryRead(_ => 1, out taught), Is.True);
+            Assert.That(taught, Is.True, "The actual bridge line was taught to Xiaodou.");
+        }
+
+        [Test]
         public void TeachingTheRealLineUsesActualPriorPromptHistory()
         {
             // Keep both previously learned line histories in one test inventory entry.

@@ -115,7 +115,21 @@ namespace Rpg.Soundwell
             taught = false;
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 return false;
-            taught = Maki.Game.Variables.GetInt(RealLineKey) == 1;
+            return TryRead(key => Maki.Game.Variables.GetInt(key), out taught);
+        }
+
+        // 0/unset is not an answer. A replay or interrupted farewell must
+        // never masquerade as the player's deliberate "keep the stage line"
+        // choice (2). Reject malformed saved values for the same reason.
+        public static bool TryRead(Func<string, int> getInt, out bool taught)
+        {
+            taught = false;
+            if (getInt == null)
+                return false;
+            int recorded = getInt(RealLineKey);
+            if (recorded != 1 && recorded != 2)
+                return false;
+            taught = recorded == 1;
             return true;
         }
     }
