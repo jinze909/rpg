@@ -40,10 +40,11 @@ namespace Rpg.Soundwell
             {
                 if (disposed || delivered || canvasObject == null)
                     return null;
-                return briefing.Stage == M01DockStage.AwaitingOpeningReply ||
-                    briefing.Stage == M01DockStage.ReviewingRoutes
-                    ? (choices.Length > 0 ? choices[0] : null)
-                    : briefing.Stage == M01DockStage.OfferingCake ? advanceButton : null;
+                if (briefing.Stage == M01DockStage.AwaitingOpeningReply ||
+                    briefing.Stage == M01DockStage.ReviewingRoutes)
+                    return choices.Length > 0 && choices[0] != null ? choices[0] : null;
+                return briefing.Stage == M01DockStage.OfferingCake && advanceButton != null
+                    ? advanceButton : null;
             }
         }
 
@@ -170,6 +171,7 @@ namespace Rpg.Soundwell
                 EventSystem system = EventSystem.current;
                 if (Application.isPlaying && system != null &&
                     !system.alreadySelecting &&
+                    advanceButton != null &&
                     system.currentSelectedGameObject == advanceButton.gameObject &&
                     choices.Length > 0 && choices[0] != null &&
                     choices[0].gameObject.activeInHierarchy)
