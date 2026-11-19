@@ -385,6 +385,29 @@ namespace Rpg.Tests.Editor
             Assert.That(confession, Is.EqualTo(M03LuConfession.NotAsked));
             Assert.That(secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
             Assert.That(voyage, Is.EqualTo(M03VoyageChoice.HanQiaoOfficial));
+
+            // M03 has now handed off to the real M04 dockside farewell.
+            // The opening must remain active until the player actually
+            // takes Xiaodou's sweet, chooses a reply, and says goodbye.
+            Button farewellAdvance = NamedButton(memorial, "M04 Xiaodou advance");
+            Assert.That(farewellAdvance.gameObject.activeInHierarchy, Is.True);
+            Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.Zero,
+                "A new voyage must not inherit the prior departure's answer.");
+
+            farewellAdvance.onClick.Invoke();
+            Assert.That(farewellAdvance.gameObject.activeInHierarchy, Is.False,
+                "Taking the sweet is not the same as choosing what to teach.");
+            Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.Zero);
+            Button teachRealLine = NamedButton(memorial, "M04 Xiaodou choice 0");
+            Assert.That(teachRealLine.gameObject.activeInHierarchy, Is.True);
+            teachRealLine.onClick.Invoke();
+            Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.Zero,
+                "An unfinished farewell must not persist its answer.");
+            Assert.That(farewellAdvance.gameObject.activeInHierarchy, Is.True);
+            farewellAdvance.onClick.Invoke();
+            yield return null;
+            Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.EqualTo(1),
+                "The chosen true line must be saved before the opening closes.");
         }
 
         private static Button NamedButton(M00MemorialSquare memorial, string name)

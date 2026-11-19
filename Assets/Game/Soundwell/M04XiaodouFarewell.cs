@@ -70,6 +70,16 @@ namespace Rpg.Soundwell
     {
         public const string RealLineKey = "rpg.return.m04.xiaodou-true-line";
 
+        internal static bool TryResetForNewVisit()
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+            // A replay cannot inherit last voyage's taught/untaught answer.
+            variables.Set(RealLineKey, 0);
+            return true;
+        }
+
         public static bool TryRecord(M04XiaodouFarewell farewell)
         {
             if (farewell == null) throw new ArgumentNullException(nameof(farewell));
