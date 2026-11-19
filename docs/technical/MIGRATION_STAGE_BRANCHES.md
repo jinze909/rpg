@@ -2,6 +2,7 @@
 
 **真实进度更正（2026-11-10，`dev` `790266185...`）：** M1–M11 的工程贡献**全部 11/11 已实际进入 dev 提交历史**；不等于全部完成验收。**关闭 Issue：M1/M10/M11（3/11）；仍 open：M2–M9（8/11）**。旧文档的「M3–M11 未实施」「M8 尚未合入/Run 仍在运行」「当前必须先迁移再开发故事」等叙述已失效。各阶段最终 SHA、Unity CI、实际功能与剩余门槛以[逐项事实核查](MODERNIZATION_VERIFIED_STATUS.md)为准；后续须读取实时 HEAD 和最新 CI。
 
+**2026-11-18 补充说明：** 下表为 `2026-11-10` 历史快照；其中 M2（Soundwell New Input System adapter）后续已合入 `codex/dev`（见 [长期基线](../../production/session-state/active.md)，提交 `2eee996adaec6563fd379416e7ec6fad8e1b9a62`），当前实时状态请以 `AI2-STATUS.md`、`production/session-state/active.md` 与 GitHub Actions 为准。
 
 **仓库：** `jinze909/rpg` · **集成目标：** `codex/dev` · **唯一主追踪：** [GitHub Issue #2](https://github.com/jinze909/rpg/issues/2) · **技术验收规则：** [MODERN_2D_RPG_STACK.md](MODERN_2D_RPG_STACK.md)
 
@@ -29,8 +30,8 @@
 
 ## 历史候选与当时的下一步（非实时 CI 结论）
 
-- **当时 M2 实际候选（历史记录）**：[`codex/pending/m2-ugui-focus`](https://github.com/jinze909/rpg/tree/codex/pending/m2-ugui-focus)，测试 SHA `4d263e0ce7a3cf9401a1e9dcafb13a74207901c6`，[Unity Run 42777305240](https://github.com/jinze909/rpg/actions/runs/42777305240) 最近查询仍在运行。下一轮**先重新查询状态**：失败查明步骤并修复；通过核对同 SHA 真实 Unity 结果、artifacts 和 `passed-clean-candidate`，再安全合入。不能把旧绿色 SHA 代替这次验收。
-- **历史计划（非当前强制下一步）**：当时建议 M2 之后做 M3 Cinemachine 3；现在不需要依 M 编号推进，下一项按实时故事/技术价值选择。若 dev 前移导致正在受测的候选不能直接快进，则保留真实证据，将未交付差异转移到独立集成候选，并对该候选最终 SHA 重新验收，不强推或冒用旧结果。
+- **当时 M2 实际候选（历史记录）：** [`codex/pending/m2-ugui-focus`](https://github.com/jinze909/rpg/tree/codex/pending/m2-ugui-focus)，测试 SHA `4d263e0ce7a3cf9401a1e9dcafb13a74207901c6`，[Unity Run 42777305240](https://github.com/jinze909/rpg/actions/runs/42777305240) 最近查询仍在运行。下一轮**先重新查询状态**：失败查明步骤并修复；通过核对同 SHA 真实 Unity 结果、artifacts 和 `passed-clean-candidate`，再安全合入。不能把旧绿色 SHA 代替这次验收。
+- **历史计划（非当前强制下一步）：** 当时建议 M2 之后做 M3 Cinemachine 3；现在不需要依 M 编号推进，下一项按实时故事/技术价值选择。若 dev 前移导致正在受测的候选不能直接快进，则保留真实证据，将未交付差异转移到独立集成候选，并对该候选最终 SHA 重新验收，不强推或冒用旧结果。
 
 ## 跨轮接力与单增量候选生命周期
 

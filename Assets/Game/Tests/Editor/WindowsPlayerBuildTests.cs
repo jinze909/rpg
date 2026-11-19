@@ -10,7 +10,7 @@ namespace Rpg.Tests.Windows
 {
     public class WindowsPlayerBuildTests
     {
-        [Test, Timeout(900000)]
+        [Test, Category("WindowsBuild"), Timeout(900000)]
         public void BuildsWindows64PlayerWithBothGameScenes()
         {
             const BuildTarget target = BuildTarget.StandaloneWindows64;
