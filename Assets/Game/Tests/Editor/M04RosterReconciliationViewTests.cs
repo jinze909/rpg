@@ -55,6 +55,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DeadRollCorrectionMustPrecedeBookingInThePlayerUi()
+        {
+            var root = new GameObject("Roster correction booking view");
+            M04RosterReconciliationView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("roll-01", "Survivor on dead roll", M04RosterStatus.ListedDead);
+                view = new M04RosterReconciliationView(
+                    root.transform, ledger, 1, _ => { }, () => { });
+
+                view.ConfirmDockButton.onClick.Invoke();
+                Assert.That(ledger.UnresolvedDiscrepancyCount, Is.EqualTo(1));
+                Assert.That(view.ResolveRollButton.interactable, Is.True);
+                Assert.That(view.BookButton.interactable, Is.False);
+                Assert.That(view.SelectedDetails.text, Does.Contain("before booking a berth"));
+
+                // Tests can invoke onClick on disabled controls; the action
+                // boundary must enforce the same rule as the visual state.
+                view.BookButton.onClick.Invoke();
+                Assert.That(ledger.BookedCount, Is.Zero);
+                Assert.That(ledger.GetEntry("roll-01").Status,
+                    Is.EqualTo(M04RosterStatus.ConfirmedAtDock));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.BookButton.interactable, Is.False);
+                Assert.That(view.SelectedDetails.text, Does.Contain("预约铺位"));
+                view.ResolveRollButton.onClick.Invoke();
+                Assert.That(ledger.UnresolvedDiscrepancyCount, Is.Zero);
+                Assert.That(view.BookButton.interactable, Is.True);
+                view.BookButton.onClick.Invoke();
+                Assert.That(ledger.BookedCount, Is.EqualTo(1));
+                Assert.That(view.BookButton.interactable, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BookingAndUnbookingRespectVerifiedBerthCapAndHostUpdates()
         {
             var root = new GameObject("Roster berth cap view");
