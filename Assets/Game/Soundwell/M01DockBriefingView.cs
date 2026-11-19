@@ -81,8 +81,8 @@ namespace Rpg.Soundwell
                 "M01 dock continue", new Vector2(0f, -227f),
                 new Vector2(440f, 45f), 17, out advanceLabel, buttonColor);
             advanceButton.onClick.AddListener(Advance);
-            LayoutForViewportAspect((float)Math.Max(Screen.width, 1) /
-                Math.Max(Screen.height, 1));
+            LayoutForViewportAspect((float)Mathf.Max(Screen.width, 1) /
+                Mathf.Max(Screen.height, 1));
             Refresh();
             SoundwellUiLocalization.Changed += Refresh;
         }
