@@ -201,7 +201,7 @@ namespace Rpg.Soundwell
             var copy = new StringBuilder();
             copy.Append(chinese ? "实际核对的铺位：" : "Verified berths: ");
             copy.Append(manifest.AvailableBerths);
-            copy.Append(chinese ? "；本趟登记的返乡者：" : "; returnees on this trip: ");
+            copy.Append(chinese ? "；计划预留的救援舱位：" : "; rescue berths to reserve: ");
             copy.Append(manifest.ReturneesToBook);
             copy.AppendLine();
             if (blockers.Length == 0)
@@ -243,8 +243,8 @@ namespace Rpg.Soundwell
                     return chinese ? "缺少浅滩接驳艇" : "No shallow-water tender";
                 case M04DepartureBlocker.NoLandingReceiver:
                     return chinese ? "尚无指定登岸接应" : "No named landing receiver";
-                case M04DepartureBlocker.NoReturneeDemand:
-                    return chinese ? "尚未登记本趟返乡者" : "No returnees have been booked";
+                case M04DepartureBlocker.NoRescueBerthPlan:
+                    return chinese ? "先确定本航次要预留的救援舱位" : "Plan how many berths to reserve for the rescue";
                 case M04DepartureBlocker.InsufficientBerths:
                     return chinese ? "已核实铺位不足" : "Not enough verified berths";
                 case M04DepartureBlocker.MissingOfficialStamp:
