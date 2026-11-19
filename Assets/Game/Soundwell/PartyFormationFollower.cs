@@ -22,8 +22,8 @@ namespace Rpg.Soundwell
             ".....#++++#.....",
             "......####......",
             "...##########...",
-            "...#+######+#...",
-            "...#+######+#...",
+            "..#+#######+#...",
+            "..#+#######+#...",
             ".....######.....",
             ".....######.....",
             ".....##..##.....",
@@ -47,9 +47,9 @@ namespace Rpg.Soundwell
             ".....######.....",
             ".....######.....",
             "....###..##.....",
-            "...###....##....",
-            "..###......##...",
-            "..##........##..",
+            "...###...##.....",
+            "..###.....##....",
+            "..##.......##...",
             "................",
         };
         // Distinct 16-pixel attack silhouette: a forward-reaching arm, not
@@ -62,9 +62,9 @@ namespace Rpg.Soundwell
             ".....#++++#.....",
             ".....#++++#.....",
             "......####......",
-            "...#############",
-            "...#+######++++#",
-            "...#+######++++#",
+            "...############.",
+            "..#+######++++#.",
+            "..#+######++++#.",
             ".....######.....",
             ".....######.....",
             ".....##..##.....",
@@ -85,17 +85,16 @@ namespace Rpg.Soundwell
             "....###++###....",
             ".....######.....",
             "...##########...",
-            "...##+####+##...",
-            "...##+####+##...",
+            "..##+#####+##...",
+            "..##+#####+##...",
             "...##########...",
             "....#######.....",
-            "....###..##.....",
-            "....###..##.....",
-            "...####..###....",
-            "...###....###...",
+            ".....###.##.....",
+            ".....###.##.....",
+            "....####.###....",
+            "....###...###...",
             "................",
         };
-
         private static readonly string[] HoodWalkPixels =
         {
             "................",
@@ -109,13 +108,12 @@ namespace Rpg.Soundwell
             "..###+####+##...",
             "...##########...",
             "....#######.....",
-            "...###...##.....",
-            "..###....###....",
-            ".###......###...",
-            ".##........##...",
+            "....###..##.....",
+            "...###...###....",
+            "..###.....###...",
+            "..##.......##...",
             "................",
         };
-
         private static readonly string[] HoodAttackPixels =
         {
             "................",
@@ -124,15 +122,15 @@ namespace Rpg.Soundwell
             "....##++++##....",
             "....###++###....",
             ".....######.....",
-            "...#############",
-            "...##+####++++##",
-            "...##+####++++##",
+            "...############.",
+            "..##+#####++++#.",
+            "..##+#####++++#.",
             "...##########...",
             "....#######.....",
-            "....###..##.....",
-            "....###..##.....",
-            "...####..###....",
-            "...###....###...",
+            ".....###.##.....",
+            ".....###.##.....",
+            "....####.###....",
+            "....###...###...",
             "................",
         };
         // Retain the distinct hood and torso of each rescuer while raising a
@@ -152,7 +150,6 @@ namespace Rpg.Soundwell
             }
             return guarded;
         }
-
 
         private const float CompanionAttackPoseSeconds = 0.30f;
         private const float CompanionGuardPoseSeconds = 0.80f;
@@ -220,6 +217,8 @@ namespace Rpg.Soundwell
         // checkpoint teleport. Transform.position can still reflect the prior
         // physics step when LateUpdate samples the following formation.
         private Rigidbody2D leaderBody;
+        private Transform cachedThreat;
+        private Rigidbody2D cachedThreatBody;
         private Transform parent;
         private SoundwellPartyConfig config;
         private bool ready;
@@ -228,6 +227,8 @@ namespace Rpg.Soundwell
         {
             leader = partyLeader;
             leaderBody = partyLeader != null ? partyLeader.GetComponent<Rigidbody2D>() : null;
+            cachedThreat = null;
+            cachedThreatBody = null;
             parent = partyParent;
             config = settings;
             ClearHistory();
@@ -289,7 +290,6 @@ namespace Rpg.Soundwell
                 return new Vector3(position.x, position.y, leader.position.z);
             }
         }
-
         // Real beast contact can relocate the leader away and back between
         // two LateUpdates. Only the checkpoint service knows this occurred;
         // comparing consecutive sampled positions cannot detect it.
@@ -423,6 +423,17 @@ namespace Rpg.Soundwell
                 checkpointRegroupPending = false;
         }
 
+        private SpriteRenderer FollowerRenderer(int index)
+        {
+            SpriteRenderer renderer = followerRenderers[index];
+            if (renderer == null && actors[index] != null)
+            {
+                renderer = actors[index].GetComponent<SpriteRenderer>();
+                followerRenderers[index] = renderer;
+            }
+            return renderer;
+        }
+
         public void ShowGuardPose(int index, Transform threat, bool battleStarted)
         {
             if (index <= 0 || index >= actors.Length || actors[index] == null) return;
@@ -433,7 +444,7 @@ namespace Rpg.Soundwell
             companionAttackUntil[index] = 0f;
             companionStepUntil[index] = 0f;
             if (!battleStarted) return;
-            SpriteRenderer renderer = actors[index].GetComponent<SpriteRenderer>();
+            SpriteRenderer renderer = FollowerRenderer(index);
             if (renderer == null) return;
             renderer.sprite = index == 2 ? hoodGuardSprite : guardSprite;
             if (threat == null) return;
@@ -452,7 +463,7 @@ namespace Rpg.Soundwell
             // real action is accepted. Do not resurrect it after Attack fades.
             companionGuardUntil[index] = 0f;
             companionStepUntil[index] = 0f;
-            SpriteRenderer renderer = actors[index].GetComponent<SpriteRenderer>();
+            SpriteRenderer renderer = FollowerRenderer(index);
             if (renderer == null) return;
             renderer.sprite = index == 2 ? hoodAttackSprite : attackSprite;
             if (threat == null) return;
@@ -460,10 +471,14 @@ namespace Rpg.Soundwell
             if (Mathf.Abs(dx) > 0.01f) renderer.flipX = dx < 0f;
         }
 
-        private static float ThreatPhysicsX(Transform target)
+        private float ThreatPhysicsX(Transform target)
         {
-            Rigidbody2D body = target.GetComponent<Rigidbody2D>();
-            return body != null ? body.position.x : target.position.x;
+            if (target != cachedThreat)
+            {
+                cachedThreat = target;
+                cachedThreatBody = target != null ? target.GetComponent<Rigidbody2D>() : null;
+            }
+            return cachedThreatBody != null ? cachedThreatBody.position.x : target.position.x;
         }
 
         public void ShowStepPose(int index, Vector2 direction)
@@ -474,7 +489,7 @@ namespace Rpg.Soundwell
             // previous turn's attack or timed guard art when it is rendered.
             companionAttackUntil[index] = 0f;
             companionGuardUntil[index] = 0f;
-            SpriteRenderer renderer = actors[index].GetComponent<SpriteRenderer>();
+            SpriteRenderer renderer = FollowerRenderer(index);
             if (renderer == null) return;
             renderer.sprite = index == 2 ? hoodWalkingSprite : walkingSprite;
             if (Mathf.Abs(direction.x) > 0.01f) renderer.flipX = direction.x < 0f;
@@ -482,12 +497,15 @@ namespace Rpg.Soundwell
 
         public void ResetPoses()
         {
+            cachedThreat = null;
+            cachedThreatBody = null;
             for (int i = 1; i < actors.Length; i++)
             {
                 companionStepUntil[i] = companionAttackUntil[i] = companionGuardUntil[i] = 0f;
                 lastCompanionHp[i] = null;
                 companionHitUntil[i] = float.NegativeInfinity;
-                if (actors[i] != null && actors[i].TryGetComponent<SpriteRenderer>(out var visual))
+                SpriteRenderer visual = FollowerRenderer(i);
+                if (visual != null)
                     visual.color = companionTints[i];
             }
         }
@@ -500,7 +518,6 @@ namespace Rpg.Soundwell
         {
             return SoundwellPixelSpriteBuilder.Create16(rows, name, out texture);
         }
-
 
         private void OnDestroy()
         {
