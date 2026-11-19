@@ -90,7 +90,7 @@ namespace Rpg.Soundwell
 
         // A replay of the dockside encounter must not reuse the last voyage's
         // physical gift. The M04 host calls this before opening the farewell.
-        internal static bool TryResetForNewVisit()
+        public static bool TryResetForNewVisit()
         {
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;
             if (variables == null)
