@@ -47,7 +47,12 @@ namespace Rpg.Soundwell
 
         public int TotalEntries => ordered.Count;
 
+        // This status count is the subset still awaiting a berth. Booking
+        // or declining a voyage does not undo a real dockside confirmation.
         public int ConfirmedAtDockCount => CountByStatus(M04RosterStatus.ConfirmedAtDock);
+
+        public int TotalConfirmedAtDockCount =>
+            ConfirmedAtDockCount + BookedCount + DeclinedCount;
 
         public int BookedCount => CountByStatus(M04RosterStatus.BookedForVoyage);
 

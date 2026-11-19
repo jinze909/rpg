@@ -22,7 +22,12 @@ namespace Rpg.Soundwell
         }
 
         public int TotalEntries { get; }
+        // The legacy persisted field stores the unbooked confirmed subset.
+        // Derive the full verified dock population from the same four-field
+        // snapshot; no incompatible Makinom key or schema migration needed.
         public int ConfirmedAtDockCount { get; }
+        public int TotalConfirmedAtDockCount =>
+            checked(ConfirmedAtDockCount + BookedCount + DeclinedCount);
         public int BookedCount { get; }
         public int DeclinedCount { get; }
     }
