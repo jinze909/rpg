@@ -80,7 +80,6 @@ namespace Rpg.Soundwell
                 "M01 dock continue", new Vector2(0f, -227f),
                 new Vector2(440f, 45f), 17, out advanceLabel, buttonColor);
             advanceButton.onClick.AddListener(Advance);
-
             LayoutForViewportAspect((float)Mathf.Max(Screen.width, 1) /
                 Mathf.Max(Screen.height, 1));
             Refresh();
@@ -172,12 +171,22 @@ namespace Rpg.Soundwell
             }
             if (briefing.Stage != M01DockStage.ReviewingRoutes)
                 return;
-            briefing.EndConversation();
+            // Lock against reentrant UGUI submits before handing off to the
+            // scene host. A failed handoff must keep the route briefing
+            // retryable rather than hiding the leave button.
             delivered = true;
             Refresh();
-            Action listener = onFinished;
-            onFinished = null;
-            listener?.Invoke();
+            try
+            {
+                briefing.EndConversation(onFinished);
+                onFinished = null;
+            }
+            catch
+            {
+                delivered = false;
+                Refresh();
+                throw;
+            }
         }
 
         public void Dispose()
