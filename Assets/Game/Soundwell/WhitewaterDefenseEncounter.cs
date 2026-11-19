@@ -53,7 +53,9 @@ namespace Rpg.Soundwell
         // synchronously to reject duplicate gamepad Submit/cached callbacks.
         private bool retryArmed;
         private float layoutAspect = -1f;
-
+private sealed class StatusCard { public GameObject Root; public Outline Border; public Text Label; public RectTransform FillRect; public Image FillImage; public float BarWidth; }
+private readonly System.Collections.Generic.List<StatusCard> allyCards = new System.Collections.Generic.List<StatusCard>();
+        private StatusCard enemyCard;
         public bool IsActive => active;
         public bool IsReady => party != null && party.IsReady;
         public bool BattleInProgress => party != null && party.BattleInProgress;
@@ -214,15 +216,16 @@ namespace Rpg.Soundwell
         private void RefreshReadout()
         {
             if (party == null || !party.BattleInProgress)
-                return;
+               { HideStatusCards();  return; }
 
             string snapshot = party.BuildBattleReadout(
                 Copy("HOLD THE CROSSING", "守住渡口"),
                 Copy("Defender", "守桥队员"),
-                Copy("Spear squad", "持矛小队"));
+                Copy("Spear squad", "持矛小队"), includeMoveBudget: false);
             readoutEnglish = null;
             readoutChinese = null;
-            readout.text = snapshot;
+            readout.text =FormatCompactReadout( snapshot);
+                        RefreshStatusCards();
             attackButton.interactable = CanAttack;
             guardButton.interactable = CanGuard;
             // A gamepad can remain focused on Attack while ORK only permits
@@ -409,21 +412,34 @@ namespace Rpg.Soundwell
             backdrop.color = new Color(0.025f, 0.040f, 0.055f, 0.92f);
             backdrop.raycastTarget = false;
 
+            CreatePanel("S00 battle top bar", new Vector2(0f, 234f),
+                new Vector2(880f, 40f), new Color(0.06f, 0.08f, 0.11f, 0.90f),
+                new Color(0.35f, 0.42f, 0.46f, 0.90f));
             heading = SoundwellView.AddLabel(hud.transform,
-                Copy(PlayerCopyTitleEnglish, PlayerCopyTitleChinese), 26,
-                Brass, new Vector2(0f, 190f), new Vector2(820f, 44f));
-            heading.alignment = TextAnchor.MiddleCenter;
-            readout = SoundwellView.AddLabel(hud.transform,
+                Copy(PlayerCopyTitleEnglish, PlayerCopyTitleChinese), 22,
+                          Brass, new Vector2(0f, 234f), new Vector2(820f, 34f));
+                          heading.alignment = TextAnchor.MiddleCenter;
+          CreatePanel("S00 bridge defence readout bar", new Vector2(0f, 194f),
+                new Vector2(856f, 32f), new Color(0.06f, 0.08f, 0.11f, 0.80f),
+                new Color(0.20f, 0.25f, 0.29f, 0.65f));
+          readout = SoundwellView.AddLabel(hud.transform,
                 Copy(PlayerCopyPreparingEnglish, PlayerCopyPreparingChinese),
-                18, Ink, new Vector2(0f, 28f), new Vector2(820f, 250f));
-            readout.gameObject.name = "S00 bridge defence readout";
+                            14, Ink, new Vector2(0f, 194f), new Vector2(840f, 30f));
+                            readout.gameObject.name = "S00 bridge defence readout";
             readout.alignment = TextAnchor.MiddleCenter;
             readout.horizontalOverflow = HorizontalWrapMode.Wrap;
             readout.verticalOverflow = VerticalWrapMode.Overflow;
             readout.resizeTextForBestFit = true;
-            readout.resizeTextMinSize = 14;
-            readout.resizeTextMaxSize = 18;
-
+            readout.resizeTextMinSize = 11; readout.resizeTextMaxSize = 14; allyCards.Clear();
+            for (int i = 0; i < 3; i++)
+                allyCards.Add(CreateStatusCard("S00 ally card " + i,
+                    new Vector2(-322f, 144f - i * 50f), false));
+            enemyCard = CreateStatusCard("S00 enemy card",
+                new Vector2(322f, 144f), true);
+            CreatePanel("S00 battle command bar", new Vector2(0f, -214f),
+                new Vector2(880f, 68f), new Color(0.06f, 0.08f, 0.11f, 0.92f),
+                new Color(0.35f, 0.42f, 0.46f, 0.90f));
+            
             attackButton = CreateButton("S00 ORK attack", Copy("Attack", "攻击"),
                 new Vector2(-320f, -190f), () => TryAttack());
             guardButton = CreateButton("S00 ORK guard", Copy("Guard", "防御"),
@@ -509,6 +525,26 @@ namespace Rpg.Soundwell
                     shallow ? Mathf.Clamp(
                         Mathf.Sqrt(960f * 540f / aspect) - 170f, 100f, 250f)
                     : 250f);
+            }
+            if (!compact && !shallow)
+            {
+                // Preserve the previously verified landscape command targets.
+                PositionButton(attackButton, new Vector2(-320f, -214f));
+                PositionButton(guardButton, new Vector2(-160f, -214f));
+                PositionButton(retryButton, new Vector2(0f, -214f));
+                PositionButton(continueButton, new Vector2(0f, -214f));
+                PositionButton(retreatButton, new Vector2(320f, -214f));
+                if (heading != null)
+                    heading.rectTransform.anchoredPosition = new Vector2(0f, 234f);
+            }
+            if (readout != null)
+            {
+                readout.rectTransform.anchoredPosition =
+                    new Vector2(0f, shallow ? vertical.x - 36f : 194f);
+                readout.rectTransform.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Horizontal, width);
+                readout.rectTransform.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Vertical, 30f);
             }
         }
 
@@ -614,6 +650,153 @@ namespace Rpg.Soundwell
         private void OnDestroy()
         {
             Stop();
+        }
+
+        private GameObject CreatePanel(string objectName, Vector2 position, Vector2 size,
+            Color backgroundColor, Color borderColor)
+        {
+            var panel = new GameObject(objectName,
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline));
+            panel.transform.SetParent(hud.transform, false);
+            var rect = (RectTransform)panel.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            var image = panel.GetComponent<Image>();
+            image.color = backgroundColor;
+            image.raycastTarget = false;
+            var outline = panel.GetComponent<Outline>();
+            outline.effectColor = borderColor;
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+            return panel;
+        }
+        
+        private StatusCard CreateStatusCard(string objectName, Vector2 position, bool isEnemy)
+        {
+            const float cardWidth = 236f;
+            const float cardHeight = 42f;
+            const float barWidth = 216f;
+            Color border = isEnemy
+                ? new Color(0.68f, 0.28f, 0.26f, 0.90f)
+                : new Color(0.45f, 0.52f, 0.58f, 0.85f);
+            GameObject root = CreatePanel(objectName, position, new Vector2(cardWidth, cardHeight),
+                new Color(0.06f, 0.08f, 0.11f, 0.90f), border);
+
+            Text label = SoundwellView.AddLabel(root.transform, string.Empty, 13,
+                Ink, new Vector2(0f, 8f), new Vector2(barWidth, 20f));
+            label.alignment = TextAnchor.MiddleLeft;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 10;
+            label.resizeTextMaxSize = 13;
+
+            var track = new GameObject(objectName + " hp track",
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            track.transform.SetParent(root.transform, false);
+            var trackRect = (RectTransform)track.transform;
+            trackRect.anchorMin = trackRect.anchorMax = new Vector2(0.5f, 0.5f);
+            trackRect.pivot = new Vector2(0f, 0.5f);
+            trackRect.anchoredPosition = new Vector2(-barWidth * 0.5f, -11f);
+            trackRect.sizeDelta = new Vector2(barWidth, 8f);
+            var trackImage = track.GetComponent<Image>();
+            trackImage.color = new Color(0.14f, 0.17f, 0.20f, 0.95f);
+            trackImage.raycastTarget = false;
+
+            var fill = new GameObject(objectName + " hp fill",
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            fill.transform.SetParent(track.transform, false);
+            var fillRect = (RectTransform)fill.transform;
+            fillRect.anchorMin = fillRect.anchorMax = new Vector2(0f, 0.5f);
+            fillRect.pivot = new Vector2(0f, 0.5f);
+            fillRect.anchoredPosition = Vector2.zero;
+            fillRect.sizeDelta = new Vector2(barWidth, 8f);
+            var fillImage = fill.GetComponent<Image>();
+            fillImage.color = isEnemy
+                ? new Color(0.76f, 0.25f, 0.23f, 1f)
+                : new Color(0.32f, 0.72f, 0.44f, 1f);
+            fillImage.raycastTarget = false;
+
+            root.SetActive(false);
+            return new StatusCard
+            {
+                Root = root,
+                Border = root.GetComponent<Outline>(),
+                Label = label,
+                FillRect = fillRect,
+                FillImage = fillImage,
+                BarWidth = barWidth
+            };
+        }
+
+        private static string FormatCompactReadout(string snapshot)
+        {
+            if (string.IsNullOrWhiteSpace(snapshot))
+                return string.Empty;
+            string[] lines = snapshot.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            return string.Join("  |  ", lines);
+        }
+
+        private void HideStatusCards()
+        {
+            for (int i = 0; i < allyCards.Count; i++)
+                if (allyCards[i]?.Root != null)
+                    allyCards[i].Root.SetActive(false);
+            if (enemyCard?.Root != null)
+                enemyCard.Root.SetActive(false);
+        }
+        
+        private void RefreshStatusCards()
+        {
+            if (party == null || !party.BattleInProgress)
+            {
+                HideStatusCards();
+                return;
+            }
+            OrkPartyBridge.BattleUnitSnapshot[] snapshots = party.CaptureBattleSnapshots(
+                Copy("Defender", "守桥队员"), Copy("Spear squad", "持矛小队"));
+            int allyIndex = 0;
+            bool enemyUpdated = false;
+            for (int i = 0; i < snapshots.Length; i++)
+            {
+                OrkPartyBridge.BattleUnitSnapshot unit = snapshots[i];
+                float ratio = unit.MaxHp > 0 ? Mathf.Clamp01((float)unit.Hp / unit.MaxHp) : 0f;
+                if (unit.IsEnemy)
+                {
+                    if (enemyCard?.Root != null)
+                    {
+                        enemyCard.Root.SetActive(true);
+                        enemyCard.Label.text = unit.Name + "  HP " + unit.Hp + "/" + unit.MaxHp;
+                        enemyCard.FillRect.sizeDelta = new Vector2(enemyCard.BarWidth * ratio, 8f);
+                        enemyUpdated = true;
+                    }
+                    continue;
+                }
+                if (allyIndex >= allyCards.Count)
+                    continue;
+                StatusCard card = allyCards[allyIndex++];
+                if (card?.Root == null)
+                    continue;
+                card.Root.SetActive(true);
+                string tag = unit.IsChoosing ? Copy(" [TURN]", " [行动]")
+                    : unit.Defending ? Copy(" [GUARD]", " [防御]")
+                    : string.Empty;
+                card.Label.text = unit.Name + "  HP " + unit.Hp + "/" + unit.MaxHp + tag;
+                card.FillRect.sizeDelta = new Vector2(card.BarWidth * ratio, 8f);
+                card.FillImage.color = ratio > 0.35f
+                    ? new Color(0.32f, 0.72f, 0.44f, 1f)
+                    : new Color(0.86f, 0.58f, 0.22f, 1f);
+                card.Border.effectColor = unit.IsChoosing
+                    ? new Color(0.95f, 0.80f, 0.36f, 1f)
+                    : new Color(0.45f, 0.52f, 0.58f, 0.85f);
+                card.Border.effectDistance = unit.IsChoosing
+                    ? new Vector2(2.5f, -2.5f)
+                    : new Vector2(1.5f, -1.5f);
+            }
+            for (int i = allyIndex; i < allyCards.Count; i++)
+                if (allyCards[i]?.Root != null)
+                    allyCards[i].Root.SetActive(false);
+            if (!enemyUpdated && enemyCard?.Root != null)
+                enemyCard.Root.SetActive(false);
         }
     }
 }
