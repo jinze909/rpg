@@ -378,6 +378,11 @@ namespace Rpg.Tests.Editor
                     root.transform, ledger, 1, _ => finishes++, () =>
                     {
                         backAttempts++;
+                        int previousCapacity = view.VerifiedBerths;
+                        Assert.Throws<InvalidOperationException>(() =>
+                            view.SetVerifiedBerths(previousCapacity + 1));
+                        Assert.That(view.VerifiedBerths, Is.EqualTo(previousCapacity),
+                            "An in-flight Back transition cannot change verified capacity.");
                         if (failFirst)
                             throw new InvalidOperationException("Interrupted navigation");
 
@@ -399,6 +404,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(view.BookButton.interactable, Is.True);
                 Assert.That(finishes, Is.Zero);
                 Assert.That(ledger.BookedCount, Is.Zero);
+                // The same host update is allowed once an unsuccessful
+                // transition has restored the panel.
+                view.SetVerifiedBerths(2);
+                Assert.That(view.VerifiedBerths, Is.EqualTo(2));
 
                 failFirst = false;
                 view.BackButton.onClick.Invoke();
