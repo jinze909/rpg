@@ -28,6 +28,7 @@ namespace Rpg.Soundwell
         private readonly Text continueLabel;
         private Action<M00HanQiaoMeetingSequence> onFinished;
         private Action onRansomCountShown;
+        private bool delivered;
         private bool disposed;
 
         public M00HanQiaoMeetingBeat CurrentBeat { get; private set; }
@@ -116,13 +117,14 @@ namespace Rpg.Soundwell
                 bool visible = i < CurrentBeat.Choices.Length;
                 choiceLabels[i].font = font;
                 choiceLabels[i].text = visible ? CurrentBeat.Choices[i] : string.Empty;
-                choices[i].gameObject.SetActive(visible);
+                choices[i].gameObject.SetActive(!delivered && visible);
             }
-            continueButton.gameObject.SetActive(CurrentBeat.CanContinue);
+            continueButton.gameObject.SetActive(!delivered && CurrentBeat.CanContinue);
             Button firstVisible = CurrentBeat.CanContinue ? continueButton : null;
             if (CurrentBeat.Choices.Length != 0)
                 firstVisible = choices[0];
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, firstVisible);
+            if (!delivered)
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, firstVisible);
         }
 
         public void LayoutForViewportAspect(float aspect)
@@ -150,7 +152,7 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            if (disposed || CurrentBeat == null ||
+            if (disposed || delivered || CurrentBeat == null ||
                 index < 0 || index >= CurrentBeat.Choices.Length)
                 return;
             switch (sequence.Stage)
@@ -175,15 +177,36 @@ namespace Rpg.Soundwell
 
         private void Continue()
         {
-            if (disposed || CurrentBeat == null || !CurrentBeat.CanContinue)
+            if (disposed || delivered || CurrentBeat == null || !CurrentBeat.CanContinue)
                 return;
-            sequence.Continue();
+            if (sequence.Stage != M00HanQiaoMeetingStage.Closing)
+            {
+                sequence.Continue();
+                Refresh();
+                return;
+            }
+
+            delivered = true;
             Refresh();
-            if (!sequence.IsComplete)
-                return;
-            Action<M00HanQiaoMeetingSequence> finished = onFinished;
-            onFinished = null;
-            finished?.Invoke(sequence);
+            try
+            {
+                if (onFinished != null)
+                {
+                    sequence.Continue(onFinished);
+                    onFinished = null;
+                }
+                else
+                {
+                    sequence.Continue();
+                }
+                Refresh();
+            }
+            catch
+            {
+                delivered = false;
+                Refresh();
+                throw;
+            }
         }
     }
 }
