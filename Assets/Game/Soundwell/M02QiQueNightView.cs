@@ -62,6 +62,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            // A scene unload can destroy the warehouse canvas before its
+            // owner disposes the view. Detach locale callbacks on that path.
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
