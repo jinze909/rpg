@@ -126,7 +126,10 @@ namespace Rpg.Soundwell
         public void SetVerifiedBerths(int updatedBerths)
         {
             if (disposed) throw new ObjectDisposedException(nameof(M04RosterReconciliationView));
-            if (delivered) throw new InvalidOperationException("Roster reconciliation has finished.");
+            // A host callback leaving this panel must not mutate a stale
+            // capacity while the navigation lock is active.
+            if (delivered || navigatingBack)
+                throw new InvalidOperationException("Roster reconciliation is finished or navigating away.");
             if (updatedBerths < 0) throw new ArgumentOutOfRangeException(nameof(updatedBerths));
             verifiedBerths = updatedBerths;
             Refresh();
