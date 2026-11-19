@@ -202,7 +202,15 @@ namespace Rpg.Soundwell
                 copy.Append(chinese ? "；领航：" : "; pilot: ").AppendLine(manifest.ConfirmedPilot);
                 copy.Append(chinese ? "船员：" : "Crew: ").Append(manifest.AssignedCrew);
                 copy.Append(chinese ? "；接驳：" : "; tender: ").AppendLine(manifest.ShallowTender);
-                copy.Append(chinese ? "登岸接应：" : "Landing receiver: ").Append(manifest.LandingReceiver);
+                copy.Append(chinese ? "登岸接应：" : "Landing receiver: ").AppendLine(manifest.LandingReceiver);
+                copy.AppendLine(chinese ? "吃水：已核查" : "Draft: checked");
+                // A chosen M03 route does not grant a permit by itself.
+                // Show only authorization actually verified for this vessel.
+                if (manifest.Route == M03VoyageChoice.HanQiaoOfficial ||
+                    manifest.Route == M03VoyageChoice.MixedWithOfficial)
+                    copy.AppendLine(chinese ? "官署登记：已盖印" : "Official registration: stamped");
+                if (manifest.Route == M03VoyageChoice.LuJunEscort)
+                    copy.AppendLine(chinese ? "公开护航旗：已接受" : "Public escort flag: accepted");
                 return copy.ToString();
             }
             copy.AppendLine(chinese ? "尚不能启航；必须先解决：" :

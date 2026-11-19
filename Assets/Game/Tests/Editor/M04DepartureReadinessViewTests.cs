@@ -336,6 +336,47 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [Test]
+        public void ReadinessShowsActualDraftAndOnlyTheChosenRoutesVerifiedAuthorization()
+        {
+            M04DepartureManifest ReadyOn(M03VoyageChoice route, bool stamp, bool flag)
+            {
+                return new M04DepartureManifest(route, "Inspected hull", "Named pilot", 3,
+                    "Shallow tender", true, 18, 13, "Landing receiver", stamp, flag);
+            }
+
+            string officialEnglish = M04DepartureReadinessCopy.Describe(
+                ReadyOn(M03VoyageChoice.HanQiaoOfficial, true, false), false);
+            Assert.That(officialEnglish, Does.Contain("Draft: checked"));
+            Assert.That(officialEnglish, Does.Contain("Official registration: stamped"));
+            Assert.That(officialEnglish, Does.Not.Contain("Public escort flag: accepted"));
+            Assert.That(officialEnglish, Does.Not.Contain("has already sailed"));
+
+            string mixedChinese = M04DepartureReadinessCopy.Describe(
+                ReadyOn(M03VoyageChoice.MixedWithOfficial, true, false), true);
+            Assert.That(mixedChinese, Does.Contain("吃水：已核查"));
+            Assert.That(mixedChinese, Does.Contain("官署登记：已盖印"));
+            Assert.That(mixedChinese, Does.Not.Contain("公开护航旗：已接受"));
+
+            string escortedEnglish = M04DepartureReadinessCopy.Describe(
+                ReadyOn(M03VoyageChoice.LuJunEscort, false, true), false);
+            Assert.That(escortedEnglish, Does.Contain("Public escort flag: accepted"));
+            Assert.That(escortedEnglish, Does.Not.Contain("Official registration: stamped"));
+
+            string civilianEnglish = M04DepartureReadinessCopy.Describe(
+                ReadyOn(M03VoyageChoice.QiQueMerchant, false, false), false);
+            Assert.That(civilianEnglish, Does.Contain("Draft: checked"));
+            Assert.That(civilianEnglish, Does.Not.Contain("Official registration: stamped"));
+            Assert.That(civilianEnglish, Does.Not.Contain("Public escort flag: accepted"));
+
+            // An M03 route choice cannot invent approval if the voyage is blocked.
+            string unapproved = M04DepartureReadinessCopy.Describe(
+                ReadyOn(M03VoyageChoice.HanQiaoOfficial, false, false), false);
+            Assert.That(unapproved, Does.Contain("Official passage lacks a valid stamp"));
+            Assert.That(unapproved, Does.Not.Contain("Official registration: stamped"));
+        }
+
         [Test]
         public void InvalidHostManifestDoesNotReplaceTheCurrentCheck()
         {

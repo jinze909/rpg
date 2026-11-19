@@ -171,7 +171,10 @@ namespace Rpg.Soundwell
         /// </summary>
         public void LayoutForViewportAspect(float aspect)
         {
-            ThrowIfDisposed();
+            // Resize callbacks may arrive after scene handoff or Dispose.
+            // Layout is presentation-only; stale callbacks must be harmless.
+            if (disposed)
+                return;
             if (canvasObject == null || authoredView == null)
             {
                 Dispose();

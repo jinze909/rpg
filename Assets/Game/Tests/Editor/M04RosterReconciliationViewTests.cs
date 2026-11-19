@@ -521,6 +521,7 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
         [Test]
         public void DestroyedRosterCanvasCannotReceiveLocaleUpdatesOrFailOnDispose()
         {
@@ -559,5 +560,40 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void DestroyedViewRejectsStaleRosterMutationsFinishAndBackCallbacks()
+        {
+            var root = new GameObject("M04 roster destroyed interactions");
+            M04RosterReconciliationView view = null;
+            try
+            {
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-1", "Confirmed returnee", M04RosterStatus.ConfirmedAtDock);
+                int finished = 0;
+                int back = 0;
+                view = new M04RosterReconciliationView(
+                    root.transform, ledger, 1, _ => finished++, () => back++);
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() => view.BookButton.onClick.Invoke());
+                Assert.DoesNotThrow(() => view.DeclineButton.onClick.Invoke());
+                Assert.DoesNotThrow(() => view.FinishButton.onClick.Invoke());
+                Assert.DoesNotThrow(() => view.BackButton.onClick.Invoke());
+                Assert.Throws<ObjectDisposedException>(() => view.SetVerifiedBerths(2));
+
+                Assert.That(ledger.BookedCount, Is.Zero);
+                Assert.That(ledger.DeclinedCount, Is.Zero);
+                Assert.That(finished, Is.Zero);
+                Assert.That(back, Is.Zero);
+            }
+            finally
+            {
+                view?.Dispose();
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }

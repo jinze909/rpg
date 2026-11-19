@@ -166,6 +166,15 @@ namespace Rpg.Soundwell
             else if (resolution == FogResolution.SignalMatched)
                 MatchedSignals++;
 
+            // A lost bearing is not passage through this stretch of fog.
+            // Keep the same clue visible so the player can reassess or use
+            // SlowAndSound; consuming the cue would reward blind button spam.
+            if (resolution == FogResolution.LostBearing)
+            {
+                CurrentCueFocused = false;
+                return resolution;
+            }
+
             CurrentStep++;
             CurrentCueFocused = false;
             return resolution;

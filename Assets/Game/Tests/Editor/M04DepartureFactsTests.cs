@@ -81,6 +81,9 @@ namespace Rpg.Tests.Editor
             Assert.That(M04DepartureFacts.TryRecord(confirmed), Is.False);
             Assert.That(M04DepartureFacts.TryRead(out M04DepartureRecord? record), Is.False);
             Assert.That(record, Is.Null);
+            Assert.That(M04DepartureFacts.TryMarkSailed(), Is.False);
+            Assert.That(M04DepartureFacts.TryReadSailed(out bool sailed), Is.False);
+            Assert.That(sailed, Is.False);
         }
 
         [Test]
@@ -324,6 +327,86 @@ namespace Rpg.Tests.Editor
                 out M04DepartureRecord? restored), Is.True);
             Assert.That(restored.HasValue, Is.True);
             Assert.That(restored.Value.Route, Is.EqualTo(M03VoyageChoice.QiQueMerchant));
+        }
+
+
+        [Test]
+        public void ActualSailingRequiresConfirmedReadinessAndNeverFollowsItAutomatically()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> setInt = (key, value) => store[key] = value;
+            Func<string, int> getInt = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+
+            Assert.That(M04DepartureFacts.TryMarkSailed(getInt, setInt), Is.False);
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out bool sailed), Is.True);
+            Assert.That(sailed, Is.False);
+
+            var confirmed = ReadyManifest(M03VoyageChoice.QiQueMerchant,
+                officialStamp: false, escortFlag: false);
+            Assert.That(M04DepartureFacts.TryRecord(confirmed, setInt), Is.True);
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out sailed), Is.True);
+            Assert.That(sailed, Is.False,
+                "Approving a vessel and berths must not claim the ship cast off.");
+
+            Assert.That(M04DepartureFacts.TryMarkSailed(getInt, setInt), Is.True);
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out sailed), Is.True);
+            Assert.That(sailed, Is.True);
+            Assert.That(M04DepartureFacts.TryMarkSailed(getInt, setInt), Is.False,
+                "The same actual departure cannot be reported twice.");
+
+            // Changing the next itinerary invalidates the old sailing fact.
+            Assert.That(M04DepartureFacts.TryRecord(confirmed, setInt), Is.True);
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out sailed), Is.True);
+            Assert.That(sailed, Is.False);
+            Assert.That(M04DepartureFacts.TryMarkSailed(getInt, setInt), Is.True);
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(setInt),
+                Is.True);
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out sailed), Is.True);
+            Assert.That(sailed, Is.False);
+            Assert.That(store[M04DepartureFacts.SailedKey], Is.Zero);
+        }
+
+        [Test]
+        public void CorruptOrInterruptedReadinessNeverMakesAStaleCastOffValid()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> setInt = (key, value) => store[key] = value;
+            Func<string, int> getInt = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+
+            Assert.That(M04DepartureFacts.TryRecord(
+                ReadyManifest(M03VoyageChoice.HanQiaoOfficial), setInt), Is.True);
+            store[M04DepartureFacts.SailedKey] = 2;
+            Assert.That(M04DepartureFacts.TryMarkSailed(getInt, setInt), Is.False);
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out bool sailed), Is.True);
+            Assert.That(sailed, Is.False);
+
+            store[M04DepartureFacts.SailedKey] = 0;
+            store[M04DepartureFacts.AvailableBerthsKey] = 0;
+            Assert.That(M04DepartureFacts.TryMarkSailed(getInt, setInt), Is.False);
+            store[M04DepartureFacts.SailedKey] = 1;
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out sailed), Is.True);
+            Assert.That(sailed, Is.False,
+                "A stale flag cannot bypass a malformed confirmed manifest.");
+
+            // Interrupted replacement clears both the readiness and cast-off
+            // markers before it can expose any partially written next trip.
+            store[M04DepartureFacts.AvailableBerthsKey] = 18;
+            Assert.Throws<InvalidOperationException>(() =>
+                M04DepartureFacts.TryRecord(
+                    ReadyManifest(M03VoyageChoice.LuJunEscort,
+                        officialStamp: false, escortFlag: true),
+                    (key, value) =>
+                    {
+                        if (key == M04DepartureFacts.RouteKey)
+                            throw new InvalidOperationException("Interrupted route write");
+                        setInt(key, value);
+                    }));
+            Assert.That(store[M04DepartureFacts.ConfirmedKey], Is.Zero);
+            Assert.That(store[M04DepartureFacts.SailedKey], Is.Zero);
+            Assert.That(M04DepartureFacts.TryReadSailed(getInt, out sailed), Is.True);
+            Assert.That(sailed, Is.False);
         }
 
         [Test]

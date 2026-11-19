@@ -18,7 +18,7 @@ namespace Rpg.Soundwell
         private Action<M00RollCallOutcome> onFinished;
         private float nextCallAt = float.NaN;
         private bool awaitingPersistence;
-
+        private float layoutAspect;
         public M00RollCallSequence Sequence => sequence;
         public M00RollCallView View => view;
         public bool AwaitingPersistence => awaitingPersistence;
@@ -41,9 +41,20 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
+            LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) / Mathf.Max(1, Screen.height));
             Tick(Time.unscaledTime);
         }
+        
+        public void LayoutForViewportAspect(float aspect)
+        {
+        if (view == null || float.IsNaN(aspect) || float.IsInfinity(aspect) ||
+            aspect <= 0f || Mathf.Approximately(aspect, layoutAspect))
+            return;
 
+            layoutAspect = aspect;
+            view.LayoutForViewportAspect(aspect);
+        }
+        
         /// <summary>
         /// Explicit time input keeps the exact pause testable without waiting
         /// for real frames; Update uses unscaled time so a paused game cannot

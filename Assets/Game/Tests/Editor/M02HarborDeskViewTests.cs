@@ -186,5 +186,32 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
             Assert.DoesNotThrow(() => view.Dispose());
         }
+
+        [Test]
+        public void HarborVisitGuardsNullArgumentsInvalidAspectsAndDestroyedParent()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new M02HarborVisit(null, M01PensionChoice.RegisterLivingIdentity, () => { }));
+            Assert.Throws<ArgumentNullException>(() =>
+                new M02HarborVisit(root.transform, M01PensionChoice.RegisterLivingIdentity, null));
+
+            int finished = 0;
+            using (var visit = new M02HarborVisit(root.transform,
+                M01PensionChoice.RegisterLivingIdentity, () => finished++))
+            {
+                Assert.DoesNotThrow(() => visit.Tick(float.NaN));
+                Assert.DoesNotThrow(() => visit.Tick(float.PositiveInfinity));
+                Assert.DoesNotThrow(() => visit.Tick(0f));
+                Assert.DoesNotThrow(() => visit.Tick(9f / 16f));
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() => visit.Tick(16f / 9f));
+                Assert.DoesNotThrow(() => visit.Dispose());
+            }
+
+            Assert.That(finished, Is.Zero);
+        }
     }
 }
