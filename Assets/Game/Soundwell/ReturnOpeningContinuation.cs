@@ -28,6 +28,29 @@ namespace Rpg.Soundwell
         private M01PensionChoice? pensionChoice;
         private float layoutAspect;
 
+        // M00 writes a canonical 0/1 choice. A malformed saved value must not
+        // invent a remembered stage prompt in either West Lane or M04.
+        public static bool TryReadXiaodouPrompted(
+            Func<string, int> getInt, out bool prompted)
+        {
+            prompted = false;
+            if (getInt == null)
+                return false;
+            int value = getInt(M00MemorialSquare.XiaodouPromptedKey);
+            if (value != 0 && value != 1)
+                return false;
+            prompted = value == 1;
+            return true;
+        }
+
+        private static bool TryReadXiaodouPrompted(out bool prompted)
+        {
+            prompted = false;
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            return variables != null && TryReadXiaodouPrompted(
+                key => variables.GetInt(key), out prompted);
+        }
+
         internal void Begin(Action finished)
         {
             onFinished = finished;
@@ -56,10 +79,10 @@ namespace Rpg.Soundwell
         private void OpenWestLaneWhenReady()
         {
             if (!meetingFinished || ransomCountPending ||
-                !M00RollCallFacts.TryRead(out M00RollCallOutcome outcome))
+                !M00RollCallFacts.TryRead(out M00RollCallOutcome outcome) ||
+                !TryReadXiaodouPrompted(out bool prompted))
                 return;
 
-            bool prompted = Maki.Game.Variables.GetInt(M00MemorialSquare.XiaodouPromptedKey) != 0;
             meeting.Dispose();
             meeting = null;
             meetingFinished = false;
@@ -163,13 +186,11 @@ namespace Rpg.Soundwell
         private void OpenXiaodouFarewellWhenReady()
         {
             if (!xiaodouPending || xiaodouFarewell != null || onFinished == null ||
-                !Maki.Initialized || Maki.Game?.Variables == null ||
+                !TryReadXiaodouPrompted(out bool prompted) ||
                 !M04XiaodouFarewellFacts.TryResetForNewVisit())
                 return;
 
-            // Read actual M00 history; do not presume the player prompted her.
-            bool prompted = Maki.Game.Variables.GetInt(
-                M00MemorialSquare.XiaodouPromptedKey) != 0;
+            // Reuse only a canonical M00 answer for this farewell.
             xiaodouPending = false;
             xiaodouFarewell = new M04XiaodouFarewellView(transform, prompted,
                 FinishXiaodouFarewell);

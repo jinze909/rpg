@@ -8,6 +8,34 @@ namespace Rpg.Tests.Editor
     public sealed class M04XiaodouFarewellTests
     {
         [Test]
+        public void M00PromptMemoryOnlyRecognizesCanonicalSavedChoices()
+        {
+            bool prompted;
+            Assert.That(ReturnOpeningContinuation.TryReadXiaodouPrompted(
+                (Func<string, int>)null, out prompted), Is.False);
+            Assert.That(prompted, Is.False);
+
+            Assert.That(ReturnOpeningContinuation.TryReadXiaodouPrompted(key =>
+            {
+                Assert.That(key, Is.EqualTo(M00MemorialSquare.XiaodouPromptedKey));
+                return 0;
+            }, out prompted), Is.True);
+            Assert.That(prompted, Is.False, "Choosing not to prompt remains an explicit choice.");
+
+            Assert.That(ReturnOpeningContinuation.TryReadXiaodouPrompted(_ => 1,
+                out prompted), Is.True);
+            Assert.That(prompted, Is.True, "The actual M00 stage prompt remains remembered.");
+
+            foreach (int value in new[] { -1, 2, int.MaxValue })
+            {
+                Assert.That(ReturnOpeningContinuation.TryReadXiaodouPrompted(
+                    _ => value, out prompted), Is.False,
+                    "Malformed M00 prompt code must not be treated as a real choice: " + value);
+                Assert.That(prompted, Is.False);
+            }
+        }
+
+        [Test]
         public void XiaodouReadDistinguishesUnplayedFarewellFromAnExplicitStageLine()
         {
             bool taught;
