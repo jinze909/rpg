@@ -65,6 +65,12 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
+            // Scene unload may destroy the canvas before its owner disposes us.
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -144,8 +150,12 @@ namespace Rpg.Soundwell
             onFinished = null;
             SoundwellUiLocalization.Changed -= Refresh;
             foreach (Button option in choices)
-                option.onClick.RemoveAllListeners();
-            advance.onClick.RemoveAllListeners();
+            {
+                if (option != null)
+                    option.onClick.RemoveAllListeners();
+            }
+            if (advance != null)
+                advance.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
