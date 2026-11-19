@@ -7,6 +7,7 @@ service. Only the existing Unity prepare CI job downloads this asset; the
 published candidate verifies from the committed binary with no network.
 """
 import hashlib
+import http.client
 from pathlib import Path
 import time
 import urllib.error
@@ -38,7 +39,7 @@ def checked_download():
             if actual != EXPECTED_GIT_BLOB_SHA1:
                 raise ValueError("Pinned OFL font blob SHA mismatch: " + actual)
             return raw
-        except (OSError, ValueError, urllib.error.URLError) as error:
+        except (OSError, ValueError, urllib.error.URLError, http.client.HTTPException) as error:
             last_error = error
             if attempt != 2:
                 time.sleep(attempt + 1)
@@ -63,7 +64,7 @@ def main():
     if not FONT_PATH.parent.parent.is_dir():
         raise RuntimeError("Soundwell resource root missing.")
     raw = checked_download()
-    FONT_PATH.parent.mkdir(parents=True, exist_ok=False)
+    FONT_PATH.parent.mkdir(parents=True, exist_ok=True)
     FONT_PATH.write_bytes(raw)
     print("Pinned OFL CJK font staged; size", len(raw),
           "Git blob SHA", EXPECTED_GIT_BLOB_SHA1)

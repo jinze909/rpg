@@ -77,7 +77,7 @@ namespace Rpg.Soundwell
             }
 
             string spoken = chinese
-                ? "韩峤（第" + ChineseNumber(call) + "遍）：“(你的名字。)”"
+                ? "韩峤（第" + ChineseNumber(call) + "遍）：“（你的名字。）”"
                 : "Han Qiao (call " + call + "): '(Your name.)'";
 
             if (sequence.HasLeftCrowd)
