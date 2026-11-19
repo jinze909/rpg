@@ -38,7 +38,7 @@ namespace Rpg.Soundwell
         {
             get
             {
-                if (disposed || delivered)
+                if (disposed || delivered || canvasObject == null)
                     return null;
                 return briefing.Stage == M01DockStage.AwaitingOpeningReply ||
                     briefing.Stage == M01DockStage.ReviewingRoutes
@@ -97,6 +97,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            // The dock scene can unload before its host disposes the panel.
+            // Retire stale locale/focus callbacks instead of scaling dead UI.
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
