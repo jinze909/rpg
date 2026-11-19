@@ -141,6 +141,54 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LoweredVerifiedBerthsBlocksCompletionUntilExcessBookingIsRemoved()
+        {
+            var root = new GameObject("Roster capacity reduction view");
+            M04RosterReconciliationView view = null;
+            try
+            {
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-01", "Confirmed 1", M04RosterStatus.ConfirmedAtDock);
+                ledger.AddEntry("dock-02", "Confirmed 2", M04RosterStatus.ConfirmedAtDock);
+                int completed = 0;
+
+                view = new M04RosterReconciliationView(
+                    root.transform, ledger, 2, _ => completed++, () => { });
+                view.BookButton.onClick.Invoke();
+                view.NextButton.onClick.Invoke();
+                view.BookButton.onClick.Invoke();
+                Assert.That(ledger.BookedCount, Is.EqualTo(2));
+                Assert.That(view.FinishButton.interactable, Is.True);
+
+                // The host can discover fewer actual berths after reservations.
+                // Do not silently publish an overbooked reconciliation.
+                view.SetVerifiedBerths(1);
+                Assert.That(view.Summary.text, Does.Contain("2/1"));
+                Assert.That(view.FinishButton.interactable, Is.False);
+                view.FinishButton.onClick.Invoke();
+                Assert.That(completed, Is.Zero,
+                    "Invoking a disabled button must not bypass the capacity guard.");
+
+                view.SetVerifiedBerths(0);
+                Assert.That(view.FinishButton.interactable, Is.False);
+                view.SetVerifiedBerths(1);
+                view.UnbookButton.onClick.Invoke();
+                Assert.That(ledger.BookedCount, Is.EqualTo(1));
+                Assert.That(view.FinishButton.interactable, Is.True);
+
+                view.FinishButton.onClick.Invoke();
+                Assert.That(completed, Is.EqualTo(1));
+                view.FinishButton.onClick.Invoke();
+                Assert.That(completed, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DecliningFreesBerthAndCyclesEntriesSafely()
         {
             var root = new GameObject("Roster decline view");
