@@ -361,6 +361,80 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedDeparturePanelCannotPersistOrNavigateFromStaleButtons()
+        {
+            var root = new GameObject("Readiness unmounted during confirmation");
+            M04DepartureReadinessView view = null;
+            try
+            {
+                int confirmed = 0;
+                int returned = 0;
+                var ready = Plan(true);
+                view = new M04DepartureReadinessView(root.transform, ready,
+                    _ => confirmed++, () => returned++);
+                var oldConfirm = view.ConfirmButton.onClick;
+                var oldBack = view.BackButton.onClick;
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                // UnityEvents can still be held by a host after their UGUI
+                // components have been destroyed. No stale event may sail.
+                Assert.DoesNotThrow(() => oldConfirm.Invoke());
+                Assert.DoesNotThrow(() => oldBack.Invoke());
+                Assert.That(confirmed, Is.Zero);
+                Assert.That(returned, Is.Zero);
+                Assert.That(ready.DepartureConfirmed, Is.False);
+                Assert.Throws<ObjectDisposedException>(() =>
+                    view.SetConfirmedManifest(Plan(true)));
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+            }
+            finally
+            {
+                view?.Dispose();
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedReadinessDetailCannotBreakLocaleOrCommitDeparture()
+        {
+            var root = new GameObject("Readiness partial child unload");
+            M04DepartureReadinessView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                var ready = Plan(true);
+                int confirmed = 0;
+                int returned = 0;
+                view = new M04DepartureReadinessView(root.transform, ready,
+                    _ => confirmed++, () => returned++);
+                var oldConfirm = view.ConfirmButton.onClick;
+                var oldBack = view.BackButton.onClick;
+                UnityEngine.Object.DestroyImmediate(view.Details.gameObject);
+
+                SoundwellUiLocalization.SetLanguage(
+                    savedLanguage == SoundwellUiLocalization.Chinese
+                        ? SoundwellUiLocalization.English
+                        : SoundwellUiLocalization.Chinese);
+                Assert.DoesNotThrow(() => view.Refresh());
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(32f / 9f));
+                oldConfirm.Invoke();
+                oldBack.Invoke();
+                Assert.That(confirmed, Is.Zero);
+                Assert.That(returned, Is.Zero);
+                Assert.That(ready.DepartureConfirmed, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedViewCannotReceiveStaleLocaleChangesOrFailOnDispose()
         {
             var root = new GameObject("Readiness destroyed");
