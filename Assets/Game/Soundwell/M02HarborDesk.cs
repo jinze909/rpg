@@ -192,19 +192,24 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException("Begin the M02 office before rendering dialogue.");
 
             string initial = chinese
-                ? "韩峤还在算粮。第一条官船可以备给你，但船坞只认实际盖印的活人户籍；三十个人四天的口粮也要有人负责。"
-                : "Han Qiao is counting provisions. He can prepare the first official ship, but the dock requires an actually stamped living registry and four days of supplies for thirty passengers.";
+                ? "韩峤拨了拨算盘：“按三十个人备四天的面，就够我算一阵。船坞里头一条船我能作保，得有港务署盖过印的身份文书。”"
+                : "Han Qiao works his abacus. 'Just the flour for thirty people for four days takes some reckoning. I can vouch for the first ship. The dock needs identity papers stamped by this office.'";
 
-            string registration = desk.LivingRegistryStamped
-                ? (chinese ? "\n韩峤已经在你的活人户籍呈文上盖印；这不是替整船人担保，更不是已选定航路。"
-                           : "\nHan Qiao has stamped the living-registration papers. He has not guaranteed everyone aboard or selected your voyage route.")
-                : desk.PriorPensionChoice == M01PensionChoice.RegisterLivingIdentity
-                    ? (chinese ? "\n你在西巷决定公开身份，但尚未递交盖印呈文。"
-                               : "\nYou decided to register in West Lane, but the papers are not yet stamped.")
-                    : (chinese ? "\n你尚未公开登记活人身份。失踪归还须另有证据或协理移交后再申请，不能自动获准。"
-                               : "\nYou have no public living registration. Missing-return review needs separate evidence or transfer assistance and later approval.");
-
-            return initial + registration;
+            if (desk.LivingRegistryStamped)
+                return initial + (chinese
+                    ? "\n你的活人户籍呈文已经盖印。第一条官船可以备着，走哪条航路仍由你定。"
+                    : "\nYour living-registration papers bear the seal. The first official ship can be held for you. The route is still yours to choose.");
+            if (desk.PriorPensionChoice == M01PensionChoice.RegisterLivingIdentity)
+                return initial + (chinese
+                    ? "\n你在西巷决定恢复活人户籍，呈文还在你手里，等着递交。"
+                    : "\nIn West Lane you decided to restore your living registration. You still have the papers in hand, ready to present.");
+            if (desk.PriorPensionChoice == M01PensionChoice.KeepIdentityUnregistered)
+                return initial + (chinese
+                    ? "\n你在西巷答应姜婶暂不登记。韩峤收起船坞的文书：“商船和旧部的护卫，你都还可以问。”"
+                    : "\nIn West Lane you agreed to stay off the register. Han Qiao sets the dock papers aside. 'You can still ask about a merchant ship or an escort from the old brigade.'");
+            return initial + (chinese
+                ? "\n韩峤：“失踪归还的申请可以先递。要批，我得有凭据，或有你协理移交的约定。等这份文书盖了印，船坞也认。”"
+                : "\nHan Qiao: 'You can file a missing-return petition now. I need evidence or your help checking the transfer list before I can approve it. Once it bears my seal, the dock will take it.'");
         }
 
         public static string Result(M02HarborDeskAction action, bool chinese)

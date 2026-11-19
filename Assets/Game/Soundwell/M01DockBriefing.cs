@@ -41,6 +41,7 @@ namespace Rpg.Soundwell
         }
 
         public M01VoyageLead Lead { get; }
+        // Either kind of stamped identity paper satisfies the official dock.
         public bool NeedsLivingRegistration { get; }
         public bool RequiresPublicBrigadeFlag { get; }
         public bool HasSmallCapacity { get; }
@@ -51,8 +52,8 @@ namespace Rpg.Soundwell
             {
                 case M01VoyageLead.HanQiaoOfficialDock:
                     return chinese
-                        ? "韩峤的船坞：大船，有官凭；必须先以活人身份正式登记。M01 的公开意向还不是官署批准。"
-                        : "Han Qiao's official dock: a larger ship with papers, but it requires a living registration. Deciding to go public in M01 is not official approval.";
+                        ? "祁雀：韩峤的船大，有官凭。船坞看港务署的印。你恢复了活人户籍可以借船，“失踪归还”的文书盖了印也能用。"
+                        : "Qi Que: 'Han Qiao has a bigger ship with official papers. His dock needs the harbor seal. They'll take a restored living registration or a stamped missing-return petition.'";
                 case M01VoyageLead.LuJunOldGuard:
                     return chinese
                         ? "陆钧的旧部：有护卫和矿营线人；条件是船上公开挂第三旅旧军旗，不能当作隐蔽航路。"

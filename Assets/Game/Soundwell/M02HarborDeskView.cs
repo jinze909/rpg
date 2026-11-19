@@ -137,7 +137,7 @@ namespace Rpg.Soundwell
                 ? "\n\n" + M02HarborDeskDialogue.Result(desk.LastAction.Value, chinese)
                 : string.Empty);
             string[] en = { "Present living-registration papers", "Ask about Qi Que's ship", "Ask about Lu Jun's escort", "Help check the transfer list" };
-            string[] zh = { "递交活人户籍呈文", "询问祁雀的船贷", "询问陆钧的护卫", "答应协理移交名册" };
+            string[] zh = { "递交活人户籍呈文", "打听祁雀的船", "询问陆钧的护卫", "答应协理移交名册" };
             for (int i = 0; i < actionButtons.Length; i++)
             {
                 actionLabels[i].font = font;

@@ -60,7 +60,10 @@ namespace Rpg.Tests.Editor
             var official = M01DockBriefing.TermsFor(M01VoyageLead.HanQiaoOfficialDock);
             Assert.That(official.NeedsLivingRegistration, Is.True);
             Assert.That(official.RequiresPublicBrigadeFlag, Is.False);
-            Assert.That(official.Describe(false), Does.Contain("not official approval"));
+            Assert.That(official.Describe(true),
+                Does.Contain("活人户籍").And.Contain("“失踪归还”的文书盖了印"));
+            Assert.That(official.Describe(false),
+                Does.Contain("living registration").And.Contain("stamped missing-return"));
         }
 
         [Test]

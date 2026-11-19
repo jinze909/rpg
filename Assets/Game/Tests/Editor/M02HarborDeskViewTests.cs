@@ -67,11 +67,20 @@ namespace Rpg.Tests.Editor
             Assert.That(view.GetActionButton(0).gameObject.activeSelf, Is.False);
             Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetActionButton(1)),
                 "An unregistered player should first focus the available Qi Que inquiry.");
-            view.GetActionButton(0).onClick.Invoke();
-            Assert.That(view.Desk.LivingRegistryStamped, Is.False);
-            view.GetActionButton(1).onClick.Invoke();
+            var shipQuestion = view.GetActionButton(1);
+            var label = shipQuestion.GetComponentInChildren<UnityEngine.UI.Text>();
+            Assert.That(label.text, Is.EqualTo("Ask about Qi Que's ship"));
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
-            Assert.That(view.Dialogue.text, Does.Contain("祁雀的船贷"));
+            Assert.That(label.text, Is.EqualTo("打听祁雀的船"));
+            view.GetActionButton(0).onClick.Invoke();
+            view.GetActionButton(2).onClick.Invoke();
+            Assert.That(view.Desk.LivingRegistryStamped, Is.False);
+            Assert.That(view.Desk.QiQueDebtDiscovered, Is.False);
+            Assert.That(view.Dialogue.text, Does.Not.Contain("船贷"));
+            shipQuestion.onClick.Invoke();
+            Assert.That(view.Dialogue.text, Does.Contain("祁雀的船贷").And.Contain("下个月初五"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            Assert.That(view.Dialogue.text, Does.Contain("ship loan").And.Contain("fifth of next month"));
             view.LayoutForViewportAspect(9f / 16f);
             view.LayoutForViewportAspect(32f / 9f);
             view.LeaveButton.onClick.Invoke();
