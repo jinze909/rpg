@@ -61,7 +61,7 @@ namespace Rpg.Soundwell
 
         public void SetConfirmedManifest(M04DepartureManifest updated)
         {
-            if (disposed) throw new ObjectDisposedException(nameof(M04DepartureReadinessView));
+            if (!HasLiveUi()) throw new ObjectDisposedException(nameof(M04DepartureReadinessView));
             if (delivered || navigatingBack)
                 throw new InvalidOperationException("The departure view is leaving or confirmed.");
             manifest = updated ?? throw new ArgumentNullException(nameof(updated));
@@ -70,23 +70,13 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (canvasObject == null || authored == null)
-            {
-                Dispose();
-                return;
-            }
+            if (!HasLiveUi()) return;
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (canvasObject == null || heading == null)
-            {
-                Dispose();
-                return;
-            }
+            if (!HasLiveUi()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = details.font = confirmLabel.font = backLabel.font = font;
@@ -109,7 +99,7 @@ namespace Rpg.Soundwell
         {
             // Direct Button.onClick invocation bypasses interactable; lock the
             // whole panel before calling the host to reject reentrant submits.
-            if (disposed || delivered || navigatingBack || manifest.DepartureConfirmed ||
+            if (!HasLiveUi() || delivered || navigatingBack || manifest.DepartureConfirmed ||
                 manifest.Check().Length != 0)
                 return;
             delivered = true;
@@ -140,7 +130,7 @@ namespace Rpg.Soundwell
             // Keep the whole panel inert while the host transitions away:
             // direct UGUI onClick invokes must not confirm a departure or
             // dispatch duplicate Back requests during navigation.
-            if (disposed || delivered || navigatingBack) return;
+            if (!HasLiveUi() || delivered || navigatingBack) return;
             navigatingBack = true;
             Refresh();
             try
@@ -155,6 +145,22 @@ namespace Rpg.Soundwell
                 Refresh();
                 throw;
             }
+        }
+
+        // Scene teardown may destroy the entire canvas or one of its Text/
+        // Button children without first calling Dispose on this managed view.
+        // Reject stale UGUI callbacks before they can commit a voyage.
+        private bool HasLiveUi()
+        {
+            if (disposed)
+                return false;
+            if (canvasObject != null && authored != null && heading != null &&
+                details != null && confirmLabel != null && confirm != null &&
+                back != null && backLabel != null)
+                return true;
+
+            Dispose();
+            return false;
         }
 
         public void Dispose()
