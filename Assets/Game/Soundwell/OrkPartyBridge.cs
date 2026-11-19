@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
     public class OrkPartyBridge : MonoBehaviour
     {
         public const string PrototypeCombatantGuid = "5ea2d095-4060-41e4-861d-2b01fc75e933";
+        public const int HealthStatusIndex = 1;
         public static string RescueQuestGuid => SoundwellPartyConfig.Load().RescueQuestGuid;
         public static int RescueExperience => SoundwellPartyConfig.Load().RescueExperience;
         public static int ExperienceStatus => SoundwellPartyConfig.Load().ExperienceStatus;
@@ -101,6 +102,7 @@ namespace Rpg.Soundwell
         private bool fixedFormationForEncounter;
         private bool battleEndRequested;
         private float battleStartedAt;
+        private BattleComponent activeBattle;
         private const float BattleStartTimeout = 8f;
 
         public bool IsReady { get; private set; }
@@ -256,7 +258,7 @@ namespace Rpg.Soundwell
                 for (int i = 0; i < members.Count; i++)
                     if (previousMembers[i] != null &&
                         (previousMembers[i].Setting == members[i].Setting ||
-                         (legacySetting != null && previousMembers[i].Setting == legacySetting)))
+                        (legacySetting != null && previousMembers[i].Setting == legacySetting)))
                         members[i].Status[ExperienceStatus].LoadGame(
                             previousMembers[i].Status[ExperienceStatus].SaveGame());
             }
@@ -301,7 +303,7 @@ namespace Rpg.Soundwell
             {
                 var experience = new QuestExperienceReward
                 {
-                    combatantScope = MenuCombatantScope.Group,
+                    combatantScope = MenuCombatantsScope.Group,
                     rewardValue = new FloatValue<GameObjectSelection>(RescueExperience)
                 };
                 experience.status.SetAsset(ORK.StatusValues.GetAsset(ExperienceStatus));
@@ -366,7 +368,7 @@ namespace Rpg.Soundwell
             // only vendor 3D movement that conflicts with our Rigidbody2D.
             known3DControllers.RemoveAll(controller => controller == null);
             foreach (ButtonPlayerController controller in
-                     UnityEngine.Object.FindObjectsByType<ButtonPlayerController>())
+                UnityEngine.Object.FindObjectsByType<ButtonPlayerController>())
             {
                 if (controller == null) continue;
                 if (!known3DControllers.Contains(controller))
@@ -433,33 +435,33 @@ namespace Rpg.Soundwell
                     i >= actors.Count || !IsActiveBattleSceneActor(actors[i]))
                     continue;
                 text.Append(allyLabel ?? SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
-                    .Append("  ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
-                    .Append(member.Status[1].GetValue());
+                    .Append(" ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
+                    .Append(member.Status[HealthStatusIndex].GetValue());
                 if (member.Battle.Defending)
-                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.defending"));
+                    text.Append(" ").Append(SoundwellUiLocalization.Get("battle.defending"));
                 if (member.Actions.IsChoosing)
                 {
-                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.turn"));
+                    text.Append(" ").Append(SoundwellUiLocalization.Get("battle.turn"));
                     // A small ORK-owned mobility allowance is separate from
                     // the primary action. Surface the *real* live-turn budget
                     // without duplicating an action counter in presentation.
                     // 1/1 means unspent, not a promise that every direction is free.
                     if (fixedFormationForEncounter)
-                        text.Append("  ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
+                        text.Append(" ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
                     else if (i < lastStepTurn.Length)
-                        text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
+                        text.Append(" ").Append(SoundwellUiLocalization.Get("battle.move"))
                             .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
                 }
                 text.Append('\n');
             }
-            text.Append(opponentLabel ?? SoundwellUiLocalization.Get("battle.beast")).Append("  ")
+            float beastHp = Beast.Status[HealthStatusIndex].GetValue();
+            text.Append(opponentLabel ?? SoundwellUiLocalization.Get("battle.beast")).Append(" ")
                 .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
-                .Append(Beast.Status[1].GetValue());
+                .Append(beastHp);
             // A disabled Attack button is not a pending ORK menu if the
             // current chooser may still Guard, open the Gate or take a step.
             // Preserve the pending cue only while the next turn is unresolved.
-            if (IsBattleChooserPending(ChoosingRescuerIndex, Beast.Status.IsDead,
-                    Beast.Status[1].GetValue()))
+            if (IsBattleChooserPending(ChoosingRescuerIndex, Beast.Status.IsDead, beastHp))
                 text.Append('\n').Append(SoundwellUiLocalization.Get("battle.menu_pending"));
             return text.ToString();
         }
@@ -534,11 +536,13 @@ namespace Rpg.Soundwell
 
         private bool CanSpendStep(int index)
         {
-            if (fixedFormationForEncounter || index < 0 || index != ChoosingRescuerIndex)
+            if (fixedFormationForEncounter || index < 0 || index >= lastStepTurn.Length ||
+                index >= members.Count || index != ChoosingRescuerIndex)
                 return false;
 
             Combatant member = members[index];
-            return lastStepTurn[index] != member.Battle.Turn &&
+            return member != null &&
+                lastStepTurn[index] != member.Battle.Turn &&
                 !member.Actions.BlockActionUse &&
                 member.Actions.ActionState == CombatantActionState.Available &&
                 !member.Status.Effects.BlockAllActions;
@@ -661,6 +665,7 @@ namespace Rpg.Soundwell
             BattleComponent battle = BattleComponent.CreateBattle(new List<Combatant> { Beast });
             if (battle == null)
                 return false;
+            activeBattle = battle;
 
             // A mode switch outside this encounter must not grant or revoke
             // movement mid-turn. No copied RPG stat or fabricated ORK action.
@@ -687,6 +692,15 @@ namespace Rpg.Soundwell
                     ORK.Game.Combatants.EndBattle();
                 if (ORK.Game.Combatants.GetInBattle().Count == 0)
                     ORK.Battle.ClearBattle();
+            }
+
+            if (activeBattle != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(activeBattle);
+                else
+                    DestroyImmediate(activeBattle);
+                activeBattle = null;
             }
 
             if (Beast != null)
@@ -783,7 +797,8 @@ namespace Rpg.Soundwell
 
         private void LateUpdate()
         {
-            if (battleStarted && IsBattleRunning())
+            bool inBattle = IsBattleRunning();
+            if (battleStarted && inBattle)
                 battleObservedActive = true;
 
             // The ORK death check, not a test or a parallel combat UI,
@@ -791,15 +806,15 @@ namespace Rpg.Soundwell
             // End the encounter once, then let the existing gate readout
             // consume ORK's result. Never finish an unfinished battle.
             if (battleStarted && battleObservedActive && !battleEndRequested &&
-                IsBattleRunning() && AreAllBattleEnemiesDefeated())
+                inBattle && AreAllBattleEnemiesDefeated())
             {
                 battleEndRequested = true;
                 ORK.Game.Combatants.EndBattle();
+                inBattle = IsBattleRunning();
             }
 
             if (!IsReady || formation == null)
                 return;
-            bool inBattle = IsBattleRunning();
             if (checkpointRegroupQueued && !inBattle)
             {
                 formation.RegroupAfterCheckpoint(checkpointRegroupPosition);
@@ -814,7 +829,7 @@ namespace Rpg.Soundwell
             for (int i = 1; i < 3; i++)
                 formation.RefreshCompanionHealth(i,
                     inBattle && i < members.Count && members[i] != null
-                        ? members[i].Status[1].GetValue() : float.NaN, inBattle);
+                        ? members[i].Status[HealthStatusIndex].GetValue() : float.NaN, inBattle);
             formation.RenderFollowers(inBattle, secondDefending, thirdDefending);
         }
 
@@ -826,6 +841,13 @@ namespace Rpg.Soundwell
 
         private void OnDestroy()
         {
+            if (registrationWatch != null)
+            {
+                StopCoroutine(registrationWatch);
+                registrationWatch = null;
+            }
+            known3DControllers.Clear();
+            activeBattle = null;
             for (int i = 1; i < guardEventHandlers.Length; i++)
             {
                 if (guardEventHandlers[i] != null && i < members.Count &&
