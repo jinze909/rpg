@@ -39,6 +39,44 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FaintFogCueHidesPreciseBearingUntilFocusMakesItIdentifiable()
+        {
+            var root = new GameObject("Fog bearing uncertainty");
+            FogListeningView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var session = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Starboard, FogCueKind.ReefSurf, 30) },
+                    maxListenFocus: 1,
+                    maxHullIntegrity: 2);
+                view = new FogListeningView(root.transform, session, _ => { });
+
+                Assert.That(view.CueText.text, Does.Contain("Bearing: indistinct"));
+                Assert.That(view.CueText.text, Does.Not.Contain("Starboard"));
+                Assert.That(view.CueText.text, Does.Not.Contain("Low reef surf"));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.CueText.text, Does.Contain("方位：难辨"));
+                Assert.That(view.CueText.text, Does.Not.Contain("右舷"));
+
+                view.FocusButton.onClick.Invoke();
+                Assert.That(session.EffectiveClarity(), Is.EqualTo(65));
+                Assert.That(view.CueText.text, Does.Contain("方位：右舷"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(view.CueText.text, Does.Contain("Bearing: Starboard"));
+                Assert.That(view.CueText.text, Does.Contain("Low reef surf"));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ContinueButtonStaysBlockedUntilSessionCompletesEvenOnDirectClick()
         {
             var root = new GameObject("Fog view continue guard");
