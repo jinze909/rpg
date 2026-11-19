@@ -14,6 +14,9 @@ namespace Rpg.Soundwell
         private M02QiQueNightView qiQueNight;
         private M03LuJunView luJun;
         private M03LuJunEncounter completedLuJun;
+        private M04XiaodouFarewellView xiaodouFarewell;
+        private M04XiaodouFarewell completedXiaodou;
+        private bool xiaodouPending;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -141,6 +144,47 @@ namespace Rpg.Soundwell
             if (completedLuJun == null || !M03LuJunFacts.TryRecord(completedLuJun))
                 return;
             completedLuJun = null;
+            QueueXiaodouFarewell();
+        }
+
+        private void QueueXiaodouFarewell()
+        {
+            // M03 has recorded the chosen route, but the voyage has not
+            // departed: the child can still offer the dockside sweet.
+            luJun?.Dispose();
+            luJun = null;
+            xiaodouPending = true;
+            OpenXiaodouFarewellWhenReady();
+        }
+
+        private void OpenXiaodouFarewellWhenReady()
+        {
+            if (!xiaodouPending || xiaodouFarewell != null || onFinished == null ||
+                !Maki.Initialized || Maki.Game?.Variables == null ||
+                !M04XiaodouFarewellFacts.TryResetForNewVisit())
+                return;
+
+            // Read actual M00 history; do not presume the player prompted her.
+            bool prompted = Maki.Game.Variables.GetInt(
+                M00MemorialSquare.XiaodouPromptedKey) != 0;
+            xiaodouPending = false;
+            xiaodouFarewell = new M04XiaodouFarewellView(transform, prompted,
+                FinishXiaodouFarewell);
+        }
+
+        private void FinishXiaodouFarewell(M04XiaodouFarewell result)
+        {
+            completedXiaodou = result;
+            RecordXiaodouWhenReady();
+        }
+
+        private void RecordXiaodouWhenReady()
+        {
+            if (completedXiaodou == null ||
+                !M04XiaodouFarewellFacts.TryRecord(completedXiaodou))
+                return;
+
+            completedXiaodou = null;
             CloseOpening();
         }
 
@@ -150,6 +194,8 @@ namespace Rpg.Soundwell
             qiQueNight = null;
             luJun?.Dispose();
             luJun = null;
+            xiaodouFarewell?.Dispose();
+            xiaodouFarewell = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -172,6 +218,10 @@ namespace Rpg.Soundwell
                 OpenLuJunWhenReady();
             if (completedLuJun != null)
                 RecordLuJunWhenReady();
+            if (xiaodouPending)
+                OpenXiaodouFarewellWhenReady();
+            if (completedXiaodou != null)
+                RecordXiaodouWhenReady();
             if (!Mathf.Approximately(aspect, layoutAspect))
             {
                 layoutAspect = aspect;
@@ -180,6 +230,7 @@ namespace Rpg.Soundwell
                 dock?.LayoutForViewportAspect(aspect);
                 qiQueNight?.LayoutForViewportAspect(aspect);
                 luJun?.LayoutForViewportAspect(aspect);
+                xiaodouFarewell?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -191,6 +242,7 @@ namespace Rpg.Soundwell
             harborVisit?.Dispose();
             qiQueNight?.Dispose();
             luJun?.Dispose();
+            xiaodouFarewell?.Dispose();
             onFinished = null;
         }
     }
