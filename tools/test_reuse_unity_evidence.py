@@ -3,11 +3,16 @@ import datetime as dt
 import io
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 import urllib.error
 import zipfile
+
+_TOOLS_DIR = str(Path(__file__).resolve().parent)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
 
 import reuse_unity_evidence as reuse
 
@@ -49,7 +54,7 @@ class FakeGitHub:
     def __init__(self):
         self.runs = [run()]
         self.artifacts = [artifact("unity-reuse-context-1", 1),
-            artifact(f"unity-ork-p0-verify-{TEST_SHA}-attempt-1", 2)]
+                          artifact(f"unity-ork-p0-verify-{TEST_SHA}-attempt-1", 2)]
         self.context = context()
         self.report = {
             "mode": "verify", "status": "passed-clean-candidate", "source_sha": TEST_SHA,
@@ -220,8 +225,8 @@ class ProbeTests(unittest.TestCase):
                 self.assertNotEqual(original["workflows"], changed["workflows"])
                 env["LICENSE_METHOD"] = "file"
                 self.assertNotEqual(original["license_method"], reuse.context_for(root, env)["license_method"])
-            self.assertEqual(original["mode"], "verify")
-            self.assertTrue(original["expected_tests"])
+        self.assertEqual(original["mode"], "verify")
+        self.assertTrue(original["expected_tests"])
 
     def test_only_dev_push_verify_is_eligible_and_other_events_still_record_context(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -287,7 +292,7 @@ class ArtifactTransportTests(unittest.TestCase):
             archive.writestr("validation.json", '{"status":"passed-clean-candidate"}')
         api = reuse.GitHub("test-only-token")
         redirect = urllib.error.HTTPError("https://api.github.com/artifact", 302, "redirect",
-            {"Location": "https://storage.example/limited-download?signature=example"}, None)
+                                          {"Location": "https://storage.example/limited-download?signature=example"}, None)
         with patch.object(api.opener, "open", side_effect=redirect), \
              patch.object(reuse.urllib.request, "urlopen", return_value=io.BytesIO(data.getvalue())) as download:
             result = api.members({"id": 2}, ("validation.json",))
