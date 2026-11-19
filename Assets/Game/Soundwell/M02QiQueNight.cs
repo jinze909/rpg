@@ -65,6 +65,26 @@ namespace Rpg.Soundwell
             Stage = M02QiQueNightStage.Finished;
         }
 
+        // Host transitions away from the warehouse only after Leave succeeds.
+        // When that callback fails, restore ReviewingChart while keeping the
+        // player's debt-confrontation and chart state so retry stays safe.
+        public void Leave(Action recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            M02QiQueNightStage before = Stage;
+            Leave();
+            try
+            {
+                recordWithHost();
+            }
+            catch
+            {
+                Stage = before;
+                throw;
+            }
+        }
+
         private void Require(M02QiQueNightStage expected)
         {
             if (Stage != expected)

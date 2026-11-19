@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -60,6 +61,37 @@ namespace Rpg.Tests.Editor
             view.ProgressButton.onClick.Invoke();
             Assert.That(view.Night.DebtConfronted, Is.False);
             Assert.That(completed, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FailedHostCallbackKeepsWarehouseDepartureRetryableAndBlocksReentrancy()
+        {
+            int attempts = 0;
+            view = new M02QiQueNightView(root.transform, true, () =>
+            {
+                attempts++;
+                if (attempts == 1)
+                {
+                    view.ProgressButton.onClick.Invoke();
+                    throw new InvalidOperationException("Simulated host handoff failure");
+                }
+            });
+            view.ProgressButton.onClick.Invoke();
+            view.ProgressButton.onClick.Invoke();
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(view.Night.Stage, Is.EqualTo(M02QiQueNightStage.ReviewingChart));
+
+            Assert.Throws<InvalidOperationException>(() => view.ProgressButton.onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(view.Night.Stage, Is.EqualTo(M02QiQueNightStage.ReviewingChart));
+            Assert.That(view.Night.DebtConfronted, Is.True);
+            Assert.That(view.Night.ChartStudied, Is.True);
+            Assert.That(view.ProgressButton.gameObject.activeSelf, Is.True);
+
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(view.Night.Stage, Is.EqualTo(M02QiQueNightStage.Finished));
+            Assert.That(view.ProgressButton.gameObject.activeSelf, Is.False);
         }
 
         [Test]
