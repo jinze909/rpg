@@ -146,6 +146,50 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InterruptedDepartureWriteNeverLeavesAnOldConfirmationActive()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> setInt = (key, value) => store[key] = value;
+            Func<string, int> getInt = key => store.TryGetValue(key, out int value) ? value : 0;
+
+            var previous = ReadyManifest(M03VoyageChoice.QiQueMerchant);
+            Assert.That(M04DepartureFacts.TryRecord(previous, setInt), Is.True);
+            Assert.That(M04DepartureFacts.TryRead(getInt, out M04DepartureRecord? before), Is.True);
+            Assert.That(before.HasValue, Is.True);
+
+            var replacement = ReadyManifest(M03VoyageChoice.LuJunEscort,
+                crew: 4, berths: 20, returnees: 16,
+                officialStamp: false, escortFlag: true);
+            Assert.Throws<InvalidOperationException>(() =>
+                M04DepartureFacts.TryRecord(replacement, (key, value) =>
+                {
+                    if (key == M04DepartureFacts.ReturneesToBookKey)
+                        throw new InvalidOperationException("Simulated interrupted write");
+                    store[key] = value;
+                }));
+
+            Assert.That(store[M04DepartureFacts.ConfirmedKey], Is.Zero);
+            Assert.That(M04DepartureFacts.TryRead(getInt, out M04DepartureRecord? interrupted),
+                Is.True);
+            Assert.That(interrupted, Is.Null,
+                "A partial voyage update must not reuse the old confirmation flag.");
+
+            var writes = new List<string>();
+            Assert.That(M04DepartureFacts.TryRecord(replacement, (key, value) =>
+            {
+                writes.Add(key);
+                store[key] = value;
+            }), Is.True);
+            Assert.That(writes[0], Is.EqualTo(M04DepartureFacts.ConfirmedKey));
+            Assert.That(writes[writes.Count - 1], Is.EqualTo(M04DepartureFacts.ConfirmedKey));
+            Assert.That(M04DepartureFacts.TryRead(getInt, out M04DepartureRecord? committed),
+                Is.True);
+            Assert.That(committed.HasValue, Is.True);
+            Assert.That(committed.Value.Route, Is.EqualTo(M03VoyageChoice.LuJunEscort));
+            Assert.That(committed.Value.ReturneesToBook, Is.EqualTo(16));
+        }
+
+        [Test]
         public void CorruptedOrIncompleteSavedVariablesNeverFabricateConfirmedDeparture()
         {
             var baseStore = new Dictionary<string, int>();
