@@ -20,7 +20,7 @@ namespace Rpg.Tests.Editor
             Assert.That(cup.CupTaken, Is.False);
             cup.Choose(M04QiQueCupReply.AskForReplacement);
             Assert.That(cup.CupTaken, Is.True);
-            Assert.That(M04QiQueCupCopy.Narration(cup, true), Does.Contain("沈砺"));
+            Assert.That(M04QiQueCupCopy.Narration(cup, true), Does.Contain("沈砾"));
             cup.Finish();
             Assert.That(cup.Stage, Is.EqualTo(M04QiQueCupStage.Complete));
         }
