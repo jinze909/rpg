@@ -96,7 +96,7 @@ namespace Rpg.Soundwell
                 "HARBOR OFFICE · MISSING-RETURN REVIEW";
             narrative.text = M02MissingReturnCopy.Description(review, chinese);
             requestText.text = chinese ? "正式提出申请" : "Request official review";
-            stampText.text = chinese ? "请韩昕批注并盖印" : "Have Han Qiao sign and stamp";
+            stampText.text = chinese ? "请韩峤批注并盖印" : "Have Han Qiao sign and stamp";
             leaveText.text = chinese ? "离开审核窗口" : "Leave the review desk";
             requestButton.gameObject.SetActive(!delivered &&
                 review.CanRequest && !review.Requested);

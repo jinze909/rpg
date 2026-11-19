@@ -24,7 +24,7 @@ namespace Rpg.Tests.Editor
         {
             view?.Dispose();
             if (root != null)
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
             SoundwellUiLocalization.SetLanguage(previousLanguage);
         }
 
