@@ -77,6 +77,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReefSurfDescriptionDoesNotContradictTheResolvedBearing()
+        {
+            var root = new GameObject("Fog reef bearing copy");
+            FogListeningView view = null;
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var session = new FogListeningSession(
+                    new[]
+                    {
+                        new FogListeningCue(FogBearing.Port, FogCueKind.ReefSurf, 85),
+                        new FogListeningCue(FogBearing.Starboard, FogCueKind.ReefSurf, 85),
+                        new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 85)
+                    }, maxListenFocus: 1, maxHullIntegrity: 3);
+                view = new FogListeningView(root.transform, session, _ => { });
+                foreach (string bearing in new[] { "Port", "Starboard", "Ahead" })
+                {
+                    Assert.That(view.CueText.text, Does.Contain("Bearing: " + bearing));
+                    Assert.That(view.CueText.text, Does.Contain("Low reef surf"));
+                    Assert.That(view.CueText.text, Does.Contain("check the bearing"));
+                    Assert.That(view.CueText.text, Does.Not.Contain("reef surf ahead"),
+                        "A reef on either side cannot be announced as straight ahead.");
+                    if (bearing != "Ahead")
+                        view.SlowButton.onClick.Invoke();
+                }
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.CueText.text, Does.Contain("方位：正前"));
+                Assert.That(view.CueText.text, Does.Contain("低沉礁浪拍击声"));
+                Assert.That(session.AvoidedHazards, Is.EqualTo(2));
+                Assert.That(session.HullIntegrity, Is.EqualTo(3));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ContinueButtonStaysBlockedUntilSessionCompletesEvenOnDirectClick()
         {
             var root = new GameObject("Fog view continue guard");
