@@ -205,46 +205,63 @@ namespace Rpg.Tests.Editor
         [Test]
         public void HostFailureOnContinueRestoresButtonAndBlocksReentrantSubmit()
         {
-            M00RollCallSequence sequence = Begin();
-            int attempts = 0;
-            int completed = 0;
-            M00RollCallOutcome? deliveredOutcome = null;
-            bool failOnce = true;
-
-            view = new M00RollCallView(root.transform, sequence, outcome =>
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
             {
-                attempts++;
-                Assert.That(outcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
-                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
-                view.ContinueButton.onClick.Invoke();
-                if (failOnce)
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                M00RollCallSequence sequence = Begin();
+                int attempts = 0;
+                int completed = 0;
+                M00RollCallOutcome? deliveredOutcome = null;
+                bool failOnce = true;
+
+                view = new M00RollCallView(root.transform, sequence, outcome =>
                 {
-                    failOnce = false;
-                    throw new InvalidOperationException("host transition failed");
-                }
+                    attempts++;
+                    Assert.That(outcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
+                    Assert.That(sequence.CallsMade, Is.EqualTo(1));
+                    Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+                    view.ContinueButton.onClick.Invoke();
+                    if (failOnce)
+                    {
+                        failOnce = false;
+                        throw new InvalidOperationException("host transition failed");
+                    }
 
-                deliveredOutcome = outcome;
-                completed++;
-            });
+                    deliveredOutcome = outcome;
+                    completed++;
+                });
 
-            view.GetChoiceButton(0).onClick.Invoke();
-            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+                view.GetChoiceButton(0).onClick.Invoke();
+                Assert.That(sequence.IsComplete, Is.True);
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+                Assert.That(Label(view.ContinueButton), Is.EqualTo("Continue"));
 
-            Assert.Throws<InvalidOperationException>(() =>
-                view.ContinueButton.onClick.Invoke());
-            Assert.That(attempts, Is.EqualTo(1));
-            Assert.That(completed, Is.EqualTo(0));
-            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.ContinueButton.onClick.Invoke());
+                Assert.That(attempts, Is.EqualTo(1));
+                Assert.That(completed, Is.EqualTo(0));
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
 
-            view.ContinueButton.onClick.Invoke();
-            Assert.That(attempts, Is.EqualTo(2));
-            Assert.That(completed, Is.EqualTo(1));
-            Assert.That(deliveredOutcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
-            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(Label(view.ContinueButton), Is.EqualTo("继续"));
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+                Assert.That(sequence.Outcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
 
-            view.ContinueButton.onClick.Invoke();
-            Assert.That(attempts, Is.EqualTo(2));
-            Assert.That(completed, Is.EqualTo(1));
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(completed, Is.EqualTo(1));
+                Assert.That(deliveredOutcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(completed, Is.EqualTo(1));
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+            }
         }
 
         private M00RollCallSequence Begin()
