@@ -27,6 +27,20 @@ namespace Rpg.Soundwell
         // One context-transfer latch table, not one state machine for each
         // menu key. Every release frame is consumed before re-arming a press.
         private static readonly bool[] heldUntilRelease = new bool[3];
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            if (actions != null)
+                actions.Disable();
+            actions = null;
+            entryMap = null;
+            gameplayMap = null;
+            interact = move = ring = wrap = retry = back = carry = gate = toggleMenu = null;
+            initialized = false;
+            Array.Clear(heldUntilRelease, 0, heldUntilRelease.Length);
+        }
+
         private static void ArmHeldLatch(HeldControl control, bool isHeld) =>
             heldUntilRelease[(int)control] |= isHeld;
         private static void ClearHeldLatch(HeldControl control) =>
@@ -116,16 +130,7 @@ namespace Rpg.Soundwell
         public static string EntryKeyboardShortcutLabel()
         {
             EnsureLoaded();
-            for (int i = 0; i < interact.bindings.Count; i++)
-            {
-                var binding = interact.bindings[i];
-                if (!binding.isComposite && !binding.isPartOfComposite &&
-                    !string.IsNullOrEmpty(binding.effectivePath) &&
-                    binding.effectivePath.StartsWith("<Keyboard>/",
-                        StringComparison.OrdinalIgnoreCase))
-                    return interact.GetBindingDisplayString(i);
-            }
-            return string.Empty;
+            return FirstBindingDisplayString(interact, "<Keyboard>/");
         }
 
         // S00 and the trial share Gameplay/Ring as their physical confirm
@@ -134,16 +139,7 @@ namespace Rpg.Soundwell
         public static string GameplayKeyboardInteractionLabel()
         {
             EnsureLoaded();
-            for (int i = 0; i < ring.bindings.Count; i++)
-            {
-                var binding = ring.bindings[i];
-                if (!binding.isComposite && !binding.isPartOfComposite &&
-                    !string.IsNullOrEmpty(binding.effectivePath) &&
-                    binding.effectivePath.StartsWith("<Keyboard>/",
-                        StringComparison.OrdinalIgnoreCase))
-                    return ring.GetBindingDisplayString(i);
-            }
-            return string.Empty;
+            return FirstBindingDisplayString(ring, "<Keyboard>/");
         }
 
         // S00's printed pad confirm must follow the same Gameplay/Ring
@@ -152,41 +148,33 @@ namespace Rpg.Soundwell
         public static string GameplayGamepadInteractionLabel()
         {
             EnsureLoaded();
-            for (int i = 0; i < ring.bindings.Count; i++)
-            {
-                var binding = ring.bindings[i];
-                if (!binding.isComposite && !binding.isPartOfComposite &&
-                    !string.IsNullOrEmpty(binding.effectivePath) &&
-                    binding.effectivePath.StartsWith("<Gamepad>/",
-                        StringComparison.OrdinalIgnoreCase))
-                    return ring.GetBindingDisplayString(i);
-            }
-            return string.Empty;
+            return FirstBindingDisplayString(ring, "<Gamepad>/");
         }
 
         // Gameplay Back is independently rebindable from UI Cancel.
         // S00's active walking prompts must advertise the live binding.
         public static string GameplayKeyboardBackLabel()
         {
-            return GameplayBackLabel("<Keyboard>/");
+            EnsureLoaded();
+            return FirstBindingDisplayString(back, "<Keyboard>/");
         }
 
         public static string GameplayGamepadBackLabel()
         {
-            return GameplayBackLabel("<Gamepad>/");
+            EnsureLoaded();
+            return FirstBindingDisplayString(back, "<Gamepad>/");
         }
 
-        private static string GameplayBackLabel(string devicePrefix)
+        private static string FirstBindingDisplayString(InputAction action, string devicePrefix)
         {
-            EnsureLoaded();
-            for (int i = 0; i < back.bindings.Count; i++)
+            for (int i = 0; i < action.bindings.Count; i++)
             {
-                var binding = back.bindings[i];
+                var binding = action.bindings[i];
                 if (!binding.isComposite && !binding.isPartOfComposite &&
                     !string.IsNullOrEmpty(binding.effectivePath) &&
                     binding.effectivePath.StartsWith(devicePrefix,
                         StringComparison.OrdinalIgnoreCase))
-                    return back.GetBindingDisplayString(i);
+                    return action.GetBindingDisplayString(i);
             }
             return string.Empty;
         }
@@ -381,9 +369,9 @@ namespace Rpg.Soundwell
             // Prefer an ACTIVE Soundwell UI owner, never one on an inactive
             // GameObject. Enabling its component cannot activate the host.
             EventSystem eventSystem = systems.FirstOrDefault(system =>
-                    system.gameObject.activeInHierarchy &&
-                    system.name == "Soundwell EventSystem" &&
-                    system.GetComponent<InputSystemUIInputModule>() != null) ??
+                system.gameObject.activeInHierarchy &&
+                system.name == "Soundwell EventSystem" &&
+                system.GetComponent<InputSystemUIInputModule>() != null) ??
                 (current != null && current.gameObject.activeInHierarchy &&
                     current.GetComponent<InputSystemUIInputModule>() != null ? current : null) ??
                 systems.FirstOrDefault(system =>
@@ -409,10 +397,10 @@ namespace Rpg.Soundwell
                 foreach (BaseInputModule duplicateModule in duplicate.GetComponents<BaseInputModule>())
                 {
                     duplicateModule.enabled = false;
-                    UnityEngine.Object.Destroy(duplicateModule);
+                    DestroyObject(duplicateModule);
                 }
                 duplicate.enabled = false;
-                UnityEngine.Object.Destroy(duplicate);
+                DestroyObject(duplicate);
             }
 
             if (!eventSystem.enabled)
@@ -427,7 +415,7 @@ namespace Rpg.Soundwell
             {
                 if (module is InputSystemUIInputModule) continue;
                 module.enabled = false;
-                UnityEngine.Object.Destroy(module);
+                DestroyObject(module);
             }
             var ui = eventSystem.GetComponent<InputSystemUIInputModule>();
             if (ui == null) ui = eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
@@ -441,6 +429,16 @@ namespace Rpg.Soundwell
             // persistent EventSystem; visible Entry/M00 must restore Submit.
             eventSystem.sendNavigationEvents = true;
             return eventSystem;
+        }
+
+        private static void DestroyObject(UnityEngine.Object target)
+        {
+            if (target == null)
+                return;
+            if (Application.isPlaying)
+                UnityEngine.Object.Destroy(target);
+            else
+                UnityEngine.Object.DestroyImmediate(target);
         }
 
         private static void EnsureLoaded()
