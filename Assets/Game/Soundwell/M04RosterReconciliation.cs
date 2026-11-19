@@ -86,6 +86,9 @@ namespace Rpg.Soundwell
             if (initialStatus == M04RosterStatus.BookedForVoyage)
                 throw new InvalidOperationException(
                     "Entries must be booked against verified berths rather than pre-booked.");
+            if (initialStatus == M04RosterStatus.DeclinedVoyage)
+                throw new InvalidOperationException(
+                    "A returnee may decline only after dockside confirmation and an explicit choice.");
 
             string normalizedId = entryId.Trim();
             if (byId.ContainsKey(normalizedId))
