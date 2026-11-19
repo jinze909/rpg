@@ -172,6 +172,11 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             ThrowIfDisposed();
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             if (!(aspect > 0f) || float.IsNaN(aspect) || float.IsInfinity(aspect))
                 return;
 
