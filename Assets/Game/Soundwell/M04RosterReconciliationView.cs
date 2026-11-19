@@ -179,6 +179,7 @@ namespace Rpg.Soundwell
                 current.RequiresRollCorrection;
             bookButton.interactable = active && current != null &&
                 current.Status == M04RosterStatus.ConfirmedAtDock &&
+                !current.RequiresRollCorrection &&
                 ledger.BookedCount < verifiedBerths;
             unbookButton.interactable = active && current != null &&
                 current.Status == M04RosterStatus.BookedForVoyage;
@@ -242,7 +243,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered) return;
             M04RosterEntry current = CurrentEntry();
-            if (current == null || !ledger.TryBookForVoyage(current.EntryId, verifiedBerths))
+            if (current == null || current.RequiresRollCorrection ||
+                !ledger.TryBookForVoyage(current.EntryId, verifiedBerths))
                 return;
             Refresh();
         }
@@ -345,8 +347,8 @@ namespace Rpg.Soundwell
             if (entry.RequiresRollCorrection)
             {
                 copy.Append(chinese
-                    ? "差异：原列阵亡名册，需先完成名册更正后再结束对账。"
-                    : "Discrepancy: listed on dead roll; resolve roll correction before finishing.");
+                    ? "差异：原列阵亡名册，需先完成名册更正才能预约铺位或结束对账。"
+                    : "Discrepancy: listed on dead roll; correct the record before booking a berth or finishing.");
             }
             return copy.ToString();
         }
