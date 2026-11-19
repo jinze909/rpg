@@ -107,7 +107,13 @@ namespace Rpg.Soundwell
                 string path = CheckpointPath(saves);
                 byte[] recorded = File.ReadAllBytes(path);
                 // Start a confirmation, then leave and return to the same Bootstrap owner.
+                var saveLabel = saveButton.GetComponentInChildren<UnityEngine.UI.Text>();
                 saveButton.onClick.Invoke();
+                if (saveLabel.text != "Confirm overwrite")
+                {
+                    Fail("The existing checkpoint did not ask for overwrite confirmation.");
+                    yield break;
+                }
                 FindFirstObjectByType<SoundwellEntrance>().OpenPrelude();
                 var prelude = FindFirstObjectByType<WhitewaterPrelude>();
                 if (prelude == null)
@@ -116,9 +122,14 @@ namespace Rpg.Soundwell
                     yield break;
                 }
                 prelude.Close();
-                yield return WaitFor(() => saveButton.IsInteractable());
+                yield return WaitFor(() => saveButton.IsInteractable() && saveLabel.text == "Save checkpoint");
+                if (saveLabel.text != "Save checkpoint")
+                {
+                    Fail("The overwrite confirmation did not expire on return to entry.");
+                    yield break;
+                }
                 saveButton.onClick.Invoke();
-                if (saveButton.GetComponentInChildren<UnityEngine.UI.Text>().text != "Confirm overwrite" ||
+                if (saveLabel.text != "Confirm overwrite" ||
                     !System.Linq.Enumerable.SequenceEqual(recorded, File.ReadAllBytes(path)))
                 {
                     Fail("An overwrite confirmation survived leaving the entry screen.");
