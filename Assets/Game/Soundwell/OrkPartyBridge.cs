@@ -435,27 +435,27 @@ namespace Rpg.Soundwell
                     i >= actors.Count || !IsActiveBattleSceneActor(actors[i]))
                     continue;
                 text.Append(allyLabel ?? SoundwellUiLocalization.Get("battle.rescuer")).Append(' ').Append(i + 1)
-                    .Append(" ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
+                    .Append("  ").Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                     .Append(member.Status[HealthStatusIndex].GetValue());
                 if (member.Battle.Defending)
-                    text.Append(" ").Append(SoundwellUiLocalization.Get("battle.defending"));
+                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.defending"));
                 if (member.Actions.IsChoosing)
                 {
-                    text.Append(" ").Append(SoundwellUiLocalization.Get("battle.turn"));
+                    text.Append("  ").Append(SoundwellUiLocalization.Get("battle.turn"));
                     // A small ORK-owned mobility allowance is separate from
                     // the primary action. Surface the *real* live-turn budget
                     // without duplicating an action counter in presentation.
                     // 1/1 means unspent, not a promise that every direction is free.
                     if (fixedFormationForEncounter)
-                        text.Append(" ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
+                        text.Append("  ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
                     else if (i < lastStepTurn.Length)
-                        text.Append(" ").Append(SoundwellUiLocalization.Get("battle.move"))
+                        text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
                             .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
                 }
                 text.Append('\n');
             }
             float beastHp = Beast.Status[HealthStatusIndex].GetValue();
-            text.Append(opponentLabel ?? SoundwellUiLocalization.Get("battle.beast")).Append(" ")
+            text.Append(opponentLabel ?? SoundwellUiLocalization.Get("battle.beast")).Append("  ")
                 .Append(SoundwellUiLocalization.Get("battle.hp")).Append(' ')
                 .Append(beastHp);
             // A disabled Attack button is not a pending ORK menu if the
