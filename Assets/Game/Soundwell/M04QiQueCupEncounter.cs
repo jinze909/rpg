@@ -88,6 +88,17 @@ namespace Rpg.Soundwell
     {
         public const string CupCarriedKey = "rpg.return.m04.qi-cup-carried";
 
+        // A replay of the dockside encounter must not reuse the last voyage's
+        // physical gift. The M04 host calls this before opening the farewell.
+        public static bool TryResetForNewVisit()
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+            variables.Set(CupCarriedKey, 0);
+            return true;
+        }
+
         // Missing data is never evidence that a cup teleported aboard.
         // Makinom records the physical gift; ORK remains save authority.
         public static bool TryRecord(M04QiQueCupEncounter cup)
@@ -106,7 +117,12 @@ namespace Rpg.Soundwell
             carrying = false;
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 return false;
-            carrying = Maki.Game.Variables.GetInt(CupCarriedKey) == 1;
+            // 0/unknown means the encounter has not happened; 2 explicitly
+            // means no physical cup. Only a completed farewell writes either.
+            int recorded = Maki.Game.Variables.GetInt(CupCarriedKey);
+            if (recorded != 1 && recorded != 2)
+                return false;
+            carrying = recorded == 1;
             return true;
         }
     }
