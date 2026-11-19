@@ -180,7 +180,7 @@ namespace Rpg.Soundwell
                         (inquiry.Has(M02BridgeEvidence.WarReportDraft) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
             }
             continueLabel.text = location == M02EvidenceLocation.FerryWarehouse
-                ? (chinese ? "继续到港务署旧档案室" : "Continue to the harbor archive")
+                ? (chinese ? "继续到港务署旧档室" : "Continue to the harbor archive")
                 : location == M02EvidenceLocation.HarborArchive
                     ? (chinese ? "结束调查" : "Finish investigating")
                     : (chinese ? "调查结束" : "Inquiry complete");
