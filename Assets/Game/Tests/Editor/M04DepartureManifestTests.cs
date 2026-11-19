@@ -92,6 +92,34 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void HostRecordExceptionDoesNotConsumeDepartureConfirmation()
+        {
+            var departure = Ready(M03VoyageChoice.QiQueMerchant);
+            int attempts = 0;
+            Assert.Throws<InvalidOperationException>(() =>
+                departure.ConfirmDeparture(record =>
+                {
+                    attempts++;
+                    Assert.That(record.DepartureConfirmed, Is.True);
+                    throw new InvalidOperationException("Interrupted Makinom write");
+                }));
+            Assert.That(departure.DepartureConfirmed, Is.False);
+            Assert.That(attempts, Is.EqualTo(1));
+
+            Assert.That(departure.ConfirmDeparture(record =>
+            {
+                attempts++;
+                Assert.That(record.DepartureConfirmed, Is.True);
+            }), Is.True);
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(departure.DepartureConfirmed, Is.True);
+            Assert.That(departure.ConfirmDeparture(_ => attempts++), Is.False);
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.Throws<ArgumentNullException>(() =>
+                departure.ConfirmDeparture((Action<M04DepartureManifest>)null));
+        }
+
+        [Test]
         public void EmptyOrInvalidDemandCannotClaimCompleteDeparture()
         {
             var noReserve = Ready(M03VoyageChoice.QiQueMerchant, returnees: 0);

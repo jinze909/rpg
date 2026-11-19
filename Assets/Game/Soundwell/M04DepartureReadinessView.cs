@@ -82,7 +82,8 @@ namespace Rpg.Soundwell
             details.text = M04DepartureReadinessCopy.Describe(manifest, zh);
             confirmLabel.text = zh ? "确认准备齐全" : "Confirm readiness";
             backLabel.text = zh ? "返回准备" : "Return to preparations";
-            confirm.interactable = !delivered && manifest.Check().Length == 0;
+            confirm.interactable = !delivered && !manifest.DepartureConfirmed &&
+                manifest.Check().Length == 0;
             back.interactable = !delivered;
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
@@ -91,13 +92,29 @@ namespace Rpg.Soundwell
 
         private void Confirm()
         {
-            // Button.onClick.Invoke in tests bypasses UGUI's interactable
-            // property. Check the domain rule again at the action boundary.
-            if (disposed || delivered || !manifest.ConfirmDeparture())
+            // Direct Button.onClick invocation bypasses interactable; lock the
+            // whole panel before calling the host to reject reentrant submits.
+            if (disposed || delivered || manifest.DepartureConfirmed ||
+                manifest.Check().Length != 0)
                 return;
             delivered = true;
             Refresh();
-            onConfirmed(manifest);
+            try
+            {
+                if (!manifest.ConfirmDeparture(onConfirmed))
+                {
+                    delivered = false;
+                    Refresh();
+                }
+            }
+            catch
+            {
+                // Interrupted Makinom writes are not a successful departure.
+                // The manifest transaction has rolled its in-memory flag back.
+                delivered = false;
+                Refresh();
+                throw;
+            }
         }
 
         private void GoBack()

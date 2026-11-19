@@ -107,5 +107,27 @@ namespace Rpg.Soundwell
             DepartureConfirmed = true;
             return true;
         }
+
+        // The host must have a chance to persist the record before this
+        // in-memory confirmation becomes final. If the host throws while
+        // recording, restore the pre-confirmation state for a safe retry.
+        // Host callbacks should only return after successful durable writes.
+        public bool ConfirmDeparture(Action<M04DepartureManifest> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            if (!ConfirmDeparture())
+                return false;
+            try
+            {
+                recordWithHost(this);
+                return true;
+            }
+            catch
+            {
+                DepartureConfirmed = false;
+                throw;
+            }
+        }
     }
 }
