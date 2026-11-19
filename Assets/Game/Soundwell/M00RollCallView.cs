@@ -29,6 +29,7 @@ namespace Rpg.Soundwell
         private readonly Button continueButton;
         private readonly Text continueLabel;
         private Action<M00RollCallOutcome> onContinue;
+        private bool delivered;
         private bool disposed;
         private float lastViewAspect = -1f;
 
@@ -150,7 +151,7 @@ namespace Rpg.Soundwell
             {
                 bool visible = i < CurrentBeat.Choices.Length;
                 choiceLabels[i].font = font;
-                choiceButtons[i].gameObject.SetActive(visible);
+                choiceButtons[i].gameObject.SetActive(!delivered && visible);
                 if (visible)
                 {
                     choiceLabels[i].text = CurrentBeat.Choices[i];
@@ -158,9 +159,10 @@ namespace Rpg.Soundwell
                 }
             }
 
-            continueButton.gameObject.SetActive(CurrentBeat.Finished);
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                CurrentBeat.Finished ? continueButton : CurrentBeat.CanRespond ? choiceButtons[0] : null);
+            continueButton.gameObject.SetActive(!delivered && CurrentBeat.Finished);
+            if (!delivered)
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
+                    CurrentBeat.Finished ? continueButton : CurrentBeat.CanRespond ? choiceButtons[0] : null);
         }
 
         /// <summary>
@@ -195,7 +197,7 @@ namespace Rpg.Soundwell
         private void Choose(int index)
         {
             ThrowIfDisposed();
-            if (CurrentBeat == null || !CurrentBeat.CanRespond ||
+            if (delivered || CurrentBeat == null || !CurrentBeat.CanRespond ||
                 index < 0 || index >= CurrentBeat.Choices.Length)
                 return;
 
@@ -212,11 +214,23 @@ namespace Rpg.Soundwell
         private void Continue()
         {
             ThrowIfDisposed();
-            if (!sequence.IsComplete)
+            if (delivered || !sequence.IsComplete)
                 return;
-            Action<M00RollCallOutcome> callback = onContinue;
-            onContinue = null;
-            callback?.Invoke(sequence.Outcome);
+
+            delivered = true;
+            Refresh();
+            try
+            {
+                onContinue?.Invoke(sequence.Outcome);
+                onContinue = null;
+            }
+            catch
+            {
+                delivered = false;
+                if (!disposed)
+                    Refresh();
+                throw;
+            }
         }
 
         private void ThrowIfDisposed()
