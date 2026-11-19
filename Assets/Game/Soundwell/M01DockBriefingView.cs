@@ -42,7 +42,7 @@ namespace Rpg.Soundwell
                     return null;
                 return briefing.Stage == M01DockStage.AwaitingOpeningReply ||
                     briefing.Stage == M01DockStage.ReviewingRoutes
-                    ? choices[0]
+                    ? (choices.Length > 0 ? choices[0] : null)
                     : briefing.Stage == M01DockStage.OfferingCake ? advanceButton : null;
             }
         }
@@ -186,6 +186,7 @@ namespace Rpg.Soundwell
                 if (Application.isPlaying && system != null &&
                     !system.alreadySelecting &&
                     system.currentSelectedGameObject == advanceButton.gameObject &&
+                    choices.Length > 0 && choices[0] != null &&
                     choices[0].gameObject.activeInHierarchy)
                     system.SetSelectedGameObject(choices[0].gameObject);
                 return;

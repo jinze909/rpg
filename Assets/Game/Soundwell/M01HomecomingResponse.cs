@@ -25,7 +25,7 @@ namespace Rpg.Soundwell
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 return false;
 
-            // Stored values 1–4 represent the four decisions; 0 means no choice was recorded.
+            // Stored values 1-4 represent the four decisions; 0 means no choice was recorded.
             Maki.Game.Variables.Set(PensionChoiceKey, (int)choice + 1);
             return true;
         }
@@ -96,8 +96,9 @@ namespace Rpg.Soundwell
         {
             // A later decision to hide the registry entry cannot erase
             // witnesses to an earlier public memorial response.
-            string path = PensionPathFor(choice);
-            return path == "隐瞒" && AnsweredAtMemorial(identity);
+            PensionPathFor(choice);
+            return choice == M01PensionChoice.KeepIdentityUnregistered &&
+                AnsweredAtMemorial(identity);
         }
     }
 }

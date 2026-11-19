@@ -28,6 +28,8 @@ namespace Rpg.Soundwell
         private Transform trialRoot;
         private Transform framingTarget;
         private CinemachineCamera virtualCamera;
+        private PixelPerfectCamera createdPixelCamera;
+        private CinemachineBrain createdBrain;
 
         public CinemachineCamera VirtualCamera => virtualCamera;
         public Transform FramingTarget => framingTarget;
@@ -50,6 +52,7 @@ namespace Rpg.Soundwell
             // rendered Transform. Camera presentation follows that real body.
             playerBody = leader.GetComponent<Rigidbody2D>();
             var pixelCamera = camera.gameObject.AddComponent<PixelPerfectCamera>();
+            createdPixelCamera = pixelCamera;
             pixelCamera.assetsPPU = PixelsPerUnit;
             pixelCamera.refResolutionX = ReferenceWidth;
             pixelCamera.refResolutionY = ReferenceHeight;
@@ -73,7 +76,7 @@ namespace Rpg.Soundwell
             virtualCamera.Priority = 100;
             RefreshFraming();
 
-            sceneCamera.gameObject.AddComponent<CinemachineBrain>();
+            createdBrain = sceneCamera.gameObject.AddComponent<CinemachineBrain>();
         }
 
         // Broken or uninitialized serialized floats must not produce an
@@ -116,7 +119,6 @@ namespace Rpg.Soundwell
                 desiredSize * aspect - worldHalfWidth - edgeMargin);
             float availablePanY = Mathf.Max(0f,
                 desiredSize - worldHalfHeight - edgeMargin);
-
             Vector2 sourceWorld = playerBody != null ? playerBody.position :
                 (Vector2)player.position;
             Vector3 sourceLocal = trialRoot.InverseTransformPoint(sourceWorld);
@@ -181,6 +183,27 @@ namespace Rpg.Soundwell
         private void LateUpdate()
         {
             RefreshFraming();
+        }
+
+        private void OnDestroy()
+        {
+            if (createdBrain != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(createdBrain);
+                else
+                    DestroyImmediate(createdBrain);
+                createdBrain = null;
+            }
+            if (createdPixelCamera != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(createdPixelCamera);
+                else
+                    DestroyImmediate(createdPixelCamera);
+                createdPixelCamera = null;
+            }
+            sceneCamera = null;
         }
     }
 }
