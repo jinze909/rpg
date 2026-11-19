@@ -521,5 +521,43 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void DestroyedRosterCanvasCannotReceiveLocaleUpdatesOrFailOnDispose()
+        {
+            var root = new GameObject("M04 roster destroyed canvas");
+            M04RosterReconciliationView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-1", "Verified dockside returnee",
+                    M04RosterStatus.ConfirmedAtDock);
+                view = new M04RosterReconciliationView(root.transform, ledger, 1,
+                    _ => { }, () => { });
+                Assert.That(view.FinishButton.interactable, Is.True);
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                Assert.DoesNotThrow(() => view.Refresh());
+                Assert.DoesNotThrow(() => view.Dispose());
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English));
+                Assert.That(ledger.TotalConfirmedAtDockCount, Is.EqualTo(1),
+                    "Scene teardown must never change the factual roster.");
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }
