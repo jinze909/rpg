@@ -104,6 +104,26 @@ namespace Rpg.Soundwell
                     Fail("Makinom did not create a save file.");
                     yield break;
                 }
+                string path = CheckpointPath(saves);
+                byte[] recorded = File.ReadAllBytes(path);
+                // Start a confirmation, then leave and return to the same Bootstrap owner.
+                saveButton.onClick.Invoke();
+                FindFirstObjectByType<SoundwellEntrance>().OpenPrelude();
+                var prelude = FindFirstObjectByType<WhitewaterPrelude>();
+                if (prelude == null)
+                {
+                    Fail("The checkpoint confirmation visit did not reach Whitewater.");
+                    yield break;
+                }
+                prelude.Close();
+                yield return WaitFor(() => saveButton.IsInteractable());
+                saveButton.onClick.Invoke();
+                if (saveButton.GetComponentInChildren<UnityEngine.UI.Text>().text != "Confirm overwrite" ||
+                    !System.Linq.Enumerable.SequenceEqual(recorded, File.ReadAllBytes(path)))
+                {
+                    Fail("An overwrite confirmation survived leaving the entry screen.");
+                    yield break;
+                }
                 Debug.Log("RPG_ORK_SAVE_RESTART_WRITE");
             }
             else
@@ -170,9 +190,12 @@ namespace Rpg.Soundwell
             GameObject.Find(action + " ORK checkpoint button")
                 ?.GetComponent<UnityEngine.UI.Button>();
 
+        private static string CheckpointPath(SaveGameHandler saves) =>
+            Path.Combine(Application.persistentDataPath, saves.GetFileName(Slot) + ".save");
+
         private static bool RejectsIncompleteCheckpoint(SaveGameHandler saves, UnityEngine.UI.Button loadButton)
         {
-            string path = Path.Combine(Application.persistentDataPath, saves.GetFileName(Slot) + ".save");
+            string path = CheckpointPath(saves);
             byte[] valid = File.ReadAllBytes(path);
             try
             {

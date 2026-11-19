@@ -424,6 +424,7 @@ namespace Rpg.Soundwell
         private bool CheckpointReady =>
             entryCanvas != null && entryCanvas.isActiveAndEnabled && trialLoad == null &&
             currentPrelude == null && currentMemorial == null &&
+            lastOpeningExitFrame != Time.frameCount &&
             SceneManager.GetActiveScene().name == BootstrapSceneName &&
             Maki.Initialized && ORK.Initialized && Maki.Game?.Variables != null;
 
@@ -745,6 +746,8 @@ namespace Rpg.Soundwell
             if (checkpointLoading || currentPrelude != null || currentMemorial != null || trialLoad != null ||
                 lastOpeningExitFrame == Time.frameCount)
                 return;
+            // Confirmation applies to this visit to the entry screen.
+            confirmCheckpointOverwrite = confirmCheckpointLoad = checkpointSaved = checkpointReadFailed = false;
             // Disable the whole menu to prevent hidden Selectables from
             // retaining focus or intercepting pointer/gamepad Submit.
             entryCanvas.gameObject.SetActive(false);
