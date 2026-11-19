@@ -121,5 +121,21 @@ namespace Rpg.Tests.Editor
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             Assert.That(calls, Is.Zero);
         }
+
+        [Test]
+        public void DestroyedViewSafelyHandlesLayoutLocaleChangesAndDispose()
+        {
+            view = new M02MissingReturnView(root.transform,
+                M01PensionChoice.RequestMissingReturnReview,
+                M02BridgeEvidence.WarReportDraft, false, _ => { });
+
+            UnityEngine.Object.DestroyImmediate(root);
+            root = null;
+
+            Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+            Assert.DoesNotThrow(() =>
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+            Assert.DoesNotThrow(() => view.Dispose());
+        }
     }
 }
