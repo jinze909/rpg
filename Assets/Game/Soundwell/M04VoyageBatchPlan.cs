@@ -77,18 +77,27 @@ namespace Rpg.Soundwell
             if (ledger.UnresolvedDiscrepancyCount > 0)
                 throw new InvalidOperationException(
                     "Cannot batch voyages while dead-roll discrepancies remain unresolved.");
+            if (ledger.BookedCount > verifiedBerthsPerTrip)
+                throw new InvalidOperationException(
+                    "Existing voyage bookings exceed the currently verified berth capacity.");
 
             M04RosterEntry[] snapshot = ledger.Snapshot();
-            var eligible = new List<M04RosterEntry>();
+            // Existing berth reservations belong to the imminent voyage.
+            // Preserve roster order within each group, but never silently move
+            // a booked returnee to a later sailing behind an unbooked one.
+            var booked = new List<M04RosterEntry>();
+            var unbooked = new List<M04RosterEntry>();
             for (int i = 0; i < snapshot.Length; i++)
             {
                 M04RosterStatus status = snapshot[i].Status;
-                if (status == M04RosterStatus.ConfirmedAtDock ||
-                    status == M04RosterStatus.BookedForVoyage)
-                {
-                    eligible.Add(snapshot[i]);
-                }
+                if (status == M04RosterStatus.BookedForVoyage)
+                    booked.Add(snapshot[i]);
+                else if (status == M04RosterStatus.ConfirmedAtDock)
+                    unbooked.Add(snapshot[i]);
             }
+            var eligible = new List<M04RosterEntry>(booked.Count + unbooked.Count);
+            eligible.AddRange(booked);
+            eligible.AddRange(unbooked);
 
             if (eligible.Count == 0)
                 return Array.Empty<M04RosterEntry[]>();
