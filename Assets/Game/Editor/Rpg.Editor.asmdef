@@ -2,9 +2,7 @@
   "name": "Rpg.Editor",
   "references": [
     "Rpg.Soundwell",
-    "UnityEngine.UI",
-    "Unity.InputSystem",
-    "Unity.Cinemachine",
+    "Rpg.Soundwell.EditorSmoke",
     "Unity.2D.Tilemap.Extras",
     "Unity.Localization",
     "Unity.RenderPipelines.Core.Runtime",
