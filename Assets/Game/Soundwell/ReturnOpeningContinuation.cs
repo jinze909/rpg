@@ -72,10 +72,12 @@ namespace Rpg.Soundwell
             // The next voyage must not inherit letters left or accepted at
             // the previous outer-harbor visit.
             setInt(M05LettersFacts.DecisionKey, 0);
+            setInt(M05LandingFacts.ConfirmedKey, 0);
 
             return M04DepartureFacts.TryResetForNewVisit(setInt) &&
                 M04RosterFacts.TryResetForNewVisit(setInt) &&
-                FogListeningFacts.TryResetForNewLeg(setInt);
+                FogListeningFacts.TryResetForNewLeg(setInt) &&
+                M05LandingFacts.TryResetForNewVisit(setInt);
         }
 
         private static bool TryResetPreviousOutboundFacts()
