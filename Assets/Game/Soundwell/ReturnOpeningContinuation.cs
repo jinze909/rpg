@@ -205,12 +205,11 @@ namespace Rpg.Soundwell
         {
             if (!cupPending || qiQueCup != null || onFinished == null ||
                 !M02QiQueDebtFacts.TryRead(out bool debtKnown) ||
-                !Maki.Initialized || Maki.Game?.Variables == null)
+                !M04QiQueCupFacts.TryResetForNewVisit())
                 return;
 
             // Replay cannot inherit a cup from an earlier finished journey.
             // Actual handover is recorded only after this scene completes.
-            Maki.Game.Variables.Set(M04QiQueCupFacts.CupCarriedKey, 0);
             cupPending = false;
             qiQueCup = new M04QiQueCupView(transform, true, debtKnown,
                 FinishQiQueCup);

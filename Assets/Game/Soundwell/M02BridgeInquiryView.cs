@@ -53,8 +53,8 @@ namespace Rpg.Soundwell
                             return clueButtons[i];
                 }
                 else if (inquiry.Location == M02EvidenceLocation.HarborArchive &&
-                         clueButtons[0].gameObject.activeInHierarchy &&
-                         !inquiry.Has(M02BridgeEvidence.WarReportDraft))
+                    clueButtons[0].gameObject.activeInHierarchy &&
+                    !inquiry.Has(M02BridgeEvidence.WarReportDraft))
                     return clueButtons[0];
 
                 return continueButton.gameObject.activeInHierarchy ? continueButton : null;
@@ -176,7 +176,8 @@ namespace Rpg.Soundwell
                     clueLabels[i].text = (chinese ? zh[i] : en[i]) +
                         (inquiry.Has(WarehouseClues[i]) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
                 else if (archive)
-                    clueLabels[i].text = chinese ? "调阅战报底稿" : "Read the draft battle report";
+                    clueLabels[i].text = (chinese ? "调阅战报底稿" : "Read the draft battle report") +
+                        (inquiry.Has(M02BridgeEvidence.WarReportDraft) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
             }
             continueLabel.text = location == M02EvidenceLocation.FerryWarehouse
                 ? (chinese ? "继续到港务署旧档室" : "Continue to the harbor archive")
