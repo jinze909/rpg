@@ -78,6 +78,37 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DeadRollReturneeCannotBookBeforeTheirCorrectionIsResolved()
+        {
+            var ledger = new M04RosterLedger();
+            M04RosterEntry survivor = ledger.AddEntry(
+                "roll-01", "Survivor incorrectly listed dead", M04RosterStatus.ListedDead);
+            ledger.AddEntry("dock-01", "Other confirmed returnee", M04RosterStatus.ConfirmedAtDock);
+            ledger.MarkConfirmedAtDock("roll-01");
+
+            Assert.That(ledger.TryBookForVoyage("roll-01", 2), Is.False,
+                "Dockside confirmation alone must not bypass a pending dead-roll correction.");
+            Assert.That(survivor.Status, Is.EqualTo(M04RosterStatus.ConfirmedAtDock));
+            Assert.That(survivor.RequiresRollCorrection, Is.True);
+            Assert.That(ledger.BookedCount, Is.Zero);
+            Assert.That(ledger.UnresolvedDiscrepancyCount, Is.EqualTo(1));
+
+            // An unrelated confirmed returnee can still be assigned a berth;
+            // the unresolved ledger remains ineligible for final partitioning.
+            Assert.That(ledger.TryBookForVoyage("dock-01", 2), Is.True);
+            Assert.That(ledger.TryBookForVoyage("roll-01", 2), Is.False);
+            Assert.Throws<InvalidOperationException>(() =>
+                M04VoyageBatchPlan.PartitionConfirmed(ledger, 2));
+
+            ledger.ResolveRollCorrection("roll-01");
+            Assert.That(ledger.TryBookForVoyage("roll-01", 2), Is.True);
+            Assert.That(ledger.BookedCount, Is.EqualTo(2));
+            Assert.That(ledger.UnresolvedDiscrepancyCount, Is.Zero);
+            Assert.That(M04VoyageBatchPlan.PartitionConfirmed(ledger, 2)[0].Length,
+                Is.EqualTo(2));
+        }
+
+        [Test]
         public void DecliningOrUnbookingFreesBerthForAnotherConfirmedReturnee()
         {
             var ledger = new M04RosterLedger();
