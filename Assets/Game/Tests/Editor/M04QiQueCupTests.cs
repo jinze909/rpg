@@ -20,7 +20,7 @@ namespace Rpg.Tests.Editor
             Assert.That(cup.CupTaken, Is.False);
             cup.Choose(M04QiQueCupReply.AskForReplacement);
             Assert.That(cup.CupTaken, Is.True);
-            Assert.That(M04QiQueCupCopy.Narration(cup, true), Does.Contain("沈砾"));
+            Assert.That(M04QiQueCupCopy.Narration(cup, true), Does.Contain("沈砺"));
             cup.Finish();
             Assert.That(cup.Stage, Is.EqualTo(M04QiQueCupStage.Complete));
         }
@@ -191,6 +191,36 @@ namespace Rpg.Tests.Editor
             {
                 view?.Dispose();
                 UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedViewCannotReceiveStaleLocaleChangesOrFailOnDispose()
+        {
+            var root = new GameObject("M04 cup destroyed");
+            M04QiQueCupView view = null;
+            string previousLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                view = new M04QiQueCupView(root.transform, true, false, _ => { });
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                Assert.DoesNotThrow(() => view.Dispose());
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
             }
         }
     }
