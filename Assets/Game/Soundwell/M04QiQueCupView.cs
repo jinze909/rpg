@@ -68,6 +68,11 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
+            if (canvasObject == null || authored == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
@@ -120,7 +125,7 @@ namespace Rpg.Soundwell
             if (cup.Stage == M04QiQueCupStage.OfferingCup)
                 cup.ExamineGift();
             else if (cup.Stage == M04QiQueCupStage.Responding ||
-                cup.Stage == M04QiQueCupStage.WithoutCup)
+                     cup.Stage == M04QiQueCupStage.WithoutCup)
             {
                 // Lock against reentrant UGUI submits before persisting
                 // through the Makinom host. A failed write must not consume
@@ -152,8 +157,10 @@ namespace Rpg.Soundwell
             onFinished = null;
             SoundwellUiLocalization.Changed -= Refresh;
             foreach (var option in choices)
-                option.onClick.RemoveAllListeners();
-            advance.onClick.RemoveAllListeners();
+                if (option != null)
+                    option.onClick.RemoveAllListeners();
+            if (advance != null)
+                advance.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }

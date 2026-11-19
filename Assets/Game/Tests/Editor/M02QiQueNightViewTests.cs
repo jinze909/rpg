@@ -95,6 +95,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedWarehouseCanvasRejectsLayoutAndLanguageCallbacksWithoutLeaving()
+        {
+            foreach (bool debtKnown in new[] { false, true })
+            {
+                foreach (bool layoutFirst in new[] { false, true })
+                {
+                    var warehouse = new GameObject("Destroyed Qi Que warehouse");
+                    try
+                    {
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        int persisted = 0;
+                        view = new M02QiQueNightView(warehouse.transform, debtKnown,
+                            () => persisted++);
+                        Assert.That(view.Night.Stage, Is.EqualTo(M02QiQueNightStage.AtWarehouse));
+
+                        UnityEngine.Object.DestroyImmediate(warehouse);
+                        warehouse = null;
+
+                        if (layoutFirst)
+                            Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                        Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                            SoundwellUiLocalization.Chinese));
+                        Assert.DoesNotThrow(() => view.LayoutForViewportAspect(32f / 9f));
+                        Assert.DoesNotThrow(() => view.Refresh());
+                        Assert.DoesNotThrow(() => view.Dispose());
+                        Assert.DoesNotThrow(() => view.Dispose());
+                        Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                            SoundwellUiLocalization.English));
+                        Assert.That(view.Night.Stage,
+                            Is.EqualTo(M02QiQueNightStage.AtWarehouse));
+                        Assert.That(view.Night.DebtAlreadyKnown, Is.EqualTo(debtKnown));
+                        Assert.That(view.Night.DebtConfronted, Is.False);
+                        Assert.That(persisted, Is.Zero);
+                    }
+                    finally
+                    {
+                        view?.Dispose();
+                        if (warehouse != null)
+                            UnityEngine.Object.DestroyImmediate(warehouse);
+                    }
+                }
+            }
+        }
+
+        [Test]
         public void DisposalStopsCallbackAndDetachesLocalization()
         {
             int calls = 0;

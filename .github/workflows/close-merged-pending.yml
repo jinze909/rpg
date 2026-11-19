@@ -255,6 +255,19 @@ jobs:
                   "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
           }
           ARCHIVED={
+              "codex/pending/m04-roster-reconciliation-destroyed-guard-nov19": {
+                  "head":"7e013e82e54c37be44389aa94e075810dd562f50",
+                  "verified":"22c8b262efc736f3f1b293cc2680810fdf1b6106",
+                  "run":44561748568,
+                  "original_run":44562172577,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"Merged PR 196 keeps all teardown and locale guards and strengthens the regression with a factual roster count assertion.",
+                  "blobs":{
+                      "Assets/Game/Soundwell/M04RosterReconciliationView.cs":"c4a8370866d1879272ef71ac9ad5debc502a0944",
+                      "Assets/Game/Tests/Editor/M04RosterReconciliationViewTests.cs":"6edcaa5a85b2421b28e7381c945718feb086c6e7",
+                  },
+              },
               "codex/pending/m04-xiaodou-farewell-nov18": {
                   "head":"02325af7e0a9388b11f9e4dd3121fa9a6e47ed9b",
                   "verified":"624466f9833932031a316d4c6f153d80330fec6d",

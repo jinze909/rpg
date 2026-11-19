@@ -104,6 +104,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            // West Lane can be unloaded before the host releases this view.
+            // Do not resize a destroyed Unity canvas; detach locale events.
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 

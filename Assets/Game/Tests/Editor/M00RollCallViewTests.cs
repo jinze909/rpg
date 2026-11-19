@@ -179,6 +179,30 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedViewSafelyHandlesLayoutBeforeLocaleChange()
+        {
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                M00RollCallSequence sequence = Begin();
+                view = new M00RollCallView(root.transform, sequence, null);
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                Assert.DoesNotThrow(() => view.Dispose());
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+            }
+        }
+
+        [Test]
         public void HostFailureOnContinueRestoresButtonAndBlocksReentrantSubmit()
         {
             M00RollCallSequence sequence = Begin();

@@ -131,6 +131,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            // Scene unload can destroy this canvas before the host disposes
+            // its meeting view. Unsubscribe locale updates on that path.
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 

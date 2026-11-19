@@ -40,7 +40,19 @@ namespace Rpg.Tests.Editor
             review.Stamp();
             Assert.That(review.Approved, Is.True);
             Assert.That(review.CanStamp, Is.False);
+            Assert.That(M02MissingReturnCopy.Description(review, true),
+                Does.Contain("给你备船").And.Contain("旧账仍挂在港务署"));
+            Assert.That(M02MissingReturnCopy.Description(review, false),
+                Does.Contain("official dock").And.Contain("stays on the harbor ledger"));
             var result = review.Leave();
+            var camp = new M03LuJunEncounter(M02BridgeEvidence.WarReportDraft,
+                M02OfficialDockFacts.IsEffective(false, result.Approved));
+            camp.Begin();
+            camp.ObserveRollCall();
+            camp.Ask(M03LuJunOpening.NeedAShip);
+            Assert.That(camp.CanChoose(M03VoyageChoice.HanQiaoOfficial), Is.True);
+            Assert.That(camp.CanChoose(M03VoyageChoice.MixedWithOfficial), Is.True);
+            Assert.That(camp.Voyage, Is.Null);
             Assert.That(result.EffectivePensionPath(
                 M01PensionChoice.RequestMissingReturnReview),
                 Is.EqualTo("改登记为失踪归还"));

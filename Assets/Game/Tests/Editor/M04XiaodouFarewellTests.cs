@@ -173,6 +173,56 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedFarewellCanvasIgnoresLanguageAndLayoutWithoutRecordingAChoice()
+        {
+            string originalLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                // Exercise both owner layout and localization callback as the
+                // first operation after Unity destroys the scene parent.
+                foreach (bool layoutFirst in new[] { true, false })
+                {
+                    var root = new GameObject("Destroyed Xiaodou farewell");
+                    M04XiaodouFarewellView view = null;
+                    try
+                    {
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                        int recorded = 0;
+                        view = new M04XiaodouFarewellView(
+                            root.transform, false, _ => recorded++);
+                        Assert.That(view.Encounter.Stage, Is.EqualTo(M04FarewellStage.Greeting));
+
+                        UnityEngine.Object.DestroyImmediate(root);
+                        root = null;
+                        if (layoutFirst)
+                            Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                        Assert.DoesNotThrow(() =>
+                            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                        Assert.DoesNotThrow(() => view.LayoutForViewportAspect(32f / 9f));
+                        Assert.DoesNotThrow(() => view.Refresh());
+                        Assert.DoesNotThrow(() => view.Dispose());
+                        Assert.DoesNotThrow(() => view.Dispose());
+                        Assert.DoesNotThrow(() =>
+                            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English));
+                        Assert.That(recorded, Is.Zero,
+                            "Destroying the scene must not record a farewell answer.");
+                        Assert.That(view.Encounter.Stage, Is.EqualTo(M04FarewellStage.Greeting));
+                    }
+                    finally
+                    {
+                        view?.Dispose();
+                        if (root != null)
+                            UnityEngine.Object.DestroyImmediate(root);
+                    }
+                }
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(originalLanguage);
+            }
+        }
+
+        [Test]
         public void UguiRequiresARealDecisionAndDeliversResultExactlyOnce()
         {
             var root = new GameObject("M04 farewell test root");

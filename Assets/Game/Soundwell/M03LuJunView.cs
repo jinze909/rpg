@@ -91,6 +91,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            // The scene owner can destroy the canvas before calling Dispose.
+            // Detach the locale listener instead of laying out dead Unity UI.
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
