@@ -129,9 +129,11 @@ namespace Rpg.Soundwell
             for (int i = 0; i < choiceLabels.Length; i++)
                 choiceLabels[i].font = font;
 
-            progressButton.gameObject.SetActive(Stage != M01WestLaneStage.ChoosingPension);
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                Stage == M01WestLaneStage.ChoosingPension ? choices[0] : progressButton);
+            progressButton.gameObject.SetActive(!delivered &&
+                Stage != M01WestLaneStage.ChoosingPension);
+            if (!delivered)
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
+                    Stage == M01WestLaneStage.ChoosingPension ? choices[0] : progressButton);
             switch (Stage)
             {
                 case M01WestLaneStage.AtDoor:
@@ -231,10 +233,22 @@ namespace Rpg.Soundwell
                 case M01WestLaneStage.Concluded:
                     if (delivered || !Decision.HasValue)
                         return;
+                    // A failed Makinom handoff must not permanently strand the
+                    // chosen pension path. Lock UGUI while the host writes so
+                    // a reentrant pad submit cannot dispatch it twice.
                     delivered = true;
-                    Action<M01PensionChoice> completed = onChosen;
-                    onChosen = null;
-                    completed?.Invoke(Decision.Value);
+                    Refresh();
+                    try
+                    {
+                        onChosen?.Invoke(Decision.Value);
+                        onChosen = null;
+                    }
+                    catch
+                    {
+                        delivered = false;
+                        Refresh();
+                        throw;
+                    }
                     break;
             }
         }
