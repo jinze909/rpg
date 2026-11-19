@@ -2,6 +2,7 @@
   "name": "Rpg.Editor",
   "references": [
     "Rpg.Soundwell",
+    "Rpg.Soundwell.EditorSmoke",
     "Unity.2D.Tilemap.Extras",
     "Unity.Localization",
     "Unity.RenderPipelines.Core.Runtime",

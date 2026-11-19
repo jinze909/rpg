@@ -234,6 +234,7 @@ namespace Rpg.Soundwell
             SoundwellMemoryProbe.Capture("soundwell_entered");
             RequireInputSystemEventSystem("SoundwellTrial");
             var camera = trial.TrialCamera;
+
             // At an aspect where the room has 0.85 world units of pan room,
             // naïve pixel rounding would yield 0.875 and crop the far edge.
             float safeFollow = SoundwellCameraRig.PixelSafeHorizontalPan(10f, 0.85f);
@@ -383,8 +384,7 @@ namespace Rpg.Soundwell
             var cartMapKit = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER cart map kit");
             var safeTrailMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name ==
-                    "PLACEHOLDER verified return route marker");
+                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER verified return route marker");
             Require(cartMapKit != null && cartMapKit.enabled && !trial.CartKitReclaimed &&
                 safeTrailMarker != null && !safeTrailMarker.enabled && !trial.SafeRouteMarked,
                 "Initial scene must hold the map kit but no corrected safe-route sign.");
@@ -562,7 +562,6 @@ namespace Rpg.Soundwell
             Require(Vector2.Distance(trial.PlayerPosition, retreat) < 0.35f &&
                 trial.RopeObserved && trial.ClawsObserved && trial.CartObserved,
                 "Optional observations must persist as the player returns to safety.");
-
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= -2.25f, "walk into bell range"); wait.MoveNext();)
                 yield return null;
@@ -612,7 +611,7 @@ namespace Rpg.Soundwell
             Require(bellAudio.loop && bellAudio.clip != null && bellAudio.clip.name == "Copper bell",
                 "The clear sound must repeat while the beast tracks it.");
             for (var wait = Until(() => trial.BeastPosition.x < home.x - 0.7f,
-                "the beast turns and advances toward the bell"); wait.MoveNext();)
+                "the beast turns and moves toward the bell"); wait.MoveNext();)
                 yield return null;
             Require(trial.BeastPosition.y < home.y, "The beast must approach the bell's lane.");
             // The real beast must still cross the escape lane during the
@@ -653,7 +652,6 @@ namespace Rpg.Soundwell
             for (var wait = Until(() => Vector2.Distance(trial.BeastPosition, pursued) > 0.35f,
                 "the beast continues searching after losing the bell"); wait.MoveNext();)
                 yield return null;
-
             // Removing the cloth cancels muffled playback and clears the pursuit
             // marker; wrapping again must not generate a clear sound.
             Press(trial, wrap: true);
@@ -866,6 +864,7 @@ namespace Rpg.Soundwell
             for (var wait = Until(() => trial.PlayerPosition.x >= 0.9f,
                 "walk through the now-open inner gate"); wait.MoveNext();)
                 yield return null;
+            yield return null;
             Require(trial.PlayerPosition.x > 0.25f,
                 "Player must cross the previously blocked doorway without teleporting.");
             Require(!trial.HasSurveyorClue,
@@ -905,7 +904,7 @@ namespace Rpg.Soundwell
             // runtime BoxCollider2D GameObjects. Verify the persisted wall
             // cells and non-trigger physics, then try walking into them below.
             var wallCollider = UnityEngine.Object.FindObjectsByType<TilemapCollider2D>(
-                    FindObjectsSortMode.None)
+                FindObjectsSortMode.None)
                 .SingleOrDefault(body => body.gameObject.name == "Solid walls");
             Require(wallCollider != null && wallCollider.enabled && !wallCollider.isTrigger,
                 "The saved eastern enclosure must have one active solid TilemapCollider2D.");
@@ -948,6 +947,7 @@ namespace Rpg.Soundwell
                 "return from the east boundary to the surveyor route"); wait.MoveNext();)
                 yield return null;
             Press(trial);
+            yield return null;
             Require(!trial.HasSurveyorClue && trial.GateOpen,
                 "Exploring closed room boundaries must not reveal or complete the rescue.");
 
@@ -1026,7 +1026,7 @@ namespace Rpg.Soundwell
             Require(trial.PlankSecured && !trial.CanSecurePlank,
                 "Bracing must update its single authoritative Makinom status.");
             for (var wait = Until(() => Vector2.Distance(
-                    (Vector2)surveyor.transform.position, SoundwellTrial.UpperBoardPosition) < 0.1f,
+                (Vector2)surveyor.transform.position, SoundwellTrial.UpperBoardPosition) < 0.1f,
                 "surveyor independently takes the braced upper route"); wait.MoveNext();)
                 yield return null;
             yield return null;
@@ -1079,7 +1079,7 @@ namespace Rpg.Soundwell
             for (int frame = 0; frame < 18; frame++)
                 yield return null;
             Require(Vector2.Distance((Vector2)surveyor.transform.position,
-                    SoundwellTrial.UpperBoardPosition) < 0.05f &&
+                SoundwellTrial.UpperBoardPosition) < 0.05f &&
                 ShowsPrompt(trial, "Show me the way through the gate") &&
                 !trial.RescueComplete,
                 "The survivor must wait on the safe plank until the player leads through the gate.");
@@ -1095,8 +1095,8 @@ namespace Rpg.Soundwell
                 yield return null;
             Press(trial);
             for (var wait = Until(() => Vector2.Distance(
-                    (Vector2)surveyor.transform.position,
-                    SoundwellTrial.UpperBoardPosition) > 0.25f,
+                (Vector2)surveyor.transform.position,
+                SoundwellTrial.UpperBoardPosition) > 0.25f,
                 "surveyor leaves the plank only after the player opens the way"); wait.MoveNext();)
                 yield return null;
             Require(trial.SurveyorEscorting && !trial.RescueComplete &&
@@ -1104,7 +1104,7 @@ namespace Rpg.Soundwell
                 "A safe bell distraction and player leading must permit the real survivor to cross.");
             Capture(trial, "09-surveyor-follows-through-gate");
 
-            // Sprint well ahead to test that the NPC is not an autopilot:
+            // Sprint well ahead to test the NPC is not an autopilot:
             // he must reach the gate, stop, and ask for his guide to return.
             Press(trial, Vector2.left);
             for (var wait = Until(() => trial.PlayerPosition.x <= retreat.x + 0.12f,
@@ -1134,7 +1134,7 @@ namespace Rpg.Soundwell
                 yield return null;
             Vector2 resumedPosition = trial.SurveyorWorldPosition;
             for (var wait = Until(() => Vector2.Distance(
-                    resumedPosition, trial.SurveyorWorldPosition) > 0.18f,
+                resumedPosition, trial.SurveyorWorldPosition) > 0.18f,
                 "surveyor makes physical progress after the player returns"); wait.MoveNext();)
                 yield return null;
             Require(trial.SurveyorEscorting && !trial.RescueComplete &&
@@ -1262,7 +1262,7 @@ namespace Rpg.Soundwell
             Require(!trial.CartClueShared && !trial.CartKitReclaimed && cartMapKit.enabled &&
                 Vector2.Distance(trial.SurveyorWorldPosition,
                     SoundwellTrial.CartEvidencePosition) > 1.5f,
-                "Waiting without choosing to share the clue must not secretly retrieve the cart kit.");
+                "Waiting near the rescued surveyor must not secretly retrieve the cart kit.");
             Capture(trial, "11-cart-clue-optional");
             ClickTrialAction(trial, "Gate");
             yield return null;
@@ -1493,7 +1493,7 @@ namespace Rpg.Soundwell
                 "Controller left shoulder must map only to the portable bell action.");
             var rightShoulder = SoundwellControlFrame.FromButtons(Vector2.zero,
                 false, false, false, false, false, false, false, false,
-                false, false, false, true);
+                false, false, true);
             Require(rightShoulder.Gate && !rightShoulder.Carry &&
                 !rightShoulder.Ring && !rightShoulder.Wrap,
                 "Controller right shoulder must map only to the gate interaction.");
@@ -1613,7 +1613,7 @@ namespace Rpg.Soundwell
             var button = TrialActionButton(trial, action);
             Require(button.interactable, "Disabled action cannot be clicked: " + action);
             AssertHudHit(trial, action);
-            var pointer = new PointerEventData(EventSystem.current)
+            var pointer = new PointerEventData(eventSystem: EventSystem.current)
             {
                 button = PointerEventData.InputButton.Left,
                 position = RectTransformUtility.WorldToScreenPoint(null, button.transform.position)
@@ -1763,7 +1763,7 @@ namespace Rpg.Soundwell
                     {
                         Vector3 viewport = camera.WorldToViewportPoint(point);
                         Require(viewport.z > 0f && viewport.x > 0f && viewport.x < 1f &&
-                                viewport.y > 0f && viewport.y < 1f,
+                            viewport.y > 0f && viewport.y < 1f,
                             $"The captured battle crops {point}: viewport={viewport}, " +
                             $"ortho={camera.orthographicSize:F3}, stage={stage}.");
                     }
