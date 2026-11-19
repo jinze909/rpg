@@ -114,12 +114,23 @@ namespace Rpg.Soundwell
                 encounter.ReceiveCandy();
             else if (encounter.Stage == M04FarewellStage.HearingResponse)
             {
-                encounter.SayGoodbye();
+                // Disable all inputs before the host writes Makinom facts;
+                // programmatic onClick can still fire on hidden controls.
                 delivered = true;
                 Refresh();
-                Action<M04XiaodouFarewell> callback = onFinished;
-                onFinished = null;
-                callback?.Invoke(encounter);
+                try
+                {
+                    encounter.SayGoodbye(onFinished);
+                    onFinished = null;
+                }
+                catch
+                {
+                    // The encounter restored HearingResponse, retaining the
+                    // actual choice rather than forcing the player to repeat it.
+                    delivered = false;
+                    Refresh();
+                    throw;
+                }
                 return;
             }
             else return;

@@ -59,6 +59,24 @@ namespace Rpg.Soundwell
             Stage = M04FarewellStage.Complete;
         }
 
+        // Keep the player's actual answer if the host fails to persist it.
+        // Only a successful host callback makes this farewell final.
+        public void SayGoodbye(Action<M04XiaodouFarewell> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            SayGoodbye();
+            try
+            {
+                recordWithHost(this);
+            }
+            catch
+            {
+                Stage = M04FarewellStage.HearingResponse;
+                throw;
+            }
+        }
+
         private void Require(M04FarewellStage expected)
         {
             if (Stage != expected)
