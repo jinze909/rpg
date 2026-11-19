@@ -42,6 +42,7 @@ namespace Rpg.Soundwell
         private int verifiedBerths;
         private int selectedIndex;
         private bool delivered;
+        private bool navigatingBack;
         private bool disposed;
 
         public M04RosterLedger Ledger => ledger;
@@ -169,7 +170,7 @@ namespace Rpg.Soundwell
             finishLabel.text = zh ? "完成本轮对账" : "Complete reconciliation";
             backLabel.text = zh ? "返回准备" : "Return to preparations";
 
-            bool active = !delivered;
+            bool active = !delivered && !navigatingBack;
             prevButton.interactable = active && entries.Length > 1;
             nextButton.interactable = active && entries.Length > 1;
             confirmDockButton.interactable = active && current != null &&
@@ -211,7 +212,7 @@ namespace Rpg.Soundwell
 
         private void StepSelection(int delta)
         {
-            if (disposed || delivered) return;
+            if (disposed || delivered || navigatingBack) return;
             M04RosterEntry[] entries = ledger.Snapshot();
             if (entries.Length <= 1) return;
             selectedIndex = (selectedIndex + delta + entries.Length) % entries.Length;
@@ -220,7 +221,7 @@ namespace Rpg.Soundwell
 
         private void ConfirmSelectedAtDock()
         {
-            if (disposed || delivered) return;
+            if (disposed || delivered || navigatingBack) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null ||
                 (current.Status != M04RosterStatus.ListedDead &&
@@ -232,7 +233,7 @@ namespace Rpg.Soundwell
 
         private void ResolveSelectedRollCorrection()
         {
-            if (disposed || delivered) return;
+            if (disposed || delivered || navigatingBack) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null || !current.RequiresRollCorrection)
                 return;
@@ -242,7 +243,7 @@ namespace Rpg.Soundwell
 
         private void BookSelected()
         {
-            if (disposed || delivered) return;
+            if (disposed || delivered || navigatingBack) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null || current.RequiresRollCorrection ||
                 !ledger.TryBookForVoyage(current.EntryId, verifiedBerths))
@@ -252,7 +253,7 @@ namespace Rpg.Soundwell
 
         private void UnbookSelected()
         {
-            if (disposed || delivered) return;
+            if (disposed || delivered || navigatingBack) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null || current.Status != M04RosterStatus.BookedForVoyage)
                 return;
@@ -262,7 +263,7 @@ namespace Rpg.Soundwell
 
         private void DeclineSelected()
         {
-            if (disposed || delivered) return;
+            if (disposed || delivered || navigatingBack) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null ||
                 (current.Status != M04RosterStatus.ConfirmedAtDock &&
@@ -276,7 +277,7 @@ namespace Rpg.Soundwell
         {
             // Direct Button.onClick.Invoke calls must not bypass the visible
             // guards: a revised host capacity may leave old bookings overfull.
-            if (disposed || delivered || ledger.UnresolvedDiscrepancyCount != 0 ||
+            if (disposed || delivered || navigatingBack || ledger.UnresolvedDiscrepancyCount != 0 ||
                 ledger.BookedCount > verifiedBerths)
                 return;
             delivered = true;
@@ -297,8 +298,24 @@ namespace Rpg.Soundwell
 
         private void GoBack()
         {
-            if (disposed || delivered) return;
-            onBack();
+            if (disposed || delivered || navigatingBack) return;
+            // Disable every action before invoking the host transition. A
+            // delayed or reentrant UI submit must not change this roster or
+            // dispatch a second transition while leaving this panel.
+            navigatingBack = true;
+            Refresh();
+            try
+            {
+                onBack();
+            }
+            catch
+            {
+                // If the host could not navigate, keep the same roster open
+                // and interactive so the player can try returning again.
+                navigatingBack = false;
+                Refresh();
+                throw;
+            }
         }
 
         public void Dispose()

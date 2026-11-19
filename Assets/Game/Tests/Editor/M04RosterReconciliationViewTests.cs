@@ -306,6 +306,62 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BackNavigationDisablesOtherActionsAndCanRetryAfterHostFailure()
+        {
+            var root = new GameObject("Roster back transition guard");
+            M04RosterReconciliationView view = null;
+            try
+            {
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-01", "Confirmed passenger",
+                    M04RosterStatus.ConfirmedAtDock);
+                int finishes = 0;
+                int backAttempts = 0;
+                bool failFirst = true;
+
+                view = new M04RosterReconciliationView(
+                    root.transform, ledger, 1, _ => finishes++, () =>
+                    {
+                        backAttempts++;
+                        if (failFirst)
+                            throw new InvalidOperationException("Interrupted navigation");
+
+                        Assert.That(view.BackButton.interactable, Is.False);
+                        Assert.That(view.FinishButton.interactable, Is.False);
+                        Assert.That(view.BookButton.interactable, Is.False);
+                        // Direct onClick invocation can bypass a disabled
+                        // button; reentrant submits must still be rejected.
+                        view.BackButton.onClick.Invoke();
+                        view.FinishButton.onClick.Invoke();
+                        view.BookButton.onClick.Invoke();
+                    });
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.BackButton.onClick.Invoke());
+                Assert.That(backAttempts, Is.EqualTo(1));
+                Assert.That(view.BackButton.interactable, Is.True,
+                    "Navigation failure should let the player try again.");
+                Assert.That(view.BookButton.interactable, Is.True);
+                Assert.That(finishes, Is.Zero);
+                Assert.That(ledger.BookedCount, Is.Zero);
+
+                failFirst = false;
+                view.BackButton.onClick.Invoke();
+                Assert.That(backAttempts, Is.EqualTo(2));
+                Assert.That(finishes, Is.Zero);
+                Assert.That(ledger.BookedCount, Is.Zero);
+                view.BackButton.onClick.Invoke();
+                Assert.That(backAttempts, Is.EqualTo(2),
+                    "A successful back transition must dispatch only once.");
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void EmptyLedgerAndViewportAspectChangesStaySafeAndFinishOnce()
         {
             var root = new GameObject("Roster empty view");
