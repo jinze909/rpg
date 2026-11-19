@@ -41,13 +41,28 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void UninitializedMakinomGuardsReturnFalseWithoutThrowing()
+        public void MissingStorageGuardsDoNotAssumeGlobalMakinomIsUninitialized()
         {
             M04RosterLedger ledger = ReconciledLedger();
-            Assert.That(M04RosterFacts.TryResetForNewVisit(), Is.False);
-            Assert.That(M04RosterFacts.TryRecord(ledger), Is.False);
-            Assert.That(M04RosterFacts.TryRead(out M04RosterSummaryRecord? record), Is.False);
-            Assert.That(record, Is.Null);
+
+            // Other P0 fixtures can initialize Makinom before this test runs.
+            // Null storage delegates must fail independently of test order.
+            Assert.That(M04RosterFacts.TryResetForNewVisit((Action<string, int>)null), Is.False);
+            Assert.That(M04RosterFacts.TryRecord(ledger, (Action<string, int>)null), Is.False);
+            Assert.That(M04RosterFacts.TryRead((Func<string, int>)null,
+                out M04RosterSummaryRecord? noStore), Is.False);
+            Assert.That(noStore, Is.Null);
+
+            bool hasGlobalStorage = GamingIsLove.Makinom.Maki.Initialized &&
+                GamingIsLove.Makinom.Maki.Game?.Variables != null;
+            Assert.That(M04RosterFacts.TryRead(out M04RosterSummaryRecord? globalRecord),
+                Is.EqualTo(hasGlobalStorage));
+            if (!hasGlobalStorage)
+            {
+                Assert.That(M04RosterFacts.TryResetForNewVisit(), Is.False);
+                Assert.That(M04RosterFacts.TryRecord(ledger), Is.False);
+                Assert.That(globalRecord, Is.Null);
+            }
         }
 
         [Test]
@@ -87,6 +102,43 @@ namespace Rpg.Tests.Editor
 
             Assert.That(M04RosterFacts.TryRead(getInt, out M04RosterSummaryRecord? afterReset), Is.True);
             Assert.That(afterReset, Is.Null);
+        }
+
+        [Test]
+        public void InterruptedReconciliationWriteCannotRetainEarlierConfirmedRoster()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> setInt = (key, value) => store[key] = value;
+            Func<string, int> getInt = key => store.TryGetValue(key, out int value) ? value : 0;
+
+            Assert.That(M04RosterFacts.TryRecord(ReconciledLedger(), setInt), Is.True);
+            Assert.That(M04RosterFacts.TryRead(getInt, out M04RosterSummaryRecord? original), Is.True);
+            Assert.That(original.HasValue, Is.True);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                M04RosterFacts.TryRecord(ReconciledLedger(), (key, value) =>
+                {
+                    if (key == M04RosterFacts.BookedCountKey)
+                        throw new InvalidOperationException("Simulated interrupted roster save");
+                    store[key] = value;
+                }));
+
+            Assert.That(store[M04RosterFacts.ReconciledKey], Is.Zero);
+            Assert.That(M04RosterFacts.TryRead(getInt, out M04RosterSummaryRecord? incomplete), Is.True);
+            Assert.That(incomplete, Is.Null,
+                "A partially rewritten roster must never inherit the prior reconciled flag.");
+
+            var writes = new List<string>();
+            Assert.That(M04RosterFacts.TryRecord(ReconciledLedger(), (key, value) =>
+            {
+                writes.Add(key);
+                store[key] = value;
+            }), Is.True);
+            Assert.That(writes[0], Is.EqualTo(M04RosterFacts.ReconciledKey));
+            Assert.That(writes[writes.Count - 1], Is.EqualTo(M04RosterFacts.ReconciledKey));
+            Assert.That(M04RosterFacts.TryRead(getInt, out M04RosterSummaryRecord? restored), Is.True);
+            Assert.That(restored.HasValue, Is.True);
+            Assert.That(restored.Value.BookedCount, Is.EqualTo(1));
         }
 
         [Test]

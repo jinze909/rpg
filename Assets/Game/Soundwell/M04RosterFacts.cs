@@ -76,11 +76,15 @@ namespace Rpg.Soundwell
             ValidateReconciled(ledger);
             if (setInt == null)
                 return false;
-            setInt(ReconciledKey, 1);
+            // Invalidate a prior roster before updating any count. Only the
+            // final marker write may publish a complete reconciled snapshot.
+            // An interrupted save must not reuse an earlier confirmation.
+            setInt(ReconciledKey, 0);
             setInt(TotalEntriesKey, ledger.TotalEntries);
             setInt(ConfirmedAtDockKey, ledger.ConfirmedAtDockCount);
             setInt(BookedCountKey, ledger.BookedCount);
             setInt(DeclinedCountKey, ledger.DeclinedCount);
+            setInt(ReconciledKey, 1);
             return true;
         }
 
