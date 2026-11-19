@@ -41,18 +41,9 @@ namespace Rpg.Soundwell
             if (checkpoint == null)
                 checkpoint = gameObject.AddComponent<TrialCheckpointManager>();
             checkpoint.Configure(variables, playerBody, safePoint, bell, bellHome);
-            mechanisms.SignalChanged += signal =>
-                patrol.OnBellSignal(signal, mechanisms.HearingPoint);
-            patrol.SearchExpired += () => mechanisms.SetSignal(Signal.Wrapped);
-            patrol.PlayerCaught += () =>
-            {
-                checkpoint.RecoverFromBeastContact();
-                // Recovery is an explicit instant relocation, not normal
-                // locomotion. Restore the exploration formation at safety.
-                orkParty?.RegroupAfterCheckpoint(playerBody.position);
-                movement = Vector2.zero;
-                view?.AnimatePlayerHit();
-            };
+            mechanisms.SignalChanged += OnMechanismSignalChanged;
+            patrol.SearchExpired += OnPatrolSearchExpired;
+            patrol.PlayerCaught += OnPatrolPlayerCaught;
             // M3: One Cinemachine Brain on the scene's real Camera and one
             // CinemachineCamera for the trial. SoundwellView never drives its lens.
             var cameraRig = trialCamera.gameObject.AddComponent<SoundwellCameraRig>();
@@ -100,8 +91,8 @@ namespace Rpg.Soundwell
                 () =>
                 {
                     // UGUI Cancel closes the exploration focus menu, but in the
-                    // currently unconfigured ORK battle menu it must provide a
-                    // reachable retreat instead of trapping the player in a turn.
+                    // currently unconfigured ORK battle menu it must provide
+                    // a reachable retreat instead of trapping the player in a turn.
                     if (view.MovePreviewOpen)
                         view.CloseBattleMovePreview();
                     else if (DirectCombatStarted)
@@ -118,12 +109,37 @@ namespace Rpg.Soundwell
                         view.AnimatePlayerBattleStep(direction);
                     return accepted;
                 });
-            mechanisms.BellSoundRequested += muffled => view.PlayBell(muffled);
-            mechanisms.ActionPoseRequested += () => view.AnimatePlayerAction();
-            mechanisms.PulseResetRequested += () => view.ResetPulse();
+            mechanisms.BellSoundRequested += OnBellSoundRequested;
+            mechanisms.ActionPoseRequested += OnActionPoseRequested;
+            mechanisms.PulseResetRequested += OnPulseResetRequested;
             ResetTrial();
             initialized = true;
         }
+
+        private void OnMechanismSignalChanged(Signal signal) =>
+            patrol?.OnBellSignal(signal, mechanisms.HearingPoint);
+
+        private void OnPatrolSearchExpired() =>
+            mechanisms?.SetSignal(Signal.Wrapped);
+
+        private void OnPatrolPlayerCaught()
+        {
+            checkpoint.RecoverFromBeastContact();
+            // Recovery is an explicit instant relocation, not normal
+            // locomotion. Restore the exploration formation at safety.
+            orkParty?.RegroupAfterCheckpoint(playerBody.position);
+            movement = Vector2.zero;
+            view?.AnimatePlayerHit();
+        }
+
+        private void OnBellSoundRequested(bool muffled) =>
+            view?.PlayBell(muffled);
+
+        private void OnActionPoseRequested() =>
+            view?.AnimatePlayerAction();
+
+        private void OnPulseResetRequested() =>
+            view?.ResetPulse();
 
         protected void Update()
         {
