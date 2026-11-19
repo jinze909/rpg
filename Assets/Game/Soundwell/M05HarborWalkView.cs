@@ -179,8 +179,8 @@ namespace Rpg.Soundwell
             {
                 case M05HarborBeat.RepairStall:
                     return zh
-                        ? "矿工甲：『把“税务官”递我！这螺母锈死了！』\n矿工乙：『那把是“监察员”，漏油的！』\n你认出沈砾给工具起的外号。她的修理办法还在被使用。"
-                        : "Miner: “Pass the Tax Collector! This nut is rusted shut!”\nAnother: “That's the Inspector. It leaks oil!”\nYou recognize Shen Li's nicknames for tools. Her repair methods are still in use.";
+                        ? "矿工甲：『把“税务官”递我！这螺母锈死了！』\n矿工乙：『那把是“监察员”，漏油的！』\n矿工乙：『沈工今早点过这一班的工具。她让咱们收工把漏油的这把送到泵房去。』\n你认出那两个外号。沈砾今天还在带修理班。"
+                        : "Miner: “Pass the Tax Collector! This nut is rusted shut!”\nAnother: “That's the Inspector. It leaks oil!”\n“Shen Li checked our tools this morning. She wants the leaky one back in the pump room after our shift.”\nYou recognize both nicknames. Shen Li is still running the repair crew.";
                 case M05HarborBeat.FisherRumor:
                     return zh
                         ? "渔民在堤边补网，避开东南方的雾。\n『雾里有人叫名字，应了就回不来。这三个月里已有三条船撞礁。』\n这只是传闻，还没有得到查证。"
