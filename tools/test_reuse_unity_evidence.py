@@ -290,7 +290,7 @@ class ArtifactTransportTests(unittest.TestCase):
         data = io.BytesIO()
         with zipfile.ZipFile(data, "w") as archive:
             archive.writestr("validation.json", '{"status":"passed-clean-candidate"}')
-        api = reuse.Github("test-only-token")
+        api = reuse.GitHub("test-only-token")
         redirect = urllib.error.HTTPError("https://api.github.com/artifact", 302, "redirect",
                                           {"Location": "https://storage.example/limited-download?signature=example"}, None)
         with patch.object(api.opener, "open", side_effect=redirect), \
@@ -305,7 +305,7 @@ class ArtifactTransportTests(unittest.TestCase):
             archive.writestr("validation.json", "{}")
             with self.assertWarns(UserWarning):
                 archive.writestr("validation.json", "{}")
-        api = reuse.Github("test-only-token")
+        api = reuse.GitHub("test-only-token")
         with patch.object(api.opener, "open", return_value=io.BytesIO(data.getvalue())):
             with self.assertRaises(ValueError):
                 api.members({"id": 2}, ("validation.json",))
