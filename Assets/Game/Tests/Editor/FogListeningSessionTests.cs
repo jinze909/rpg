@@ -70,6 +70,39 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RecoverFocusSaturatesWithoutIntegerOverflowOrResettingCurrentCue()
+        {
+            var cues = new[]
+            {
+                new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 80),
+                new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 80)
+            };
+
+            var wideBudget = new FogListeningSession(
+                cues, maxListenFocus: int.MaxValue, maxHullIntegrity: 2);
+            Assert.That(wideBudget.TryFocusListen(), Is.True);
+            Assert.That(wideBudget.RemainingFocus, Is.EqualTo(int.MaxValue - 1));
+            wideBudget.RecoverFocus(int.MaxValue);
+            Assert.That(wideBudget.RemainingFocus, Is.EqualTo(int.MaxValue),
+                "An overflowing recovery must saturate instead of producing negative focus.");
+            Assert.That(wideBudget.CurrentCueFocused, Is.True,
+                "Recovery cannot grant a second focus on the same cue.");
+            Assert.That(wideBudget.TryFocusListen(), Is.False);
+            Assert.That(wideBudget.ApplyHelmAction(FogHelmAction.HoldCourse),
+                Is.EqualTo(FogResolution.SafePassage));
+            Assert.That(wideBudget.TryFocusListen(), Is.True);
+
+            var smallBudget = new FogListeningSession(
+                cues, maxListenFocus: 1, maxHullIntegrity: 2);
+            smallBudget.RecoverFocus(int.MaxValue);
+            Assert.That(smallBudget.RemainingFocus, Is.EqualTo(1),
+                "Even a full budget must not overflow when a large bonus arrives.");
+            Assert.That(smallBudget.TryFocusListen(), Is.True);
+            smallBudget.RecoverFocus(int.MaxValue);
+            Assert.That(smallBudget.RemainingFocus, Is.EqualTo(1));
+        }
+
+        [Test]
         public void ReefHazardsDamageHullWhenSteeredIntoAndClearWhenEvaded()
         {
             var cues = new[]
