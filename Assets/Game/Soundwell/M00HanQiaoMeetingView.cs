@@ -131,6 +131,11 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 

@@ -93,6 +93,19 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedViewSafelyHandlesLayoutBeforeLocaleChange()
+        {
+            view = new M00HanQiaoMeetingView(root.transform, Begun(), null);
+            UnityEngine.Object.DestroyImmediate(root);
+            root = null;
+
+            Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+            Assert.DoesNotThrow(() =>
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+            Assert.DoesNotThrow(() => view.Dispose());
+        }
+
+        [Test]
         public void PortraitAndUltrawideKeepOneSharedMeetingState()
         {
             M00HanQiaoMeetingSequence sequence = Begun();
