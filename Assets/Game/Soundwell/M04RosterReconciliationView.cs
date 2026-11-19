@@ -281,7 +281,18 @@ namespace Rpg.Soundwell
                 return;
             delivered = true;
             Refresh();
-            onFinished(ledger);
+            try
+            {
+                onFinished(ledger);
+            }
+            catch
+            {
+                // A failed host write must not leave this panel permanently
+                // delivered; the M04 roster record can be safely retried.
+                delivered = false;
+                Refresh();
+                throw;
+            }
         }
 
         private void GoBack()
