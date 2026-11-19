@@ -122,12 +122,22 @@ namespace Rpg.Soundwell
                     night.AcceptCake();
                     break;
                 case M02QiQueNightStage.ReviewingChart:
-                    night.Leave();
+                    // Lock against reentrant UGUI submits before handing off to
+                    // the scene host. A failed handoff must keep the warehouse
+                    // scene retryable rather than hiding the continue button.
                     delivered = true;
                     Refresh();
-                    Action callback = onFinished;
-                    onFinished = null;
-                    callback?.Invoke();
+                    try
+                    {
+                        night.Leave(onFinished);
+                        onFinished = null;
+                    }
+                    catch
+                    {
+                        delivered = false;
+                        Refresh();
+                        throw;
+                    }
                     return;
                 default:
                     return;
