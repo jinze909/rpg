@@ -57,6 +57,25 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LargeValidCountsDoNotOverflowTheNumberOfTrips()
+        {
+            // The former (count + berths - 1) expression overflowed int.
+            var fullVessel = new M04VoyageBatchPlan(int.MaxValue, int.MaxValue);
+            Assert.That(fullVessel.RequiredTrips, Is.EqualTo(1));
+            Assert.That(fullVessel.TripHeadcounts(), Is.EqualTo(new[] { int.MaxValue }));
+
+            var overflowByOne = new M04VoyageBatchPlan(int.MaxValue, int.MaxValue - 1);
+            Assert.That(overflowByOne.RequiredTrips, Is.EqualTo(2));
+            Assert.That(overflowByOne.TripHeadcounts(),
+                Is.EqualTo(new[] { int.MaxValue - 1, 1 }));
+            Assert.That(overflowByOne.OverflowReturnees, Is.EqualTo(1));
+
+            var smallGroup = new M04VoyageBatchPlan(1, int.MaxValue);
+            Assert.That(smallGroup.RequiredTrips, Is.EqualTo(1));
+            Assert.That(smallGroup.TripHeadcounts(), Is.EqualTo(new[] { 1 }));
+        }
+
+        [Test]
         public void PartitionConfirmedFiltersEligibleEntriesAndRejectsUnresolvedDiscrepancies()
         {
             var ledger = new M04RosterLedger();

@@ -28,7 +28,7 @@ namespace Rpg.Soundwell
                 return;
             }
 
-            int trips = (confirmedReturnees + verifiedBerthsPerTrip - 1) / verifiedBerthsPerTrip;
+            int trips = CountTrips(confirmedReturnees, verifiedBerthsPerTrip);
             tripHeadcounts = new int[trips];
             int remaining = confirmedReturnees;
             for (int i = 0; i < trips; i++)
@@ -37,6 +37,13 @@ namespace Rpg.Soundwell
                 tripHeadcounts[i] = batch;
                 remaining -= batch;
             }
+        }
+
+        // Both call sites validate that berth capacity is positive. Computing
+        // ceil(count / berths) by addition would overflow for valid large counts.
+        private static int CountTrips(int count, int berths)
+        {
+            return count / berths + (count % berths == 0 ? 0 : 1);
         }
 
         public int TotalReturnees { get; }
@@ -86,7 +93,7 @@ namespace Rpg.Soundwell
             if (eligible.Count == 0)
                 return Array.Empty<M04RosterEntry[]>();
 
-            int trips = (eligible.Count + verifiedBerthsPerTrip - 1) / verifiedBerthsPerTrip;
+            int trips = CountTrips(eligible.Count, verifiedBerthsPerTrip);
             var batches = new M04RosterEntry[trips][];
             int offset = 0;
             for (int t = 0; t < trips; t++)
