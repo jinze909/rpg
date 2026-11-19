@@ -143,12 +143,47 @@ namespace Rpg.Tests.Editor
                 Is.EqualTo(FogResolution.SignalMatched));
             Assert.That(session.ApplyHelmAction(FogHelmAction.AnswerSignal),
                 Is.EqualTo(FogResolution.LostBearing));
+            Assert.That(session.CurrentStep, Is.EqualTo(1),
+                "Mistaking a false echo for a real response cannot skip the fog.");
+            Assert.That(session.ApplyHelmAction(FogHelmAction.SlowAndSound),
+                Is.EqualTo(FogResolution.SafePassage));
             Assert.That(session.ApplyHelmAction(FogHelmAction.SlowAndSound),
                 Is.EqualTo(FogResolution.SafePassage));
 
             Assert.That(session.MatchedSignals, Is.EqualTo(1));
             Assert.That(session.HullIntegrity, Is.EqualTo(2));
             Assert.That(session.Succeeded, Is.True);
+        }
+
+        [Test]
+        public void LostBearingKeepsCurrentCueForRecoveryRatherThanGivingFreeProgress()
+        {
+            var session = new FogListeningSession(
+                new[] {
+                    new FogListeningCue(FogBearing.Port, FogCueKind.FalseEcho, 25),
+                    new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 90)
+                },
+                maxListenFocus: 1, maxHullIntegrity: 2);
+
+            Assert.That(session.TryFocusListen(), Is.True);
+            Assert.That(session.ApplyHelmAction(FogHelmAction.AnswerSignal),
+                Is.EqualTo(FogResolution.LostBearing));
+            Assert.That(session.CurrentStep, Is.Zero);
+            Assert.That(session.IsComplete, Is.False);
+            Assert.That(session.CurrentCueFocused, Is.False);
+            Assert.That(session.RemainingFocus, Is.Zero,
+                "A wasted focused observation must not refund focus.");
+            Assert.That(session.ApplyHelmAction(FogHelmAction.AnswerSignal),
+                Is.EqualTo(FogResolution.LostBearing));
+            Assert.That(session.CurrentStep, Is.Zero);
+            Assert.That(session.Succeeded, Is.False);
+            Assert.That(session.ApplyHelmAction(FogHelmAction.SlowAndSound),
+                Is.EqualTo(FogResolution.SafePassage));
+            Assert.That(session.CurrentStep, Is.EqualTo(1));
+            Assert.That(session.ApplyHelmAction(FogHelmAction.HoldCourse),
+                Is.EqualTo(FogResolution.SafePassage));
+            Assert.That(session.Succeeded, Is.True);
+            Assert.That(session.HullIntegrity, Is.EqualTo(2));
         }
 
         [Test]
