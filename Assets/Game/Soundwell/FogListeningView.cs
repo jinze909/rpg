@@ -134,7 +134,12 @@ namespace Rpg.Soundwell
             starboardLabel.text = zh ? "向右舷避让" : "Turn starboard";
             slowLabel.text = zh ? "减速测水深" : "Slow and sound";
             signalLabel.text = zh ? "回应信号" : "Answer signal";
-            continueLabel.text = zh ? "继续航程" : "Continue voyage";
+            // A failed leg is reported to the host, not represented as
+            // another successful voyage step. Do not promise safe passage
+            // after the hull has been exhausted.
+            continueLabel.text = session.IsComplete && !session.Succeeded
+                ? (zh ? "确认本段雾航失败" : "Acknowledge failed leg")
+                : (zh ? "继续航程" : "Continue voyage");
 
             bool activeLeg = !delivered && !session.IsComplete;
             focusButton.interactable = activeLeg &&

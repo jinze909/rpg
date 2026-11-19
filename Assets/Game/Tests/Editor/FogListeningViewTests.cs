@@ -95,6 +95,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(session.MatchedSignals, Is.EqualTo(1));
                 Assert.That(session.Succeeded, Is.True);
                 Assert.That(view.ContinueButton.interactable, Is.True);
+                Assert.That(view.ContinueButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("Continue voyage"));
                 Assert.That(view.HoldButton.interactable, Is.False);
 
                 view.ContinueButton.onClick.Invoke();
@@ -242,6 +244,13 @@ namespace Rpg.Tests.Editor
                 Assert.That(session.Succeeded, Is.False);
                 Assert.That(view.CueText.text, Does.Contain("船体受损过重"));
                 Assert.That(view.ContinueButton.interactable, Is.True);
+                Assert.That(view.ContinueButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("确认本段雾航失败"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(view.ContinueButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("Acknowledge failed leg"));
+                Assert.That(session.Succeeded, Is.False,
+                    "Changing the acknowledgement text cannot turn damage into success.");
             }
             finally
             {
