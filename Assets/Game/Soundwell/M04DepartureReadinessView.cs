@@ -185,6 +185,30 @@ namespace Rpg.Soundwell
                 copy.Append("• ");
                 copy.AppendLine(BlockerText(issue, chinese));
             }
+
+            // A single missing authorization must not hide the ship, people,
+            // and receiving arrangements the player has already verified.
+            // Display only fields actually supplied by the host, never a
+            // guessed ship or crew inferred from the selected M03 route.
+            bool hasResources = !string.IsNullOrWhiteSpace(manifest.ActualHull) ||
+                !string.IsNullOrWhiteSpace(manifest.ConfirmedPilot) ||
+                manifest.AssignedCrew > 0 ||
+                !string.IsNullOrWhiteSpace(manifest.ShallowTender) ||
+                !string.IsNullOrWhiteSpace(manifest.LandingReceiver);
+            if (hasResources)
+            {
+                copy.AppendLine(chinese ? "已经核实的准备：" : "Verified so far:");
+                if (!string.IsNullOrWhiteSpace(manifest.ActualHull))
+                    copy.Append(chinese ? "船只：" : "Vessel: ").AppendLine(manifest.ActualHull);
+                if (!string.IsNullOrWhiteSpace(manifest.ConfirmedPilot))
+                    copy.Append(chinese ? "领航：" : "Pilot: ").AppendLine(manifest.ConfirmedPilot);
+                if (manifest.AssignedCrew > 0)
+                    copy.Append(chinese ? "船员：" : "Crew: ").AppendLine(manifest.AssignedCrew.ToString());
+                if (!string.IsNullOrWhiteSpace(manifest.ShallowTender))
+                    copy.Append(chinese ? "接驳：" : "Tender: ").AppendLine(manifest.ShallowTender);
+                if (!string.IsNullOrWhiteSpace(manifest.LandingReceiver))
+                    copy.Append(chinese ? "登岸接应：" : "Landing receiver: ").AppendLine(manifest.LandingReceiver);
+            }
             return copy.ToString();
         }
 

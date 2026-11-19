@@ -47,6 +47,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BlockedVoyageStillListsVerifiedResourcesWithoutInventingMissingOnes()
+        {
+            var root = new GameObject("Partially ready departure");
+            M04DepartureReadinessView view = null;
+            string previousLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var noStamp = Plan(true, stamped: false);
+                view = new M04DepartureReadinessView(root.transform, noStamp,
+                    _ => Assert.Fail("Incomplete official passage cannot depart."), () => { });
+
+                Assert.That(view.ConfirmButton.interactable, Is.False);
+                Assert.That(view.Details.text, Does.Contain("Official passage lacks a valid stamp"));
+                Assert.That(view.Details.text, Does.Contain("Verified so far:"));
+                Assert.That(view.Details.text, Does.Contain("Vessel: Inspected hull"));
+                Assert.That(view.Details.text, Does.Contain("Pilot: Confirmed pilot"));
+                Assert.That(view.Details.text, Does.Contain("Crew: 3"));
+                Assert.That(view.Details.text, Does.Contain("Tender: Inspected tender"));
+                Assert.That(view.Details.text, Does.Contain("Landing receiver: Named landing receiver"));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Details.text, Does.Contain("官方航路缺少有效的登记批准"));
+                Assert.That(view.Details.text, Does.Contain("已经核实的准备："));
+                Assert.That(view.Details.text, Does.Contain("船只：Inspected hull"));
+
+                view.SetConfirmedManifest(Plan(false, stamped: false));
+                Assert.That(view.Details.text, Does.Contain("尚无核实的船只"));
+                Assert.That(view.Details.text, Does.Not.Contain("已经核实的准备："));
+                Assert.That(view.Details.text, Does.Not.Contain("Inspected hull"));
+                Assert.That(view.ConfirmButton.interactable, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RealUpdatedManifestMayBeConfirmedOnlyOnce()
         {
             var root = new GameObject("Readiness accepted");
