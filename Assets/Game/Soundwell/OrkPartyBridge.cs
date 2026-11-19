@@ -414,7 +414,7 @@ namespace Rpg.Soundwell
         public static bool HasReadoutRoster(int memberCount) => memberCount > 0;
 
         public string BuildBattleReadout(string heading = null, string allyLabel = null,
-            string opponentLabel = null)
+            string opponentLabel = null, bool includeMoveBudget = true)
         {
             // Combatant retirement may shrink the ORK roster during a battle.
             // Remaining active members should keep their live HP/action HUD.
@@ -448,7 +448,7 @@ namespace Rpg.Soundwell
                     // 1/1 means unspent, not a promise that every direction is free.
                     if (fixedFormationForEncounter)
                         text.Append("  ").Append(SoundwellUiLocalization.Get("battle.formation_fixed"));
-                    else if (i < lastStepTurn.Length)
+                    else if (includeMoveBudget && i < lastStepTurn.Length)
                         text.Append("  ").Append(SoundwellUiLocalization.Get("battle.move"))
                             .Append(' ').Append(CanSpendStep(i) ? "1/1" : "0/1");
                 }
@@ -466,6 +466,56 @@ namespace Rpg.Soundwell
             return text.ToString();
         }
 
+        public readonly struct BattleUnitSnapshot
+        {
+            public readonly string Name;
+            public readonly int Hp;
+            public readonly int MaxHp;
+            public readonly bool Defending;
+            public readonly bool IsChoosing;
+            public readonly bool IsEnemy;
+
+            public BattleUnitSnapshot(string name, int hp, int maxHp,
+                bool defending, bool isChoosing, bool isEnemy)
+            {
+                Name = name;
+                Hp = hp;
+                MaxHp = maxHp;
+                Defending = defending;
+                IsChoosing = isChoosing;
+                IsEnemy = isEnemy;
+            }
+        }
+
+        public BattleUnitSnapshot[] CaptureBattleSnapshots(string allyLabel = null,
+            string opponentLabel = null)
+        {
+            if (!BattleInProgress || !HasReadoutRoster(members.Count) || Beast == null)
+                return Array.Empty<BattleUnitSnapshot>();
+
+            var snapshots = new List<BattleUnitSnapshot>(members.Count + 1);
+            for (int i = 0; i < members.Count; i++)
+            {
+                Combatant member = members[i];
+                if (member == null || !IsActiveBattleSceneActor(member.GameObject) ||
+                    i >= actors.Count || !IsActiveBattleSceneActor(actors[i]))
+                    continue;
+                int hp = Mathf.Max(0, Mathf.RoundToInt(member.Status[HealthStatusIndex].GetValue()));
+                int maxHp = Mathf.Max(hp, Mathf.Max(1, Mathf.RoundToInt(member.Status[HealthStatusIndex].GetMaxValue())));
+                string name = (allyLabel ?? SoundwellUiLocalization.Get("battle.rescuer")) + " " + (i + 1);
+                snapshots.Add(new BattleUnitSnapshot(name, hp, maxHp,
+                    member.Battle.Defending, member.Actions.IsChoosing, false));
+            }
+
+            int enemyHp = Mathf.Max(0, Mathf.RoundToInt(Beast.Status[HealthStatusIndex].GetValue()));
+            int enemyMaxHp = Mathf.Max(enemyHp, Mathf.Max(1, Mathf.RoundToInt(Beast.Status[HealthStatusIndex].GetMaxValue())));
+            string enemyName = opponentLabel ?? SoundwellUiLocalization.Get("battle.beast");
+            snapshots.Add(new BattleUnitSnapshot(enemyName, enemyHp, enemyMaxHp,
+                Beast.Battle.Defending, false, true));
+            return snapshots.ToArray();
+        }
+
+        
         public int ChoosingRescuerIndex
         {
             get
