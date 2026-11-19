@@ -182,7 +182,6 @@ namespace Rpg.Tests.Editor
                 view.ContinueButton.onClick.Invoke();
                 Assert.That(delivered, Is.EqualTo(1));
                 Assert.That(result, Is.SameAs(session));
-
                 view.ContinueButton.onClick.Invoke();
                 Assert.That(delivered, Is.EqualTo(1));
             }
@@ -371,6 +370,56 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.SetLanguage(savedLanguage);
                 if (root != null)
                     UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedViewRejectsStaleFocusHelmAndCompletionCallbacks()
+        {
+            var activeRoot = new GameObject("Fog view destroyed active");
+            var completedRoot = new GameObject("Fog view destroyed completed");
+            FogListeningView activeView = null;
+            FogListeningView completedView = null;
+            try
+            {
+                var activeSession = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 35) },
+                    maxListenFocus: 1,
+                    maxHullIntegrity: 2);
+                activeView = new FogListeningView(activeRoot.transform, activeSession, _ => { });
+                UnityEngine.Object.DestroyImmediate(activeRoot);
+                activeRoot = null;
+
+                Assert.DoesNotThrow(() => activeView.FocusButton.onClick.Invoke());
+                Assert.DoesNotThrow(() => activeView.HoldButton.onClick.Invoke());
+                Assert.That(activeSession.RemainingFocus, Is.EqualTo(1));
+                Assert.That(activeSession.CurrentStep, Is.Zero);
+                Assert.That(activeSession.HullIntegrity, Is.EqualTo(2));
+
+                int delivered = 0;
+                var completedSession = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 80) },
+                    maxListenFocus: 1,
+                    maxHullIntegrity: 2);
+                completedView = new FogListeningView(
+                    completedRoot.transform, completedSession, _ => delivered++);
+                completedView.HoldButton.onClick.Invoke();
+                Assert.That(completedSession.IsComplete, Is.True);
+
+                UnityEngine.Object.DestroyImmediate(completedRoot);
+                completedRoot = null;
+
+                Assert.DoesNotThrow(() => completedView.ContinueButton.onClick.Invoke());
+                Assert.That(delivered, Is.Zero);
+            }
+            finally
+            {
+                activeView?.Dispose();
+                completedView?.Dispose();
+                if (activeRoot != null)
+                    UnityEngine.Object.DestroyImmediate(activeRoot);
+                if (completedRoot != null)
+                    UnityEngine.Object.DestroyImmediate(completedRoot);
             }
         }
     }
