@@ -126,6 +126,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedPensionHandoffKeepsChosenPathRetryableWithoutDoubleSubmit()
+        {
+            int calls = 0;
+            int saved = 0;
+            view = NewView(M00RollCallOutcome.AnsweredThird, true, choice =>
+            {
+                calls++;
+                Assert.That(choice, Is.EqualTo(M01PensionChoice.KeepIdentityUnregistered));
+                Assert.That(view.Stage, Is.EqualTo(M01WestLaneStage.Concluded));
+                Assert.That(view.ProgressButton.gameObject.activeSelf, Is.False);
+                // Reentrant direct UGUI invocations must not submit again.
+                view.ProgressButton.onClick.Invoke();
+                if (calls == 1)
+                    throw new InvalidOperationException("Simulated interrupted pension save");
+                saved++;
+            });
+            view.ProgressButton.onClick.Invoke();
+            view.ProgressButton.onClick.Invoke();
+            view.GetChoiceButton(1).onClick.Invoke();
+            Assert.That(view.DialogueText.text, Does.Contain("people already witnessed"));
+
+            Assert.Throws<InvalidOperationException>(() =>
+                view.ProgressButton.onClick.Invoke());
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(saved, Is.Zero);
+            Assert.That(view.Decision, Is.EqualTo(M01PensionChoice.KeepIdentityUnregistered));
+            Assert.That(view.Stage, Is.EqualTo(M01WestLaneStage.Concluded));
+            Assert.That(view.ProgressButton.gameObject.activeSelf, Is.True);
+
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(view.DialogueText.text, Does.Contain("目击者和流言"));
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(saved, Is.EqualTo(1));
+            Assert.That(view.ProgressButton.gameObject.activeSelf, Is.False);
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        [Test]
         public void SceneUnloadDetachesLocaleListenerAndRejectsInvalidIdentity()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>
