@@ -14,6 +14,7 @@ namespace Rpg.Soundwell
         private static readonly Color Ink = new Color(0.13f, 0.17f, 0.19f);
         private static readonly Color Paper = new Color(0.92f, 0.89f, 0.80f);
         private static readonly Color Brass = new Color(0.59f, 0.39f, 0.18f);
+        private static readonly Color ButtonFill = new Color(0.81f, 0.84f, 0.79f);
 
         private readonly M00HanQiaoMeetingSequence sequence;
         private readonly GameObject canvasObject;
@@ -49,54 +50,32 @@ namespace Rpg.Soundwell
             this.onFinished = onFinished;
             this.onRansomCountShown = onRansomCountShown;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            canvasObject = new GameObject("M00 Han Qiao meeting canvas",
-                typeof(RectTransform), typeof(Canvas));
-            canvasObject.transform.SetParent(parent, false);
-            Canvas canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 122;
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(960f, 540f);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasObject.AddComponent<GraphicRaycaster>();
+            canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
+                parent, "M00 Han Qiao meeting canvas", 122, out authoredView,
+                new Color(0.03f, 0.06f, 0.07f, 0.96f), Paper);
 
-            AddPanel(canvas.transform, "M00 Han Qiao backdrop", Vector2.zero,
-                new Vector2(960f, 540f), new Color(0.03f, 0.06f, 0.07f, 0.96f));
-
-            var authored = new GameObject("M00 Han Qiao authored view",
-                typeof(RectTransform));
-            authored.transform.SetParent(canvas.transform, false);
-            authoredView = (RectTransform)authored.transform;
-            authoredView.anchorMin = authoredView.anchorMax = new Vector2(0.5f, 0.5f);
-            authoredView.sizeDelta = new Vector2(960f, 540f);
-            authoredView.anchoredPosition = Vector2.zero;
-
-            AddPanel(authoredView, "M00 Han Qiao table room", Vector2.zero,
-                new Vector2(910f, 510f), Paper);
-
-            heading = AddText(authoredView, string.Empty, 25, Brass,
-                new Vector2(0f, 225f), new Vector2(840f, 46f));
-            dialogue = AddText(authoredView, string.Empty, 19, Ink,
-                new Vector2(0f, 65f), new Vector2(832f, 275f));
+            heading = SoundwellUiTheme.CreateLabel(authoredView, 25,
+                new Vector2(0f, 225f), new Vector2(840f, 46f), Brass);
+            dialogue = SoundwellUiTheme.CreateLabel(authoredView, 19,
+                new Vector2(0f, 65f), new Vector2(832f, 275f), Ink);
             dialogue.alignment = TextAnchor.MiddleLeft;
-            dialogue.resizeTextForBestFit = true;
             dialogue.resizeTextMinSize = 11;
-            dialogue.resizeTextMaxSize = 19;
 
             for (int i = 0; i < choices.Length; i++)
             {
                 int clicked = i;
-                choices[i] = AddButton(authoredView,
+                choices[i] = SoundwellUiTheme.CreateButton(authoredView,
                     "M00 Han Qiao choice " + i,
                     new Vector2(0f, -132f - 53f * i),
-                    new Vector2(830f, 46f), out choiceLabels[i]);
+                    new Vector2(830f, 46f), 17, out choiceLabels[i],
+                    ButtonFill, Ink);
                 choices[i].onClick.AddListener(() => Choose(clicked));
             }
 
-            continueButton = AddButton(authoredView,
+            continueButton = SoundwellUiTheme.CreateButton(authoredView,
                 "M00 Han Qiao continue", new Vector2(0f, -213f),
-                new Vector2(300f, 46f), out continueLabel);
+                new Vector2(300f, 46f), 17, out continueLabel,
+                ButtonFill, Ink);
             continueButton.onClick.AddListener(Continue);
 
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
@@ -148,14 +127,9 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed || !(aspect > 0f) || float.IsNaN(aspect) || float.IsInfinity(aspect))
+            if (disposed)
                 return;
-            float width = Mathf.Sqrt(960f * 540f * aspect);
-            float height = Mathf.Sqrt(960f * 540f / aspect);
-            float scale = Mathf.Min(1f, Mathf.Min(width / 960f, height / 540f));
-            if (scale < 1f)
-                scale *= 0.95f;
-            authoredView.localScale = new Vector3(scale, scale, 1f);
+            SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
         public void Dispose()
@@ -171,14 +145,7 @@ namespace Rpg.Soundwell
                     button.onClick.RemoveAllListeners();
             if (continueButton != null)
                 continueButton.onClick.RemoveAllListeners();
-            if (canvasObject != null)
-            {
-                canvasObject.SetActive(false);
-                if (Application.isPlaying)
-                    UnityEngine.Object.Destroy(canvasObject);
-                else
-                    UnityEngine.Object.DestroyImmediate(canvasObject);
-            }
+            SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
 
         private void Choose(int index)
@@ -217,57 +184,6 @@ namespace Rpg.Soundwell
             Action<M00HanQiaoMeetingSequence> finished = onFinished;
             onFinished = null;
             finished?.Invoke(sequence);
-        }
-
-        private static Image AddPanel(Transform parent, string name,
-            Vector2 pos, Vector2 size, Color color)
-        {
-            var obj = new GameObject(name,
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            obj.transform.SetParent(parent, false);
-            Image image = obj.GetComponent<Image>();
-            image.raycastTarget = false;
-            image.color = color;
-            image.rectTransform.anchorMin = image.rectTransform.anchorMax =
-                new Vector2(0.5f, 0.5f);
-            image.rectTransform.anchoredPosition = pos;
-            image.rectTransform.sizeDelta = size;
-            return image;
-        }
-
-        private static Text AddText(Transform parent, string text,
-            int size, Color color, Vector2 pos, Vector2 bounds)
-        {
-            Text result = SoundwellView.AddLabel(parent, text, size, color, pos, bounds);
-            result.font = SoundwellUiLocalization.PresentationFont(result.font);
-            result.resizeTextForBestFit = true;
-            result.resizeTextMinSize = 12;
-            result.resizeTextMaxSize = size;
-            result.raycastTarget = false;
-            return result;
-        }
-
-        private static Button AddButton(Transform parent, string name,
-            Vector2 pos, Vector2 size, out Text label)
-        {
-            var obj = new GameObject(name,
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            obj.transform.SetParent(parent, false);
-            var image = obj.GetComponent<Image>();
-            image.color = new Color(0.81f, 0.84f, 0.79f);
-            RectTransform rect = image.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = pos;
-            rect.sizeDelta = size;
-            Button button = obj.GetComponent<Button>();
-            button.targetGraphic = image;
-            label = AddText(obj.transform, string.Empty, 17, Ink,
-                Vector2.zero, size);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = new Vector2(12f, 2f);
-            label.rectTransform.offsetMax = new Vector2(-12f, -2f);
-            return button;
         }
     }
 }
