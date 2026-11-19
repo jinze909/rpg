@@ -122,12 +122,22 @@ namespace Rpg.Soundwell
             else if (cup.Stage == M04QiQueCupStage.Responding ||
                 cup.Stage == M04QiQueCupStage.WithoutCup)
             {
-                cup.Finish();
+                // Lock against reentrant UGUI submits before persisting
+                // through the Makinom host. A failed write must not consume
+                // the player's chosen reply or irrevocably finish this view.
                 delivered = true;
                 Refresh();
-                var callback = onFinished;
-                onFinished = null;
-                callback?.Invoke(cup);
+                try
+                {
+                    cup.Finish(onFinished);
+                    onFinished = null;
+                }
+                catch
+                {
+                    delivered = false;
+                    Refresh();
+                    throw;
+                }
                 return;
             }
             else

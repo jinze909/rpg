@@ -92,6 +92,86 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedGiftSaveRestoresReplyAndAllowsExactlyOneSuccessfulRetry()
+        {
+            var root = new GameObject("M04 gift save retry");
+            M04QiQueCupView view = null;
+            try
+            {
+                int attempts = 0;
+                int persisted = 0;
+                bool interrupt = true;
+                view = new M04QiQueCupView(root.transform, true, true, cup =>
+                {
+                    attempts++;
+                    Assert.That(cup.Stage, Is.EqualTo(M04QiQueCupStage.Complete));
+                    Assert.That(cup.CupTaken, Is.True);
+                    Assert.That(cup.Reply, Is.EqualTo(M04QiQueCupReply.PromiseToSettleDebt));
+                    // Even a manually invoked hidden button cannot resubmit
+                    // the callback while Makinom is writing the chosen gift.
+                    view.AdvanceButton.onClick.Invoke();
+                    if (interrupt)
+                        throw new InvalidOperationException("Interrupted cup save");
+                    persisted++;
+                });
+                view.AdvanceButton.onClick.Invoke();
+                view.GetChoiceButton(2).onClick.Invoke();
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M04QiQueCupStage.Responding));
+                Assert.Throws<InvalidOperationException>(() => view.AdvanceButton.onClick.Invoke());
+                Assert.That(attempts, Is.EqualTo(1));
+                Assert.That(persisted, Is.Zero);
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M04QiQueCupStage.Responding));
+                Assert.That(view.Encounter.CupTaken, Is.True);
+                Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.True);
+
+                interrupt = false;
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(persisted, Is.EqualTo(1));
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M04QiQueCupStage.Complete));
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(persisted, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void FailedNoGiftSaveRemainsExplicitlyWithoutTheCup()
+        {
+            var root = new GameObject("M04 no-cup retry");
+            M04QiQueCupView view = null;
+            try
+            {
+                int attempts = 0;
+                view = new M04QiQueCupView(root.transform, false, true, cup =>
+                {
+                    attempts++;
+                    Assert.That(cup.Stage, Is.EqualTo(M04QiQueCupStage.Complete));
+                    Assert.That(cup.CupTaken, Is.False);
+                    if (attempts == 1)
+                        throw new InvalidOperationException("Interrupted no-gift record");
+                });
+                Assert.Throws<InvalidOperationException>(() => view.AdvanceButton.onClick.Invoke());
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M04QiQueCupStage.WithoutCup));
+                Assert.That(view.Encounter.CupTaken, Is.False);
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M04QiQueCupStage.Complete));
+                Assert.That(view.Encounter.CupTaken, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void NoGiftViewIsAPlayableNoCupOutcome()
         {
             var root = new GameObject("M04 no gift");
