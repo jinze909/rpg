@@ -143,8 +143,10 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException("Cannot recover focus after the session ends.");
             if (amount <= 0)
                 throw new ArgumentOutOfRangeException(nameof(amount));
-            int next = RemainingFocus + amount;
-            RemainingFocus = next > maxListenFocus ? maxListenFocus : next;
+            // Saturate before adding: large recovery requests must never
+            // overflow a valid focus budget into a negative value.
+            int needed = maxListenFocus - RemainingFocus;
+            RemainingFocus = amount >= needed ? maxListenFocus : RemainingFocus + amount;
         }
 
         public FogResolution ApplyHelmAction(FogHelmAction action)

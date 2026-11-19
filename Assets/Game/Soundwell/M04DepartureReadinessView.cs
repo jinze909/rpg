@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         private M04DepartureManifest manifest;
         private bool disposed;
         private bool delivered;
+        private bool navigatingBack;
 
         public M04DepartureManifest Manifest => manifest;
         public Text Details => details;
@@ -61,7 +62,8 @@ namespace Rpg.Soundwell
         public void SetConfirmedManifest(M04DepartureManifest updated)
         {
             if (disposed) throw new ObjectDisposedException(nameof(M04DepartureReadinessView));
-            if (delivered) throw new InvalidOperationException("The departure has been confirmed.");
+            if (delivered || navigatingBack)
+                throw new InvalidOperationException("The departure view is leaving or confirmed.");
             manifest = updated ?? throw new ArgumentNullException(nameof(updated));
             Refresh();
         }
@@ -82,10 +84,11 @@ namespace Rpg.Soundwell
             details.text = M04DepartureReadinessCopy.Describe(manifest, zh);
             confirmLabel.text = zh ? "确认准备齐全" : "Confirm readiness";
             backLabel.text = zh ? "返回准备" : "Return to preparations";
-            confirm.interactable = !delivered && !manifest.DepartureConfirmed &&
+            bool active = !delivered && !navigatingBack;
+            confirm.interactable = active && !manifest.DepartureConfirmed &&
                 manifest.Check().Length == 0;
-            back.interactable = !delivered;
-            if (!delivered)
+            back.interactable = active;
+            if (active)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     confirm.interactable ? confirm : back);
         }
@@ -94,7 +97,7 @@ namespace Rpg.Soundwell
         {
             // Direct Button.onClick invocation bypasses interactable; lock the
             // whole panel before calling the host to reject reentrant submits.
-            if (disposed || delivered || manifest.DepartureConfirmed ||
+            if (disposed || delivered || navigatingBack || manifest.DepartureConfirmed ||
                 manifest.Check().Length != 0)
                 return;
             delivered = true;
@@ -119,8 +122,24 @@ namespace Rpg.Soundwell
 
         private void GoBack()
         {
-            if (disposed || delivered) return;
-            onBack();
+            // Keep the whole panel inert while the host transitions away:
+            // direct UGUI onClick invokes must not confirm a departure or
+            // dispatch duplicate Back requests during navigation.
+            if (disposed || delivered || navigatingBack) return;
+            navigatingBack = true;
+            Refresh();
+            try
+            {
+                onBack();
+            }
+            catch
+            {
+                // If the host could not leave preparations, let the player
+                // retry without creating a second voyage confirmation.
+                navigatingBack = false;
+                Refresh();
+                throw;
+            }
         }
 
         public void Dispose()

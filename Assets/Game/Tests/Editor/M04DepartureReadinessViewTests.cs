@@ -138,6 +138,60 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BackTransitionCannotReenterConfirmAndCanRetryOnHostFailure()
+        {
+            var root = new GameObject("M04 readiness back retry");
+            M04DepartureReadinessView view = null;
+            try
+            {
+                int returned = 0;
+                int confirmed = 0;
+                bool failFirst = true;
+                var ready = Plan(true);
+                view = new M04DepartureReadinessView(root.transform, ready,
+                    _ => confirmed++,
+                    () =>
+                    {
+                        returned++;
+                        Assert.That(view.BackButton.interactable, Is.False);
+                        Assert.That(view.ConfirmButton.interactable, Is.False);
+                        view.BackButton.onClick.Invoke();
+                        view.ConfirmButton.onClick.Invoke();
+                        Assert.Throws<InvalidOperationException>(() =>
+                            view.SetConfirmedManifest(Plan(true)));
+                        if (failFirst)
+                            throw new InvalidOperationException("Interrupted scene transition");
+                    });
+                Assert.That(view.BackButton.interactable, Is.True);
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+
+                Assert.Throws<InvalidOperationException>(() => view.BackButton.onClick.Invoke());
+                Assert.That(returned, Is.EqualTo(1));
+                Assert.That(confirmed, Is.Zero);
+                Assert.That(ready.DepartureConfirmed, Is.False);
+                Assert.That(view.BackButton.interactable, Is.True);
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+
+                failFirst = false;
+                view.BackButton.onClick.Invoke();
+                Assert.That(returned, Is.EqualTo(2));
+                Assert.That(confirmed, Is.Zero);
+                Assert.That(ready.DepartureConfirmed, Is.False);
+                Assert.That(view.BackButton.interactable, Is.False);
+                Assert.That(view.ConfirmButton.interactable, Is.False);
+                view.BackButton.onClick.Invoke();
+                view.ConfirmButton.onClick.Invoke();
+                Assert.That(returned, Is.EqualTo(2));
+                Assert.That(confirmed, Is.Zero);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ChangingLocaleDoesNotApproveAnUnreadySailing()
         {
             var root = new GameObject("Readiness language");

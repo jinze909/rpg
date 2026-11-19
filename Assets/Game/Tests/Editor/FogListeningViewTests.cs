@@ -113,6 +113,78 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InterruptedSaveAllowsRetryOfExactCompletedLegWithoutReplayingHelm()
+        {
+            foreach (bool safePassage in new[] { true, false })
+            {
+                var root = new GameObject("Fog host retry " + safePassage);
+                FogListeningView view = null;
+                try
+                {
+                    var session = new FogListeningSession(
+                        new[]
+                        {
+                            new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 70),
+                            new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 95)
+                        }, maxListenFocus: 1, maxHullIntegrity: 1);
+
+                    int attempts = 0;
+                    int recorded = 0;
+                    bool interrupt = true;
+                    view = new FogListeningView(root.transform, session, completed =>
+                    {
+                        attempts++;
+                        Assert.That(completed, Is.SameAs(session));
+                        Assert.That(completed.IsComplete, Is.True);
+                        Assert.That(completed.Succeeded, Is.EqualTo(safePassage));
+                        Assert.That(view.ContinueButton.interactable, Is.False);
+                        // Direct onClick bypasses the disabled button state.
+                        view.ContinueButton.onClick.Invoke();
+                        view.HoldButton.onClick.Invoke();
+                        if (interrupt)
+                            throw new InvalidOperationException("Interrupted fog outcome save");
+                        recorded++;
+                    });
+
+                    if (safePassage)
+                    {
+                        view.PortButton.onClick.Invoke();
+                        view.HoldButton.onClick.Invoke();
+                    }
+                    else
+                        view.HoldButton.onClick.Invoke();
+
+                    Assert.That(session.IsComplete, Is.True);
+                    Assert.That(session.Succeeded, Is.EqualTo(safePassage));
+                    int completedSteps = session.CurrentStep;
+                    int hull = session.HullIntegrity;
+                    Assert.Throws<InvalidOperationException>(() =>
+                        view.ContinueButton.onClick.Invoke());
+                    Assert.That(attempts, Is.EqualTo(1));
+                    Assert.That(recorded, Is.Zero);
+                    Assert.That(view.ContinueButton.interactable, Is.True);
+                    Assert.That(session.CurrentStep, Is.EqualTo(completedSteps));
+                    Assert.That(session.HullIntegrity, Is.EqualTo(hull));
+
+                    interrupt = false;
+                    view.ContinueButton.onClick.Invoke();
+                    Assert.That(attempts, Is.EqualTo(2));
+                    Assert.That(recorded, Is.EqualTo(1));
+                    Assert.That(view.ContinueButton.interactable, Is.False);
+                    view.ContinueButton.onClick.Invoke();
+                    Assert.That(attempts, Is.EqualTo(2));
+                    Assert.That(session.CurrentStep, Is.EqualTo(completedSteps));
+                    Assert.That(session.HullIntegrity, Is.EqualTo(hull));
+                }
+                finally
+                {
+                    view?.Dispose();
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void ChangingLocaleUpdatesHeadingsAndCueReadoutWithoutMutatingSession()
         {
             var root = new GameObject("Fog view locale");
