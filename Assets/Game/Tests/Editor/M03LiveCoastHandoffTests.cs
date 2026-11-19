@@ -41,6 +41,8 @@ namespace Rpg.Tests.Editor
                 variables.Set(M02OfficialDockFacts.LivingRegistrationStampedKey, 0);
                 variables.Set(M02MissingReturnFacts.ApprovalKey, 0);
                 variables.Set(M02QiQueDebtFacts.DebtKnownKey, 1);
+                variables.Set(M00MemorialSquare.XiaodouPromptedKey, 1);
+                variables.Set(M04XiaodouFarewellFacts.RealLineKey, 2);
                 // A previous visit qualified for an official ship and heard the secret.
                 var previousVisit = new M03LuJunEncounter(M02BridgeEvidence.WarReportDraft, true);
                 previousVisit.Begin();
@@ -94,7 +96,24 @@ namespace Rpg.Tests.Editor
                     Is.False, "An unstamped visit must not offer the official ship.");
                 FindButton(owner, "M03 Lu Jun option 1").onClick.Invoke();
 
+                Assert.That(deliveries, Is.Zero,
+                    "M03 should lead into M04, not skip the playable farewell.");
+                Button sweet = FindButton(owner, "M04 Xiaodou advance");
+                Assert.That(sweet.gameObject.activeInHierarchy, Is.True);
+                Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.Zero,
+                    "A replay must clear the previous voyage's answer.");
+                sweet.onClick.Invoke();
+                Assert.That(sweet.gameObject.activeInHierarchy, Is.False,
+                    "Taking the sweet must not silently answer Xiaodou.");
+                Button teach = FindButton(owner, "M04 Xiaodou choice 0");
+                Assert.That(teach.gameObject.activeInHierarchy, Is.True);
+                teach.onClick.Invoke();
+                Assert.That(deliveries, Is.Zero,
+                    "The opening should finish only after the farewell is spoken.");
+                sweet.onClick.Invoke();
                 Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.EqualTo(1),
+                    "A completed choice must be persisted before departure.");
                 Assert.That(M03LuJunFacts.TryRead(out M03LuConfession confession,
                     out M03SecrecyAnswer secrecy, out M03VoyageChoice? voyage), Is.True);
                 Assert.That(confession, Is.EqualTo(M03LuConfession.NotAsked));
