@@ -49,8 +49,8 @@ namespace Rpg.Tests.Editor
         [Test]
         public void PlannedReturneesCannotExceedActualBerths()
         {
-            // The story's default missing beds require negotiating another
-            // vessel or sailing in batches, not silently adding bunks.
+            // A plan larger than the available berths needs another vessel
+            // or a later trip before reserving the larger number.
             var overbooked = Ready(M03VoyageChoice.QiQueMerchant, berths: 18,
                 returnees: 23);
             Assert.That(overbooked.Check(), Does.Contain(
@@ -94,11 +94,16 @@ namespace Rpg.Tests.Editor
         [Test]
         public void EmptyOrInvalidDemandCannotClaimCompleteDeparture()
         {
-            var noReturnees = Ready(M03VoyageChoice.QiQueMerchant,
-                returnees: 0);
-            Assert.That(noReturnees.Check(), Does.Contain(
-                M04DepartureBlocker.NoReturneeDemand));
-            Assert.That(noReturnees.ConfirmDeparture(), Is.False);
+            var noReserve = Ready(M03VoyageChoice.QiQueMerchant, returnees: 0);
+            Assert.That(noReserve.Check(), Does.Contain(
+                M04DepartureBlocker.NoRescueBerthPlan));
+            Assert.That(noReserve.ConfirmDeparture(), Is.False);
+
+            // This is the outbound trip. A berth can be reserved for the rescue
+            // before the protagonist has spoken to any returnee in the mines.
+            var oneReservedBerth = Ready(M03VoyageChoice.QiQueMerchant,
+                berths: 1, returnees: 1);
+            Assert.That(oneReservedBerth.ConfirmDeparture(), Is.True);
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 Ready((M03VoyageChoice)999));
             Assert.Throws<ArgumentOutOfRangeException>(() =>
