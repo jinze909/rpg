@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
         private bool cupPending;
         private M04DockPreflightView dockPreflight;
         private bool dockPreflightPending;
+        private M04CastOffView castOff;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -310,8 +311,58 @@ namespace Rpg.Soundwell
             // A validated M03 saved choice selects the dialogue, but does
             // not confirm readiness, sail, or generate M05 arrival facts.
             dockPreflight = new M04DockPreflightView(
-                transform, route.Value, CloseOpening);
+                transform, route.Value, FinishDockPreflight);
             dockPreflightPending = false;
+        }
+
+        /// <summary>
+        /// Only a confirmed, unsailed M04 departure for the precise M03 route
+        /// chosen this visit can offer a real cast-off. A gift or route option
+        /// by itself cannot launch the vessel; corrupt flags and stale routes
+        /// are ignored instead of creating new voyage facts.
+        /// </summary>
+        public static bool TryReadCurrentCastOff(
+            Func<string, int> getInt, out M04DepartureRecord? departure)
+        {
+            departure = null;
+            if (getInt == null ||
+                !M03LuJunFacts.TryRead(getInt, out _, out _,
+                    out M03VoyageChoice? chosenRoute) ||
+                !chosenRoute.HasValue ||
+                !M04DepartureFacts.TryRead(getInt, out M04DepartureRecord? verified) ||
+                !verified.HasValue ||
+                verified.Value.Route != chosenRoute.Value ||
+                getInt(M04DepartureFacts.SailedKey) != 0)
+                return false;
+
+            departure = verified;
+            return true;
+        }
+
+        private void FinishDockPreflight()
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                throw new InvalidOperationException(
+                    "The current voyage store is unavailable at dock preflight.");
+
+            var read = (Func<string, int>)(key => variables.GetInt(key));
+            if (!TryReadCurrentCastOff(read, out _))
+            {
+                // With no actually confirmed ship, hand control back to the
+                // dock. The opening never creates a hull or sails on its own.
+                CloseOpening();
+                return;
+            }
+
+            // A real host has already confirmed and saved all required
+            // resources. Offer one deliberate cast-off action and persist
+            // that action only on the player's click.
+            var next = new M04CastOffView(transform, read,
+                (key, value) => variables.Set(key, value), CloseOpening);
+            dockPreflight?.Dispose();
+            dockPreflight = null;
+            castOff = next;
         }
 
         private void CloseOpening()
@@ -327,6 +378,8 @@ namespace Rpg.Soundwell
             dockPreflight?.Dispose();
             dockPreflight = null;
             dockPreflightPending = false;
+            castOff?.Dispose();
+            castOff = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -370,6 +423,7 @@ namespace Rpg.Soundwell
                 xiaodouFarewell?.LayoutForViewportAspect(aspect);
                 qiQueCup?.LayoutForViewportAspect(aspect);
                 dockPreflight?.LayoutForViewportAspect(aspect);
+                castOff?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -384,6 +438,7 @@ namespace Rpg.Soundwell
             xiaodouFarewell?.Dispose();
             qiQueCup?.Dispose();
             dockPreflight?.Dispose();
+            castOff?.Dispose();
             onFinished = null;
         }
     }
