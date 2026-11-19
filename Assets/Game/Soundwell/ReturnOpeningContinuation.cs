@@ -20,6 +20,8 @@ namespace Rpg.Soundwell
         private M04QiQueCupView qiQueCup;
         private M04QiQueCupEncounter completedCup;
         private bool cupPending;
+        private M04DockPreflightView dockPreflight;
+        private bool dockPreflightPending;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -284,7 +286,32 @@ namespace Rpg.Soundwell
             if (completedCup == null || !M04QiQueCupFacts.TryRecord(completedCup))
                 return;
             completedCup = null;
-            CloseOpening();
+            QueueDockPreflight();
+        }
+
+        private void QueueDockPreflight()
+        {
+            // The cup is really carried, but this M03 route selection has
+            // not placed a hull, crew or landing receiver at the dock.
+            qiQueCup?.Dispose();
+            qiQueCup = null;
+            dockPreflightPending = true;
+            OpenDockPreflightWhenReady();
+        }
+
+        private void OpenDockPreflightWhenReady()
+        {
+            if (!dockPreflightPending || dockPreflight != null ||
+                onFinished == null ||
+                !M03LuJunFacts.TryRead(out _, out _,
+                    out M03VoyageChoice? route) || !route.HasValue)
+                return;
+
+            // A validated M03 saved choice selects the dialogue, but does
+            // not confirm readiness, sail, or generate M05 arrival facts.
+            dockPreflight = new M04DockPreflightView(
+                transform, route.Value, CloseOpening);
+            dockPreflightPending = false;
         }
 
         private void CloseOpening()
@@ -297,6 +324,9 @@ namespace Rpg.Soundwell
             xiaodouFarewell = null;
             qiQueCup?.Dispose();
             qiQueCup = null;
+            dockPreflight?.Dispose();
+            dockPreflight = null;
+            dockPreflightPending = false;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -327,6 +357,8 @@ namespace Rpg.Soundwell
                 OpenQiQueCupWhenReady();
             if (completedCup != null)
                 RecordCupWhenReady();
+            if (dockPreflightPending)
+                OpenDockPreflightWhenReady();
             if (!Mathf.Approximately(aspect, layoutAspect))
             {
                 layoutAspect = aspect;
@@ -337,6 +369,7 @@ namespace Rpg.Soundwell
                 luJun?.LayoutForViewportAspect(aspect);
                 xiaodouFarewell?.LayoutForViewportAspect(aspect);
                 qiQueCup?.LayoutForViewportAspect(aspect);
+                dockPreflight?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -350,6 +383,7 @@ namespace Rpg.Soundwell
             luJun?.Dispose();
             xiaodouFarewell?.Dispose();
             qiQueCup?.Dispose();
+            dockPreflight?.Dispose();
             onFinished = null;
         }
     }
