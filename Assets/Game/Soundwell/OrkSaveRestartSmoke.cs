@@ -14,6 +14,7 @@ namespace Rpg.Soundwell
     internal sealed class OrkSaveRestartSmoke : MonoBehaviour
     {
         private const int Slot = 0;
+        private const string LiveFact = "rpg.test.checkpoint-read-keeps-live-fact";
         private bool writing;
         private bool loaded;
 
@@ -90,10 +91,48 @@ namespace Rpg.Soundwell
                     Fail("Could not save from the Bootstrap checkpoint.");
                     yield break;
                 }
-                saves.Save(Slot);
+                yield return WaitFor(() => CheckpointButton("Save")?.IsInteractable() == true);
+                var saveButton = CheckpointButton("Save");
+                if (saveButton == null || !saveButton.IsInteractable())
+                {
+                    Fail("The Bootstrap save button never enabled.");
+                    yield break;
+                }
+                saveButton.onClick.Invoke();
                 if (!saves.FileExists(Slot))
                 {
                     Fail("Makinom did not create a save file.");
+                    yield break;
+                }
+                string path = CheckpointPath(saves);
+                byte[] recorded = File.ReadAllBytes(path);
+                // Start a confirmation, then leave and return to the same Bootstrap owner.
+                var saveLabel = saveButton.GetComponentInChildren<UnityEngine.UI.Text>();
+                saveButton.onClick.Invoke();
+                if (saveLabel.text != "Confirm overwrite")
+                {
+                    Fail("The existing checkpoint did not ask for overwrite confirmation.");
+                    yield break;
+                }
+                FindFirstObjectByType<SoundwellEntrance>().OpenPrelude();
+                var prelude = FindFirstObjectByType<WhitewaterPrelude>();
+                if (prelude == null)
+                {
+                    Fail("The checkpoint confirmation visit did not reach Whitewater.");
+                    yield break;
+                }
+                prelude.Close();
+                yield return WaitFor(() => saveButton.IsInteractable() && saveLabel.text == "Save checkpoint");
+                if (saveLabel.text != "Save checkpoint")
+                {
+                    Fail("The overwrite confirmation did not expire on return to entry.");
+                    yield break;
+                }
+                saveButton.onClick.Invoke();
+                if (saveLabel.text != "Confirm overwrite" ||
+                    !System.Linq.Enumerable.SequenceEqual(recorded, File.ReadAllBytes(path)))
+                {
+                    Fail("An overwrite confirmation survived leaving the entry screen.");
                     yield break;
                 }
                 Debug.Log("RPG_ORK_SAVE_RESTART_WRITE");
@@ -106,8 +145,23 @@ namespace Rpg.Soundwell
                     Fail("The read process must start with fresh gameplay state.");
                     yield break;
                 }
+                yield return WaitFor(() => CheckpointButton("Load")?.IsInteractable() == true);
+                var loadButton = CheckpointButton("Load");
+                if (loadButton == null || !loadButton.IsInteractable() ||
+                    !RejectsIncompleteCheckpoint(saves, loadButton))
+                {
+                    Fail("Loading an incomplete checkpoint changed the live session or left no error message.");
+                    yield break;
+                }
+                var entrance = FindFirstObjectByType<SoundwellEntrance>();
                 saves.GameLoaded += OnGameLoaded;
-                saves.Load(Slot);
+                loadButton.onClick.Invoke();
+                loadButton.onClick.Invoke();
+                if (saves.IsLoading && entrance.OpenTrial() != null)
+                {
+                    Fail("Entry accepted a second scene transition during load.");
+                    yield break;
+                }
                 yield return WaitFor(() => loaded);
                 saves.GameLoaded -= OnGameLoaded;
                 if (!loaded || SceneManager.GetActiveScene().name != SoundwellEntrance.BootstrapSceneName ||
@@ -142,6 +196,36 @@ namespace Rpg.Soundwell
         }
 
         private void OnGameLoaded() => loaded = true;
+
+        private static UnityEngine.UI.Button CheckpointButton(string action) =>
+            GameObject.Find(action + " ORK checkpoint button")
+                ?.GetComponent<UnityEngine.UI.Button>();
+
+        private static string CheckpointPath(SaveGameHandler saves) =>
+            Path.Combine(Application.persistentDataPath, saves.GetFileName(Slot) + ".save");
+
+        private static bool RejectsIncompleteCheckpoint(SaveGameHandler saves, UnityEngine.UI.Button loadButton)
+        {
+            string path = CheckpointPath(saves);
+            byte[] valid = File.ReadAllBytes(path);
+            try
+            {
+                Maki.Game.Variables.Set(LiveFact, 1);
+                File.WriteAllText(path, new DataObject().ToXML("savegame"));
+                loadButton.onClick.Invoke();
+                loadButton.onClick.Invoke();
+                var label = loadButton.GetComponentInChildren<UnityEngine.UI.Text>();
+                bool rejected = !saves.IsLoading && Maki.Game.Variables.GetInt(LiveFact) == 1 &&
+                    label.text == "Could not read checkpoint";
+                if (rejected)
+                    Debug.Log("RPG_ORK_INVALID_CHECKPOINT_REJECTED");
+                return rejected;
+            }
+            finally
+            {
+                File.WriteAllBytes(path, valid);
+            }
+        }
 
         private static IEnumerator EnterTrial()
         {

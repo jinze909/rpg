@@ -44,9 +44,9 @@
 
 ## ENG-002 · 存档与平台验收
 
-- 存档。Linux Test Player 已分两个实际进程写入和读取 ORK 存档，覆盖完成任务、三名队员经验、章节事实及重进声井去重。游戏界面的存读档入口仍待接线。[存档重启回归](https://github.com/jinze909/rpg/actions/runs/44401944986)
+- 存档。Bootstrap 提供保存、覆盖确认与读档。读档先检查 ORK/Makinom 存档结构及场景，再切换当前会话。Linux Test Player 回归由真实入口按钮触发，覆盖不完整存档保留当前进度，以及跨进程恢复任务、三名队员经验、章节事实和重进声井去重。[既有存档重启回归](https://github.com/jinze909/rpg/actions/runs/44404473307)
 - 平台。Windows64 x64 Mono 构建可按需运行并校验 PE、运行库和场景数据。Windows 原生启动仍待验证。[Windows 构建](https://github.com/jinze909/rpg/actions/runs/44371259560)
-- 窄屏。临潮广场布局已通过 Play Mode 控件边界检查。声井操作区与战斗状态栏按 Overlay Canvas 的可用宽度回流。Linux Player 回归以 320×800 的实际窗口检查按钮命中和状态栏边界，并保留玩家视角的截图。[广场布局回归](https://github.com/jinze909/rpg/actions/runs/44370360856)
+- 窄屏。临潮广场布局已通过 Play Mode 控件边界检查。声井操作区与战斗状态栏按 Overlay Canvas 的可用宽度回流。Linux Player 回归以 320×800 的实际窗口检查按钮命中和状态栏边界，并保留玩家视角的截图。[声井 Player 窗口证据](https://github.com/jinze909/rpg/actions/runs/44413256352)
 
 ## ENG-003 · 第三方依赖发布记录
 
