@@ -4,6 +4,7 @@
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,16 @@ LINUX_EDITOR_PACKAGES = {
     "com.unity.sysroot.base",
     "com.unity.toolchain.linux-x86_64-linux",
 }
+
+# UPM registry dependencies use exact SemVer pins. The Editor determines the
+# release number; the lockfile must independently name that same release.
+_NUMBER = r"(?:0|[1-9][0-9]*)"
+_PRERELEASE_ID = rf"(?:{_NUMBER}|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+PINNED_REGISTRY_VERSION = re.compile(
+    rf"{_NUMBER}\.{_NUMBER}\.{_NUMBER}"
+    rf"(?:-{_PRERELEASE_ID}(?:\.{_PRERELEASE_ID})*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+)
 
 REQUIRED_OUTPUTS = (
     "Assets/Game/Scenes/Bootstrap.unity",
@@ -112,19 +123,21 @@ def validate_manifest(previous_bytes, generated_bytes, lock_bytes):
         raise ValueError("Unity changed manifest configuration or removed a direct dependency.")
 
     for name, version in sorted(generated_dependencies.items()):
-        if previous_dependencies.get(name) == version:
+        if name in previous_dependencies and previous_dependencies[name] == version:
             continue
         resolved = lock.get(name, {})
-        builtin = name.startswith("com.unity.") and resolved.get("source") == "builtin"
-        linux_sdk = (
-            name not in previous_dependencies
-            and name in LINUX_EDITOR_PACKAGES
-            and version == "1.1.1"
-            and resolved.get("source") == "registry"
-            and resolved.get("url") == "https://packages.unity.com"
-        )
-        if not ((builtin or linux_sdk) and resolved.get("depth") == 0
-                and resolved.get("version") == version):
+        if (not isinstance(version, str) or not isinstance(resolved, dict)
+                or type(resolved.get("depth")) is not int or resolved["depth"] != 0
+                or resolved.get("version") != version):
+            raise ValueError(f"Manifest change lacks a matching direct lock entry: {name}")
+        if name in LINUX_EDITOR_PACKAGES:
+            approved = (name not in previous_dependencies
+                        and resolved.get("source") == "registry"
+                        and resolved.get("url") == "https://packages.unity.com"
+                        and PINNED_REGISTRY_VERSION.fullmatch(version) is not None)
+        else:
+            approved = name.startswith("com.unity.") and resolved.get("source") == "builtin"
+        if not approved:
             raise ValueError(f"Manifest change is not an approved editor dependency: {name}")
         print(f"Unity normalized {name}: {previous_dependencies.get(name, '(new)')} -> {version}")
 
