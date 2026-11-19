@@ -137,6 +137,8 @@ namespace Rpg.Tests.Editor
 
             session.View.Dispose();
             Assert.DoesNotThrow(() => session.LayoutForViewportAspect(9f / 16f));
+            Assert.DoesNotThrow(() => session.View.LayoutForViewportAspect(32f / 9f),
+                "A stale direct resize callback after scene handoff must also be inert.");
         }    
     }
 }
