@@ -18,7 +18,7 @@ if [[ -z "$project_path" ]]; then
   exit 1
 fi
 
-evidence="$GITHUB_WORKSPACE/${ARTIFACTS_PATH:-artifacts/p0}"
+evidence="${GITHUB_WORKSPACE:-$PWD}/${ARTIFACTS_PATH:-artifacts/p0}"
 mkdir -p "$evidence"
 "$@"
 tests_exit=$?
@@ -33,16 +33,21 @@ printf '%s\n' "$batch_exit" > "$evidence/batch-editor-exit-code.txt"
 if [[ "$batch_exit" -ne 0 ]]; then
   # The independent Unity process writes diagnostics to batch.log, not the
   # Actions console. Expose bounded failure evidence without changing gates.
-  echo 'P0 independent batch failed; relevant Unity diagnostics:'
-  grep -nE 'error CS[0-9]+|error [A-Z]+[0-9]+|Scripts have compiler errors|Compilation failed|Aborting batchmode|Exception:' \
-    "$evidence/batch.log" | head -n 60 || true
-  echo 'P0 independent batch log tail:'
-  tail -n 60 "$evidence/batch.log" || true
+  if [[ -f "$evidence/batch.log" ]]; then
+    echo 'P0 independent batch failed; relevant Unity diagnostics:'
+    grep -nE 'error CS[0-9]+|error [A-Z]+[0-9]+|Scripts have compiler errors|Compilation failed|Aborting batchmode|Exception:' \
+      "$evidence/batch.log" | head -n 60 || true
+    echo 'P0 independent batch log tail:'
+    tail -n 60 "$evidence/batch.log" || true
+  else
+    echo "P0 independent batch failed (exit=$batch_exit) before creating $evidence/batch.log." >&2
+  fi
 fi
 if [[ "$tests_exit" -ne 0 || "$batch_exit" -ne 0 ]]; then
+  echo "P0 wrapper exiting non-zero (tests_exit=$tests_exit, batch_exit=$batch_exit)." >&2
   exit 1
 fi
-if ! grep -q 'RPG_BOOTSTRAP_VALIDATED' "$evidence/batch.log"; then
+if [[ ! -f "$evidence/batch.log" ]] || ! grep -q 'RPG_BOOTSTRAP_VALIDATED' "$evidence/batch.log"; then
   echo 'Batch invocation did not produce the required validation marker.' >&2
   exit 1
 fi
