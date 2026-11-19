@@ -127,6 +127,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ConfirmedDepartureShowsFinalReadinessNotAnotherInvitationOrClaimOfSailing()
+        {
+            var root = new GameObject("M04 readiness confirmed copy");
+            M04DepartureReadinessView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var ready = Plan(true);
+                int writes = 0;
+                view = new M04DepartureReadinessView(root.transform, ready,
+                    accepted => { writes++; Assert.That(accepted.DepartureConfirmed, Is.True); },
+                    () => Assert.Fail("Confirmed departure cannot navigate back."));
+
+                Assert.That(view.Details.text, Does.Contain("You may confirm this plan"));
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+                view.ConfirmButton.onClick.Invoke();
+
+                Assert.That(writes, Is.EqualTo(1));
+                Assert.That(ready.DepartureConfirmed, Is.True);
+                Assert.That(view.ConfirmButton.interactable, Is.False);
+                Assert.That(view.Details.text, Does.Contain("Departure readiness has been confirmed"));
+                Assert.That(view.Details.text, Does.Contain("does not mean the vessel has already sailed"));
+                Assert.That(view.Details.text, Does.Not.Contain("You may confirm this plan"));
+                Assert.That(view.ConfirmButton.GetComponentInChildren<UnityEngine.UI.Text>(true).text,
+                    Is.EqualTo("Readiness confirmed"));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Details.text, Does.Contain("本航次启航准备已经确认"));
+                Assert.That(view.Details.text, Does.Contain("并不表示船只已经实际启航"));
+                Assert.That(view.Details.text, Does.Not.Contain("可以申请正式确认"));
+                Assert.That(view.ConfirmButton.GetComponentInChildren<UnityEngine.UI.Text>(true).text,
+                    Is.EqualTo("准备已确认"));
+                view.ConfirmButton.onClick.Invoke();
+                Assert.That(writes, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FailedHostDepartureSaveLetsPlayerRetryWithoutDuplicateCallbacks()
         {
             var root = new GameObject("Readiness interrupted host write");
