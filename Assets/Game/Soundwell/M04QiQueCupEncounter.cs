@@ -77,6 +77,26 @@ namespace Rpg.Soundwell
             Stage = M04QiQueCupStage.Complete;
         }
 
+        // Makinom records this encounter only after the player finishes.
+        // When that host write fails, keep the exact selected reply and
+        // physical gift state so the same farewell can be retried safely.
+        public void Finish(Action<M04QiQueCupEncounter> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            M04QiQueCupStage before = Stage;
+            Finish();
+            try
+            {
+                recordWithHost(this);
+            }
+            catch
+            {
+                Stage = before;
+                throw;
+            }
+        }
+
         private void Require(M04QiQueCupStage stage)
         {
             if (Stage != stage)
