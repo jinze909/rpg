@@ -135,6 +135,50 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedCampCanvasCannotReceiveLayoutOrLocaleEventsOrFinishTheVoyage()
+        {
+            // Either an owner resize or a language change may be the first
+            // callback after Unity destroys the M03 scene.
+            foreach (bool layoutFirst in new[] { true, false })
+            {
+                var camp = new GameObject("Destroyed Lu Jun camp");
+                try
+                {
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                    int accepted = 0;
+                    view = new M03LuJunView(camp.transform,
+                        M02BridgeEvidence.WarReportDraft, false, _ => accepted++);
+                    Assert.That(view.Encounter.Stage,
+                        Is.EqualTo(M03LuJunStage.VisitingVeterans));
+
+                    UnityEngine.Object.DestroyImmediate(camp);
+                    camp = null;
+
+                    if (layoutFirst)
+                        Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                    Assert.DoesNotThrow(() =>
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                    Assert.DoesNotThrow(() => view.LayoutForViewportAspect(32f / 9f));
+                    Assert.DoesNotThrow(() => view.Refresh());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() =>
+                        SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English));
+                    Assert.That(accepted, Is.Zero);
+                    Assert.That(view.RollCallBeat, Is.Zero);
+                    Assert.That(view.Encounter.Voyage, Is.Null,
+                        "Unloading the camp must never invent a route choice.");
+                }
+                finally
+                {
+                    view?.Dispose();
+                    if (camp != null)
+                        UnityEngine.Object.DestroyImmediate(camp);
+                }
+            }
+        }
+
+        [Test]
         public void DisposalDropsResultAndRespondsSafelyToLocaleSwitch()
         {
             int callbacks = 0;
