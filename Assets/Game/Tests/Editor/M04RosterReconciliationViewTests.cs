@@ -100,6 +100,67 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ConfirmedDockCountDoesNotDisappearAfterBookingDecliningOrReconsidering()
+        {
+            var root = new GameObject("M04 confirmed dock summary");
+            M04RosterReconciliationView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-1", "First confirmed returnee",
+                    M04RosterStatus.ConfirmedAtDock);
+                ledger.AddEntry("dock-2", "Second confirmed returnee",
+                    M04RosterStatus.ConfirmedAtDock);
+                ledger.AddEntry("dead-1", "Person only listed dead",
+                    M04RosterStatus.ListedDead);
+                view = new M04RosterReconciliationView(root.transform, ledger, 1,
+                    _ => { }, () => { });
+
+                Assert.That(view.Summary.text, Does.Contain("confirmed at dock: 2"));
+                Assert.That(view.Summary.text, Does.Contain("unbooked confirmed: 2"));
+                Assert.That(view.Summary.text, Does.Contain("booked berths: 0/1"));
+
+                view.BookButton.onClick.Invoke();
+                Assert.That(view.Summary.text, Does.Contain("confirmed at dock: 2"));
+                Assert.That(view.Summary.text, Does.Contain("unbooked confirmed: 1"));
+                Assert.That(view.Summary.text, Does.Contain("booked berths: 1/1"));
+
+                view.DeclineButton.onClick.Invoke();
+                Assert.That(ledger.DeclinedCount, Is.EqualTo(1));
+                Assert.That(view.Summary.text, Does.Contain("confirmed at dock: 2"));
+                Assert.That(view.Summary.text, Does.Contain("unbooked confirmed: 1"));
+                Assert.That(view.Summary.text, Does.Contain("booked berths: 0/1"));
+                Assert.That(view.Summary.text, Does.Contain("Declined: 1"));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Summary.text, Does.Contain("码头已核：2"));
+                Assert.That(view.Summary.text, Does.Contain("尚未占铺位：1"));
+                Assert.That(view.Summary.text, Does.Contain("放弃本趟：1"));
+
+                view.UnbookButton.onClick.Invoke();
+                Assert.That(ledger.DeclinedCount, Is.Zero);
+                Assert.That(view.Summary.text, Does.Contain("码头已核：2"));
+                Assert.That(view.Summary.text, Does.Contain("尚未占铺位：2"));
+
+                view.NextButton.onClick.Invoke();
+                view.NextButton.onClick.Invoke();
+                view.ConfirmDockButton.onClick.Invoke();
+                Assert.That(ledger.UnresolvedDiscrepancyCount, Is.EqualTo(1));
+                Assert.That(view.Summary.text, Does.Contain("码头已核：3"));
+                Assert.That(view.Summary.text, Does.Contain("尚未占铺位：3"));
+                Assert.That(view.FinishButton.interactable, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BookingAndUnbookingRespectVerifiedBerthCapAndHostUpdates()
         {
             var root = new GameObject("Roster berth cap view");
