@@ -134,6 +134,10 @@ namespace Rpg.Soundwell
             M04RosterEntry entry = GetEntry(entryId);
             if (entry == null || entry.Status != M04RosterStatus.ConfirmedAtDock)
                 return false;
+            // A survivor found alive on the dead roll must have that record
+            // corrected before they can occupy a booked rescue berth.
+            if (entry.RequiresRollCorrection)
+                return false;
             if (BookedCount >= verifiedBerths)
                 return false;
 
