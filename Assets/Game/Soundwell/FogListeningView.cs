@@ -257,12 +257,18 @@ namespace Rpg.Soundwell
 
             FogListeningCue cue = session.CurrentCue;
             int clarity = session.EffectiveClarity();
+            // A low-clarity cue must not reveal the precise port/starboard
+            // bearing before the player chooses to listen more closely.
+            // Keep the clarity visible so focus remains an informed choice.
+            bool canIdentifyBearing = clarity >= FogListeningView.ClearCueThreshold;
             copy.Append(chinese ? "方位：" : "Bearing: ")
-                .Append(BearingText(cue.Bearing, chinese))
+                .Append(canIdentifyBearing
+                    ? BearingText(cue.Bearing, chinese)
+                    : (chinese ? "难辨" : "indistinct"))
                 .Append(chinese ? "；清晰度：" : "; clarity: ")
                 .Append(clarity).AppendLine("%");
 
-            if (clarity < FogListeningView.ClearCueThreshold)
+            if (!canIdentifyBearing)
             {
                 copy.Append(chinese
                     ? "雾中声响模糊难辨，可凝神听雾或减速测水深。"
