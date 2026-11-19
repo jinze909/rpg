@@ -32,6 +32,7 @@ namespace Rpg.Soundwell
         private RectTransform saveCheckpointRect, loadCheckpointRect;
         private Text saveCheckpointText, loadCheckpointText;
         private bool confirmCheckpointOverwrite, confirmCheckpointLoad;
+        private bool checkpointReadFailed;
         private bool checkpointLoading, checkpointSaved;
         private Canvas entryCanvas;
         private WhitewaterPrelude currentPrelude;
@@ -469,6 +470,7 @@ namespace Rpg.Soundwell
                 : checkpointSaved && exists ? (zh ? "已存档" : "Checkpoint saved")
                 : (zh ? "保存检查点" : "Save checkpoint");
             loadCheckpointText.text = checkpointLoading ? (zh ? "正在读档" : "Loading checkpoint")
+                : checkpointReadFailed ? (zh ? "无法读取存档" : "Could not read checkpoint")
                 : !exists || !ready ? (zh ? "暂无存档" : "No saved checkpoint")
                 : confirmCheckpointLoad ? (zh ? "确认读取存档" : "Confirm load")
                 : (zh ? "读取检查点" : "Load checkpoint");
@@ -492,6 +494,7 @@ namespace Rpg.Soundwell
                 }
                 saves.Save(0);
                 confirmCheckpointOverwrite = confirmCheckpointLoad = false;
+                checkpointReadFailed = false;
                 checkpointSaved = saves.FileExists(0);
             }
             catch (System.Exception ex)
@@ -515,27 +518,50 @@ namespace Rpg.Soundwell
                 {
                     confirmCheckpointLoad = true;
                     confirmCheckpointOverwrite = checkpointSaved = false;
+                    checkpointReadFailed = false;
                     RefreshCheckpointControls();
                     return;
                 }
                 confirmCheckpointLoad = false;
+                // ORK clears the live session before parsing in Load.
+                // Check the file's required roots and scene before allowing that reset.
+                if (!CanReadCheckpoint(saves.LoadFile(0)))
+                    throw new System.IO.InvalidDataException("The checkpoint is incomplete or its scene is unavailable.");
                 checkpointLoading = true;
                 saves.GameLoaded += OnCheckpointLoaded;
                 saves.Load(0);
+                if (checkpointLoading && !saves.IsLoading)
+                    throw new System.IO.IOException("The checkpoint disappeared before loading began.");
             }
             catch (System.Exception ex)
             {
                 saves.GameLoaded -= OnCheckpointLoaded;
                 checkpointLoading = false;
-                Debug.LogError("ORK checkpoint load failed: " + ex);
+                checkpointReadFailed = true;
+                Debug.LogWarning("ORK checkpoint could not be read. " + ex.Message);
             }
             RefreshCheckpointControls();
+        }
+
+        private static bool CanReadCheckpoint(DataObject data)
+        {
+            var ork = data?.GetFile("ORK");
+            if (data?.GetFile("game") == null || ork?.GetFile("game") == null)
+                return false;
+            var settings = ORK.SaveGameSettings;
+            if (settings.saveGroups && ork.GetFile("groups") == null)
+                return false;
+            string scene = settings.saveSceneName;
+            if (settings.saveGroups && settings.saveGroupPosition)
+                ork.Get("scenename", ref scene);
+            return !string.IsNullOrEmpty(scene) && Application.CanStreamedLevelBeLoaded(scene);
         }
 
         private void OnCheckpointLoaded()
         {
             Maki.SaveGame.GameLoaded -= OnCheckpointLoaded;
             checkpointLoading = false;
+            checkpointReadFailed = false;
             confirmCheckpointOverwrite = confirmCheckpointLoad = checkpointSaved = false;
             RefreshReturnOutcome(true);
             RefreshPreludeProgress(true);
@@ -716,7 +742,7 @@ namespace Rpg.Soundwell
 
         public void OpenPrelude()
         {
-            if (currentPrelude != null || currentMemorial != null || trialLoad != null ||
+            if (checkpointLoading || currentPrelude != null || currentMemorial != null || trialLoad != null ||
                 lastOpeningExitFrame == Time.frameCount)
                 return;
             // Disable the whole menu to prevent hidden Selectables from
@@ -836,7 +862,7 @@ namespace Rpg.Soundwell
 
         public AsyncOperation OpenTrial()
         {
-            if (trialLoad != null || currentPrelude != null || currentMemorial != null ||
+            if (checkpointLoading || trialLoad != null || currentPrelude != null || currentMemorial != null ||
                 lastOpeningExitFrame == Time.frameCount)
                 return trialLoad;
             // Enter commits the scene transition. Disable the other focused
