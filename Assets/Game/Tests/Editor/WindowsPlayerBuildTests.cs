@@ -23,32 +23,40 @@ namespace Rpg.Tests.Windows
             Assert.That(scenes, Does.Contain("Assets/Game/Scenes/SoundwellTrial.unity"));
             const string path = "Temp/WindowsBuildSmoke/Soundwell.exe";
             string buildDirectory = Path.GetDirectoryName(path);
-            Directory.CreateDirectory(buildDirectory);
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            try
             {
-                scenes = scenes,
-                locationPathName = path,
-                target = target,
-                targetGroup = BuildTargetGroup.Standalone,
-                options = BuildOptions.StrictMode,
-            });
-            Assert.That(report.summary.result, Is.EqualTo(BuildResult.Succeeded));
-            Assert.That(report.summary.platform, Is.EqualTo(target));
-            Assert.That(report.summary.totalErrors, Is.Zero);
+                Directory.CreateDirectory(buildDirectory);
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = scenes,
+                    locationPathName = path,
+                    target = target,
+                    targetGroup = BuildTargetGroup.Standalone,
+                    options = BuildOptions.StrictMode,
+                });
+                Assert.That(report.summary.result, Is.EqualTo(BuildResult.Succeeded));
+                Assert.That(report.summary.platform, Is.EqualTo(target));
+                Assert.That(report.summary.totalErrors, Is.Zero);
 
-            using (var reader = new BinaryReader(File.OpenRead(path)))
-            {
-                Assert.That(reader.ReadUInt16(), Is.EqualTo(0x5a4d), "Windows executable DOS signature");
-                reader.BaseStream.Position = 0x3c;
-                int offset = reader.ReadInt32();
-                Assert.That((long)offset, Is.InRange(0x40L, reader.BaseStream.Length - 6L));
-                reader.BaseStream.Position = offset;
-                Assert.That(reader.ReadUInt32(), Is.EqualTo(0x4550), "Windows PE signature");
-                Assert.That(reader.ReadUInt16(), Is.EqualTo(0x8664), "x86-64 machine type");
+                using (var reader = new BinaryReader(File.OpenRead(path)))
+                {
+                    Assert.That(reader.ReadUInt16(), Is.EqualTo(0x5a4d), "Windows executable DOS signature");
+                    reader.BaseStream.Position = 0x3c;
+                    int offset = reader.ReadInt32();
+                    Assert.That((long)offset, Is.InRange(0x40L, reader.BaseStream.Length - 6L));
+                    reader.BaseStream.Position = offset;
+                    Assert.That(reader.ReadUInt32(), Is.EqualTo(0x4550), "Windows PE signature");
+                    Assert.That(reader.ReadUInt16(), Is.EqualTo(0x8664), "x86-64 machine type");
+                }
+                Assert.That(File.Exists(Path.Combine(buildDirectory, "UnityPlayer.dll")), Is.True);
+                Assert.That(Directory.Exists(Path.Combine(buildDirectory, "Soundwell_Data")), Is.True);
+                Debug.Log("RPG_WINDOWS_PLAYER_BUILT");
             }
-            Assert.That(File.Exists(Path.Combine(buildDirectory, "UnityPlayer.dll")), Is.True);
-            Assert.That(Directory.Exists(Path.Combine(buildDirectory, "Soundwell_Data")), Is.True);
-            Debug.Log("RPG_WINDOWS_PLAYER_BUILT");
+            finally
+            {
+                if (!string.IsNullOrEmpty(buildDirectory) && Directory.Exists(buildDirectory))
+                    Directory.Delete(buildDirectory, true);
+            }
         }
     }
 }
