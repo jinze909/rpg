@@ -255,6 +255,18 @@ jobs:
                   "644b493d5bd1239ceb80dd913123d3c3b0f7b550",
           }
           ARCHIVED={
+              "codex/pending/m04-xiaodou-farewell-nov18": {
+                  "head":"02325af7e0a9388b11f9e4dd3121fa9a6e47ed9b",
+                  "verified":"624466f9833932031a316d4c6f153d80330fec6d",
+                  "run":44454741200,
+                  "original_run":44417323573,
+                  "ancestor":True,
+                  "pin_verified_snapshot":True,
+                  "reason":"The verified regression exercises both prior prompt histories in one NUnit case and adds the bilingual crossing and main cable checks.",
+                  "blobs":{
+                      "Assets/Game/Tests/Editor/M04XiaodouFarewellTests.cs":"d3f8c340b0359b812fd5158070a619098a361cc7",
+                  },
+              },
               "codex/pending/m00-memorial-entry-lifecycle-nov17": {
                   "head": "72b52fc9bc3357b7ecc3c51a153e5b232931ad14",
                   "verified": "b3a917b48617f541c83edb6a75d1b4fe205c75c5",
