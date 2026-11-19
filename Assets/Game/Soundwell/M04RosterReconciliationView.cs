@@ -186,7 +186,8 @@ namespace Rpg.Soundwell
             declineButton.interactable = active && current != null &&
                 (current.Status == M04RosterStatus.ConfirmedAtDock ||
                  current.Status == M04RosterStatus.BookedForVoyage);
-            finishButton.interactable = active && ledger.UnresolvedDiscrepancyCount == 0;
+            finishButton.interactable = active && ledger.UnresolvedDiscrepancyCount == 0 &&
+                ledger.BookedCount <= verifiedBerths;
             backButton.interactable = active;
 
             if (active)
@@ -273,9 +274,10 @@ namespace Rpg.Soundwell
 
         private void Finish()
         {
-            // Enforce discrepancy rule at the action boundary so direct
-            // Button.onClick.Invoke calls cannot bypass interactable = false.
-            if (disposed || delivered || ledger.UnresolvedDiscrepancyCount != 0)
+            // Direct Button.onClick.Invoke calls must not bypass the visible
+            // guards: a revised host capacity may leave old bookings overfull.
+            if (disposed || delivered || ledger.UnresolvedDiscrepancyCount != 0 ||
+                ledger.BookedCount > verifiedBerths)
                 return;
             delivered = true;
             Refresh();
