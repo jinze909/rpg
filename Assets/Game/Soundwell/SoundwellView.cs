@@ -667,8 +667,8 @@ namespace Rpg.Soundwell
         {
             if (!battleMode)
                 return;
-            // ORK may revoke its chooser while a previously queued action is
-            // still being presented. Never expose stale battle commands for a
+            // ORK may revoke its chooser while a previously queued action
+            // is still being presented. Never expose stale battle commands for a
             // destroyed actor or an out-of-range rescuer index.
             // ORK can retire or disable a scene actor before an older UI
             // callback arrives. A non-null Transform alone is not a live
@@ -702,10 +702,10 @@ namespace Rpg.Soundwell
             // the waiting caption for a genuinely unresolved ORK turn.
             attackButtonLabel.text = liveChooser
                 ? SoundwellUiLocalization.Get("battle.rescuer") + " " +
-                    (activeRescuerIndex + 1) +
-                    (attackButton.interactable
-                        ? "  >  " + SoundwellUiLocalization.Get("battle.beast")
-                        : string.Empty)
+                  (activeRescuerIndex + 1) +
+                  (attackButton.interactable
+                      ? " > " + SoundwellUiLocalization.Get("battle.beast")
+                      : string.Empty)
                 : SoundwellUiLocalization.Get("battle.menu_pending");
             GameObject focused = actionEventSystem.currentSelectedGameObject;
             bool keepFocus = focused == backButton.gameObject ||
@@ -756,7 +756,6 @@ namespace Rpg.Soundwell
             moveLegal[2] = hasLiveChooser && south;
             moveLegal[3] = hasLiveChooser && west;
             // Publish eligibility before closing an invalid preview: focus
-            // restoration must not reselect a newly disabled Move command.
             bool any = moveLegal[0] || moveLegal[1] ||
                 moveLegal[2] || moveLegal[3];
             moveButton.interactable = any;
@@ -989,7 +988,6 @@ namespace Rpg.Soundwell
             compactHud = compact;
             layoutCanvasWidth = viewport.width;
             float contentWidth = Mathf.Max(1f, viewport.width - 24f);
-
             // Reserve the bottom row for combat so the retreat button does
             // not cover the beast or its target cue in the right-hand room.
             if (battleMode)
@@ -1432,9 +1430,9 @@ namespace Rpg.Soundwell
                     ? SoundwellUiLocalization.Get("surveyor.route_posted")
                     : cartKitReclaimed
                         ? SoundwellUiLocalization.Get("surveyor.kit_reclaimed")
-                    : cartObserved && cartClueShared
-                        ? SoundwellUiLocalization.Get("surveyor.cart_mentioned")
-                        : SoundwellUiLocalization.Get("surveyor.sign_removed")
+                        : cartObserved && cartClueShared
+                            ? SoundwellUiLocalization.Get("surveyor.cart_mentioned")
+                            : SoundwellUiLocalization.Get("surveyor.sign_removed")
                 : rescueComplete
                     ? SoundwellUiLocalization.Get("surveyor.rescued")
                     : surveyorEscorting
@@ -1442,9 +1440,9 @@ namespace Rpg.Soundwell
                             ? SoundwellUiLocalization.Get("surveyor.beast_gate")
                             : waitingForEscortLeader
                                 ? SoundwellUiLocalization.Get("surveyor.wait_for_leader")
-                            : guideGateX > 0.85f && npc.x > 0.85f
-                                ? SoundwellUiLocalization.Get("surveyor.wait_at_plank")
-                                : SoundwellUiLocalization.Get("surveyor.following")
+                                : guideGateX > 0.85f && npc.x > 0.85f
+                                    ? SoundwellUiLocalization.Get("surveyor.wait_at_plank")
+                                    : SoundwellUiLocalization.Get("surveyor.following")
                 : plankSecured
                     ? SoundwellUiLocalization.Get("surveyor.plank_braced")
                     : hasSurveyorClue
@@ -1501,13 +1499,13 @@ namespace Rpg.Soundwell
                     ? SoundwellUiLocalization.Get("hint.route_posted")
                     : cartKitReclaimed
                         ? SoundwellUiLocalization.Get("hint.kit_reclaimed")
-                    : cartObserved && !cartClueShared
-                        ? canShareCartClue
-                            ? SoundwellUiLocalization.Get("hint.cart_tell_nearby")
-                            : SoundwellUiLocalization.Get("hint.cart_tell_later")
-                        : cartObserved
-                            ? SoundwellUiLocalization.Get("hint.cart_fetching")
-                            : SoundwellUiLocalization.Get("hint.sign_removed");
+                        : cartObserved && !cartClueShared
+                            ? canShareCartClue
+                                ? SoundwellUiLocalization.Get("hint.cart_tell_nearby")
+                                : SoundwellUiLocalization.Get("hint.cart_tell_later")
+                            : cartObserved
+                                ? SoundwellUiLocalization.Get("hint.cart_fetching")
+                                : SoundwellUiLocalization.Get("hint.sign_removed");
             else if (beastDefeated && !gateOpen)
                 prompt = SoundwellUiLocalization.Get("hint.beast_defeated");
             else if (canEngageBeast)
@@ -1701,34 +1699,44 @@ namespace Rpg.Soundwell
                 if (IsActionSelection(actionEventSystem.currentSelectedGameObject))
                     actionEventSystem.SetSelectedGameObject(null);
             }
-            Object.Destroy(square);
-            Object.Destroy(leaderPixelSprite);
-            Object.Destroy(leaderWalkPixelSprite);
-            Object.Destroy(leaderGuardPixelSprite);
-            Object.Destroy(beastPixelSprite);
-            Object.Destroy(beastRecoilPixelSprite);
-            Object.Destroy(surveyorPixelSprite);
-            Object.Destroy(surveyorWalkPixelSprite);
-            Object.Destroy(bellStandPixelSprite);
-            Object.Destroy(attackTargetPixelSprite);
-            Object.Destroy(activeRescuerPixelSprite);
-            Object.Destroy(lowerPlankIntactPixelSprite);
-            Object.Destroy(lowerPlankBrokenPixelSprite);
-            Object.Destroy(leaderPixelTexture);
-            Object.Destroy(leaderWalkPixelTexture);
-            Object.Destroy(leaderGuardPixelTexture);
-            Object.Destroy(beastPixelTexture);
-            Object.Destroy(beastRecoilPixelTexture);
-            Object.Destroy(surveyorPixelTexture);
-            Object.Destroy(surveyorWalkPixelTexture);
-            Object.Destroy(bellStandPixelTexture);
-            Object.Destroy(attackTargetPixelTexture);
-            Object.Destroy(activeRescuerPixelTexture);
-            Object.Destroy(lowerPlankIntactPixelTexture);
-            Object.Destroy(lowerPlankBrokenPixelTexture);
-            Object.Destroy(ringMaterial);
-            Object.Destroy(clearBell);
-            Object.Destroy(mutedBell);
+            DestroyAsset(square);
+            DestroyAsset(leaderPixelSprite);
+            DestroyAsset(leaderWalkPixelSprite);
+            DestroyAsset(leaderGuardPixelSprite);
+            DestroyAsset(beastPixelSprite);
+            DestroyAsset(beastRecoilPixelSprite);
+            DestroyAsset(surveyorPixelSprite);
+            DestroyAsset(surveyorWalkPixelSprite);
+            DestroyAsset(bellStandPixelSprite);
+            DestroyAsset(attackTargetPixelSprite);
+            DestroyAsset(activeRescuerPixelSprite);
+            DestroyAsset(lowerPlankIntactPixelSprite);
+            DestroyAsset(lowerPlankBrokenPixelSprite);
+            DestroyAsset(leaderPixelTexture);
+            DestroyAsset(leaderWalkPixelTexture);
+            DestroyAsset(leaderGuardPixelTexture);
+            DestroyAsset(beastPixelTexture);
+            DestroyAsset(beastRecoilPixelTexture);
+            DestroyAsset(surveyorPixelTexture);
+            DestroyAsset(surveyorWalkPixelTexture);
+            DestroyAsset(bellStandPixelTexture);
+            DestroyAsset(attackTargetPixelTexture);
+            DestroyAsset(activeRescuerPixelTexture);
+            DestroyAsset(lowerPlankIntactPixelTexture);
+            DestroyAsset(lowerPlankBrokenPixelTexture);
+            DestroyAsset(ringMaterial);
+            DestroyAsset(clearBell);
+            DestroyAsset(mutedBell);
+        }
+
+        private static void DestroyAsset(Object asset)
+        {
+            if (asset == null)
+                return;
+            if (Application.isPlaying)
+                Object.Destroy(asset);
+            else
+                Object.DestroyImmediate(asset);
         }
 
         internal static Text AddLabel(Transform parent, string content, int fontSize, Color color,
@@ -1774,7 +1782,7 @@ namespace Rpg.Soundwell
             ".....#++++#.....",
             "......####......",
             ".....######.....",
-            "...##########...",
+            "....########....",
             "...##+####+##...",
             "...##########...",
             ".....######.....",
@@ -1796,14 +1804,14 @@ namespace Rpg.Soundwell
             ".....#++++#.....",
             "......####......",
             ".....######.....",
-            "...##########...",
+            "....########....",
             "...##+####+##...",
             "...##########...",
             ".....######.....",
             ".....##..##.....",
             "....###...##....",
-            "...###.....###..",
-            "..###.......###.",
+            "...###....###...",
+            "..###......###..",
             "................",
         };
 
@@ -1828,7 +1836,7 @@ namespace Rpg.Soundwell
             "..##++####++##..",
             ".##############.",
             ".######++######.",
-            "###############.",
+            "################",
             "...##########...",
             "...###....###...",
             "..####....####..",
@@ -1875,7 +1883,7 @@ namespace Rpg.Soundwell
             ".....######.....",
             ".....##..##.....",
             "....###...##....",
-            "...###.....###..",
+            "...###....###...",
             "................",
         };
 
@@ -1958,10 +1966,10 @@ namespace Rpg.Soundwell
         private static readonly string[] LowerPlankBrokenPixels =
         {
             "..........................",
-            "..#######.......######....",
-            ".#++++++#........#++++#...",
-            "..######.........#######..",
-            "....####...........####...",
+            "..######........######....",
+            ".#+++++#........#++++#....",
+            "..######........#######...",
+            "....####..........####....",
             "..........................",
         };
 
