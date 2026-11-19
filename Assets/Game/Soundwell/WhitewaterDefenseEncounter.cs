@@ -221,7 +221,7 @@ private readonly System.Collections.Generic.List<StatusCard> allyCards = new Sys
             string snapshot = party.BuildBattleReadout(
                 Copy("HOLD THE CROSSING", "守住渡口"),
                 Copy("Defender", "守桥队员"),
-                Copy("Spear squad", "持矛小队)", includeMoveBudget: false);
+                Copy("Spear squad", "持矛小队"), includeMoveBudget: false);
             readoutEnglish = null;
             readoutChinese = null;
             readout.text =FormatCompactReadout( snapshot);
@@ -412,12 +412,16 @@ private readonly System.Collections.Generic.List<StatusCard> allyCards = new Sys
             backdrop.color = new Color(0.025f, 0.040f, 0.055f, 0.92f);
             backdrop.raycastTarget = false;
 
-            CreatePanel(hud.transform, "S00 battle top bar", new Vector2(0f, 234f), new Vector2(880f, 40f), new Color(0.06f, 0.08f, 0.11f, 0.90f), true);
+            CreatePanel("S00 battle top bar", new Vector2(0f, 234f),
+                new Vector2(880f, 40f), new Color(0.06f, 0.08f, 0.11f, 0.90f),
+                new Color(0.35f, 0.42f, 0.46f, 0.90f));
             heading = SoundwellView.AddLabel(hud.transform,
                 Copy(PlayerCopyTitleEnglish, PlayerCopyTitleChinese), 22,
-                          Brass, new Vector2(0f, 234f), new Vector2(820f, 34f)));
+                          Brass, new Vector2(0f, 234f), new Vector2(820f, 34f));
                           heading.alignment = TextAnchor.MiddleCenter;
-          CreatePanel(hud.transform, "S00 bridge defence readout bar", new Vector2(0f, 194f), new Vector2(856f, 32f), new Color(0.06f, 0.08f, 0.11f, 0.80f), false);
+          CreatePanel("S00 bridge defence readout bar", new Vector2(0f, 194f),
+                new Vector2(856f, 32f), new Color(0.06f, 0.08f, 0.11f, 0.80f),
+                new Color(0.20f, 0.25f, 0.29f, 0.65f));
           readout = SoundwellView.AddLabel(hud.transform,
                 Copy(PlayerCopyPreparingEnglish, PlayerCopyPreparingChinese),
                             14, Ink, new Vector2(0f, 194f), new Vector2(840f, 30f));
@@ -426,7 +430,15 @@ private readonly System.Collections.Generic.List<StatusCard> allyCards = new Sys
             readout.horizontalOverflow = HorizontalWrapMode.Wrap;
             readout.verticalOverflow = VerticalWrapMode.Overflow;
             readout.resizeTextForBestFit = true;
-            readout.resizeTextMinSize = 11; readout.resizeTextMaxSize = 14; allyCards.Clear(); for (int i = 0; i < 3; i++) allyCards.Add(CreateStatusCard(hud.transform, "S00 ally card " + i, new Vector2(-322f, 144f - i * 50f), new Vector2(236f, 42f))); enemyCard = CreateStatusCard(hud.transform, "S00 enemy card", new Vector2(322f, 144f), new Vector2(236f, 42f)); CreatePanel(hud.transform, "S00 battle command bar", new Vector2(0f, -214f), new Vector2(880f, 68f), new Color(0.06f, 0.08f, 0.11f, 0.92f), true);
+            readout.resizeTextMinSize = 11; readout.resizeTextMaxSize = 14; allyCards.Clear();
+            for (int i = 0; i < 3; i++)
+                allyCards.Add(CreateStatusCard("S00 ally card " + i,
+                    new Vector2(-322f, 144f - i * 50f), false));
+            enemyCard = CreateStatusCard("S00 enemy card",
+                new Vector2(322f, 144f), true);
+            CreatePanel("S00 battle command bar", new Vector2(0f, -214f),
+                new Vector2(880f, 68f), new Color(0.06f, 0.08f, 0.11f, 0.92f),
+                new Color(0.35f, 0.42f, 0.46f, 0.90f));
             
             attackButton = CreateButton("S00 ORK attack", Copy("Attack", "攻击"),
                 new Vector2(-320f, -190f), () => TryAttack());
