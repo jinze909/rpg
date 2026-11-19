@@ -1,0 +1,11 @@
+{
+  "name": "Rpg.Soundwell.PlayerSmoke",
+  "references": [
+    "Rpg.Soundwell",
+    "UnityEngine.UI"
+  ],
+  "defineConstraints": [
+    "RPG_TEST_PROFILE",
+    "!UNITY_EDITOR"
+  ]
+}

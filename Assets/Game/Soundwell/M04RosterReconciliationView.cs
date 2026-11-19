@@ -165,7 +165,10 @@ namespace Rpg.Soundwell
             confirmDockLabel.text = zh ? "确认码头实到" : "Confirm at dock";
             resolveRollLabel.text = zh ? "更正阵亡名册" : "Resolve dead-roll entry";
             bookLabel.text = zh ? "登记占铺位" : "Book berth";
-            unbookLabel.text = zh ? "取消占铺位" : "Unbook berth";
+            unbookLabel.text = current != null &&
+                current.Status == M04RosterStatus.DeclinedVoyage
+                ? (zh ? "撤销放弃" : "Reconsider voyage")
+                : (zh ? "取消占铺位" : "Unbook berth");
             declineLabel.text = zh ? "登记放弃本趟" : "Mark declined";
             finishLabel.text = zh ? "完成本轮对账" : "Complete reconciliation";
             backLabel.text = zh ? "返回准备" : "Return to preparations";
@@ -183,7 +186,8 @@ namespace Rpg.Soundwell
                 !current.RequiresRollCorrection &&
                 ledger.BookedCount < verifiedBerths;
             unbookButton.interactable = active && current != null &&
-                current.Status == M04RosterStatus.BookedForVoyage;
+                (current.Status == M04RosterStatus.BookedForVoyage ||
+                 current.Status == M04RosterStatus.DeclinedVoyage);
             declineButton.interactable = active && current != null &&
                 (current.Status == M04RosterStatus.ConfirmedAtDock ||
                  current.Status == M04RosterStatus.BookedForVoyage);
@@ -255,9 +259,13 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered || navigatingBack) return;
             M04RosterEntry current = CurrentEntry();
-            if (current == null || current.Status != M04RosterStatus.BookedForVoyage)
+            if (current == null) return;
+            if (current.Status == M04RosterStatus.DeclinedVoyage)
+                ledger.ReconsiderDeclinedVoyage(current.EntryId);
+            else if (current.Status == M04RosterStatus.BookedForVoyage)
+                ledger.UnbookFromVoyage(current.EntryId);
+            else
                 return;
-            ledger.UnbookFromVoyage(current.EntryId);
             Refresh();
         }
 

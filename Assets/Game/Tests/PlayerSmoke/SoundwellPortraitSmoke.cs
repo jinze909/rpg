@@ -67,7 +67,7 @@ namespace Rpg.Soundwell
             var readout = GameObject.Find("Soundwell ORK battle readout")
                 ?.GetComponent<UnityEngine.UI.Text>();
             if (readout == null || string.IsNullOrEmpty(readout.text) ||
-                !FitsScreen(readout.rectTransform, out _) || !CanHitBackButton())
+                !FitScreen(readout.rectTransform, out _) || !CanHitBackButton())
             {
                 Fail("The battle readout or Retreat button is outside the viewport.");
                 yield break;
@@ -88,14 +88,14 @@ namespace Rpg.Soundwell
             var button = GameObject.Find("Soundwell Back button")?.GetComponent<UnityEngine.UI.Button>();
             var input = EventSystem.current;
             if (button == null || !button.interactable || input == null ||
-                !FitsScreen((RectTransform)button.transform, out Vector2 center))
+                !FitScreen((RectTransform)button.transform, out Vector2 center))
                 return false;
             var hits = new List<RaycastResult>();
             input.RaycastAll(new PointerEventData(input) { position = center }, hits);
             return hits.Count > 0 && hits[0].gameObject.GetComponentInParent<UnityEngine.UI.Button>() == button;
         }
 
-        private static bool FitsScreen(RectTransform rect, out Vector2 center)
+        private static bool FitScreen(RectTransform rect, out Vector2 center)
         {
             var corners = new Vector3[4];
             rect.GetWorldCorners(corners);
