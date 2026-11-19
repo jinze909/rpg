@@ -83,6 +83,28 @@ namespace Rpg.Soundwell
                 "The M00 Han Qiao meeting has no continuation at its current stage.");
         }
 
+        /// <summary>
+        /// Closes the meeting and invokes the host completion callback, rolling
+        /// back to <see cref="M00HanQiaoMeetingStage.Closing"/> if the host throws.
+        /// </summary>
+        public void Continue(Action<M00HanQiaoMeetingSequence> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+
+            RequireStage(M00HanQiaoMeetingStage.Closing);
+            Stage = M00HanQiaoMeetingStage.Complete;
+            try
+            {
+                recordWithHost(this);
+            }
+            catch
+            {
+                Stage = M00HanQiaoMeetingStage.Closing;
+                throw;
+            }
+        }
+
         public void ChooseNextStep(M00HanQiaoNextStepChoice choice)
         {
             RequireStage(M00HanQiaoMeetingStage.AwaitingNextStepChoice);

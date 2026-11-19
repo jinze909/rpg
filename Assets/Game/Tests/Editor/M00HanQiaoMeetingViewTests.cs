@@ -114,6 +114,52 @@ namespace Rpg.Tests.Editor
                     new M00HanQiaoMeetingSequence(), null));
         }
 
+        [Test]
+        public void HostFailureOnClosingRollsBackSoPlayerCanRetryAndFinish()
+        {
+            M00HanQiaoMeetingSequence sequence = Begun();
+            int attempts = 0;
+            int completed = 0;
+            bool failOnce = true;
+
+            view = new M00HanQiaoMeetingView(root.transform, sequence, finished =>
+            {
+                attempts++;
+                Assert.That(finished.IsComplete, Is.True);
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+                view.ContinueButton.onClick.Invoke();
+                if (failOnce)
+                {
+                    failOnce = false;
+                    throw new InvalidOperationException("save failed");
+                }
+
+                completed++;
+            });
+
+            view.GetChoiceButton(2).onClick.Invoke();
+            view.ContinueButton.onClick.Invoke();
+            view.GetChoiceButton(0).onClick.Invoke();
+            Assert.That(sequence.Stage, Is.EqualTo(M00HanQiaoMeetingStage.Closing));
+
+            Assert.Throws<InvalidOperationException>(() =>
+                view.ContinueButton.onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(completed, Is.EqualTo(0));
+            Assert.That(sequence.Stage, Is.EqualTo(M00HanQiaoMeetingStage.Closing));
+            Assert.That(sequence.IsComplete, Is.False);
+            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(completed, Is.EqualTo(1));
+            Assert.That(sequence.IsComplete, Is.True);
+            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(completed, Is.EqualTo(1));
+        }
+
         private static M00HanQiaoMeetingSequence Begun()
         {
             var sequence = new M00HanQiaoMeetingSequence();
