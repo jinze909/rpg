@@ -339,5 +339,39 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void DestroyedViewCannotReceiveStaleLocaleChangesOrFailOnDispose()
+        {
+            var root = new GameObject("Fog view destroyed");
+            FogListeningView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var session = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Port, FogCueKind.FogBell, 75) },
+                    maxListenFocus: 1,
+                    maxHullIntegrity: 2);
+                view = new FogListeningView(root.transform, session, _ => { });
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                Assert.DoesNotThrow(() => view.Dispose());
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }

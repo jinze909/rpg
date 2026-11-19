@@ -112,12 +112,22 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
+            if (canvasObject == null || authored == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
+            if (canvasObject == null || heading == null)
+            {
+                Dispose();
+                return;
+            }
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = statusText.font = cueText.font = font;
@@ -205,13 +215,13 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             SoundwellUiLocalization.Changed -= Refresh;
-            focusButton.onClick.RemoveAllListeners();
-            holdButton.onClick.RemoveAllListeners();
-            slowButton.onClick.RemoveAllListeners();
-            portButton.onClick.RemoveAllListeners();
-            starboardButton.onClick.RemoveAllListeners();
-            signalButton.onClick.RemoveAllListeners();
-            continueButton.onClick.RemoveAllListeners();
+            if (focusButton != null) focusButton.onClick.RemoveAllListeners();
+            if (holdButton != null) holdButton.onClick.RemoveAllListeners();
+            if (slowButton != null) slowButton.onClick.RemoveAllListeners();
+            if (portButton != null) portButton.onClick.RemoveAllListeners();
+            if (starboardButton != null) starboardButton.onClick.RemoveAllListeners();
+            if (signalButton != null) signalButton.onClick.RemoveAllListeners();
+            if (continueButton != null) continueButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
