@@ -113,5 +113,30 @@ namespace Rpg.Tests.Editor
             session.Begin(_ => { });
             Assert.Throws<InvalidOperationException>(() => session.Begin(_ => { }));
         }
+
+        [Test]
+        public void ViewportAspectChangesRescaleActiveViewAndIgnoreInvalidValues()
+        {
+            Assert.DoesNotThrow(() => session.LayoutForViewportAspect(9f / 16f));
+
+            session.Begin(_ => { });
+            RectTransform authored = session.View.ContinueButton.transform.parent as RectTransform;
+            Assert.That(authored, Is.Not.Null);
+
+            session.LayoutForViewportAspect(9f / 16f);
+            Vector3 portraitScale = authored.localScale;
+            Assert.That(portraitScale.x, Is.LessThan(1f));
+
+            session.LayoutForViewportAspect(float.NaN);
+            session.LayoutForViewportAspect(float.PositiveInfinity);
+            session.LayoutForViewportAspect(0f);
+            Assert.That(authored.localScale, Is.EqualTo(portraitScale));
+
+            session.LayoutForViewportAspect(16f / 9f);
+            Assert.That(authored.localScale.x, Is.GreaterThan(portraitScale.x));
+
+            session.View.Dispose();
+            Assert.DoesNotThrow(() => session.LayoutForViewportAspect(9f / 16f));
+        }    
     }
 }
