@@ -131,8 +131,21 @@ namespace Rpg.Tests.Editor
                 Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.Zero,
                     "Do not save the carried cup until farewell completion.");
                 cupAdvance.onClick.Invoke();
-                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(deliveries, Is.Zero,
+                    "The cup now hands off to M04 dock preflight, not straight to Entry.");
                 Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.EqualTo(1));
+
+                Button preflight = FindButton(owner, "M04 dock preflight advance");
+                Assert.That(preflight.gameObject.activeInHierarchy, Is.True);
+                Assert.That(variables.GetInt(M04DepartureFacts.ConfirmedKey), Is.Zero);
+                preflight.onClick.Invoke();
+                preflight.onClick.Invoke();
+                Assert.That(deliveries, Is.Zero,
+                    "Route review and the physical-check beat must be heard before leaving.");
+                preflight.onClick.Invoke();
+                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(variables.GetInt(M04DepartureFacts.SailedKey), Is.Zero,
+                    "Dockside preflight must never be mistaken for actually sailing.");
                 Assert.That(M03LuJunFacts.TryRead(out M03LuConfession confession,
                     out M03SecrecyAnswer secrecy, out M03VoyageChoice? voyage), Is.True);
                 Assert.That(confession, Is.EqualTo(M03LuConfession.NotAsked));
