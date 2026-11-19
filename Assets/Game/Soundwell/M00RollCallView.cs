@@ -30,6 +30,7 @@ namespace Rpg.Soundwell
         private readonly Text continueLabel;
         private Action<M00RollCallOutcome> onContinue;
         private bool disposed;
+        private bool delivered;
         private float lastViewAspect = -1f;
 
         public M00RollCallBeat CurrentBeat { get; private set; }
@@ -148,7 +149,7 @@ namespace Rpg.Soundwell
 
             for (int i = 0; i < choiceButtons.Length; i++)
             {
-                bool visible = i < CurrentBeat.Choices.Length;
+                bool visible = !delivered && i < CurrentBeat.Choices.Length;
                 choiceLabels[i].font = font;
                 choiceButtons[i].gameObject.SetActive(visible);
                 if (visible)
@@ -158,9 +159,10 @@ namespace Rpg.Soundwell
                 }
             }
 
-            continueButton.gameObject.SetActive(CurrentBeat.Finished);
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                CurrentBeat.Finished ? continueButton : CurrentBeat.CanRespond ? choiceButtons[0] : null);
+            continueButton.gameObject.SetActive(CurrentBeat.Finished && !delivered);
+            if (!delivered)
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
+                    CurrentBeat.Finished ? continueButton : CurrentBeat.CanRespond ? choiceButtons[0] : null);
         }
 
         /// <summary>
@@ -195,7 +197,7 @@ namespace Rpg.Soundwell
         private void Choose(int index)
         {
             ThrowIfDisposed();
-            if (CurrentBeat == null || !CurrentBeat.CanRespond ||
+            if (delivered || CurrentBeat == null || !CurrentBeat.CanRespond ||
                 index < 0 || index >= CurrentBeat.Choices.Length)
                 return;
 
@@ -212,11 +214,25 @@ namespace Rpg.Soundwell
         private void Continue()
         {
             ThrowIfDisposed();
-            if (!sequence.IsComplete)
+            if (delivered || !sequence.IsComplete)
                 return;
-            Action<M00RollCallOutcome> callback = onContinue;
-            onContinue = null;
-            callback?.Invoke(sequence.Outcome);
+            // The scene host must accept the recorded identity before this
+            // panel consumes Continue. Lock against reentrant pad submits
+            // while the host writes; keep the callback for a failed write.
+            delivered = true;
+            Refresh();
+            try
+            {
+                onContinue?.Invoke(sequence.Outcome);
+                onContinue = null;
+            }
+            catch
+            {
+                delivered = false;
+                if (!disposed)
+                    Refresh();
+                throw;
+            }
         }
 
         private void ThrowIfDisposed()

@@ -162,6 +162,54 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedHostContinuationPreservesAnsweredRollCallAndAllowsOneRetry()
+        {
+            string previous = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                M00RollCallSequence sequence = Begin();
+                int attempts = 0;
+                int accepted = 0;
+                view = new M00RollCallView(root.transform, sequence, outcome =>
+                {
+                    attempts++;
+                    Assert.That(outcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
+                    Assert.That(sequence.CallsMade, Is.EqualTo(1));
+                    Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+                    // A nested controller submit cannot double-write Makinom.
+                    view.ContinueButton.onClick.Invoke();
+                    if (attempts == 1)
+                        throw new InvalidOperationException("Host could not save roll call");
+                    accepted++;
+                });
+                view.GetChoiceButton(0).onClick.Invoke();
+                Assert.That(sequence.IsComplete, Is.True);
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.ContinueButton.onClick.Invoke());
+                Assert.That(attempts, Is.EqualTo(1));
+                Assert.That(accepted, Is.Zero);
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+                Assert.That(sequence.Outcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(Label(view.ContinueButton), Is.EqualTo("继续"));
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(accepted, Is.EqualTo(1));
+                Assert.That(sequence.Outcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+            }
+            finally
+            {
+                SoundwellUiLocalization.SetLanguage(previous);
+            }
+        }
+
+        [Test]
         public void ViewFitsPortraitAndUltrawideWithoutChangingRollCallState()
         {
             M00RollCallSequence sequence = Begin();
