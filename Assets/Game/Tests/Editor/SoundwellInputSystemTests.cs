@@ -1419,6 +1419,14 @@ namespace Rpg.Tests.Editor
                     "Fixing the cable must advance the playable scene.");
                 var crossing = prelude.transform.Find("S00 Whitewater playable canvas/PLACEHOLDER stretcher wagon");
                 Assert.That(crossing, Is.Not.Null);
+                // Crossing is drawn on whole pixels. On the first rendered frame
+                // its unscaled step can round to zero even though the coroutine
+                // has started; wait for a visible pixel, not a fixed frame count.
+                // The bounded assertion still fails if the repair never moves it.
+                float firstVisibleCrossingDeadline = Time.realtimeSinceStartup + 4f;
+                while (((RectTransform)crossing).anchoredPosition.x <= -320f &&
+                       Time.realtimeSinceStartup < firstVisibleCrossingDeadline)
+                    yield return null;
                 Assert.That(((RectTransform)crossing).anchoredPosition.x, Is.GreaterThan(-320f),
                     "The stretcher must visibly start crossing only after the repair.");
 
