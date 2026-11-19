@@ -202,39 +202,72 @@ namespace Rpg.Soundwell
 
         public static bool TryRecord(M03LuJunEncounter encounter)
         {
-            if (encounter == null)
-                throw new ArgumentNullException(nameof(encounter));
-            if (encounter.Stage != M03LuJunStage.Complete ||
-                !encounter.Voyage.HasValue)
-                throw new InvalidOperationException("Incomplete M03 choices cannot be saved.");
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            ValidateCompleted(encounter);
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+            return TryRecord(encounter, (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecord(M03LuJunEncounter encounter, Action<string, int> setInt)
+        {
+            ValidateCompleted(encounter);
+            if (setInt == null)
                 return false;
 
-            Maki.Game.Variables.Set(ConfessionKey, (int)encounter.Confession + 1);
-            Maki.Game.Variables.Set(SecrecyKey, (int)encounter.Secrecy + 1);
-            Maki.Game.Variables.Set(VoyageKey, (int)encounter.Voyage.Value + 1);
+            // Invalidate any previously saved route before writing this visit's
+            // answers. The route is committed last, after the dependent facts,
+            // so an interrupted write cannot reactivate a previous voyage.
+            setInt(VoyageKey, 0);
+            setInt(ConfessionKey, (int)encounter.Confession + 1);
+            setInt(SecrecyKey, (int)encounter.Secrecy + 1);
+            setInt(VoyageKey, (int)encounter.Voyage.Value + 1);
             return true;
         }
 
         public static bool TryRead(out M03LuConfession confession,
             out M03SecrecyAnswer secrecy, out M03VoyageChoice? voyage)
         {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            return TryRead(variables == null ? null : (Func<string, int>)(key =>
+                variables.GetInt(key)), out confession, out secrecy, out voyage);
+        }
+
+        public static bool TryRead(Func<string, int> getInt,
+            out M03LuConfession confession, out M03SecrecyAnswer secrecy,
+            out M03VoyageChoice? voyage)
+        {
             confession = M03LuConfession.NotAsked;
             secrecy = M03SecrecyAnswer.NotTriggered;
             voyage = null;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            if (getInt == null)
                 return false;
-            var vars = Maki.Game.Variables;
-            int c = vars.GetInt(ConfessionKey) - 1;
-            int s = vars.GetInt(SecrecyKey) - 1;
-            int v = vars.GetInt(VoyageKey) - 1;
-            if (Enum.IsDefined(typeof(M03LuConfession), c))
-                confession = (M03LuConfession)c;
-            if (Enum.IsDefined(typeof(M03SecrecyAnswer), s))
-                secrecy = (M03SecrecyAnswer)s;
-            if (Enum.IsDefined(typeof(M03VoyageChoice), v))
-                voyage = (M03VoyageChoice)v;
+
+            int v = getInt(VoyageKey) - 1;
+            if (!Enum.IsDefined(typeof(M03VoyageChoice), v))
+                return true;
+
+            // Only a fully committed route makes confession and secrecy facts
+            // visible; interrupted writes must not expose a partial dialogue.
+            int c = getInt(ConfessionKey) - 1;
+            int s = getInt(SecrecyKey) - 1;
+            if (!Enum.IsDefined(typeof(M03LuConfession), c) ||
+                !Enum.IsDefined(typeof(M03SecrecyAnswer), s))
+                return true;
+
+            confession = (M03LuConfession)c;
+            secrecy = (M03SecrecyAnswer)s;
+            voyage = (M03VoyageChoice)v;
             return true;
+        }
+
+        private static void ValidateCompleted(M03LuJunEncounter encounter)
+        {
+            if (encounter == null)
+                throw new ArgumentNullException(nameof(encounter));
+            if (encounter.Stage != M03LuJunStage.Complete ||
+                !encounter.Voyage.HasValue)
+                throw new InvalidOperationException("Incomplete M03 choices cannot be saved.");
         }
     }
 
