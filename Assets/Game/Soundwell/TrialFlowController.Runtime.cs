@@ -10,6 +10,9 @@ namespace Rpg.Soundwell
 {
     public abstract partial class TrialFlowController : MonoBehaviour
     {
+        private const int HealthStatusIndex = 1;
+        private string lastBattleReadout;
+
         protected void LateUpdate()
         {
             if (!IsReady || bootstrapLoad != null)
@@ -48,18 +51,24 @@ namespace Rpg.Soundwell
             if (battleMode)
             {
                 // The view reads a live ORK snapshot; it never resolves attacks
-                // or maintains a second copy of combat state.
-                view.SetBattleReadout(orkParty != null ? orkParty.BuildBattleReadout() : string.Empty);
+                // or maintains a second copy of combat state. Skip redundant
+                // UGUI Text writes when the snapshot string has not changed.
+                string readout = orkParty != null ? orkParty.BuildBattleReadout() : string.Empty;
+                if (!string.Equals(readout, lastBattleReadout, StringComparison.Ordinal))
+                {
+                    lastBattleReadout = readout;
+                    view.SetBattleReadout(readout);
+                }
                 // Read ORK's authoritative HP each frame. A drop produces
                 // only a brief pixel hit cue; never subtract HP in Unity.
                 view.RefreshBattleBeastHp(orkParty != null && orkParty.Beast != null
-                    ? orkParty.Beast.Status[1].GetValue() : float.NaN);
+                    ? orkParty.Beast.Status[HealthStatusIndex].GetValue() : float.NaN);
                 // The leader receives the same read-only ORK HP feedback as
                 // the beast and the two companion renderers. No synthetic
                 // damage, extra turn or parallel combat event is introduced.
                 view.RefreshBattleLeaderHp(orkParty != null &&
                     orkParty.Members.Count > 0 && orkParty.Members[0] != null
-                        ? orkParty.Members[0].Status[1].GetValue() : float.NaN);
+                        ? orkParty.Members[0].Status[HealthStatusIndex].GetValue() : float.NaN);
                 int activeRescuer = orkParty != null ? orkParty.ChoosingRescuerIndex : -1;
                 // ORK may retire a combatant before the chooser HUD updates.
                 // A valid index does not guarantee that Unity's actor survives.
@@ -78,8 +87,12 @@ namespace Rpg.Soundwell
                 movement = Vector2.zero;
                 playerBody.linearVelocity = Vector2.zero;
             }
+            else
+            {
+                lastBattleReadout = null;
+            }
 
-            // Exploration hazards are delegated to checkpoint + patrol; ORK
+            // Exploration hazards its delegated to checkpoint + patrol; ORK
             // turn movement retains its independent movement authority.
             if (checkpoint.ShouldRecoverAtVisibleLowerPlank(
                     DirectCombatStarted, GateOpen, playerBody.position))
