@@ -21,8 +21,18 @@ def valid_vendor_manifest_path(name):
                or root in path.parents for root in roots)
 
 
-def verify():
-    manifest = json.loads((PROJECT / "docs/ork-package-manifest.json").read_text())
+def _has_repo_symlink(project, relative):
+    current = project
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
+def verify(project_root=None):
+    project = PROJECT if project_root is None else Path(project_root)
+    manifest = json.loads((project / "docs/ork-package-manifest.json").read_text(encoding="utf-8"))
     entries = manifest["files"]
     paths = set()
     for entry in entries:
@@ -30,19 +40,23 @@ def verify():
         if not valid_vendor_manifest_path(entry["path"]) or str(relative) in paths:
             raise ValueError(f"Invalid or duplicate manifest path: {relative}")
         paths.add(str(relative))
-        target = PROJECT.joinpath(*relative.parts)
-        if any(p.is_symlink() for p in (target, *target.parents)):
+        if _has_repo_symlink(project, relative):
             raise ValueError(f"Symlink in package path: {relative}")
+        target = project.joinpath(*relative.parts)
         data = target.read_bytes()
         if len(data) != entry["size_bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
             raise ValueError(f"Package file differs: {relative}")
 
     # Check GUID collisions across vendor and game assets, not just the package.
     guids = {}
-    for meta in sorted((PROJECT / "Assets").rglob("*.meta")):
-        match = re.search(r"^guid: ([0-9a-f]{32})$", meta.read_text(), re.MULTILINE)
+    for meta in sorted((project / "Assets").rglob("*.meta")):
+        match = re.search(
+            r"^guid: ([0-9a-f]{32})$",
+            meta.read_text(encoding="utf-8", errors="replace"),
+            re.MULTILINE,
+        )
         if match is None:
-            raise ValueError(f"Missing or invalid GUID: {meta.relative_to(PROJECT)}")
+            raise ValueError(f"Missing or invalid GUID: {meta.relative_to(project)}")
         guid = match.group(1)
         if guid in guids:
             raise ValueError(f"Duplicate GUID: {meta} and {guids[guid]}")
@@ -50,7 +64,7 @@ def verify():
 
     archives = 0
     for entry in entries:
-        target = PROJECT / entry["path"]
+        target = project / entry["path"]
         if target.suffix.lower() == ".zip":
             with zipfile.ZipFile(target) as archive:
                 bad = archive.testzip()
