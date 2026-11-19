@@ -170,16 +170,24 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool IsDestroyedExternally()
+        {
+            if (canvasObject != null && heading != null)
+                return false;
+            Dispose();
+            return true;
+        }
+
         private void FocusListen()
         {
-            if (disposed || delivered || !session.TryFocusListen())
+            if (disposed || delivered || IsDestroyedExternally() || !session.TryFocusListen())
                 return;
             Refresh();
         }
 
         private void Steer(FogHelmAction action)
         {
-            if (disposed || delivered || session.IsComplete)
+            if (disposed || delivered || IsDestroyedExternally() || session.IsComplete)
                 return;
             lastResolution = session.ApplyHelmAction(action);
             Refresh();
@@ -187,7 +195,7 @@ namespace Rpg.Soundwell
 
         private void Complete()
         {
-            if (disposed || delivered || !session.IsComplete)
+            if (disposed || delivered || IsDestroyedExternally() || !session.IsComplete)
                 return;
 
             // Keep the exact finished fog leg while its outcome is recorded
@@ -277,7 +285,6 @@ namespace Rpg.Soundwell
                     : (chinese ? "难辨" : "indistinct"))
                 .Append(chinese ? "；清晰度：" : "; clarity: ")
                 .Append(clarity).AppendLine("%");
-
             if (!canIdentifyBearing)
             {
                 copy.Append(chinese
