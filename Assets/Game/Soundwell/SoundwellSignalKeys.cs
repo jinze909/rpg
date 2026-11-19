@@ -39,17 +39,12 @@ namespace Rpg.Soundwell
         // survive a repeat attempt and are owned by the entry flow.
         public static readonly string[] RetryResetKeys =
         {
-            RescueApproachKey, DirectCombatStartedKey, DirectCombatCompleteKey,
+            SignalKey, RescueApproachKey, DirectCombatStartedKey, DirectCombatCompleteKey,
             CarryKey, GateKey, SurveyorClueKey, PlankSecuredKey,
             LowerPlankBrokenKey, EscortKey, BeastContactKey, RescueKey,
             FalseMarkerClearedKey, SafeRouteMarkedKey, RopeObservedKey,
             CartObservedKey, CartKitReclaimedKey, CartClueSharedKey,
             RopeRecoveredKey, EscortLineKey, ClawsObservedKey
         };
-
-        // Explicit gameplay-domain aliases; persisted Makinom IDs are shared.
-        public const string BellSignalKey = SignalKey;
-        public const string InnerGateSignal = GateKey;
-        public const string SurveyorRescuedSignal = RescueKey;
     }
 }
