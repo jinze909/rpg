@@ -164,6 +164,18 @@ namespace Rpg.Soundwell
             entry.Status = M04RosterStatus.DeclinedVoyage;
         }
 
+        // A decline made during an unsubmitted reconciliation is reversible.
+        // Reconsideration does not silently restore a previous berth booking:
+        // the player must book again against the current verified capacity.
+        public void ReconsiderDeclinedVoyage(string entryId)
+        {
+            M04RosterEntry entry = RequireEntry(entryId);
+            if (entry.Status != M04RosterStatus.DeclinedVoyage)
+                throw new InvalidOperationException(
+                    "Only declined returnees can reconsider this voyage.");
+            entry.Status = M04RosterStatus.ConfirmedAtDock;
+        }
+
         private M04RosterEntry RequireEntry(string entryId)
         {
             M04RosterEntry entry = GetEntry(entryId);

@@ -132,6 +132,35 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DeclineCanBeReconsideredButDoesNotRebookAFullVoyage()
+        {
+            var ledger = new M04RosterLedger();
+            ledger.AddEntry("dock-a", "First returnee", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("dock-b", "Second returnee", M04RosterStatus.ConfirmedAtDock);
+
+            Assert.That(ledger.TryBookForVoyage("dock-a", 1), Is.True);
+            ledger.MarkDeclinedVoyage("dock-a");
+            Assert.That(ledger.DeclinedCount, Is.EqualTo(1));
+            Assert.That(ledger.BookedCount, Is.Zero);
+
+            Assert.That(ledger.TryBookForVoyage("dock-b", 1), Is.True);
+            ledger.ReconsiderDeclinedVoyage("dock-a");
+            Assert.That(ledger.GetEntry("dock-a").Status,
+                Is.EqualTo(M04RosterStatus.ConfirmedAtDock));
+            Assert.That(ledger.DeclinedCount, Is.Zero);
+            Assert.That(ledger.BookedCount, Is.EqualTo(1));
+            Assert.That(ledger.TryBookForVoyage("dock-a", 1), Is.False,
+                "Reconsidering a decline cannot evict a different booked returnee.");
+
+            ledger.UnbookFromVoyage("dock-b");
+            Assert.That(ledger.TryBookForVoyage("dock-a", 1), Is.True);
+            Assert.Throws<InvalidOperationException>(() =>
+                ledger.ReconsiderDeclinedVoyage("dock-a"));
+            Assert.Throws<KeyNotFoundException>(() =>
+                ledger.ReconsiderDeclinedVoyage("missing"));
+        }
+
+        [Test]
         public void InvalidTransitionsAndUnknownEntriesThrowWithoutCorruptingCounts()
         {
             var ledger = new M04RosterLedger();
