@@ -228,6 +228,53 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PlayerCanUndoDeclineBeforeFinishingWithoutStealingABerth()
+        {
+            var root = new GameObject("Roster undo decline view");
+            M04RosterReconciliationView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-a", "First returnee", M04RosterStatus.ConfirmedAtDock);
+                ledger.AddEntry("dock-b", "Second returnee", M04RosterStatus.ConfirmedAtDock);
+                view = new M04RosterReconciliationView(
+                    root.transform, ledger, 1, _ => { }, () => { });
+
+                view.BookButton.onClick.Invoke();
+                view.DeclineButton.onClick.Invoke();
+                Assert.That(ledger.DeclinedCount, Is.EqualTo(1));
+                Assert.That(view.UnbookButton.interactable, Is.True);
+                Assert.That(view.UnbookButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("Reconsider voyage"));
+
+                view.NextButton.onClick.Invoke();
+                view.BookButton.onClick.Invoke();
+                Assert.That(ledger.BookedCount, Is.EqualTo(1));
+                view.PrevButton.onClick.Invoke();
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.UnbookButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("撤销放弃"));
+                view.UnbookButton.onClick.Invoke();
+                Assert.That(ledger.GetEntry("dock-a").Status,
+                    Is.EqualTo(M04RosterStatus.ConfirmedAtDock));
+                Assert.That(ledger.DeclinedCount, Is.Zero);
+                Assert.That(ledger.BookedCount, Is.EqualTo(1));
+                Assert.That(view.BookButton.interactable, Is.False,
+                    "The other returnee still owns the only verified berth.");
+                Assert.That(view.UnbookButton.interactable, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ChangingLocaleUpdatesHeadingsStatusesAndKeepsDomainGuards()
         {
             var root = new GameObject("Roster locale view");
