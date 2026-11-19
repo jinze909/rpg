@@ -125,7 +125,8 @@ namespace Rpg.Soundwell
 
         public void SetVerifiedBerths(int updatedBerths)
         {
-            if (disposed) throw new ObjectDisposedException(nameof(M04RosterReconciliationView));
+            if (disposed || IsDestroyedExternally())
+                throw new ObjectDisposedException(nameof(M04RosterReconciliationView));
             // A host callback leaving this panel must not mutate a stale
             // capacity while the navigation lock is active.
             if (delivered || navigatingBack)
@@ -169,7 +170,6 @@ namespace Rpg.Soundwell
                 selectedIndex = Math.Max(0, Math.Min(selectedIndex, entries.Length - 1));
 
             M04RosterEntry current = entries.Length > 0 ? entries[selectedIndex] : null;
-
             heading.text = zh ? "名册对账 · 核对返乡人员" : "ROSTER RECONCILIATION · VERIFY RETURNEES";
             summary.text = M04RosterReconciliationCopy.DescribeSummary(ledger, verifiedBerths, zh);
             selectedDetails.text = M04RosterReconciliationCopy.DescribeEntry(
@@ -193,7 +193,7 @@ namespace Rpg.Soundwell
             nextButton.interactable = active && entries.Length > 1;
             confirmDockButton.interactable = active && current != null &&
                 (current.Status == M04RosterStatus.ListedDead ||
-                 current.Status == M04RosterStatus.RansomedUnconfirmed);
+                current.Status == M04RosterStatus.RansomedUnconfirmed);
             resolveRollButton.interactable = active && current != null &&
                 current.RequiresRollCorrection;
             bookButton.interactable = active && current != null &&
@@ -202,10 +202,10 @@ namespace Rpg.Soundwell
                 ledger.BookedCount < verifiedBerths;
             unbookButton.interactable = active && current != null &&
                 (current.Status == M04RosterStatus.BookedForVoyage ||
-                 current.Status == M04RosterStatus.DeclinedVoyage);
+                current.Status == M04RosterStatus.DeclinedVoyage);
             declineButton.interactable = active && current != null &&
                 (current.Status == M04RosterStatus.ConfirmedAtDock ||
-                 current.Status == M04RosterStatus.BookedForVoyage);
+                current.Status == M04RosterStatus.BookedForVoyage);
             finishButton.interactable = active && ledger.UnresolvedDiscrepancyCount == 0 &&
                 ledger.BookedCount <= verifiedBerths;
             backButton.interactable = active;
@@ -221,6 +221,14 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool IsDestroyedExternally()
+        {
+            if (canvasObject != null && heading != null)
+                return false;
+            Dispose();
+            return true;
+        }
+
         private M04RosterEntry CurrentEntry()
         {
             M04RosterEntry[] entries = ledger.Snapshot();
@@ -231,7 +239,7 @@ namespace Rpg.Soundwell
 
         private void StepSelection(int delta)
         {
-            if (disposed || delivered || navigatingBack) return;
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally()) return;
             M04RosterEntry[] entries = ledger.Snapshot();
             if (entries.Length <= 1) return;
             selectedIndex = (selectedIndex + delta + entries.Length) % entries.Length;
@@ -240,11 +248,11 @@ namespace Rpg.Soundwell
 
         private void ConfirmSelectedAtDock()
         {
-            if (disposed || delivered || navigatingBack) return;
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally()) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null ||
                 (current.Status != M04RosterStatus.ListedDead &&
-                 current.Status != M04RosterStatus.RansomedUnconfirmed))
+                current.Status != M04RosterStatus.RansomedUnconfirmed))
                 return;
             ledger.MarkConfirmedAtDock(current.EntryId);
             Refresh();
@@ -252,7 +260,7 @@ namespace Rpg.Soundwell
 
         private void ResolveSelectedRollCorrection()
         {
-            if (disposed || delivered || navigatingBack) return;
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally()) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null || !current.RequiresRollCorrection)
                 return;
@@ -262,7 +270,7 @@ namespace Rpg.Soundwell
 
         private void BookSelected()
         {
-            if (disposed || delivered || navigatingBack) return;
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally()) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null || current.RequiresRollCorrection ||
                 !ledger.TryBookForVoyage(current.EntryId, verifiedBerths))
@@ -272,7 +280,7 @@ namespace Rpg.Soundwell
 
         private void UnbookSelected()
         {
-            if (disposed || delivered || navigatingBack) return;
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally()) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null) return;
             if (current.Status == M04RosterStatus.DeclinedVoyage)
@@ -286,11 +294,11 @@ namespace Rpg.Soundwell
 
         private void DeclineSelected()
         {
-            if (disposed || delivered || navigatingBack) return;
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally()) return;
             M04RosterEntry current = CurrentEntry();
             if (current == null ||
                 (current.Status != M04RosterStatus.ConfirmedAtDock &&
-                 current.Status != M04RosterStatus.BookedForVoyage))
+                current.Status != M04RosterStatus.BookedForVoyage))
                 return;
             ledger.MarkDeclinedVoyage(current.EntryId);
             Refresh();
@@ -300,7 +308,8 @@ namespace Rpg.Soundwell
         {
             // Direct Button.onClick.Invoke calls must not bypass the visible
             // guards: a revised host capacity may leave old bookings overfull.
-            if (disposed || delivered || navigatingBack || ledger.UnresolvedDiscrepancyCount != 0 ||
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally() ||
+                ledger.UnresolvedDiscrepancyCount != 0 ||
                 ledger.BookedCount > verifiedBerths)
                 return;
             delivered = true;
@@ -321,7 +330,7 @@ namespace Rpg.Soundwell
 
         private void GoBack()
         {
-            if (disposed || delivered || navigatingBack) return;
+            if (disposed || delivered || navigatingBack || IsDestroyedExternally()) return;
             // Disable every action before invoking the host transition. A
             // delayed or reentrant UI submit must not change this roster or
             // dispatch a second transition while leaving this panel.
