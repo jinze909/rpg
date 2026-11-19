@@ -254,6 +254,12 @@ namespace Rpg.Soundwell
             if (!Enum.IsDefined(typeof(M03LuConfession), c) ||
                 !Enum.IsDefined(typeof(M03SecrecyAnswer), s))
                 return true;
+            // A player who never heard the confession cannot have answered
+            // its secrecy request. Conversely, every heard confession
+            // requires an explicit answer before a voyage can be chosen.
+            if ((c == (int)M03LuConfession.NotAsked) !=
+                (s == (int)M03SecrecyAnswer.NotTriggered))
+                return true;
 
             confession = (M03LuConfession)c;
             secrecy = (M03SecrecyAnswer)s;

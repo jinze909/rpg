@@ -242,6 +242,67 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CorruptSecrecyAndConfessionCombinationsCannotBecomeSavedStoryHistory()
+        {
+            var saved = new Dictionary<string, int>();
+            Action<string, int> write = (key, value) => saved[key] = value;
+
+            void RejectPair(int confessionCode, int secrecyCode)
+            {
+                var corrupted = new Dictionary<string, int>(saved)
+                {
+                    [M03LuJunFacts.ConfessionKey] = confessionCode,
+                    [M03LuJunFacts.SecrecyKey] = secrecyCode
+                };
+                Func<string, int> read = key =>
+                    corrupted.TryGetValue(key, out int value) ? value : 0;
+                Assert.That(M03LuJunFacts.TryRead(read, out M03LuConfession confession,
+                    out M03SecrecyAnswer secrecy, out M03VoyageChoice? route), Is.True);
+                Assert.That(route, Is.Null, "Inconsistent M03 history must not grant a voyage.");
+                Assert.That(confession, Is.EqualTo(M03LuConfession.NotAsked));
+                Assert.That(secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+            }
+
+            var unasked = new M03LuJunEncounter(M02BridgeEvidence.None, false);
+            unasked.Begin();
+            unasked.ObserveRollCall();
+            unasked.Ask(M03LuJunOpening.NeedAShip);
+            unasked.ChooseVoyage(M03VoyageChoice.QiQueMerchant);
+            Assert.That(M03LuJunFacts.TryRecord(unasked, write), Is.True);
+            Func<string, int> validRead = key =>
+                saved.TryGetValue(key, out int value) ? value : 0;
+            Assert.That(M03LuJunFacts.TryRead(validRead, out M03LuConfession original,
+                out M03SecrecyAnswer originalSecrecy, out M03VoyageChoice? originalRoute), Is.True);
+            Assert.That(originalRoute, Is.EqualTo(M03VoyageChoice.QiQueMerchant));
+            Assert.That(original, Is.EqualTo(M03LuConfession.NotAsked));
+            Assert.That(originalSecrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+
+            // Values are stored as enum + 1; both of these are individually
+            // valid codes but were never reachable together in actual play.
+            RejectPair((int)M03LuConfession.NotAsked + 1,
+                (int)M03SecrecyAnswer.PromiseSecrecy + 1);
+            RejectPair((int)M03LuConfession.AskedWithEvidence + 1,
+                (int)M03SecrecyAnswer.NotTriggered + 1);
+
+            var heard = new M03LuJunEncounter(M02BridgeEvidence.FerrymanLog, false);
+            heard.Begin();
+            heard.ObserveRollCall();
+            heard.Ask(M03LuJunOpening.AskWhoCutBridge);
+            heard.Respond(M03ConfessionResponse.RemainSilent);
+            heard.AnswerSecrecy(M03SecrecyAnswer.RefuseSecrecy);
+            heard.ChooseVoyage(M03VoyageChoice.MixedWithCivilian);
+            Assert.That(M03LuJunFacts.TryRecord(heard, write), Is.True);
+            Assert.That(M03LuJunFacts.TryRead(validRead, out M03LuConfession heardConfession,
+                out M03SecrecyAnswer heardSecrecy, out M03VoyageChoice? heardRoute), Is.True);
+            Assert.That(heardConfession, Is.EqualTo(M03LuConfession.AskedWithEvidence));
+            Assert.That(heardSecrecy, Is.EqualTo(M03SecrecyAnswer.RefuseSecrecy));
+            Assert.That(heardRoute, Is.EqualTo(M03VoyageChoice.MixedWithCivilian));
+
+            RejectPair((int)M03LuConfession.NotAsked + 1,
+                (int)M03SecrecyAnswer.RefuseSecrecy + 1);
+        }
+
+        [Test]
         public void InvalidTransitionsAndIncompletePersistenceAreRejected()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>
