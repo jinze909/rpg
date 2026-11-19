@@ -102,9 +102,10 @@ namespace Rpg.Soundwell
                 review.CanRequest && !review.Requested);
             stampButton.gameObject.SetActive(!delivered && review.CanStamp);
             leaveButton.gameObject.SetActive(!delivered);
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                requestButton.gameObject.activeInHierarchy ? requestButton :
-                stampButton.gameObject.activeInHierarchy ? stampButton : leaveButton);
+            if (!delivered)
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
+                    requestButton.gameObject.activeInHierarchy ? requestButton :
+                    stampButton.gameObject.activeInHierarchy ? stampButton : leaveButton);
         }
 
         private void Ask()
@@ -127,12 +128,22 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            // Lock against reentrant UGUI submits before persisting through the
+            // host. A failed write must not consume the stamped outcome or
+            // irrevocably close the review desk.
             delivered = true;
-            M02MissingReturnOutcome outcome = review.Leave();
-            Action<M02MissingReturnOutcome> callback = finished;
-            finished = null;
-            callback?.Invoke(outcome);
             Refresh();
+            try
+            {
+                review.Leave(finished);
+                finished = null;
+            }
+            catch
+            {
+                delivered = false;
+                Refresh();
+                throw;
+            }
         }
 
         public void Dispose()

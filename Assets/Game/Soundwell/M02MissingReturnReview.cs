@@ -80,6 +80,26 @@ namespace Rpg.Soundwell
             return new M02MissingReturnOutcome(requested, stamped);
         }
 
+        // Makinom records approval only after the player leaves the desk.
+        // When that host write fails, restore AtOffice while keeping the
+        // player's request and stamp state so the same outcome can be retried.
+        public void Leave(Action<M02MissingReturnOutcome> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            M02ReviewStage before = Stage;
+            M02MissingReturnOutcome outcome = Leave();
+            try
+            {
+                recordWithHost(outcome);
+            }
+            catch
+            {
+                Stage = before;
+                throw;
+            }
+        }
+
         private void Require(M02ReviewStage expected)
         {
             if (Stage != expected)
