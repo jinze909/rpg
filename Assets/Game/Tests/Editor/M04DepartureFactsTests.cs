@@ -190,6 +190,43 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InvalidSavedFlagValuesCannotBecomeAConfirmedMerchantDeparture()
+        {
+            var valid = new Dictionary<string, int>();
+            var manifest = ReadyManifest(M03VoyageChoice.QiQueMerchant,
+                officialStamp: false, escortFlag: false);
+            Assert.That(M04DepartureFacts.TryRecord(
+                manifest, (key, value) => valid[key] = value), Is.True);
+
+            foreach (string key in new[]
+            {
+                M04DepartureFacts.OfficialStampKey,
+                M04DepartureFacts.EscortFlagKey
+            })
+            {
+                foreach (int invalid in new[] { -1, 2, int.MaxValue })
+                {
+                    var corrupted = new Dictionary<string, int>(valid);
+                    corrupted[key] = invalid;
+                    Func<string, int> read = candidate =>
+                        corrupted.TryGetValue(candidate, out int value) ? value : 0;
+
+                    Assert.That(M04DepartureFacts.TryRead(read,
+                        out M04DepartureRecord? record), Is.True);
+                    Assert.That(record, Is.Null,
+                        "Saved flag " + key + " cannot accept value " + invalid + ".");
+                }
+            }
+
+            Func<string, int> original = key =>
+                valid.TryGetValue(key, out int value) ? value : 0;
+            Assert.That(M04DepartureFacts.TryRead(original,
+                out M04DepartureRecord? restored), Is.True);
+            Assert.That(restored.HasValue, Is.True);
+            Assert.That(restored.Value.Route, Is.EqualTo(M03VoyageChoice.QiQueMerchant));
+        }
+
+        [Test]
         public void CorruptedOrIncompleteSavedVariablesNeverFabricateConfirmedDeparture()
         {
             var baseStore = new Dictionary<string, int>();
