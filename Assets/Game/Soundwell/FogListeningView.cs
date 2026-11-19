@@ -174,9 +174,25 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered || !session.IsComplete)
                 return;
+
+            // Keep the exact finished fog leg while its outcome is recorded
+            // through the existing Makinom host. Lock first so even direct
+            // onClick invokes cannot deliver the same outcome reentrantly.
             delivered = true;
             Refresh();
-            onFinished(session);
+            try
+            {
+                onFinished(session);
+            }
+            catch
+            {
+                // Interrupted host persistence cannot consume Continue.
+                // The player may retry the identical completed leg without
+                // replaying navigation or changing the outcome.
+                delivered = false;
+                Refresh();
+                throw;
+            }
         }
 
         public void Dispose()
