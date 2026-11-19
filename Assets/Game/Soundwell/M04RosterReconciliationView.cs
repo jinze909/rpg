@@ -75,55 +75,36 @@ namespace Rpg.Soundwell
             this.verifiedBerths = verifiedBerths;
 
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            canvasObject = new GameObject("M04 roster reconciliation canvas",
-                typeof(RectTransform), typeof(Canvas));
-            canvasObject.transform.SetParent(parent, false);
-            var canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 130;
-            var scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(960f, 540f);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasObject.AddComponent<GraphicRaycaster>();
+            canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
+                parent, "M04 roster reconciliation canvas", 130, out authored);
 
-            Panel(canvas.transform, "M04 roster backdrop", new Vector2(950f, 530f),
-                new Color(0.04f, 0.07f, 0.08f, 0.98f));
-            var page = new GameObject("M04 roster panel", typeof(RectTransform));
-            page.transform.SetParent(canvas.transform, false);
-            authored = (RectTransform)page.transform;
-            authored.anchorMin = authored.anchorMax = new Vector2(0.5f, 0.5f);
-            authored.sizeDelta = new Vector2(960f, 540f);
-            Panel(authored, "M04 roster paper", new Vector2(920f, 515f),
-                new Color(0.92f, 0.89f, 0.81f));
-
-            heading = Label(authored, 23, new Vector2(0f, 215f), new Vector2(840f, 42f));
-            summary = Label(authored, 17, new Vector2(0f, 150f), new Vector2(840f, 72f));
+            heading = SoundwellUiTheme.CreateLabel(authored, 23, new Vector2(0f, 215f), new Vector2(840f, 42f));
+            summary = SoundwellUiTheme.CreateLabel(authored, 17, new Vector2(0f, 150f), new Vector2(840f, 72f));
             summary.alignment = TextAnchor.UpperLeft;
-            selectedDetails = Label(authored, 18, new Vector2(0f, 52f), new Vector2(840f, 108f));
+            selectedDetails = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(0f, 52f), new Vector2(840f, 108f));
             selectedDetails.alignment = TextAnchor.UpperLeft;
 
-            prevButton = NewButton(authored, "M04 roster prev",
-                new Vector2(-290f, -38f), new Vector2(240f, 38f), out prevLabel);
-            nextButton = NewButton(authored, "M04 roster next",
-                new Vector2(290f, -38f), new Vector2(240f, 38f), out nextLabel);
+            prevButton = SoundwellUiTheme.CreateButton(authored, "M04 roster prev",
+                new Vector2(-290f, -38f), new Vector2(240f, 38f), 16, out prevLabel);
+            nextButton = SoundwellUiTheme.CreateButton(authored, "M04 roster next",
+                new Vector2(290f, -38f), new Vector2(240f, 38f), 16, out nextLabel);
 
-            confirmDockButton = NewButton(authored, "M04 roster confirm dock",
-                new Vector2(-280f, -92f), new Vector2(260f, 40f), out confirmDockLabel);
-            resolveRollButton = NewButton(authored, "M04 roster resolve roll",
-                new Vector2(0f, -92f), new Vector2(260f, 40f), out resolveRollLabel);
-            declineButton = NewButton(authored, "M04 roster decline",
-                new Vector2(280f, -92f), new Vector2(260f, 40f), out declineLabel);
+            confirmDockButton = SoundwellUiTheme.CreateButton(authored, "M04 roster confirm dock",
+                new Vector2(-280f, -92f), new Vector2(260f, 40f), 16, out confirmDockLabel);
+            resolveRollButton = SoundwellUiTheme.CreateButton(authored, "M04 roster resolve roll",
+                new Vector2(0f, -92f), new Vector2(260f, 40f), 16, out resolveRollLabel);
+            declineButton = SoundwellUiTheme.CreateButton(authored, "M04 roster decline",
+                new Vector2(280f, -92f), new Vector2(260f, 40f), 16, out declineLabel);
 
-            bookButton = NewButton(authored, "M04 roster book",
-                new Vector2(-210f, -146f), new Vector2(340f, 40f), out bookLabel);
-            unbookButton = NewButton(authored, "M04 roster unbook",
-                new Vector2(210f, -146f), new Vector2(340f, 40f), out unbookLabel);
+            bookButton = SoundwellUiTheme.CreateButton(authored, "M04 roster book",
+                new Vector2(-210f, -146f), new Vector2(340f, 40f), 16, out bookLabel);
+            unbookButton = SoundwellUiTheme.CreateButton(authored, "M04 roster unbook",
+                new Vector2(210f, -146f), new Vector2(340f, 40f), 16, out unbookLabel);
 
-            finishButton = NewButton(authored, "M04 roster finish",
-                new Vector2(-210f, -206f), new Vector2(340f, 44f), out finishLabel);
-            backButton = NewButton(authored, "M04 roster back",
-                new Vector2(210f, -206f), new Vector2(340f, 44f), out backLabel);
+            finishButton = SoundwellUiTheme.CreateButton(authored, "M04 roster finish",
+                new Vector2(-210f, -206f), new Vector2(340f, 44f), 16, out finishLabel);
+            backButton = SoundwellUiTheme.CreateButton(authored, "M04 roster back",
+                new Vector2(210f, -206f), new Vector2(340f, 44f), 16, out backLabel);
 
             prevButton.onClick.AddListener(() => StepSelection(-1));
             nextButton.onClick.AddListener(() => StepSelection(1));
@@ -152,13 +133,8 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed || !(aspect > 0f) || float.IsNaN(aspect) ||
-                float.IsInfinity(aspect)) return;
-            float width = Mathf.Sqrt(960f * 540f * aspect);
-            float height = Mathf.Sqrt(960f * 540f / aspect);
-            float scale = Mathf.Min(1f, Mathf.Min(width / 960f, height / 540f));
-            if (scale < 1f) scale *= 0.95f;
-            authored.localScale = new Vector3(scale, scale, 1f);
+            if (disposed) return;
+            SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
@@ -324,59 +300,7 @@ namespace Rpg.Soundwell
             declineButton.onClick.RemoveAllListeners();
             finishButton.onClick.RemoveAllListeners();
             backButton.onClick.RemoveAllListeners();
-            if (canvasObject != null)
-            {
-                canvasObject.SetActive(false);
-                if (Application.isPlaying) UnityEngine.Object.Destroy(canvasObject);
-                else UnityEngine.Object.DestroyImmediate(canvasObject);
-            }
-        }
-
-        private static void Panel(Transform parent, string name, Vector2 size, Color color)
-        {
-            var item = new GameObject(name, typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(Image));
-            item.transform.SetParent(parent, false);
-            var graphic = item.GetComponent<Image>();
-            graphic.color = color;
-            graphic.raycastTarget = false;
-            var rect = graphic.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = size;
-        }
-
-        private static Text Label(Transform parent, int fontSize, Vector2 position,
-            Vector2 dimensions)
-        {
-            var result = SoundwellView.AddLabel(parent, "", fontSize,
-                new Color(0.12f, 0.17f, 0.20f), position, dimensions);
-            result.resizeTextForBestFit = true;
-            result.resizeTextMinSize = 10;
-            result.resizeTextMaxSize = fontSize;
-            result.raycastTarget = false;
-            return result;
-        }
-
-        private static Button NewButton(Transform parent, string name,
-            Vector2 position, Vector2 size, out Text label)
-        {
-            var obj = new GameObject(name, typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            obj.transform.SetParent(parent, false);
-            var image = obj.GetComponent<Image>();
-            image.color = new Color(0.82f, 0.83f, 0.77f);
-            var rect = (RectTransform)obj.transform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-            var button = obj.GetComponent<Button>();
-            button.targetGraphic = image;
-            label = Label(obj.transform, 16, Vector2.zero, size);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = new Vector2(8f, 2f);
-            label.rectTransform.offsetMax = new Vector2(-8f, -2f);
-            return button;
+            SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
 
