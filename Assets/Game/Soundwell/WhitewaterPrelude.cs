@@ -125,6 +125,8 @@ namespace Rpg.Soundwell
         private Text instructions;
         private Text title;
         private Text stageSubtitle;
+        private GameObject dialogueBox;
+        private GameObject speakerPlate;
         private float lastStageLayoutAspect = -1f;
         private Button exit;
         private Button next;
@@ -600,10 +602,29 @@ namespace Rpg.Soundwell
                 farBankThreats[i].gameObject.SetActive(false);
             }
 
-            narration = Label(canvas.transform, "", 21,
-                new Vector2(0f, -100f), new Vector2(840f, 83f), Ink);
-            instructions = Label(canvas.transform, "", 15,
-                new Vector2(0f, -143f), new Vector2(790f, 34f), Brass);
+            Image dialogueBoxImage = Panel(canvas.transform, "S00 dialogue box",
+                new Vector2(0f, -112f), new Vector2(860f, 118f), new Color(0.06f, 0.08f, 0.11f, 0.90f));
+            Outline dialogueBoxOutline = dialogueBoxImage.gameObject.AddComponent<Outline>();
+            dialogueBoxOutline.effectColor = new Color(0.72f, 0.63f, 0.44f, 0.85f);
+            dialogueBoxOutline.effectDistance = new Vector2(2f, -2f);
+            dialogueBox = dialogueBoxImage.gameObject;
+            Image speakerPlateImage = Panel(canvas.transform, "S00 speaker plate",
+                new Vector2(-338f, -44f), new Vector2(184f, 28f), new Color(0.10f, 0.13f, 0.18f, 0.96f));
+            Outline speakerPlateOutline = speakerPlateImage.gameObject.AddComponent<Outline>();
+            speakerPlateOutline.effectColor = new Color(0.72f, 0.63f, 0.44f, 0.85f);
+            speakerPlateOutline.effectDistance = new Vector2(2f, -2f);
+            Text speakerPlateLabel = Label(speakerPlateImage.transform, Copy("Whitewater Crossing", "白水渡 · 序章"), 15,
+                Vector2.zero, new Vector2(176f, 24f), Brass);
+            speakerPlateLabel.alignment = TextAnchor.MiddleCenter;
+            speakerPlate = speakerPlateImage.gameObject;
+            narration = Label(canvas.transform, "", 18,
+                new Vector2(0f, -98f), new Vector2(824f, 68f), Ink);
+            narration.alignment = TextAnchor.UpperLeft;
+            narration.lineSpacing = 1.25f;
+            narration.horizontalOverflow = HorizontalWrapMode.Wrap;
+            instructions = Label(canvas.transform, "", 14,
+                new Vector2(0f, -149f), new Vector2(824f, 26f), Brass);
+            instructions.alignment = TextAnchor.MiddleLeft;
             for (int i = 0; i < choices.Length; i++)
             {
                 int choice = i;
@@ -623,11 +644,11 @@ namespace Rpg.Soundwell
                 Vector2.zero, new Vector2(222f, 27f), Ink);
             next.gameObject.SetActive(false);
             exit = Button(canvas.transform, "S00 return to Bootstrap",
-                new Vector2(-145f, -245f), new Vector2(228f, 29f), Close);
+                new Vector2(388f, 232f), new Vector2(144f, 32f), Close);
             exit.gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
                 .Initialize(Close);
             Label(exit.transform, Copy("Back to entry", "返回入口"), 14,
-                Vector2.zero, new Vector2(222f, 27f), Ink);
+                Vector2.zero, new Vector2(136f, 28f), Ink);
 
             // A completed S00 can be skipped on replay, but never resumed from
             // an unearned checkpoint. The existing Makinom third-bell fact is
@@ -1571,6 +1592,7 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            SetDefenseOverlayHidden(true);
             narration.text = Copy(
                 "Spear points reach the bridgehead. On the dark far bank, you can no longer make out the figures. Shen Li grips the cable as you turn to hold the crossing.",
                 "持矛的人逼到桥头。对岸已经看不清人影。沈砾攥紧缆索，你转身守桥。");
@@ -1592,8 +1614,28 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            SetDefenseOverlayHidden(false);
             defenseWon = true;
             StartCoroutine(PlayThirdBellCollapse());
+        }
+
+        private void SetDefenseOverlayHidden(bool hidden)
+        {
+            bool visible = !hidden;
+            if (title != null)
+                title.gameObject.SetActive(visible);
+            if (stageSubtitle != null)
+                stageSubtitle.gameObject.SetActive(visible);
+            if (dialogueBox != null)
+                dialogueBox.SetActive(visible);
+            if (speakerPlate != null)
+                speakerPlate.SetActive(visible);
+            if (narration != null)
+                narration.gameObject.SetActive(visible);
+            if (instructions != null)
+                instructions.gameObject.SetActive(visible);
+            if (exit != null)
+                exit.gameObject.SetActive(visible);
         }
 
         // Historical S00 outcome is fixed, but never a reward for merely
