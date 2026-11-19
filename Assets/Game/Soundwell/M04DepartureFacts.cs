@@ -86,13 +86,17 @@ namespace Rpg.Soundwell
             ValidateConfirmed(manifest);
             if (setInt == null)
                 return false;
-            setInt(ConfirmedKey, 1);
+            // Invalidate any previous voyage before updating this record.
+            // The confirmation marker must be committed last: a failed or
+            // interrupted field write may never expose a mixed old/new trip.
+            setInt(ConfirmedKey, 0);
             setInt(RouteKey, (int)manifest.Route + 1);
             setInt(AssignedCrewKey, manifest.AssignedCrew);
             setInt(AvailableBerthsKey, manifest.AvailableBerths);
             setInt(ReturneesToBookKey, manifest.ReturneesToBook);
             setInt(OfficialStampKey, manifest.OfficialRegistrationEffective ? 1 : 0);
             setInt(EscortFlagKey, manifest.EscortFlagAccepted ? 1 : 0);
+            setInt(ConfirmedKey, 1);
             return true;
         }
 
