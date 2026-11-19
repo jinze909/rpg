@@ -190,7 +190,8 @@ def apply_outputs(outputs):
                     if incoming.exists():
                         continue
                     if backup is None:
-                        path.unlink()
+                        if path.exists():
+                            path.unlink()
                     else:
                         backup.replace(path)
                 for directory in reversed(directories):
@@ -220,9 +221,15 @@ def restore(evidence):
         if sorted(archive.namelist()) != sorted(hashes):
             raise ValueError("Candidate archive and preparation evidence differ.")
         manifest = "Packages/manifest.json"
+        lockfile = "Packages/packages-lock.json"
         if manifest in hashes:
-            validate_manifest(Path(manifest).read_bytes(), archive.read(manifest),
-                              archive.read("Packages/packages-lock.json"))
+            if lockfile in hashes:
+                lock_bytes = archive.read(lockfile)
+            elif Path(lockfile).is_file():
+                lock_bytes = Path(lockfile).read_bytes()
+            else:
+                raise ValueError(f"Candidate lacks required lockfile for manifest validation: {lockfile}")
+            validate_manifest(Path(manifest).read_bytes(), archive.read(manifest), lock_bytes)
         # Do not partially apply a candidate if the LAST file has a bad
         # digest or missing .meta. Verification precedes every write.
         checked = validate_candidate_contents(archive, hashes)
@@ -235,4 +242,6 @@ def restore(evidence):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: restore_unity_p0.py <evidence-dir>")
     restore(Path(sys.argv[1]))
