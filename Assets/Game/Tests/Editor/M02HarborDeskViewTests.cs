@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -23,7 +24,7 @@ namespace Rpg.Tests.Editor
         {
             view?.Dispose();
             if (root != null)
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
             SoundwellUiLocalization.SetLanguage(previousLanguage);
         }
 
@@ -110,6 +111,44 @@ namespace Rpg.Tests.Editor
             view.LeaveButton.onClick.Invoke();
             Assert.That(delivered, Is.EqualTo(1));
             Assert.That(view.PreferredFocusTarget, Is.Null);
+        }
+
+        [Test]
+        public void FailedHostCallbackKeepsHarborOutcomeRetryableAndBlocksReentrancy()
+        {
+            int attempts = 0;
+            M02HarborDeskOutcome delivered = null;
+            view = new M02HarborDeskView(root.transform,
+                M01PensionChoice.RegisterLivingIdentity, result =>
+                {
+                    attempts++;
+                    if (attempts == 1)
+                    {
+                        view.LeaveButton.onClick.Invoke();
+                        throw new InvalidOperationException("Simulated Makinom save failure");
+                    }
+                    delivered = result;
+                });
+            view.GetActionButton(0).onClick.Invoke();
+            view.GetActionButton(1).onClick.Invoke();
+            view.GetActionButton(3).onClick.Invoke();
+
+            Assert.Throws<InvalidOperationException>(() => view.LeaveButton.onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(view.Desk.Stage, Is.EqualTo(M02HarborDeskStage.Discussing));
+            Assert.That(view.Desk.LivingRegistryStamped, Is.True);
+            Assert.That(view.Desk.QiQueDebtDiscovered, Is.True);
+            Assert.That(view.Desk.TransferAssistanceAccepted, Is.True);
+            Assert.That(view.LeaveButton.gameObject.activeSelf, Is.True);
+
+            view.LeaveButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(view.Desk.Stage, Is.EqualTo(M02HarborDeskStage.Finished));
+            Assert.That(delivered, Is.Not.Null);
+            Assert.That(delivered.OfficialShipOffered, Is.True);
+            Assert.That(delivered.QiQueDebtDiscovered, Is.True);
+            Assert.That(delivered.TransferAssistanceAccepted, Is.True);
+            Assert.That(view.LeaveButton.gameObject.activeSelf, Is.False);
         }
 
         [Test]
