@@ -75,8 +75,7 @@ namespace Rpg.Soundwell
 
             if (savedLanding.HasValue)
             {
-                if (!M05OuterHarborArrivalSession.TryOpen(
-                    parent, getInt, setInt, _ => { }, out _))
+                if (!M05LettersFacts.TryRead(getInt, out _))
                     return false;
 
                 host = new M05OuterHarborFlowHost(parent, getInt, setInt,
