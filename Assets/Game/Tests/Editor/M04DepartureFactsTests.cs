@@ -146,6 +146,106 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void StartingAnotherM03VoyageClearsEveryEarlierOutboundFact()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> write = (key, value) => store[key] = value;
+            Func<string, int> read = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+
+            var previous = ReadyManifest(M03VoyageChoice.LuJunEscort,
+                officialStamp: false, escortFlag: true);
+            Assert.That(M04DepartureFacts.TryRecord(previous, write), Is.True);
+            var ledger = new M04RosterLedger();
+            ledger.AddEntry("dock-01", "Actually confirmed",
+                M04RosterStatus.ConfirmedAtDock);
+            Assert.That(M04RosterFacts.TryRecord(ledger, write), Is.True);
+            var fog = new FogListeningSession(
+                new[] { new FogListeningCue(FogBearing.Ahead,
+                    FogCueKind.ClearWater, 80) },
+                maxListenFocus: 1, maxHullIntegrity: 2);
+            fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+            Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
+            write(M04QiQueCupFacts.CupCarriedKey, 1);
+            write(M04XiaodouFarewellFacts.RealLineKey, 2);
+
+            Assert.That(M04DepartureFacts.TryRead(read,
+                out M04DepartureRecord? oldDeparture), Is.True);
+            Assert.That(oldDeparture.HasValue, Is.True);
+            Assert.That(M04RosterFacts.TryRead(read,
+                out M04RosterSummaryRecord? oldRoster), Is.True);
+            Assert.That(oldRoster.HasValue, Is.True);
+            Assert.That(FogListeningFacts.TryRead(read,
+                out FogListeningRecord? oldFog), Is.True);
+            Assert.That(oldFog.HasValue, Is.True);
+
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(null),
+                Is.False);
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                Is.True);
+            Assert.That(M04DepartureFacts.TryRead(read,
+                out M04DepartureRecord? departure), Is.True);
+            Assert.That(departure, Is.Null);
+            Assert.That(M04RosterFacts.TryRead(read,
+                out M04RosterSummaryRecord? roster), Is.True);
+            Assert.That(roster, Is.Null);
+            Assert.That(FogListeningFacts.TryRead(read,
+                out FogListeningRecord? fogLeg), Is.True);
+            Assert.That(fogLeg, Is.Null);
+            Assert.That(read(M04QiQueCupFacts.CupCarriedKey), Is.Zero);
+            Assert.That(read(M04XiaodouFarewellFacts.RealLineKey), Is.Zero);
+            Assert.That(read(M04DepartureFacts.RouteKey), Is.Zero);
+            Assert.That(read(M04RosterFacts.TotalEntriesKey), Is.Zero);
+            Assert.That(read(FogListeningFacts.SucceededKey), Is.Zero);
+        }
+
+        [Test]
+        public void InterruptedNewVoyageResetCannotPublishOldDepartureRosterOrFogLeg()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> write = (key, value) => store[key] = value;
+            Func<string, int> read = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+
+            Assert.That(M04DepartureFacts.TryRecord(
+                ReadyManifest(M03VoyageChoice.QiQueMerchant), write), Is.True);
+            var ledger = new M04RosterLedger();
+            ledger.AddEntry("dock-01", "Confirmed", M04RosterStatus.ConfirmedAtDock);
+            Assert.That(M04RosterFacts.TryRecord(ledger, write), Is.True);
+            var fog = new FogListeningSession(
+                new[] { new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 90) },
+                maxListenFocus: 1, maxHullIntegrity: 2);
+            fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+            Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                ReturnOpeningContinuation.TryResetPreviousOutboundFacts((key, value) =>
+                {
+                    if (key == M04DepartureFacts.AssignedCrewKey)
+                        throw new InvalidOperationException("Interrupted voyage reset");
+                    write(key, value);
+                }));
+            Assert.That(read(M04DepartureFacts.ConfirmedKey), Is.Zero);
+            Assert.That(read(M04RosterFacts.ReconciledKey), Is.Zero);
+            Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero);
+            Assert.That(M04DepartureFacts.TryRead(read,
+                out M04DepartureRecord? departure), Is.True);
+            Assert.That(departure, Is.Null);
+            Assert.That(M04RosterFacts.TryRead(read,
+                out M04RosterSummaryRecord? roster), Is.True);
+            Assert.That(roster, Is.Null);
+            Assert.That(FogListeningFacts.TryRead(read,
+                out FogListeningRecord? fogLeg), Is.True);
+            Assert.That(fogLeg, Is.Null);
+
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                Is.True, "The exact same M03 visit can retry the invalidation.");
+            Assert.That(read(M04DepartureFacts.AssignedCrewKey), Is.Zero);
+            Assert.That(read(M04RosterFacts.ConfirmedAtDockKey), Is.Zero);
+            Assert.That(read(FogListeningFacts.HullIntegrityKey), Is.Zero);
+        }
+
+        [Test]
         public void InterruptedDepartureWriteNeverLeavesAnOldConfirmationActive()
         {
             var store = new Dictionary<string, int>();
