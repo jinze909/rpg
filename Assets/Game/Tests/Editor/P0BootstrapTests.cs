@@ -3,6 +3,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Rpg.Editor;
 using Rpg.Soundwell;
 using GamingIsLove.Makinom;
 using GamingIsLove.Makinom.Editor;
@@ -44,15 +45,14 @@ namespace Rpg.Tests.Editor
                 {
                     CreateDefaultProject();
                 }
-                Type.GetType("Rpg.Editor.OrkEncounterAttackSetup, Assembly-CSharp-Editor", true)
-                    .GetMethod("Prepare", BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
-                InvokeUrpSetup("Prepare");
-                InvokeSoundwellAnimationSetup("Prepare");
-                InvokeSoundwellTilemapSetup("Prepare");
-                InvokeSoundwellSpriteAtlasSetup("Prepare");
-                InvokeSoundwellAudioMixerSetup("Prepare");
-                InvokeSoundwellLocalizationSetup("Prepare");
-                InvokeSoundwellBuildProfilesSetup("Prepare");
+                OrkEncounterAttackSetup.Prepare();
+                Urp2DProjectSetup.Prepare();
+                SoundwellAnimationSetup.Prepare();
+                SoundwellTilemapSetup.Prepare();
+                SoundwellSpriteAtlasSetup.Prepare();
+                SoundwellAudioMixerSetup.Prepare();
+                SoundwellLocalizationSetup.Prepare();
+                SoundwellBuildProfilesSetup.Prepare();
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             else
@@ -60,13 +60,13 @@ namespace Rpg.Tests.Editor
                 Assert.That(File.Exists("ProjectSettings/EditorSettings.asset"), Is.True,
                     "Save full Play Mode reload settings before validation.");
                 // Validate BEFORE wiring: verification must not repair missing configuration.
-                InvokeSoundwellAnimationSetup("Validate");
-                InvokeSoundwellTilemapSetup("Validate");
-                InvokeSoundwellSpriteAtlasSetup("Validate");
-                InvokeSoundwellAudioMixerSetup("Validate");
-                InvokeSoundwellLocalizationSetup("Validate");
-                InvokeSoundwellBuildProfilesSetup("Validate");
-                ValidateConfiguration();
+                SoundwellAnimationSetup.Validate();
+                SoundwellTilemapSetup.Validate();
+                SoundwellSpriteAtlasSetup.Validate();
+                SoundwellAudioMixerSetup.Validate();
+                SoundwellLocalizationSetup.Validate();
+                SoundwellBuildProfilesSetup.Validate();
+                OrkBootstrapSetup.ValidateBatch();
             }
 
             Assert.That(EditorApplication.ExecuteMenuItem("Tools/RPG/Wire ORK Bootstrap"), Is.True);
@@ -74,7 +74,7 @@ namespace Rpg.Tests.Editor
             Assert.That(EditorApplication.ExecuteMenuItem("Tools/RPG/Wire ORK Bootstrap"), Is.True);
             Assert.That(File.ReadAllBytes(ScenePath), Is.EqualTo(wiredScene),
                 "Running the command again must not rewrite the saved scene.");
-            ValidateConfiguration();
+            OrkBootstrapSetup.ValidateBatch();
             Assert.That(File.Exists("Packages/packages-lock.json"), Is.True);
             // Unity queues an Editor compile after native Build Profile checks and
             // bootstrap scene wiring. A synchronous NUnit Test starts the M11
@@ -92,7 +92,7 @@ namespace Rpg.Tests.Editor
             }
             // Prepare must also persist URP normalization caused by the real Player build.
             // Verify rebuilds the same committed profiles and requires a clean checkout.
-            InvokeSoundwellBuildProfilesSetup("ValidateAndBuild");
+            SoundwellBuildProfilesSetup.ValidateAndBuild();
         }
 
         [Test]
@@ -101,7 +101,7 @@ namespace Rpg.Tests.Editor
             const string mixerPath = "Assets/Game/Resources/Soundwell/Audio/SoundwellMixer.mixer";
             Assert.That(File.Exists(mixerPath), Is.True);
             var before = File.ReadAllBytes(mixerPath);
-            Assert.DoesNotThrow(() => InvokeSoundwellAudioMixerSetup("Prepare"),
+            Assert.DoesNotThrow(SoundwellAudioMixerSetup.Prepare,
                 "The pinned mixer must be validated, not recreated on every editor prepare.");
             Assert.That(File.ReadAllBytes(mixerPath), Is.EqualTo(before));
             string setup = File.ReadAllText("Assets/Game/Editor/SoundwellAudioMixerSetup.cs");
@@ -124,12 +124,12 @@ namespace Rpg.Tests.Editor
                 if (wasDirty)
                 {
                     var error = Assert.Throws<InvalidOperationException>(
-                        () => InvokeSoundwellTilemapSetup("Validate"));
+                        SoundwellTilemapSetup.Validate);
                     Assert.That(error.Message, Does.Contain("Save or discard"));
                 }
                 else
                 {
-                    Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+                    Assert.DoesNotThrow(SoundwellTilemapSetup.Validate);
                 }
                 Assert.That(active.IsValid() && active.isLoaded, Is.True,
                     "Read-only Tilemap validation may not close an author's opened scene.");
@@ -157,7 +157,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 var error = Assert.Throws<InvalidOperationException>(
-                    () => InvokeSoundwellTilemapSetup("Validate"));
+                    SoundwellTilemapSetup.Validate);
                 Assert.That(error.Message, Does.Contain("Save or discard"));
                 Assert.That(active.IsValid() && active.isLoaded, Is.True,
                     "A dirty scene must remain open when validation refuses to inspect it.");
@@ -190,18 +190,11 @@ namespace Rpg.Tests.Editor
             // Unity CI can already have an unsaved untitled scene; creating
             // a second additive one throws before reaching the preflight.
             // Exercise the exact decision without editing saved scene state.
-            var type = Type.GetType("Rpg.Editor.SoundwellTilemapSetup, Assembly-CSharp-Editor", true);
-            var gate = type.GetMethod("RequireCleanEditorScene",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.That(gate, Is.Not.Null);
-            Assert.DoesNotThrow(() => gate.Invoke(null,
-                new object[] { true, false, "Clean" }));
-            Assert.DoesNotThrow(() => gate.Invoke(null,
-                new object[] { false, true, "Unloaded" }));
-            var error = Assert.Throws<TargetInvocationException>(() =>
-                gate.Invoke(null, new object[] { true, true, "Unsaved scratch" }));
-            Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
-            Assert.That(error.InnerException.Message, Does.Contain("Unsaved scratch"));
+            Assert.DoesNotThrow(() => SoundwellTilemapSetup.RequireCleanEditorScene(true, false, "Clean"));
+            Assert.DoesNotThrow(() => SoundwellTilemapSetup.RequireCleanEditorScene(false, true, "Unloaded"));
+            var error = Assert.Throws<InvalidOperationException>(() =>
+                SoundwellTilemapSetup.RequireCleanEditorScene(true, true, "Unsaved scratch"));
+            Assert.That(error.Message, Does.Contain("Unsaved scratch"));
 
             // A correct guard called after creating assets would still leave
             // an orphaned folder; prove the first call precedes first write.
@@ -225,10 +218,10 @@ namespace Rpg.Tests.Editor
             {
                 if (wasDirty)
                     Assert.Throws<InvalidOperationException>(
-                        () => InvokeSoundwellTilemapSetup("Validate"),
+                        SoundwellTilemapSetup.Validate,
                         "Validation must reject unsaved wall geometry without closing the author's scene.");
                 else
-                    Assert.DoesNotThrow(() => InvokeSoundwellTilemapSetup("Validate"));
+                    Assert.DoesNotThrow(SoundwellTilemapSetup.Validate);
 
                 Assert.That(active.IsValid() && active.isLoaded, Is.True,
                     "Read-only Tilemap validation may not close an author's already loaded scene.");
@@ -247,7 +240,7 @@ namespace Rpg.Tests.Editor
         {
             // The P0 gate still validates saved atlas dependencies, while
             // unrelated profiles must not require the Soundwell importer.
-            InvokeSoundwellSpriteAtlasSetup("Validate");
+            SoundwellSpriteAtlasSetup.Validate();
             string setup = File.ReadAllText("Assets/Game/Editor/SoundwellSpriteAtlasSetup.cs");
             Assert.That(setup, Does.Not.Contain("IPreprocessBuildWithReport"));
             Assert.That(setup, Does.Not.Contain("OnPreprocessBuild("));
@@ -364,7 +357,7 @@ namespace Rpg.Tests.Editor
         [UnityTest, Order(10)]
         public IEnumerator FirstPlayInitializesFramework()
         {
-            ValidateConfiguration();
+            OrkBootstrapSetup.ValidateBatch();
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return AssertFrameworkInitialization();
             // A real saved Animator state must retain the visible beast-hit
@@ -417,7 +410,7 @@ namespace Rpg.Tests.Editor
         [UnityTest, Order(20)]
         public IEnumerator SecondPlayInitializesFramework()
         {
-            ValidateConfiguration();
+            OrkBootstrapSetup.ValidateBatch();
             yield return new EnterPlayMode(expectDomainReload: true);
             yield return AssertFrameworkInitialization();
             // ORK can bring a second EventSystem to the foreground. Keep the
@@ -626,93 +619,6 @@ namespace Rpg.Tests.Editor
             Assert.That(Time.frameCount, Is.GreaterThan(frame), "Play Mode frames did not advance.");
             // UTF fails on unexpected Error/Exception/Assert logs; do not clear or ignore them.
             LogAssert.NoUnexpectedReceived();
-        }
-
-        private static void InvokeUrpSetup(string methodName)
-        {
-            var type = Type.GetType("Rpg.Editor.Urp2DProjectSetup, Assembly-CSharp-Editor", true);
-            try
-            {
-                type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
-            }
-            catch (TargetInvocationException error) when (error.InnerException != null)
-            {
-                throw error.InnerException;
-            }
-        }
-
-        private static void InvokeSoundwellBuildProfilesSetup(string methodName)
-        {
-            var type = Type.GetType("Rpg.Editor.SoundwellBuildProfilesSetup, Assembly-CSharp-Editor", true);
-            try { type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null); }
-            catch (TargetInvocationException error) when (error.InnerException != null) { throw error.InnerException; }
-        }
-
-        private static void InvokeSoundwellLocalizationSetup(string methodName)
-        {
-            var type = Type.GetType("Rpg.Editor.SoundwellLocalizationSetup, Assembly-CSharp-Editor", true);
-            try { type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null); }
-            catch (TargetInvocationException error) when (error.InnerException != null) { throw error.InnerException; }
-        }
-
-        private static void InvokeSoundwellAudioMixerSetup(string methodName)
-        {
-            var type = Type.GetType("Rpg.Editor.SoundwellAudioMixerSetup, Assembly-CSharp-Editor", true);
-            try
-            {
-                type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
-            }
-            catch (TargetInvocationException error) when (error.InnerException != null)
-            {
-                throw error.InnerException;
-            }
-        }
-
-        private static void InvokeSoundwellSpriteAtlasSetup(string methodName)
-        {
-            var type = Type.GetType("Rpg.Editor.SoundwellSpriteAtlasSetup, Assembly-CSharp-Editor", true);
-            try { type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null); }
-            catch (TargetInvocationException error) when (error.InnerException != null) { throw error.InnerException; }
-        }
-
-        private static void InvokeSoundwellTilemapSetup(string methodName)
-        {
-            var type = Type.GetType("Rpg.Editor.SoundwellTilemapSetup, Assembly-CSharp-Editor", true);
-            try
-            {
-                type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
-            }
-            catch (TargetInvocationException error) when (error.InnerException != null)
-            {
-                throw error.InnerException;
-            }
-        }
-
-        private static void InvokeSoundwellAnimationSetup(string methodName)
-        {
-            var type = Type.GetType("Rpg.Editor.SoundwellAnimationSetup, Assembly-CSharp-Editor", true);
-            try
-            {
-                type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
-            }
-            catch (TargetInvocationException error) when (error.InnerException != null)
-            {
-                throw error.InnerException;
-            }
-        }
-
-        private static void ValidateConfiguration()
-        {
-            // Tests are in an asmdef; the existing tool is in Assembly-CSharp-Editor.
-            var type = Type.GetType("Rpg.Editor.OrkBootstrapSetup, Assembly-CSharp-Editor", true);
-            try
-            {
-                type.GetMethod("ValidateBatch", BindingFlags.Public | BindingFlags.Static).Invoke(null, null);
-            }
-            catch (TargetInvocationException error) when (error.InnerException != null)
-            {
-                throw error.InnerException;
-            }
         }
 
         private static void CreateDefaultProject()

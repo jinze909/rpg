@@ -134,7 +134,7 @@ namespace Rpg.Editor
         // Keep the actual loaded-scene reader above. Its per-scene
         // decision is independently testable even when the Unity batch
         // editor starts in a dirty, untitled scene.
-        private static void RequireCleanEditorScene(bool loaded, bool dirty, string name)
+        internal static void RequireCleanEditorScene(bool loaded, bool dirty, string name)
         {
             if (loaded && dirty)
                 throw new InvalidOperationException(
