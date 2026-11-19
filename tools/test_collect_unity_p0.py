@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """Regression checks for Unity P0 log acceptance and compiler failures."""
-import unittest
-import re
-import tempfile
+import hashlib
+import io
 import json
+import re
+import sys
+import tempfile
+import unittest
 from contextlib import chdir
-from unittest.mock import patch
+from pathlib import Path
 from tempfile import SpooledTemporaryFile
+from unittest.mock import patch
+from zipfile import ZipFile
+
+_TOOLS_DIR = str(Path(__file__).resolve().parent)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+
 import install_ork
 import verify_ork
-from pathlib import Path
 
 from collect_unity_p0 import (
     EXPECTED_TESTS,
@@ -28,14 +37,7 @@ from collect_unity_p0 import (
     validate_build_profile_player,
     MEMORY_PHASES,
 )
-
-
-
-import hashlib
-import io
-from zipfile import ZipFile
-
-from restore_unity_p0 import restore, validate_candidate_contents
+from restore_unity_p0 import restore, validate_candidate_contents, validate_manifest
 
 
 class VendorManifestBoundaryTests(unittest.TestCase):
@@ -94,6 +96,54 @@ class CandidateRestorePreflightTests(unittest.TestCase):
             for name, data in outputs.items():
                 archive.writestr(name, data)
         return evidence, sha, mode
+
+    def test_restore_new_sdk_with_matching_archive_or_checkout_lock(self):
+        name = "com.unity.sdk.linux-x86_64"
+        version = "1.2.0"
+        manifest = Path("Packages/manifest.json")
+        lock = Path("Packages/packages-lock.json")
+        generated = json.dumps({"dependencies": {name: version}}).encode()
+        locked = json.dumps({"dependencies": {name: {
+            "version": version, "source": "registry", "depth": 0, "url": "https://packages.unity.com",
+        }}}).encode()
+        for archive_lock in (True, False):
+            with self.subTest(archive_lock=archive_lock), tempfile.TemporaryDirectory() as directory, chdir(directory):
+                outputs = {manifest.as_posix(): generated, "ProjectSettings/EditorSettings.asset": b"settings"}
+                if archive_lock:
+                    outputs[lock.as_posix()] = locked
+                evidence, sha, mode = self.build_complete_evidence(outputs)
+                manifest.write_text('{"dependencies": {}}')
+                if not archive_lock:
+                    lock.write_bytes(locked)
+                with patch("restore_unity_p0.subprocess.check_output", return_value=sha):
+                    restore(evidence)
+                self.assertEqual(manifest.read_bytes(), generated)
+                self.assertEqual(lock.read_bytes(), locked)
+                self.assertEqual(mode.read_text(), "verify\n")
+
+    def test_sdk_pin_requires_approved_new_package_and_exact_direct_official_lock(self):
+        sdk = "com.unity.sdk.linux-arm64"
+        version = "1.2.3-pre.1+ci.42"
+        entry = {"version": version, "source": "registry", "depth": 0, "url": "https://packages.unity.com"}
+
+        def validate(name=sdk, requested=version, previous=None, **lock_overrides):
+            validate_manifest(
+                json.dumps({"dependencies": previous or {}}),
+                json.dumps({"dependencies": {name: requested}}),
+                json.dumps({"dependencies": {name: {**entry, **lock_overrides}}}),
+            )
+
+        validate()
+        for overrides in (
+            {"name": "com.unity.unlisted"}, {"previous": {sdk: "1.1.1"}},
+            {"source": "builtin"}, {"source": "git"}, {"url": "https://example.invalid"},
+            {"depth": 1}, {"depth": False}, {"version": "1.2.2"},
+        ):
+            with self.subTest(overrides=overrides), self.assertRaises(ValueError):
+                validate(**overrides)
+        for spec in (None, "", "latest", "^1.2.0", "1.2.*", "file:../sdk", "01.2.0", "1.2.0-pre.01"):
+            with self.subTest(spec=spec), self.assertRaises(ValueError):
+                validate(requested=spec, version=spec)
 
     def test_directory_destination_is_rejected_before_overwriting_settings(self):
         with tempfile.TemporaryDirectory() as directory, chdir(directory):
