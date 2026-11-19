@@ -98,6 +98,37 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedHostCallbackKeepsBriefingCompletionRetryableAndBlocksReentrancy()
+        {
+            int attempts = 0;
+            view = new M01DockBriefingView(root.transform, () =>
+            {
+                attempts++;
+                if (attempts == 1)
+                {
+                    view.AdvanceButton.onClick.Invoke();
+                    throw new InvalidOperationException("Simulated host handoff failure");
+                }
+            });
+            view.GetChoiceButton(2).onClick.Invoke();
+            view.AdvanceButton.onClick.Invoke();
+            view.GetChoiceButton(1).onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
+            Assert.That(view.InspectedLead, Is.EqualTo(M01VoyageLead.LuJunOldGuard));
+
+            Assert.Throws<InvalidOperationException>(() => view.AdvanceButton.onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.ReviewingRoutes));
+            Assert.That(view.InspectedLead, Is.EqualTo(M01VoyageLead.LuJunOldGuard));
+            Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.True);
+
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(view.Stage, Is.EqualTo(M01DockStage.Complete));
+            Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.False);
+        }
+
+        [Test]
         public void DisposingViewDoesNotFinishStoryOrRetainListener()
         {
             int calls = 0;

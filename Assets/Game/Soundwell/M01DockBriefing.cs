@@ -114,6 +114,26 @@ namespace Rpg.Soundwell
             Stage = M01DockStage.Complete;
         }
 
+        // Host transitions out of M01's warehouse briefing only after
+        // EndConversation succeeds. When that callback fails, restore
+        // ReviewingRoutes while keeping the player's inspected lead.
+        public void EndConversation(Action recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            M01DockStage before = Stage;
+            EndConversation();
+            try
+            {
+                recordWithHost();
+            }
+            catch
+            {
+                Stage = before;
+                throw;
+            }
+        }
+
         public static M01VoyageLeadTerms TermsFor(M01VoyageLead lead)
         {
             switch (lead)
