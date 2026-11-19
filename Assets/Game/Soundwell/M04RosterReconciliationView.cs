@@ -356,12 +356,10 @@ namespace Rpg.Soundwell
             var copy = new StringBuilder();
             // Booking or declining changes the next voyage, not the fact
             // that this returnee was confirmed in person at the dock.
-            int confirmedAtDock = ledger.ConfirmedAtDockCount +
-                ledger.BookedCount + ledger.DeclinedCount;
             copy.Append(chinese ? "名册总计：" : "Total entries: ")
                 .Append(ledger.TotalEntries)
                 .Append(chinese ? "；码头已核：" : "; confirmed at dock: ")
-                .Append(confirmedAtDock)
+                .Append(ledger.TotalConfirmedAtDockCount)
                 .Append(chinese ? "；尚未占铺位：" : "; unbooked confirmed: ")
                 .Append(ledger.ConfirmedAtDockCount)
                 .Append(chinese ? "；已占铺位：" : "; booked berths: ")

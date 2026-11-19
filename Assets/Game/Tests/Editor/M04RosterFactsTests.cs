@@ -83,6 +83,44 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DockVerifiedTotalPersistsAcrossBookingDecliningAndReconsideration()
+        {
+            var ledger = new M04RosterLedger();
+            ledger.AddEntry("dock-a", "First verified", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("dock-b", "Second verified", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("ransom-c", "Not yet verified", M04RosterStatus.RansomedUnconfirmed);
+
+            var saved = new Dictionary<string, int>();
+            Action<string, int> write = (key, value) => saved[key] = value;
+            Func<string, int> read = key =>
+                saved.TryGetValue(key, out int value) ? value : 0;
+
+            void Verify(int totalVerified, int awaitingBerth, int booked, int declined)
+            {
+                Assert.That(ledger.TotalConfirmedAtDockCount, Is.EqualTo(totalVerified));
+                Assert.That(M04RosterFacts.TryRecord(ledger, write), Is.True);
+                Assert.That(M04RosterFacts.TryRead(read, out M04RosterSummaryRecord? record),
+                    Is.True);
+                Assert.That(record.HasValue, Is.True);
+                Assert.That(record.Value.TotalConfirmedAtDockCount, Is.EqualTo(totalVerified));
+                Assert.That(record.Value.ConfirmedAtDockCount, Is.EqualTo(awaitingBerth));
+                Assert.That(record.Value.BookedCount, Is.EqualTo(booked));
+                Assert.That(record.Value.DeclinedCount, Is.EqualTo(declined));
+                Assert.That(record.Value.TotalEntries, Is.EqualTo(3));
+            }
+
+            Verify(2, 2, 0, 0);
+            Assert.That(ledger.TryBookForVoyage("dock-a", 1), Is.True);
+            Verify(2, 1, 1, 0);
+            ledger.MarkDeclinedVoyage("dock-a");
+            Verify(2, 1, 0, 1);
+            ledger.ReconsiderDeclinedVoyage("dock-a");
+            Verify(2, 2, 0, 0);
+            ledger.MarkConfirmedAtDock("ransom-c");
+            Verify(3, 3, 0, 0);
+        }
+
+        [Test]
         public void ResetForNewVisitClearsPriorRosterSummaryFacts()
         {
             var store = new Dictionary<string, int>();
