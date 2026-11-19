@@ -343,7 +343,9 @@ namespace Rpg.Soundwell
                 case FogResolution.HazardAvoided: return chinese ? "避开暗礁" : "Hazard avoided";
                 case FogResolution.SignalMatched: return chinese ? "信号对接成功" : "Signal matched";
                 case FogResolution.HullScraped: return chinese ? "船体擦伤" : "Hull scraped";
-                case FogResolution.LostBearing: return chinese ? "偏离方位" : "Lost bearing";
+                case FogResolution.LostBearing:
+                    return chinese ? "方位判断失准；请再听雾或减速测深" :
+                        "Lost bearing; listen again or slow and sound";
                 default: throw new ArgumentOutOfRangeException(nameof(resolution));
             }
         }
