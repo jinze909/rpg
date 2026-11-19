@@ -28,6 +28,35 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void NewReturneeCannotBePredeclinedBeforeDocksideConsent()
+        {
+            var ledger = new M04RosterLedger();
+            Assert.Throws<InvalidOperationException>(() =>
+                ledger.AddEntry("unheard", "Not yet asked", M04RosterStatus.DeclinedVoyage));
+            Assert.That(ledger.GetEntry("unheard"), Is.Null);
+            Assert.That(ledger.TotalEntries, Is.Zero);
+            Assert.That(ledger.DeclinedCount, Is.Zero);
+            Assert.That(ledger.TotalConfirmedAtDockCount, Is.Zero);
+
+            // A name on the ransom ledger is not proof of either return or refusal.
+            ledger.AddEntry("ransom-01", "Unconfirmed arrival",
+                M04RosterStatus.RansomedUnconfirmed);
+            Assert.Throws<InvalidOperationException>(() =>
+                ledger.MarkDeclinedVoyage("ransom-01"));
+            Assert.That(ledger.DeclinedCount, Is.Zero);
+
+            // Once actually confirmed, that person may decline or reconsider.
+            ledger.MarkConfirmedAtDock("ransom-01");
+            ledger.MarkDeclinedVoyage("ransom-01");
+            Assert.That(ledger.DeclinedCount, Is.EqualTo(1));
+            Assert.That(ledger.TotalConfirmedAtDockCount, Is.EqualTo(1));
+            Assert.That(ledger.TryBookForVoyage("ransom-01", 1), Is.False);
+            ledger.ReconsiderDeclinedVoyage("ransom-01");
+            Assert.That(ledger.DeclinedCount, Is.Zero);
+            Assert.That(ledger.TryBookForVoyage("ransom-01", 1), Is.True);
+        }
+
+        [Test]
         public void ConfirmingLivingReturneeFromDeadRollFlagsAndResolvesDiscrepancy()
         {
             var ledger = new M04RosterLedger();
