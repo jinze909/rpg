@@ -178,8 +178,8 @@ namespace Rpg.Soundwell
                     : "Your West Lane decision was public registration or concealment; this desk cannot silently rewrite it.";
             if (review.Approved)
                 return chinese
-                    ? "韩峤已经在“失踪归还”申请上批注并盖印。姜婶的旧账挂在港务署，留待会盟前后清算。"
-                    : "Han Qiao has signed and stamped the missing-return review. Aunt Jiang's old benefit debt is held on the harbor ledger for later settlement.";
+                    ? "韩峤在“失踪归还”的文书上盖了印：“拿给船坞看，他们就能给你备船了。”姜婶的旧账仍挂在港务署，留待会盟前后清算。"
+                    : "Han Qiao stamps the missing-return papers. 'Show these at the official dock and they can hold a ship for you.' Aunt Jiang's benefit account stays on the harbor ledger for settlement around the summit.";
             if (review.Requested && !review.HasEligibleSupportingRecord)
                 return chinese
                     ? "申请已提出，却没有可供韩峤批注的战报底稿，也未答应协理移交；仍未获准。"

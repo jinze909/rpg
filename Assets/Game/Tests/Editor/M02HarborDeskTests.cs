@@ -35,6 +35,18 @@ namespace Rpg.Tests.Editor
             {
                 var desk = new M02HarborDesk(prior);
                 desk.Begin();
+                string chinese = M02HarborDeskDialogue.Introduction(desk, true);
+                string english = M02HarborDeskDialogue.Introduction(desk, false);
+                if (prior == M01PensionChoice.KeepIdentityUnregistered)
+                {
+                    Assert.That(chinese, Does.Contain("暂不登记").And.Not.Contain("申请可以先递"));
+                    Assert.That(english, Does.Contain("stay off the register").And.Not.Contain("file a missing-return"));
+                }
+                else
+                {
+                    Assert.That(chinese, Does.Contain("申请可以先递").And.Contain("盖了印，船坞也认"));
+                    Assert.That(english, Does.Contain("file a missing-return").And.Contain("the dock will take it"));
+                }
                 Assert.That(desk.CanPresentLivingPapers, Is.False, "prior: " + prior);
                 Assert.Throws<InvalidOperationException>(() =>
                     desk.Act(M02HarborDeskAction.PresentLivingRegistration), "prior: " + prior);
