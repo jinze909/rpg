@@ -11,6 +11,8 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class M02BridgeInquiryView : IDisposable
     {
+        private static readonly Color Ink = new Color(0.14f, 0.17f, 0.20f);
+        private static readonly Color ButtonFill = new Color(0.81f, 0.82f, 0.76f);
         private static readonly M02BridgeEvidence[] WarehouseClues =
         {
             M02BridgeEvidence.CleanCableCut,
@@ -78,45 +80,28 @@ namespace Rpg.Soundwell
             this.onCompleted = onCompleted;
             this.onObserved = onObserved;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            canvasObject = new GameObject("M02 bridge evidence canvas",
-                typeof(RectTransform), typeof(Canvas));
-            canvasObject.transform.SetParent(parent, false);
-            Canvas canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 122;
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(960f, 540f);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasObject.AddComponent<GraphicRaycaster>();
-
-            Panel(canvas.transform, "M02 dark backdrop", new Vector2(950f, 530f),
+            canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
+                parent, "M02 bridge evidence canvas", 122, out authoredView,
                 new Color(0.05f, 0.08f, 0.09f, 0.98f));
-            var viewObject = new GameObject("M02 authored investigation",
-                typeof(RectTransform));
-            viewObject.transform.SetParent(canvas.transform, false);
-            authoredView = (RectTransform)viewObject.transform;
-            authoredView.anchorMin = authoredView.anchorMax = new Vector2(0.5f, 0.5f);
-            authoredView.sizeDelta = new Vector2(960f, 540f);
-            Panel(authoredView, "M02 evidence panel", new Vector2(920f, 515f),
-                new Color(0.92f, 0.89f, 0.81f));
 
-            heading = Label(authoredView, 24, new Vector2(0f, 215f),
-                new Vector2(840f, 50f));
-            narrative = Label(authoredView, 19, new Vector2(0f, 58f),
-                new Vector2(835f, 205f));
+            heading = SoundwellUiTheme.CreateLabel(authoredView, 24,
+                new Vector2(0f, 215f), new Vector2(840f, 50f), Ink);
+            narrative = SoundwellUiTheme.CreateLabel(authoredView, 19,
+                new Vector2(0f, 58f), new Vector2(835f, 205f), Ink);
             narrative.alignment = TextAnchor.MiddleLeft;
             for (int i = 0; i < clueButtons.Length; i++)
             {
                 int captured = i;
-                clueButtons[i] = NewButton(authoredView, "M02 evidence " + i,
-                    new Vector2(0f, -69f - 53f * i), new Vector2(820f, 46f),
-                    out clueLabels[i]);
+                clueButtons[i] = SoundwellUiTheme.CreateButton(authoredView,
+                    "M02 evidence " + i, new Vector2(0f, -69f - 53f * i),
+                    new Vector2(820f, 46f), 17, out clueLabels[i],
+                    ButtonFill, Ink);
                 clueButtons[i].onClick.AddListener(() => Examine(captured));
             }
-            continueButton = NewButton(authoredView, "M02 continue",
-                new Vector2(0f, -225f), new Vector2(450f, 46f),
-                out continueLabel);
+            continueButton = SoundwellUiTheme.CreateButton(authoredView,
+                "M02 continue", new Vector2(0f, -225f),
+                new Vector2(450f, 46f), 17, out continueLabel,
+                ButtonFill, Ink);
             continueButton.onClick.AddListener(Advance);
 
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
@@ -134,14 +119,9 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed || !(aspect > 0f) || float.IsNaN(aspect) || float.IsInfinity(aspect))
+            if (disposed)
                 return;
-            float width = Mathf.Sqrt(960f * 540f * aspect);
-            float height = Mathf.Sqrt(960f * 540f / aspect);
-            float scale = Mathf.Min(1f, Mathf.Min(width / 960f, height / 540f));
-            if (scale < 1f)
-                scale *= 0.95f;
-            authoredView.localScale = new Vector3(scale, scale, 1f);
+            SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
         public void Refresh()
@@ -180,10 +160,10 @@ namespace Rpg.Soundwell
                         (inquiry.Has(M02BridgeEvidence.WarReportDraft) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
             }
             continueLabel.text = location == M02EvidenceLocation.FerryWarehouse
-                ? (chinese ? "继续到港务署旧档室" : "Continue to the harbor archive")
+                ? (chinese ? "继续到港务署旧档案室" : "Continue to the harbor archive")
                 : location == M02EvidenceLocation.HarborArchive
-                    ? (chinese ? "结束调查" : "Finish investigating")
-                    : (chinese ? "调查结束" : "Inquiry complete");
+                ? (chinese ? "结束调查" : "Finish investigating")
+                : (chinese ? "调查结束" : "Inquiry complete");
             continueButton.gameObject.SetActive(location != M02EvidenceLocation.Finished);
             SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
         }
@@ -268,61 +248,7 @@ namespace Rpg.Soundwell
                     button.onClick.RemoveAllListeners();
             if (continueButton != null)
                 continueButton.onClick.RemoveAllListeners();
-            if (canvasObject != null)
-            {
-                canvasObject.SetActive(false);
-                if (Application.isPlaying)
-                    UnityEngine.Object.Destroy(canvasObject);
-                else
-                    UnityEngine.Object.DestroyImmediate(canvasObject);
-            }
-        }
-
-        private static void Panel(Transform parent, string name, Vector2 size, Color color)
-        {
-            var go = new GameObject(name, typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(Image));
-            go.transform.SetParent(parent, false);
-            Image img = go.GetComponent<Image>();
-            img.color = color;
-            img.raycastTarget = false;
-            RectTransform rect = img.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = size;
-        }
-
-        private static Text Label(Transform parent, int fontSize,
-            Vector2 pos, Vector2 bounds)
-        {
-            Text text = SoundwellView.AddLabel(parent, string.Empty, fontSize,
-                new Color(0.14f, 0.17f, 0.20f), pos, bounds);
-            text.raycastTarget = false;
-            text.resizeTextForBestFit = true;
-            text.resizeTextMinSize = 10;
-            text.resizeTextMaxSize = fontSize;
-            return text;
-        }
-
-        private static Button NewButton(Transform parent, string name,
-            Vector2 pos, Vector2 size, out Text label)
-        {
-            var obj = new GameObject(name, typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            obj.transform.SetParent(parent, false);
-            Image img = obj.GetComponent<Image>();
-            img.color = new Color(0.81f, 0.82f, 0.76f);
-            RectTransform rect = img.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = pos;
-            rect.sizeDelta = size;
-            Button button = obj.GetComponent<Button>();
-            button.targetGraphic = img;
-            label = Label(obj.transform, 17, Vector2.zero, size);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = new Vector2(10f, 2f);
-            label.rectTransform.offsetMax = new Vector2(-10f, -2f);
-            return button;
+            SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
 }
