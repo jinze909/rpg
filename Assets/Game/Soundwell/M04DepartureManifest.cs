@@ -13,7 +13,7 @@ namespace Rpg.Soundwell
         UncheckedDraft,
         NoShallowTender,
         NoLandingReceiver,
-        NoReturneeDemand,
+        NoRescueBerthPlan,
         InsufficientBerths,
         MissingOfficialStamp,
         UnacceptedEscortFlag
@@ -22,8 +22,9 @@ namespace Rpg.Soundwell
     /// <summary>
     /// M04's factual departure check, separate from the M03 decision about
     /// where to seek a ship. A route choice alone never creates a hull, crew,
-    /// landing boat, receiver, or enough bunks for the named returnees.
-    /// The host supplies only actual, confirmed resources from this voyage.
+    /// landing boat, receiver, or the berths being reserved for the rescue.
+    /// The host supplies confirmed resources and a first-trip reserve plan.
+    /// Individual willingness and boarding are checked in M07.
     /// This object does not create an independent save or voyage authority.
     /// </summary>
     public sealed class M04DepartureManifest
@@ -60,6 +61,7 @@ namespace Rpg.Soundwell
         public string ShallowTender { get; }
         public bool DraftChecked { get; }
         public int AvailableBerths { get; }
+        // Rescue berths requested for the first trip. No people have been booked yet.
         public int ReturneesToBook { get; }
         public string LandingReceiver { get; }
         public bool OfficialRegistrationEffective { get; }
@@ -82,7 +84,7 @@ namespace Rpg.Soundwell
             if (string.IsNullOrWhiteSpace(LandingReceiver))
                 blockers.Add(M04DepartureBlocker.NoLandingReceiver);
             if (ReturneesToBook == 0)
-                blockers.Add(M04DepartureBlocker.NoReturneeDemand);
+                blockers.Add(M04DepartureBlocker.NoRescueBerthPlan);
             else if (ReturneesToBook > AvailableBerths)
                 blockers.Add(M04DepartureBlocker.InsufficientBerths);
 

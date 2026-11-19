@@ -61,7 +61,7 @@ namespace Rpg.Tests.Editor
                 view.SetConfirmedManifest(actuallyVerified);
                 Assert.That(view.ConfirmButton.interactable, Is.True);
                 Assert.That(view.Details.text, Does.Contain("Verified berths: 18"));
-                Assert.That(view.Details.text, Does.Contain("returnees on this trip: 13"));
+                Assert.That(view.Details.text, Does.Contain("rescue berths to reserve: 13"));
                 Assert.That(view.Details.text, Does.Contain("Vessel: Inspected hull"));
                 Assert.That(view.Details.text, Does.Contain("pilot: Confirmed pilot"));
                 Assert.That(view.Details.text, Does.Contain("Crew: 3"));
