@@ -146,6 +146,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void WrongSignalCannotCompleteFogLegAndSlowSoundRecoversSameCue()
+        {
+            var root = new GameObject("Fog wrong-heading recovery");
+            FogListeningView view = null;
+            string priorLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var session = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Ahead,
+                        FogCueKind.ClearWater, 80) },
+                    maxListenFocus: 1, maxHullIntegrity: 2);
+                int saved = 0;
+                view = new FogListeningView(root.transform, session, _ => saved++);
+
+                view.SignalButton.onClick.Invoke();
+                Assert.That(session.CurrentStep, Is.Zero);
+                Assert.That(session.IsComplete, Is.False);
+                Assert.That(view.ContinueButton.interactable, Is.False);
+                Assert.That(view.CueText.text,
+                    Does.Contain("Lost bearing; listen again or slow and sound"));
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(saved, Is.Zero);
+
+                view.SlowButton.onClick.Invoke();
+                Assert.That(session.CurrentStep, Is.EqualTo(1));
+                Assert.That(session.Succeeded, Is.True);
+                Assert.That(view.ContinueButton.interactable, Is.True);
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(saved, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(priorLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void HelmButtonsResolveHazardSignalAndDeliverCompletedSessionOnce()
         {
             var root = new GameObject("Fog view helm");
