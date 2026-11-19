@@ -8,7 +8,9 @@ published candidate verifies from the committed binary with no network.
 """
 import hashlib
 import http.client
+import os
 from pathlib import Path
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -23,6 +25,12 @@ EXPECTED_SIZE = 8328684
 FONT_PATH = Path("Assets/Game/Resources/Soundwell/Fonts/SoundwellChinese.ttf")
 
 
+def git_blob_sha1(data):
+    return hashlib.sha1(
+        b"blob " + str(len(data)).encode() + b"\x00" + data
+    ).hexdigest()
+
+
 def checked_download():
     last_error = None
     for attempt in range(3):
@@ -34,8 +42,7 @@ def checked_download():
                 raw = response.read(EXPECTED_SIZE + 1)
             if len(raw) != EXPECTED_SIZE:
                 raise ValueError("Unexpected OFL CJK font size: " + str(len(raw)))
-            git_blob = b"blob " + str(len(raw)).encode() + b"\x00" + raw
-            actual = hashlib.sha1(git_blob).hexdigest()
+            actual = git_blob_sha1(raw)
             if actual != EXPECTED_GIT_BLOB_SHA1:
                 raise ValueError("Pinned OFL font blob SHA mismatch: " + actual)
             return raw
@@ -46,26 +53,40 @@ def checked_download():
     raise RuntimeError("Unable to verify pinned OFL Chinese font") from last_error
 
 
-def main():
-    if FONT_PATH.is_file():
+def _atomic_write_bytes(target, data):
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=".font-stage-", dir=target.parent)
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+        tmp_path.replace(target)
+    except BaseException:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise
+
+
+def main(font_path=None):
+    target = FONT_PATH if font_path is None else Path(font_path)
+    if target.is_symlink() or target.parent.is_symlink():
+        raise RuntimeError("Expected font path must not be a symlink.")
+    if target.is_file():
         # All later migrations inherit the already-published OFL binary.
         # Hash its actual bytes before reusing it, without network access or
         # reauthoring a new asset/metadata file on each Unity preparation.
-        current = FONT_PATH.read_bytes()
-        digest = hashlib.sha1(
-            b"blob " + str(len(current)).encode() + b"\x00" + current
-        ).hexdigest()
+        current = target.read_bytes()
+        digest = git_blob_sha1(current)
         if len(current) != EXPECTED_SIZE or digest != EXPECTED_GIT_BLOB_SHA1:
             raise ValueError("Existing Chinese font is not the pinned OFL blob.")
         print("Existing pinned OFL Chinese font verified:", digest)
         return
-    if FONT_PATH.exists():
+    if target.exists():
         raise RuntimeError("Expected font path is not a regular file.")
-    if not FONT_PATH.parent.parent.is_dir():
+    if not target.parent.parent.is_dir():
         raise RuntimeError("Soundwell resource root missing.")
     raw = checked_download()
-    FONT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    FONT_PATH.write_bytes(raw)
+    _atomic_write_bytes(target, raw)
     print("Pinned OFL CJK font staged; size", len(raw),
           "Git blob SHA", EXPECTED_GIT_BLOB_SHA1)
 
