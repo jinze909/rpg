@@ -51,6 +51,37 @@ namespace Rpg.Soundwell
                 key => variables.GetInt(key), out prompted);
         }
 
+        // Starting a new M03 voyage choice invalidates downstream outcomes
+        // from an earlier passage. A previous ship, roster, fog leg, or
+        // physical farewell gift must never become facts of the new trip.
+        // No new save authority is introduced; the existing Makinom keys
+        // are reset before the next route is chosen.
+        public static bool TryResetPreviousOutboundFacts(Action<string, int> setInt)
+        {
+            if (setInt == null)
+                return false;
+
+            // Invalidate every published completion flag first. If a later
+            // field reset fails, no previous voyage result can be read back
+            // as a completed M04/sea leg while the new visit is pending.
+            setInt(M04DepartureFacts.ConfirmedKey, 0);
+            setInt(M04RosterFacts.ReconciledKey, 0);
+            setInt(FogListeningFacts.CompletedKey, 0);
+            setInt(M04QiQueCupFacts.CupCarriedKey, 0);
+            setInt(M04XiaodouFarewellFacts.RealLineKey, 0);
+
+            return M04DepartureFacts.TryResetForNewVisit(setInt) &&
+                M04RosterFacts.TryResetForNewVisit(setInt) &&
+                FogListeningFacts.TryResetForNewLeg(setInt);
+        }
+
+        private static bool TryResetPreviousOutboundFacts()
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            return variables != null && TryResetPreviousOutboundFacts(
+                (key, value) => variables.Set(key, value));
+        }
+
         internal void Begin(Action finished)
         {
             onFinished = finished;
@@ -150,6 +181,7 @@ namespace Rpg.Soundwell
             if (!luJunPending || luJun != null || onFinished == null ||
                 !M02BridgeEvidenceFacts.TryRead(out M02BridgeEvidence evidence) ||
                 !M02OfficialDockFacts.TryReadEffective(out bool officialStamp) ||
+                !TryResetPreviousOutboundFacts() ||
                 !M03LuJunFacts.TryResetForNewVisit())
                 return;
 
