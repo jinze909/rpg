@@ -166,6 +166,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedWestLaneCanvasCannotAdvancePensionOrReceiveLayoutAndLocaleCallbacks()
+        {
+            // Scene teardown and localization may race the external
+            // viewport callback in either order.
+            foreach (bool layoutFirst in new[] { true, false })
+            {
+                var scene = new GameObject("Destroyed M01 West Lane");
+                try
+                {
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                    int saved = 0;
+                    view = new M01WestLaneView(scene.transform,
+                        M00RollCallOutcome.AnsweredThird, true, _ => saved++);
+                    Assert.That(view.Stage, Is.EqualTo(M01WestLaneStage.AtDoor));
+
+                    UnityEngine.Object.DestroyImmediate(scene);
+                    scene = null;
+                    if (layoutFirst)
+                        Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                    Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                        SoundwellUiLocalization.Chinese));
+                    Assert.DoesNotThrow(() => view.LayoutForViewportAspect(32f / 9f));
+                    Assert.DoesNotThrow(() => view.Refresh());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                        SoundwellUiLocalization.English));
+                    Assert.That(view.Stage, Is.EqualTo(M01WestLaneStage.AtDoor));
+                    Assert.That(view.Decision, Is.Null,
+                        "Unloading West Lane must not choose a pension path.");
+                    Assert.That(saved, Is.Zero);
+                }
+                finally
+                {
+                    view?.Dispose();
+                    if (scene != null)
+                        UnityEngine.Object.DestroyImmediate(scene);
+                }
+            }
+        }
+
+        [Test]
         public void SceneUnloadDetachesLocaleListenerAndRejectsInvalidIdentity()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>

@@ -129,6 +129,50 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedDockCanvasCannotRetainFocusOrCompletePassageAfterSceneUnload()
+        {
+            foreach (bool layoutFirst in new[] { true, false })
+            {
+                var scene = new GameObject("Destroyed M01 dock briefing");
+                try
+                {
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                    int completed = 0;
+                    view = new M01DockBriefingView(scene.transform, () => completed++);
+                    Assert.That(view.Stage, Is.EqualTo(M01DockStage.AwaitingOpeningReply));
+
+                    UnityEngine.Object.DestroyImmediate(scene);
+                    scene = null;
+
+                    // A host focus query can arrive before its resize callback.
+                    Assert.That(view.PreferredFocusTarget, Is.Null);
+                    if (layoutFirst)
+                        Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                    Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                        SoundwellUiLocalization.Chinese));
+                    Assert.DoesNotThrow(() => view.LayoutForViewportAspect(32f / 9f));
+                    Assert.DoesNotThrow(() => view.Refresh());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                        SoundwellUiLocalization.English));
+
+                    Assert.That(view.PreferredFocusTarget, Is.Null);
+                    Assert.That(view.Stage, Is.EqualTo(M01DockStage.AwaitingOpeningReply));
+                    Assert.That(view.InspectedLead, Is.Null,
+                        "Unloading dock briefing must not inspect or book a route.");
+                    Assert.That(completed, Is.Zero);
+                }
+                finally
+                {
+                    view?.Dispose();
+                    if (scene != null)
+                        UnityEngine.Object.DestroyImmediate(scene);
+                }
+            }
+        }
+
+        [Test]
         public void DisposingViewDoesNotFinishStoryOrRetainListener()
         {
             int calls = 0;

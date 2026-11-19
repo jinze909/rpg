@@ -98,6 +98,8 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            // The dock scene can unload before its host disposes the panel.
+            // Retire stale locale/focus callbacks instead of scaling dead UI.
             if (canvasObject == null || authoredView == null)
             {
                 Dispose();
