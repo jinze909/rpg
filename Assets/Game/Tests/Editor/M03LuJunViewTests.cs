@@ -108,7 +108,8 @@ namespace Rpg.Tests.Editor
                 view.AdvanceButton.onClick.Invoke();
             view.GetChoiceButton(0).onClick.Invoke();
             view.GetChoiceButton(2).onClick.Invoke();
-            view.GetChoiceButton(1).onClick.Invoke();
+            // RefuseSecrecy is the third reply (index 2), not Undecided.
+            view.GetChoiceButton(2).onClick.Invoke();
             view.GetChoiceButton(3).onClick.Invoke();
             Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
             Assert.That(view.Encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.RefuseSecrecy));
