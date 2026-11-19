@@ -127,8 +127,16 @@ namespace Rpg.Soundwell
             int crew = getInt(AssignedCrewKey);
             int berths = getInt(AvailableBerthsKey);
             int returnees = getInt(ReturneesToBookKey);
-            bool officialStamp = getInt(OfficialStampKey) == 1;
-            bool escortFlag = getInt(EscortFlagKey) == 1;
+            int rawOfficialStamp = getInt(OfficialStampKey);
+            int rawEscortFlag = getInt(EscortFlagKey);
+            // Both persisted flags must be canonical booleans. Treating an
+            // unexpected integer as false would silently trust a corrupted
+            // merchant-route departure despite malformed saved state.
+            if ((rawOfficialStamp != 0 && rawOfficialStamp != 1) ||
+                (rawEscortFlag != 0 && rawEscortFlag != 1))
+                return true;
+            bool officialStamp = rawOfficialStamp == 1;
+            bool escortFlag = rawEscortFlag == 1;
 
             // Reject corrupted or partial save state rather than fabricating a voyage.
             if (crew <= 0 || berths <= 0 || returnees <= 0 || returnees > berths)
