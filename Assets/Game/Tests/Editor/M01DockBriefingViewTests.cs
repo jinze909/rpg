@@ -139,5 +139,20 @@ namespace Rpg.Tests.Editor
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             Assert.That(calls, Is.Zero);
         }
+
+        [Test]
+        public void DestroyedViewSafelyHandlesLayoutFocusAndLocaleChanges()
+        {
+            int completed = 0;
+            view = new M01DockBriefingView(root.transform, () => completed++);
+            UnityEngine.Object.DestroyImmediate(root);
+            root = null;
+
+            Assert.That(view.PreferredFocusTarget, Is.Null);
+            Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+            Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+            Assert.DoesNotThrow(() => view.Dispose());
+            Assert.That(completed, Is.Zero);
+        }
     }
 }

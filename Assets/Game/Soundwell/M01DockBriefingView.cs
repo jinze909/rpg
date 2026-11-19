@@ -38,12 +38,13 @@ namespace Rpg.Soundwell
         {
             get
             {
-                if (disposed || delivered)
+                if (disposed || delivered || canvasObject == null)
                     return null;
-                return briefing.Stage == M01DockStage.AwaitingOpeningReply ||
-                    briefing.Stage == M01DockStage.ReviewingRoutes
-                    ? (choices.Length > 0 ? choices[0] : null)
-                    : briefing.Stage == M01DockStage.OfferingCake ? advanceButton : null;
+                if (briefing.Stage == M01DockStage.AwaitingOpeningReply ||
+                    briefing.Stage == M01DockStage.ReviewingRoutes)
+                    return choices.Length > 0 && choices[0] != null ? choices[0] : null;
+                return briefing.Stage == M01DockStage.OfferingCake && advanceButton != null
+                    ? advanceButton : null;
             }
         }
 
@@ -80,8 +81,8 @@ namespace Rpg.Soundwell
                 "M01 dock continue", new Vector2(0f, -227f),
                 new Vector2(440f, 45f), 17, out advanceLabel, buttonColor);
             advanceButton.onClick.AddListener(Advance);
-            LayoutForViewportAspect((float)Mathf.Max(Screen.width, 1) /
-                Mathf.Max(Screen.height, 1));
+            LayoutForViewportAspect((float)Math.Max(Screen.width, 1) /
+                Math.Max(Screen.height, 1));
             Refresh();
             SoundwellUiLocalization.Changed += Refresh;
         }
@@ -97,6 +98,11 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -163,6 +169,7 @@ namespace Rpg.Soundwell
                 EventSystem system = EventSystem.current;
                 if (Application.isPlaying && system != null &&
                     !system.alreadySelecting &&
+                    advanceButton != null &&
                     system.currentSelectedGameObject == advanceButton.gameObject &&
                     choices.Length > 0 && choices[0] != null &&
                     choices[0].gameObject.activeInHierarchy)
