@@ -15,6 +15,7 @@ namespace Rpg.Soundwell
         private static readonly Color Paper = new Color(0.91f, 0.89f, 0.80f);
         private static readonly Color Gold = new Color(0.60f, 0.39f, 0.17f);
         private static readonly Color ButtonInk = new Color(0.16f, 0.23f, 0.26f);
+        private static readonly Color ButtonFill = new Color(0.82f, 0.84f, 0.80f);
 
         private readonly M00RollCallSequence sequence;
         private readonly GameObject canvasObject;
@@ -54,57 +55,37 @@ namespace Rpg.Soundwell
             this.onContinue = onContinue;
             englishFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-            canvasObject = new GameObject("M00 twelfth-year roll call canvas",
-                typeof(RectTransform), typeof(Canvas));
-            canvasObject.transform.SetParent(parent, false);
-            Canvas canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 120;
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(960f, 540f);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasObject.AddComponent<GraphicRaycaster>();
+            canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
+                parent, "M00 twelfth-year roll call canvas", 120, out authoredView,
+                new Color(0.035f, 0.055f, 0.065f, 0.94f), Paper);
 
-            CreateStretchPanel(canvas.transform, "M00 roll call dimmed square",
-                new Color(0.035f, 0.055f, 0.065f, 0.94f));
+            title = SoundwellUiTheme.CreateLabel(authoredView, 25,
+                new Vector2(0f, 184f), new Vector2(820f, 42f), Gold);
 
-            var viewObject = new GameObject("M00 roll call authored view",
-                typeof(RectTransform));
-            viewObject.transform.SetParent(canvas.transform, false);
-            authoredView = (RectTransform)viewObject.transform;
-            authoredView.anchorMin = authoredView.anchorMax = new Vector2(0.5f, 0.5f);
-            authoredView.anchoredPosition = Vector2.zero;
-            authoredView.sizeDelta = new Vector2(960f, 540f);
-
-            CreatePanel(authoredView, "M00 roll call paper panel",
-                Vector2.zero, new Vector2(900f, 470f), Paper);
-
-            title = CreateLabel(authoredView,
-                Copy("THE TWELFTH-YEAR ROLL CALL", "第十二年的点名"),
-                25, Gold, new Vector2(0f, 184f), new Vector2(820f, 42f));
-
-            speaker = CreateLabel(authoredView, string.Empty, 23, Ink,
-                new Vector2(0f, 91f), new Vector2(820f, 110f));
+            speaker = SoundwellUiTheme.CreateLabel(authoredView, 23,
+                new Vector2(0f, 91f), new Vector2(820f, 110f), Ink);
             speaker.alignment = TextAnchor.MiddleCenter;
 
-            guidance = CreateLabel(authoredView, string.Empty, 16, ButtonInk,
-                new Vector2(0f, 14f), new Vector2(820f, 54f));
+            guidance = SoundwellUiTheme.CreateLabel(authoredView, 16,
+                new Vector2(0f, 14f), new Vector2(820f, 54f), ButtonInk);
             guidance.alignment = TextAnchor.MiddleCenter;
 
             for (int i = 0; i < choiceButtons.Length; i++)
             {
                 int choiceIndex = i;
                 Vector2 position = new Vector2(0f, -66f - i * 61f);
-                choiceButtons[i] = CreateButton(authoredView,
+                choiceButtons[i] = SoundwellUiTheme.CreateButton(authoredView,
                     "M00 roll call choice " + (i + 1), position,
-                    new Vector2(720f, 46f), out choiceLabels[i]);
+                    new Vector2(720f, 46f), 17, out choiceLabels[i],
+                    ButtonFill, Ink);
                 choiceButtons[i].onClick.AddListener(() => Choose(choiceIndex));
                 choiceButtons[i].gameObject.SetActive(false);
             }
 
-            continueButton = CreateButton(authoredView, "M00 roll call continue",
-                new Vector2(0f, -188f), new Vector2(340f, 48f), out continueLabel);
+            continueButton = SoundwellUiTheme.CreateButton(authoredView,
+                "M00 roll call continue", new Vector2(0f, -188f),
+                new Vector2(340f, 48f), 17, out continueLabel,
+                ButtonFill, Ink);
             continueLabel.text = Copy("Continue", "继续");
             continueButton.onClick.AddListener(Continue);
             continueButton.gameObject.SetActive(false);
@@ -192,12 +173,7 @@ namespace Rpg.Soundwell
             if (!(aspect > 0f) || float.IsNaN(aspect) || float.IsInfinity(aspect))
                 return;
 
-            float width = Mathf.Sqrt(960f * 540f * aspect);
-            float height = Mathf.Sqrt(960f * 540f / aspect);
-            float scale = Mathf.Min(1f, Mathf.Min(width / 960f, height / 540f));
-            if (scale < 1f)
-                scale *= 0.95f;
-            authoredView.localScale = new Vector3(scale, scale, 1f);
+            SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
             lastViewAspect = aspect;
         }
 
@@ -213,14 +189,7 @@ namespace Rpg.Soundwell
                     button.onClick.RemoveAllListeners();
             if (continueButton != null)
                 continueButton.onClick.RemoveAllListeners();
-            if (canvasObject != null)
-            {
-                canvasObject.SetActive(false);
-                if (Application.isPlaying)
-                    UnityEngine.Object.Destroy(canvasObject);
-                else
-                    UnityEngine.Object.DestroyImmediate(canvasObject);
-            }
+            SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
 
         private void Choose(int index)
@@ -259,72 +228,5 @@ namespace Rpg.Soundwell
         private static string Copy(string english, string chinese) =>
             SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
                 ? chinese : english;
-
-        private static Image CreateStretchPanel(Transform parent, string name, Color color)
-        {
-            var obj = new GameObject(name,
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            obj.transform.SetParent(parent, false);
-            var image = obj.GetComponent<Image>();
-            image.color = color;
-            image.raycastTarget = false;
-            image.rectTransform.anchorMin = Vector2.zero;
-            image.rectTransform.anchorMax = Vector2.one;
-            image.rectTransform.offsetMin = Vector2.zero;
-            image.rectTransform.offsetMax = Vector2.zero;
-            return image;
-        }
-
-        private static Image CreatePanel(Transform parent, string name,
-            Vector2 position, Vector2 size, Color color)
-        {
-            var obj = new GameObject(name,
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            obj.transform.SetParent(parent, false);
-            var image = obj.GetComponent<Image>();
-            image.color = color;
-            image.raycastTarget = false;
-            image.rectTransform.anchorMin = image.rectTransform.anchorMax =
-                new Vector2(0.5f, 0.5f);
-            image.rectTransform.anchoredPosition = position;
-            image.rectTransform.sizeDelta = size;
-            return image;
-        }
-
-        private static Text CreateLabel(Transform parent, string content, int fontSize,
-            Color color, Vector2 position, Vector2 size)
-        {
-            Text label = SoundwellView.AddLabel(parent, content, fontSize,
-                color, position, size);
-            label.font = SoundwellUiLocalization.PresentationFont(label.font);
-            label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = Mathf.Max(10, fontSize - 4);
-            label.resizeTextMaxSize = fontSize;
-            return label;
-        }
-
-        private static Button CreateButton(Transform parent, string name,
-            Vector2 position, Vector2 size, out Text label)
-        {
-            var obj = new GameObject(name,
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            obj.transform.SetParent(parent, false);
-            var image = obj.GetComponent<Image>();
-            image.color = new Color(0.82f, 0.84f, 0.80f);
-            var button = obj.GetComponent<Button>();
-            button.targetGraphic = image;
-            var rect = image.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-
-            label = CreateLabel(obj.transform, string.Empty, 17, Ink,
-                Vector2.zero, size);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = new Vector2(12f, 2f);
-            label.rectTransform.offsetMax = new Vector2(-12f, -2f);
-            return button;
-        }
     }
 }
