@@ -50,7 +50,7 @@
 | old_woman_stone | M00 擦碑的老妇人 | 已触发 / 未触发 | M00 | RC-05 回响 | 未触发也不影响推进 |
 | world_notices | 三则预兆告示（回澜通行税、船被借用、征召告示） | 已出现 / 未出现 | M08 结束、M09、M10 | M11 | 不依赖玩家做了几条案子 |
 | register_notes | 名册上的后果笔迹 | 每个重要选择一条 | 各章 | 名册界面、M16 | 无则不显示 |
-| respect_agency | 尾声主轴（派生，不存储） | 由 survivor_liang、survivor_xiaoqi、rc01_chen_yan、rc02_zheng_yuan、rc03_baiji、shen_relation 推出 | M15、M16 | M16 沈砾的最后一句 | 默认中性 |
+| respect_agency | 尾声主轴（派生，不存储） | 由 survivor_liang、survivor_xiaoqi、rc01_chen_yan、rc02_zheng_yuan、rc03_baiji、shen_relation 推出 | M15、M16 | M16 沈砾的最后一句 | 未做的事留空。经历互有出入或不足时用中性对白。若已决定告别，就按双方是否愿见面收束 |
 | roster_accuracy | 名册对账误认次数与结果 | 数量与档次 | 全程，M10 集中 | M10、M15 | 不造成永久错过，只影响一次窗口或一个时点 |
 | shen_relation | 沈砾关系的具体行为 | 是否先问意愿 / 是否兑现分工 / 是否擅自替人决定 / 明确退出 | M06 泵房相处、M07 梁伯去留、M08 到 M13 的实际分工与决定 | M08、M09、M11 到 M16 | 默认中性，替代路线见 CHARACTERS.md |
 | conscription | 陆钧是否强征、是否保护平民 | 强征 / 部分强征 / 未强征；平民受损程度 | M11 先记没收船票与自愿留下的现场证据，M12 到 M14 续记 | M12、M14、M15、尾声 | 按已发生行为记录，不用一次手续失误永久封路 |
