@@ -306,7 +306,7 @@ namespace Rpg.Soundwell
                 case FogCueKind.ClearWater:
                     return chinese ? "水声平稳，前方暂无障碍。" : "Steady water; path appears clear.";
                 case FogCueKind.ReefSurf:
-                    return chinese ? "低沉礁浪拍击声，需及时避让或减速。" : "Low reef surf ahead; evade or slow down.";
+                    return chinese ? "低沉礁浪拍击声，需及时避让或减速。" : "Low reef surf; check the bearing and evade or slow down.";
                 case FogCueKind.FogBell:
                     return chinese ? "雾钟节律清晰，可回应确认方位。" : "Distinct fog bell; answer to confirm bearing.";
                 case FogCueKind.SignalResponse:
