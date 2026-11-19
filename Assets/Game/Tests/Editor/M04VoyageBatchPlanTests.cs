@@ -76,6 +76,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PreviouslyBookedReturneesKeepFirstVoyageBerthsInStableOrder()
+        {
+            var ledger = new M04RosterLedger();
+            ledger.AddEntry("wait-1", "Unbooked first", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("book-1", "Already booked first", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("wait-2", "Unbooked second", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("book-2", "Already booked second", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("wait-3", "Unbooked third", M04RosterStatus.ConfirmedAtDock);
+            ledger.AddEntry("declined", "Declined person", M04RosterStatus.ConfirmedAtDock);
+            ledger.MarkDeclinedVoyage("declined");
+            Assert.That(ledger.TryBookForVoyage("book-1", 2), Is.True);
+            Assert.That(ledger.TryBookForVoyage("book-2", 2), Is.True);
+
+            M04RosterEntry[][] batches = M04VoyageBatchPlan.PartitionConfirmed(ledger, 2);
+            Assert.That(batches.Length, Is.EqualTo(3));
+            Assert.That(Array.ConvertAll(batches[0], entry => entry.EntryId),
+                Is.EqualTo(new[] { "book-1", "book-2" }));
+            Assert.That(Array.ConvertAll(batches[1], entry => entry.EntryId),
+                Is.EqualTo(new[] { "wait-1", "wait-2" }));
+            Assert.That(Array.ConvertAll(batches[2], entry => entry.EntryId),
+                Is.EqualTo(new[] { "wait-3" }));
+
+            Assert.Throws<InvalidOperationException>(() =>
+                M04VoyageBatchPlan.PartitionConfirmed(ledger, 1),
+                "Reduced verified capacity must not relocate an existing berth reservation.");
+            Assert.That(ledger.BookedCount, Is.EqualTo(2));
+            Assert.That(ledger.GetEntry("book-2").Status,
+                Is.EqualTo(M04RosterStatus.BookedForVoyage));
+            ledger.UnbookFromVoyage("book-2");
+            Assert.That(M04VoyageBatchPlan.PartitionConfirmed(ledger, 1).Length,
+                Is.EqualTo(5));
+        }
+
+        [Test]
         public void PartitionConfirmedFiltersEligibleEntriesAndRejectsUnresolvedDiscrepancies()
         {
             var ledger = new M04RosterLedger();
@@ -97,8 +131,9 @@ namespace Rpg.Tests.Editor
             M04RosterEntry[][] batches = M04VoyageBatchPlan.PartitionConfirmed(ledger, 2);
             Assert.That(batches.Length, Is.EqualTo(2));
             Assert.That(batches[0].Length, Is.EqualTo(2));
-            Assert.That(batches[0][0].EntryId, Is.EqualTo("roll-01"));
-            Assert.That(batches[0][1].EntryId, Is.EqualTo("dock-01"));
+            Assert.That(batches[0][0].EntryId, Is.EqualTo("dock-01"),
+                "The already-booked returnee must keep the first voyage berth.");
+            Assert.That(batches[0][1].EntryId, Is.EqualTo("roll-01"));
             Assert.That(batches[1].Length, Is.EqualTo(1));
             Assert.That(batches[1][0].EntryId, Is.EqualTo("dock-02"));
         }
