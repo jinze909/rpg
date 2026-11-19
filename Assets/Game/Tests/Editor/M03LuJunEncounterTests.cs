@@ -303,6 +303,50 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedVoyagePersistenceRestoresChoiceWithoutLosingConfession()
+        {
+            var encounter = new M03LuJunEncounter(M02BridgeEvidence.FerrymanLog, false);
+            encounter.Begin();
+            encounter.ObserveRollCall();
+            encounter.Ask(M03LuJunOpening.AskWhoCutBridge);
+            encounter.Respond(M03ConfessionResponse.YouChoseForThem);
+            encounter.AnswerSecrecy(M03SecrecyAnswer.RefuseSecrecy);
+
+            Assert.Throws<ArgumentNullException>(() =>
+                encounter.ChooseVoyage(M03VoyageChoice.QiQueMerchant, null));
+            Assert.That(encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+            Assert.That(encounter.Voyage, Is.Null);
+
+            int callbacks = 0;
+            Assert.Throws<InvalidOperationException>(() =>
+                encounter.ChooseVoyage(M03VoyageChoice.QiQueMerchant, completed =>
+                {
+                    callbacks++;
+                    Assert.That(completed.Stage, Is.EqualTo(M03LuJunStage.Complete));
+                    Assert.That(completed.Voyage, Is.EqualTo(M03VoyageChoice.QiQueMerchant));
+                    throw new InvalidOperationException("Interrupted M03 save");
+                }));
+            Assert.That(callbacks, Is.EqualTo(1));
+            Assert.That(encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+            Assert.That(encounter.Voyage, Is.Null);
+            Assert.That(encounter.VoyagePathValue, Is.Null);
+            Assert.That(encounter.Confession, Is.EqualTo(M03LuConfession.AskedWithEvidence));
+            Assert.That(encounter.Reaction, Is.EqualTo(M03ConfessionResponse.YouChoseForThem));
+            Assert.That(encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.RefuseSecrecy));
+
+            encounter.ChooseVoyage(M03VoyageChoice.QiQueMerchant, completed =>
+            {
+                callbacks++;
+                Assert.That(completed.VoyagePathValue, Is.EqualTo("祁雀商路"));
+            });
+            Assert.That(callbacks, Is.EqualTo(2));
+            Assert.That(encounter.Stage, Is.EqualTo(M03LuJunStage.Complete));
+            Assert.Throws<InvalidOperationException>(() =>
+                encounter.ChooseVoyage(M03VoyageChoice.LuJunEscort, _ => callbacks++));
+            Assert.That(callbacks, Is.EqualTo(2));
+        }
+
+        [Test]
         public void InvalidTransitionsAndIncompletePersistenceAreRejected()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>

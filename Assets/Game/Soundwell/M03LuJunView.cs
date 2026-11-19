@@ -148,12 +148,23 @@ namespace Rpg.Soundwell
                     break;
                 case M03LuJunStage.ChoosingVoyage:
                     if (!encounter.CanChoose((M03VoyageChoice)index)) return;
-                    encounter.ChooseVoyage((M03VoyageChoice)index);
+                    // Lock UGUI before host persistence to reject repeated
+                    // or reentrant Submit. Retain the callback on failure.
                     delivered = true;
                     Refresh();
-                    Action<M03LuJunEncounter> callback = onFinished;
-                    onFinished = null;
-                    callback?.Invoke(encounter);
+                    try
+                    {
+                        encounter.ChooseVoyage((M03VoyageChoice)index, onFinished);
+                        onFinished = null;
+                    }
+                    catch
+                    {
+                        // The encounter has restored ChoosingVoyage and
+                        // cleared its provisional choice for a safe retry.
+                        delivered = false;
+                        Refresh();
+                        throw;
+                    }
                     return;
                 default:
                     return;

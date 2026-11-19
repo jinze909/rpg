@@ -153,6 +153,27 @@ namespace Rpg.Soundwell
             Stage = M03LuJunStage.Complete;
         }
 
+        // Publish the completed route through Makinom before treating the
+        // choice as final. On an interrupted host write keep the same spoken
+        // confession/secrecy answer and return to the actual route choice.
+        public void ChooseVoyage(
+            M03VoyageChoice choice, Action<M03LuJunEncounter> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            ChooseVoyage(choice);
+            try
+            {
+                recordWithHost(this);
+            }
+            catch
+            {
+                Voyage = null;
+                Stage = M03LuJunStage.ChoosingVoyage;
+                throw;
+            }
+        }
+
         public string VoyagePathValue
         {
             get
