@@ -51,6 +51,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/M03LuJunInputTests.cs": {
         "ShipOpeningMovesGamepadFocusOffTheReusedOfficialVoyageButton":
             "Rpg.Tests.Editor.M03LuJunInputTests.ShipOpeningMovesGamepadFocusOffTheReusedOfficialVoyageButton",
+        "RefusingSecrecyWithGamepadDoesNotBookAShipUntilASeparateSubmit":
+            "Rpg.Tests.Editor.M03LuJunInputTests.RefusingSecrecyWithGamepadDoesNotBookAShipUntilASeparateSubmit",
     },
     "Assets/Game/Tests/Editor/M00HanRansomFactsTests.cs": {
         "PersistsFixedFortyOneAndReadsLegacyMissingAsFortyOne":
