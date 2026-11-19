@@ -223,6 +223,44 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedHostCallbackKeepsArchiveCompletionRetryableAndBlocksReentrancy()
+        {
+            var inquiry = new M02BridgeInquiry();
+            inquiry.Begin();
+            int attempts = 0;
+            M02BridgeEvidence delivered = M02BridgeEvidence.None;
+            view = new M02BridgeInquiryView(root.transform, inquiry, clues =>
+            {
+                attempts++;
+                if (attempts == 1)
+                {
+                    view.ContinueButton.onClick.Invoke();
+                    throw new System.InvalidOperationException("Simulated Makinom save failure");
+                }
+                delivered = clues;
+            });
+
+            view.GetEvidenceButton(0).onClick.Invoke();
+            view.ContinueButton.onClick.Invoke();
+            view.GetEvidenceButton(0).onClick.Invoke();
+            Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.HarborArchive));
+            Assert.That(inquiry.LastExamined, Is.EqualTo(M02BridgeEvidence.WarReportDraft));
+
+            Assert.Throws<System.InvalidOperationException>(() => view.ContinueButton.onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.HarborArchive));
+            Assert.That(inquiry.LastExamined, Is.EqualTo(M02BridgeEvidence.WarReportDraft));
+            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.Finished));
+            Assert.That(delivered, Is.EqualTo(
+                M02BridgeEvidence.CleanCableCut | M02BridgeEvidence.WarReportDraft));
+            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+        }
+
+        [Test]
         public void DestroyingTheViewDoesNotEraseAnAlreadyObservedClue()
         {
             var inquiry = new M02BridgeInquiry();
