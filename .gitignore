@@ -8,8 +8,11 @@
 /[Bb]uild/
 /[Bb]uilds/
 /[Mm]emoryCaptures/
+/[Uu]tmp/
 /.vs/
+/.vscode/
 /.idea/
+.DS_Store
 *.csproj
 *.sln
 *.user

@@ -62,9 +62,10 @@ namespace Rpg.Soundwell
                 {
                     if (reviewOutcome.Approved && !M02MissingReturnFacts.TryRecordApproved(reviewOutcome))
                         return;
+                    reviewOutcome = null;
                     Action completed = onFinished;
                     onFinished = null;
-                    completed.Invoke();
+                    completed?.Invoke();
                     return;
                 }
             }
@@ -105,10 +106,11 @@ namespace Rpg.Soundwell
 
         private void RetryEvidence()
         {
-            RetryClue(M02BridgeEvidence.CleanCableCut);
-            RetryClue(M02BridgeEvidence.FerrymanLog);
-            RetryClue(M02BridgeEvidence.ThirdBellSignal);
-            RetryClue(M02BridgeEvidence.WarReportDraft);
+            foreach (M02BridgeEvidence clue in (M02BridgeEvidence[])Enum.GetValues(typeof(M02BridgeEvidence)))
+            {
+                if (clue != M02BridgeEvidence.None)
+                    RetryClue(clue);
+            }
         }
 
         private void RetryClue(M02BridgeEvidence clue)
@@ -135,8 +137,11 @@ namespace Rpg.Soundwell
         {
             onFinished = null;
             desk?.Dispose();
+            desk = null;
             inquiry?.Dispose();
+            inquiry = null;
             review?.Dispose();
+            review = null;
         }
     }
 }
