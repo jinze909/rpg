@@ -178,6 +178,51 @@ namespace Rpg.Tests.Editor
             Assert.That(sequence.IsAwaitingResponse, Is.True);
         }
 
+        [Test]
+        public void HostFailureOnContinueRestoresButtonAndBlocksReentrantSubmit()
+        {
+            M00RollCallSequence sequence = Begin();
+            int attempts = 0;
+            int completed = 0;
+            M00RollCallOutcome? deliveredOutcome = null;
+            bool failOnce = true;
+
+            view = new M00RollCallView(root.transform, sequence, outcome =>
+            {
+                attempts++;
+                Assert.That(outcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
+                Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+                view.ContinueButton.onClick.Invoke();
+                if (failOnce)
+                {
+                    failOnce = false;
+                    throw new InvalidOperationException("host transition failed");
+                }
+
+                deliveredOutcome = outcome;
+                completed++;
+            });
+
+            view.GetChoiceButton(0).onClick.Invoke();
+            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                view.ContinueButton.onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(completed, Is.EqualTo(0));
+            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.True);
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(completed, Is.EqualTo(1));
+            Assert.That(deliveredOutcome, Is.EqualTo(M00RollCallOutcome.AnsweredFirst));
+            Assert.That(view.ContinueButton.gameObject.activeSelf, Is.False);
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(completed, Is.EqualTo(1));
+        }
+
         private M00RollCallSequence Begin()
         {
             root = new GameObject("M00 roll call view regression root");
