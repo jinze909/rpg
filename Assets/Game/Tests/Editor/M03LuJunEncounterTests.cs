@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 
@@ -183,6 +184,61 @@ namespace Rpg.Tests.Editor
                     Does.Contain(en[i]).And.Contain("Official passage requires"));
                 Assert.That(encounter.CanChoose(M03VoyageChoice.HanQiaoOfficial), Is.False);
             }
+        }
+
+        [Test]
+        public void InterruptedM03WriteCannotExposePreviousVoyageOrPartialConfession()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> save = (key, value) => store[key] = value;
+            Func<string, int> read = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+
+            var previous = new M03LuJunEncounter(M02BridgeEvidence.None, true);
+            previous.Begin();
+            previous.ObserveRollCall();
+            previous.Ask(M03LuJunOpening.NeedAShip);
+            previous.ChooseVoyage(M03VoyageChoice.HanQiaoOfficial);
+            Assert.That(M03LuJunFacts.TryRecord(previous, save), Is.True);
+            Assert.That(M03LuJunFacts.TryRead(read, out M03LuConfession oldConfession,
+                out M03SecrecyAnswer oldSecrecy, out M03VoyageChoice? oldRoute), Is.True);
+            Assert.That(oldRoute, Is.EqualTo(M03VoyageChoice.HanQiaoOfficial));
+
+            var changed = new M03LuJunEncounter(M02BridgeEvidence.WarReportDraft, false);
+            changed.Begin();
+            changed.ObserveRollCall();
+            changed.Ask(M03LuJunOpening.AskWhoCutBridge);
+            changed.Respond(M03ConfessionResponse.RemainSilent);
+            changed.AnswerSecrecy(M03SecrecyAnswer.RefuseSecrecy);
+            changed.ChooseVoyage(M03VoyageChoice.QiQueMerchant);
+            Assert.Throws<InvalidOperationException>(() =>
+                M03LuJunFacts.TryRecord(changed, (key, value) =>
+                {
+                    if (key == M03LuJunFacts.SecrecyKey)
+                        throw new InvalidOperationException("Simulated interrupted M03 write");
+                    save(key, value);
+                }));
+
+            Assert.That(store[M03LuJunFacts.VoyageKey], Is.Zero);
+            Assert.That(M03LuJunFacts.TryRead(read, out M03LuConfession partialConfession,
+                out M03SecrecyAnswer partialSecrecy, out M03VoyageChoice? partialRoute), Is.True);
+            Assert.That(partialRoute, Is.Null);
+            Assert.That(partialConfession, Is.EqualTo(M03LuConfession.NotAsked));
+            Assert.That(partialSecrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
+
+            var keys = new List<string>();
+            Assert.That(M03LuJunFacts.TryRecord(changed, (key, value) =>
+            {
+                keys.Add(key);
+                save(key, value);
+            }), Is.True);
+            Assert.That(keys[0], Is.EqualTo(M03LuJunFacts.VoyageKey));
+            Assert.That(keys[keys.Count - 1], Is.EqualTo(M03LuJunFacts.VoyageKey));
+            Assert.That(M03LuJunFacts.TryRead(read, out M03LuConfession confession,
+                out M03SecrecyAnswer secrecy, out M03VoyageChoice? route), Is.True);
+            Assert.That(confession, Is.EqualTo(M03LuConfession.AskedWithEvidence));
+            Assert.That(secrecy, Is.EqualTo(M03SecrecyAnswer.RefuseSecrecy));
+            Assert.That(route, Is.EqualTo(M03VoyageChoice.QiQueMerchant));
         }
 
         [Test]
