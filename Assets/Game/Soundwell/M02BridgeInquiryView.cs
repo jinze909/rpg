@@ -50,16 +50,17 @@ namespace Rpg.Soundwell
                 if (inquiry.Location == M02EvidenceLocation.FerryWarehouse)
                 {
                     for (int i = 0; i < WarehouseClues.Length; i++)
-                        if (clueButtons[i].gameObject.activeInHierarchy &&
+                        if (clueButtons[i] != null && clueButtons[i].gameObject.activeInHierarchy &&
                             !inquiry.Has(WarehouseClues[i]))
                             return clueButtons[i];
                 }
                 else if (inquiry.Location == M02EvidenceLocation.HarborArchive &&
-                    clueButtons[0].gameObject.activeInHierarchy &&
+                    clueButtons[0] != null && clueButtons[0].gameObject.activeInHierarchy &&
                     !inquiry.Has(M02BridgeEvidence.WarReportDraft))
                     return clueButtons[0];
 
-                return continueButton.gameObject.activeInHierarchy ? continueButton : null;
+                return continueButton != null && continueButton.gameObject.activeInHierarchy
+                    ? continueButton : null;
             }
         }
 
@@ -122,6 +123,11 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            if (canvasObject == null || authoredView == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -155,10 +161,10 @@ namespace Rpg.Soundwell
                 clueLabels[i].font = font;
                 if (warehouse)
                     clueLabels[i].text = (chinese ? zh[i] : en[i]) +
-                        (inquiry.Has(WarehouseClues[i]) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
+                        (inquiry.Has(WarehouseClues[i]) ? (chinese ? " (已查)" : " (seen)") : string.Empty);
                 else if (archive)
                     clueLabels[i].text = (chinese ? "调阅战报底稿" : "Read the draft battle report") +
-                        (inquiry.Has(M02BridgeEvidence.WarReportDraft) ? (chinese ? "（已查）" : " (seen)") : string.Empty);
+                        (inquiry.Has(M02BridgeEvidence.WarReportDraft) ? (chinese ? " (已查)" : " (seen)") : string.Empty);
             }
             continueLabel.text = location == M02EvidenceLocation.FerryWarehouse
                 ? (chinese ? "继续到港务署旧档案室" : "Continue to the harbor archive")

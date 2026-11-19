@@ -82,7 +82,6 @@ namespace Rpg.Tests.Editor
             Assert.That(view.PreferredFocusTarget, Is.SameAs(view.GetEvidenceButton(2)));
             view.GetEvidenceButton(2).onClick.Invoke();
             Assert.That(view.PreferredFocusTarget, Is.SameAs(view.ContinueButton));
-
             view.ContinueButton.onClick.Invoke();
             Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.HarborArchive));
             Assert.That(view.GetEvidenceButton(1).gameObject.activeSelf, Is.False);
@@ -285,6 +284,23 @@ namespace Rpg.Tests.Editor
             view.Dispose();
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             Assert.That(inquiry.Found, Is.EqualTo(M02BridgeEvidence.None));
+        }
+
+        [Test]
+        public void DestroyedViewSafelyHandlesLayoutFocusAndLocaleChanges()
+        {
+            var inquiry = new M02BridgeInquiry();
+            inquiry.Begin();
+            view = new M02BridgeInquiryView(root.transform, inquiry, _ => { });
+
+            Object.DestroyImmediate(root);
+            root = null;
+
+            Assert.That(view.PreferredFocusTarget, Is.Null);
+            Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+            Assert.DoesNotThrow(() =>
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+            Assert.DoesNotThrow(() => view.Dispose());
         }
     }
 }
