@@ -117,7 +117,7 @@ namespace Rpg.Soundwell
                     progressLabel.text = chinese ? "接下桂花糕，看海图" : "Take the cake and see the chart";
                     break;
                 case M02QiQueNightStage.ReviewingChart:
-                    progressLabel.text = chinese ? "记下提议，离开货栈" : "Keep her offer in mind and leave";
+                    progressLabel.text = chinese ? "记下提议，去见陆钧" : "Note her offer and visit Lu Jun";
                     break;
                 default:
                     progressLabel.text = string.Empty;

@@ -256,7 +256,8 @@ namespace Rpg.Editor
             {
                 RunPlayerRegression(executable,
                     $"-force-glcore -screen-fullscreen 0 -screen-width 320 -screen-height 800 -rpg-portrait-hud \"{screenshot}\"",
-                    Path.Combine(evidence, "soundwell-portrait.log"), "RPG_SOUNDWELL_PORTRAIT_HUD_VALIDATED", sandbox);
+                    Path.Combine(evidence, "soundwell-portrait.log"), "RPG_SOUNDWELL_PORTRAIT_HUD_VALIDATED",
+                    sandbox, requiresDisplay: true);
                 if (!File.Exists(screenshot) || new FileInfo(screenshot).Length == 0)
                     throw new InvalidOperationException("Portrait regression did not capture the Player viewport.");
             }
@@ -267,12 +268,19 @@ namespace Rpg.Editor
         }
 
         private static void RunPlayerRegression(string executable, string arguments, string log,
-            string marker, string sandbox)
+            string marker, string sandbox, bool requiresDisplay = false)
         {
+            string playerPath = Path.GetFullPath(executable);
+            bool useVirtualDisplay = requiresDisplay &&
+                string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) &&
+                string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
+            // GameCI's Linux desktop runner uses Xvfb for standalone tests.
+            // Give the real portrait window room to render even on a headless agent.
             var start = new ProcessStartInfo
             {
-                FileName = Path.GetFullPath(executable),
-                Arguments = arguments + $" -logFile \"{log}\"",
+                FileName = useVirtualDisplay ? "xvfb-run" : playerPath,
+                Arguments = (useVirtualDisplay ? $"-a -s \"-screen 0 1280x1024x24\" \"{playerPath}\" " : "") +
+                    arguments + $" -logFile \"{log}\"",
                 WorkingDirectory = Directory.GetCurrentDirectory(),
                 UseShellExecute = false,
             };

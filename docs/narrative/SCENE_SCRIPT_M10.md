@@ -3,7 +3,7 @@
 “归来”为工作标题。本稿承接 [STORY_OUTLINE.md](STORY_OUTLINE.md)、[CHARACTERS.md](CHARACTERS.md) 与 [BANTER_LINES.md](BANTER_LINES.md)。方括号是玩家选项或操作。
 
 > **出场人物**：你、伊蕾、韩峤、祁雀、欧林、三位识字的矿工、矿主代表（或鲁斯代理人/账房/易达）、陆钧的人；沈砾（若仍同行）、蕊亚（若已接出并到场）。
-> **读取事实**：`identity_reveal`、`bridge_evidence`、`rus_fate`、`rescue_route_cost`、`rescue_priority`、`survivor_yida`、`survivor_ruiya`、`shen_relation`、`st_states`、`rc01_chen_yan`–`rc05_third_squad`（已完成的名册案）。
+> **读取事实**：`identity_reveal`、`bridge_evidence`、`rus_fate`、`rescue_manifest`、`rescue_route_cost`、`rescue_priority`、`survivor_yida`、`survivor_ruiya`、`shen_relation`、`st_states`、`rc01_chen_yan`–`rc05_third_squad`（已完成的名册案）。
 > **写入事实**：`world_notices`（第三则预兆）、`roster_accuracy`、`han_ledger_use`、`supply_contract`（签订、覆盖与配送进度）。
 > **章末留给玩家的问题**：韩峤那份战报，我拿它做什么？回澜出事了。
 
@@ -65,7 +65,7 @@ M09 安排的第二次接驳在镜湾登陆。**若 `survivor_ruiya == 接出` �
 ## 四、供给合同与回澜关转折
 
 **【供给合同】**
-鲁斯在 M07 留下的那个问题（“明年谁给剩下的付粮”）又摆到了桌上。你在镜湾争取长期的**供给合同**。若 `RC-05` 赦免第三班，须核对新合同是否覆盖原来靠私粮生活的家属；粮实际运到才算接上。合同须对照 M07 `rescue_route_cost` 的停港、货运损失、检修或突围修复债；若 `rescue_priority = 额外救援`，还要为真正接出的额外矿工安排供给和泊位，不因人数未写死就免去成本。若抓到了鲁斯，可由监察方提讯；若只保住账册，就提交原件并追逃，不能同时把两个互斥选项的战利品都算到手里。
+鲁斯在 M07 留下的那个问题（“明年谁给留下的人付粮”）又摆到了桌上。你在镜湾争取长期的**供给合同**。按 `rescue_manifest` 分开核对已抵达的家庭、在岛上等待的乘员及愿意留岛的居民，粮要送到各自实际接收点。若 `RC-05` 赦免第三班，须核对新合同是否覆盖原来靠私粮生活的家属；粮实际运到才算接上。合同须对照 M07 `rescue_route_cost` 的停港、货运损失、检修或突围修复债；若 `rescue_priority = 额外救援`，还要为真正接出的额外矿工安排供给和泊位，不因人数未写死就免去成本。若抓到了鲁斯，可由监察方提讯；若只保住账册，就提交原件并追逃，不能同时把两个互斥选项的战利品都算到手里。
 - 若鲁斯此前逃亡，他的代理人也来竞价；
 - 若鲁斯被捕，可传其账房先生。易达只有已随船或经监察移交、实际到场并给出证词时才作证；留岛者的席位空着。
 
