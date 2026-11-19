@@ -91,6 +91,26 @@ namespace Rpg.Soundwell
                 QiQueDebtDiscovered, TransferAssistanceAccepted);
         }
 
+        // Makinom persists observed harbor-desk facts only when leaving the desk.
+        // When that host write fails, restore Discussing while keeping stamped
+        // registration, debt discovery, and assistance state so retry stays safe.
+        public void Finish(Action<M02HarborDeskOutcome> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            M02HarborDeskStage before = Stage;
+            M02HarborDeskOutcome outcome = Finish();
+            try
+            {
+                recordWithHost(outcome);
+            }
+            catch
+            {
+                Stage = before;
+                throw;
+            }
+        }
+
         private void Require(M02HarborDeskStage expected)
         {
             if (Stage != expected)

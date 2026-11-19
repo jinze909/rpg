@@ -149,8 +149,9 @@ namespace Rpg.Soundwell
             }
             leaveLabel.text = chinese ? "离开港务署" : "Leave the harbor office";
             leaveButton.gameObject.SetActive(!delivered);
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                PreferredFocusTarget);
+            if (!delivered)
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
+                    PreferredFocusTarget);
         }
 
         private void Choose(M02HarborDeskAction action)
@@ -183,12 +184,22 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            // Lock against reentrant UGUI submits before persisting through the
+            // host. A failed write must keep the harbor desk retryable instead
+            // of discarding the player's stamped papers and discoveries.
             delivered = true;
-            M02HarborDeskOutcome result = desk.Finish();
-            Action<M02HarborDeskOutcome> callback = onFinished;
-            onFinished = null;
-            callback?.Invoke(result);
             Refresh();
+            try
+            {
+                desk.Finish(onFinished);
+                onFinished = null;
+            }
+            catch
+            {
+                delivered = false;
+                Refresh();
+                throw;
+            }
         }
 
         public void Dispose()
