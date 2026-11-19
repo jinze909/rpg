@@ -314,5 +314,36 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void DestroyedViewCannotReceiveStaleLocaleChangesOrFailOnDispose()
+        {
+            var root = new GameObject("Readiness destroyed");
+            M04DepartureReadinessView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                view = new M04DepartureReadinessView(root.transform, Plan(true),
+                    _ => { }, () => { });
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                Assert.DoesNotThrow(() => view.Dispose());
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }

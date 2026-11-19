@@ -71,12 +71,22 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
+            if (canvasObject == null || authored == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
+            if (canvasObject == null || heading == null)
+            {
+                Dispose();
+                return;
+            }
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = details.font = confirmLabel.font = backLabel.font = font;
@@ -147,8 +157,8 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             SoundwellUiLocalization.Changed -= Refresh;
-            confirm.onClick.RemoveAllListeners();
-            back.onClick.RemoveAllListeners();
+            if (confirm != null) confirm.onClick.RemoveAllListeners();
+            if (back != null) back.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
