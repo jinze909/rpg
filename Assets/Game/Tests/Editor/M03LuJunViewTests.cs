@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -22,7 +23,7 @@ namespace Rpg.Tests.Editor
         public void TearDown()
         {
             view?.Dispose();
-            if (root != null) Object.DestroyImmediate(root);
+            if (root != null) UnityEngine.Object.DestroyImmediate(root);
             SoundwellUiLocalization.SetLanguage(priorLanguage);
         }
 
@@ -83,6 +84,54 @@ namespace Rpg.Tests.Editor
             view.GetChoiceButton(2).onClick.Invoke();
             Assert.That(callbacks, Is.EqualTo(1));
             Assert.That(view.Encounter.VoyagePathValue, Is.EqualTo("韩峤船坞"));
+        }
+
+        [Test]
+        public void InterruptedVoyageHostWriteKeepsRouteChoicesAndBlocksReentrantSubmit()
+        {
+            int attempts = 0;
+            int persisted = 0;
+            view = new M03LuJunView(root.transform, M02BridgeEvidence.FerrymanLog,
+                false, completed =>
+                {
+                    attempts++;
+                    Assert.That(completed.Stage, Is.EqualTo(M03LuJunStage.Complete));
+                    Assert.That(completed.Voyage, Is.EqualTo(M03VoyageChoice.QiQueMerchant));
+                    // A callback may induce another UGUI submit while writing.
+                    view.GetChoiceButton(1).onClick.Invoke();
+                    if (attempts == 1)
+                        throw new InvalidOperationException("Interrupted Makinom route save");
+                    persisted++;
+                });
+
+            for (int beat = 0; beat < 4; beat++)
+                view.AdvanceButton.onClick.Invoke();
+            view.GetChoiceButton(0).onClick.Invoke();
+            view.GetChoiceButton(2).onClick.Invoke();
+            // RefuseSecrecy is the third reply (index 2), not Undecided.
+            view.GetChoiceButton(2).onClick.Invoke();
+            view.GetChoiceButton(3).onClick.Invoke();
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+            Assert.That(view.Encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.RefuseSecrecy));
+
+            Assert.Throws<InvalidOperationException>(() =>
+                view.GetChoiceButton(1).onClick.Invoke());
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(persisted, Is.Zero);
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+            Assert.That(view.Encounter.Voyage, Is.Null);
+            Assert.That(view.GetChoiceButton(1).gameObject.activeSelf, Is.True);
+            Assert.That(view.Encounter.Confession, Is.EqualTo(M03LuConfession.AskedWithEvidence));
+            Assert.That(view.Encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.RefuseSecrecy));
+
+            view.GetChoiceButton(1).onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(persisted, Is.EqualTo(1));
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.Complete));
+            Assert.That(view.Encounter.Voyage, Is.EqualTo(M03VoyageChoice.QiQueMerchant));
+            Assert.That(view.GetChoiceButton(1).gameObject.activeSelf, Is.False);
+            view.GetChoiceButton(1).onClick.Invoke();
+            Assert.That(attempts, Is.EqualTo(2));
         }
 
         [Test]
