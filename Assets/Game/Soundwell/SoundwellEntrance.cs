@@ -28,6 +28,11 @@ namespace Rpg.Soundwell
         private Text formationText;
         private Button prologueButton;
         private RectTransform prologueRect;
+        private Button saveCheckpointButton, loadCheckpointButton;
+        private RectTransform saveCheckpointRect, loadCheckpointRect;
+        private Text saveCheckpointText, loadCheckpointText;
+        private bool confirmCheckpointOverwrite, confirmCheckpointLoad;
+        private bool checkpointLoading, checkpointSaved;
         private Canvas entryCanvas;
         private WhitewaterPrelude currentPrelude;
         private M00MemorialSquare currentMemorial;
@@ -179,6 +184,12 @@ namespace Rpg.Soundwell
             prologueLabel.resizeTextForBestFit = true;
             prologueLabel.resizeTextMinSize = 12;
             prologueLabel.resizeTextMaxSize = 17;
+            saveCheckpointButton = NewCheckpointButton(canvas.transform,
+                "Save ORK checkpoint button", out saveCheckpointRect, out saveCheckpointText);
+            loadCheckpointButton = NewCheckpointButton(canvas.transform,
+                "Load ORK checkpoint button", out loadCheckpointRect, out loadCheckpointText);
+            saveCheckpointButton.onClick.AddListener(SaveCheckpoint);
+            loadCheckpointButton.onClick.AddListener(LoadCheckpoint);
             ConfigureEntrySettingsNavigation();
             titleText.resizeTextForBestFit = true;
             titleText.resizeTextMinSize = 18;
@@ -242,6 +253,7 @@ namespace Rpg.Soundwell
 
             languageText.text = SoundwellUiLocalization.Get("action.language");
             RefreshPreludeProgress(true);
+            RefreshCheckpointControls();
         }
 
         // S00 only records what the player ACTUALLY reached in Makinom.
@@ -356,7 +368,25 @@ namespace Rpg.Soundwell
             {
                 mode = Navigation.Mode.Explicit,
                 selectOnUp = sfxButton,
-                selectOnDown = prologueButton
+                selectOnDown = prologueButton,
+                selectOnLeft = saveCheckpointButton,
+                selectOnRight = loadCheckpointButton
+            };
+            saveCheckpointButton.navigation = new Navigation
+            {
+                mode = Navigation.Mode.Explicit,
+                selectOnLeft = loadCheckpointButton,
+                selectOnRight = languageButton,
+                selectOnUp = sfxButton,
+                selectOnDown = languageButton
+            };
+            loadCheckpointButton.navigation = new Navigation
+            {
+                mode = Navigation.Mode.Explicit,
+                selectOnLeft = languageButton,
+                selectOnRight = saveCheckpointButton,
+                selectOnUp = formationButton,
+                selectOnDown = languageButton
             };
             prologueButton.navigation = new Navigation
             {
@@ -385,6 +415,137 @@ namespace Rpg.Soundwell
             formationButton.colors = entryButton.colors;
             languageButton.colors = entryButton.colors;
             prologueButton.colors = entryButton.colors;
+            saveCheckpointButton.colors = entryButton.colors;
+            loadCheckpointButton.colors = entryButton.colors;
+        }
+
+
+        private bool CheckpointReady =>
+            entryCanvas != null && entryCanvas.isActiveAndEnabled && trialLoad == null &&
+            currentPrelude == null && currentMemorial == null &&
+            SceneManager.GetActiveScene().name == BootstrapSceneName &&
+            Maki.Initialized && ORK.Initialized && Maki.Game?.Variables != null;
+
+        private static Button NewCheckpointButton(Transform parent, string name,
+            out RectTransform rect, out Text label)
+        {
+            var go = new GameObject(name, typeof(RectTransform),
+                typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            rect = (RectTransform)go.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(168f, 36f);
+            go.GetComponent<Image>().color = new Color(0.15f, 0.24f, 0.30f);
+            label = SoundwellView.AddLabel(rect, "", 15,
+                new Color(0.85f, 0.92f, 0.94f), Vector2.zero, new Vector2(132f, 30f));
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 11;
+            label.resizeTextMaxSize = 15;
+            return go.GetComponent<Button>();
+        }
+
+        private void RefreshCheckpointControls()
+        {
+            if (saveCheckpointButton == null)
+                return;
+            bool ready = CheckpointReady && !checkpointLoading;
+            bool exists = false;
+            if (ready)
+            {
+                try { exists = Maki.SaveGame.FileExists(0); }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning("ORK checkpoint unavailable: " + ex.Message);
+                    ready = false;
+                }
+            }
+            saveCheckpointButton.interactable = ready;
+            loadCheckpointButton.interactable = ready && exists;
+            bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
+            var font = SoundwellUiLocalization.PresentationFont(englishFont);
+            saveCheckpointText.font = loadCheckpointText.font = font;
+            saveCheckpointText.text = !ready ? (zh ? "存档暂不可用" : "Save unavailable")
+                : confirmCheckpointOverwrite && exists ? (zh ? "确认覆盖存档" : "Confirm overwrite")
+                : checkpointSaved && exists ? (zh ? "已存档" : "Checkpoint saved")
+                : (zh ? "保存检查点" : "Save checkpoint");
+            loadCheckpointText.text = checkpointLoading ? (zh ? "正在读档" : "Loading checkpoint")
+                : !exists || !ready ? (zh ? "暂无存档" : "No saved checkpoint")
+                : confirmCheckpointLoad ? (zh ? "确认读取存档" : "Confirm load")
+                : (zh ? "读取检查点" : "Load checkpoint");
+        }
+
+        private void SaveCheckpoint()
+        {
+            if (!CheckpointReady || checkpointLoading)
+                return;
+            var saves = Maki.SaveGame;
+            try
+            {
+                bool exists = saves.FileExists(0);
+                if (exists && !confirmCheckpointOverwrite)
+                {
+                    confirmCheckpointOverwrite = true;
+                    confirmCheckpointLoad = false;
+                    checkpointSaved = false;
+                    RefreshCheckpointControls();
+                    return;
+                }
+                saves.Save(0);
+                confirmCheckpointOverwrite = confirmCheckpointLoad = false;
+                checkpointSaved = saves.FileExists(0);
+            }
+            catch (System.Exception ex)
+            {
+                confirmCheckpointOverwrite = checkpointSaved = false;
+                Debug.LogError("ORK checkpoint save failed: " + ex);
+            }
+            RefreshCheckpointControls();
+        }
+
+        private void LoadCheckpoint()
+        {
+            if (!CheckpointReady || checkpointLoading)
+                return;
+            var saves = Maki.SaveGame;
+            try
+            {
+                if (!saves.FileExists(0))
+                    return;
+                if (!confirmCheckpointLoad)
+                {
+                    confirmCheckpointLoad = true;
+                    confirmCheckpointOverwrite = checkpointSaved = false;
+                    RefreshCheckpointControls();
+                    return;
+                }
+                confirmCheckpointLoad = false;
+                checkpointLoading = true;
+                saves.GameLoaded += OnCheckpointLoaded;
+                saves.Load(0);
+            }
+            catch (System.Exception ex)
+            {
+                saves.GameLoaded -= OnCheckpointLoaded;
+                checkpointLoading = false;
+                Debug.LogError("ORK checkpoint load failed: " + ex);
+            }
+            RefreshCheckpointControls();
+        }
+
+        private void OnCheckpointLoaded()
+        {
+            Maki.SaveGame.GameLoaded -= OnCheckpointLoaded;
+            checkpointLoading = false;
+            confirmCheckpointOverwrite = confirmCheckpointLoad = checkpointSaved = false;
+            RefreshReturnOutcome(true);
+            RefreshPreludeProgress(true);
+            RefreshCheckpointControls();
+        }
+
+        private void OnDestroy()
+        {
+            if (checkpointLoading && Maki.Initialized)
+                Maki.SaveGame.GameLoaded -= OnCheckpointLoaded;
         }
 
         private void ToggleFormationPreference()
@@ -473,6 +634,10 @@ namespace Rpg.Soundwell
                 prologueLabel.rectTransform.sizeDelta =
                     new Vector2(compact ? 210f : 242f, compact ? 28f : 33f);
             languageText.rectTransform.sizeDelta = new Vector2(compact ? 180f : 198f, 36f);
+            saveCheckpointRect.anchoredPosition = new Vector2(compact ? -83f : -300f, compact ? 228f : 160f);
+            loadCheckpointRect.anchoredPosition = new Vector2(compact ? 83f : 300f, compact ? 228f : 160f);
+            saveCheckpointRect.sizeDelta = loadCheckpointRect.sizeDelta =
+                new Vector2(compact ? 144f : 168f, 36f);
 
             // CanvasScaler's geometric-mean scale makes the logical height
             // just ~322 at 5:1. The normal y=-230 settings row is then fully
@@ -490,6 +655,8 @@ namespace Rpg.Soundwell
                 prologueRect.anchoredPosition = new Vector2(300f, 52f);
                 formationRect.anchoredPosition = new Vector2(300f, -13f);
                 sfxRect.anchoredPosition = new Vector2(300f, -77f);
+                saveCheckpointRect.anchoredPosition = new Vector2(205f, -129f);
+                loadCheckpointRect.anchoredPosition = new Vector2(405f, -129f);
             }
         }
 
@@ -517,6 +684,7 @@ namespace Rpg.Soundwell
             {
                 RefreshReturnOutcome();
                 RefreshPreludeProgress();
+                RefreshCheckpointControls();
                 nextOutcomeRefreshAt = Time.unscaledTime + OutcomeRefreshInterval;
             }
             // Effective remaps notify us through the Input System, so avoid
@@ -540,7 +708,8 @@ namespace Rpg.Soundwell
                 ? EventSystem.current.currentSelectedGameObject : null;
             bool settingFocused = selected == sfxButton.gameObject ||
                 selected == formationButton.gameObject ||
-                selected == languageButton.gameObject || selected == prologueButton.gameObject;
+                selected == languageButton.gameObject || selected == prologueButton.gameObject ||
+                selected == saveCheckpointButton.gameObject || selected == loadCheckpointButton.gameObject;
             if (entryRequested && (!settingFocused || SoundwellInputAdapter.EntryKeyboardShortcutPressed()))
                 OpenTrial();
         }
@@ -550,8 +719,8 @@ namespace Rpg.Soundwell
             if (currentPrelude != null || currentMemorial != null || trialLoad != null ||
                 lastOpeningExitFrame == Time.frameCount)
                 return;
-            // Hide the Selectables and raycaster with the Canvas so a stale
-            // focus or pointer event cannot submit an invisible entry button.
+            // Disable the whole menu to prevent hidden Selectables from
+            // retaining focus or intercepting pointer/gamepad Submit.
             entryCanvas.gameObject.SetActive(false);
             var scene = new GameObject("S00 Whitewater Bridge · playable opening");
             scene.transform.SetParent(transform, false);

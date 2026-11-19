@@ -1072,6 +1072,14 @@ namespace Rpg.Tests.Editor
                     .Single(button => button.gameObject.name == "Soundwell SFX toggle");
                 var formationButton = entry.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "Soundwell formation toggle");
+                var saveCheckpoint = entry.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "Save ORK checkpoint button");
+                var loadCheckpoint = entry.GetComponentsInChildren<Button>(true)
+                    .Single(button => button.gameObject.name == "Load ORK checkpoint button");
+                Assert.That(saveCheckpoint.interactable, Is.False,
+                    "Without a real ORK bootstrap the UI cannot overwrite a save.");
+                Assert.That(loadCheckpoint.interactable, Is.False,
+                    "Without a real ORK bootstrap the UI cannot load a save.");
                 // The visible retry/result summary must never overlap either
                 // the entry footer or the SFX control at 4:3/narrow and 16:9.
                 // Verify the actual UGUI RectTransforms, not just hardcoded text.
@@ -1139,7 +1147,9 @@ namespace Rpg.Tests.Editor
                     (RectTransform)localeForLayout.transform,
                     (RectTransform)prologueForLayout.transform,
                     (RectTransform)formationButton.transform,
-                    (RectTransform)sfxButton.transform
+                    (RectTransform)sfxButton.transform,
+                    (RectTransform)saveCheckpoint.transform,
+                    (RectTransform)loadCheckpoint.transform
                 };
                 foreach (float aspect in new[] { 32f / 9f, 5f })
                 {
@@ -1205,6 +1215,10 @@ namespace Rpg.Tests.Editor
                     .Single(button => button.gameObject.name == "Enter Soundwell button");
                 Assert.That(enterButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
                 Assert.That(languageButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(saveCheckpoint.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(loadCheckpoint.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
+                Assert.That(languageButton.navigation.selectOnLeft, Is.SameAs(saveCheckpoint));
+                Assert.That(languageButton.navigation.selectOnRight, Is.SameAs(loadCheckpoint));
                 Assert.That(sfxButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
                 Assert.That(formationButton.navigation.mode, Is.EqualTo(Navigation.Mode.Explicit));
                 Assert.That(sfxButton.navigation.selectOnRight, Is.SameAs(formationButton));
