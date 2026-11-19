@@ -45,7 +45,7 @@ namespace Rpg.Soundwell
         {
             get
             {
-                if (disposed || inquiry.Location == M02EvidenceLocation.Finished)
+                if (disposed || completed || inquiry.Location == M02EvidenceLocation.Finished)
                     return null;
                 if (inquiry.Location == M02EvidenceLocation.FerryWarehouse)
                 {
@@ -89,6 +89,7 @@ namespace Rpg.Soundwell
             narrative = SoundwellUiTheme.CreateLabel(authoredView, 19,
                 new Vector2(0f, 58f), new Vector2(835f, 205f), Ink);
             narrative.alignment = TextAnchor.MiddleLeft;
+
             for (int i = 0; i < clueButtons.Length; i++)
             {
                 int captured = i;
@@ -150,7 +151,7 @@ namespace Rpg.Soundwell
             {
                 bool warehouse = location == M02EvidenceLocation.FerryWarehouse;
                 bool archive = location == M02EvidenceLocation.HarborArchive && i == 0;
-                clueButtons[i].gameObject.SetActive(warehouse || archive);
+                clueButtons[i].gameObject.SetActive(!completed && (warehouse || archive));
                 clueLabels[i].font = font;
                 if (warehouse)
                     clueLabels[i].text = (chinese ? zh[i] : en[i]) +
@@ -164,8 +165,9 @@ namespace Rpg.Soundwell
                 : location == M02EvidenceLocation.HarborArchive
                 ? (chinese ? "结束调查" : "Finish investigating")
                 : (chinese ? "调查结束" : "Inquiry complete");
-            continueButton.gameObject.SetActive(location != M02EvidenceLocation.Finished);
-            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
+            continueButton.gameObject.SetActive(!completed && location != M02EvidenceLocation.Finished);
+            if (!completed)
+                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
         }
 
         private void Examine(int index)
@@ -210,11 +212,22 @@ namespace Rpg.Soundwell
                 inquiry.LeaveWarehouse();
             else if (inquiry.Location == M02EvidenceLocation.HarborArchive)
             {
-                inquiry.LeaveArchive();
+                // Lock against reentrant UGUI submits before invoking the host
+                // completion callback. A failed handoff must keep the archive
+                // retryable rather than losing the observed evidence set.
                 completed = true;
-                Action<M02BridgeEvidence> listener = onCompleted;
-                onCompleted = null;
-                listener?.Invoke(inquiry.Found);
+                Refresh();
+                try
+                {
+                    inquiry.LeaveArchive(onCompleted);
+                    onCompleted = null;
+                }
+                catch
+                {
+                    completed = false;
+                    Refresh();
+                    throw;
+                }
             }
             Refresh();
 

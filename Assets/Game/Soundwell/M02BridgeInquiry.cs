@@ -69,6 +69,28 @@ namespace Rpg.Soundwell
             Location = M02EvidenceLocation.Finished;
         }
 
+        // Host persists/hands off observed evidence only when leaving the
+        // archive. When that callback fails, restore HarborArchive and the
+        // last examined clue so the player can safely retry finishing.
+        public void LeaveArchive(Action<M02BridgeEvidence> recordWithHost)
+        {
+            if (recordWithHost == null)
+                throw new ArgumentNullException(nameof(recordWithHost));
+            M02EvidenceLocation beforeLocation = Location;
+            M02BridgeEvidence? beforeExamined = LastExamined;
+            LeaveArchive();
+            try
+            {
+                recordWithHost(Found);
+            }
+            catch
+            {
+                Location = beforeLocation;
+                LastExamined = beforeExamined;
+                throw;
+            }
+        }
+
         public static void ValidateSingleClue(M02BridgeEvidence clue)
         {
             if (clue != M02BridgeEvidence.CleanCableCut &&
