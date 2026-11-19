@@ -206,8 +206,15 @@ namespace Rpg.Soundwell
             copy.AppendLine();
             if (blockers.Length == 0)
             {
-                copy.Append(chinese ? "船只与登岸接应均已核实，可以申请正式确认。" :
+                copy.AppendLine(chinese ? "船只与登岸接应均已核实，可以申请正式确认。" :
                     "The ship and landing arrangements are verified. You may confirm this plan.");
+                // Report only verified supplies from the manifest; never
+                // invent a named ship, pilot or landing contact from a route.
+                copy.Append(chinese ? "船只：" : "Vessel: ").Append(manifest.ActualHull);
+                copy.Append(chinese ? "；领航：" : "; pilot: ").AppendLine(manifest.ConfirmedPilot);
+                copy.Append(chinese ? "船员：" : "Crew: ").Append(manifest.AssignedCrew);
+                copy.Append(chinese ? "；接驳：" : "; tender: ").AppendLine(manifest.ShallowTender);
+                copy.Append(chinese ? "登岸接应：" : "Landing receiver: ").Append(manifest.LandingReceiver);
                 return copy.ToString();
             }
             copy.AppendLine(chinese ? "尚不能启航；必须先解决：" :

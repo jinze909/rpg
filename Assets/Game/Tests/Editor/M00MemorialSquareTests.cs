@@ -407,7 +407,21 @@ namespace Rpg.Tests.Editor
             farewellAdvance.onClick.Invoke();
             yield return null;
             Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.EqualTo(1),
-                "The chosen true line must be saved before the opening closes.");
+                "The true line must be recorded before the cup farewell.");
+
+            Button cupAdvance = NamedButton(memorial, "M04 Qi cup continue");
+            Assert.That(cupAdvance.gameObject.activeInHierarchy, Is.True);
+            Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.Zero,
+                "The new voyage must not keep an old carried-cup flag.");
+            cupAdvance.onClick.Invoke();
+            Assert.That(cupAdvance.gameObject.activeInHierarchy, Is.False,
+                "Inspecting the cup is not the same as accepting it.");
+            NamedButton(memorial, "M04 Qi cup choice 1").onClick.Invoke();
+            Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.Zero);
+            cupAdvance.onClick.Invoke();
+            yield return null;
+            Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.EqualTo(1),
+                "Only the completed physical handover writes the cup fact.");
         }
 
         private static Button NamedButton(M00MemorialSquare memorial, string name)

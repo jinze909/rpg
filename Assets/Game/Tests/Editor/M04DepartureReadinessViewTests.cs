@@ -62,6 +62,11 @@ namespace Rpg.Tests.Editor
                 Assert.That(view.ConfirmButton.interactable, Is.True);
                 Assert.That(view.Details.text, Does.Contain("Verified berths: 18"));
                 Assert.That(view.Details.text, Does.Contain("returnees on this trip: 13"));
+                Assert.That(view.Details.text, Does.Contain("Vessel: Inspected hull"));
+                Assert.That(view.Details.text, Does.Contain("pilot: Confirmed pilot"));
+                Assert.That(view.Details.text, Does.Contain("Crew: 3"));
+                Assert.That(view.Details.text, Does.Contain("tender: Inspected tender"));
+                Assert.That(view.Details.text, Does.Contain("Landing receiver: Named landing receiver"));
                 view.ConfirmButton.onClick.Invoke();
                 Assert.That(accepted, Is.EqualTo(1));
                 Assert.That(delivered, Is.SameAs(actuallyVerified));
@@ -102,6 +107,34 @@ namespace Rpg.Tests.Editor
                 Assert.That(blocked.DepartureConfirmed, Is.False);
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 Assert.That(view.Details.text, Does.Contain("No confirmed vessel"));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void VerifiedDepartureDetailsUseLocalizedLabelsForTheSameResources()
+        {
+            var root = new GameObject("Readiness translated resources");
+            M04DepartureReadinessView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var manifest = Plan(true);
+                view = new M04DepartureReadinessView(root.transform, manifest,
+                    _ => { }, () => { });
+                Assert.That(view.Details.text, Does.Contain("Vessel: Inspected hull"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Details.text, Does.Contain("船只：Inspected hull"));
+                Assert.That(view.Details.text, Does.Contain("领航：Confirmed pilot"));
+                Assert.That(view.Details.text, Does.Contain("登岸接应：Named landing receiver"));
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+                Assert.That(manifest.DepartureConfirmed, Is.False);
             }
             finally
             {
