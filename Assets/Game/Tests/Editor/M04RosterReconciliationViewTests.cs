@@ -214,7 +214,6 @@ namespace Rpg.Tests.Editor
                 ledger.AddEntry("dock-01", "Confirmed 1", M04RosterStatus.ConfirmedAtDock);
                 ledger.AddEntry("dock-02", "Confirmed 2", M04RosterStatus.ConfirmedAtDock);
                 int completed = 0;
-
                 view = new M04RosterReconciliationView(
                     root.transform, ledger, 2, _ => completed++, () => { });
                 view.BookButton.onClick.Invoke();
@@ -519,6 +518,39 @@ namespace Rpg.Tests.Editor
                 view?.Dispose();
                 SoundwellUiLocalization.SetLanguage(savedLanguage);
                 UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedViewCannotReceiveStaleLocaleChangesOrFailOnDispose()
+        {
+            var root = new GameObject("Roster destroyed view");
+            M04RosterReconciliationView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-01", "Confirmed returnee", M04RosterStatus.ConfirmedAtDock);
+                view = new M04RosterReconciliationView(
+                    root.transform, ledger, 1, _ => { }, () => { });
+
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese));
+                Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                Assert.DoesNotThrow(() => view.Dispose());
+                Assert.DoesNotThrow(() =>
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
             }
         }
     }

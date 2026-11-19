@@ -138,12 +138,22 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
+            if (canvasObject == null || authored == null)
+            {
+                Dispose();
+                return;
+            }
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
+            if (canvasObject == null || heading == null)
+            {
+                Dispose();
+                return;
+            }
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = summary.font = selectedDetails.font = font;
@@ -334,15 +344,15 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             SoundwellUiLocalization.Changed -= Refresh;
-            prevButton.onClick.RemoveAllListeners();
-            nextButton.onClick.RemoveAllListeners();
-            confirmDockButton.onClick.RemoveAllListeners();
-            resolveRollButton.onClick.RemoveAllListeners();
-            bookButton.onClick.RemoveAllListeners();
-            unbookButton.onClick.RemoveAllListeners();
-            declineButton.onClick.RemoveAllListeners();
-            finishButton.onClick.RemoveAllListeners();
-            backButton.onClick.RemoveAllListeners();
+            if (prevButton != null) prevButton.onClick.RemoveAllListeners();
+            if (nextButton != null) nextButton.onClick.RemoveAllListeners();
+            if (confirmDockButton != null) confirmDockButton.onClick.RemoveAllListeners();
+            if (resolveRollButton != null) resolveRollButton.onClick.RemoveAllListeners();
+            if (bookButton != null) bookButton.onClick.RemoveAllListeners();
+            if (unbookButton != null) unbookButton.onClick.RemoveAllListeners();
+            if (declineButton != null) declineButton.onClick.RemoveAllListeners();
+            if (finishButton != null) finishButton.onClick.RemoveAllListeners();
+            if (backButton != null) backButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
@@ -379,7 +389,7 @@ namespace Rpg.Soundwell
                     .Append(excess)
                     .Append(chinese ? " 个占位，再完成对账。" :
                         excess == 1 ? " berth before finishing." :
-                            " berths before finishing.");
+                        " berths before finishing.");
             }
             return copy.ToString();
         }
