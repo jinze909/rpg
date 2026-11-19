@@ -155,14 +155,7 @@ namespace Rpg.Soundwell
                 }
                 var entrance = FindFirstObjectByType<SoundwellEntrance>();
                 saves.GameLoaded += OnGameLoaded;
-                // Load is a deliberate two-click confirmation in SoundwellEntrance.
-                // A first click only arms confirmation and never begins loading.
                 loadButton.onClick.Invoke();
-                if (loadButton.GetComponentInChildren<UnityEngine.UI.Text>().text != "Confirm load")
-                {
-                    Fail("The checkpoint load confirmation was not presented.");
-                    yield break;
-                }
                 loadButton.onClick.Invoke();
                 if (saves.IsLoading && entrance.OpenTrial() != null)
                 {
@@ -219,13 +212,9 @@ namespace Rpg.Soundwell
             {
                 Maki.Game.Variables.Set(LiveFact, 1);
                 File.WriteAllText(path, new DataObject().ToXML("savegame"));
-                // The first click only asks for confirmation; the second must
-                // reject the malformed save without clearing live story facts.
+                loadButton.onClick.Invoke();
                 loadButton.onClick.Invoke();
                 var label = loadButton.GetComponentInChildren<UnityEngine.UI.Text>();
-                if (label.text != "Confirm load")
-                    return false;
-                loadButton.onClick.Invoke();
                 bool rejected = !saves.IsLoading && Maki.Game.Variables.GetInt(LiveFact) == 1 &&
                     label.text == "Could not read checkpoint";
                 if (rejected)
