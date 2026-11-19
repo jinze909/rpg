@@ -133,12 +133,14 @@ namespace Rpg.Soundwell
                     }
                 }
                 else
+                {
                     mechanisms.HandleWorldInteraction(
                         new TrialMechanismInteractable.WorldInteraction(
                             CanInspectRope, CanRecoverRope, CanInspectCart,
                             CanShareCartClue, CanInspectClaws, CanOpenGate,
                             CanTieEscortLine, CanEscortSurveyor, CanSecurePlank,
                             AtSurveyor && !HasSurveyorClue));
+                }
                 return;
             }
 
@@ -167,6 +169,18 @@ namespace Rpg.Soundwell
 
         protected void OnDestroy()
         {
+            if (mechanisms != null)
+            {
+                mechanisms.SignalChanged -= OnMechanismSignalChanged;
+                mechanisms.BellSoundRequested -= OnBellSoundRequested;
+                mechanisms.ActionPoseRequested -= OnActionPoseRequested;
+                mechanisms.PulseResetRequested -= OnPulseResetRequested;
+            }
+            if (patrol != null)
+            {
+                patrol.SearchExpired -= OnPatrolSearchExpired;
+                patrol.PlayerCaught -= OnPatrolPlayerCaught;
+            }
             view?.Dispose();
         }
     }
