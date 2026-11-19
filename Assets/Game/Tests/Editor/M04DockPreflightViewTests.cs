@@ -21,7 +21,7 @@ namespace Rpg.Tests.Editor
                     M03VoyageChoice.QiQueMerchant, () => completions++);
 
                 Assert.That(view.Stage, Is.EqualTo(M04DockPreflightStage.DawnSupply));
-                Assert.That(view.Dialogue.text, Does.Contain("supply crate"));
+                Assert.That(view.Dialogue.text, Does.Contain("delivers supplies"));
                 Assert.That(view.Dialogue.text, Does.Contain("not"));
                 view.AdvanceButton.onClick.Invoke();
                 Assert.That(view.Stage, Is.EqualTo(M04DockPreflightStage.VerifyVoyageRoute));

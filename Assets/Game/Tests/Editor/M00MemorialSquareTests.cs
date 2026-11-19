@@ -422,6 +422,22 @@ namespace Rpg.Tests.Editor
             yield return null;
             Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.EqualTo(1),
                 "Only the completed physical handover writes the cup fact.");
+
+            // The new live M04 opening continues to a route-specific dock
+            // preflight. It may not return to Entry until the player has
+            // actually heard all three checks; preflight itself cannot sail.
+            Button preflight = NamedButton(memorial, "M04 dock preflight advance");
+            Assert.That(preflight.gameObject.activeInHierarchy, Is.True);
+            Assert.That(variables.GetInt(M04DepartureFacts.ConfirmedKey), Is.Zero);
+            Assert.That(variables.GetInt(M04DepartureFacts.SailedKey), Is.Zero);
+            preflight.onClick.Invoke();
+            Assert.That(preflight.gameObject.activeInHierarchy, Is.True);
+            preflight.onClick.Invoke();
+            Assert.That(preflight.gameObject.activeInHierarchy, Is.True);
+            preflight.onClick.Invoke();
+            yield return null;
+            Assert.That(variables.GetInt(M04DepartureFacts.SailedKey), Is.Zero,
+                "Reading the preflight cannot create a cast-off fact.");
         }
 
         private static Button NamedButton(M00MemorialSquare memorial, string name)
