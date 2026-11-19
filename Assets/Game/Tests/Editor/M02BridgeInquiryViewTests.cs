@@ -52,8 +52,12 @@ namespace Rpg.Tests.Editor
             view.ContinueButton.onClick.Invoke();
             Assert.That(inquiry.Location, Is.EqualTo(M02EvidenceLocation.HarborArchive));
             Assert.That(view.GetEvidenceButton(1).gameObject.activeSelf, Is.False);
+            Assert.That(view.GetEvidenceButton(0).GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Not.Contain("(seen)"));
             view.GetEvidenceButton(0).onClick.Invoke();
             Assert.That(view.Narrative.text, Does.Contain("Han Qiao"));
+            Assert.That(view.GetEvidenceButton(0).GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("(seen)"));
             view.ContinueButton.onClick.Invoke();
             view.ContinueButton.onClick.Invoke();
 
@@ -184,7 +188,6 @@ namespace Rpg.Tests.Editor
             view.ContinueButton.onClick.Invoke();
             Assert.That(received, Is.EqualTo(M02BridgeEvidence.None));
         }
-
 
         [Test]
         public void NewCluesNotifyHostImmediatelyAndRevisitingDoesNotDuplicateThem()
