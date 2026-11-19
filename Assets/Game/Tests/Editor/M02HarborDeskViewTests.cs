@@ -114,7 +114,7 @@ namespace Rpg.Tests.Editor
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             Assert.That(view.GetActionButton(2)
                 .GetComponentInChildren<UnityEngine.UI.Text>().text,
-                Does.Contain(" (已谈)"));
+                Does.Contain("（已谈）"));
             Assert.That(delivered, Is.Zero);
             Assert.That(view.Desk.Stage, Is.EqualTo(M02HarborDeskStage.Discussing));
             view.LeaveButton.onClick.Invoke();
