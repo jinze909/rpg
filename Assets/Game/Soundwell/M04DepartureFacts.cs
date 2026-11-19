@@ -48,6 +48,9 @@ namespace Rpg.Soundwell
         public const string ReturneesToBookKey = "rpg.return.m04.departure-returnees-to-book";
         public const string OfficialStampKey = "rpg.return.m04.departure-official-stamp";
         public const string EscortFlagKey = "rpg.return.m04.departure-escort-flag";
+        // Confirming resources is not the same as actually sailing.
+        // An old save without this newer key correctly means "not sailed".
+        public const string SailedKey = "rpg.return.m04.vessel-sailed";
 
         public static bool TryResetForNewVisit()
         {
@@ -63,6 +66,7 @@ namespace Rpg.Soundwell
                 return false;
             // A replay cannot inherit an earlier voyage's confirmed departure.
             setInt(ConfirmedKey, 0);
+            setInt(SailedKey, 0);
             setInt(RouteKey, 0);
             setInt(AssignedCrewKey, 0);
             setInt(AvailableBerthsKey, 0);
@@ -90,6 +94,7 @@ namespace Rpg.Soundwell
             // The confirmation marker must be committed last: a failed or
             // interrupted field write may never expose a mixed old/new trip.
             setInt(ConfirmedKey, 0);
+            setInt(SailedKey, 0);
             setInt(RouteKey, (int)manifest.Route + 1);
             setInt(AssignedCrewKey, manifest.AssignedCrew);
             setInt(AvailableBerthsKey, manifest.AvailableBerths);
@@ -154,6 +159,55 @@ namespace Rpg.Soundwell
                 returnees,
                 officialStamp,
                 escortFlag);
+            return true;
+        }
+
+        /// <summary>
+        /// Record the separate, actual cast-off event. The voyage host calls
+        /// this when sailing begins, never merely when readiness is approved.
+        /// A corrupt, missing, or unconfirmed manifest cannot become a voyage,
+        /// and a repeated cast-off cannot be counted twice.
+        /// </summary>
+        public static bool TryMarkSailed()
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+            return TryMarkSailed(key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryMarkSailed(Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (getInt == null || setInt == null)
+                return false;
+            if (!TryRead(getInt, out M04DepartureRecord? readiness) ||
+                !readiness.HasValue || getInt(SailedKey) != 0)
+                return false;
+
+            setInt(SailedKey, 1);
+            return true;
+        }
+
+        public static bool TryReadSailed(out bool sailed)
+        {
+            sailed = false;
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+            return TryReadSailed(key => variables.GetInt(key), out sailed);
+        }
+
+        public static bool TryReadSailed(Func<string, int> getInt, out bool sailed)
+        {
+            sailed = false;
+            if (getInt == null)
+                return false;
+            if (!TryRead(getInt, out M04DepartureRecord? readiness))
+                return false;
+            // A stale "sailed" bit cannot turn a missing or corrupt
+            // readiness record into a real outbound voyage.
+            sailed = readiness.HasValue && getInt(SailedKey) == 1;
             return true;
         }
 
