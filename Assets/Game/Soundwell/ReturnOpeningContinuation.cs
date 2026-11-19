@@ -17,6 +17,9 @@ namespace Rpg.Soundwell
         private M04XiaodouFarewellView xiaodouFarewell;
         private M04XiaodouFarewell completedXiaodou;
         private bool xiaodouPending;
+        private M04QiQueCupView qiQueCup;
+        private M04QiQueCupEncounter completedCup;
+        private bool cupPending;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -185,6 +188,44 @@ namespace Rpg.Soundwell
                 return;
 
             completedXiaodou = null;
+            QueueQiQueCup();
+        }
+
+        private void QueueQiQueCup()
+        {
+            // This continuous path already included the M02 dock reunion.
+            // A dockside farewell neither books the hull nor recruits her.
+            xiaodouFarewell?.Dispose();
+            xiaodouFarewell = null;
+            cupPending = true;
+            OpenQiQueCupWhenReady();
+        }
+
+        private void OpenQiQueCupWhenReady()
+        {
+            if (!cupPending || qiQueCup != null || onFinished == null ||
+                !M02QiQueDebtFacts.TryRead(out bool debtKnown) ||
+                !M04QiQueCupFacts.TryResetForNewVisit())
+                return;
+
+            // Replay cannot inherit a cup from an earlier finished journey.
+            // Actual handover is recorded only after this scene completes.
+            cupPending = false;
+            qiQueCup = new M04QiQueCupView(transform, true, debtKnown,
+                FinishQiQueCup);
+        }
+
+        private void FinishQiQueCup(M04QiQueCupEncounter result)
+        {
+            completedCup = result;
+            RecordCupWhenReady();
+        }
+
+        private void RecordCupWhenReady()
+        {
+            if (completedCup == null || !M04QiQueCupFacts.TryRecord(completedCup))
+                return;
+            completedCup = null;
             CloseOpening();
         }
 
@@ -196,6 +237,8 @@ namespace Rpg.Soundwell
             luJun = null;
             xiaodouFarewell?.Dispose();
             xiaodouFarewell = null;
+            qiQueCup?.Dispose();
+            qiQueCup = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -222,6 +265,10 @@ namespace Rpg.Soundwell
                 OpenXiaodouFarewellWhenReady();
             if (completedXiaodou != null)
                 RecordXiaodouWhenReady();
+            if (cupPending)
+                OpenQiQueCupWhenReady();
+            if (completedCup != null)
+                RecordCupWhenReady();
             if (!Mathf.Approximately(aspect, layoutAspect))
             {
                 layoutAspect = aspect;
@@ -231,6 +278,7 @@ namespace Rpg.Soundwell
                 qiQueNight?.LayoutForViewportAspect(aspect);
                 luJun?.LayoutForViewportAspect(aspect);
                 xiaodouFarewell?.LayoutForViewportAspect(aspect);
+                qiQueCup?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -243,6 +291,7 @@ namespace Rpg.Soundwell
             qiQueNight?.Dispose();
             luJun?.Dispose();
             xiaodouFarewell?.Dispose();
+            qiQueCup?.Dispose();
             onFinished = null;
         }
     }
