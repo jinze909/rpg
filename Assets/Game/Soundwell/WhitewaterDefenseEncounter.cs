@@ -526,7 +526,26 @@ private readonly System.Collections.Generic.List<StatusCard> allyCards = new Sys
                         Mathf.Sqrt(960f * 540f / aspect) - 170f, 100f, 250f)
                     : 250f);
             }
-                    if (!compact && !shallow) { PositionButton(attackButton, new Vector2(-310f, -214f)); PositionButton(guardButton, new Vector2(-150f, -214f)); PositionButton(retryButton, new Vector2(0f, -214f)); PositionButton(continueButton, new Vector2(0f, -214f)); PositionButton(retreatButton, new Vector2(310f, -214f)); if (heading != null) heading.rectTransform.anchoredPosition = new Vector2(0f, 234f); } if (readout != null) { readout.rectTransform.anchoredPosition = new Vector2(0f, shallow ? vertical.x - 36f : 194f); readout.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Mathf.Min(840f, width + 20f)); readout.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 30f); }
+            if (!compact && !shallow)
+            {
+                // Preserve the previously verified landscape command targets.
+                PositionButton(attackButton, new Vector2(-320f, -214f));
+                PositionButton(guardButton, new Vector2(-160f, -214f));
+                PositionButton(retryButton, new Vector2(0f, -214f));
+                PositionButton(continueButton, new Vector2(0f, -214f));
+                PositionButton(retreatButton, new Vector2(320f, -214f));
+                if (heading != null)
+                    heading.rectTransform.anchoredPosition = new Vector2(0f, 234f);
+            }
+            if (readout != null)
+            {
+                readout.rectTransform.anchoredPosition =
+                    new Vector2(0f, shallow ? vertical.x - 36f : 194f);
+                readout.rectTransform.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Horizontal, width);
+                readout.rectTransform.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Vertical, 30f);
+            }
         }
 
         // Full-height 16:9 and portrait keep their existing HUD positions.
