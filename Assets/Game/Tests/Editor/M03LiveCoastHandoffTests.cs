@@ -43,6 +43,7 @@ namespace Rpg.Tests.Editor
                 variables.Set(M02QiQueDebtFacts.DebtKnownKey, 1);
                 variables.Set(M00MemorialSquare.XiaodouPromptedKey, 1);
                 variables.Set(M04XiaodouFarewellFacts.RealLineKey, 2);
+                variables.Set(M04QiQueCupFacts.CupCarriedKey, 1);
                 // A previous visit qualified for an official ship and heard the secret.
                 var previousVisit = new M03LuJunEncounter(M02BridgeEvidence.WarReportDraft, true);
                 previousVisit.Begin();
@@ -111,9 +112,27 @@ namespace Rpg.Tests.Editor
                 Assert.That(deliveries, Is.Zero,
                     "The opening should finish only after the farewell is spoken.");
                 sweet.onClick.Invoke();
-                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(deliveries, Is.Zero,
+                    "The opening must include the dockside gift after Xiaodou.");
                 Assert.That(variables.GetInt(M04XiaodouFarewellFacts.RealLineKey), Is.EqualTo(1),
-                    "A completed choice must be persisted before departure.");
+                    "A completed choice is saved before the cup scene.");
+
+                Button cupAdvance = FindButton(owner, "M04 Qi cup continue");
+                Assert.That(cupAdvance.gameObject.activeInHierarchy, Is.True);
+                Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.Zero,
+                    "An old voyage's cup cannot teleport onto this sailing.");
+                cupAdvance.onClick.Invoke();
+                Assert.That(cupAdvance.gameObject.activeInHierarchy, Is.False,
+                    "Inspecting the cup is not accepting the gift.");
+                Button debtReply = FindButton(owner, "M04 Qi cup choice 2");
+                Assert.That(debtReply.gameObject.activeInHierarchy, Is.True,
+                    "Only the known debt grants this third reply.");
+                debtReply.onClick.Invoke();
+                Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.Zero,
+                    "Do not save the carried cup until farewell completion.");
+                cupAdvance.onClick.Invoke();
+                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(variables.GetInt(M04QiQueCupFacts.CupCarriedKey), Is.EqualTo(1));
                 Assert.That(M03LuJunFacts.TryRead(out M03LuConfession confession,
                     out M03SecrecyAnswer secrecy, out M03VoyageChoice? voyage), Is.True);
                 Assert.That(confession, Is.EqualTo(M03LuConfession.NotAsked));
