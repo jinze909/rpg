@@ -93,6 +93,53 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedMeetingCanvasIgnoresLayoutAndLocaleWithoutAdvancingStory()
+        {
+            // Validate both callback orders after the scene owner destroys
+            // the meeting canvas before calling Dispose.
+            foreach (bool layoutFirst in new[] { true, false })
+            {
+                var scene = new GameObject("Destroyed Han Qiao meeting scene");
+                try
+                {
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                    var sequence = Begun();
+                    int saved = 0;
+                    int ransomCue = 0;
+                    view = new M00HanQiaoMeetingView(scene.transform, sequence,
+                        _ => saved++, () => ransomCue++);
+                    Assert.That(sequence.Stage,
+                        Is.EqualTo(M00HanQiaoMeetingStage.AwaitingOpeningChoice));
+
+                    UnityEngine.Object.DestroyImmediate(scene);
+                    scene = null;
+
+                    if (layoutFirst)
+                        Assert.DoesNotThrow(() => view.LayoutForViewportAspect(9f / 16f));
+                    Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                        SoundwellUiLocalization.Chinese));
+                    Assert.DoesNotThrow(() => view.LayoutForViewportAspect(32f / 9f));
+                    Assert.DoesNotThrow(() => view.Refresh());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() => view.Dispose());
+                    Assert.DoesNotThrow(() => SoundwellUiLocalization.SetLanguage(
+                        SoundwellUiLocalization.English));
+                    Assert.That(sequence.Stage,
+                        Is.EqualTo(M00HanQiaoMeetingStage.AwaitingOpeningChoice));
+                    Assert.That(sequence.OpeningChoice, Is.Null);
+                    Assert.That(saved, Is.Zero);
+                    Assert.That(ransomCue, Is.Zero);
+                }
+                finally
+                {
+                    view?.Dispose();
+                    if (scene != null)
+                        UnityEngine.Object.DestroyImmediate(scene);
+                }
+            }
+        }
+
+        [Test]
         public void PortraitAndUltrawideKeepOneSharedMeetingState()
         {
             M00HanQiaoMeetingSequence sequence = Begun();
