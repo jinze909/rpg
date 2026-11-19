@@ -260,6 +260,52 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedHostSaveRestoresFinishSoThePlayerCanRetry()
+        {
+            var root = new GameObject("Roster retry after save failure");
+            M04RosterReconciliationView view = null;
+            try
+            {
+                var ledger = new M04RosterLedger();
+                ledger.AddEntry("dock-01", "Confirmed returnee", M04RosterStatus.ConfirmedAtDock);
+                int attempts = 0;
+                int delivered = 0;
+                bool failFirst = true;
+
+                view = new M04RosterReconciliationView(
+                    root.transform, ledger, 1, _ =>
+                    {
+                        attempts++;
+                        if (failFirst)
+                            throw new InvalidOperationException("Simulated interrupted host save");
+                        delivered++;
+                    }, () => { });
+
+                Assert.That(view.FinishButton.interactable, Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.FinishButton.onClick.Invoke());
+                Assert.That(attempts, Is.EqualTo(1));
+                Assert.That(delivered, Is.Zero);
+                Assert.That(view.FinishButton.interactable, Is.True,
+                    "An interrupted host save must allow retrying the same roster.");
+
+                failFirst = false;
+                view.FinishButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(delivered, Is.EqualTo(1));
+                Assert.That(view.FinishButton.interactable, Is.False);
+                view.FinishButton.onClick.Invoke();
+                Assert.That(delivered, Is.EqualTo(1),
+                    "Successful completion must still deliver exactly once.");
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void EmptyLedgerAndViewportAspectChangesStaySafeAndFinishOnce()
         {
             var root = new GameObject("Roster empty view");
