@@ -15,6 +15,11 @@ namespace Rpg.Soundwell
     {
         public const int ClearCueThreshold = 60;
 
+        private static readonly Color FogBackdropColor = new Color(0.04f, 0.07f, 0.09f, 0.98f);
+        private static readonly Color FogPaperColor = new Color(0.90f, 0.91f, 0.87f, 1f);
+        private static readonly Color FogInkColor = new Color(0.11f, 0.16f, 0.20f, 1f);
+        private static readonly Color FogButtonColor = new Color(0.80f, 0.83f, 0.80f, 1f);
+
         private readonly FogListeningSession session;
         private readonly GameObject canvasObject;
         private readonly RectTransform authored;
@@ -62,51 +67,33 @@ namespace Rpg.Soundwell
             this.onFinished = onFinished ?? throw new ArgumentNullException(nameof(onFinished));
 
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            canvasObject = new GameObject("Fog listening canvas",
-                typeof(RectTransform), typeof(Canvas));
-            canvasObject.transform.SetParent(parent, false);
-            var canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 131;
-            var scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(960f, 540f);
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasObject.AddComponent<GraphicRaycaster>();
+            canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
+                parent, "Fog listening canvas", 131, out authored,
+                FogBackdropColor, FogPaperColor);
 
-            Panel(canvas.transform, "Fog listening backdrop", new Vector2(950f, 530f),
-                new Color(0.04f, 0.07f, 0.09f, 0.98f));
-            var page = new GameObject("Fog listening panel", typeof(RectTransform));
-            page.transform.SetParent(canvas.transform, false);
-            authored = (RectTransform)page.transform;
-            authored.anchorMin = authored.anchorMax = new Vector2(0.5f, 0.5f);
-            authored.sizeDelta = new Vector2(960f, 540f);
-            Panel(authored, "Fog listening card", new Vector2(920f, 515f),
-                new Color(0.90f, 0.91f, 0.87f));
-
-            heading = Label(authored, 23, new Vector2(0f, 215f), new Vector2(840f, 42f));
-            statusText = Label(authored, 17, new Vector2(0f, 155f), new Vector2(840f, 64f));
+            heading = SoundwellUiTheme.CreateLabel(authored, 23, new Vector2(0f, 215f), new Vector2(840f, 42f), FogInkColor);
+            statusText = SoundwellUiTheme.CreateLabel(authored, 17, new Vector2(0f, 155f), new Vector2(840f, 64f), FogInkColor);
             statusText.alignment = TextAnchor.UpperLeft;
-            cueText = Label(authored, 18, new Vector2(0f, 54f), new Vector2(840f, 122f));
+            cueText = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(0f, 54f), new Vector2(840f, 122f), FogInkColor);
             cueText.alignment = TextAnchor.UpperLeft;
 
-            focusButton = NewButton(authored, "Fog focus listen",
-                new Vector2(0f, -44f), new Vector2(400f, 40f), out focusLabel);
+            focusButton = SoundwellUiTheme.CreateButton(authored, "Fog focus listen",
+                new Vector2(0f, -44f), new Vector2(400f, 40f), 16, out focusLabel, FogButtonColor, FogInkColor);
 
-            portButton = NewButton(authored, "Fog helm port",
-                new Vector2(-280f, -98f), new Vector2(250f, 40f), out portLabel);
-            holdButton = NewButton(authored, "Fog helm hold",
-                new Vector2(0f, -98f), new Vector2(250f, 40f), out holdLabel);
-            starboardButton = NewButton(authored, "Fog helm starboard",
-                new Vector2(280f, -98f), new Vector2(250f, 40f), out starboardLabel);
+            portButton = SoundwellUiTheme.CreateButton(authored, "Fog helm port",
+                new Vector2(-280f, -98f), new Vector2(250f, 40f), 16, out portLabel, FogButtonColor, FogInkColor);
+            holdButton = SoundwellUiTheme.CreateButton(authored, "Fog helm hold",
+                new Vector2(0f, -98f), new Vector2(250f, 40f), 16, out holdLabel, FogButtonColor, FogInkColor);
+            starboardButton = SoundwellUiTheme.CreateButton(authored, "Fog helm starboard",
+                new Vector2(280f, -98f), new Vector2(250f, 40f), 16, out starboardLabel, FogButtonColor, FogInkColor);
 
-            slowButton = NewButton(authored, "Fog helm slow",
-                new Vector2(-210f, -152f), new Vector2(340f, 40f), out slowLabel);
-            signalButton = NewButton(authored, "Fog helm signal",
-                new Vector2(210f, -152f), new Vector2(340f, 40f), out signalLabel);
+            slowButton = SoundwellUiTheme.CreateButton(authored, "Fog helm slow",
+                new Vector2(-210f, -152f), new Vector2(340f, 40f), 16, out slowLabel, FogButtonColor, FogInkColor);
+            signalButton = SoundwellUiTheme.CreateButton(authored, "Fog helm signal",
+                new Vector2(210f, -152f), new Vector2(340f, 40f), 16, out signalLabel, FogButtonColor, FogInkColor);
 
-            continueButton = NewButton(authored, "Fog continue",
-                new Vector2(0f, -210f), new Vector2(400f, 44f), out continueLabel);
+            continueButton = SoundwellUiTheme.CreateButton(authored, "Fog continue",
+                new Vector2(0f, -210f), new Vector2(400f, 44f), 16, out continueLabel, FogButtonColor, FogInkColor);
 
             focusButton.onClick.AddListener(FocusListen);
             portButton.onClick.AddListener(() => Steer(FogHelmAction.TurnPort));
@@ -124,13 +111,8 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed || !(aspect > 0f) || float.IsNaN(aspect) ||
-                float.IsInfinity(aspect)) return;
-            float width = Mathf.Sqrt(960f * 540f * aspect);
-            float height = Mathf.Sqrt(960f * 540f / aspect);
-            float scale = Mathf.Min(1f, Mathf.Min(width / 960f, height / 540f));
-            if (scale < 1f) scale *= 0.95f;
-            authored.localScale = new Vector3(scale, scale, 1f);
+            if (disposed) return;
+            SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
@@ -209,59 +191,7 @@ namespace Rpg.Soundwell
             starboardButton.onClick.RemoveAllListeners();
             signalButton.onClick.RemoveAllListeners();
             continueButton.onClick.RemoveAllListeners();
-            if (canvasObject != null)
-            {
-                canvasObject.SetActive(false);
-                if (Application.isPlaying) UnityEngine.Object.Destroy(canvasObject);
-                else UnityEngine.Object.DestroyImmediate(canvasObject);
-            }
-        }
-
-        private static void Panel(Transform parent, string name, Vector2 size, Color color)
-        {
-            var item = new GameObject(name, typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(Image));
-            item.transform.SetParent(parent, false);
-            var graphic = item.GetComponent<Image>();
-            graphic.color = color;
-            graphic.raycastTarget = false;
-            var rect = graphic.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = size;
-        }
-
-        private static Text Label(Transform parent, int fontSize, Vector2 position,
-            Vector2 dimensions)
-        {
-            var result = SoundwellView.AddLabel(parent, "", fontSize,
-                new Color(0.11f, 0.16f, 0.20f), position, dimensions);
-            result.resizeTextForBestFit = true;
-            result.resizeTextMinSize = 10;
-            result.resizeTextMaxSize = fontSize;
-            result.raycastTarget = false;
-            return result;
-        }
-
-        private static Button NewButton(Transform parent, string name,
-            Vector2 position, Vector2 size, out Text label)
-        {
-            var obj = new GameObject(name, typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(Image), typeof(Button));
-            obj.transform.SetParent(parent, false);
-            var image = obj.GetComponent<Image>();
-            image.color = new Color(0.80f, 0.83f, 0.80f);
-            var rect = (RectTransform)obj.transform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-            var button = obj.GetComponent<Button>();
-            button.targetGraphic = image;
-            label = Label(obj.transform, 16, Vector2.zero, size);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = new Vector2(8f, 2f);
-            label.rectTransform.offsetMax = new Vector2(-8f, -2f);
-            return button;
+            SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
 
