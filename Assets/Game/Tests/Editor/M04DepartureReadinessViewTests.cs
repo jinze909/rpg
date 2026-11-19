@@ -86,6 +86,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedHostDepartureSaveLetsPlayerRetryWithoutDuplicateCallbacks()
+        {
+            var root = new GameObject("Readiness interrupted host write");
+            M04DepartureReadinessView view = null;
+            try
+            {
+                var verified = Plan(true);
+                int attempts = 0;
+                int durableWrites = 0;
+                bool failFirst = true;
+
+                view = new M04DepartureReadinessView(root.transform, verified,
+                    accepted =>
+                    {
+                        attempts++;
+                        Assert.That(accepted.DepartureConfirmed, Is.True);
+                        Assert.That(view.ConfirmButton.interactable, Is.False);
+                        Assert.That(view.BackButton.interactable, Is.False);
+                        // A stale/reentrant submit cannot dispatch again.
+                        view.ConfirmButton.onClick.Invoke();
+                        view.BackButton.onClick.Invoke();
+                        if (failFirst)
+                            throw new InvalidOperationException("Simulated failed Makinom save");
+                        durableWrites++;
+                    }, () => Assert.Fail("Navigation must not occur while saving."));
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.ConfirmButton.onClick.Invoke());
+                Assert.That(attempts, Is.EqualTo(1));
+                Assert.That(durableWrites, Is.Zero);
+                Assert.That(verified.DepartureConfirmed, Is.False);
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+                Assert.That(view.BackButton.interactable, Is.True);
+
+                failFirst = false;
+                view.ConfirmButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(durableWrites, Is.EqualTo(1));
+                Assert.That(verified.DepartureConfirmed, Is.True);
+                Assert.That(view.ConfirmButton.interactable, Is.False);
+                view.ConfirmButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(durableWrites, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ChangingLocaleDoesNotApproveAnUnreadySailing()
         {
             var root = new GameObject("Readiness language");
