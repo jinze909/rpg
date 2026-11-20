@@ -8,6 +8,70 @@ namespace Rpg.Tests.Editor
     public sealed class FogListeningViewTests
     {
         [Test]
+        public void PixelCueOnlyAppearsWhenListeningIdentifiesARealReefOrSignal()
+        {
+            var root = new GameObject("M04 clarity gated fog pixel icon");
+            FogListeningView view = null;
+            string savedLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+                Assert.That(manifest, Is.Not.Null);
+                Assert.That(manifest.FogReefHintSubmerged, Is.Not.Null);
+                Assert.That(manifest.FogSignalLanternOn, Is.Not.Null);
+
+                var session = new FogListeningSession(new[]
+                {
+                    new FogListeningCue(FogBearing.Starboard, FogCueKind.ReefSurf, 30),
+                    new FogListeningCue(FogBearing.Port, FogCueKind.SignalResponse, 80,
+                        requiresReceiverLamp: true),
+                    new FogListeningCue(FogBearing.Ahead, FogCueKind.FalseEcho, 85)
+                }, maxListenFocus: 1, maxHullIntegrity: 2);
+                view = new FogListeningView(root.transform, session, _ => { });
+                Assert.That(view.CueIcon, Is.Not.Null);
+                Assert.That(view.CueIcon.gameObject.activeSelf, Is.False,
+                    "Faint unidentified sounds cannot reveal a hidden reef.");
+                Assert.That(view.CueText.text, Does.Not.Contain("Starboard"));
+                Assert.That(view.CueIcon.raycastTarget, Is.False);
+
+                view.FocusButton.onClick.Invoke();
+                Assert.That(view.CueText.text, Does.Contain("Starboard"));
+                Assert.That(view.CueIcon.gameObject.activeSelf, Is.True);
+                Assert.That(view.CueIcon.sprite, Is.EqualTo(manifest.FogReefHintSubmerged));
+                Assert.That(view.CueIcon.preserveAspect, Is.True);
+                Assert.That(view.CueIcon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(view.CueIcon.sprite.pixelsPerUnit,
+                    Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+                Assert.That(session.HullIntegrity, Is.EqualTo(2),
+                    "Presenting a pixel clue must not resolve or damage the voyage.");
+
+                view.SlowButton.onClick.Invoke();
+                Assert.That(session.CurrentStep, Is.EqualTo(1));
+                Assert.That(view.CueIcon.sprite, Is.EqualTo(manifest.FogSignalLanternOn));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.CueIcon.sprite, Is.EqualTo(manifest.FogSignalLanternOn));
+                Assert.That(view.CueIcon.raycastTarget, Is.False);
+
+                view.SignalButton.onClick.Invoke();
+                Assert.That(session.MatchedSignals, Is.EqualTo(1));
+                Assert.That(session.CurrentStep, Is.EqualTo(2));
+                Assert.That(view.CueIcon.gameObject.activeSelf, Is.False,
+                    "A false echo must not reuse the preceding real signal image.");
+                view.HoldButton.onClick.Invoke();
+                Assert.That(session.Succeeded, Is.True);
+                Assert.That(view.CueIcon.gameObject.activeSelf, Is.False,
+                    "Completing the fog leg must clear the last clue image.");
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FocusListenButtonClarifiesLowClarityCueAndDisablesWhenExhausted()
         {
             var root = new GameObject("Fog view focus");
