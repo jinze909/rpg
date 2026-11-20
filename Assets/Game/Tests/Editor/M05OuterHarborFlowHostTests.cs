@@ -38,6 +38,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CorruptSeranDecisionRejectsFreshAndSavedArrivalBeforeShowingUnfinishableUi()
+        {
+            foreach (bool landingSaved in new[] { false, true })
+            {
+                var root = new GameObject("M05 corrupt letters entry");
+                var values = new Dictionary<string, int>();
+                SeedCompletedCrossing(values);
+                var report = new M05LandingReport(3, 8, true, true);
+                var read = Reader(values);
+                Action<string, int> seed = (key, val) => values[key] = val;
+                if (landingSaved)
+                    Assert.That(M05LandingFacts.TryRecord(report, read, seed), Is.True);
+                values[M05LettersFacts.DecisionKey] = 99;
+                int writes = 0;
+                try
+                {
+                    Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                        landingSaved ? (M05LandingReport?)null : report,
+                        read, (key, val) => { writes++; values[key] = val; },
+                        _ => { }, out var host), Is.False);
+                    Assert.That(host, Is.Null);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                    Assert.That(values[M05LettersFacts.DecisionKey], Is.EqualTo(99));
+                    Assert.That(writes, Is.Zero);
+                    if (landingSaved)
+                    {
+                        Assert.That(M05OuterHarborArrivalSession.TryOpen(
+                            root.transform, read, seed, _ => { }, out var session),
+                            Is.False);
+                        Assert.That(session, Is.Null);
+                        Assert.That(root.transform.childCount, Is.Zero);
+                    }
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void TryOpenRefusesIncompleteCrossingOrInvalidObservedLanding()
         {
             var root = new GameObject("M05 flow gate test");
