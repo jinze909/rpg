@@ -85,6 +85,52 @@ namespace Rpg.Tests.Editor
                     Assert.That(Mathf.RoundToInt(group[i].textureRect.height), Is.EqualTo(24));
                 }
             }
+
+            // P1 M02 bridge evidence props (6 slices, 32x32)
+            foreach (Sprite s in new[]
+            {
+                manifest.M02CableFlatUncharredCut, manifest.M02BridgeKeeperOpenLedger,
+                manifest.M02OverwrittenBattleReport, manifest.M02HarborOfficialSeal,
+                manifest.M02IdentityDocumentUnsealed, manifest.M02IdentityDocumentSealed
+            })
+            {
+                Assert.That(s, Is.Not.Null);
+                Assert.That(s.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+                Assert.That(s.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(Mathf.RoundToInt(s.textureRect.width), Is.EqualTo(32));
+                Assert.That(Mathf.RoundToInt(s.textureRect.height), Is.EqualTo(32));
+            }
+
+            // P1 M03 Lu Jun camp cast (6 slices, 16x24)
+            foreach (Sprite s in new[]
+            {
+                manifest.M03LuJunStanding, manifest.M03LuJunRollCall,
+                manifest.M03VeteranNetMender, manifest.M03VeteranForwardLookout,
+                manifest.M03VeteranTidalGuide, manifest.M03VeteranStandardBearer
+            })
+            {
+                Assert.That(s, Is.Not.Null);
+                Assert.That(s.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+                Assert.That(s.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(Mathf.RoundToInt(s.textureRect.width), Is.EqualTo(16));
+                Assert.That(Mathf.RoundToInt(s.textureRect.height), Is.EqualTo(24));
+            }
+
+            // P1 M03 Lu Jun camp objects (8 slices, 32x32)
+            foreach (Sprite s in new[]
+            {
+                manifest.M03OldStandardRolled, manifest.M03OldStandardRaisedA,
+                manifest.M03OldStandardRaisedB, manifest.M03NetDryingRackLoaded,
+                manifest.M03NetDryingRackEmpty, manifest.M03TidalChartOpen,
+                manifest.M03TidalChartFolded, manifest.M03CampCoals
+            })
+            {
+                Assert.That(s, Is.Not.Null);
+                Assert.That(s.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+                Assert.That(s.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(Mathf.RoundToInt(s.textureRect.width), Is.EqualTo(32));
+                Assert.That(Mathf.RoundToInt(s.textureRect.height), Is.EqualTo(32));
+            }
         }
 
         [Test]
