@@ -18,8 +18,20 @@ namespace Rpg.Tests.Editor
             return (key, value) => values[key] = value;
         }
 
+        private static void SeedChosenRoute(Action<string, int> setInt,
+            M03VoyageChoice route)
+        {
+            var encounter = new M03LuJunEncounter(M02BridgeEvidence.None, true);
+            encounter.Begin();
+            encounter.ObserveRollCall();
+            encounter.Ask(M03LuJunOpening.NeedAShip);
+            encounter.ChooseVoyage(route);
+            Assert.That(M03LuJunFacts.TryRecord(encounter, setInt), Is.True);
+        }
+
         private static void SeedReady(Dictionary<string, int> values)
         {
+            SeedChosenRoute(Writer(values), M03VoyageChoice.QiQueMerchant);
             var manifest = new M04DepartureManifest(
                 M03VoyageChoice.QiQueMerchant, "Seen civilian hull",
                 "Named pilot", 3, "Verified tender", true,
@@ -72,6 +84,47 @@ namespace Rpg.Tests.Editor
             }
             finally
             {
+                UnityEngine.Object.DestroyImmediate(scene);
+            }
+        }
+
+        [Test]
+        public void OldSailedHullCannotStartOrCompleteAReplacedRoute()
+        {
+            var scene = new GameObject("M04 stale sailed-route protection");
+            var values = new Dictionary<string, int>();
+            M04SailedFogLegHost host = null;
+            try
+            {
+                SeedReady(values);
+                Assert.That(M04DepartureFacts.TryMarkSailed(
+                    Reader(values), Writer(values)), Is.True);
+                Assert.That(M03LuJunFacts.TryResetForNewVisit(Writer(values)), Is.True);
+                SeedChosenRoute(Writer(values), M03VoyageChoice.LuJunEscort);
+
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
+                    Reader(values), Writer(values), _ => { }, out var refused), Is.False,
+                    "A previously sailed hull must not open a different chosen route.");
+                Assert.That(refused, Is.Null);
+
+                Assert.That(M03LuJunFacts.TryResetForNewVisit(Writer(values)), Is.True);
+                SeedChosenRoute(Writer(values), M03VoyageChoice.QiQueMerchant);
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
+                    Reader(values), Writer(values), _ => { }, out host), Is.True);
+                host.View.HoldButton.onClick.Invoke();
+                Assert.That(host.Leg.IsComplete, Is.True);
+
+                // The voyage can change while the UI is open. Its stale
+                // completion must not write the next route's fog outcome.
+                Assert.That(M03LuJunFacts.TryResetForNewVisit(Writer(values)), Is.True);
+                SeedChosenRoute(Writer(values), M03VoyageChoice.HanQiaoOfficial);
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.View.ContinueButton.onClick.Invoke());
+                Assert.That(values.ContainsKey(FogListeningFacts.CompletedKey), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
                 UnityEngine.Object.DestroyImmediate(scene);
             }
         }
