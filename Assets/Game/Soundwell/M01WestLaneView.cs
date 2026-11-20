@@ -29,6 +29,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button progressButton;
@@ -43,6 +45,7 @@ namespace Rpg.Soundwell
         public M01PensionChoice? Decision { get; private set; }
         public Text DialogueText => dialogue;
         public Text HeadingText => heading;
+        public Image StageIcon => stageIcon;
         public Button ProgressButton => progressButton;
 
         public M01WestLaneView(
@@ -62,14 +65,19 @@ namespace Rpg.Soundwell
             this.onChosen = onChosen;
             Stage = M01WestLaneStage.AtDoor;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
 
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M01 West Lane canvas", 121, out authoredView,
                 paperColor: Paper);
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M01 West Lane stage icon",
+                new Vector2(-346f, 69f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 24,
                 new Vector2(0f, 216f), new Vector2(845f, 43f), Brass);
             dialogue = SoundwellUiTheme.CreateLabel(authoredView, 19,
-                new Vector2(0f, 69f), new Vector2(835f, 232f), Ink);
+                new Vector2(72f, 69f), new Vector2(688f, 232f), Ink);
             dialogue.alignment = TextAnchor.MiddleLeft;
 
             for (int i = 0; i < choices.Length; i++)
@@ -123,6 +131,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
 
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -179,6 +189,39 @@ namespace Rpg.Soundwell
                     break;
                 default:
                     throw new InvalidOperationException("Unknown West Lane scene stage.");
+            }
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            if (delivered)
+                return null;
+            switch (Stage)
+            {
+                case M01WestLaneStage.AtDoor:
+                    return RpgStoryArtResolver.ResolveM04LanternSprite(true, artManifest);
+                case M01WestLaneStage.AtIronBox:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(false, artManifest);
+                case M01WestLaneStage.ChoosingPension:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(true, artManifest);
+                case M01WestLaneStage.Concluded:
+                    if (!Decision.HasValue)
+                        return null;
+                    switch (Decision.Value)
+                    {
+                        case M01PensionChoice.RegisterLivingIdentity:
+                            return RpgStoryArtResolver.ResolveM02DocumentSprite(false, artManifest);
+                        case M01PensionChoice.KeepIdentityUnregistered:
+                            return RpgStoryArtResolver.ResolveM02DocumentSprite(true, artManifest);
+                        case M01PensionChoice.RequestMissingReturnReview:
+                            return RpgStoryArtResolver.ResolveM07PassSprite(false, artManifest);
+                        case M01PensionChoice.LeaveWithoutDecision:
+                            return RpgStoryArtResolver.ResolveM07CargoCrateSprite(false, artManifest);
+                        default:
+                            return null;
+                    }
+                default:
+                    return null;
             }
         }
 

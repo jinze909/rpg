@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -26,6 +27,46 @@ namespace Rpg.Tests.Editor
             if (root != null)
                 UnityEngine.Object.DestroyImmediate(root);
             SoundwellUiLocalization.SetLanguage(previousLanguage);
+        }
+
+        [Test]
+        public void StageIconTracksDoorIronBoxDecisionAndHidesAfterHandoff()
+        {
+            RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+            Assert.That(manifest, Is.Not.Null);
+
+            view = NewView(M00RollCallOutcome.Silent, false, _ => { });
+            AssertStageIcon(view.StageIcon, manifest.FogSignalLanternOn);
+
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01WestLaneStage.AtIronBox));
+            AssertStageIcon(view.StageIcon, manifest.M07CargoCoverCrateClosed);
+
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01WestLaneStage.ChoosingPension));
+            AssertStageIcon(view.StageIcon, manifest.M07CargoCoverCrateOpen);
+
+            view.GetChoiceButton(2).onClick.Invoke();
+            Assert.That(view.Stage, Is.EqualTo(M01WestLaneStage.Concluded));
+            AssertStageIcon(view.StageIcon, manifest.M07InspectionPendingPass);
+
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(view.StageIcon.sprite, Is.Null);
+            Assert.That(view.StageIcon.enabled, Is.False);
+            Assert.That(view.StageIcon.gameObject.activeSelf, Is.False);
+        }
+
+        private static void AssertStageIcon(Image icon, Sprite expected)
+        {
+            Assert.That(icon, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(icon.sprite, Is.EqualTo(expected));
+            Assert.That(icon.preserveAspect, Is.True);
+            Assert.That(icon.raycastTarget, Is.False);
+            Assert.That(icon.enabled, Is.True);
+            Assert.That(icon.gameObject.activeSelf, Is.True);
+            Assert.That(icon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(icon.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
         }
 
         [Test]
