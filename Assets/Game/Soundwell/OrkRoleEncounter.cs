@@ -84,6 +84,19 @@ namespace Rpg.Soundwell
         public OrkPartyBridge Party => party;
         public bool IsConfigured => configured;
         public bool IsPresenting => pendingPlayerAction != null || presentationCount > 0;
+        // Diagnostic-only: the ORK actor owning the queued player command.
+        // -1 means no command, -2 means its actor has left the current party.
+        public int PendingPlayerActorIndex
+        {
+            get
+            {
+                if (pendingPlayerAction == null || party == null) return -1;
+                for (int i = 0; i < party.Members.Count; i++)
+                    if (party.Members[i] == pendingPlayerAction.User) return i;
+                return -2;
+            }
+        }
+        public int ActivePresentationCount => presentationCount;
         public bool IsActive => configured && party != null && party.BattleInProgress;
         public bool IsInterrupted => planned != null && planned.Interrupted;
         public bool IsExposed => party != null && party.Beast != null &&
@@ -133,6 +146,16 @@ namespace Rpg.Soundwell
             if (party.BattleInProgress)
             {
                 observedBattle = true;
+                // The ORK chooser is authoritative. If the battle has moved
+                // to a different rescuer, a stale finishedCallback from the
+                // previous command must not permanently lock the new turn.
+                // A still-running presentation keeps its separate animation
+                // lock, and a command for the current actor stays protected.
+                int choosingIndex = party.ChoosingRescuerIndex;
+                if (pendingPlayerAction != null &&
+                    choosingIndex >= 0 && choosingIndex < party.Members.Count &&
+                    party.Members[choosingIndex] != pendingPlayerAction.User)
+                    pendingPlayerAction = null;
                 // Submit only when ORK grants the enemy its actual turn.
                 if (party.Beast.Actions.IsChoosing && !IsPresenting)
                 {

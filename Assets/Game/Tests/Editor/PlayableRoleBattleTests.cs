@@ -97,7 +97,9 @@ namespace Rpg.Tests.Editor
                     "Role battle stalled. Actor=" + encounter.Party.ChoosingRescuerIndex +
                     ", threat=" + encounter.PendingThreat + ", busy=" + encounter.IsPresenting +
                     ", beastHp=" + encounter.Party.Beast.Status[1].GetValue() +
-                    ", exposed=" + encounter.IsExposed);
+                    ", exposed=" + encounter.IsExposed +
+                    ", pendingActor=" + encounter.PendingPlayerActorIndex +
+                    ", animations=" + encounter.ActivePresentationCount);
                 int actor = encounter.Party.ChoosingRescuerIndex;
                 if (!encounter.IsPresenting && actor >= 0)
                 {
