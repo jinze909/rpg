@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -46,6 +47,37 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void SpeakerPortraitTracksEachHarborBeatWithPointFilteredPixelArtAndHidesOnFinish()
+        {
+            var root = new GameObject("M05 harbor portrait test");
+            M05HarborWalkView view = null;
+            try
+            {
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+                Assert.That(manifest, Is.Not.Null);
+
+                view = new M05HarborWalkView(root.transform, () => { });
+                AssertPortrait(view.SpeakerPortrait, manifest.HarborRepairer);
+
+                view.AdvanceButton.onClick.Invoke();
+                AssertPortrait(view.SpeakerPortrait, manifest.OuterHarborFisher);
+
+                view.AdvanceButton.onClick.Invoke();
+                AssertPortrait(view.SpeakerPortrait, manifest.MiningFamilySaltVendor);
+
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(view.Beat, Is.EqualTo(M05HarborBeat.Finished));
+                Assert.That(view.SpeakerPortrait.sprite, Is.Null);
+                Assert.That(view.SpeakerPortrait.enabled, Is.False);
+                Assert.That(view.SpeakerPortrait.gameObject.activeSelf, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
 
         [Test]
         public void IsolatedHarborBeatShowsOnlyItsOwnLocationAndCanRetryHostFailure()
@@ -212,6 +244,19 @@ namespace Rpg.Tests.Editor
                 view?.Dispose();
                 UnityEngine.Object.DestroyImmediate(root);
             }
+        }
+
+        private static void AssertPortrait(Image portrait, Sprite expected)
+        {
+            Assert.That(portrait, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(portrait.sprite, Is.EqualTo(expected));
+            Assert.That(portrait.preserveAspect, Is.True);
+            Assert.That(portrait.raycastTarget, Is.False);
+            Assert.That(portrait.enabled, Is.True);
+            Assert.That(portrait.gameObject.activeSelf, Is.True);
+            Assert.That(portrait.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(portrait.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
         }
 
         private static void ButtonClickAfterDispose(M05HarborWalkView view)

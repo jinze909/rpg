@@ -14,6 +14,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authored;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image speakerPortrait;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button takeButton;
@@ -36,6 +38,7 @@ namespace Rpg.Soundwell
         public Button LeaveButton => leaveButton;
         public Button ReadPacketButton => readPacketButton;
         public Button ContinueButton => continueButton;
+        public Image SpeakerPortrait => speakerPortrait;
 
         public M05SeranLettersView(
             Transform parent, Action<M05LetterDecision> onFinished)
@@ -43,13 +46,18 @@ namespace Rpg.Soundwell
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             this.onFinished = onFinished ?? throw new ArgumentNullException(nameof(onFinished));
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M05 Seran letters canvas", 131, out authored);
 
+            speakerPortrait = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authored, "M05 Seran portrait",
+                new Vector2(-346f, 64f), new Vector2(112f, 112f),
+                ResolveSpeakerSprite());
             heading = SoundwellUiTheme.CreateLabel(authored, 25,
                 new Vector2(0f, 209f), new Vector2(840f, 46f));
             dialogue = SoundwellUiTheme.CreateLabel(authored, 19,
-                new Vector2(0f, 49f), new Vector2(822f, 248f));
+                new Vector2(72f, 49f), new Vector2(678f, 248f));
             dialogue.alignment = TextAnchor.MiddleLeft;
             dialogue.horizontalOverflow = HorizontalWrapMode.Wrap;
             dialogue.verticalOverflow = VerticalWrapMode.Overflow;
@@ -97,6 +105,9 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            if (speakerPortrait != null)
+                RpgStoryArtResolver.ApplyPixelSprite(speakerPortrait, ResolveSpeakerSprite());
+
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = dialogue.font = takeLabel.font = leaveLabel.font =
@@ -121,6 +132,11 @@ namespace Rpg.Soundwell
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(
                     canvasObject.transform, choosing ? takeButton : continueButton);
+        }
+
+        private Sprite ResolveSpeakerSprite()
+        {
+            return artManifest != null ? artManifest.SeranLetterCarrier : null;
         }
 
         private bool CanvasDestroyed()

@@ -22,6 +22,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform panel;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image speakerPortrait;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Text advanceLabel;
@@ -36,6 +38,7 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public Button AdvanceButton => advance;
         public RectTransform Panel => panel;
+        public Image SpeakerPortrait => speakerPortrait;
 
         // The original sequential staging remains available to existing M05 hosts.
         public M05HarborWalkView(Transform parent, Action onFinished)
@@ -56,6 +59,7 @@ namespace Rpg.Soundwell
             this.singleBeat = singleBeat;
             beat = startBeat;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = new GameObject("M05 harbor walk canvas",
                 typeof(RectTransform), typeof(Canvas));
             canvasObject.transform.SetParent(parent, false);
@@ -81,12 +85,16 @@ namespace Rpg.Soundwell
                 new Vector2(904f, 202f), new Color(0.64f, 0.56f, 0.42f, 1f));
             SoundwellUiTheme.CreatePanel(panel, "M05 dark backing",
                 new Vector2(900f, 198f), new Color(0.06f, 0.09f, 0.11f, 0.97f));
+            speakerPortrait = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                panel, "M05 speaker portrait",
+                new Vector2(-372f, 20f), new Vector2(96f, 96f),
+                ResolveSpeakerSprite(beat));
             Color ink = new Color(0.93f, 0.89f, 0.81f, 1f);
             heading = SoundwellUiTheme.CreateLabel(panel, 19,
-                new Vector2(0f, 76f), new Vector2(842f, 30f), ink);
+                new Vector2(64f, 76f), new Vector2(714f, 30f), ink);
             heading.alignment = TextAnchor.MiddleLeft;
             dialogue = SoundwellUiTheme.CreateLabel(panel, 17,
-                new Vector2(0f, 6f), new Vector2(842f, 110f), ink);
+                new Vector2(64f, 6f), new Vector2(714f, 110f), ink);
             dialogue.alignment = TextAnchor.MiddleLeft;
             dialogue.horizontalOverflow = HorizontalWrapMode.Wrap;
             advance = SoundwellUiTheme.CreateButton(panel, "M05 harbor advance",
@@ -115,6 +123,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (speakerPortrait != null)
+                RpgStoryArtResolver.ApplyPixelSprite(speakerPortrait, ResolveSpeakerSprite(beat));
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = dialogue.font = advanceLabel.font = font;
@@ -129,6 +139,22 @@ namespace Rpg.Soundwell
             advance.interactable = !delivering && beat != M05HarborBeat.Finished;
             if (advance.interactable)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, advance);
+        }
+
+        private Sprite ResolveSpeakerSprite(M05HarborBeat currentBeat)
+        {
+            if (artManifest == null) return null;
+            switch (currentBeat)
+            {
+                case M05HarborBeat.RepairStall:
+                    return artManifest.HarborRepairer;
+                case M05HarborBeat.FisherRumor:
+                    return artManifest.OuterHarborFisher;
+                case M05HarborBeat.MarketAccusation:
+                    return artManifest.MiningFamilySaltVendor;
+                default:
+                    return null;
+            }
         }
 
         private void Advance()
