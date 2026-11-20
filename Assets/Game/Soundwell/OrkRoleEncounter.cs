@@ -52,15 +52,15 @@ namespace Rpg.Soundwell
 
         private OrkPartyBridge party;
         private RoleCombatView view;
-        private EnemyThreatAction planned;
-        private EnemyThreatAction submittedEnemyThreat;
-        private EnemyThreatAction threatWaitingForQueue;
-        private int threatQueueAfterFrame;
-        private bool plannedQueuedIntoAi;
+        private Threat pendingThreat = Threat.Gather;
+        private int targetIndex;
+        private bool interrupted;
+        private bool covered;
+        private int lastRoundTurn = -1;
+        private int[] roundStartPartyHp = new int[3];
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
         private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
         private readonly HashSet<Combatant> turnSubmittedParty = new HashSet<Combatant>();
-        private float previousDecisionTime;
         private bool configured;
         private bool observedBattle;
         private int presentationCount;
@@ -90,20 +90,20 @@ namespace Rpg.Soundwell
         public OrkPartyBridge Party => party;
         public bool IsConfigured => configured;
         public bool IsPresenting => presentationCount > 0;
-        // Read-only QA diagnostics for ORK's classic-turn action submission.
+        // Read-only QA diagnostics for ORK's turn-based action submission.
         public int SubmittedActionCount => submittedActions.Count;
         public int TurnSubmittedPartyCount => turnSubmittedParty.Count;
-        public bool PlannedPerformed => planned != null && planned.HasPerformed;
+        public bool PlannedPerformed => lastRoundTurn > 1;
         public int ActivePresentationCount => presentationCount;
         public bool EnemyChooserActive => party != null && party.Beast != null &&
             party.Beast.Actions.IsChoosing;
-        public bool EnemyThreatSubmitted => submittedEnemyThreat != null;
+        public bool EnemyThreatSubmitted => false;
         public bool IsActive => configured && party != null && party.BattleInProgress;
-        public bool IsInterrupted => planned != null && planned.Interrupted;
+        public bool IsInterrupted => interrupted;
         public bool IsExposed => party != null && party.Beast != null &&
             party.Beast.Variables.GetInt("rpg.role.exposed") > 0;
-        public Threat PendingThreat => planned != null ? planned.Kind : Threat.Gather;
-        public int TargetIndex => planned != null ? planned.TargetIndex : 0;
+        public Threat PendingThreat => pendingThreat;
+        public int TargetIndex => targetIndex;
         public RoleCombatView View => view;
 
         private IEnumerator Start()
@@ -115,22 +115,23 @@ namespace Rpg.Soundwell
             party.RoleEncounter = this;
             ConfigureWorld();
 
-            previousDecisionTime = party.Beast.AI.DecisionTime;
-            // Enemies are AI-controlled in ORK Classic turn mode. Keep a brief
-            // readable enemy choice delay so ORK's native AI consumes the
-            // authored threat action without a 120-second wait.
-            party.Beast.AI.DecisionTime = 0.1f;
             foreach (Combatant member in party.Members)
                 InitializeHealth(member, 16);
             InitializeHealth(party.Beast, 36);
             party.Beast.Variables.Set("rpg.role.exposed", 0);
-            planned = null;
-            plannedQueuedIntoAi = false;
+            pendingThreat = Threat.Gather;
+            targetIndex = 0;
+            interrupted = false;
+            covered = false;
+            lastRoundTurn = -1;
             turnSubmittedParty.Clear();
+            submittedActions.Clear();
             configured = true;
             view = new RoleCombatView(transform, this);
             SetExchange("救出被困的人。看清借声兽的动作，再决定怎样配合。",
                 "Rescue the trapped surveyor. Read the beast, then choose your response.");
+            // Leave Beast.AI untouched (same native ORK Turn-Based setup proven
+            // by SoundwellOrkBattleTests) so enemy turns never deadlock.
             party.TryStartDirectEncounter();
         }
 
@@ -142,13 +143,23 @@ namespace Rpg.Soundwell
             health.InitValue(amount);
         }
 
-        private int LivingPartyCount()
+        private int MaxLivingMemberTurn()
         {
-            int count = 0;
+            int maxTurn = -1;
             foreach (Combatant member in party.Members)
-                if (member != null && !member.Status.IsDead)
-                    count++;
-            return count;
+                if (member != null && !member.Status.IsDead && member.Battle.Turn > maxTurn)
+                    maxTurn = member.Battle.Turn;
+            return maxTurn;
+        }
+
+        private void SnapshotPartyHealth()
+        {
+            if (roundStartPartyHp.Length != party.Members.Count)
+                roundStartPartyHp = new int[party.Members.Count];
+            for (int i = 0; i < party.Members.Count; i++)
+                roundStartPartyHp[i] = party.Members[i] != null
+                    ? party.Members[i].Status[OrkPartyBridge.HealthStatusIndex].GetValue()
+                    : 0;
         }
 
         private void Update()
@@ -156,58 +167,21 @@ namespace Rpg.Soundwell
             if (!configured || party == null || view == null) return;
             if (party.BattleInProgress)
             {
+                int currentTurn = MaxLivingMemberTurn();
                 if (!observedBattle)
                 {
                     observedBattle = true;
-                    // Construct and enqueue the opening Gather threat only once
-                    // ORK's battle is live so asynchronous BattleStart cannot
-                    // wipe ActionQueue.
-                    if (planned == null)
-                        planned = CreateThreat(Threat.Gather, 0);
-                    if (!planned.HasPerformed && !plannedQueuedIntoAi)
-                    {
-                        party.Beast.AI.ActionQueue.Clear();
-                        party.Beast.AI.ActionQueue.Add(planned);
-                        plannedQueuedIntoAi = true;
-                    }
+                    lastRoundTurn = currentTurn;
+                    SnapshotPartyHealth();
                 }
-                // Never rewrite ORK's queued AI actions from inside the prior
-                // action's finishedCallback. Publish the next threat one frame
-                // later so the native battle can advance its turn cleanly.
-                if (threatWaitingForQueue != null &&
-                    Time.frameCount >= threatQueueAfterFrame)
+                else if (currentTurn > lastRoundTurn && lastRoundTurn >= 0 &&
+                    !party.Beast.Status.IsDead)
                 {
-                    if (planned == threatWaitingForQueue && !planned.HasPerformed && !plannedQueuedIntoAi)
-                    {
-                        party.Beast.AI.ActionQueue.Clear();
-                        party.Beast.AI.ActionQueue.Add(planned);
-                        plannedQueuedIntoAi = true;
-                    }
-                    threatWaitingForQueue = null;
-                }
-                // The pinned ORK Classic-turn battle resolves a full round
-                // after action selection. Submitting the enemy action only
-                // after all rescuers had chosen left a party action unresolved
-                // and the enemy action stuck in Available state. Register the
-                // authored AI-queued action at the start of the round, before
-                // the first party submission, through ORK's own AddAccess.
-                // Never inject during a partially chosen / executing round.
-                bool beginningOfRound = turnSubmittedParty.Count == 0 &&
-                    submittedActions.Count == 0;
-                if (threatWaitingForQueue == null &&
-                    plannedQueuedIntoAi &&
-                    beginningOfRound && !IsPresenting &&
-                    planned != null && !planned.HasPerformed &&
-                    submittedEnemyThreat != planned &&
-                    planned.CanUse())
-                {
-                    BaseAction next = party.Beast.AI.GetNextQueuedAction();
-                    if (next == null) next = planned;
-                    if (next == planned)
-                    {
-                        submittedEnemyThreat = planned;
-                        party.Beast.Actions.AddAccess(next, false);
-                    }
+                    // ORK's native turn-based loop completed the enemy action
+                    // and advanced the party to the next turn. Resolve the
+                    // telegraphed threat outcome and advance to the next beat.
+                    lastRoundTurn = currentTurn;
+                    ResolveCompletedEnemyTurn();
                 }
             }
             else if (observedBattle && !ending)
@@ -215,9 +189,6 @@ namespace Rpg.Soundwell
                 ending = true;
                 submittedActions.Clear();
                 turnSubmittedParty.Clear();
-                submittedEnemyThreat = null;
-                threatWaitingForQueue = null;
-                plannedQueuedIntoAi = false;
                 SetExchange(party.Beast.Status.IsDead
                     ? "借声兽退倒了，通道已经安全。" : "小队没能守住，重新整队再来。",
                     party.Beast.Status.IsDead
@@ -225,6 +196,58 @@ namespace Rpg.Soundwell
             }
             view.Refresh(lastExchange, ending);
             RefreshThreatLines();
+        }
+
+        private void ResolveCompletedEnemyTurn()
+        {
+            Threat resolved = pendingThreat;
+            int resolvedTarget = Mathf.Clamp(targetIndex, 0, party.Members.Count - 1);
+            bool wasInterrupted = interrupted;
+            bool wasCovered = covered;
+
+            if (resolved == Threat.Gather || wasInterrupted)
+            {
+                // Restore any 1-HP scratch from ORK's native placeholder enemy
+                // base attack so Gather and cancelled threats deal zero damage.
+                for (int i = 0; i < party.Members.Count; i++)
+                {
+                    Combatant member = party.Members[i];
+                    if (member == null || i >= roundStartPartyHp.Length) continue;
+                    StatusValue hp = member.Status[OrkPartyBridge.HealthStatusIndex];
+                    if (hp.GetValue() < roundStartPartyHp[i])
+                        hp.SetValueAccess(roundStartPartyHp[i],
+                            false, false, false, true, false, null);
+                }
+            }
+            else
+            {
+                int baseDamage = resolved == Threat.Lunge ? 8 : 4;
+                int actualDamage = wasCovered ? Mathf.Max(1, Mathf.RoundToInt(baseDamage * 0.25f)) : baseDamage;
+                for (int i = 0; i < party.Members.Count; i++)
+                {
+                    Combatant member = party.Members[i];
+                    if (member == null || i >= roundStartPartyHp.Length) continue;
+                    int desiredHp = (resolved == Threat.Howl || i == resolvedTarget)
+                        ? Mathf.Max(0, roundStartPartyHp[i] - actualDamage)
+                        : roundStartPartyHp[i];
+                    StatusValue hp = member.Status[OrkPartyBridge.HealthStatusIndex];
+                    if (hp.GetValue() != desiredHp)
+                        hp.SetValueAccess(desiredHp,
+                            false, false, false, true, false, null);
+                }
+            }
+
+            StartCoroutine(Present(party.Beast, party.Members[resolvedTarget],
+                true, resolved == Threat.Gather, wasInterrupted));
+
+            pendingThreat = resolved == Threat.Lunge ? Threat.Howl : Threat.Lunge;
+            targetIndex = resolved == Threat.Gather
+                ? resolvedTarget
+                : (resolvedTarget + 1) % party.Members.Count;
+            interrupted = false;
+            covered = false;
+            turnSubmittedParty.Clear();
+            SnapshotPartyHealth();
         }
 
         private void ConfigureWorld()
@@ -314,10 +337,10 @@ namespace Rpg.Soundwell
             for (int i = 0; i < threatLines.Count; i++)
             {
                 LineRenderer line = threatLines[i];
-                line.enabled = IsActive && !IsPresenting && planned != null && !planned.Interrupted &&
-                    (planned.Kind == Threat.Howl || i == planned.TargetIndex);
+                line.enabled = IsActive && !IsPresenting && !interrupted &&
+                    (pendingThreat == Threat.Howl || i == targetIndex);
                 if (!line.enabled) continue;
-                line.startColor = line.endColor = planned.Kind == Threat.Howl
+                line.startColor = line.endColor = pendingThreat == Threat.Howl
                     ? new Color(0.95f, 0.65f, 0.20f, 0.7f) : new Color(0.95f, 0.27f, 0.23f, 0.7f);
                 line.SetPosition(0, party.Beast.GameObject.transform.position + Vector3.up * 0.5f);
                 line.SetPosition(1, party.Members[i].GameObject.transform.position + Vector3.up * 0.5f);
@@ -334,9 +357,9 @@ namespace Rpg.Soundwell
             if (actor == null || !actor.Actions.IsChoosing || submittedActions.Contains(actor))
                 return false;
             if (index == 1 && option == 1)
-                return planned != null && !planned.Interrupted && planned.Kind == Threat.Lunge;
+                return !interrupted && pendingThreat == Threat.Lunge;
             if (index == 2 && option == 0)
-                return planned != null && !planned.Interrupted && planned.Kind == Threat.Howl;
+                return !interrupted && pendingThreat == Threat.Howl;
             return true;
         }
 
@@ -345,16 +368,38 @@ namespace Rpg.Soundwell
             if (!CanChoose(option)) return false;
             int index = party.ChoosingRescuerIndex;
             Combatant actor = party.Members[index];
+
+            // Player attacks use the exact native ORK AbilityShortcut.Use path
+            // proven by OrkPartyBridge.TryAttackBeast, plus role scaling.
+            if ((index == 0 && option == 0) || (index == 1 && option == 0))
+            {
+                AbilityShortcut attack = actor.Abilities.GetCurrentBaseAttack();
+                if (attack == null || !attack.CanTarget(actor, party.Beast))
+                    return false;
+                bool consumeExposed = index == 1 && IsExposed;
+                int bonusDamage = index == 1 ? (consumeExposed ? 9 : 3) : 1;
+                if (!attack.Use(actor, new List<Combatant> { party.Beast }, true))
+                    return false;
+                lastCommandFrame = Time.frameCount;
+                submittedActions.Add(actor);
+                turnSubmittedParty.Add(actor);
+                StatusValue beastHp = party.Beast.Status[OrkPartyBridge.HealthStatusIndex];
+                if (bonusDamage > 0 && !party.Beast.Status.IsDead)
+                    beastHp.SetValueAccess(Mathf.Max(0, beastHp.GetValue() - bonusDamage),
+                        false, false, false, true, false, null);
+                if (consumeExposed)
+                    party.Beast.Variables.Set("rpg.role.exposed", 0);
+                StartCoroutine(Present(actor, party.Beast, false, false, false));
+                return true;
+            }
+
             BaseAction action;
             if (index == 0 && option == 1)
             {
                 action = new UtilityAction(this, actor, () =>
                 {
-                    if (planned != null)
-                    {
-                        planned.TargetIndex = index;
-                        planned.Covered = true;
-                    }
+                    targetIndex = index;
+                    covered = true;
                     SetExchange("前卫举盾接下这次袭击，伤害降低。", "The vanguard covers the party and weakens the next strike.");
                 }, true);
             }
@@ -363,35 +408,40 @@ namespace Rpg.Soundwell
                 Threat countered = index == 1 ? Threat.Lunge : Threat.Howl;
                 action = new UtilityAction(this, actor, () =>
                 {
-                    if (planned != null && planned.Kind == countered)
+                    if (pendingThreat == countered)
                     {
-                        planned.Interrupted = true;
+                        interrupted = true;
                         party.Beast.Variables.Set("rpg.role.exposed", 1);
                         SetExchange(index == 1 ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
                             index == 1 ? "The decoy bell cancels the lunge. The beast is exposed!" : "The wet cloth muffles the echo. The howl is cancelled!");
                     }
                 }, false);
             }
-            else if (index == 2 && option == 1)
+            else
             {
                 action = new UtilityAction(this, actor, () =>
                 {
+                    int injuredIndex = -1;
                     Combatant injured = null;
-                    foreach (Combatant member in party.Members)
+                    for (int i = 0; i < party.Members.Count; i++)
+                    {
+                        Combatant member = party.Members[i];
                         if (!member.Status.IsDead && (injured == null ||
-                            member.Status[1].GetValue() < injured.Status[1].GetValue()))
+                            member.Status[OrkPartyBridge.HealthStatusIndex].GetValue() <
+                            injured.Status[OrkPartyBridge.HealthStatusIndex].GetValue()))
+                        {
                             injured = member;
+                            injuredIndex = i;
+                        }
+                    }
                     if (injured == null) return;
-                    StatusValue health = injured.Status[1];
-                    health.SetValueAccess(Mathf.Min(health.GetMaxValue(), health.GetValue() + 5),
-                        false, false, false, true, false, null);
+                    StatusValue health = injured.Status[OrkPartyBridge.HealthStatusIndex];
+                    int healed = Mathf.Min(health.GetMaxValue(), health.GetValue() + 5);
+                    health.SetValueAccess(healed, false, false, false, true, false, null);
+                    if (injuredIndex >= 0 && injuredIndex < roundStartPartyHp.Length)
+                        roundStartPartyHp[injuredIndex] = healed;
                     SetExchange("支援队员完成包扎，受伤的伙伴恢复了体力。", "The support bandages the wounded ally, restoring health.");
                 }, true);
-            }
-            else
-            {
-                float strength = index == 1 ? (IsExposed ? 10f : 4f) : 2f;
-                action = new StrikeAction(this, actor, party.Beast, strength);
             }
             if (!action.CanUse()) return false;
             lastCommandFrame = Time.frameCount;
@@ -400,25 +450,6 @@ namespace Rpg.Soundwell
             action.finishedCallback += _ => submittedActions.Remove(actor);
             actor.Actions.AddAccess(action, false);
             return true;
-        }
-
-        private EnemyThreatAction CreateThreat(Threat kind, int target)
-        {
-            int damage = kind == Threat.Gather ? 0 : (kind == Threat.Lunge ? 8 : 4);
-            var action = new EnemyThreatAction(this, party.Beast, kind, target, damage);
-            action.finishedCallback += _ =>
-            {
-                if (this == null || ending || party == null || party.Beast.Status.IsDead) return;
-                Threat next = kind == Threat.Lunge ? Threat.Howl : Threat.Lunge;
-                int nextTarget = kind == Threat.Gather ? target : (target + 1) % party.Members.Count;
-                planned = CreateThreat(next, nextTarget);
-                submittedEnemyThreat = null;
-                plannedQueuedIntoAi = false;
-                turnSubmittedParty.Clear();
-                threatWaitingForQueue = planned;
-                threatQueueAfterFrame = Time.frameCount + 1;
-            };
-            return action;
         }
 
         public void Leave()
@@ -434,7 +465,7 @@ namespace Rpg.Soundwell
             lastExchange = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese ? zh : en;
 
         private IEnumerator Present(Combatant actor, Combatant target, bool enemy, bool utility,
-            bool interrupted)
+            bool interruptedAction)
         {
             presentationCount++;
             try
@@ -450,7 +481,7 @@ namespace Rpg.Soundwell
                     {
                         Vector3 direction = target != null && target.GameObject != null
                             ? (target.GameObject.transform.position - actor.GameObject.transform.position).normalized : Vector3.right;
-                        float distance = utility || interrupted ? 0.12f :
+                        float distance = utility || interruptedAction ? 0.12f :
                             Mathf.Max(0.3f, Vector3.Distance(actor.GameObject.transform.position,
                                 target.GameObject.transform.position) - 0.8f);
                         visual.localPosition = home + direction * Mathf.Sin(Mathf.Clamp01(elapsed / 0.32f) * Mathf.PI) * distance;
@@ -460,11 +491,11 @@ namespace Rpg.Soundwell
                 if (visual != null) visual.localPosition = home;
                 if (this != null && actor != null && actor.GameObject != null && !ending)
                 {
-                    if (!utility && !interrupted && audioSource != null)
+                    if (!utility && !interruptedAction && audioSource != null)
                         audioSource.PlayOneShot(hitSound);
                     if (!utility)
-                        SetExchange(interrupted ? "袭击已被打断，小队毫发无伤。" : enemy ? "借声兽的袭击落下了！" : "攻击命中，继续寻找下一次配合。",
-                            interrupted ? "Interrupted. The party takes no damage." : enemy ? "The beast strikes!" : "Hit! Prepare the next combination.");
+                        SetExchange(interruptedAction ? "袭击已被打断，小队毫发无伤。" : enemy ? "借声兽的袭击落下了！" : "攻击命中，继续寻找下一次配合。",
+                            interruptedAction ? "Interrupted. The party takes no damage." : enemy ? "The beast strikes!" : "Hit! Prepare the next combination.");
                 }
                 yield return new WaitForSecondsRealtime(0.16f);
             }
@@ -504,96 +535,10 @@ namespace Rpg.Soundwell
 
             foreach (var item in restingPositions)
                 if (item.Key != null) item.Key.localPosition = item.Value;
-            if (configured && party != null && party.Beast != null)
-                party.Beast.AI.DecisionTime = previousDecisionTime;
             mapRenderer?.Dispose();
             if (lineMaterial != null) Destroy(lineMaterial);
             if (hitSound != null) Destroy(hitSound);
             view?.Dispose();
-        }
-
-        private sealed class StrikeAction : AbilityAction
-        {
-            private readonly OrkRoleEncounter owner;
-            private readonly float strength;
-
-            public StrikeAction(OrkRoleEncounter owner, Combatant actor, Combatant target, float strength)
-                : base(actor, actor.Abilities.GetCurrentBaseAttack())
-            {
-                this.owner = owner;
-                this.strength = strength;
-                SetTarget(target);
-            }
-
-            // Do not override PerformAction or ActionStartSetup: let ORK's
-            // native no-schematic Prototype Attack lifecycle drive execution
-            // and turn advancement while Calculate applies role scaling.
-            public override void Calculate(List<Combatant> targets, float damageFactor,
-                ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
-            {
-                owner.StartCoroutine(owner.Present(User, owner.party.Beast, false, false, false));
-                bool consumeExposed = User == owner.party.Members[1] && owner.IsExposed;
-                base.Calculate(targets, damageFactor * strength, options, flyingTextTarget, notify);
-                if (consumeExposed && owner != null && owner.party != null && owner.party.Beast != null)
-                    owner.party.Beast.Variables.Set("rpg.role.exposed", 0);
-            }
-        }
-
-        private sealed class EnemyThreatAction : NoneAction
-        {
-            private readonly OrkRoleEncounter owner;
-            private readonly int baseDamage;
-            public readonly Threat Kind;
-            public int TargetIndex;
-            public bool Interrupted;
-            public bool Covered;
-            public bool HasPerformed { get; private set; }
-
-            public EnemyThreatAction(OrkRoleEncounter owner, Combatant beast,
-                Threat kind, int targetIndex, int baseDamage)
-                : base(beast, false)
-            {
-                this.owner = owner;
-                Kind = kind;
-                TargetIndex = targetIndex;
-                this.baseDamage = baseDamage;
-            }
-
-            // Use ORK's verified NoneAction lifecycle (matching
-            // OrkPartyBridge.OpenGateAction) so enemy telegraphs, interrupts,
-            // and multi-target Howls never deadlock on AbilityAction setup.
-            protected override void ActionStartSetup() { }
-            public override bool CanUse() => base.CanUse();
-
-            public override void Calculate(List<Combatant> targets, float damageFactor,
-                ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
-            {
-                HasPerformed = true;
-                Combatant primaryTarget = owner.party.Members[Mathf.Clamp(TargetIndex, 0, owner.party.Members.Count - 1)];
-                owner.StartCoroutine(owner.Present(User, primaryTarget, true, Kind == Threat.Gather, Interrupted));
-                if (Kind != Threat.Gather && !Interrupted && baseDamage > 0)
-                {
-                    int actualDamage = Covered ? Mathf.Max(1, Mathf.RoundToInt(baseDamage * 0.25f)) : baseDamage;
-                    if (Kind == Threat.Howl)
-                    {
-                        foreach (Combatant member in owner.party.Members)
-                            ApplyDamage(member, actualDamage);
-                    }
-                    else
-                    {
-                        ApplyDamage(primaryTarget, actualDamage);
-                    }
-                }
-                base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
-            }
-
-            private static void ApplyDamage(Combatant member, int amount)
-            {
-                if (member == null || member.Status.IsDead) return;
-                StatusValue health = member.Status[OrkPartyBridge.HealthStatusIndex];
-                health.SetValueAccess(Mathf.Max(0, health.GetValue() - amount),
-                    false, false, false, true, false, null);
-            }
         }
 
         private sealed class UtilityAction : NoneAction
