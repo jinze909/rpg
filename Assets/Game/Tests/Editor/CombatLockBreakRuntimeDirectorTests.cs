@@ -76,7 +76,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(director.ObserveSoundwellAcousticAction(CombatLockKind.WetClothMuffle), Is.True);
                 Assert.That(director.ObserveSoundwellAcousticAction(CombatLockKind.DecoyBellRing, 1), Is.True);
                 Assert.That(director.Adapter.SoundwellTracker.IsBeastBroken, Is.True);
-                Assert.That(director.HudView.ObjectiveLabel.text, Does.Contain("BREAK"));
+                Assert.That(director.HudView.ObjectiveLabel.text, Does.Contain("BEAST BROKEN"));
 
                 director.DetachBattle();
                 Assert.That(director.IsBattleAttached, Is.False);
