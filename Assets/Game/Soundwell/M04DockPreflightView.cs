@@ -121,7 +121,7 @@ namespace Rpg.Soundwell
             heading.text = M04DockPreflightCopy.Title(Stage, zh);
             dialogue.text = M04DockPreflightCopy.Describe(Stage, Route, zh);
             advanceLabel.text = Stage == M04DockPreflightStage.VerifyPhysicalReadiness
-                ? (zh ? "返回码头准备" : "Return to dock preparations")
+                ? (zh ? "读完清单" : "Finish reviewing the checklist")
                 : (zh ? "继续核对" : "Continue checking");
             advance.gameObject.SetActive(Stage != M04DockPreflightStage.Finished);
             advance.interactable = !delivering && Stage != M04DockPreflightStage.Finished;
