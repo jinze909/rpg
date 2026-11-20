@@ -126,6 +126,41 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SoundwellHostWiresBeastPatrolBellLureAndBrokenNonViolentWindow()
+        {
+            var root = new GameObject("Soundwell beast patrol wiring test");
+            SoundwellLargeMapExplorationHost host = null;
+            try
+            {
+                host = new SoundwellLargeMapExplorationHost(root.transform);
+                Assert.That(host.BeastPatrol, Is.Not.Null);
+                Vector2 initialBeastPos = host.BeastPatrol.Position;
+
+                // Stepping the host advances the beast along its patrol waypoints.
+                for (int i = 0; i < 10; i++)
+                    host.Step(Vector2.zero, 0.1f);
+                Assert.That(host.BeastPatrol.Position, Is.Not.EqualTo(initialBeastPos));
+
+                // Walk to East Vault Bronze Bell (80, 34) first (without wet cloth) -> lures beast.
+                WalkUntil(host, Vector2.right, p => p.x >= 80f);
+                WalkUntil(host, Vector2.up, p => p.y >= 34f);
+                Assert.That(host.TryInteract(), Is.True);
+                Assert.That(host.BeastPatrol.State, Is.EqualTo(SoundwellBeastAlertState.InvestigatingBell));
+
+                // Apply Wet Cloth (80, 26) -> breaks both acoustic locks -> beast enters StaggeredBroken.
+                WalkUntil(host, Vector2.down, p => p.y <= 26.5f);
+                Assert.That(host.TryInteract(), Is.True);
+                host.Step(Vector2.zero, 0.1f);
+                Assert.That(host.BeastPatrol.State, Is.EqualTo(SoundwellBeastAlertState.StaggeredBroken));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void NullParentRejectedAndTeardownDisposesCleanly()
         {
             var root = new GameObject("Soundwell host teardown test");
