@@ -10,8 +10,10 @@ namespace Rpg.Soundwell
     /// warm light halos), RpgLargeMapExplorerController (wall-sliding movement,
     /// iron-gate collision gating, zone events, proximity triggers, clamped
     /// camera follow), SoundwellAcousticBreakTracker, SoundwellBeastPatrolTracker,
-    /// CombatLockBreakHudView, RpgLargeMapMinimapAndBeaconHud (with live beast
-    /// threat marker), and a visual-only district/interact HUD.
+    /// RpgMapActorVisualBinder (16-PPU pixel-art Hero & Sound-borrowing Beast
+    /// from RpgPixelArtManifest), CombatLockBreakHudView,
+    /// RpgLargeMapMinimapAndBeaconHud (with live beast threat marker), and a
+    /// visual-only district/interact HUD.
     /// Strictly subordinate to ORK 3: owns no HP, damage, turn, or defeat state.
     /// </summary>
     public sealed class SoundwellLargeMapExplorationHost : IDisposable
@@ -24,6 +26,8 @@ namespace Rpg.Soundwell
         private readonly Text zoneLabel;
         private readonly Text promptLabel;
         private readonly Text feedbackLabel;
+        private Vector2 prevBeastPosition;
+        private Vector2Int beastFacing = Vector2Int.right;
         private string lastFeedbackZh = string.Empty;
         private string lastFeedbackEn = string.Empty;
         private bool disposed;
@@ -33,6 +37,8 @@ namespace Rpg.Soundwell
         public RpgLargeMapExplorerController Explorer { get; }
         public SoundwellAcousticBreakTracker AcousticTracker { get; }
         public SoundwellBeastPatrolTracker BeastPatrol { get; }
+        public RpgMapActorVisualBinder HeroVisual { get; }
+        public RpgMapActorVisualBinder BeastVisual { get; }
         public CombatLockBreakHudView LockBreakHud { get; }
         public RpgLargeMapMinimapAndBeaconHud MinimapHud { get; }
 
@@ -60,6 +66,7 @@ namespace Rpg.Soundwell
             hostRoot = new GameObject("Soundwell large map exploration host");
             hostRoot.transform.SetParent(parent, false);
 
+            RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
             Layout = SoundwellLargeMapLayout.Build();
             MapRenderer = RpgLargeMapChunkRenderer.BuildForSoundwell(
                 hostRoot.transform, Layout, tileSlices);
@@ -67,6 +74,22 @@ namespace Rpg.Soundwell
                 Layout, () => IsGateOpen);
             AcousticTracker = new SoundwellAcousticBreakTracker(startingMomentum);
             BeastPatrol = new SoundwellBeastPatrolTracker(Layout, AcousticTracker);
+            HeroVisual = new RpgMapActorVisualBinder(
+                hostRoot.transform, "Soundwell_Hero",
+                manifest != null ? manifest.FerryGuideIdle : null,
+                manifest != null ? manifest.FerryGuideWalk1 : null,
+                manifest != null ? manifest.FerryGuideWalk2 : null,
+                manifest != null ? manifest.FerryGuideBrace : null,
+                baseSortingOrder: 6);
+            BeastVisual = new RpgMapActorVisualBinder(
+                hostRoot.transform, "Soundwell_Beast",
+                manifest != null ? manifest.SoundBorrowingBeastIdle : null,
+                manifest != null ? manifest.SoundBorrowingBeastIdle : null,
+                manifest != null ? manifest.SoundBorrowingBeastIdle : null,
+                manifest != null ? manifest.SoundBorrowingBeastAlert : null,
+                baseSortingOrder: 6);
+            prevBeastPosition = BeastPatrol.Position;
+
             LockBreakHud = new CombatLockBreakHudView(hostRoot.transform, AcousticTracker);
             MinimapHud = RpgLargeMapMinimapAndBeaconHud.BuildForSoundwell(
                 hostRoot.transform, Layout);
@@ -131,6 +154,7 @@ namespace Rpg.Soundwell
 
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
                 Mathf.Max(1, Screen.height));
+            SyncActorVisuals(heroMoved: false, deltaTime: 0f);
             UpdateBeastMinimapMarker();
             RefreshHud();
         }
@@ -146,6 +170,7 @@ namespace Rpg.Soundwell
 
             bool moved = Explorer.StepMovement(moveInput, deltaTime);
             BeastPatrol.Step(deltaTime, Explorer.Position, moved);
+            SyncActorVisuals(moved, deltaTime);
             MinimapHud.UpdatePlayerPosition(Explorer.Position);
             UpdateBeastMinimapMarker();
 
@@ -182,6 +207,7 @@ namespace Rpg.Soundwell
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.WetClothMuffle))
                     {
                         MinimapHud.SetBeaconCompleted("soundwell.wet-cloth", true);
+                        SyncActorVisuals(heroMoved: false, deltaTime: 0f);
                         UpdateBeastMinimapMarker();
                         SetFeedback(
                             "已敷上湿布消音 — 听觉护甲削弱。",
@@ -201,6 +227,7 @@ namespace Rpg.Soundwell
                     {
                         BeastPatrol.NotifyBronzeBellRung(Layout.BronzeBellTile);
                         MinimapHud.SetBeaconCompleted("soundwell.bell", true);
+                        SyncActorVisuals(heroMoved: false, deltaTime: 0f);
                         UpdateBeastMinimapMarker();
                         Explorer.TriggerScreenShake(0.22f, 0.14f);
                         if (AcousticTracker.CanTriggerNonViolentEscape)
@@ -323,6 +350,32 @@ namespace Rpg.Soundwell
             MinimapHud.Refresh();
         }
 
+        private void SyncActorVisuals(bool heroMoved, float deltaTime)
+        {
+            HeroVisual.Sync(
+                Explorer.Position,
+                Explorer.Facing,
+                heroMoved ? RpgActorVisualState.Moving : RpgActorVisualState.Idle,
+                deltaTime);
+
+            Vector2 beastDelta = BeastPatrol.Position - prevBeastPosition;
+            if (Mathf.Abs(beastDelta.x) > 0.001f)
+                beastFacing = beastDelta.x < 0f ? Vector2Int.left : Vector2Int.right;
+            prevBeastPosition = BeastPatrol.Position;
+
+            RpgActorVisualState beastVisualState =
+                BeastPatrol.State == SoundwellBeastAlertState.Alerted
+                    ? RpgActorVisualState.AlertOrBrace
+                    : BeastPatrol.State == SoundwellBeastAlertState.StaggeredBroken
+                        ? RpgActorVisualState.Idle
+                        : RpgActorVisualState.Moving;
+
+            BeastVisual.Sync(BeastPatrol.Position, beastFacing, beastVisualState, deltaTime);
+            BeastVisual.SetTint(BeastPatrol.State == SoundwellBeastAlertState.StaggeredBroken
+                ? new Color(0.70f, 0.76f, 0.84f, 0.85f)
+                : Color.white);
+        }
+
         private void UpdateBeastMinimapMarker()
         {
             Color tint;
@@ -400,6 +453,8 @@ namespace Rpg.Soundwell
             Explorer.ZoneEntered -= HandleZoneEntered;
             BeastPatrol.EncounterTriggered -= HandleBeastEncounter;
             SoundwellUiLocalization.Changed -= RefreshHud;
+            HeroVisual.Dispose();
+            BeastVisual.Dispose();
             MinimapHud.Dispose();
             LockBreakHud.Dispose();
             MapRenderer.Dispose();
