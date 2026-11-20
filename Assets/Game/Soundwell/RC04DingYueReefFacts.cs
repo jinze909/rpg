@@ -7,7 +7,10 @@ namespace Rpg.Soundwell
     {
         KillMimicBeastWithAyuanSong = 1,
         BringDingYueBack = 2,
-        LeaveWithSignalBeacon = 3
+        LeaveWithSignalBeacon = 3,
+        // Canonical alternative when A Yuan is absent: a prepared fake
+        // voice source and consenting crew ambush, not a phantom song.
+        KillMimicBeastWithPreparedDecoy = 4
     }
 
     /// <summary>
@@ -21,16 +24,22 @@ namespace Rpg.Soundwell
         public RC04ReefRecord(
             int listeningRoundsCompleted,
             bool ayuanSongUsed,
-            RC04Resolution resolution)
+            RC04Resolution resolution,
+            bool decoyAmbushPrepared = false)
         {
             ListeningRoundsCompleted = listeningRoundsCompleted;
             AyuanSongUsed = ayuanSongUsed;
             Resolution = resolution;
+            DecoyAmbushPrepared = decoyAmbushPrepared;
         }
 
         public int ListeningRoundsCompleted { get; }
         public bool AyuanSongUsed { get; }
         public RC04Resolution Resolution { get; }
+        public bool DecoyAmbushPrepared { get; }
+        public bool MimicBeastKilled =>
+            Resolution == RC04Resolution.KillMimicBeastWithAyuanSong ||
+            Resolution == RC04Resolution.KillMimicBeastWithPreparedDecoy;
     }
 
     public static class RC04DingYueReefFacts
@@ -40,6 +49,7 @@ namespace Rpg.Soundwell
         public const string RoundsCompletedKey = "rpg.return.rc04.listening-rounds";
         public const string AyuanSongUsedKey = "rpg.return.rc04.ayuan-song-used";
         public const string ResolutionKey = "rpg.return.rc04.resolution";
+        public const string DecoyPreparedKey = "rpg.return.rc04.consented-decoy-prepared";
 
         public static bool IsValidRecord(RC04ReefRecord record)
         {
@@ -48,7 +58,10 @@ namespace Rpg.Soundwell
             if (!Enum.IsDefined(typeof(RC04Resolution), record.Resolution))
                 return false;
             if (record.Resolution == RC04Resolution.KillMimicBeastWithAyuanSong &&
-                !record.AyuanSongUsed)
+                (!record.AyuanSongUsed || record.DecoyAmbushPrepared))
+                return false;
+            if (record.Resolution == RC04Resolution.KillMimicBeastWithPreparedDecoy &&
+                (!record.DecoyAmbushPrepared || record.AyuanSongUsed))
                 return false;
             return true;
         }
@@ -81,6 +94,7 @@ namespace Rpg.Soundwell
             setInt(RoundsCompletedKey, record.ListeningRoundsCompleted);
             setInt(AyuanSongUsedKey, record.AyuanSongUsed ? 1 : 0);
             setInt(ResolutionKey, (int)record.Resolution);
+            setInt(DecoyPreparedKey, record.DecoyAmbushPrepared ? 1 : 0);
             setInt(ConfirmedKey, 1);
             return true;
         }
@@ -103,12 +117,17 @@ namespace Rpg.Soundwell
             int rounds = getInt(RoundsCompletedKey);
             int rawSong = getInt(AyuanSongUsedKey);
             int rawRes = getInt(ResolutionKey);
+            // Zero is the pre-existing save format (no decoy route).
+            int rawDecoy = getInt(DecoyPreparedKey);
 
             if ((rawSong != 0 && rawSong != 1) ||
+                (rawDecoy != 0 && rawDecoy != 1) ||
                 !Enum.IsDefined(typeof(RC04Resolution), rawRes))
                 return true;
 
-            var saved = new RC04ReefRecord(rounds, rawSong == 1, (RC04Resolution)rawRes);
+            var saved = new RC04ReefRecord(
+                rounds, rawSong == 1, (RC04Resolution)rawRes,
+                decoyAmbushPrepared: rawDecoy == 1);
             if (IsValidRecord(saved))
                 record = saved;
             return true;
@@ -122,6 +141,7 @@ namespace Rpg.Soundwell
             setInt(RoundsCompletedKey, 0);
             setInt(AyuanSongUsedKey, 0);
             setInt(ResolutionKey, 0);
+            setInt(DecoyPreparedKey, 0);
             return true;
         }
     }

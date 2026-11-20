@@ -42,6 +42,102 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ConsentedDecoyKillWorksWithoutAyuanButNeverInventsCrewOrVictory()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var session = new RC04DingYueReefSession();
+
+            Assert.That(session.TryPrepareConsentedDecoyAmbush(
+                true, true, true, true), Is.False,
+                "A decoy cannot bypass the three real fog-listening rounds.");
+            for (int i = 0; i < 3; i++)
+                Assert.That(session.SubmitEchoDiscrimination(RC04EchoChoice.SlowHumanEcho), Is.True);
+
+            Assert.That(session.TryPrepareConsentedDecoyAmbush(
+                false, true, true, true), Is.False);
+            Assert.That(session.TryPrepareConsentedDecoyAmbush(
+                true, false, true, true), Is.False);
+            Assert.That(session.TryPrepareConsentedDecoyAmbush(
+                true, true, false, true), Is.False);
+            Assert.That(session.TryPrepareConsentedDecoyAmbush(
+                true, true, true, false), Is.False);
+            Assert.That(session.DecoyAmbushPrepared, Is.False);
+            Assert.That(values, Is.Empty);
+
+            Assert.That(session.TryPrepareConsentedDecoyAmbush(
+                true, true, true, true), Is.True);
+            Assert.That(session.TryPlayAyuanVaryingSong(), Is.False,
+                "No phantom A Yuan song may be added to the fake voice ambush.");
+            Assert.That(session.TryResolveReef(
+                RC04Resolution.KillMimicBeastWithPreparedDecoy, read, write), Is.False,
+                "Preparation is not proof that the mimic beast was defeated.");
+            Assert.That(session.TryConfirmDecoyBeastDefeat(false), Is.False);
+            Assert.That(session.TryConfirmDecoyBeastDefeat(true), Is.True);
+            Assert.That(session.TryConfirmDecoyBeastDefeat(true), Is.False);
+            Assert.That(session.TryResolveReef(
+                RC04Resolution.KillMimicBeastWithPreparedDecoy, read, write), Is.True);
+            Assert.That(session.IsResolved, Is.True);
+
+            Assert.That(RC04DingYueReefFacts.TryRead(read, out RC04ReefRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.AyuanSongUsed, Is.False);
+            Assert.That(saved.Value.DecoyAmbushPrepared, Is.True);
+            Assert.That(saved.Value.MimicBeastKilled, Is.True);
+            Assert.That(saved.Value.Resolution,
+                Is.EqualTo(RC04Resolution.KillMimicBeastWithPreparedDecoy));
+            Assert.That(values[RC04DingYueReefFacts.DecoyPreparedKey], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void DecoySaveCannotBeForgedAndLegacySongSaveStillLoads()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var forged = new RC04ReefRecord(
+                3, false, RC04Resolution.KillMimicBeastWithPreparedDecoy);
+            Assert.That(RC04DingYueReefFacts.TryRecord(forged, read, write), Is.False);
+            Assert.That(values, Is.Empty);
+            Assert.That(RC04DingYueReefFacts.IsValidRecord(
+                new RC04ReefRecord(3, true,
+                    RC04Resolution.KillMimicBeastWithPreparedDecoy,
+                    decoyAmbushPrepared: true)), Is.False);
+
+            // Existing confirmed saves made before the decoy field was added
+            // have an implicit zero for that field and remain readable.
+            values[RC04DingYueReefFacts.ConfirmedKey] = 1;
+            values[RC04DingYueReefFacts.RoundsCompletedKey] = 3;
+            values[RC04DingYueReefFacts.AyuanSongUsedKey] = 1;
+            values[RC04DingYueReefFacts.ResolutionKey] =
+                (int)RC04Resolution.KillMimicBeastWithAyuanSong;
+            Assert.That(RC04DingYueReefFacts.TryRead(read,
+                out RC04ReefRecord? legacy), Is.True);
+            Assert.That(legacy.HasValue, Is.True);
+            Assert.That(legacy.Value.MimicBeastKilled, Is.True);
+            Assert.That(legacy.Value.DecoyAmbushPrepared, Is.False);
+
+            values[RC04DingYueReefFacts.DecoyPreparedKey] = 2;
+            Assert.That(RC04DingYueReefFacts.TryRead(read,
+                out RC04ReefRecord? corrupt), Is.True);
+            Assert.That(corrupt, Is.Null);
+            Assert.That(RC04DingYueReefFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(values[RC04DingYueReefFacts.DecoyPreparedKey], Is.Zero);
+        }
+
+        [Test]
+        public void SongAndDecoyStrategiesCannotBothBePrepared()
+        {
+            var session = new RC04DingYueReefSession();
+            for (int i = 0; i < 3; i++)
+                session.SubmitEchoDiscrimination(RC04EchoChoice.SlowHumanEcho);
+            Assert.That(session.TryPlayAyuanVaryingSong(), Is.True);
+            Assert.That(session.TryPrepareConsentedDecoyAmbush(
+                true, true, true, true), Is.False);
+        }
+
+        [Test]
         public void KillingMimicBeastRequiresAyuanVaryingSongAndSupportsSaveRetry()
         {
             var values = new Dictionary<string, int>();
