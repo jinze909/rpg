@@ -37,8 +37,11 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void RecommendedCommandMatchesLiveThreatIntent()
+        public void RecommendedCommandRequiresExplicitVerifiedOrkIntent()
         {
+            Assert.That(BattleClashVfxDirector.ComputeRecommendedCommand(null),
+                Is.EqualTo(RecommendedCommand.None),
+                "Unverified/guessed enemy state must never pulse an allegedly safe command.");
             Assert.That(BattleClashVfxDirector.ComputeRecommendedCommand(EnemyIntentKind.ChargedLunge),
                 Is.EqualTo(RecommendedCommand.Guard));
             Assert.That(BattleClashVfxDirector.ComputeRecommendedCommand(EnemyIntentKind.Recovering),

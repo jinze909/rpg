@@ -23,8 +23,10 @@ namespace Rpg.Soundwell
     /// Live runtime combat clash VFX director strictly subordinate to ORK 3.
     /// Watches authoritative OrkPartyBridge HP/guard transitions and renders
     /// diagonal slash arcs, spear-impact flashes, shield ward pulses, drift-free
-    /// status-card recoil, recommended command button pulse, and solo-vs-party
-    /// S00 story framing without intercepting input or altering ORK combat math.
+    /// status-card recoil, and solo-vs-party S00 story framing without
+    /// intercepting input, altering ORK combat math, or fabricating enemy intents.
+    /// Command button pulsing is strictly gated on an explicit ORK-verified
+    /// intent (null by default -> no guessed recommendation pulse).
     /// </summary>
     public sealed class BattleClashVfxDirector : MonoBehaviour
     {
@@ -62,7 +64,7 @@ namespace Rpg.Soundwell
 
         private OrkPartyBridge.BattleUnitSnapshot[] prevSnapshots;
         private bool wasBattleActive;
-        private EnemyIntentKind visualIntent = EnemyIntentKind.ChargedLunge;
+        private EnemyIntentKind? verifiedOrkIntent;
         private Transform pulsedButton;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -73,6 +75,18 @@ namespace Rpg.Soundwell
             var go = new GameObject("BattleClashVfxDirector");
             DontDestroyOnLoad(go);
             instance = go.AddComponent<BattleClashVfxDirector>();
+        }
+
+        /// <summary>
+        /// Sets or clears an ORK-verified enemy intent from an authoritative
+        /// combat bridge. Passing null disables command button pulsing so the
+        /// director never misleads players with guessed move recommendations.
+        /// </summary>
+        public void SetVerifiedOrkIntent(EnemyIntentKind? intent)
+        {
+            verifiedOrkIntent = intent;
+            if (!intent.HasValue)
+                RestorePulsedButton();
         }
 
         public static BattleContextMode DetectContext(bool whitewaterActive, int allyCount)
@@ -105,9 +119,12 @@ namespace Rpg.Soundwell
             }
         }
 
-        public static RecommendedCommand ComputeRecommendedCommand(EnemyIntentKind intent)
+        public static RecommendedCommand ComputeRecommendedCommand(EnemyIntentKind? verifiedIntent)
         {
-            switch (intent)
+            if (!verifiedIntent.HasValue)
+                return RecommendedCommand.None;
+
+            switch (verifiedIntent.Value)
             {
                 case EnemyIntentKind.ChargedLunge:
                     return RecommendedCommand.Guard;
@@ -181,6 +198,7 @@ namespace Rpg.Soundwell
                 {
                     wasBattleActive = false;
                     prevSnapshots = null;
+                    verifiedOrkIntent = null;
                     RestorePulsedButton();
                     RestoreAllRecoils();
                 }
@@ -190,7 +208,7 @@ namespace Rpg.Soundwell
             if (!wasBattleActive)
             {
                 wasBattleActive = true;
-                visualIntent = EnemyIntentKind.ChargedLunge;
+                verifiedOrkIntent = null;
                 prevSnapshots = null;
             }
 
@@ -221,8 +239,6 @@ namespace Rpg.Soundwell
                             new Color(1f, 0.88f, 0.48f, 0.95f));
                         TriggerNamedCardRecoil("S00 enemy card",
                             new Vector2(18f, 0f), new Color(1f, 0.92f, 0.72f, 1f));
-                        if (visualIntent == EnemyIntentKind.Recovering)
-                            visualIntent = EnemyIntentKind.ListeningAlert;
                     }
                 }
                 else
@@ -234,9 +250,6 @@ namespace Rpg.Soundwell
                             new Color(0.96f, 0.28f, 0.24f, 0.95f));
                         TriggerNamedCardRecoil("S00 ally card " + allyIdx,
                             new Vector2(-18f, 0f), new Color(0.95f, 0.30f, 0.28f, 1f));
-                        visualIntent = visualIntent == EnemyIntentKind.ChargedLunge
-                            ? EnemyIntentKind.Recovering
-                            : EnemyIntentKind.ChargedLunge;
                     }
                     else if (!prev.Defending && cur.Defending)
                     {
@@ -384,7 +397,7 @@ namespace Rpg.Soundwell
 
         private void UpdateRecommendedButtonPulse()
         {
-            RecommendedCommand rec = ComputeRecommendedCommand(visualIntent);
+            RecommendedCommand rec = ComputeRecommendedCommand(verifiedOrkIntent);
             string targetName = rec == RecommendedCommand.Guard ? "S00 ORK guard"
                 : rec == RecommendedCommand.Attack ? "S00 ORK attack"
                 : null;
