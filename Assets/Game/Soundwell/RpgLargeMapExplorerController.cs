@@ -135,14 +135,17 @@ namespace Rpg.Soundwell
             for (int i = 0; i < steps; i++)
             {
                 Vector2 candidateX = new Vector2(Position.x + stepDelta.x, Position.y);
-                if (IsPositionWalkable(candidateX))
+                // A zero/blocked axis is not movement. Otherwise a wall hit
+                // reports movement via the unchanged orthogonal coordinate,
+                // triggering walk animations and beast patrol hearing.
+                if (candidateX.x != Position.x && IsPositionWalkable(candidateX))
                 {
                     Position = candidateX;
                     moved = true;
                 }
 
                 Vector2 candidateY = new Vector2(Position.x, Position.y + stepDelta.y);
-                if (IsPositionWalkable(candidateY))
+                if (candidateY.y != Position.y && IsPositionWalkable(candidateY))
                 {
                     Position = candidateY;
                     moved = true;
