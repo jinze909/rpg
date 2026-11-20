@@ -93,6 +93,7 @@ namespace Rpg.Soundwell
         // Read-only QA diagnostics for ORK's classic-turn action submission.
         public int SubmittedActionCount => submittedActions.Count;
         public int TurnSubmittedPartyCount => turnSubmittedParty.Count;
+        public bool PlannedPerformed => planned != null && planned.HasPerformed;
         public int ActivePresentationCount => presentationCount;
         public bool EnemyChooserActive => party != null && party.Beast != null &&
             party.Beast.Actions.IsChoosing;
@@ -125,7 +126,7 @@ namespace Rpg.Soundwell
                 InitializeHealth(member, 16);
             InitializeHealth(party.Beast, 36);
             party.Beast.Variables.Set("rpg.role.exposed", 0);
-            planned = CreateThreat(Threat.Gather, 0);
+            planned = null;
             plannedQueuedIntoAi = false;
             turnSubmittedParty.Clear();
             configured = true;
@@ -160,10 +161,12 @@ namespace Rpg.Soundwell
                 if (!observedBattle)
                 {
                     observedBattle = true;
-                    // ORK's asynchronous BattleStart clears AI.ActionQueue after
-                    // TryStartDirectEncounter(). Enqueue the opening Gather threat
-                    // once the battle is live so the enemy AI always consumes it.
-                    if (planned != null && !planned.HasPerformed && !plannedQueuedIntoAi)
+                    // Construct and enqueue the opening Gather threat only once
+                    // ORK's battle is live so the AbilityAction binds live battle
+                    // state and asynchronous BattleStart cannot wipe ActionQueue.
+                    if (planned == null)
+                        planned = CreateThreat(Threat.Gather, 0);
+                    if (!planned.HasPerformed && !plannedQueuedIntoAi)
                     {
                         party.Beast.AI.ActionQueue.Clear();
                         party.Beast.AI.ActionQueue.Add(planned);
@@ -552,9 +555,10 @@ namespace Rpg.Soundwell
                 SetTarget(target);
             }
 
-            // Keep ORK's ability action-start setup; the HUD's separate
-            // presentation coroutine must not bypass the framework lifecycle.
-            protected override void ActionStartSetup() => base.ActionStartSetup();
+            // Skip optional starter schematics/camera setup just like
+            // OrkPartyBridge.OpenGateAction so enemy Gather/Lunge actions
+            // never stall waiting for starter animations.
+            protected override void ActionStartSetup() { }
             public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {

@@ -112,22 +112,14 @@ namespace Rpg.Tests.Editor
                     ", beastHp=" + encounter.Party.Beast.Status[1].GetValue() +
                     ", exposed=" + encounter.IsExposed +
                     ", submittedActions=" + encounter.SubmittedActionCount +
-                    ", animations=" + encounter.ActivePresentationCount +
-                    ", enemyChooser=" + encounter.EnemyChooserActive +
-                    ", threatSubmitted=" + encounter.EnemyThreatSubmitted +
                     ", turnSubmitted=" + encounter.TurnSubmittedPartyCount +
+                    ", plannedPerformed=" + encounter.PlannedPerformed +
+                    ", beastState=" + encounter.Party.Beast.Actions.ActionState +
                     ", partyStates=" + string.Join(",", encounter.Party.Members
                         .Select(member => member.Actions.ActionState.ToString())) +
-                    ", partyChoosers=" + string.Join(",", encounter.Party.Members
-                        .Select(member => member.Actions.IsChoosing)) +
-                    ", partyCurrent=" + string.Join(",", encounter.Party.Members
-                        .Select(member => member.Actions.Current == null ? "none" :
-                            member.Actions.Current.GetType().Name)) +
-                    ", enemyState=" + encounter.Party.Beast.Actions.ActionState +
-                    ", enemyCurrent=" + (encounter.Party.Beast.Actions.Current == null ? "none" :
-                        encounter.Party.Beast.Actions.Current.GetType().Name) +
-                    ", enemyNextActions=" + encounter.Party.Beast.Actions.NextActionCount +
-                    ", nativeInBattle=" + ORK.Control.InBattle);
+                    ", animations=" + encounter.ActivePresentationCount +
+                    ", enemyChooser=" + encounter.EnemyChooserActive +
+                    ", threatSubmitted=" + encounter.EnemyThreatSubmitted);
                 int actor = encounter.Party.ChoosingRescuerIndex;
                 if (!encounter.IsPresenting && actor >= 0)
                 {
