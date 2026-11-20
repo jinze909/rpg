@@ -16,6 +16,7 @@ namespace Rpg.Soundwell
         private readonly RectTransform authored;
         private readonly Font latinFont;
         private readonly Text heading;
+        private readonly Image statusIcon;
         private readonly Text details;
         private readonly Text confirmLabel;
         private readonly Button confirm;
@@ -29,6 +30,7 @@ namespace Rpg.Soundwell
         private bool navigatingBack;
 
         public M04DepartureManifest Manifest => manifest;
+        public Image StatusIcon => statusIcon;
         public Text Details => details;
         public Button ConfirmButton => confirm;
         public Button BackButton => back;
@@ -45,7 +47,10 @@ namespace Rpg.Soundwell
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M04 departure readiness canvas", 129, out authored);
             heading = SoundwellUiTheme.CreateLabel(authored, 24, new Vector2(0f, 209f), new Vector2(820f, 46f));
-            details = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(0f, 40f), new Vector2(830f, 277f));
+            statusIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authored, "M04 readiness status icon",
+                new Vector2(-372f, 118f), new Vector2(76f, 76f), null);
+            details = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(44f, 40f), new Vector2(742f, 277f));
             details.alignment = TextAnchor.UpperLeft;
             confirm = SoundwellUiTheme.CreateButton(authored, "M04 confirm departure",
                 new Vector2(-210f, -207f), new Vector2(340f, 46f), 18, out confirmLabel);
@@ -86,13 +91,26 @@ namespace Rpg.Soundwell
                 ? (zh ? "准备已确认" : "Readiness confirmed")
                 : (zh ? "确认准备齐全" : "Confirm readiness");
             backLabel.text = zh ? "返回准备" : "Return to preparations";
+            bool ready = manifest.Check().Length == 0;
+            UpdateStatusIcon(ready);
             bool active = !delivered && !navigatingBack;
-            confirm.interactable = active && !manifest.DepartureConfirmed &&
-                manifest.Check().Length == 0;
+            confirm.interactable = active && !manifest.DepartureConfirmed && ready;
             back.interactable = active;
             if (active)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     confirm.interactable ? confirm : back);
+        }
+
+        private void UpdateStatusIcon(bool ready)
+        {
+            if (statusIcon == null)
+                return;
+            Sprite sprite = manifest.DepartureConfirmed
+                ? RpgStoryArtResolver.ResolveM07PassSprite(stamped: true)
+                : ready
+                    ? RpgStoryArtResolver.ResolveM03TidalChartSprite(open: true)
+                    : RpgStoryArtResolver.ResolveM07PassSprite(stamped: false);
+            RpgStoryArtResolver.ApplyPixelSprite(statusIcon, sprite);
         }
 
         private void Confirm()

@@ -537,6 +537,19 @@ def collect(mode):
                 hashes[name] = None  # A reviewed deletion is represented in candidate.patch.
     if mode == "verify" and paths:
         errors.append("Verification changed source files: " + ", ".join(paths))
+        # Do not hide or normalize Unity's source changes. Print a bounded,
+        # read-only diff for the two common auto-reserialized graphics assets,
+        # so the actual generated values can be reviewed and committed before
+        # a new exact-SHA clean verification.
+        graphics_paths = (
+            "ProjectSettings/GraphicsSettings.asset",
+            "ProjectSettings/QualitySettings.asset",
+        )
+        if any(path in paths for path in graphics_paths):
+            patch = git("diff", "--", *graphics_paths).decode("utf-8", "replace")
+            print("P0_PROJECT_SETTINGS_DIFF_BEGIN")
+            print(patch[:24000])
+            print("P0_PROJECT_SETTINGS_DIFF_END")
 
     has_soundwell_scene = (root / "Assets/Game/Scenes/SoundwellTrial.unity").is_file()
     soundwell = mode == "verify" and has_soundwell_scene
