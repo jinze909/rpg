@@ -131,6 +131,8 @@ namespace Rpg.Soundwell
             SetExchange("救出被困的人。看清借声兽的动作，再决定怎样配合。",
                 "Rescue the trapped surveyor. Read the beast, then choose your response.");
             party.TryStartDirectEncounter();
+            if (party.Beast.AI.ActionQueue.Count == 0 && planned != null)
+                party.Beast.AI.ActionQueue.Add(planned);
         }
 
         private static void InitializeHealth(Combatant actor, int amount)
@@ -319,7 +321,7 @@ namespace Rpg.Soundwell
                     {
                         // Keep the action eligible for ORK's lifecycle so its
                         // finishedCallback advances the threat queue while
-                        // Calculate resolves with empty targets (zero damage).
+                        // Calculate resolves at zero damage factor.
                         planned.Interrupted = true;
                         party.Beast.Variables.Set("rpg.role.exposed", 1);
                         SetExchange(index == 1 ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
@@ -518,10 +520,13 @@ namespace Rpg.Soundwell
             {
                 if (enemy && (Kind == Threat.Gather || Interrupted))
                 {
-                    // Complete the real ORK action lifecycle and invoke notify
-                    // with an empty target list so minimum-damage clamps or
-                    // target status changes can never damage the party.
-                    base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, notify);
+                    // Complete the real ORK action lifecycle with a non-empty
+                    // target list and zero damage factor so ORK always invokes
+                    // notify and finishes the turn without damaging the party.
+                    List<Combatant> zeroTargets = targets != null && targets.Count > 0
+                        ? targets
+                        : new List<Combatant> { owner.party.Members[TargetIndex] };
+                    base.Calculate(zeroTargets, 0f, options, flyingTextTarget, notify);
                     return;
                 }
                 bool consumeExposed = !enemy && User == owner.party.Members[1] && owner.IsExposed;
@@ -544,7 +549,11 @@ namespace Rpg.Soundwell
                 this.owner = owner;
                 this.effect = effect;
                 this.supportive = supportive;
-                SetTarget(supportive ? actor : owner.party.Beast);
+                // Prototype Attack is an enemy-targeted ORK ability; bind the
+                // live beast as the ORK action target so CanUse/Calculate
+                // always complete with zero damage while Present animates
+                // toward the supportive or hostile direction.
+                SetTarget(owner.party.Beast);
             }
 
             protected override void ActionStartSetup() { }
@@ -564,7 +573,10 @@ namespace Rpg.Soundwell
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
             {
                 effect();
-                base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, notify);
+                List<Combatant> zeroTargets = targets != null && targets.Count > 0
+                    ? targets
+                    : new List<Combatant> { owner.party.Beast };
+                base.Calculate(zeroTargets, 0f, options, flyingTextTarget, notify);
             }
         }
     }
