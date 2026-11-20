@@ -20,7 +20,10 @@ namespace Rpg.Tests.Editor
                 view = new M05HarborWalkView(root.transform, () => completed++);
                 Assert.That(view.Beat, Is.EqualTo(M05HarborBeat.RepairStall));
                 Assert.That(view.Dialogue.text, Does.Contain("Tax Collector"));
-                Assert.That(view.Dialogue.text, Does.Contain("Shen Li"));
+                Assert.That(view.Dialogue.text, Does.Contain("Shen Li checked our tools this morning"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Dialogue.text, Does.Contain("沈工今早点过这一班的工具"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 view.AdvanceButton.onClick.Invoke();
                 Assert.That(view.Beat, Is.EqualTo(M05HarborBeat.FisherRumor));
                 Assert.That(view.Dialogue.text, Does.Contain("Three boats"));
