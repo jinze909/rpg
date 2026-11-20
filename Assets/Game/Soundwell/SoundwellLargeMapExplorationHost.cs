@@ -11,13 +11,86 @@ namespace Rpg.Soundwell
     /// iron-gate collision gating, zone events, proximity triggers, clamped
     /// camera follow), SoundwellAcousticBreakTracker, SoundwellBeastPatrolTracker,
     /// RpgMapActorVisualBinder (16-PPU pixel-art Hero & Sound-borrowing Beast
-    /// from RpgPixelArtManifest), CombatLockBreakHudView,
+    /// from RpgPixelArtManifest), dual-channel 24x24 Acoustic Pulse & Threat
+    /// Lock-Break VFX bursts, CombatLockBreakHudView,
     /// RpgLargeMapMinimapAndBeaconHud (with live beast threat marker), and a
     /// visual-only district/interact HUD.
     /// Strictly subordinate to ORK 3: owns no HP, damage, turn, or defeat state.
     /// </summary>
     public sealed class SoundwellLargeMapExplorationHost : IDisposable
     {
+        private sealed class VfxChannel
+        {
+            private readonly float frameDurationSeconds;
+            private readonly SpriteRenderer renderer;
+            private Sprite[] frames;
+            private float elapsed;
+
+            public SpriteRenderer Renderer => renderer;
+            public bool IsPlaying => frames != null;
+
+            public VfxChannel(Transform parent, string name, int sortingOrder, float frameDurationSeconds)
+            {
+                this.frameDurationSeconds = frameDurationSeconds;
+                var go = new GameObject(name);
+                go.transform.SetParent(parent, false);
+                go.transform.localScale = Vector3.one;
+                renderer = go.AddComponent<SpriteRenderer>();
+                renderer.sortingOrder = sortingOrder;
+                renderer.enabled = false;
+            }
+
+            public void Trigger(Sprite[] clipFrames, Vector2 worldPosition)
+            {
+                if (renderer == null || clipFrames == null || clipFrames.Length == 0 || clipFrames[0] == null)
+                {
+                    Stop();
+                    return;
+                }
+
+                float snappedX = Mathf.Round(worldPosition.x * RpgWorldMapScale.PixelsPerUnit) /
+                    RpgWorldMapScale.PixelsPerUnit;
+                float snappedY = Mathf.Round(worldPosition.y * RpgWorldMapScale.PixelsPerUnit) /
+                    RpgWorldMapScale.PixelsPerUnit;
+                renderer.transform.localPosition = new Vector3(snappedX, snappedY, 0f);
+                frames = clipFrames;
+                elapsed = 0f;
+                renderer.sprite = clipFrames[0];
+                renderer.enabled = true;
+            }
+
+            public void Step(float deltaTime)
+            {
+                if (frames == null || renderer == null || deltaTime <= 0f)
+                    return;
+
+                elapsed += deltaTime;
+                int index = Mathf.FloorToInt(elapsed / frameDurationSeconds);
+                if (index >= frames.Length || frames[index] == null)
+                {
+                    Stop();
+                    return;
+                }
+                renderer.sprite = frames[index];
+            }
+
+            public void Stop()
+            {
+                frames = null;
+                elapsed = 0f;
+                if (renderer != null)
+                {
+                    renderer.sprite = null;
+                    renderer.enabled = false;
+                }
+            }
+        }
+
+        private const int AcousticPulseSortingOrder = 12;
+        private const int ThreatBreakSortingOrder = 14;
+        private const float AcousticPulseFrameDuration = 0.09f;
+        private const float ThreatBreakFrameDuration = 0.12f;
+
         private readonly GameObject hostRoot;
         private readonly GameObject hudCanvasObject;
         private readonly RectTransform zonePanel;
@@ -26,6 +99,10 @@ namespace Rpg.Soundwell
         private readonly Text zoneLabel;
         private readonly Text promptLabel;
         private readonly Text feedbackLabel;
+        private readonly Sprite[] acousticPulseFrames;
+        private readonly Sprite[] threatLockBreakFrames;
+        private readonly VfxChannel acousticPulseChannel;
+        private readonly VfxChannel threatBreakChannel;
         private Vector2 prevBeastPosition;
         private Vector2Int beastFacing = Vector2Int.right;
         private string lastFeedbackZh = string.Empty;
@@ -39,6 +116,10 @@ namespace Rpg.Soundwell
         public SoundwellBeastPatrolTracker BeastPatrol { get; }
         public RpgMapActorVisualBinder HeroVisual { get; }
         public RpgMapActorVisualBinder BeastVisual { get; }
+        public SpriteRenderer AcousticPulseVfxRenderer => acousticPulseChannel.Renderer;
+        public SpriteRenderer ThreatBreakVfxRenderer => threatBreakChannel.Renderer;
+        public bool IsAcousticPulsePlaying => acousticPulseChannel.IsPlaying;
+        public bool IsThreatBreakPlaying => threatBreakChannel.IsPlaying;
         public CombatLockBreakHudView LockBreakHud { get; }
         public RpgLargeMapMinimapAndBeaconHud MinimapHud { get; }
 
@@ -67,6 +148,9 @@ namespace Rpg.Soundwell
             hostRoot.transform.SetParent(parent, false);
 
             RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+            acousticPulseFrames = manifest != null ? manifest.AcousticPulseFrames : null;
+            threatLockBreakFrames = manifest != null ? manifest.ThreatLockBreakFrames : null;
+
             Layout = SoundwellLargeMapLayout.Build();
             MapRenderer = RpgLargeMapChunkRenderer.BuildForSoundwell(
                 hostRoot.transform, Layout, tileSlices);
@@ -88,6 +172,12 @@ namespace Rpg.Soundwell
                 manifest != null ? manifest.SoundBorrowingBeastIdle : null,
                 manifest != null ? manifest.SoundBorrowingBeastAlert : null,
                 baseSortingOrder: 6);
+            acousticPulseChannel = new VfxChannel(
+                hostRoot.transform, "Soundwell_AcousticPulseVfx",
+                AcousticPulseSortingOrder, AcousticPulseFrameDuration);
+            threatBreakChannel = new VfxChannel(
+                hostRoot.transform, "Soundwell_ThreatBreakVfx",
+                ThreatBreakSortingOrder, ThreatBreakFrameDuration);
             prevBeastPosition = BeastPatrol.Position;
 
             LockBreakHud = new CombatLockBreakHudView(hostRoot.transform, AcousticTracker);
@@ -171,6 +261,8 @@ namespace Rpg.Soundwell
             bool moved = Explorer.StepMovement(moveInput, deltaTime);
             BeastPatrol.Step(deltaTime, Explorer.Position, moved);
             SyncActorVisuals(moved, deltaTime);
+            acousticPulseChannel.Step(deltaTime);
+            threatBreakChannel.Step(deltaTime);
             MinimapHud.UpdatePlayerPosition(Explorer.Position);
             UpdateBeastMinimapMarker();
 
@@ -204,9 +296,18 @@ namespace Rpg.Soundwell
             switch (trigger.Id)
             {
                 case "soundwell.wet-cloth":
+                {
+                    bool wasEscapeReady = AcousticTracker.CanTriggerNonViolentEscape;
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.WetClothMuffle))
                     {
                         MinimapHud.SetBeaconCompleted("soundwell.wet-cloth", true);
+                        acousticPulseChannel.Trigger(acousticPulseFrames, Explorer.Position);
+                        if (!wasEscapeReady && AcousticTracker.CanTriggerNonViolentEscape)
+                        {
+                            threatBreakChannel.Trigger(
+                                threatLockBreakFrames,
+                                BeastPatrol.Position + new Vector2(0f, 0.1875f));
+                        }
                         SyncActorVisuals(heroMoved: false, deltaTime: 0f);
                         UpdateBeastMinimapMarker();
                         SetFeedback(
@@ -221,12 +322,24 @@ namespace Rpg.Soundwell
                         "Wet cloth already active; ring the bronze bell or move out.");
                     RefreshHud();
                     return false;
+                }
 
                 case "soundwell.bell":
+                {
+                    bool wasEscapeReady = AcousticTracker.CanTriggerNonViolentEscape;
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.DecoyBellRing))
                     {
                         BeastPatrol.NotifyBronzeBellRung(Layout.BronzeBellTile);
                         MinimapHud.SetBeaconCompleted("soundwell.bell", true);
+                        acousticPulseChannel.Trigger(
+                            acousticPulseFrames,
+                            new Vector2(Layout.BronzeBellTile.x + 0.5f, Layout.BronzeBellTile.y + 0.5f));
+                        if (!wasEscapeReady && AcousticTracker.CanTriggerNonViolentEscape)
+                        {
+                            threatBreakChannel.Trigger(
+                                threatLockBreakFrames,
+                                BeastPatrol.Position + new Vector2(0f, 0.1875f));
+                        }
                         SyncActorVisuals(heroMoved: false, deltaTime: 0f);
                         UpdateBeastMinimapMarker();
                         Explorer.TriggerScreenShake(0.22f, 0.14f);
@@ -251,6 +364,7 @@ namespace Rpg.Soundwell
                         "Bronze bell already used for this cycle.");
                     RefreshHud();
                     return false;
+                }
 
                 case "soundwell.gate-lever":
                     if (IsGateOpen)
@@ -453,6 +567,8 @@ namespace Rpg.Soundwell
             Explorer.ZoneEntered -= HandleZoneEntered;
             BeastPatrol.EncounterTriggered -= HandleBeastEncounter;
             SoundwellUiLocalization.Changed -= RefreshHud;
+            acousticPulseChannel.Stop();
+            threatBreakChannel.Stop();
             HeroVisual.Dispose();
             BeastVisual.Dispose();
             MinimapHud.Dispose();

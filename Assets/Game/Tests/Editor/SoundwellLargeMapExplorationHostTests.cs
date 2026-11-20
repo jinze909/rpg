@@ -34,6 +34,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.MapRenderer.UsedRealArtSlices, Is.True);
                 Assert.That(host.HeroVisual.SpriteRenderer.sprite, Is.Not.Null);
                 Assert.That(host.BeastVisual.SpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.AcousticPulseVfxRenderer.enabled, Is.False);
+                Assert.That(host.ThreatBreakVfxRenderer.enabled, Is.False);
+                Assert.That(host.AcousticPulseVfxRenderer.sortingOrder, Is.EqualTo(12));
+                Assert.That(host.ThreatBreakVfxRenderer.sortingOrder, Is.EqualTo(14));
                 Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(4));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
                 Assert.That(host.MinimapHud.IsThreatMarkerVisible, Is.True);
@@ -78,6 +82,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
                 host = new SoundwellLargeMapExplorationHost(root.transform);
                 host.ZoneChanged += z => visitedZones.Add(z);
                 host.GateOpened += () => gateOpened = true;
@@ -105,6 +110,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryInteract(), Is.True);
                 Assert.That(host.AcousticTracker.AcousticLocks.RemainingLocks, Is.EqualTo(1));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
+                Assert.That(host.IsAcousticPulsePlaying, Is.True);
+                Assert.That(host.AcousticPulseVfxRenderer.sprite, Is.EqualTo(manifest.AcousticPulseFrames[0]));
+                Assert.That(host.IsThreatBreakPlaying, Is.False);
 
                 WalkUntil(host, Vector2.up, p => p.y >= 34f);
                 Assert.That(host.TryInteract(), Is.True);
@@ -112,6 +120,18 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.AcousticTracker.CanTriggerNonViolentEscape, Is.True);
                 Assert.That(host.LockBreakHud.ObjectiveLabel.text, Does.Contain("BREAK"));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(2));
+                // Dual channels: both bell pulse and beast lock-break fire independently.
+                Assert.That(host.IsAcousticPulsePlaying, Is.True);
+                Assert.That(host.IsThreatBreakPlaying, Is.True);
+                Assert.That(host.AcousticPulseVfxRenderer.sprite, Is.EqualTo(manifest.AcousticPulseFrames[0]));
+                Assert.That(host.ThreatBreakVfxRenderer.sprite, Is.EqualTo(manifest.ThreatLockBreakFrames[0]));
+
+                // Large step completes both 3-frame VFX clips cleanly without lingering sprites.
+                host.Step(Vector2.zero, 0.5f);
+                Assert.That(host.IsAcousticPulsePlaying, Is.False);
+                Assert.That(host.IsThreatBreakPlaying, Is.False);
+                Assert.That(host.AcousticPulseVfxRenderer.enabled, Is.False);
+                Assert.That(host.ThreatBreakVfxRenderer.enabled, Is.False);
 
                 // 3. Return to West Gate Lever (46, 11), open gate, and walk through to Extraction (78, 11).
                 WalkUntil(host, Vector2.down, p => p.y <= 30.2f);
@@ -148,6 +168,7 @@ namespace Rpg.Tests.Editor
             SoundwellLargeMapExplorationHost host = null;
             try
             {
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
                 host = new SoundwellLargeMapExplorationHost(root.transform);
                 Assert.That(host.BeastPatrol, Is.Not.Null);
                 Assert.That(host.MinimapHud.IsThreatMarkerVisible, Is.True);
@@ -163,15 +184,21 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.MinimapHud.ThreatMarkerRect.anchoredPosition,
                     Is.Not.EqualTo(initialThreatMarker));
 
-                // Walk to East Vault Bronze Bell (80, 34) first (without wet cloth) -> lures beast.
+                // Walk to East Vault Bronze Bell (80, 34) first (without wet cloth) -> lures beast + pulse VFX.
                 WalkUntil(host, Vector2.right, p => p.x >= 80f);
                 WalkUntil(host, Vector2.up, p => p.y >= 34f);
                 Assert.That(host.TryInteract(), Is.True);
                 Assert.That(host.BeastPatrol.State, Is.EqualTo(SoundwellBeastAlertState.InvestigatingBell));
+                Assert.That(host.IsAcousticPulsePlaying, Is.True);
+                Assert.That(host.AcousticPulseVfxRenderer.sprite, Is.EqualTo(manifest.AcousticPulseFrames[0]));
+                Assert.That(host.IsThreatBreakPlaying, Is.False);
 
-                // Apply Wet Cloth (80, 26) -> breaks both acoustic locks -> beast enters StaggeredBroken.
+                // Apply Wet Cloth (80, 26) -> breaks both acoustic locks -> beast enters StaggeredBroken + break VFX.
                 WalkUntil(host, Vector2.down, p => p.y <= 26.5f);
                 Assert.That(host.TryInteract(), Is.True);
+                Assert.That(host.IsAcousticPulsePlaying, Is.True);
+                Assert.That(host.IsThreatBreakPlaying, Is.True);
+                Assert.That(host.ThreatBreakVfxRenderer.sprite, Is.EqualTo(manifest.ThreatLockBreakFrames[0]));
                 host.Step(Vector2.zero, 0.1f);
                 Assert.That(host.BeastPatrol.State, Is.EqualTo(SoundwellBeastAlertState.StaggeredBroken));
             }
@@ -200,6 +227,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.IsDisposed, Is.True);
                 Assert.That(host.HeroVisual.IsDisposed, Is.True);
                 Assert.That(host.BeastVisual.IsDisposed, Is.True);
+                Assert.That(host.IsAcousticPulsePlaying, Is.False);
+                Assert.That(host.IsThreatBreakPlaying, Is.False);
                 Assert.That(host.MapRenderer.IsDisposed, Is.True);
                 Assert.That(host.LockBreakHud.IsDisposed, Is.True);
                 Assert.That(host.MinimapHud.IsDisposed, Is.True);
