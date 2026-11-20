@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// Runtime Resources-loaded manifest referencing the authored pixel-art
     /// sprite slices under Assets/Game/Art/ by direct GUID/fileID without
     /// relocating source textures. Gives all three 4x RPG maps, character
-    /// hosts, and combat VFX directors zero-setup access to real hand-drawn
-    /// 16-PPU pixel sprites.
+    /// hosts, story prop boards, and combat VFX directors zero-setup access
+    /// to real hand-drawn 16-PPU pixel sprites.
     /// </summary>
     [CreateAssetMenu(menuName = "Return/Pixel Art Manifest", fileName = "RpgPixelArtManifest")]
     public sealed class RpgPixelArtManifest : ScriptableObject
@@ -55,6 +55,32 @@ namespace Rpg.Soundwell
         [SerializeField] private Sprite[] threatLockBreakFrames;
         [SerializeField] private Sprite[] acousticPulseFrames;
 
+        [Header("M02 Bridge Evidence Props (32x32)")]
+        [SerializeField] private Sprite m02CableFlatUncharredCut;
+        [SerializeField] private Sprite m02BridgeKeeperOpenLedger;
+        [SerializeField] private Sprite m02OverwrittenBattleReport;
+        [SerializeField] private Sprite m02HarborOfficialSeal;
+        [SerializeField] private Sprite m02IdentityDocumentUnsealed;
+        [SerializeField] private Sprite m02IdentityDocumentSealed;
+
+        [Header("M03 Lu Jun Camp Cast (16x24)")]
+        [SerializeField] private Sprite m03LuJunStanding;
+        [SerializeField] private Sprite m03LuJunRollCall;
+        [SerializeField] private Sprite m03VeteranNetMender;
+        [SerializeField] private Sprite m03VeteranForwardLookout;
+        [SerializeField] private Sprite m03VeteranTidalGuide;
+        [SerializeField] private Sprite m03VeteranStandardBearer;
+
+        [Header("M03 Lu Jun Camp Objects (32x32)")]
+        [SerializeField] private Sprite m03OldStandardRolled;
+        [SerializeField] private Sprite m03OldStandardRaisedA;
+        [SerializeField] private Sprite m03OldStandardRaisedB;
+        [SerializeField] private Sprite m03NetDryingRackLoaded;
+        [SerializeField] private Sprite m03NetDryingRackEmpty;
+        [SerializeField] private Sprite m03TidalChartOpen;
+        [SerializeField] private Sprite m03TidalChartFolded;
+        [SerializeField] private Sprite m03CampCoals;
+
         private static RpgPixelArtManifest cachedDefault;
 
         public Sprite[] SoundwellTiles => soundwellTiles;
@@ -92,6 +118,29 @@ namespace Rpg.Soundwell
         public Sprite[] BladeRepelTrailFrames => bladeRepelTrailFrames;
         public Sprite[] ThreatLockBreakFrames => threatLockBreakFrames;
         public Sprite[] AcousticPulseFrames => acousticPulseFrames;
+
+        public Sprite M02CableFlatUncharredCut => m02CableFlatUncharredCut;
+        public Sprite M02BridgeKeeperOpenLedger => m02BridgeKeeperOpenLedger;
+        public Sprite M02OverwrittenBattleReport => m02OverwrittenBattleReport;
+        public Sprite M02HarborOfficialSeal => m02HarborOfficialSeal;
+        public Sprite M02IdentityDocumentUnsealed => m02IdentityDocumentUnsealed;
+        public Sprite M02IdentityDocumentSealed => m02IdentityDocumentSealed;
+
+        public Sprite M03LuJunStanding => m03LuJunStanding;
+        public Sprite M03LuJunRollCall => m03LuJunRollCall;
+        public Sprite M03VeteranNetMender => m03VeteranNetMender;
+        public Sprite M03VeteranForwardLookout => m03VeteranForwardLookout;
+        public Sprite M03VeteranTidalGuide => m03VeteranTidalGuide;
+        public Sprite M03VeteranStandardBearer => m03VeteranStandardBearer;
+
+        public Sprite M03OldStandardRolled => m03OldStandardRolled;
+        public Sprite M03OldStandardRaisedA => m03OldStandardRaisedA;
+        public Sprite M03OldStandardRaisedB => m03OldStandardRaisedB;
+        public Sprite M03NetDryingRackLoaded => m03NetDryingRackLoaded;
+        public Sprite M03NetDryingRackEmpty => m03NetDryingRackEmpty;
+        public Sprite M03TidalChartOpen => m03TidalChartOpen;
+        public Sprite M03TidalChartFolded => m03TidalChartFolded;
+        public Sprite M03CampCoals => m03CampCoals;
 
         public static RpgPixelArtManifest LoadDefault()
         {

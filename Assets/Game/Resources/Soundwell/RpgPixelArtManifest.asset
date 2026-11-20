@@ -89,3 +89,23 @@ MonoBehaviour:
   - {fileID: -7114379941051327520, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
   - {fileID: 5570382511087641049, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
   - {fileID: 1158816398848001384, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  m02CableFlatUncharredCut: {fileID: -3692050846821842690, guid: 2a1d5d4894a6416d8e1040823fede659, type: 3}
+  m02BridgeKeeperOpenLedger: {fileID: 1177735100239003086, guid: 2a1d5d4894a6416d8e1040823fede659, type: 3}
+  m02OverwrittenBattleReport: {fileID: 6772701314022141021, guid: 2a1d5d4894a6416d8e1040823fede659, type: 3}
+  m02HarborOfficialSeal: {fileID: 1270976734048049090, guid: 2a1d5d4894a6416d8e1040823fede659, type: 3}
+  m02IdentityDocumentUnsealed: {fileID: -4799968944492081175, guid: 2a1d5d4894a6416d8e1040823fede659, type: 3}
+  m02IdentityDocumentSealed: {fileID: -6571937417578345511, guid: 2a1d5d4894a6416d8e1040823fede659, type: 3}
+  m03LuJunStanding: {fileID: -7101043081834768777, guid: 5979026e16bb4e2b8d58975b93038a59, type: 3}
+  m03LuJunRollCall: {fileID: -279181920826643456, guid: 5979026e16bb4e2b8d58975b93038a59, type: 3}
+  m03VeteranNetMender: {fileID: -1366466621442013478, guid: 5979026e16bb4e2b8d58975b93038a59, type: 3}
+  m03VeteranForwardLookout: {fileID: 8022251592188580502, guid: 5979026e16bb4e2b8d58975b93038a59, type: 3}
+  m03VeteranTidalGuide: {fileID: 7549697146979969578, guid: 5979026e16bb4e2b8d58975b93038a59, type: 3}
+  m03VeteranStandardBearer: {fileID: -6303697339706084934, guid: 5979026e16bb4e2b8d58975b93038a59, type: 3}
+  m03OldStandardRolled: {fileID: -7764562384911607800, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  m03OldStandardRaisedA: {fileID: 5524921582992334011, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  m03OldStandardRaisedB: {fileID: -3356150908721898314, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  m03NetDryingRackLoaded: {fileID: 2500704576749151464, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  m03NetDryingRackEmpty: {fileID: 8406103440112987108, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  m03TidalChartOpen: {fileID: -6158719234619460758, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  m03TidalChartFolded: {fileID: -7892494873397540705, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  m03CampCoals: {fileID: 3463010256041976685, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
