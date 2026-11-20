@@ -170,7 +170,9 @@ namespace Rpg.Soundwell
             float targetX = minX <= maxX ? Mathf.Clamp(Position.x, minX, maxX) : CameraBounds.center.x;
             float targetY = minY <= maxY ? Mathf.Clamp(Position.y, minY, maxY) : CameraBounds.center.y;
 
-            float t = deltaTime > 0f ? 1f - Mathf.Exp(-Mathf.Max(0.1f, smoothSpeed) * deltaTime) : 1f;
+            // A paused frame must retain the camera's last framing rather than
+            // teleporting to the player; the bounds clamp below still applies.
+            float t = deltaTime > 0f ? 1f - Mathf.Exp(-Mathf.Max(0.1f, smoothSpeed) * deltaTime) : 0f;
             float x = Mathf.Lerp(currentCameraPos.x, targetX, t);
             float y = Mathf.Lerp(currentCameraPos.y, targetY, t);
 

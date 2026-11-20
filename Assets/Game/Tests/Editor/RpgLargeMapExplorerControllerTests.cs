@@ -113,6 +113,31 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PausedCameraDoesNotSnapToPlayerOrConsumeScreenShake()
+        {
+            RedSaltHarborMapLayout map = RedSaltHarborMapLayout.Build();
+            var explorer = RpgLargeMapExplorerController.ForRedSaltHarbor(map);
+            Vector3 prior = new Vector3(map.CameraBounds.center.x,
+                map.CameraBounds.center.y, -10f);
+            Assert.That(Vector2.Distance(
+                new Vector2(prior.x, prior.y), explorer.Position),
+                Is.GreaterThan(1f), "The test camera must start away from the player.");
+
+            explorer.TriggerScreenShake(0.3f, 0.4f);
+            Assert.That(explorer.ComputeClampedCameraPosition(prior, 0f),
+                Is.EqualTo(prior), "Pausing cannot teleport a valid camera to the player.");
+            Assert.That(explorer.ComputeClampedCameraPosition(prior, -0.1f),
+                Is.EqualTo(prior), "Invalid negative frame time cannot move the camera.");
+            Assert.That(explorer.ShakeRemaining, Is.EqualTo(0.4f),
+                "A paused frame cannot consume a screen shake.");
+            Assert.That(explorer.ShakeIntensity, Is.EqualTo(0.3f));
+
+            explorer.ComputeClampedCameraPosition(prior, 0.5f);
+            Assert.That(explorer.ShakeRemaining, Is.Zero);
+            Assert.That(explorer.ShakeIntensity, Is.Zero);
+        }
+
+        [Test]
         public void HitstopPausesMovementAndScreenShakeDecaysCleanly()
         {
             RedSaltHarborMapLayout map = RedSaltHarborMapLayout.Build();
