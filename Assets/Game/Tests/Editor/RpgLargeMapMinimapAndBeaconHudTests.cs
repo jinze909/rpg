@@ -47,7 +47,9 @@ namespace Rpg.Tests.Editor
                     root.transform, RedSaltHarborMapLayout.Build());
                 Assert.That(harbor.MinimapTexture.width, Is.EqualTo(RpgWorldMapScale.RedSaltHarborMinWidth));
                 Assert.That(harbor.MinimapTexture.height, Is.EqualTo(RpgWorldMapScale.RedSaltHarborMinHeight));
-                Assert.That(harbor.BeaconCount, Is.EqualTo(6));
+                Assert.That(harbor.BeaconCount, Is.EqualTo(5));
+                Assert.That(harbor.SetBeaconCompleted("m06.mine-camp-gate", true), Is.False,
+                    "The next chapter's inactive gate cannot count as a current M05 objective.");
 
                 whitewater = RpgLargeMapMinimapAndBeaconHud.BuildForWhitewaterCrossing(
                     root.transform, WhitewaterCrossingMapLayout.Build());
