@@ -57,7 +57,6 @@ namespace Rpg.Soundwell
         private EnemyThreatAction threatWaitingForQueue;
         private int threatQueueAfterFrame;
         private bool plannedQueuedIntoAi;
-        private float allPartySubmittedAt = -1f;
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
         private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
         private readonly HashSet<Combatant> turnSubmittedParty = new HashSet<Combatant>();
@@ -127,7 +126,6 @@ namespace Rpg.Soundwell
             party.Beast.Variables.Set("rpg.role.exposed", 0);
             planned = null;
             plannedQueuedIntoAi = false;
-            allPartySubmittedAt = -1f;
             turnSubmittedParty.Clear();
             configured = true;
             view = new RoleCombatView(transform, this);
@@ -187,25 +185,18 @@ namespace Rpg.Soundwell
                     }
                     threatWaitingForQueue = null;
                 }
-                int livingParty = LivingPartyCount();
-                bool allPartySubmitted = livingParty > 0 && turnSubmittedParty.Count >= livingParty;
-                if (allPartySubmitted && allPartySubmittedAt < 0f)
-                    allPartySubmittedAt = Time.realtimeSinceStartup;
-                else if (!allPartySubmitted)
-                    allPartySubmittedAt = -1f;
-
-                // Prefer ORK's native AI queue consumption (0.1s DecisionTime).
-                // If ORK exposes the enemy chooser, or if all living rescuers
-                // submitted and 0.35s elapsed without the enemy AI performing,
-                // submit the queued NoneAction threat once.
-                bool fallbackReady = allPartySubmitted &&
-                    party.ChoosingRescuerIndex < 0 &&
-                    allPartySubmittedAt >= 0f &&
-                    Time.realtimeSinceStartup - allPartySubmittedAt >= 0.35f;
-                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing || fallbackReady;
+                // The pinned ORK Classic-turn battle resolves a full round
+                // after action selection. Submitting the enemy action only
+                // after all rescuers had chosen left a party action unresolved
+                // and the enemy action stuck in Available state. Register the
+                // authored AI-queued action at the start of the round, before
+                // the first party submission, through ORK's own AddAccess.
+                // Never inject during a partially chosen / executing round.
+                bool beginningOfRound = turnSubmittedParty.Count == 0 &&
+                    submittedActions.Count == 0;
                 if (threatWaitingForQueue == null &&
                     plannedQueuedIntoAi &&
-                    enemyNeedsQueuedAction && !IsPresenting &&
+                    beginningOfRound && !IsPresenting &&
                     planned != null && !planned.HasPerformed &&
                     submittedEnemyThreat != planned &&
                     planned.CanUse())
@@ -224,7 +215,6 @@ namespace Rpg.Soundwell
                 ending = true;
                 submittedActions.Clear();
                 turnSubmittedParty.Clear();
-                allPartySubmittedAt = -1f;
                 submittedEnemyThreat = null;
                 threatWaitingForQueue = null;
                 plannedQueuedIntoAi = false;
