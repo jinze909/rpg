@@ -59,6 +59,7 @@ namespace Rpg.Soundwell
         private bool plannedQueuedIntoAi;
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
         private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
+        private readonly HashSet<Combatant> turnSubmittedParty = new HashSet<Combatant>();
         private float previousDecisionTime;
         private bool configured;
         private bool observedBattle;
@@ -125,6 +126,7 @@ namespace Rpg.Soundwell
             party.Beast.Variables.Set("rpg.role.exposed", 0);
             planned = CreateThreat(Threat.Gather, 0);
             plannedQueuedIntoAi = false;
+            turnSubmittedParty.Clear();
             configured = true;
             view = new RoleCombatView(transform, this);
             SetExchange("救出被困的人。看清借声兽的动作，再决定怎样配合。",
@@ -138,6 +140,15 @@ namespace Rpg.Soundwell
             if (health.MaxStatusValue != null)
                 health.MaxStatusValue.InitValue(amount);
             health.InitValue(amount);
+        }
+
+        private int LivingPartyCount()
+        {
+            int count = 0;
+            foreach (Combatant member in party.Members)
+                if (member != null && !member.Status.IsDead)
+                    count++;
+            return count;
         }
 
         private void Update()
@@ -173,11 +184,15 @@ namespace Rpg.Soundwell
                     }
                     threatWaitingForQueue = null;
                 }
-                // The absence of a chooser during a party handoff is not an
-                // enemy turn. Injecting an ORK action into that gap can strand
-                // the next rescuer after Gather. Only submit if ORK exposes
-                // the enemy chooser and the authored threat is still queued.
-                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing;
+                // Never inject the enemy threat during a mid-party chooser
+                // handoff (after only 1 or 2 rescuers). Only submit once ORK
+                // exposes the enemy chooser, or after every living rescuer has
+                // submitted its action for this turn and no player chooser
+                // remains.
+                int livingParty = LivingPartyCount();
+                bool allPartySubmitted = livingParty > 0 && turnSubmittedParty.Count >= livingParty;
+                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing ||
+                    (allPartySubmitted && party.ChoosingRescuerIndex < 0);
                 if (threatWaitingForQueue == null &&
                     plannedQueuedIntoAi &&
                     enemyNeedsQueuedAction && !IsPresenting &&
@@ -186,6 +201,7 @@ namespace Rpg.Soundwell
                     planned.CanUse())
                 {
                     BaseAction next = party.Beast.AI.GetNextQueuedAction();
+                    if (next == null) next = planned;
                     if (next == planned)
                     {
                         submittedEnemyThreat = planned;
@@ -197,6 +213,7 @@ namespace Rpg.Soundwell
             {
                 ending = true;
                 submittedActions.Clear();
+                turnSubmittedParty.Clear();
                 submittedEnemyThreat = null;
                 threatWaitingForQueue = null;
                 plannedQueuedIntoAi = false;
@@ -386,6 +403,7 @@ namespace Rpg.Soundwell
             // and same-frame debounce without blocking the next choosing ally.
             lastCommandFrame = Time.frameCount;
             submittedActions.Add(actor);
+            turnSubmittedParty.Add(actor);
             action.finishedCallback += _ => submittedActions.Remove(actor);
             actor.Actions.AddAccess(action, false);
             return true;
@@ -405,6 +423,7 @@ namespace Rpg.Soundwell
                 planned = CreateThreat(next, nextTarget);
                 submittedEnemyThreat = null;
                 plannedQueuedIntoAi = false;
+                turnSubmittedParty.Clear();
                 // ORK may still be completing this exact action; changing its
                 // queue synchronously can prevent the next player chooser.
                 // Enqueue the same authentic StrikeAction in the next Update.
