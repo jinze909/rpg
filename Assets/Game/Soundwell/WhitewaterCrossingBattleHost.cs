@@ -8,8 +8,9 @@ namespace Rpg.Soundwell
     /// Playable 4x-scale S00 Whitewater Crossing (80x44) solo bridgehead defense
     /// stage host wiring WhitewaterCrossingMapLayout, RpgLargeMapChunkRenderer
     /// (6 Point-filtered 32x32 chunks + 4 flaming brazier halos), authored
-    /// 16-PPU pixel-art cast SpriteRenderers from RpgPixelArtManifest (Hero,
-    /// Shen Li on the pontoon cable, and approaching Bridge Guard/Sapper),
+    /// 16-PPU pixel-art cast & 24x24 battle-action/VFX SpriteRenderers from
+    /// RpgPixelArtManifest (Hero, Shen Li on the pontoon cable, approaching
+    /// Bridge Guard/Sapper, and 3-frame combat clash VFX),
     /// S00BridgeheadCableTracker (1-hero solo bridgehead hold for 3 bells while
     /// Shen Li cuts the pontoon cable), CombatLockBreakHudView,
     /// RpgLargeMapMinimapAndBeaconHud, clamped stage camera framing with clash
@@ -18,6 +19,8 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class WhitewaterCrossingBattleHost : IDisposable
     {
+        private const float VfxFrameDurationSeconds = 0.08f;
+
         private readonly GameObject hostRoot;
         private readonly GameObject stageHudCanvasObject;
         private readonly RectTransform stagePanel;
@@ -28,6 +31,9 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer heroSpriteRenderer;
         private readonly SpriteRenderer shenLiSpriteRenderer;
         private readonly SpriteRenderer enemySpriteRenderer;
+        private readonly SpriteRenderer combatVfxSpriteRenderer;
+        private Sprite[] activeVfxFrames;
+        private float vfxElapsed;
         private string lastStatusZh;
         private string lastStatusEn;
         private float shakeRemaining;
@@ -47,6 +53,7 @@ namespace Rpg.Soundwell
         public SpriteRenderer HeroSpriteRenderer => heroSpriteRenderer;
         public SpriteRenderer ShenLiSpriteRenderer => shenLiSpriteRenderer;
         public SpriteRenderer EnemySpriteRenderer => enemySpriteRenderer;
+        public SpriteRenderer CombatVfxSpriteRenderer => combatVfxSpriteRenderer;
         public float ShakeRemaining => shakeRemaining;
         public bool IsDisposed => disposed;
         public Text StageTitleLabel => stageTitleLabel;
@@ -83,11 +90,17 @@ namespace Rpg.Soundwell
                 Layout.BridgeheadDefenseTile.y + 0.5f, 0f);
 
             heroSpriteRenderer = CreateCastSprite("S00_Hero", HeroDefenseWorldPosition,
-                artManifest != null ? artManifest.FerryGuideIdle : null, flipX: false, sortingOrder: 8);
+                artManifest != null ? (artManifest.S00PlayerReady ?? artManifest.FerryGuideIdle) : null,
+                flipX: false, sortingOrder: 8);
             shenLiSpriteRenderer = CreateCastSprite("S00_ShenLi", ShenLiCableWorldPosition,
                 artManifest != null ? artManifest.ShenLiBridgeIdle : null, flipX: false, sortingOrder: 8);
             enemySpriteRenderer = CreateCastSprite("S00_EnemyFront", EnemyFrontWorldPosition,
-                artManifest != null ? artManifest.BridgeGuardIdle : null, flipX: true, sortingOrder: 8);
+                artManifest != null ? (artManifest.S00SapperReady ?? artManifest.BridgeGuardIdle) : null,
+                flipX: true, sortingOrder: 8);
+            combatVfxSpriteRenderer = CreateCastSprite("S00_CombatVfx",
+                (HeroDefenseWorldPosition + EnemyFrontWorldPosition) * 0.5f,
+                null, flipX: false, sortingOrder: 12);
+            combatVfxSpriteRenderer.enabled = false;
 
             MinimapHud.UpdatePlayerPosition(new Vector2(
                 HeroDefenseWorldPosition.x, HeroDefenseWorldPosition.y));
@@ -151,15 +164,19 @@ namespace Rpg.Soundwell
             return sr;
         }
 
-        private void SyncCastPoses(CombatLockKind lastHeroAction)
+        private void SyncCastPoses(CombatLockKind lastHeroAction, bool brokeLock,
+            S00BridgeThreatKind threatBefore)
         {
             if (artManifest == null) return;
 
             if (heroSpriteRenderer != null)
             {
-                heroSpriteRenderer.sprite = lastHeroAction == CombatLockKind.ShieldParry
-                    ? artManifest.FerryGuideBrace
-                    : artManifest.FerryGuideIdle;
+                if (!brokeLock)
+                    heroSpriteRenderer.sprite = artManifest.S00PlayerHit ?? artManifest.FerryGuideBrace;
+                else if (lastHeroAction == CombatLockKind.ShieldParry)
+                    heroSpriteRenderer.sprite = artManifest.S00PlayerParry ?? artManifest.FerryGuideBrace;
+                else
+                    heroSpriteRenderer.sprite = artManifest.S00PlayerSlash ?? artManifest.FerryGuideIdle;
             }
             if (shenLiSpriteRenderer != null)
             {
@@ -171,11 +188,53 @@ namespace Rpg.Soundwell
             }
             if (enemySpriteRenderer != null)
             {
-                enemySpriteRenderer.sprite =
-                    CableTracker.CurrentThreat == S00BridgeThreatKind.SapperRushCable
-                        ? artManifest.BridgeGuardThrust
-                        : artManifest.BridgeGuardIdle;
+                if (brokeLock && threatBefore == S00BridgeThreatKind.SapperRushCable)
+                    enemySpriteRenderer.sprite = artManifest.S00SapperRepelled ?? artManifest.BridgeGuardIdle;
+                else if (CableTracker.CurrentThreat == S00BridgeThreatKind.SapperRushCable)
+                    enemySpriteRenderer.sprite = artManifest.S00SapperRush ?? artManifest.BridgeGuardThrust;
+                else
+                    enemySpriteRenderer.sprite = artManifest.S00SapperReady ?? artManifest.BridgeGuardIdle;
             }
+        }
+
+        private void TriggerCombatVfx(CombatLockKind counterAction, bool brokeLock)
+        {
+            if (artManifest == null || combatVfxSpriteRenderer == null || !brokeLock)
+                return;
+
+            Sprite[] frames = CableTracker.ReadyForThirdBellCollapse
+                ? artManifest.ThreatLockBreakFrames
+                : counterAction == CombatLockKind.ShieldParry
+                    ? artManifest.ParrySparkFrames
+                    : artManifest.BladeRepelTrailFrames;
+
+            if (frames == null || frames.Length == 0 || frames[0] == null)
+                return;
+
+            activeVfxFrames = frames;
+            vfxElapsed = 0f;
+            combatVfxSpriteRenderer.sprite = frames[0];
+            combatVfxSpriteRenderer.enabled = true;
+        }
+
+        public void StepCombatVfx(float deltaTime)
+        {
+            if (disposed || combatVfxSpriteRenderer == null || activeVfxFrames == null)
+                return;
+            if (deltaTime <= 0f)
+                return;
+
+            vfxElapsed += deltaTime;
+            int index = Mathf.FloorToInt(vfxElapsed / VfxFrameDurationSeconds);
+            if (index >= activeVfxFrames.Length)
+            {
+                activeVfxFrames = null;
+                vfxElapsed = 0f;
+                combatVfxSpriteRenderer.sprite = null;
+                combatVfxSpriteRenderer.enabled = false;
+                return;
+            }
+            combatVfxSpriteRenderer.sprite = activeVfxFrames[index];
         }
 
         /// <summary>
@@ -230,7 +289,8 @@ namespace Rpg.Soundwell
                 lastStatusEn = "Braced through the spear lunge — Shen Li pushes the cut forward.";
             }
 
-            SyncCastPoses(counterAction);
+            SyncCastPoses(counterAction, brokeLock, threatBefore);
+            TriggerCombatVfx(counterAction, brokeLock);
             RefreshHud();
 
             if (CableTracker.BellsCompleted > previousBells)
@@ -257,6 +317,8 @@ namespace Rpg.Soundwell
             float halfViewHeight = RpgWorldMapScale.LogicalScreenTilesY * 0.5f,
             float smoothSpeed = 6f)
         {
+            StepCombatVfx(deltaTime);
+
             Vector3 anchor = (ShenLiCableWorldPosition + EnemyFrontWorldPosition) * 0.5f;
             Bounds bounds = Layout.CameraBounds;
             float minX = bounds.min.x + halfViewWidth;
