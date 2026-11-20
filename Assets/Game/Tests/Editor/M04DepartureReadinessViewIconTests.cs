@@ -143,7 +143,9 @@ namespace Rpg.Tests.Editor
             {
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 camera.backgroundColor = Color.black;
-                camera.cullingMask = 1 << 5;
+                // Draw the runtime canvas on its authored layer, not the
+                // built-in UI layer: the latter silently culled every graphic.
+                camera.cullingMask = 1 << canvas.gameObject.layer;
                 camera.orthographic = true;
                 camera.orthographicSize = 5f;
                 camera.transform.position = new Vector3(0f, 0f, -10f);
