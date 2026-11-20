@@ -143,7 +143,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(view.ApproachButton.gameObject.activeSelf, Is.False);
                 Assert.That(view.SlowEchoButton.gameObject.activeSelf, Is.False);
                 Assert.That(view.FastEchoButton.gameObject.activeSelf, Is.False);
-                Assert.That(view.Body.text, Does.Contain("已有经核验的处置结果"));
+                string expected = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese
+                    ? "已有经核验的处置结果"
+                    : "already has a verified resolution";
+                Assert.That(view.Body.text, Does.Contain(expected));
                 view.ApproachButton.onClick.Invoke();
                 Assert.That(calls, Is.Zero);
             }
