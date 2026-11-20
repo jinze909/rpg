@@ -8,6 +8,71 @@ namespace Rpg.Tests.Editor
     public sealed class FogListeningViewTests
     {
         [Test]
+        public void M04AuditoryCluesRespectFogClarityPanMixerAndSessionCompletion()
+        {
+            var root = new GameObject("M04 fog audible direction test");
+            FogListeningView view = null;
+            string oldLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                var leg = new FogListeningSession(new[]
+                {
+                    new FogListeningCue(FogBearing.Port, FogCueKind.ReefSurf, 30),
+                    new FogListeningCue(FogBearing.Starboard, FogCueKind.SignalResponse, 80),
+                    new FogListeningCue(FogBearing.Ahead, FogCueKind.FalseEcho, 80)
+                }, maxListenFocus: 1, maxHullIntegrity: 2);
+                view = new FogListeningView(root.transform, leg, _ => { });
+                AudioSource source = view.CueAudioSource;
+
+                Assert.That(source, Is.Not.Null);
+                Assert.That(source.playOnAwake, Is.False);
+                Assert.That(source.loop, Is.False);
+                Assert.That(source.spatialBlend, Is.Zero);
+                Assert.That(source.clip, Is.Not.Null);
+                Assert.That(source.panStereo, Is.Zero,
+                    "Faint sound cannot leak the hidden port bearing via stereo pan.");
+                Assert.That(view.CueAudioLowPass.cutoffFrequency, Is.LessThan(1000f));
+                Assert.That(leg.RemainingFocus, Is.EqualTo(1));
+
+                view.FocusButton.onClick.Invoke();
+                Assert.That(leg.RemainingFocus, Is.Zero);
+                Assert.That(source.panStereo, Is.LessThan(-0.5f),
+                    "Only an identified port sound can be panned left.");
+                Assert.That(view.CueAudioLowPass.cutoffFrequency, Is.GreaterThan(4000f));
+                AudioClip identified = source.clip;
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(source.clip, Is.SameAs(identified),
+                    "Switching language must not replay/regenerate the same sound.");
+
+                view.SlowButton.onClick.Invoke();
+                Assert.That(leg.CurrentStep, Is.EqualTo(1));
+                Assert.That(source.panStereo, Is.GreaterThan(0.5f),
+                    "The next identified starboard signal is a new right-side cue.");
+                Assert.That(source.clip.name, Does.Contain("SignalResponse"));
+                view.SignalButton.onClick.Invoke();
+                Assert.That(leg.CurrentStep, Is.EqualTo(2));
+                Assert.That(source.panStereo, Is.Zero);
+                Assert.That(source.clip.name, Does.Contain("FalseEcho"));
+                Assert.That(leg.MatchedSignals, Is.EqualTo(1));
+                Assert.That(leg.HullIntegrity, Is.EqualTo(2));
+
+                view.HoldButton.onClick.Invoke();
+                Assert.That(leg.Succeeded, Is.True);
+                Assert.That(source.clip, Is.Null,
+                    "Completed voyages cannot keep playing the previous fog clue.");
+                Assert.That(leg.HullIntegrity, Is.EqualTo(2),
+                    "Procedural audio changes neither ORK nor Makinom voyage facts.");
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(oldLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PixelCueOnlyAppearsWhenListeningIdentifiesARealReefOrSignal()
         {
             var root = new GameObject("M04 clarity gated fog pixel icon");
