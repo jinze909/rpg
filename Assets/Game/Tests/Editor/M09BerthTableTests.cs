@@ -133,6 +133,79 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AbsentShenLiCanPayShipwrightWithoutInventingHerTwoDayTeaching()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var session = new M09BerthTableSession(
+                baseBerths: 18, pendingNames: 23,
+                shenLiPresent: false, qiDebtPreviouslyKnown: true);
+
+            Assert.That(session.TryNegotiateExchange(
+                M09BerthExchangeFlags.ShipwrightExtraBerths, 5), Is.False,
+                "An absent Shen Li cannot be volunteered to teach apprentices.");
+            Assert.That(session.TryNegotiateExchange(
+                M09BerthExchangeFlags.HanQiaoCivilianVoyage, 1,
+                shipwrightFeePaid: true), Is.False,
+                "Paying a shipyard is not a substitute for official registration.");
+            Assert.That(session.TryNegotiateExchange(
+                M09BerthExchangeFlags.ShipwrightExtraBerths, 5,
+                shipwrightFeePaid: true), Is.True);
+            Assert.That(session.ShipwrightFeePaid, Is.True);
+            Assert.That(session.ShenLiTwoDayApprenticeLeave, Is.False);
+            Assert.That(session.TryPlayShenReconciliation(), Is.False);
+            Assert.That(session.CurrentShortfall, Is.Zero);
+
+            Assert.That(session.TrySettleBerthTable(
+                M09RuiyaOutcome.Rescued, read, write), Is.True);
+            Assert.That(M09BerthTableFacts.TryRead(
+                read, out M09BerthTableRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.ShipwrightFeePaid, Is.True);
+            Assert.That(saved.Value.Exchanges, Is.EqualTo(
+                M09BerthExchangeFlags.ShipwrightExtraBerths));
+            Assert.That(saved.Value.ShenReconciled, Is.False);
+
+            // A corrupted fee flag cannot silently become a free exchange.
+            values[M09BerthTableFacts.ShipwrightFeePaidKey] = 2;
+            Assert.That(M09BerthTableFacts.TryRead(
+                read, out M09BerthTableRecord? corrupted), Is.True);
+            Assert.That(corrupted, Is.Null);
+            values[M09BerthTableFacts.ShipwrightFeePaidKey] = 1;
+            Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(values[M09BerthTableFacts.ShipwrightFeePaidKey], Is.Zero);
+        }
+
+        [Test]
+        public void ForgedShipyardPaymentAndOverflowCannotMintBerths()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var invalid = new M09BerthTableRecord(
+                23, 23, M09BerthExchangeFlags.None,
+                M09RuiyaOutcome.Deferred, false, false,
+                shipwrightFeePaid: true);
+
+            Assert.That(M09BerthTableFacts.TryRecord(invalid, read, write), Is.False);
+            Assert.That(values.ContainsKey(M09BerthTableFacts.ConfirmedKey), Is.False);
+
+            var nearMax = new M09BerthTableSession(
+                baseBerths: int.MaxValue - 1, pendingNames: 23);
+            Assert.That(nearMax.TryNegotiateExchange(
+                M09BerthExchangeFlags.HanQiaoCivilianVoyage, 2), Is.False);
+            Assert.That(nearMax.TotalBerths, Is.EqualTo(int.MaxValue - 1));
+            Assert.That(nearMax.NegotiatedExchanges, Is.EqualTo(
+                M09BerthExchangeFlags.None));
+            Assert.That(nearMax.TryNegotiateExchange(
+                M09BerthExchangeFlags.HanQiaoCivilianVoyage, 1), Is.True);
+            Assert.That(nearMax.TotalBerths, Is.EqualTo(int.MaxValue));
+        }
+
+        [Test]
         public void InterruptedSaveRetriesCleanlyAndUpstreamM07ResetInvalidatesReadback()
         {
             var values = new Dictionary<string, int>();

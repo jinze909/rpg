@@ -33,7 +33,8 @@ namespace Rpg.Soundwell
             M09BerthExchangeFlags exchanges,
             M09RuiyaOutcome ruiyaOutcome,
             bool qiDebtDisclosedHere,
-            bool shenReconciled)
+            bool shenReconciled,
+            bool shipwrightFeePaid = false)
         {
             TotalBerths = totalBerths;
             PendingNames = pendingNames;
@@ -41,6 +42,7 @@ namespace Rpg.Soundwell
             RuiyaOutcome = ruiyaOutcome;
             QiDebtDisclosedHere = qiDebtDisclosedHere;
             ShenReconciled = shenReconciled;
+            ShipwrightFeePaid = shipwrightFeePaid;
         }
 
         public int TotalBerths { get; }
@@ -49,6 +51,9 @@ namespace Rpg.Soundwell
         public M09RuiyaOutcome RuiyaOutcome { get; }
         public bool QiDebtDisclosedHere { get; }
         public bool ShenReconciled { get; }
+        // True only after the party actually pays the shipyard in place
+        // of asking Shen Li to teach the apprentices for two days.
+        public bool ShipwrightFeePaid { get; }
         public int AssignedCount => Math.Min(TotalBerths, PendingNames);
         public int RemainingUnassigned => Math.Max(0, PendingNames - TotalBerths);
     }
@@ -67,6 +72,7 @@ namespace Rpg.Soundwell
         public const string RuiyaOutcomeKey = "rpg.return.m09.survivor-ruiya";
         public const string QiDebtDisclosedKey = "rpg.return.m09.qi-debt-disclosed";
         public const string ShenReconciledKey = "rpg.return.m09.shen-reconciled";
+        public const string ShipwrightFeePaidKey = "rpg.return.m09.shipwright-fee-paid";
 
         public const int DefaultBaseBerths = 18;
         public const int DefaultPendingNames = 23;
@@ -106,6 +112,7 @@ namespace Rpg.Soundwell
             setInt(RuiyaOutcomeKey, (int)record.RuiyaOutcome);
             setInt(QiDebtDisclosedKey, record.QiDebtDisclosedHere ? 1 : 0);
             setInt(ShenReconciledKey, record.ShenReconciled ? 1 : 0);
+            setInt(ShipwrightFeePaidKey, record.ShipwrightFeePaid ? 1 : 0);
             setInt(ConfirmedKey, 1);
             return true;
         }
@@ -131,11 +138,13 @@ namespace Rpg.Soundwell
             int rawRuiya = getInt(RuiyaOutcomeKey);
             int rawQiDebt = getInt(QiDebtDisclosedKey);
             int rawShen = getInt(ShenReconciledKey);
+            int rawShipwrightFee = getInt(ShipwrightFeePaidKey);
 
             if (rawExchanges < 0 || (rawExchanges & ~AllExchangesMask) != 0 ||
                 !Enum.IsDefined(typeof(M09RuiyaOutcome), rawRuiya) ||
                 (rawQiDebt != 0 && rawQiDebt != 1) ||
-                (rawShen != 0 && rawShen != 1))
+                (rawShen != 0 && rawShen != 1) ||
+                (rawShipwrightFee != 0 && rawShipwrightFee != 1))
                 return true;
 
             var saved = new M09BerthTableRecord(
@@ -144,7 +153,8 @@ namespace Rpg.Soundwell
                 (M09BerthExchangeFlags)rawExchanges,
                 (M09RuiyaOutcome)rawRuiya,
                 rawQiDebt == 1,
-                rawShen == 1);
+                rawShen == 1,
+                rawShipwrightFee == 1);
 
             if (IsValidRecord(saved, getInt))
                 record = saved;
@@ -169,6 +179,7 @@ namespace Rpg.Soundwell
             setInt(RuiyaOutcomeKey, 0);
             setInt(QiDebtDisclosedKey, 0);
             setInt(ShenReconciledKey, 0);
+            setInt(ShipwrightFeePaidKey, 0);
             return true;
         }
 
@@ -183,6 +194,11 @@ namespace Rpg.Soundwell
                 return false;
             if (record.QiDebtDisclosedHere &&
                 (record.Exchanges & M09BerthExchangeFlags.QiQueCargoVoyage) == 0)
+                return false;
+            // A shipyard fee has a real, separately negotiated cost: it
+            // cannot be saved unless the shipwright berth deal exists.
+            if (record.ShipwrightFeePaid &&
+                (record.Exchanges & M09BerthExchangeFlags.ShipwrightExtraBerths) == 0)
                 return false;
 
             if (!M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? m07) ||
