@@ -9,8 +9,8 @@ namespace Rpg.Soundwell
     /// host wiring RpgLargeMapChunkRenderer (6 Point-filtered 32x32 chunks + 4
     /// warm light halos), RpgLargeMapExplorerController (wall-sliding movement,
     /// iron-gate collision gating, zone events, proximity triggers, clamped
-    /// camera follow), SoundwellAcousticBreakTracker, CombatLockBreakHudView,
-    /// and a visual-only district/interact HUD.
+    /// camera follow), SoundwellAcousticBreakTracker, SoundwellBeastPatrolTracker,
+    /// CombatLockBreakHudView, and a visual-only district/interact HUD.
     /// Strictly subordinate to ORK 3: owns no HP, damage, turn, or defeat state.
     /// </summary>
     public sealed class SoundwellLargeMapExplorationHost : IDisposable
@@ -31,6 +31,7 @@ namespace Rpg.Soundwell
         public RpgLargeMapChunkRenderer MapRenderer { get; }
         public RpgLargeMapExplorerController Explorer { get; }
         public SoundwellAcousticBreakTracker AcousticTracker { get; }
+        public SoundwellBeastPatrolTracker BeastPatrol { get; }
         public CombatLockBreakHudView LockBreakHud { get; }
 
         public bool IsGateOpen { get; private set; }
@@ -47,6 +48,7 @@ namespace Rpg.Soundwell
         public event Action<string> InteractionResolved;
         public event Action GateOpened;
         public event Action ExtractionReached;
+        public event Action BeastEncounterTriggered;
 
         public SoundwellLargeMapExplorationHost(Transform parent,
             Sprite[] tileSlices = null, int startingMomentum = 1)
@@ -62,6 +64,7 @@ namespace Rpg.Soundwell
             Explorer = RpgLargeMapExplorerController.ForSoundwell(
                 Layout, () => IsGateOpen);
             AcousticTracker = new SoundwellAcousticBreakTracker(startingMomentum);
+            BeastPatrol = new SoundwellBeastPatrolTracker(Layout, AcousticTracker);
             LockBreakHud = new CombatLockBreakHudView(hostRoot.transform, AcousticTracker);
 
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -119,6 +122,7 @@ namespace Rpg.Soundwell
             feedbackLabel.alignment = TextAnchor.MiddleCenter;
 
             Explorer.ZoneEntered += HandleZoneEntered;
+            BeastPatrol.EncounterTriggered += HandleBeastEncounter;
             SoundwellUiLocalization.Changed += RefreshHud;
 
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
@@ -136,6 +140,8 @@ namespace Rpg.Soundwell
             }
 
             bool moved = Explorer.StepMovement(moveInput, deltaTime);
+            BeastPatrol.Step(deltaTime, Explorer.Position, moved);
+
             if (cameraTransform != null)
             {
                 cameraTransform.position = Explorer.ComputeClampedCameraPosition(
@@ -184,6 +190,7 @@ namespace Rpg.Soundwell
                 case "soundwell.bell":
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.DecoyBellRing))
                     {
+                        BeastPatrol.NotifyBronzeBellRung(Layout.BronzeBellTile);
                         Explorer.TriggerScreenShake(0.22f, 0.14f);
                         if (AcousticTracker.CanTriggerNonViolentEscape)
                         {
@@ -325,6 +332,11 @@ namespace Rpg.Soundwell
             ZoneChanged?.Invoke(zone.Id);
         }
 
+        private void HandleBeastEncounter()
+        {
+            BeastEncounterTriggered?.Invoke();
+        }
+
         private void SetFeedback(string zh, string en)
         {
             lastFeedbackZh = zh ?? string.Empty;
@@ -350,6 +362,7 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             Explorer.ZoneEntered -= HandleZoneEntered;
+            BeastPatrol.EncounterTriggered -= HandleBeastEncounter;
             SoundwellUiLocalization.Changed -= RefreshHud;
             LockBreakHud.Dispose();
             MapRenderer.Dispose();
