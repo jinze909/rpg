@@ -37,6 +37,58 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        private static void SeedCurrentVoyage(Dictionary<string, int> values,
+            M03VoyageChoice chosenRoute)
+        {
+            var encounter = new M03LuJunEncounter(M02BridgeEvidence.None, true);
+            encounter.Begin();
+            encounter.ObserveRollCall();
+            encounter.Ask(M03LuJunOpening.NeedAShip);
+            encounter.ChooseVoyage(chosenRoute);
+            Assert.That(M03LuJunFacts.TryRecord(encounter,
+                (key, value) => values[key] = value), Is.True);
+        }
+
+        [Test]
+        public void CurrentRouteMismatchCannotConfirmOrReadAnOldLanding()
+        {
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            var read = Reader(values);
+            var report = new M05LandingReport(3, 9, true, true);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                writes++;
+                values[key] = value;
+            };
+
+            SeedCurrentVoyage(values, M03VoyageChoice.QiQueMerchant);
+            Assert.That(M05LandingFacts.CanRecord(report, read), Is.True);
+            SeedCurrentVoyage(values, M03VoyageChoice.LuJunEscort);
+            Assert.That(M05LandingFacts.CanRecord(report, read), Is.False,
+                "An old merchant crossing cannot authorize a Lu Jun arrival.");
+            Assert.That(M05LandingFacts.TryRecord(report, read, write), Is.False);
+            Assert.That(writes, Is.Zero, "A rejected arrival must not alter the save.");
+
+            SeedCurrentVoyage(values, M03VoyageChoice.QiQueMerchant);
+            Assert.That(M05LandingFacts.TryRecord(report, read, write), Is.True);
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? arrived),
+                Is.True);
+            Assert.That(arrived.HasValue, Is.True);
+
+            SeedCurrentVoyage(values, M03VoyageChoice.HanQiaoOfficial);
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? stale),
+                Is.True);
+            Assert.That(stale, Is.Null,
+                "A saved merchant landing cannot be shown as this official voyage.");
+            values[M03LuJunFacts.VoyageKey] = 999;
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? invalid),
+                Is.True);
+            Assert.That(invalid, Is.Null,
+                "A corrupted recorded route must not reactivate an old landing.");
+        }
+
         [Test]
         public void ReadinessSailingAndFogDoNotAutomaticallyInventAnArrival()
         {
