@@ -78,7 +78,8 @@ namespace Rpg.Tests.Editor
             SoundwellLargeMapExplorationHost host = null;
             var visitedZones = new List<string>();
             bool gateOpened = false;
-            bool extracted = false;
+            int extractionCount = 0;
+            int extractionResolvedCount = 0;
             try
             {
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
@@ -86,7 +87,12 @@ namespace Rpg.Tests.Editor
                 host = new SoundwellLargeMapExplorationHost(root.transform);
                 host.ZoneChanged += z => visitedZones.Add(z);
                 host.GateOpened += () => gateOpened = true;
-                host.ExtractionReached += () => extracted = true;
+                host.ExtractionReached += () => extractionCount++;
+                host.InteractionResolved += id =>
+                {
+                    if (id == "soundwell.extraction")
+                        extractionResolvedCount++;
+                };
 
                 // 1. Walk to West Gate Lever (46, 11) before breaking acoustic locks.
                 WalkUntil(host, Vector2.right, p => p.x >= 36f);
@@ -148,8 +154,14 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.Explorer.Position.x, Is.GreaterThan(75f));
                 Assert.That(host.TryInteract(), Is.True);
                 Assert.That(host.ExtractionCompleted, Is.True);
-                Assert.That(extracted, Is.True);
+                Assert.That(extractionCount, Is.EqualTo(1));
+                Assert.That(extractionResolvedCount, Is.EqualTo(1));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.Zero);
+                // Repeated interaction at the hatch must not publish another
+                // win, scene transition, or objective completion.
+                Assert.That(host.TryInteract(), Is.False);
+                Assert.That(extractionCount, Is.EqualTo(1));
+                Assert.That(extractionResolvedCount, Is.EqualTo(1));
                 Assert.That(visitedZones, Does.Contain("soundwell.east-vault"));
                 Assert.That(visitedZones, Does.Contain("soundwell.extraction"));
             }
