@@ -21,6 +21,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font englishFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text title;
         private readonly Text speaker;
         private readonly Text guidance;
@@ -39,6 +41,7 @@ namespace Rpg.Soundwell
             CurrentBeat != null && !CurrentBeat.Finished && !CurrentBeat.CanRespond;
         public int CallsMade => sequence.CallsMade;
         public Button ContinueButton => continueButton;
+        public Image StageIcon => stageIcon;
         public Text SpeakerText => speaker;
         public Text GuidanceText => guidance;
 
@@ -55,16 +58,22 @@ namespace Rpg.Soundwell
             this.sequence = sequence;
             this.onContinue = onContinue;
             englishFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
 
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M00 twelfth-year roll call canvas", 120, out authoredView,
                 new Color(0.035f, 0.055f, 0.065f, 0.94f), Paper);
 
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M00 roll call stage icon",
+                new Vector2(-346f, 95f), new Vector2(96f, 96f),
+                ResolveStageSprite());
+
             title = SoundwellUiTheme.CreateLabel(authoredView, 25,
                 new Vector2(0f, 184f), new Vector2(820f, 42f), Gold);
 
             speaker = SoundwellUiTheme.CreateLabel(authoredView, 23,
-                new Vector2(0f, 91f), new Vector2(820f, 110f), Ink);
+                new Vector2(72f, 91f), new Vector2(676f, 110f), Ink);
             speaker.alignment = TextAnchor.MiddleCenter;
 
             guidance = SoundwellUiTheme.CreateLabel(authoredView, 16,
@@ -132,6 +141,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             CurrentBeat = M00RollCallDialogue.Describe(sequence, chinese);
             title.text = Copy("THE TWELFTH-YEAR ROLL CALL", "第十二年的点名");
@@ -163,6 +174,31 @@ namespace Rpg.Soundwell
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     CurrentBeat.Finished ? continueButton : CurrentBeat.CanRespond ? choiceButtons[0] : null);
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            if (delivered)
+                return null;
+            if (!sequence.IsComplete)
+            {
+                return sequence.HasLeftCrowd
+                    ? RpgStoryArtResolver.ResolveM04LanternSprite(false, artManifest)
+                    : RpgStoryArtResolver.ResolveM02LedgerSprite(artManifest);
+            }
+            switch (sequence.Outcome)
+            {
+                case M00RollCallOutcome.AnsweredFirst:
+                case M00RollCallOutcome.AnsweredSecond:
+                case M00RollCallOutcome.AnsweredThird:
+                    return RpgStoryArtResolver.ResolveM02DocumentSprite(false, artManifest);
+                case M00RollCallOutcome.Silent:
+                    return RpgStoryArtResolver.ResolveM02DocumentSprite(true, artManifest);
+                case M00RollCallOutcome.LeftCrowd:
+                    return RpgStoryArtResolver.ResolveM04LanternSprite(false, artManifest);
+                default:
+                    return null;
+            }
         }
 
         /// <summary>
