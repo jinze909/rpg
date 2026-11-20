@@ -21,6 +21,12 @@ namespace Rpg.Tests.Editor
         {
             EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
             yield return new EnterPlayMode();
+            yield return RunVisibleEntryExchange();
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator RunVisibleEntryExchange()
+        {
             yield return Wait(() => Maki.Initialized && ORK.Initialized, "framework startup");
             var entry = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
             Assert.That(entry, Is.Not.Null);
@@ -32,8 +38,8 @@ namespace Rpg.Tests.Editor
             {
                 encounter = UnityEngine.Object.FindFirstObjectByType<OrkRoleEncounter>();
                 return encounter != null && encounter.IsActive && encounter.Party != null &&
-                    encounter.Party.Beast != null && encounter.Party.Members.Count == 3 &&
-                    encounter.View != null;
+                    encounter.Party.Beast != null && encounter.Party.Members != null &&
+                    encounter.Party.Members.Count == 3 && encounter.View != null;
             }, "the visible entry must start a fully initialized ORK role encounter");
             Assert.That(encounter, Is.Not.Null, "The visible entry must retain the live encounter.");
             Assert.That(SoundwellEntrance.RoleEncounterRequested, Is.False,
@@ -75,7 +81,6 @@ namespace Rpg.Tests.Editor
             Assert.That(OrkPartyBridge.RescueSettled, Is.True);
             Assert.That(Maki.Game.Variables.GetInt(SoundwellSignalKeys.RescueKey), Is.EqualTo(1));
             LogAssert.NoUnexpectedReceived();
-            yield return new ExitPlayMode();
         }
 
         private static IEnumerator PlayUntil(OrkRoleEncounter encounter, Func<bool> completed, bool interrupt)

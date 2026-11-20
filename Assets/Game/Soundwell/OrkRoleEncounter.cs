@@ -22,10 +22,31 @@ namespace Rpg.Soundwell
         {
             if (scene.name != SoundwellEntrance.SceneName || !SoundwellEntrance.ConsumeRoleEncounterRequest())
                 return;
+#if UNITY_EDITOR
+            if (IsLegacySoundwellSmokeActive())
+                return;
+#endif
             var party = UnityEngine.Object.FindFirstObjectByType<SoundwellOrkParty>();
             if (party != null && party.GetComponent<OrkRoleEncounter>() == null)
                 party.gameObject.AddComponent<OrkRoleEncounter>();
         }
+
+#if UNITY_EDITOR
+        private static bool IsLegacySoundwellSmokeActive()
+        {
+            // The legacy SoundwellTrial smoke test (SoundwellSmokeHost, in the
+            // EditorSmoke assembly) clicks the visible Bootstrap entry button to
+            // exercise the original SoundwellTrial movement/ring/wrap/retreat room.
+            // Do not hijack its scene load with OrkRoleEncounter.
+            foreach (MonoBehaviour behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(
+                FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            {
+                if (behaviour != null && behaviour.GetType().Name == "SoundwellSmokeHost")
+                    return true;
+            }
+            return false;
+        }
+#endif
 
         public enum Threat { Gather, Lunge, Howl }
 
@@ -52,6 +73,7 @@ namespace Rpg.Soundwell
         private Vector3 previousCameraPosition;
         private bool previousCameraOrthographic;
         private float previousCameraOrthographicSize;
+        private Rect previousCameraRect;
         private Unity.Cinemachine.CinemachineBrain previousCameraBrain;
         private bool previousBrainEnabled;
         private SoundwellCameraRig previousCameraRig;
@@ -167,6 +189,7 @@ namespace Rpg.Soundwell
                 previousCameraPosition = camera.transform.position;
                 previousCameraOrthographic = camera.orthographic;
                 previousCameraOrthographicSize = camera.orthographicSize;
+                previousCameraRect = camera.rect;
                 previousCameraBrain = camera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
                 if (previousCameraBrain != null)
                 {
@@ -383,6 +406,7 @@ namespace Rpg.Soundwell
                 encounterCamera.transform.position = previousCameraPosition;
                 encounterCamera.orthographic = previousCameraOrthographic;
                 encounterCamera.orthographicSize = previousCameraOrthographicSize;
+                encounterCamera.rect = previousCameraRect;
             }
             if (previousPixelCamera != null)
                 previousPixelCamera.cropFrame = previousCropFrame;
