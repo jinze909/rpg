@@ -6,10 +6,12 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// End-to-end playable 4x Red Salt Outer Harbor exploration host (140x84 tiles).
-    /// Connects RpgLargeMapChunkRenderer + RpgLargeMapExplorerController + a
-    /// compact district/interact HUD + physical proximity triggers that open the
-    /// delivered M05LandingCheckView, M05SeranLettersView, and M05HarborWalkView
-    /// scenes without fabricating arrivals or overlapping canvases.
+    /// Connects RpgLargeMapChunkRenderer + RpgLargeMapExplorerController +
+    /// RpgMapActorVisualBinder (16-PPU animated Hero + 4 Outer Harbor NPCs from
+    /// RpgPixelArtManifest) + RpgLargeMapMinimapAndBeaconHud + a compact
+    /// district/interact HUD + physical proximity triggers that open the delivered
+    /// M05LandingCheckView, M05SeranLettersView, and M05HarborWalkView scenes
+    /// without fabricating arrivals or overlapping canvases.
     /// </summary>
     public sealed class RedSaltHarborExplorationHost : IDisposable
     {
@@ -21,7 +23,11 @@ namespace Rpg.Soundwell
         private readonly RpgLargeMapChunkRenderer chunkRenderer;
         private readonly RpgLargeMapExplorerController explorer;
         private readonly RpgLargeMapMinimapAndBeaconHud minimapHud;
-        private readonly GameObject playerAvatar;
+        private readonly RpgMapActorVisualBinder heroVisual;
+        private readonly RpgMapActorVisualBinder seranVisual;
+        private readonly RpgMapActorVisualBinder repairerVisual;
+        private readonly RpgMapActorVisualBinder fisherVisual;
+        private readonly RpgMapActorVisualBinder saltVendorVisual;
         private readonly GameObject hudCanvas;
         private readonly Text districtLabel;
         private readonly GameObject promptBox;
@@ -39,6 +45,11 @@ namespace Rpg.Soundwell
         public RpgLargeMapChunkRenderer ChunkRenderer => chunkRenderer;
         public RpgLargeMapExplorerController Explorer => explorer;
         public RpgLargeMapMinimapAndBeaconHud MinimapHud => minimapHud;
+        public RpgMapActorVisualBinder HeroVisual => heroVisual;
+        public RpgMapActorVisualBinder SeranVisual => seranVisual;
+        public RpgMapActorVisualBinder RepairerVisual => repairerVisual;
+        public RpgMapActorVisualBinder FisherVisual => fisherVisual;
+        public RpgMapActorVisualBinder SaltVendorVisual => saltVendorVisual;
         public Vector2 PlayerPosition => explorer.Position;
         public bool IsDialogueOpen =>
             activeLandingView != null || activeSeranView != null || activeHarborWalkView != null;
@@ -61,6 +72,7 @@ namespace Rpg.Soundwell
             this.observedLanding = observedLanding;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
+            RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
             layout = RedSaltHarborMapLayout.Build();
             chunkRenderer = RpgLargeMapChunkRenderer.BuildForRedSaltHarbor(
                 parent, layout, harborTileSlices);
@@ -68,10 +80,28 @@ namespace Rpg.Soundwell
             explorer.ZoneEntered += _ => RefreshHud();
             minimapHud = RpgLargeMapMinimapAndBeaconHud.BuildForRedSaltHarbor(parent, layout);
 
-            playerAvatar = new GameObject("RedSaltPlayerAvatar");
-            playerAvatar.transform.SetParent(chunkRenderer.RootObject.transform, false);
-            playerAvatar.transform.localPosition = new Vector3(
-                explorer.Position.x, explorer.Position.y, 0f);
+            Transform actorParent = chunkRenderer.RootObject.transform;
+            heroVisual = new RpgMapActorVisualBinder(
+                actorParent, "RedSalt_Hero",
+                manifest != null ? manifest.FerryGuideIdle : null,
+                manifest != null ? manifest.FerryGuideWalk1 : null,
+                manifest != null ? manifest.FerryGuideWalk2 : null,
+                manifest != null ? manifest.FerryGuideBrace : null,
+                baseSortingOrder: 6);
+            heroVisual.Sync(explorer.Position, explorer.Facing, RpgActorVisualState.Idle, 0f);
+
+            seranVisual = MountStaticNpc(actorParent, "RedSalt_SeranCourier",
+                FindTriggerCenter("m05.seran-letters", new Vector2(50.5f, 26.5f)),
+                manifest != null ? manifest.SeranLetterCarrier : null);
+            repairerVisual = MountStaticNpc(actorParent, "RedSalt_HarborRepairer",
+                FindTriggerCenter("m05.repair-stall", new Vector2(84.5f, 30.5f)),
+                manifest != null ? manifest.HarborRepairer : null);
+            fisherVisual = MountStaticNpc(actorParent, "RedSalt_OuterHarborFisher",
+                FindTriggerCenter("m05.fisher-rumor", new Vector2(118.5f, 22.5f)),
+                manifest != null ? manifest.OuterHarborFisher : null);
+            saltVendorVisual = MountStaticNpc(actorParent, "RedSalt_SaltVendor",
+                FindTriggerCenter("m05.salt-market", new Vector2(76.5f, 56.5f)),
+                manifest != null ? manifest.MiningFamilySaltVendor : null);
 
             // Compact non-blocking exploration HUD (no GraphicRaycaster).
             hudCanvas = new GameObject("RedSalt exploration HUD",
@@ -118,18 +148,41 @@ namespace Rpg.Soundwell
             RefreshHud();
         }
 
+        private Vector2 FindTriggerCenter(string triggerId, Vector2 fallback)
+        {
+            for (int i = 0; i < layout.Triggers.Count; i++)
+            {
+                RpgMapTriggerAnchor t = layout.Triggers[i];
+                if (string.Equals(t.Id, triggerId, StringComparison.Ordinal))
+                    return new Vector2(t.Tile.x + 0.5f, t.Tile.y + 0.5f);
+            }
+            return fallback;
+        }
+
+        private static RpgMapActorVisualBinder MountStaticNpc(Transform actorParent,
+            string actorName, Vector2 worldPosition, Sprite sprite)
+        {
+            var binder = new RpgMapActorVisualBinder(
+                actorParent, actorName,
+                sprite, sprite, sprite, sprite,
+                baseSortingOrder: 6);
+            binder.Sync(worldPosition, Vector2Int.left, RpgActorVisualState.Idle, 0f);
+            return binder;
+        }
+
         public bool StepExploration(Vector2 moveInput, float deltaTime)
         {
             if (disposed || IsDialogueOpen)
                 return false;
 
             bool moved = explorer.StepMovement(moveInput, deltaTime);
-            if (moved && playerAvatar != null)
-            {
-                playerAvatar.transform.localPosition = new Vector3(
-                    explorer.Position.x, explorer.Position.y, 0f);
+            heroVisual?.Sync(
+                explorer.Position,
+                explorer.Facing,
+                moved ? RpgActorVisualState.Moving : RpgActorVisualState.Idle,
+                deltaTime);
+            if (moved)
                 minimapHud.UpdatePlayerPosition(explorer.Position);
-            }
             RefreshHud();
             return moved;
         }
@@ -325,6 +378,11 @@ namespace Rpg.Soundwell
             activeSeranView = null;
             activeHarborWalkView?.Dispose();
             activeHarborWalkView = null;
+            heroVisual?.Dispose();
+            seranVisual?.Dispose();
+            repairerVisual?.Dispose();
+            fisherVisual?.Dispose();
+            saltVendorVisual?.Dispose();
             minimapHud?.Dispose();
             chunkRenderer?.Dispose();
             SoundwellUiTheme.SafeDestroyCanvas(hudCanvas);
