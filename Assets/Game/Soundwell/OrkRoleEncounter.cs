@@ -57,6 +57,7 @@ namespace Rpg.Soundwell
         private bool interrupted;
         private bool covered;
         private int lastRoundTurn = -1;
+        private bool enemyActedThisRound;
         private int[] roundStartPartyHp = new int[3];
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
         private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
@@ -97,7 +98,7 @@ namespace Rpg.Soundwell
         public int ActivePresentationCount => presentationCount;
         public bool EnemyChooserActive => party != null && party.Beast != null &&
             party.Beast.Actions.IsChoosing;
-        public bool EnemyThreatSubmitted => false;
+        public bool EnemyThreatSubmitted => enemyActedThisRound;
         public bool IsActive => configured && party != null && party.BattleInProgress;
         public bool IsInterrupted => interrupted;
         public bool IsExposed => party != null && party.Beast != null &&
@@ -124,14 +125,13 @@ namespace Rpg.Soundwell
             interrupted = false;
             covered = false;
             lastRoundTurn = -1;
+            enemyActedThisRound = false;
             turnSubmittedParty.Clear();
             submittedActions.Clear();
             configured = true;
             view = new RoleCombatView(transform, this);
             SetExchange("救出被困的人。看清借声兽的动作，再决定怎样配合。",
                 "Rescue the trapped surveyor. Read the beast, then choose your response.");
-            // Leave Beast.AI untouched (same native ORK Turn-Based setup proven
-            // by SoundwellOrkBattleTests) so enemy turns never deadlock.
             party.TryStartDirectEncounter();
         }
 
@@ -141,6 +141,15 @@ namespace Rpg.Soundwell
             if (health.MaxStatusValue != null)
                 health.MaxStatusValue.InitValue(amount);
             health.InitValue(amount);
+        }
+
+        private int LivingPartyCount()
+        {
+            int count = 0;
+            foreach (Combatant member in party.Members)
+                if (member != null && !member.Status.IsDead)
+                    count++;
+            return count;
         }
 
         private int MaxLivingMemberTurn()
@@ -174,14 +183,27 @@ namespace Rpg.Soundwell
                     lastRoundTurn = currentTurn;
                     SnapshotPartyHealth();
                 }
-                else if (currentTurn > lastRoundTurn && lastRoundTurn >= 0 &&
-                    !party.Beast.Status.IsDead)
+                else if (!party.Beast.Status.IsDead)
                 {
-                    // ORK's native turn-based loop completed the enemy action
-                    // and advanced the party to the next turn. Resolve the
-                    // telegraphed threat outcome and advance to the next beat.
-                    lastRoundTurn = currentTurn;
-                    ResolveCompletedEnemyTurn();
+                    // Detect round completion either via ORK's Battle.Turn
+                    // increment or when ORK hands the chooser back to the party
+                    // after the enemy action has been submitted.
+                    bool newRound = (currentTurn > lastRoundTurn && lastRoundTurn >= 0) ||
+                        (enemyActedThisRound && party.ChoosingRescuerIndex >= 0);
+                    if (newRound)
+                    {
+                        lastRoundTurn = Math.Max(lastRoundTurn, currentTurn);
+                        enemyActedThisRound = false;
+                        ResolveCompletedEnemyTurn();
+                    }
+                    else if (!enemyActedThisRound && !IsPresenting &&
+                        party.ChoosingRescuerIndex < 0 &&
+                        submittedActions.Count == 0 &&
+                        LivingPartyCount() > 0 &&
+                        turnSubmittedParty.Count >= LivingPartyCount())
+                    {
+                        SubmitNativeEnemyAction();
+                    }
                 }
             }
             else if (observedBattle && !ending)
@@ -189,6 +211,7 @@ namespace Rpg.Soundwell
                 ending = true;
                 submittedActions.Clear();
                 turnSubmittedParty.Clear();
+                enemyActedThisRound = false;
                 SetExchange(party.Beast.Status.IsDead
                     ? "借声兽退倒了，通道已经安全。" : "小队没能守住，重新整队再来。",
                     party.Beast.Status.IsDead
@@ -196,6 +219,47 @@ namespace Rpg.Soundwell
             }
             view.Refresh(lastExchange, ending);
             RefreshThreatLines();
+        }
+
+        private void SubmitNativeEnemyAction()
+        {
+            // Prototype Combatant has no configured Battle AI nodes, so once
+            // all living rescuers finish their actions, trigger the beast's
+            // own native ORK base attack (or defend/none fallback) so ORK's
+            // turn-based battle advances to the next player round.
+            Combatant target = party.Members[Mathf.Clamp(targetIndex, 0, party.Members.Count - 1)];
+            if (target == null || target.Status.IsDead)
+            {
+                foreach (Combatant member in party.Members)
+                {
+                    if (member != null && !member.Status.IsDead)
+                    {
+                        target = member;
+                        break;
+                    }
+                }
+            }
+
+            bool submitted = false;
+            AbilityShortcut beastAttack = party.Beast.Abilities.GetCurrentBaseAttack();
+            if (beastAttack != null && target != null)
+            {
+                var targets = new List<Combatant> { target };
+                submitted = beastAttack.Use(party.Beast, targets, true) ||
+                    beastAttack.Use(party.Beast, targets, false);
+            }
+            if (!submitted)
+            {
+                var self = new List<Combatant> { party.Beast };
+                submitted = party.Beast.Shortcuts.DefendShortcut.Use(party.Beast, self, true) ||
+                    party.Beast.Shortcuts.DefendShortcut.Use(party.Beast, self, false);
+            }
+            if (!submitted)
+            {
+                party.Beast.Actions.AddAccess(new NoneAction(party.Beast, false), false);
+                submitted = true;
+            }
+            enemyActedThisRound = submitted;
         }
 
         private void ResolveCompletedEnemyTurn()
@@ -393,71 +457,62 @@ namespace Rpg.Soundwell
                 return true;
             }
 
-            // Spend the role's major action through ORK's existing, verified
-            // DefendShortcut lifecycle instead of queuing a scene-authored
-            // NoneAction. The old queued utility could remain unfinished while
-            // all four combatants were Available, stranding the native chooser.
-            if (!party.CanGuard(index) ||
-                !actor.Shortcuts.DefendShortcut.Use(
-                    actor, new List<Combatant> { actor }, true))
-                return false;
-
-            lastCommandFrame = Time.frameCount;
-            submittedActions.Add(actor);
-            turnSubmittedParty.Add(actor);
-
-            // Only apply the role's supplementary effect after ORK accepted
-            // and consumed the native action. ORK still owns turns, combatants,
-            // the defense status, health values, and victory.
+            BaseAction action;
             if (index == 0 && option == 1)
             {
-                targetIndex = index;
-                covered = true;
-                SetExchange("前卫举盾接下这次袭击，伤害降低。",
-                    "The vanguard covers the party and weakens the next strike.");
+                action = new UtilityAction(this, actor, () =>
+                {
+                    targetIndex = index;
+                    covered = true;
+                    SetExchange("前卫举盾接下这次袭击，伤害降低。", "The vanguard covers the party and weakens the next strike.");
+                }, true);
             }
             else if ((index == 1 && option == 1) || (index == 2 && option == 0))
             {
                 Threat countered = index == 1 ? Threat.Lunge : Threat.Howl;
-                if (pendingThreat == countered)
+                action = new UtilityAction(this, actor, () =>
                 {
-                    interrupted = true;
-                    party.Beast.Variables.Set("rpg.role.exposed", 1);
-                    SetExchange(index == 1
-                            ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
-                        index == 1
-                            ? "The decoy bell cancels the lunge. The beast is exposed!"
-                            : "The wet cloth muffles the echo. The howl is cancelled!");
-                }
+                    if (pendingThreat == countered)
+                    {
+                        interrupted = true;
+                        party.Beast.Variables.Set("rpg.role.exposed", 1);
+                        SetExchange(index == 1 ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
+                            index == 1 ? "The decoy bell cancels the lunge. The beast is exposed!" : "The wet cloth muffles the echo. The howl is cancelled!");
+                    }
+                }, false);
             }
             else
             {
-                int injuredIndex = -1;
-                Combatant injured = null;
-                for (int i = 0; i < party.Members.Count; i++)
+                action = new UtilityAction(this, actor, () =>
                 {
-                    Combatant member = party.Members[i];
-                    if (!member.Status.IsDead && (injured == null ||
-                        member.Status[OrkPartyBridge.HealthStatusIndex].GetValue() <
-                        injured.Status[OrkPartyBridge.HealthStatusIndex].GetValue()))
+                    int injuredIndex = -1;
+                    Combatant injured = null;
+                    for (int i = 0; i < party.Members.Count; i++)
                     {
-                        injured = member;
-                        injuredIndex = i;
+                        Combatant member = party.Members[i];
+                        if (!member.Status.IsDead && (injured == null ||
+                            member.Status[OrkPartyBridge.HealthStatusIndex].GetValue() <
+                            injured.Status[OrkPartyBridge.HealthStatusIndex].GetValue()))
+                        {
+                            injured = member;
+                            injuredIndex = i;
+                        }
                     }
-                }
-                if (injured != null)
-                {
+                    if (injured == null) return;
                     StatusValue health = injured.Status[OrkPartyBridge.HealthStatusIndex];
                     int healed = Mathf.Min(health.GetMaxValue(), health.GetValue() + 5);
                     health.SetValueAccess(healed, false, false, false, true, false, null);
                     if (injuredIndex >= 0 && injuredIndex < roundStartPartyHp.Length)
                         roundStartPartyHp[injuredIndex] = healed;
-                    SetExchange("支援队员完成包扎，受伤的伙伴恢复了体力。",
-                        "The support bandages the wounded ally, restoring health.");
-                }
+                    SetExchange("支援队员完成包扎，受伤的伙伴恢复了体力。", "The support bandages the wounded ally, restoring health.");
+                }, true);
             }
-
-            StartCoroutine(Present(actor, actor, false, true, false));
+            if (!action.CanUse()) return false;
+            lastCommandFrame = Time.frameCount;
+            submittedActions.Add(actor);
+            turnSubmittedParty.Add(actor);
+            action.finishedCallback += _ => submittedActions.Remove(actor);
+            actor.Actions.AddAccess(action, false);
             return true;
         }
 
@@ -550,6 +605,35 @@ namespace Rpg.Soundwell
             view?.Dispose();
         }
 
+        private sealed class UtilityAction : NoneAction
+        {
+            private readonly OrkRoleEncounter owner;
+            private readonly Action effect;
+            private readonly bool supportive;
 
+            public UtilityAction(OrkRoleEncounter owner, Combatant actor, Action effect, bool supportive)
+                : base(actor, false)
+            {
+                this.owner = owner;
+                this.effect = effect;
+                this.supportive = supportive;
+            }
+
+            // Match OrkPartyBridge.OpenGateAction: use ORK's ordinary no-target
+            // NoneAction lifecycle without starter schematics or enemy-targeted
+            // ability setup, keeping presentation purely visual.
+            protected override void ActionStartSetup() { }
+            public override bool CanUse() => base.CanUse();
+
+            public override void Calculate(List<Combatant> targets, float damageFactor,
+                ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
+            {
+                owner.StartCoroutine(owner.Present(
+                    User, supportive ? User : owner.party.Beast,
+                    false, true, false));
+                effect();
+                base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
+            }
+        }
     }
 }
