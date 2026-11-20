@@ -6,63 +6,67 @@ namespace Rpg.Tests.Editor
     public sealed class TacticalEncounterLoopTests
     {
         [Test]
-        public void WetClothMuffleCountersListeningAlertAndEnablesCriticalStrike()
+        public void WetClothMuffleBreaksListeningIntentWithoutOwningHpOrOutcome()
         {
-            var loop = new TacticalEncounterLoop(maxPartyHp: 30, maxEnemyHp: 28);
-            Assert.That(loop.NextEnemyIntent, Is.EqualTo(EnemyIntentKind.ListeningAlert));
+            var telegraph = new AcousticIntentTelegraph(
+                startingNoise: 25, initialIntent: EnemyIntentKind.ListeningAlert);
+            Assert.That(telegraph.CurrentIntent, Is.EqualTo(EnemyIntentKind.ListeningAlert));
 
-            TacticalTurnFeedback muffle = loop.ExecuteTurn(TacticalVerb.MuffleWithWetCloth);
+            AcousticPresentationFeedback muffle =
+                telegraph.RecordPlayerAction(AcousticActionKind.WetClothMuffle);
             Assert.That(muffle.Accepted, Is.True);
-            Assert.That(muffle.EnemyDamageDealt, Is.Zero);
-            Assert.That(muffle.EnemyBecameExposed, Is.True);
-            Assert.That(loop.NoiseLevel, Is.Zero);
-            Assert.That(loop.EnemyExposed, Is.True);
-            Assert.That(loop.CanDisengageSafely, Is.True);
+            Assert.That(muffle.InterruptedIntent, Is.True);
+            Assert.That(muffle.EnemyExposedForTelegraph, Is.True);
+            Assert.That(muffle.CanOfferDisengage, Is.True);
+            Assert.That(telegraph.NoiseLevel, Is.Zero);
+            Assert.That(telegraph.EnemyIntentExposed, Is.True);
 
-            TacticalTurnFeedback crit = loop.ExecuteTurn(TacticalVerb.Strike);
-            Assert.That(crit.Accepted, Is.True);
-            Assert.That(crit.IsCritical, Is.True);
-            Assert.That(crit.PlayerDamageDealt, Is.EqualTo(TacticalEncounterLoop.ExposedStrikeDamage));
-            Assert.That(crit.HitstopSeconds, Is.GreaterThanOrEqualTo(0.08f));
-            Assert.That(crit.ShakeIntensity, Is.GreaterThanOrEqualTo(0.30f));
+            AcousticPresentationFeedback attack =
+                telegraph.RecordPlayerAction(AcousticActionKind.OrkAttack);
+            Assert.That(attack.Accepted, Is.True);
+            Assert.That(attack.HitstopSeconds, Is.GreaterThanOrEqualTo(0.07f));
+            Assert.That(attack.ShakeIntensity, Is.GreaterThanOrEqualTo(0.28f));
+            Assert.That(telegraph.EnemyIntentExposed, Is.False);
+            Assert.That(telegraph.NoiseLevel, Is.EqualTo(25));
         }
 
         [Test]
-        public void DecoyBellInterruptsChargedLungeEnforcesCooldownAndAllowsSafeDisengage()
+        public void DecoyBellInterruptsChargedLungeEnforcesCooldownAndOpensDisengageHint()
         {
-            var loop = new TacticalEncounterLoop(maxPartyHp: 30, maxEnemyHp: 28);
-            loop.ExecuteTurn(TacticalVerb.GuardAndCover);
-            Assert.That(loop.NextEnemyIntent, Is.EqualTo(EnemyIntentKind.ChargedLunge));
+            var telegraph = new AcousticIntentTelegraph(
+                startingNoise: 30, initialIntent: EnemyIntentKind.ChargedLunge);
 
-            TacticalTurnFeedback bell = loop.ExecuteTurn(TacticalVerb.RingDecoyBell);
+            AcousticPresentationFeedback bell =
+                telegraph.RecordPlayerAction(AcousticActionKind.DecoyBell);
             Assert.That(bell.Accepted, Is.True);
             Assert.That(bell.InterruptedIntent, Is.True);
-            Assert.That(bell.EnemyDamageDealt, Is.Zero);
-            Assert.That(loop.EnemyExposed, Is.True);
-            Assert.That(loop.BellCooldown, Is.EqualTo(2));
-            Assert.That(loop.CanUseVerb(TacticalVerb.RingDecoyBell), Is.False);
-            Assert.That(loop.CanUseVerb(TacticalVerb.Disengage), Is.True);
+            Assert.That(bell.CanOfferDisengage, Is.True);
+            Assert.That(telegraph.CurrentIntent, Is.EqualTo(EnemyIntentKind.Recovering));
+            Assert.That(telegraph.BellCooldownTurns, Is.EqualTo(2));
+            Assert.That(telegraph.CanTriggerAcousticAction(AcousticActionKind.DecoyBell), Is.False);
 
-            TacticalTurnFeedback escape = loop.ExecuteTurn(TacticalVerb.Disengage);
-            Assert.That(escape.Accepted, Is.True);
-            Assert.That(escape.Outcome, Is.EqualTo(TacticalEncounterOutcome.DisengagedSafely));
-            Assert.That(loop.CanUseVerb(TacticalVerb.Strike), Is.False);
+            AcousticPresentationFeedback rejected =
+                telegraph.RecordPlayerAction(AcousticActionKind.DecoyBell);
+            Assert.That(rejected.Accepted, Is.False);
+
+            telegraph.AdvanceTelegraphAfterOrkEnemyTurn();
+            Assert.That(telegraph.CurrentIntent, Is.EqualTo(EnemyIntentKind.ListeningAlert));
         }
 
         [Test]
-        public void GuardHalvesDamageRecoversFocusAndUnsafeDisengageIsRejected()
+        public void OrkHitFeedbackRequiresActualOrkHpLossAndZeroLossProducesNoShake()
         {
-            var loop = new TacticalEncounterLoop(
-                maxPartyHp: 30, maxEnemyHp: 28, startingFocus: 1, startingNoise: 45);
-            Assert.That(loop.CanUseVerb(TacticalVerb.Disengage), Is.False);
-            TacticalTurnFeedback blockedEscape = loop.ExecuteTurn(TacticalVerb.Disengage);
-            Assert.That(blockedEscape.Accepted, Is.False);
+            var none = AcousticIntentTelegraph.ComputeOrkHitFeedback(0, 0, wasExposedTelegraph: true);
+            Assert.That(none.hitstopSeconds, Is.Zero);
+            Assert.That(none.shakeIntensity, Is.Zero);
 
-            TacticalTurnFeedback guard = loop.ExecuteTurn(TacticalVerb.GuardAndCover);
-            Assert.That(guard.Accepted, Is.True);
-            Assert.That(loop.Focus, Is.EqualTo(2));
-            Assert.That(guard.EnemyDamageDealt, Is.EqualTo(2),
-                "Noise dropped from 45 to 30, raw 4 halved to 2 while guarding.");
+            var enemyHit = AcousticIntentTelegraph.ComputeOrkHitFeedback(10, 0, wasExposedTelegraph: true);
+            Assert.That(enemyHit.hitstopSeconds, Is.GreaterThanOrEqualTo(0.08f));
+            Assert.That(enemyHit.shakeIntensity, Is.GreaterThanOrEqualTo(0.30f));
+
+            var partyHit = AcousticIntentTelegraph.ComputeOrkHitFeedback(0, 8, wasExposedTelegraph: false);
+            Assert.That(partyHit.hitstopSeconds, Is.GreaterThan(0f));
+            Assert.That(partyHit.shakeIntensity, Is.GreaterThan(0.2f));
         }
 
         [Test]
@@ -75,8 +79,8 @@ namespace Rpg.Tests.Editor
                 EnemyIntentKind.Recovering
             })
             {
-                Assert.That(TacticalEncounterLoop.DescribeIntent(intent, zh: false), Is.Not.Empty);
-                Assert.That(TacticalEncounterLoop.DescribeIntent(intent, zh: true), Is.Not.Empty);
+                Assert.That(AcousticIntentTelegraph.DescribeIntent(intent, zh: false), Is.Not.Empty);
+                Assert.That(AcousticIntentTelegraph.DescribeIntent(intent, zh: true), Is.Not.Empty);
             }
         }
     }
