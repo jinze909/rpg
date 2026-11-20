@@ -145,24 +145,49 @@ namespace Rpg.Soundwell
             if (disposed || parent == null || stage != M05OuterHarborStage.SeranLetters)
                 return;
 
-            // Let write failures propagate so M05SeranLettersView retains the
-            // player's exact selection for a single clean retry.
-            if (!M05LettersFacts.TryRecord(decision, getInt, setInt))
+            // A Makinom write can persist the answer before an interrupted
+            // transition throws. Retrying that exact choice must continue,
+            // not dead-end on the already committed decision; a different
+            // answer or corrupt state must never be silently accepted.
+            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? saved))
+                throw new InvalidOperationException(
+                    "Unable to read M05 Seran letter choice.");
+            if (saved.HasValue)
+            {
+                if (saved.Value != decision)
+                    throw new InvalidOperationException(
+                        "Saved M05 Seran letter choice does not match this visit.");
+            }
+            else if (!M05LettersFacts.TryRecord(decision, getInt, setInt))
+            {
                 throw new InvalidOperationException(
                     "Unable to persist M05 Seran letter choice.");
+            }
 
+            // Keep the original choice panel usable until the next scene is
+            // actually constructed. If that handoff fails, its Complete
+            // callback can retry without asking Seran or writing twice.
+            OpenHarborWalk();
             letterDecision = decision;
             seranView?.Dispose();
             seranView = null;
-            OpenHarborWalk();
         }
 
         private void OpenHarborWalk()
         {
+            M05HarborWalkView next = new M05HarborWalkView(parent, OnHarborWalkFinished);
+            try
+            {
+                if (lastAspect.HasValue)
+                    next.LayoutForViewportAspect(lastAspect.Value);
+            }
+            catch
+            {
+                next.Dispose();
+                throw;
+            }
+            harborWalkView = next;
             stage = M05OuterHarborStage.HarborWalk;
-            harborWalkView = new M05HarborWalkView(parent, OnHarborWalkFinished);
-            if (lastAspect.HasValue)
-                harborWalkView.LayoutForViewportAspect(lastAspect.Value);
         }
 
         private void OnHarborWalkFinished()

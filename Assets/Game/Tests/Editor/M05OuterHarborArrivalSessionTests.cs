@@ -167,6 +167,96 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PersistedLetterChoiceAfterInterruptedWriteRetriesSameAnswerWithoutAnotherSave()
+        {
+            var root = new GameObject("M05 Seran committed write retry");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 9, true, true));
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            bool interrupted = false;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M05LettersFacts.DecisionKey)
+                {
+                    writes++;
+                    values[key] = value;
+                    if (!interrupted)
+                    {
+                        interrupted = true;
+                        throw new InvalidOperationException("Makinom acknowledged write late");
+                    }
+                }
+                else values[key] = value;
+            };
+
+            M05OuterHarborArrivalSession session = null;
+            try
+            {
+                Assert.That(M05OuterHarborArrivalSession.TryOpen(
+                    root.transform, read, write, _ => { }, out session), Is.True);
+                session.SeranView.TakeButton.onClick.Invoke();
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.SeranView.ContinueButton.onClick.Invoke());
+
+                Assert.That(values[M05LettersFacts.DecisionKey],
+                    Is.EqualTo((int)M05LetterDecision.TakePacket));
+                Assert.That(writes, Is.EqualTo(1));
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.SeranLetters));
+                Assert.That(session.SeranView.ContinueButton.interactable, Is.True);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                session.SeranView.ContinueButton.onClick.Invoke();
+                Assert.That(writes, Is.EqualTo(1),
+                    "Already committed letters must never be written again on retry.");
+                Assert.That(session.LetterDecision, Is.EqualTo(M05LetterDecision.TakePacket));
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.HarborWalk));
+                Assert.That(session.SeranView, Is.Null);
+                Assert.That(session.HarborWalkView, Is.Not.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                session?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ConflictingSavedLetterAnswerNeverReplacesAPlayersChoice()
+        {
+            var root = new GameObject("M05 Seran conflicting persisted answer");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(2, 6, true, true));
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M05OuterHarborArrivalSession session = null;
+            try
+            {
+                Assert.That(M05OuterHarborArrivalSession.TryOpen(
+                    root.transform, read, write, _ => { }, out session), Is.True);
+                session.SeranView.TakeButton.onClick.Invoke();
+                // An external save change after this UI opened must not
+                // silently turn the packet into a different authored choice.
+                values[M05LettersFacts.DecisionKey] =
+                    (int)M05LetterDecision.LeaveForNextBoat;
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.SeranView.ContinueButton.onClick.Invoke());
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.SeranLetters));
+                Assert.That(session.SeranView.ContinueButton.interactable, Is.True);
+                Assert.That(session.HarborWalkView, Is.Null);
+                Assert.That(values[M05LettersFacts.DecisionKey],
+                    Is.EqualTo((int)M05LetterDecision.LeaveForNextBoat));
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                session?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedSeranSaveAndInterruptedCompletionBothAllowCleanRetry()
         {
             var root = new GameObject("M05 arrival retry test");
