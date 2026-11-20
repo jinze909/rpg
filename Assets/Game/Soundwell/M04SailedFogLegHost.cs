@@ -55,10 +55,14 @@ namespace Rpg.Soundwell
             if (read == null || write == null || leg.IsComplete)
                 return false;
 
-            // Route preference and readiness alone cannot authorize fog
-            // gameplay. The ship must have really left the dock.
-            if (!M04DepartureFacts.TryRead(read, out M04DepartureRecord? departure) ||
-                !departure.HasValue ||
+            // This is the precise vessel and route the player chose on
+            // this visit, not a previously valid ship left in the save.
+            // Makinom remains the single authority for voyage facts.
+            if (!M03LuJunFacts.TryRead(read, out _, out _,
+                    out M03VoyageChoice? chosenRoute) ||
+                !chosenRoute.HasValue ||
+                !M04DepartureFacts.TryRead(read, out M04DepartureRecord? departure) ||
+                !departure.HasValue || departure.Value.Route != chosenRoute.Value ||
                 !M04DepartureFacts.TryReadSailed(read, out bool sailed) ||
                 !sailed || read(M04DepartureFacts.SailedKey) != 1)
                 return false;
@@ -102,7 +106,10 @@ namespace Rpg.Soundwell
 
             // If a new visit began while this screen was open, its old
             // completion cannot be republished to the new voyage.
-            if (!M04DepartureFacts.TryRead(read, out M04DepartureRecord? current) ||
+            if (!M03LuJunFacts.TryRead(read, out _, out _,
+                    out M03VoyageChoice? chosenRoute) ||
+                !chosenRoute.HasValue || chosenRoute.Value != departure.Route ||
+                !M04DepartureFacts.TryRead(read, out M04DepartureRecord? current) ||
                 !current.HasValue ||
                 !M04DepartureFacts.TryReadSailed(read, out bool sailed) ||
                 !sailed || read(M04DepartureFacts.SailedKey) != 1 ||
