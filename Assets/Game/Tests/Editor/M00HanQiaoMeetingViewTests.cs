@@ -30,6 +30,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void StageIconTracksMeetingStagesAndHidesOnCompletion()
+        {
+            RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+            Assert.That(manifest, Is.Not.Null);
+
+            M00HanQiaoMeetingSequence sequence = Begun();
+            view = new M00HanQiaoMeetingView(root.transform, sequence, _ => { });
+            AssertStageIcon(view.StageIcon, manifest.M02HarborOfficialSeal);
+
+            view.GetChoiceButton(2).onClick.Invoke();
+            Assert.That(sequence.Stage, Is.EqualTo(M00HanQiaoMeetingStage.RansomCount));
+            AssertStageIcon(view.StageIcon, manifest.M02BridgeKeeperOpenLedger);
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(sequence.Stage, Is.EqualTo(M00HanQiaoMeetingStage.AwaitingNextStepChoice));
+            AssertStageIcon(view.StageIcon, manifest.M02OverwrittenBattleReport);
+
+            view.GetChoiceButton(0).onClick.Invoke();
+            Assert.That(sequence.Stage, Is.EqualTo(M00HanQiaoMeetingStage.Closing));
+            AssertStageIcon(view.StageIcon, manifest.M02BridgeKeeperOpenLedger);
+
+            view.ContinueButton.onClick.Invoke();
+            Assert.That(sequence.Stage, Is.EqualTo(M00HanQiaoMeetingStage.Complete));
+            Assert.That(view.StageIcon.sprite, Is.Null);
+            Assert.That(view.StageIcon.enabled, Is.False);
+            Assert.That(view.StageIcon.gameObject.activeSelf, Is.False);
+        }
+
+        private static void AssertStageIcon(Image icon, Sprite expected)
+        {
+            Assert.That(icon, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(icon.sprite, Is.EqualTo(expected));
+            Assert.That(icon.preserveAspect, Is.True);
+            Assert.That(icon.raycastTarget, Is.False);
+            Assert.That(icon.enabled, Is.True);
+            Assert.That(icon.gameObject.activeSelf, Is.True);
+            Assert.That(icon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(icon.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+        }
+
+        [Test]
         public void QuestionsCountShenLiAndLedgerClosingFollowTheAuthoredStages()
         {
             M00HanQiaoMeetingSequence sequence = Begun();
