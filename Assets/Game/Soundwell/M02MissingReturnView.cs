@@ -14,6 +14,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image documentIcon;
         private readonly Text heading;
         private readonly Text narrative;
         private readonly Button requestButton;
@@ -28,6 +30,7 @@ namespace Rpg.Soundwell
 
         public M02MissingReturnReview Review => review;
         public Text Narrative => narrative;
+        public Image DocumentIcon => documentIcon;
         public Button RequestButton => requestButton;
         public Button StampButton => stampButton;
         public Button LeaveButton => leaveButton;
@@ -46,13 +49,18 @@ namespace Rpg.Soundwell
             review.Begin();
             this.finished = finished;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M02 missing-return canvas", 124, out authoredView,
                 new Color(0.04f, 0.06f, 0.08f, 0.98f));
+            documentIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M02 document icon",
+                new Vector2(-346f, 64f), new Vector2(112f, 112f),
+                ResolveDocumentSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 25,
                 new Vector2(0f, 210f), new Vector2(835f, 50f));
             narrative = SoundwellUiTheme.CreateLabel(authoredView, 20,
-                new Vector2(0f, 52f), new Vector2(825f, 225f));
+                new Vector2(72f, 52f), new Vector2(678f, 225f));
             narrative.alignment = TextAnchor.MiddleLeft;
             requestButton = SoundwellUiTheme.CreateButton(authoredView,
                 "M02 ask for review", new Vector2(0f, -90f),
@@ -93,6 +101,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (documentIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(documentIcon, ResolveDocumentSprite());
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = narrative.font = requestText.font =
@@ -111,6 +121,12 @@ namespace Rpg.Soundwell
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     requestButton.gameObject.activeInHierarchy ? requestButton :
                     stampButton.gameObject.activeInHierarchy ? stampButton : leaveButton);
+        }
+
+        private Sprite ResolveDocumentSprite()
+        {
+            return RpgStoryArtResolver.ResolveM02DocumentSprite(
+                review.Approved, artManifest);
         }
 
         private void Ask()
