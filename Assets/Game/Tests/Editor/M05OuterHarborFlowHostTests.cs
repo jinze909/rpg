@@ -197,6 +197,71 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SavedLandingSurvivesInterruptedScreenHandoffAndRetriesWithoutDuplicateWrite()
+        {
+            var root = new GameObject("M05 landing handoff retry test");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> ordinaryRead = Reader(values);
+            bool failFirstLetterRead = true;
+            Func<string, int> flakyRead = key =>
+            {
+                // Simulate a temporary read error *after* the landing save
+                // succeeded, while opening the following letter scene.
+                if (key == M05LettersFacts.DecisionKey &&
+                    ordinaryRead(M05LandingFacts.ConfirmedKey) == 1 &&
+                    failFirstLetterRead)
+                {
+                    failFirstLetterRead = false;
+                    throw new InvalidOperationException("Interrupted next-screen read");
+                }
+                return ordinaryRead(key);
+            };
+            int publishedLandings = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M05LandingFacts.ConfirmedKey && value == 1)
+                    publishedLandings++;
+            };
+
+            M05OuterHarborFlowHost host = null;
+            try
+            {
+                Assert.That(M05OuterHarborFlowHost.TryOpen(
+                    root.transform, new M05LandingReport(3, 10, true, true),
+                    flakyRead, write, _ => { }, out host), Is.True);
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.LandingCheckView.ConfirmButton.onClick.Invoke());
+                Assert.That(publishedLandings, Is.EqualTo(1));
+                Assert.That(M05LandingFacts.TryRead(ordinaryRead,
+                    out M05LandingReport? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.CrewArrived, Is.EqualTo(3));
+                Assert.That(host.Stage, Is.EqualTo(M05OuterHarborFlowStage.LandingCheck));
+                Assert.That(host.ArrivalSession, Is.Null);
+                Assert.That(host.LandingCheckView.ConfirmButton.interactable, Is.True);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                host.LandingCheckView.ConfirmButton.onClick.Invoke();
+                Assert.That(publishedLandings, Is.EqualTo(1),
+                    "The retry must reuse the committed landing, not publish another.");
+                Assert.That(host.Stage, Is.EqualTo(M05OuterHarborFlowStage.ArrivalSession));
+                Assert.That(host.LandingCheckView, Is.Null);
+                Assert.That(host.ArrivalSession, Is.Not.Null);
+                Assert.That(host.ArrivalSession.Stage, Is.EqualTo(M05OuterHarborStage.SeranLetters));
+                Assert.That(root.transform.childCount, Is.EqualTo(1),
+                    "The landing canvas must be retired once the next scene is ready.");
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void AspectPropagationAndParentTeardownDisposeCleanly()
         {
             var root = new GameObject("M05 flow teardown test");

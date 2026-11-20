@@ -134,27 +134,50 @@ namespace Rpg.Soundwell
             if (disposed || parent == null || stage != M05OuterHarborFlowStage.LandingCheck)
                 return;
 
-            // Let write failures propagate so M05LandingCheckView keeps its
-            // confirm button armed for a clean retry without inventing arrival.
-            if (!M05LandingFacts.TryRecord(confirmed, getInt, setInt))
+            // Save first, but keep the landing UI until the next scene is
+            // successfully constructed. A failed handoff must remain retryable.
+            // If the save already succeeded on a previous attempt, accept
+            // only the exact same report and never write it a second time.
+            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? saved))
+                throw new InvalidOperationException(
+                    "Unable to read verified M05 landing report.");
+            if (saved.HasValue)
+            {
+                if (!SameLanding(saved.Value, confirmed))
+                    throw new InvalidOperationException(
+                        "Saved M05 landing differs from the confirmed report.");
+            }
+            else if (getInt(M05LandingFacts.ConfirmedKey) != 0 ||
+                !M05LandingFacts.TryRecord(confirmed, getInt, setInt))
                 throw new InvalidOperationException(
                     "Unable to persist verified M05 landing report.");
 
+            OpenArrivalSession();
             landingCheckView?.Dispose();
             landingCheckView = null;
-            OpenArrivalSession();
         }
 
         private void OpenArrivalSession()
         {
-            stage = M05OuterHarborFlowStage.ArrivalSession;
             if (!M05OuterHarborArrivalSession.TryOpen(
-                parent, getInt, setInt, OnArrivalSessionCompleted, out arrivalSession))
+                parent, getInt, setInt, OnArrivalSessionCompleted,
+                out M05OuterHarborArrivalSession next))
                 throw new InvalidOperationException(
                     "Unable to open M05 outer-harbor arrival session after verified landing.");
 
-            if (lastAspect.HasValue)
-                arrivalSession.LayoutForViewportAspect(lastAspect.Value);
+            try
+            {
+                if (lastAspect.HasValue)
+                    next.LayoutForViewportAspect(lastAspect.Value);
+            }
+            catch
+            {
+                next.Dispose();
+                throw;
+            }
+
+            arrivalSession = next;
+            stage = M05OuterHarborFlowStage.ArrivalSession;
         }
 
         private void OnArrivalSessionCompleted(M05OuterHarborOutcome outcome)
@@ -169,6 +192,14 @@ namespace Rpg.Soundwell
             stage = M05OuterHarborFlowStage.Completed;
             arrivalSession?.Dispose();
             arrivalSession = null;
+        }
+
+        private static bool SameLanding(M05LandingReport a, M05LandingReport b)
+        {
+            return a.CrewArrived == b.CrewArrived &&
+                a.ReadyRescueBerths == b.ReadyRescueBerths &&
+                a.TenderArrived == b.TenderArrived &&
+                a.ReceiverMet == b.ReceiverMet;
         }
 
         private static bool TryReadCompletedCrossing(Func<string, int> getInt,
