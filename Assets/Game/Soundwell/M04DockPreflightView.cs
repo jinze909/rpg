@@ -23,6 +23,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform panel;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Text advanceLabel;
@@ -36,6 +38,7 @@ namespace Rpg.Soundwell
         public Button AdvanceButton => advance;
         public Text Dialogue => dialogue;
         public RectTransform Panel => panel;
+        public Image StageIcon => stageIcon;
 
         public M04DockPreflightView(Transform parent,
             M03VoyageChoice route, Action onFinished)
@@ -46,6 +49,7 @@ namespace Rpg.Soundwell
             this.onFinished = onFinished ?? throw new ArgumentNullException(nameof(onFinished));
             Route = route;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
 
             canvasObject = new GameObject("M04 dock preflight canvas",
                 typeof(RectTransform), typeof(Canvas));
@@ -75,13 +79,17 @@ namespace Rpg.Soundwell
             SoundwellUiTheme.CreatePanel(panel, "M04 preflight dark backing",
                 new Vector2(910f, 225f),
                 new Color(0.06f, 0.10f, 0.12f, 0.97f));
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                panel, "M04 preflight stage icon",
+                new Vector2(-376f, 22f), new Vector2(96f, 96f),
+                ResolveStageSprite(Stage));
 
             var paper = new Color(0.93f, 0.89f, 0.81f, 1f);
             heading = SoundwellUiTheme.CreateLabel(panel, 20,
-                new Vector2(0f, 91f), new Vector2(858f, 32f), paper);
+                new Vector2(64f, 91f), new Vector2(730f, 32f), paper);
             heading.alignment = TextAnchor.MiddleLeft;
             dialogue = SoundwellUiTheme.CreateLabel(panel, 18,
-                new Vector2(0f, 14f), new Vector2(858f, 137f), paper);
+                new Vector2(64f, 14f), new Vector2(730f, 137f), paper);
             dialogue.alignment = TextAnchor.MiddleLeft;
             dialogue.horizontalOverflow = HorizontalWrapMode.Wrap;
             advance = SoundwellUiTheme.CreateButton(panel,
@@ -115,6 +123,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite(Stage));
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = dialogue.font = advanceLabel.font = font;
@@ -127,6 +137,21 @@ namespace Rpg.Soundwell
             advance.interactable = !delivering && Stage != M04DockPreflightStage.Finished;
             if (advance.interactable)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, advance);
+        }
+
+        private Sprite ResolveStageSprite(M04DockPreflightStage currentStage)
+        {
+            switch (currentStage)
+            {
+                case M04DockPreflightStage.DawnSupply:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(false, artManifest);
+                case M04DockPreflightStage.VerifyVoyageRoute:
+                    return RpgStoryArtResolver.ResolveM03TidalChartSprite(true, artManifest);
+                case M04DockPreflightStage.VerifyPhysicalReadiness:
+                    return RpgStoryArtResolver.ResolveM02LedgerSprite(artManifest);
+                default:
+                    return null;
+            }
         }
 
         private void Advance()
