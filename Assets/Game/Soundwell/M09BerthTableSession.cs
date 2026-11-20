@@ -22,7 +22,9 @@ namespace Rpg.Soundwell
         public bool OfficialLivingRegistrationRequired =>
             (NegotiatedExchanges & M09BerthExchangeFlags.HanQiaoCivilianVoyage) != 0;
         public bool ShenLiTwoDayApprenticeLeave =>
+            ShenLiPresent && !ShipwrightFeePaid &&
             (NegotiatedExchanges & M09BerthExchangeFlags.ShipwrightExtraBerths) != 0;
+        public bool ShipwrightFeePaid { get; private set; }
         public bool QiDebtDisclosedHere { get; private set; }
         public bool ShenReconciled { get; private set; }
         public bool IsSettled { get; private set; }
@@ -48,7 +50,8 @@ namespace Rpg.Soundwell
             QiDebtPreviouslyKnown = qiDebtPreviouslyKnown;
         }
 
-        public bool TryNegotiateExchange(M09BerthExchangeFlags exchange, int berthsGained)
+        public bool TryNegotiateExchange(M09BerthExchangeFlags exchange,
+            int berthsGained, bool shipwrightFeePaid = false)
         {
             if (IsSettled || berthsGained <= 0)
                 return false;
@@ -61,13 +64,22 @@ namespace Rpg.Soundwell
 
             if ((NegotiatedExchanges & exchange) != 0)
                 return false;
+            // Never accept a payment flag on an unrelated voyage or overflow
+            // the combined berth count into a fictitious negative capacity.
+            if ((shipwrightFeePaid && exchange != M09BerthExchangeFlags.ShipwrightExtraBerths) ||
+                berthsGained > int.MaxValue - BaseBerths - AddedBerths)
+                return false;
 
-            // Shipwright extra berths require Shen Li's contact & 2-day teaching commitment.
-            if (exchange == M09BerthExchangeFlags.ShipwrightExtraBerths && !ShenLiPresent)
+            // When Shen Li has parted ways, a real shipyard fee replaces
+            // her two-day apprenticeship commitment. Do not speak for her.
+            if (exchange == M09BerthExchangeFlags.ShipwrightExtraBerths &&
+                !ShenLiPresent && !shipwrightFeePaid)
                 return false;
 
             NegotiatedExchanges |= exchange;
             AddedBerths += berthsGained;
+            if (exchange == M09BerthExchangeFlags.ShipwrightExtraBerths)
+                ShipwrightFeePaid = shipwrightFeePaid;
 
             if (exchange == M09BerthExchangeFlags.QiQueCargoVoyage && !QiDebtPreviouslyKnown)
                 QiDebtDisclosedHere = true;
@@ -99,7 +111,8 @@ namespace Rpg.Soundwell
                 NegotiatedExchanges,
                 ruiyaOutcome,
                 QiDebtDisclosedHere,
-                ShenReconciled);
+                ShenReconciled,
+                ShipwrightFeePaid);
 
             if (!M09BerthTableFacts.TryRecord(record, getInt, setInt))
                 return false;
