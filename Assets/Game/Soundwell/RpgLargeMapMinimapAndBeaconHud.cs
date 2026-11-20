@@ -10,8 +10,8 @@ namespace Rpg.Soundwell
     /// three 4x-scale RPG maps (Soundwell 96x60, Red Salt Harbor 140x84,
     /// Whitewater Crossing 80x44). Bakes a crisp 1-pixel-per-tile Point-filtered
     /// Texture2D from the authored layout, tracks the player's live tile position,
-    /// and highlights active vs. completed objective beacons without adding any
-    /// GraphicRaycaster or blocking input.
+    /// optionally shows a live threat/patrol marker, and highlights active vs.
+    /// completed objective beacons without adding any GraphicRaycaster or blocking input.
     /// </summary>
     public sealed class RpgLargeMapMinimapAndBeaconHud : IDisposable
     {
@@ -31,6 +31,8 @@ namespace Rpg.Soundwell
         private readonly RectTransform panel;
         private readonly RectTransform mapFrameRect;
         private readonly RectTransform playerMarkerRect;
+        private readonly RectTransform threatMarkerRect;
+        private readonly Image threatMarkerImage;
         private readonly Text titleLabel;
         private readonly Font latinFont;
         private readonly Texture2D minimapTexture;
@@ -45,6 +47,9 @@ namespace Rpg.Soundwell
 
         public RectTransform Panel => panel;
         public RectTransform PlayerMarkerRect => playerMarkerRect;
+        public RectTransform ThreatMarkerRect => threatMarkerRect;
+        public bool IsThreatMarkerVisible =>
+            !disposed && threatMarkerRect != null && threatMarkerRect.gameObject.activeSelf;
         public Text TitleLabel => titleLabel;
         public Texture2D MinimapTexture => minimapTexture;
         public int BeaconCount => beacons.Count;
@@ -224,6 +229,17 @@ namespace Rpg.Soundwell
                 }
             }
 
+            var threatObj = new GameObject("Threat marker",
+                typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            threatObj.transform.SetParent(mapFrameRect, false);
+            threatMarkerRect = (RectTransform)threatObj.transform;
+            threatMarkerRect.anchorMin = threatMarkerRect.anchorMax = new Vector2(0f, 0f);
+            threatMarkerRect.sizeDelta = new Vector2(7f, 7f);
+            threatMarkerImage = threatObj.GetComponent<Image>();
+            threatMarkerImage.color = new Color(0.96f, 0.34f, 0.28f, 1f);
+            threatMarkerImage.raycastTarget = false;
+            threatObj.SetActive(false);
+
             var playerObj = new GameObject("Player marker",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             playerObj.transform.SetParent(mapFrameRect, false);
@@ -245,6 +261,16 @@ namespace Rpg.Soundwell
         {
             if (disposed || CanvasDestroyed()) return;
             playerMarkerRect.anchoredPosition = TileToMinimapLocal(tilePosition);
+        }
+
+        public void UpdateThreatMarker(Vector2 tilePosition, bool visible, Color? tint = null)
+        {
+            if (disposed || CanvasDestroyed() || threatMarkerRect == null) return;
+            threatMarkerRect.gameObject.SetActive(visible);
+            if (!visible) return;
+            threatMarkerRect.anchoredPosition = TileToMinimapLocal(tilePosition);
+            if (tint.HasValue && threatMarkerImage != null)
+                threatMarkerImage.color = tint.Value;
         }
 
         public bool SetBeaconCompleted(string beaconId, bool completed)

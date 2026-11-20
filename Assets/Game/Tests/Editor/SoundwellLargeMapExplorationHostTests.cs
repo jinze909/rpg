@@ -33,6 +33,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.MapRenderer.LightHaloCount, Is.EqualTo(4));
                 Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(4));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
+                Assert.That(host.MinimapHud.IsThreatMarkerVisible, Is.True);
                 Assert.That(root.GetComponentInChildren<GraphicRaycaster>(), Is.Null,
                     "Exploration, minimap, and lock-break HUD overlays must remain visual-only.");
                 Assert.That(host.CurrentZoneId, Is.EqualTo("soundwell.entry"));
@@ -144,12 +145,16 @@ namespace Rpg.Tests.Editor
             {
                 host = new SoundwellLargeMapExplorationHost(root.transform);
                 Assert.That(host.BeastPatrol, Is.Not.Null);
+                Assert.That(host.MinimapHud.IsThreatMarkerVisible, Is.True);
                 Vector2 initialBeastPos = host.BeastPatrol.Position;
+                Vector2 initialThreatMarker = host.MinimapHud.ThreatMarkerRect.anchoredPosition;
 
-                // Stepping the host advances the beast along its patrol waypoints.
+                // Stepping the host advances both the beast and its live minimap threat marker.
                 for (int i = 0; i < 10; i++)
                     host.Step(Vector2.zero, 0.1f);
                 Assert.That(host.BeastPatrol.Position, Is.Not.EqualTo(initialBeastPos));
+                Assert.That(host.MinimapHud.ThreatMarkerRect.anchoredPosition,
+                    Is.Not.EqualTo(initialThreatMarker));
 
                 // Walk to East Vault Bronze Bell (80, 34) first (without wet cloth) -> lures beast.
                 WalkUntil(host, Vector2.right, p => p.x >= 80f);
