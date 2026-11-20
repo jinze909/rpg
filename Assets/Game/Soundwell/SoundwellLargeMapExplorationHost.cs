@@ -10,8 +10,8 @@ namespace Rpg.Soundwell
     /// warm light halos), RpgLargeMapExplorerController (wall-sliding movement,
     /// iron-gate collision gating, zone events, proximity triggers, clamped
     /// camera follow), SoundwellAcousticBreakTracker, SoundwellBeastPatrolTracker,
-    /// CombatLockBreakHudView, RpgLargeMapMinimapAndBeaconHud, and a visual-only
-    /// district/interact HUD.
+    /// CombatLockBreakHudView, RpgLargeMapMinimapAndBeaconHud (with live beast
+    /// threat marker), and a visual-only district/interact HUD.
     /// Strictly subordinate to ORK 3: owns no HP, damage, turn, or defeat state.
     /// </summary>
     public sealed class SoundwellLargeMapExplorationHost : IDisposable
@@ -131,6 +131,7 @@ namespace Rpg.Soundwell
 
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
                 Mathf.Max(1, Screen.height));
+            UpdateBeastMinimapMarker();
             RefreshHud();
         }
 
@@ -146,6 +147,7 @@ namespace Rpg.Soundwell
             bool moved = Explorer.StepMovement(moveInput, deltaTime);
             BeastPatrol.Step(deltaTime, Explorer.Position, moved);
             MinimapHud.UpdatePlayerPosition(Explorer.Position);
+            UpdateBeastMinimapMarker();
 
             if (cameraTransform != null)
             {
@@ -180,6 +182,7 @@ namespace Rpg.Soundwell
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.WetClothMuffle))
                     {
                         MinimapHud.SetBeaconCompleted("soundwell.wet-cloth", true);
+                        UpdateBeastMinimapMarker();
                         SetFeedback(
                             "已敷上湿布消音 — 听觉护甲削弱。",
                             "Wet cloth applied — acoustic lock weakened.");
@@ -198,6 +201,7 @@ namespace Rpg.Soundwell
                     {
                         BeastPatrol.NotifyBronzeBellRung(Layout.BronzeBellTile);
                         MinimapHud.SetBeaconCompleted("soundwell.bell", true);
+                        UpdateBeastMinimapMarker();
                         Explorer.TriggerScreenShake(0.22f, 0.14f);
                         if (AcousticTracker.CanTriggerNonViolentEscape)
                         {
@@ -317,6 +321,27 @@ namespace Rpg.Soundwell
             feedbackLabel.text = zh ? lastFeedbackZh : lastFeedbackEn;
             LockBreakHud.Refresh();
             MinimapHud.Refresh();
+        }
+
+        private void UpdateBeastMinimapMarker()
+        {
+            Color tint;
+            switch (BeastPatrol.State)
+            {
+                case SoundwellBeastAlertState.Alerted:
+                    tint = new Color(0.96f, 0.28f, 0.24f, 1f);
+                    break;
+                case SoundwellBeastAlertState.InvestigatingBell:
+                    tint = new Color(0.42f, 0.84f, 0.96f, 1f);
+                    break;
+                case SoundwellBeastAlertState.StaggeredBroken:
+                    tint = new Color(0.52f, 0.58f, 0.64f, 0.70f);
+                    break;
+                default:
+                    tint = new Color(0.98f, 0.64f, 0.24f, 1f);
+                    break;
+            }
+            MinimapHud.UpdateThreatMarker(BeastPatrol.Position, visible: true, tint: tint);
         }
 
         private string FormatTriggerPrompt(string triggerId, bool zh)
