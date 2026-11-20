@@ -14,6 +14,8 @@ namespace Rpg.Soundwell
         private readonly M02HarborDesk desk;
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text title;
         private readonly Text dialogue;
         private readonly Text[] actionLabels = new Text[4];
@@ -27,6 +29,7 @@ namespace Rpg.Soundwell
 
         public M02HarborDesk Desk => desk;
         public Text Dialogue => dialogue;
+        public Image StageIcon => stageIcon;
         public Button LeaveButton => leaveButton;
 
         // Prefer subjects the player has not heard yet. Everything remains
@@ -76,15 +79,20 @@ namespace Rpg.Soundwell
             desk.Begin();
             this.onFinished = onFinished;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
 
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M02 harbor desk canvas", 123, out authoredView,
                 new Color(0.05f, 0.07f, 0.09f, 0.98f));
 
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M02 harbor desk stage icon",
+                new Vector2(-346f, 74f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             title = SoundwellUiTheme.CreateLabel(authoredView, 24,
                 new Vector2(0f, 216f), new Vector2(840f, 45f));
             dialogue = SoundwellUiTheme.CreateLabel(authoredView, 18,
-                new Vector2(0f, 74f), new Vector2(840f, 206f));
+                new Vector2(72f, 74f), new Vector2(696f, 206f));
             dialogue.alignment = TextAnchor.MiddleLeft;
             for (int i = 0; i < actionButtons.Length; i++)
             {
@@ -133,6 +141,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             title.font = dialogue.font = leaveLabel.font = font;
@@ -157,6 +167,31 @@ namespace Rpg.Soundwell
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     PreferredFocusTarget);
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            if (delivered)
+                return null;
+            if (desk.LastAction.HasValue)
+            {
+                switch (desk.LastAction.Value)
+                {
+                    case M02HarborDeskAction.PresentLivingRegistration:
+                        return RpgStoryArtResolver.ResolveM02OfficialSeal(artManifest);
+                    case M02HarborDeskAction.AskAboutQiQueShip:
+                        return RpgStoryArtResolver.ResolveM02LedgerSprite(artManifest);
+                    case M02HarborDeskAction.AskAboutLuJunEscort:
+                        return RpgStoryArtResolver.ResolveM03StandardSprite(false, 0, artManifest);
+                    case M02HarborDeskAction.AssistTransferList:
+                        return RpgStoryArtResolver.ResolveM07PassSprite(false, artManifest);
+                    default:
+                        return null;
+                }
+            }
+            return desk.CanPresentLivingPapers
+                ? RpgStoryArtResolver.ResolveM02DocumentSprite(false, artManifest)
+                : RpgStoryArtResolver.ResolveM02OfficialSeal(artManifest);
         }
 
         private void Choose(M02HarborDeskAction action)
