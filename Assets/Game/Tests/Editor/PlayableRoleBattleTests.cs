@@ -99,7 +99,9 @@ namespace Rpg.Tests.Editor
                     ", beastHp=" + encounter.Party.Beast.Status[1].GetValue() +
                     ", exposed=" + encounter.IsExposed +
                     ", submittedActions=" + encounter.SubmittedActionCount +
-                    ", animations=" + encounter.ActivePresentationCount);
+                    ", animations=" + encounter.ActivePresentationCount +
+                    ", enemyChooser=" + encounter.EnemyChooserActive +
+                    ", threatSubmitted=" + encounter.EnemyThreatSubmitted);
                 int actor = encounter.Party.ChoosingRescuerIndex;
                 if (!encounter.IsPresenting && actor >= 0)
                 {

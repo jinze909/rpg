@@ -53,6 +53,7 @@ namespace Rpg.Soundwell
         private OrkPartyBridge party;
         private RoleCombatView view;
         private StrikeAction planned;
+        private StrikeAction submittedEnemyThreat;
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
         private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
         private float previousDecisionTime;
@@ -88,6 +89,9 @@ namespace Rpg.Soundwell
         // Read-only QA diagnostics for ORK's classic-turn action submission.
         public int SubmittedActionCount => submittedActions.Count;
         public int ActivePresentationCount => presentationCount;
+        public bool EnemyChooserActive => party != null && party.Beast != null &&
+            party.Beast.Actions.IsChoosing;
+        public bool EnemyThreatSubmitted => submittedEnemyThreat != null;
         public bool IsActive => configured && party != null && party.BattleInProgress;
         public bool IsInterrupted => planned != null && planned.Interrupted;
         public bool IsExposed => party != null && party.Beast != null &&
@@ -114,8 +118,11 @@ namespace Rpg.Soundwell
             InitializeHealth(party.Beast, 36);
             party.Beast.Variables.Set("rpg.role.exposed", 0);
             planned = CreateThreat(Threat.Gather, 0);
+            // The live battle chooses actions through ORK's Actions gate.
+            // Do not also put this same mutable action in the AI queue:
+            // AI may consume it before the scene sees IsChoosing, leaving
+            // the opponent with no action until its long fallback timer.
             party.Beast.AI.ActionQueue.Clear();
-            party.Beast.AI.ActionQueue.Add(planned);
             configured = true;
             view = new RoleCombatView(transform, this);
             SetExchange("救出被困的人。看清借声兽的动作，再决定怎样配合。",
@@ -137,17 +144,23 @@ namespace Rpg.Soundwell
             if (party.BattleInProgress)
             {
                 observedBattle = true;
-                // Submit only when ORK grants the enemy its actual turn.
-                if (party.Beast.Actions.IsChoosing && !IsPresenting)
+                // Let ORK own the turn. Once the enemy becomes its live
+                // chooser, submit the authored threat directly, exactly once.
+                // The AI queue is not an authority for a scene-owned threat:
+                // dequeuing it elsewhere can strand the classic turn.
+                if (party.Beast.Actions.IsChoosing && !IsPresenting &&
+                    planned != null && submittedEnemyThreat != planned &&
+                    planned.CanUse())
                 {
-                    BaseAction next = party.Beast.AI.GetNextQueuedAction();
-                    if (next != null) party.Beast.Actions.AddAccess(next, false);
+                    submittedEnemyThreat = planned;
+                    party.Beast.Actions.AddAccess(planned, false);
                 }
             }
             else if (observedBattle && !ending)
             {
                 ending = true;
                 submittedActions.Clear();
+                submittedEnemyThreat = null;
                 SetExchange(party.Beast.Status.IsDead
                     ? "借声兽退倒了，通道已经安全。" : "小队没能守住，重新整队再来。",
                     party.Beast.Status.IsDead
@@ -351,7 +364,7 @@ namespace Rpg.Soundwell
                 Threat next = kind == Threat.Lunge ? Threat.Howl : Threat.Lunge;
                 int nextTarget = kind == Threat.Gather ? target : (target + 1) % party.Members.Count;
                 planned = CreateThreat(next, nextTarget);
-                party.Beast.AI.ActionQueue.Add(planned);
+                submittedEnemyThreat = null;
             };
             return action;
         }
