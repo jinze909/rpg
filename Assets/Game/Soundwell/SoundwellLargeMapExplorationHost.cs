@@ -10,7 +10,8 @@ namespace Rpg.Soundwell
     /// warm light halos), RpgLargeMapExplorerController (wall-sliding movement,
     /// iron-gate collision gating, zone events, proximity triggers, clamped
     /// camera follow), SoundwellAcousticBreakTracker, SoundwellBeastPatrolTracker,
-    /// CombatLockBreakHudView, and a visual-only district/interact HUD.
+    /// CombatLockBreakHudView, RpgLargeMapMinimapAndBeaconHud, and a visual-only
+    /// district/interact HUD.
     /// Strictly subordinate to ORK 3: owns no HP, damage, turn, or defeat state.
     /// </summary>
     public sealed class SoundwellLargeMapExplorationHost : IDisposable
@@ -33,6 +34,7 @@ namespace Rpg.Soundwell
         public SoundwellAcousticBreakTracker AcousticTracker { get; }
         public SoundwellBeastPatrolTracker BeastPatrol { get; }
         public CombatLockBreakHudView LockBreakHud { get; }
+        public RpgLargeMapMinimapAndBeaconHud MinimapHud { get; }
 
         public bool IsGateOpen { get; private set; }
         public bool ExtractionCompleted { get; private set; }
@@ -66,6 +68,8 @@ namespace Rpg.Soundwell
             AcousticTracker = new SoundwellAcousticBreakTracker(startingMomentum);
             BeastPatrol = new SoundwellBeastPatrolTracker(Layout, AcousticTracker);
             LockBreakHud = new CombatLockBreakHudView(hostRoot.transform, AcousticTracker);
+            MinimapHud = RpgLargeMapMinimapAndBeaconHud.BuildForSoundwell(
+                hostRoot.transform, Layout);
 
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
@@ -141,6 +145,7 @@ namespace Rpg.Soundwell
 
             bool moved = Explorer.StepMovement(moveInput, deltaTime);
             BeastPatrol.Step(deltaTime, Explorer.Position, moved);
+            MinimapHud.UpdatePlayerPosition(Explorer.Position);
 
             if (cameraTransform != null)
             {
@@ -174,6 +179,7 @@ namespace Rpg.Soundwell
                 case "soundwell.wet-cloth":
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.WetClothMuffle))
                     {
+                        MinimapHud.SetBeaconCompleted("soundwell.wet-cloth", true);
                         SetFeedback(
                             "已敷上湿布消音 — 听觉护甲削弱。",
                             "Wet cloth applied — acoustic lock weakened.");
@@ -191,6 +197,7 @@ namespace Rpg.Soundwell
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.DecoyBellRing))
                     {
                         BeastPatrol.NotifyBronzeBellRung(Layout.BronzeBellTile);
+                        MinimapHud.SetBeaconCompleted("soundwell.bell", true);
                         Explorer.TriggerScreenShake(0.22f, 0.14f);
                         if (AcousticTracker.CanTriggerNonViolentEscape)
                         {
@@ -230,6 +237,7 @@ namespace Rpg.Soundwell
                         return false;
                     }
                     IsGateOpen = true;
+                    MinimapHud.SetBeaconCompleted("soundwell.gate-lever", true);
                     Explorer.TriggerScreenShake(0.18f, 0.12f);
                     SetFeedback(
                         "铁闸已开启！前往东侧撤退井口安全脱身。",
@@ -247,6 +255,7 @@ namespace Rpg.Soundwell
                         return false;
                     }
                     ExtractionCompleted = true;
+                    MinimapHud.SetBeaconCompleted("soundwell.extraction", true);
                     SetFeedback(
                         "小队已抵达南侧撤退井口，完成钟岭声井零杀伤脱身。",
                         "Party reached the extraction hatch — non-violent Soundwell escape complete.");
@@ -271,6 +280,7 @@ namespace Rpg.Soundwell
             SoundwellUiTheme.ApplyViewportAspectScale(zonePanel, aspect);
             SoundwellUiTheme.ApplyViewportAspectScale(promptPanel, aspect);
             LockBreakHud.LayoutForViewportAspect(aspect);
+            MinimapHud.LayoutForViewportAspect(aspect);
         }
 
         public void RefreshHud()
@@ -306,6 +316,7 @@ namespace Rpg.Soundwell
 
             feedbackLabel.text = zh ? lastFeedbackZh : lastFeedbackEn;
             LockBreakHud.Refresh();
+            MinimapHud.Refresh();
         }
 
         private string FormatTriggerPrompt(string triggerId, bool zh)
@@ -364,6 +375,7 @@ namespace Rpg.Soundwell
             Explorer.ZoneEntered -= HandleZoneEntered;
             BeastPatrol.EncounterTriggered -= HandleBeastEncounter;
             SoundwellUiLocalization.Changed -= RefreshHud;
+            MinimapHud.Dispose();
             LockBreakHud.Dispose();
             MapRenderer.Dispose();
             SoundwellUiTheme.SafeDestroyCanvas(hudCanvasObject);

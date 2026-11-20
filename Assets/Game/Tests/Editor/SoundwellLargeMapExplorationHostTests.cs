@@ -31,12 +31,17 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(host.MapRenderer.ChunkCount, Is.EqualTo(6));
                 Assert.That(host.MapRenderer.LightHaloCount, Is.EqualTo(4));
+                Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(4));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
                 Assert.That(root.GetComponentInChildren<GraphicRaycaster>(), Is.Null,
-                    "Exploration and lock-break HUD overlays must remain visual-only.");
+                    "Exploration, minimap, and lock-break HUD overlays must remain visual-only.");
                 Assert.That(host.CurrentZoneId, Is.EqualTo("soundwell.entry"));
                 Assert.That(host.ZoneLabel.text, Is.EqualTo("下井入口"));
 
+                Vector2 initialMarker = host.MinimapHud.PlayerMarkerRect.anchoredPosition;
                 host.Step(Vector2.right, 0.1f, camObj.transform);
+                Assert.That(host.MinimapHud.PlayerMarkerRect.anchoredPosition.x,
+                    Is.GreaterThan(initialMarker.x));
                 float halfW = RpgWorldMapScale.LogicalScreenTilesX * 0.5f;
                 float halfH = RpgWorldMapScale.LogicalScreenTilesY * 0.5f;
                 Assert.That(camObj.transform.position.x, Is.GreaterThanOrEqualTo(halfW));
@@ -80,6 +85,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryInteract(), Is.False,
                     "Gate lever must refuse opening before both acoustic locks are broken.");
                 Assert.That(host.IsGateOpen, Is.False);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
 
                 // Closed iron gate at x=52 must physically block walking east.
                 WalkUntil(host, Vector2.right, p => p.x >= 55f, maxSteps: 40);
@@ -92,12 +98,14 @@ namespace Rpg.Tests.Editor
                 WalkUntil(host, Vector2.down, p => p.y <= 26.5f);
                 Assert.That(host.TryInteract(), Is.True);
                 Assert.That(host.AcousticTracker.AcousticLocks.RemainingLocks, Is.EqualTo(1));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
 
                 WalkUntil(host, Vector2.up, p => p.y >= 34f);
                 Assert.That(host.TryInteract(), Is.True);
                 Assert.That(host.AcousticTracker.IsBeastBroken, Is.True);
                 Assert.That(host.AcousticTracker.CanTriggerNonViolentEscape, Is.True);
                 Assert.That(host.LockBreakHud.ObjectiveLabel.text, Does.Contain("BREAK"));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(2));
 
                 // 3. Return to West Gate Lever (46, 11), open gate, and walk through to Extraction (78, 11).
                 WalkUntil(host, Vector2.down, p => p.y <= 30.2f);
@@ -108,12 +116,14 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryInteract(), Is.True);
                 Assert.That(host.IsGateOpen, Is.True);
                 Assert.That(gateOpened, Is.True);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(1));
 
                 WalkUntil(host, Vector2.right, p => p.x >= 78f);
                 Assert.That(host.Explorer.Position.x, Is.GreaterThan(75f));
                 Assert.That(host.TryInteract(), Is.True);
                 Assert.That(host.ExtractionCompleted, Is.True);
                 Assert.That(extracted, Is.True);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.Zero);
                 Assert.That(visitedZones, Does.Contain("soundwell.east-vault"));
                 Assert.That(visitedZones, Does.Contain("soundwell.extraction"));
             }
@@ -178,6 +188,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.IsDisposed, Is.True);
                 Assert.That(host.MapRenderer.IsDisposed, Is.True);
                 Assert.That(host.LockBreakHud.IsDisposed, Is.True);
+                Assert.That(host.MinimapHud.IsDisposed, Is.True);
                 Assert.That(root.transform.childCount, Is.Zero);
             }
             finally
