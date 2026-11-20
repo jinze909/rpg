@@ -85,6 +85,83 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        private static void WalkTo(RedSaltHarborExplorationHost host, float x, float y)
+        {
+            Vector2 target = new Vector2(x, y);
+            // The authored harbor quays are continuous and walkable, so follow
+            // X and Y separately to exercise the actual explorer motor.
+            for (int axis = 0; axis < 2; axis++)
+            {
+                for (int i = 0; i < 900; i++)
+                {
+                    float delta = axis == 0
+                        ? target.x - host.PlayerPosition.x
+                        : target.y - host.PlayerPosition.y;
+                    if (Mathf.Abs(delta) <= 0.25f) break;
+                    Vector2 input = axis == 0
+                        ? new Vector2(Mathf.Sign(delta), 0f)
+                        : new Vector2(0f, Mathf.Sign(delta));
+                    host.StepExploration(input, 0.03f);
+                }
+            }
+            Assert.That(Vector2.Distance(host.PlayerPosition, target),
+                Is.LessThan(0.5f), "The scripted walking route must reach its location.");
+        }
+
+        [Test]
+        public void HarborRumorMarketAndRepairAreDiscoveredOnlyAtTheirOwnLocations()
+        {
+            var root = new GameObject("M05 physical story beats");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write,
+                    observedLanding: new M05LandingReport(3, 10, true, true));
+                WalkTo(host, 22.5f, 24.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                host.ActiveLandingView.ConfirmButton.onClick.Invoke();
+
+                // Visiting the repair stall cannot play the fisherman's
+                // rumor or the market accusation without walking there.
+                WalkTo(host, 84.5f, 30.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveHarborWalkView.Beat, Is.EqualTo(M05HarborBeat.RepairStall));
+                Assert.That(host.ActiveHarborWalkView.Dialogue.text,
+                    Does.Contain("Shen Li checked our tools this morning"));
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(host.HarborWalkCompleted, Is.False);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
+                    "Already witnessed dialogue must not re-open at the same stall.");
+
+                WalkTo(host, 118.5f, 22.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveHarborWalkView.Beat, Is.EqualTo(M05HarborBeat.FisherRumor));
+                Assert.That(host.ActiveHarborWalkView.Dialogue.text, Does.Contain("Three boats"));
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(host.HarborWalkCompleted, Is.False);
+
+                WalkTo(host, 76.5f, 56.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveHarborWalkView.Beat, Is.EqualTo(M05HarborBeat.MarketAccusation));
+                Assert.That(host.ActiveHarborWalkView.Dialogue.text, Does.Contain("half a bowl"));
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(host.HarborWalkCompleted, Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False);
+                Assert.That(host.IsDialogueOpen, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void SeranTriggerRefusesEntryBeforeVerifiedLandingAndDisposesCleanly()
         {
