@@ -167,7 +167,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(outcome.Landing.TenderArrived, Is.False);
                 Assert.That(outcome.Landing.ReceiverMet, Is.False);
                 Assert.That(outcome.Landing.HasUsableLandingCapacity, Is.False);
-                Assert.That(outcome.LetterDecision, Is.EqualTo(M05LetterDecision.LeavePacket));
+                Assert.That(outcome.LetterDecision, Is.EqualTo(M05LetterDecision.LeaveForNextBoat));
                 Assert.That(outcome.LettersCarried, Is.Zero);
             }
             finally
