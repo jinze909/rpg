@@ -382,7 +382,7 @@ namespace Rpg.Soundwell
             lastExchange = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese ? zh : en;
 
         private IEnumerator Present(Combatant actor, Combatant target, bool enemy, bool utility,
-            bool interrupted, Action resolve)
+            bool interrupted)
         {
             presentationCount++;
             try
@@ -408,7 +408,10 @@ namespace Rpg.Soundwell
                 if (visual != null) visual.localPosition = home;
                 if (this != null && actor != null && actor.GameObject != null && !ending)
                 {
-                    resolve();
+                    // ORK's base PerformAction has already run synchronously
+                    // on the live battle action, never from this delayed
+                    // presentation coroutine. This effect cannot own HP,
+                    // callbacks or battle-turn advancement.
                     if (!utility && !interrupted && audioSource != null)
                         audioSource.PlayOneShot(hitSound);
                     if (!utility)
@@ -487,9 +490,15 @@ namespace Rpg.Soundwell
             public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
+                // ORK owns current-action progression. Deferring its base
+                // PerformAction into a Unity coroutine causes a classic-turn
+                // deadlock after the first hit: queued allies remain suspended,
+                // while ORK grants no next chooser. Start graphics first but
+                // invoke the actual ORK ability on this same action call.
                 owner.StartCoroutine(owner.Present(User,
                     enemy ? owner.party.Members[TargetIndex] : owner.party.Beast,
-                    enemy, enemy && Kind == Threat.Gather, Interrupted, () => base.PerformAction()));
+                    enemy, enemy && Kind == Threat.Gather, Interrupted));
+                base.PerformAction();
             }
 
             public override void Calculate(List<Combatant> targets, float damageFactor,
@@ -526,9 +535,15 @@ namespace Rpg.Soundwell
             }
 
             protected override void ActionStartSetup() { }
-            public override void PerformAction() => owner.StartCoroutine(
-                owner.Present(User, supportive ? User : owner.party.Beast,
-                    false, true, false, () => base.PerformAction()));
+            public override void PerformAction()
+            {
+                owner.StartCoroutine(owner.Present(
+                    User, supportive ? User : owner.party.Beast,
+                    false, true, false));
+                // Utility actions must obey the same synchronous ORK lifecycle
+                // as attacks; only their presentation animates asynchronously.
+                base.PerformAction();
+            }
 
             public override void Calculate(List<Combatant> targets, float damageFactor,
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
