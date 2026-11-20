@@ -376,15 +376,20 @@ namespace Rpg.Soundwell
             // Beacon colors are presentation only. Authoritative Makinom
             // landing/letter decisions and this map's actually witnessed
             // location beats determine which goals have been completed.
-            minimapHud?.SetBeaconCompleted("m05.landing-check", HasVerifiedLanding());
-            bool letterDecisionRecorded = M05LettersFacts.TryRead(getInt,
-                out M05LetterDecision? recordedLetters) && recordedLetters.HasValue;
+            bool landingVerified = HasVerifiedLanding();
+            minimapHud?.SetBeaconCompleted("m05.landing-check", landingVerified);
+            // A previous voyage's Seran answer must never complete this map
+            // objective if its arrival was reset or invalidated. The raw
+            // letter flag alone is not proof of the current physical landing.
+            bool letterDecisionRecorded = landingVerified &&
+                M05LettersFacts.TryRead(getInt,
+                    out M05LetterDecision? recordedLetters) && recordedLetters.HasValue;
             minimapHud?.SetBeaconCompleted("m05.seran-letters", letterDecisionRecorded);
             // C# definite-assignment must not depend on the preceding
             // short-circuited landing check. No valid landing => no
             // completed map objectives, even if stale visit bits exist.
             int observedMask = 0;
-            bool savedBeatsValid = HasVerifiedLanding() &&
+            bool savedBeatsValid = landingVerified &&
                 M05HarborVisitFacts.TryRead(getInt, out observedMask);
             minimapHud?.SetBeaconCompleted("m05.repair-stall",
                 savedBeatsValid && M05HarborVisitFacts.Contains(observedMask, M05HarborBeat.RepairStall));
