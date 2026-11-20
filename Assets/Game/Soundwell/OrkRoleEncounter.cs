@@ -58,7 +58,7 @@ namespace Rpg.Soundwell
         private bool configured;
         private bool observedBattle;
         private int presentationCount;
-        private bool commandQueued;
+        private BaseAction pendingPlayerAction;
         private bool ending;
         private string lastExchange = string.Empty;
         private RpgLargeMapChunkRenderer mapRenderer;
@@ -83,7 +83,7 @@ namespace Rpg.Soundwell
 
         public OrkPartyBridge Party => party;
         public bool IsConfigured => configured;
-        public bool IsPresenting => commandQueued || presentationCount > 0;
+        public bool IsPresenting => pendingPlayerAction != null || presentationCount > 0;
         public bool IsActive => configured && party != null && party.BattleInProgress;
         public bool IsInterrupted => planned != null && planned.Interrupted;
         public bool IsExposed => party != null && party.Beast != null &&
@@ -143,6 +143,7 @@ namespace Rpg.Soundwell
             else if (observedBattle && !ending)
             {
                 ending = true;
+                pendingPlayerAction = null;
                 SetExchange(party.Beast.Status.IsDead
                     ? "借声兽退倒了，通道已经安全。" : "小队没能守住，重新整队再来。",
                     party.Beast.Status.IsDead
@@ -266,6 +267,7 @@ namespace Rpg.Soundwell
             if (!CanChoose(option)) return false;
             int index = party.ChoosingRescuerIndex;
             Combatant actor = party.Members[index];
+            if (actor == null || !actor.Actions.IsChoosing) return false;
             BaseAction action;
             if (index == 0 && option == 1)
             {
@@ -287,8 +289,9 @@ namespace Rpg.Soundwell
                 {
                     if (planned != null && planned.Kind == countered)
                     {
-                        // This is the very action ORK will perform. Its CanUse
-                        // rejects the cancelled strike before damage calculation.
+                        // Keep the action eligible for ORK's lifecycle so its
+                        // finishedCallback advances the threat queue while
+                        // Calculate resolves with empty targets (zero damage).
                         planned.Interrupted = true;
                         party.Beast.Variables.Set("rpg.role.exposed", 1);
                         SetExchange(index == 1 ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
@@ -318,7 +321,13 @@ namespace Rpg.Soundwell
                 action = new StrikeAction(this, actor, party.Beast, strength, false,
                     Threat.Gather, 0);
             }
-            commandQueued = true;
+            if (!action.CanUse()) return false;
+            pendingPlayerAction = action;
+            action.finishedCallback += _ =>
+            {
+                if (pendingPlayerAction == action)
+                    pendingPlayerAction = null;
+            };
             actor.Actions.AddAccess(action, false);
             return true;
         }
@@ -355,38 +364,45 @@ namespace Rpg.Soundwell
         private IEnumerator Present(Combatant actor, Combatant target, bool enemy, bool utility,
             bool interrupted, Action resolve)
         {
-            commandQueued = false;
+            if (!enemy && pendingPlayerAction != null && pendingPlayerAction.User == actor)
+                pendingPlayerAction = null;
             presentationCount++;
-            Transform visual = FindVisual(actor);
-            Vector3 home = visual != null ? visual.localPosition : Vector3.zero;
-            if (visual != null) restingPositions[visual] = home;
-            float elapsed = 0f;
-            while (elapsed < 0.32f && actor != null && actor.GameObject != null)
+            try
             {
-                elapsed += Time.unscaledDeltaTime;
-                if (visual != null)
+                Transform visual = FindVisual(actor);
+                Vector3 home = visual != null ? visual.localPosition : Vector3.zero;
+                if (visual != null) restingPositions[visual] = home;
+                float elapsed = 0f;
+                while (elapsed < 0.32f && actor != null && actor.GameObject != null)
                 {
-                    Vector3 direction = target != null && target.GameObject != null
-                        ? (target.GameObject.transform.position - actor.GameObject.transform.position).normalized : Vector3.right;
-                    float distance = utility || interrupted ? 0.12f :
-                        Mathf.Max(0.3f, Vector3.Distance(actor.GameObject.transform.position,
-                            target.GameObject.transform.position) - 0.8f);
-                    visual.localPosition = home + direction * Mathf.Sin(Mathf.Clamp01(elapsed / 0.32f) * Mathf.PI) * distance;
+                    elapsed += Time.unscaledDeltaTime;
+                    if (visual != null)
+                    {
+                        Vector3 direction = target != null && target.GameObject != null
+                            ? (target.GameObject.transform.position - actor.GameObject.transform.position).normalized : Vector3.right;
+                        float distance = utility || interrupted ? 0.12f :
+                            Mathf.Max(0.3f, Vector3.Distance(actor.GameObject.transform.position,
+                                target.GameObject.transform.position) - 0.8f);
+                        visual.localPosition = home + direction * Mathf.Sin(Mathf.Clamp01(elapsed / 0.32f) * Mathf.PI) * distance;
+                    }
+                    yield return null;
                 }
-                yield return null;
+                if (visual != null) visual.localPosition = home;
+                if (this != null && actor != null && actor.GameObject != null && !ending)
+                {
+                    resolve();
+                    if (!utility && !interrupted && audioSource != null)
+                        audioSource.PlayOneShot(hitSound);
+                    if (!utility)
+                        SetExchange(interrupted ? "袭击已被打断，小队毫发无伤。" : enemy ? "借声兽的袭击落下了！" : "攻击命中，继续寻找下一次配合。",
+                            interrupted ? "Interrupted. The party takes no damage." : enemy ? "The beast strikes!" : "Hit! Prepare the next combination.");
+                }
+                yield return new WaitForSecondsRealtime(0.16f);
             }
-            if (visual != null) visual.localPosition = home;
-            if (this != null && actor != null && actor.GameObject != null && !ending)
+            finally
             {
-                resolve();
-                if (!utility && !interrupted && audioSource != null)
-                    audioSource.PlayOneShot(hitSound);
-                if (!utility)
-                    SetExchange(interrupted ? "袭击已被打断，小队毫发无伤。" : enemy ? "借声兽的袭击落下了！" : "攻击命中，继续寻找下一次配合。",
-                        interrupted ? "Interrupted. The party takes no damage." : enemy ? "The beast strikes!" : "Hit! Prepare the next combination.");
+                presentationCount = Mathf.Max(0, presentationCount - 1);
             }
-            yield return new WaitForSecondsRealtime(0.16f);
-            presentationCount--;
         }
 
         private static Transform FindVisual(Combatant actor)
@@ -448,7 +464,7 @@ namespace Rpg.Soundwell
             }
 
             protected override void ActionStartSetup() { }
-            public override bool CanUse() => !Interrupted && base.CanUse();
+            public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
                 owner.StartCoroutine(owner.Present(User,
@@ -459,20 +475,19 @@ namespace Rpg.Soundwell
             public override void Calculate(List<Combatant> targets, float damageFactor,
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
             {
-                if (enemy && Kind == Threat.Gather)
+                if (enemy && (Kind == Threat.Gather || Interrupted))
                 {
-                    // The wind-up must still complete the real ORK action.
-                    // Returning without invoking its calculation completion
-                    // leaves the battle turn busy forever at the Gather cue.
-                    // Resolve the configured attack at zero damage instead
-                    // of applying HP ourselves or skipping ORK's callback.
-                    base.Calculate(targets, 0f, options, flyingTextTarget, notify);
+                    // Complete the real ORK action lifecycle and invoke notify
+                    // with an empty target list so minimum-damage clamps or
+                    // target status changes can never damage the party.
+                    base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, notify);
                     return;
                 }
-                if (!enemy && User == owner.party.Members[1])
-                    owner.party.Beast.Variables.Set("rpg.role.exposed", 0);
+                bool consumeExposed = !enemy && User == owner.party.Members[1] && owner.IsExposed;
                 base.Calculate(targets, damageFactor * strength * (Covered ? 0.25f : 1f),
                     options, flyingTextTarget, notify);
+                if (consumeExposed && owner != null && owner.party != null && owner.party.Beast != null)
+                    owner.party.Beast.Variables.Set("rpg.role.exposed", 0);
             }
         }
 

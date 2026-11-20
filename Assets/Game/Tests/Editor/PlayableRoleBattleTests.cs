@@ -95,7 +95,9 @@ namespace Rpg.Tests.Editor
             {
                 Assert.That(Time.realtimeSinceStartup, Is.LessThan(deadline),
                     "Role battle stalled. Actor=" + encounter.Party.ChoosingRescuerIndex +
-                    ", threat=" + encounter.PendingThreat + ", busy=" + encounter.IsPresenting);
+                    ", threat=" + encounter.PendingThreat + ", busy=" + encounter.IsPresenting +
+                    ", beastHp=" + encounter.Party.Beast.Status[1].GetValue() +
+                    ", exposed=" + encounter.IsExposed);
                 int actor = encounter.Party.ChoosingRescuerIndex;
                 if (!encounter.IsPresenting && actor >= 0)
                 {
@@ -131,7 +133,7 @@ namespace Rpg.Tests.Editor
             var active = RenderTexture.active;
             var uiObject = new GameObject("Role evidence camera", typeof(Camera));
             var uiCamera = uiObject.GetComponent<Camera>();
-            var hud = encounter.GetComponentsInChildren<Canvas>().Single();
+            var hud = encounter.View.Canvas;
             var frame = new Texture2D(width, height, TextureFormat.RGB24, false);
             try
             {

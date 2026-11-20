@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private int focusedActor = -2;
         private float lastAspect;
 
+        public Canvas Canvas => canvas;
         public UnityEngine.UI.Button PrimaryButton => commands[0];
         public UnityEngine.UI.Button SecondaryButton => commands[1];
         public UnityEngine.UI.Text ThreatLabel => threat;
