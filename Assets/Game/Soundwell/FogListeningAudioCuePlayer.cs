@@ -40,7 +40,15 @@ namespace Rpg.Soundwell
             source.volume = 0.26f;
             lowPass = gameObject.GetComponent<AudioLowPassFilter>();
             lowPass.lowpassResonanceQ = 1f;
-            SoundwellAudioBus.Route(source);
+            // AudioMixer.SetFloat is not available during Unity EditMode
+            // construction even when the mixer asset is present; routing it
+            // there logs an error on every view and masks real UI test results.
+            // No cue can play until PlayMode, so route only when the audio
+            // engine is live. Still respect the saved mute on dormant sources.
+            if (Application.isPlaying)
+                SoundwellAudioBus.Route(source);
+            else
+                source.mute = SoundwellAudioBus.IsMuted;
         }
 
         public void Sync(FogListeningSession session)
