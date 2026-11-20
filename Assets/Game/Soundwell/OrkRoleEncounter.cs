@@ -85,6 +85,9 @@ namespace Rpg.Soundwell
         public OrkPartyBridge Party => party;
         public bool IsConfigured => configured;
         public bool IsPresenting => presentationCount > 0;
+        // Read-only QA diagnostics for ORK's classic-turn action submission.
+        public int SubmittedActionCount => submittedActions.Count;
+        public int ActivePresentationCount => presentationCount;
         public bool IsActive => configured && party != null && party.BattleInProgress;
         public bool IsInterrupted => planned != null && planned.Interrupted;
         public bool IsExposed => party != null && party.Beast != null &&
