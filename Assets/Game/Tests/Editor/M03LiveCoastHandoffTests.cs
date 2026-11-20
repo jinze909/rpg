@@ -93,8 +93,19 @@ namespace Rpg.Tests.Editor
                 Assert.That(roll.gameObject.activeInHierarchy, Is.False,
                     "After the roll call Lu Jun should present dialogue options.");
                 FindButton(owner, "M03 Lu Jun option 2").onClick.Invoke();
-                Assert.That(FindButton(owner, "M03 Lu Jun option 2").gameObject.activeInHierarchy,
-                    Is.False, "An unstamped visit must not offer the official ship.");
+                Button officialShip = FindButton(owner, "M03 Lu Jun option 2");
+                Button officialWithCharts = FindButton(owner, "M03 Lu Jun option 3");
+                Assert.That(officialShip.gameObject.activeInHierarchy, Is.True,
+                    "The locked official ship option should explain the missing stamp.");
+                Assert.That(officialWithCharts.gameObject.activeInHierarchy, Is.True);
+                Assert.That(officialShip.interactable, Is.False);
+                Assert.That(officialWithCharts.interactable, Is.False);
+                officialShip.onClick.Invoke();
+                officialWithCharts.onClick.Invoke();
+                Assert.That(M03LuJunFacts.TryRead(out _, out _, out M03VoyageChoice? lockedVoyage),
+                    Is.True);
+                Assert.That(lockedVoyage, Is.Null,
+                    "Direct UGUI callbacks must never book a locked official route.");
                 FindButton(owner, "M03 Lu Jun option 1").onClick.Invoke();
 
                 Assert.That(deliveries, Is.Zero,

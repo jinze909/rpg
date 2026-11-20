@@ -40,7 +40,8 @@ namespace Rpg.Soundwell
                 if (advance.gameObject.activeInHierarchy)
                     return advance;
                 foreach (Button option in choices)
-                    if (option != null && option.gameObject.activeInHierarchy)
+                    if (option != null && option.gameObject.activeInHierarchy &&
+                        option.IsActive() && option.IsInteractable())
                         return option;
                 return null;
             }
@@ -121,10 +122,15 @@ namespace Rpg.Soundwell
             {
                 choiceLabels[i].font = font;
                 choiceLabels[i].text = i < options.Length ? options[i] : string.Empty;
-                bool eligible = i < options.Length && !delivered;
-                if (encounter.Stage == M03LuJunStage.ChoosingVoyage)
-                    eligible &= encounter.CanChoose((M03VoyageChoice)i);
-                choices[i].gameObject.SetActive(eligible);
+                bool visible = i < options.Length && !delivered;
+                bool eligible = visible &&
+                    (encounter.Stage != M03LuJunStage.ChoosingVoyage ||
+                     encounter.CanChoose((M03VoyageChoice)i));
+                // Keep the stamped official routes visible as locked choices.
+                // Players can discover the prerequisite without being granted
+                // a voyage or bypassing M02's authoritative registration.
+                choices[i].gameObject.SetActive(visible);
+                choices[i].interactable = eligible;
             }
             advanceLabel.text = rollCallBeat < 3
                 ? (chinese ? "继续听点名" : "Listen to the next name")

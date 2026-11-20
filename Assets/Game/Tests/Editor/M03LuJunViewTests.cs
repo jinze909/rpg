@@ -53,14 +53,59 @@ namespace Rpg.Tests.Editor
             view.GetChoiceButton(2).onClick.Invoke();
             Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
             Assert.That(view.Encounter.Secrecy, Is.EqualTo(M03SecrecyAnswer.NotTriggered));
-            Assert.That(view.GetChoiceButton(2).gameObject.activeSelf, Is.False);
-            Assert.That(view.GetChoiceButton(3).gameObject.activeSelf, Is.False);
+            Assert.That(view.GetChoiceButton(2).gameObject.activeSelf, Is.True);
+            Assert.That(view.GetChoiceButton(3).gameObject.activeSelf, Is.True);
+            Assert.That(view.GetChoiceButton(2).interactable, Is.False);
+            Assert.That(view.GetChoiceButton(3).interactable, Is.False);
+            Assert.That(view.GetChoiceButton(2).GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("requires stamp"));
+            Assert.That(view.GetChoiceButton(4).interactable, Is.True);
             view.GetChoiceButton(2).onClick.Invoke();
             Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
             view.GetChoiceButton(4).onClick.Invoke();
             view.GetChoiceButton(0).onClick.Invoke();
             Assert.That(callbacks, Is.EqualTo(1));
             Assert.That(result.VoyagePathValue, Is.EqualTo("混合"));
+        }
+
+        [Test]
+        public void StampedOfficialRoutesAreEnabledButUnstampedRoutesStayVisibleAndLocked()
+        {
+            view = new M03LuJunView(root.transform, M02BridgeEvidence.None,
+                true, _ => { });
+            for (int i = 0; i < 4; i++) view.AdvanceButton.onClick.Invoke();
+            view.GetChoiceButton(2).onClick.Invoke();
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+            Assert.That(view.GetChoiceButton(2).interactable, Is.True);
+            Assert.That(view.GetChoiceButton(3).interactable, Is.True);
+            Assert.That(view.GetChoiceButton(4).interactable, Is.True);
+            view.Dispose();
+            view = null;
+
+            var unstamped = new M03LuJunView(root.transform, M02BridgeEvidence.None,
+                false, _ => Assert.Fail("A locked route cannot be selected."));
+            try
+            {
+                for (int i = 0; i < 4; i++) unstamped.AdvanceButton.onClick.Invoke();
+                unstamped.GetChoiceButton(2).onClick.Invoke();
+                Assert.That(unstamped.GetChoiceButton(2).gameObject.activeSelf, Is.True);
+                Assert.That(unstamped.GetChoiceButton(3).gameObject.activeSelf, Is.True);
+                Assert.That(unstamped.GetChoiceButton(2).interactable, Is.False);
+                Assert.That(unstamped.GetChoiceButton(3).interactable, Is.False);
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(unstamped.GetChoiceButton(2).GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Does.Contain("须已盖印"));
+                Assert.That(unstamped.GetChoiceButton(3).GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Does.Contain("须已盖印"));
+                unstamped.GetChoiceButton(3).onClick.Invoke();
+                Assert.That(unstamped.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+                Assert.That(unstamped.Encounter.Voyage, Is.Null);
+                Assert.That(unstamped.GetChoiceButton(4).interactable, Is.True);
+            }
+            finally
+            {
+                unstamped.Dispose();
+            }
         }
 
         [Test]
