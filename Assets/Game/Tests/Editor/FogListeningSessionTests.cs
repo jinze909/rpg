@@ -156,6 +156,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AnsweringAnAbsentSignalCannotClearEitherSideReef()
+        {
+            var session = new FogListeningSession(new[]
+            {
+                new FogListeningCue(FogBearing.Port, FogCueKind.ReefSurf, 40),
+                new FogListeningCue(FogBearing.Starboard, FogCueKind.ReefSurf, 45)
+            }, maxListenFocus: 2, maxHullIntegrity: 2);
+
+            // A tempting signal action is not the same as holding course
+            // or steering clear of the real hazard, even after focused listening.
+            Assert.That(session.TryFocusListen(), Is.True);
+            Assert.That(session.ApplyHelmAction(FogHelmAction.AnswerSignal),
+                Is.EqualTo(FogResolution.LostBearing));
+            Assert.That(session.CurrentStep, Is.Zero);
+            Assert.That(session.CurrentCueFocused, Is.False);
+            Assert.That(session.RemainingFocus, Is.EqualTo(1));
+            Assert.That(session.HullIntegrity, Is.EqualTo(2));
+            Assert.That(session.AvoidedHazards, Is.Zero);
+
+            Assert.That(session.ApplyHelmAction(FogHelmAction.TurnStarboard),
+                Is.EqualTo(FogResolution.HazardAvoided));
+            Assert.That(session.CurrentStep, Is.EqualTo(1));
+            Assert.That(session.ApplyHelmAction(FogHelmAction.AnswerSignal),
+                Is.EqualTo(FogResolution.LostBearing));
+            Assert.That(session.CurrentStep, Is.EqualTo(1));
+            Assert.That(session.HullIntegrity, Is.EqualTo(2));
+            Assert.That(session.ApplyHelmAction(FogHelmAction.TurnPort),
+                Is.EqualTo(FogResolution.HazardAvoided));
+            Assert.That(session.AvoidedHazards, Is.EqualTo(2));
+            Assert.That(session.IsComplete, Is.True);
+            Assert.That(session.Succeeded, Is.True);
+        }
+
+        [Test]
+        public void HoldingCourseStillPassesASideReefWithoutClaimingAvoidance()
+        {
+            foreach (FogBearing side in new[] { FogBearing.Port, FogBearing.Starboard })
+            {
+                var session = new FogListeningSession(new[]
+                {
+                    new FogListeningCue(side, FogCueKind.ReefSurf, 80)
+                }, maxListenFocus: 1, maxHullIntegrity: 1);
+
+                Assert.That(session.ApplyHelmAction(FogHelmAction.HoldCourse),
+                    Is.EqualTo(FogResolution.SafePassage));
+                Assert.That(session.HullIntegrity, Is.EqualTo(1));
+                Assert.That(session.AvoidedHazards, Is.Zero);
+                Assert.That(session.Succeeded, Is.True);
+            }
+        }
+
+        [Test]
         public void LostBearingKeepsCurrentCueForRecoveryRatherThanGivingFreeProgress()
         {
             var session = new FogListeningSession(
