@@ -93,13 +93,13 @@ namespace Rpg.Soundwell
             if (layout == null) throw new ArgumentNullException(nameof(layout));
 
             Color warmGold = new Color(0.98f, 0.82f, 0.42f, 1f);
-            Color gateCoral = new Color(0.94f, 0.52f, 0.38f, 1f);
-            var specs = new (string id, Vector2Int tile, Color color)[layout.Triggers.Count];
-            for (int i = 0; i < layout.Triggers.Count; i++)
+            var specs = new List<(string id, Vector2Int tile, Color color)>();
+            foreach (RpgMapTriggerAnchor trigger in layout.Triggers)
             {
-                RpgMapTriggerAnchor t = layout.Triggers[i];
-                Color c = t.Id.StartsWith("m06.", StringComparison.Ordinal) ? gateCoral : warmGold;
-                specs[i] = (t.Id, t.Tile, c);
+                // Keep the mine entrance on the terrain map. Its M06
+                // interaction isn't available in the outer-harbor host.
+                if (trigger.Id != "m06.mine-camp-gate")
+                    specs.Add((trigger.Id, trigger.Tile, warmGold));
             }
 
             return new RpgLargeMapMinimapAndBeaconHud(
@@ -107,7 +107,7 @@ namespace Rpg.Soundwell
                 layout.Width, layout.Height,
                 (x, y) => HarborMinimapColor(layout.Tiles[x, y]),
                 new Vector2(layout.PlayerSpawn.x + 0.5f, layout.PlayerSpawn.y + 0.5f),
-                specs);
+                specs.ToArray());
         }
 
         public static RpgLargeMapMinimapAndBeaconHud BuildForWhitewaterCrossing(

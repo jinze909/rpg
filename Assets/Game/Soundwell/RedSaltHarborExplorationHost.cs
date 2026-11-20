@@ -307,8 +307,6 @@ namespace Rpg.Soundwell
                     return zh ? "[交互] 询问东南防波堤渔民" : "[Interact] Ask Breakwater Fisherman";
                 case "m05.salt-market":
                     return zh ? "[交互] 走进赤盐盐市摊位" : "[Interact] Approach Salt Market Stall";
-                case "m06.mine-camp-gate":
-                    return zh ? "[交互] 矿营入山口（前往下一章）" : "[Interact] Mine Camp Gate (Next Chapter)";
                 default:
                     return zh ? "[交互] 查看" : "[Interact] Inspect";
             }
