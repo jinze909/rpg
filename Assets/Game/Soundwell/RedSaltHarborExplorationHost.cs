@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private readonly RedSaltHarborMapLayout layout;
         private readonly RpgLargeMapChunkRenderer chunkRenderer;
         private readonly RpgLargeMapExplorerController explorer;
+        private readonly RpgLargeMapMinimapAndBeaconHud minimapHud;
         private readonly GameObject playerAvatar;
         private readonly GameObject hudCanvas;
         private readonly Text districtLabel;
@@ -37,6 +38,7 @@ namespace Rpg.Soundwell
         public RedSaltHarborMapLayout Layout => layout;
         public RpgLargeMapChunkRenderer ChunkRenderer => chunkRenderer;
         public RpgLargeMapExplorerController Explorer => explorer;
+        public RpgLargeMapMinimapAndBeaconHud MinimapHud => minimapHud;
         public Vector2 PlayerPosition => explorer.Position;
         public bool IsDialogueOpen =>
             activeLandingView != null || activeSeranView != null || activeHarborWalkView != null;
@@ -64,6 +66,7 @@ namespace Rpg.Soundwell
                 parent, layout, harborTileSlices);
             explorer = RpgLargeMapExplorerController.ForRedSaltHarbor(layout);
             explorer.ZoneEntered += _ => RefreshHud();
+            minimapHud = RpgLargeMapMinimapAndBeaconHud.BuildForRedSaltHarbor(parent, layout);
 
             playerAvatar = new GameObject("RedSaltPlayerAvatar");
             playerAvatar.transform.SetParent(chunkRenderer.RootObject.transform, false);
@@ -125,6 +128,7 @@ namespace Rpg.Soundwell
             {
                 playerAvatar.transform.localPosition = new Vector3(
                     explorer.Position.x, explorer.Position.y, 0f);
+                minimapHud.UpdatePlayerPosition(explorer.Position);
             }
             RefreshHud();
             return moved;
@@ -252,6 +256,18 @@ namespace Rpg.Soundwell
         public void RefreshHud()
         {
             if (disposed || hudCanvas == null) return;
+
+            // Beacon colors are presentation only. Authoritative Makinom
+            // landing/letter decisions and this map's actually witnessed
+            // location beats determine which goals have been completed.
+            minimapHud?.SetBeaconCompleted("m05.landing-check", HasVerifiedLanding());
+            bool letterDecisionRecorded = M05LettersFacts.TryRead(getInt,
+                out M05LetterDecision? recordedLetters) && recordedLetters.HasValue;
+            minimapHud?.SetBeaconCompleted("m05.seran-letters", letterDecisionRecorded);
+            minimapHud?.SetBeaconCompleted("m05.repair-stall", visitedHarborBeats[0]);
+            minimapHud?.SetBeaconCompleted("m05.fisher-rumor", visitedHarborBeats[1]);
+            minimapHud?.SetBeaconCompleted("m05.salt-market", visitedHarborBeats[2]);
+
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             districtLabel.font = promptLabel.font = font;
@@ -309,6 +325,7 @@ namespace Rpg.Soundwell
             activeSeranView = null;
             activeHarborWalkView?.Dispose();
             activeHarborWalkView = null;
+            minimapHud?.Dispose();
             chunkRenderer?.Dispose();
             SoundwellUiTheme.SafeDestroyCanvas(hudCanvas);
         }

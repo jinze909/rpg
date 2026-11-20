@@ -49,10 +49,20 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(host.ChunkRenderer.ChunkCount, Is.EqualTo(15));
                 Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(host.MinimapHud, Is.Not.Null);
+                Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(6));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(6));
+                Assert.That(host.MinimapHud.MinimapTexture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(root.GetComponentInChildren<UnityEngine.UI.GraphicRaycaster>(), Is.Null,
+                    "The live minimap must not intercept exploration input.");
+                Vector2 startMarker = host.MinimapHud.PlayerMarkerRect.anchoredPosition;
 
                 // Walk east from spawn (16, 24) to landing-check trigger (22, 24).
                 for (int i = 0; i < 10; i++)
                     host.StepExploration(Vector2.right, 0.1f);
+                Assert.That(host.MinimapHud.PlayerMarkerRect.anchoredPosition.x,
+                    Is.GreaterThan(startMarker.x),
+                    "The minimap marker follows the actual player motor.");
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
                 Assert.That(host.IsDialogueOpen, Is.True);
                 Assert.That(host.ActiveLandingView, Is.Not.Null);
@@ -63,6 +73,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.IsDialogueOpen, Is.False);
                 Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? saved), Is.True);
                 Assert.That(saved.HasValue, Is.True);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(5),
+                    "Only the genuinely confirmed landing beacon is completed.");
 
                 // Walk east to QuayPromenade Seran trigger (50, 26).
                 for (int i = 0; i < 42; i++)
@@ -77,6 +89,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.IsDialogueOpen, Is.False);
                 Assert.That(M05LettersFacts.TryRead(read, out M05LetterDecision? decision), Is.True);
                 Assert.That(decision, Is.EqualTo(M05LetterDecision.TakePacket));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4),
+                    "The letter courier beacon completes only on an actual saved answer.");
             }
             finally
             {
@@ -127,6 +141,7 @@ namespace Rpg.Tests.Editor
                 WalkTo(host, 22.5f, 24.5f);
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
                 host.ActiveLandingView.ConfirmButton.onClick.Invoke();
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(5));
 
                 // Visiting the repair stall cannot play the fisherman's
                 // rumor or the market accusation without walking there.
@@ -138,6 +153,7 @@ namespace Rpg.Tests.Editor
                 host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
                 Assert.That(host.IsDialogueOpen, Is.False);
                 Assert.That(host.HarborWalkCompleted, Is.False);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
                     "Already witnessed dialogue must not re-open at the same stall.");
 
@@ -148,6 +164,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.ActiveHarborWalkView.Dialogue.text, Does.Contain("Three boats"));
                 host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
                 Assert.That(host.HarborWalkCompleted, Is.False);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
 
                 WalkTo(host, 76.5f, 56.5f);
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
@@ -155,6 +172,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.ActiveHarborWalkView.Dialogue.text, Does.Contain("half a bowl"));
                 host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
                 Assert.That(host.HarborWalkCompleted, Is.True);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(2),
+                    "The unanswered courier and the later mine-camp gate remain active.");
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.False);
                 Assert.That(host.IsDialogueOpen, Is.False);
             }
