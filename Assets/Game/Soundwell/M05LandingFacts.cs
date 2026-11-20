@@ -84,7 +84,13 @@ namespace Rpg.Soundwell
         {
             report = null;
             if (getInt == null) return false;
-            if (getInt(ConfirmedKey) != 1 ||
+            int confirmed = getInt(ConfirmedKey);
+            // Only 0 means unconfirmed. A corrupted nonzero marker must
+            // reject the read so the flow host cannot show an arrival UI
+            // whose confirm callback would be permanently refused.
+            if (confirmed != 0 && confirmed != 1)
+                return false;
+            if (confirmed == 0 ||
                 !TryReadCompletedCrossing(getInt, out M04DepartureRecord departure))
                 return true;
 
