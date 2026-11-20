@@ -14,6 +14,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authored;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image giftIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button[] choices = new Button[3];
@@ -26,6 +28,7 @@ namespace Rpg.Soundwell
 
         public M04QiQueCupEncounter Encounter => cup;
         public Text Dialogue => dialogue;
+        public Image GiftIcon => giftIcon;
         public Button AdvanceButton => advance;
         public Button GetChoiceButton(int index)
         {
@@ -43,10 +46,15 @@ namespace Rpg.Soundwell
             cup = new M04QiQueCupEncounter(qiQuePresent, debtKnown);
             cup.Begin();
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M04 Qi Que cup canvas", 128, out authored);
+            giftIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authored, "M04 Qi cup gift icon",
+                new Vector2(-346f, 75f), new Vector2(112f, 112f),
+                ResolveGiftSprite());
             heading = SoundwellUiTheme.CreateLabel(authored, 24, new Vector2(0f, 210f), new Vector2(840f, 48f));
-            dialogue = SoundwellUiTheme.CreateLabel(authored, 20, new Vector2(0f, 75f), new Vector2(840f, 175f));
+            dialogue = SoundwellUiTheme.CreateLabel(authored, 20, new Vector2(72f, 75f), new Vector2(678f, 175f));
             dialogue.alignment = TextAnchor.MiddleLeft;
             for (int i = 0; i < choices.Length; i++)
             {
@@ -84,6 +92,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (giftIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(giftIcon, ResolveGiftSprite());
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             var font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = dialogue.font = advanceLabel.font = font;
@@ -106,6 +116,22 @@ namespace Rpg.Soundwell
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     advance.gameObject.activeInHierarchy ? advance : choices[0]);
+        }
+
+        private Sprite ResolveGiftSprite()
+        {
+            switch (cup.Stage)
+            {
+                case M04QiQueCupStage.OfferingCup:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(false, artManifest);
+                case M04QiQueCupStage.ChoosingReply:
+                case M04QiQueCupStage.Responding:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(true, artManifest);
+                case M04QiQueCupStage.WithoutCup:
+                    return RpgStoryArtResolver.ResolveM04LanternSprite(false, artManifest);
+                default:
+                    return null;
+            }
         }
 
         private void Choose(int index)

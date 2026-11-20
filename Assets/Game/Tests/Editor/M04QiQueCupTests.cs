@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -53,6 +54,50 @@ namespace Rpg.Tests.Editor
             cup.Finish();
             Assert.That(cup.CupTaken, Is.False);
             Assert.Throws<InvalidOperationException>(() => cup.Finish());
+        }
+
+        [Test]
+        public void GiftIconTracksCupCrateAndSignalLampFallbackWithPointFiltering()
+        {
+            var root = new GameObject("M04 cup gift icon");
+            M04QiQueCupView presentView = null;
+            M04QiQueCupView absentView = null;
+            try
+            {
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+                Assert.That(manifest, Is.Not.Null);
+
+                presentView = new M04QiQueCupView(root.transform, true, false, _ => { });
+                AssertGiftIcon(presentView.GiftIcon, manifest.M07CargoCoverCrateClosed);
+
+                presentView.AdvanceButton.onClick.Invoke();
+                AssertGiftIcon(presentView.GiftIcon, manifest.M07CargoCoverCrateOpen);
+
+                presentView.GetChoiceButton(0).onClick.Invoke();
+                AssertGiftIcon(presentView.GiftIcon, manifest.M07CargoCoverCrateOpen);
+
+                absentView = new M04QiQueCupView(root.transform, false, true, _ => { });
+                AssertGiftIcon(absentView.GiftIcon, manifest.FogSignalLanternOff);
+            }
+            finally
+            {
+                presentView?.Dispose();
+                absentView?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void AssertGiftIcon(Image icon, Sprite expected)
+        {
+            Assert.That(icon, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(icon.sprite, Is.EqualTo(expected));
+            Assert.That(icon.preserveAspect, Is.True);
+            Assert.That(icon.raycastTarget, Is.False);
+            Assert.That(icon.enabled, Is.True);
+            Assert.That(icon.gameObject.activeSelf, Is.True);
+            Assert.That(icon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(icon.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
         }
 
         [Test]
