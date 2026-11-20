@@ -31,6 +31,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(view.Stage, Is.EqualTo(M04DockPreflightStage.VerifyPhysicalReadiness));
                 Assert.That(view.Dialogue.text, Does.Contain("reserve at least one"));
                 Assert.That(view.Dialogue.text, Does.Contain("not a cast-off"));
+                var label = view.AdvanceButton.GetComponentInChildren<UnityEngine.UI.Text>();
+                Assert.That(label.text, Is.EqualTo("Finish reviewing the checklist"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(label.text, Is.EqualTo("读完清单"));
                 Assert.That(completions, Is.Zero);
                 view.AdvanceButton.onClick.Invoke();
                 view.AdvanceButton.onClick.Invoke();
