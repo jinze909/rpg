@@ -36,14 +36,22 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void ThreatBannerAndThreeRoleHintsDifferentiateAllPartySlotsBilingually()
+        public void AdvisoryThreatBannerNeverInventsOrkTargetsAndRoleHintsRemainBilingual()
         {
-            string chargeZh = BattleFeelAndTelegraphDirector.FormatThreatBanner(
-                EnemyIntentKind.ChargedLunge, lockedSlot: 0, zh: true);
-            string chargeEn = BattleFeelAndTelegraphDirector.FormatThreatBanner(
-                EnemyIntentKind.ChargedLunge, lockedSlot: 0, zh: false);
-            Assert.That(chargeZh, Does.Contain("1 号位"));
-            Assert.That(chargeEn, Does.Contain("SLOT 1"));
+            foreach (var intent in new[] {
+                EnemyIntentKind.ChargedLunge,
+                EnemyIntentKind.ListeningAlert,
+                EnemyIntentKind.Recovering
+            })
+            {
+                string zh = BattleFeelAndTelegraphDirector.FormatThreatBanner(intent, zh: true);
+                string en = BattleFeelAndTelegraphDirector.FormatThreatBanner(intent, zh: false);
+                Assert.That(zh, Does.Contain("未确认"));
+                Assert.That(en, Does.Contain("unverified"));
+                Assert.That(zh, Does.Not.Contain("锁定"));
+                Assert.That(en, Does.Not.Contain("LOCKED"));
+                Assert.That(en, Does.Not.Contain("SLOT"));
+            }
 
             string slot0 = BattleFeelAndTelegraphDirector.FormatRoleHint(0, EnemyIntentKind.ChargedLunge, zh: true);
             string slot1 = BattleFeelAndTelegraphDirector.FormatRoleHint(1, EnemyIntentKind.Recovering, zh: true);
@@ -51,6 +59,8 @@ namespace Rpg.Tests.Editor
             Assert.That(slot0, Does.Contain("前排护阵"));
             Assert.That(slot1, Does.Contain("破阵主力"));
             Assert.That(slot2, Does.Contain("侧翼支援"));
+            Assert.That(slot0, Does.Contain("若遇蓄力"));
+            Assert.That(slot1, Does.Contain("若见破绽"));
             Assert.That(slot0, Is.Not.EqualTo(slot1));
             Assert.That(slot1, Is.Not.EqualTo(slot2));
         }
