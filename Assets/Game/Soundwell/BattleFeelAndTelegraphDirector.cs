@@ -81,7 +81,7 @@ namespace Rpg.Soundwell
             OrkPartyBridge.BattleUnitSnapshot[] current)
         {
             if (previous == null || current == null || previous.Length == 0 || current.Length == 0)
-                return default;
+                return new BattleSnapshotDelta(0, 0, -1, -1);
 
             int enemyLoss = 0;
             int allyLoss = 0;
@@ -89,28 +89,50 @@ namespace Rpg.Soundwell
             int newGuardAlly = -1;
             int allyIdx = 0;
 
-            int count = Mathf.Min(previous.Length, current.Length);
-            for (int i = 0; i < count; i++)
+            // ORK can omit a retired actor between snapshots. Array position
+            // then shifts, so comparing by position invents damage or guards.
+            // Native ally labels include their original numbered roster slot.
+            // On a locale change, skip unmatched feedback instead of guessing.
+            for (int i = 0; i < current.Length; i++)
             {
-                var prev = previous[i];
                 var cur = current[i];
-                int loss = Mathf.Max(0, prev.Hp - cur.Hp);
-                if (cur.IsEnemy)
+                int oldIndex = -1;
+                if (!string.IsNullOrEmpty(cur.Name))
                 {
-                    enemyLoss += loss;
-                }
-                else
-                {
-                    if (loss > 0)
+                    for (int j = 0; j < previous.Length; j++)
                     {
-                        allyLoss += loss;
-                        if (struckAlly < 0)
-                            struckAlly = allyIdx;
+                        if (previous[j].IsEnemy == cur.IsEnemy &&
+                            string.Equals(previous[j].Name, cur.Name, StringComparison.Ordinal))
+                        {
+                            oldIndex = j;
+                            break;
+                        }
                     }
-                    if (!prev.Defending && cur.Defending && newGuardAlly < 0)
-                        newGuardAlly = allyIdx;
-                    allyIdx++;
                 }
+
+                if (oldIndex >= 0)
+                {
+                    var prev = previous[oldIndex];
+                    int loss = Mathf.Max(0, prev.Hp - cur.Hp);
+                    if (cur.IsEnemy)
+                    {
+                        enemyLoss += loss;
+                    }
+                    else
+                    {
+                        if (loss > 0)
+                        {
+                            allyLoss += loss;
+                            if (struckAlly < 0)
+                                struckAlly = allyIdx;
+                        }
+                        if (!prev.Defending && cur.Defending && newGuardAlly < 0)
+                            newGuardAlly = allyIdx;
+                    }
+                }
+
+                if (!cur.IsEnemy)
+                    allyIdx++;
             }
 
             return new BattleSnapshotDelta(enemyLoss, allyLoss, struckAlly, newGuardAlly);
