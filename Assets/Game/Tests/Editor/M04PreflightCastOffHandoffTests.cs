@@ -121,6 +121,7 @@ namespace Rpg.Tests.Editor
             yield return null;
 
             GameObject owner = null;
+            GameObject failedOwner = null;
             GameObject noShipOwner = null;
             try
             {
@@ -134,8 +135,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(Maki.Initialized && Maki.Game?.Variables != null, Is.True);
 
                 var vars = Maki.Game.Variables;
+                Func<string, int> read = key => vars.GetInt(key);
                 Action<string, int> write = (key, value) => vars.Set(key, value);
-                Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
                 SeedChosenRoute(write, M03VoyageChoice.QiQueMerchant);
                 SeedVerifiedDeparture(write, M03VoyageChoice.QiQueMerchant);
 
@@ -158,11 +160,49 @@ namespace Rpg.Tests.Editor
                 Assert.That(vars.GetInt(M04DepartureFacts.SailedKey), Is.Zero,
                     "Opening a cast-off panel cannot automatically launch a ship.");
 
+                Assert.That(owner.GetComponentsInChildren<Button>(true)
+                    .Any(b => b.gameObject.name == "Fog continue"), Is.False);
+
                 castOff.onClick.Invoke();
                 Assert.That(vars.GetInt(M04DepartureFacts.SailedKey), Is.EqualTo(1));
-                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(vars.GetInt(FogListeningFacts.CompletedKey), Is.Zero);
+                Assert.That(deliveries, Is.Zero, "Cast-off must open the actual fog leg.");
                 castOff.onClick.Invoke();
+                Assert.That(FindButton(owner, "Fog continue").interactable, Is.False);
+
+                FindButton(owner, "Fog focus listen").onClick.Invoke();
+                FindButton(owner, "Fog helm slow").onClick.Invoke();
+                FindButton(owner, "Fog helm hold").onClick.Invoke();
+                FindButton(owner, "Fog helm port").onClick.Invoke();
+                FindButton(owner, "Fog helm signal").onClick.Invoke();
+                Button finishFog = FindButton(owner, "Fog continue");
+                Assert.That(finishFog.interactable, Is.True);
+                finishFog.onClick.Invoke();
+                finishFog.onClick.Invoke();
                 Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(FogListeningFacts.TryRead(read, out FogListeningRecord? safe), Is.True);
+                Assert.That(safe.HasValue && safe.Value.Succeeded, Is.True);
+                Assert.That(safe.Value.AvoidedHazards, Is.EqualTo(2));
+                Assert.That(safe.Value.MatchedSignals, Is.EqualTo(1));
+                Assert.That(vars.GetInt(M05LandingFacts.ConfirmedKey), Is.Zero,
+                    "Passing the reef does not record a harbor arrival.");
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+                SeedVerifiedDeparture(write, M03VoyageChoice.QiQueMerchant);
+                failedOwner = new GameObject("live M04 failed fog passage");
+                var failed = failedOwner.AddComponent<ReturnOpeningContinuation>();
+                completion.SetValue(failed, new Action(() => deliveries++));
+                finishDock.Invoke(failed, null);
+                FindButton(failedOwner, "M04 cast off confirm").onClick.Invoke();
+                FindButton(failedOwner, "Fog helm hold").onClick.Invoke();
+                FindButton(failedOwner, "Fog helm hold").onClick.Invoke();
+                FindButton(failedOwner, "Fog helm starboard").onClick.Invoke();
+                FindButton(failedOwner, "Fog continue").onClick.Invoke();
+                Assert.That(deliveries, Is.EqualTo(2));
+                Assert.That(FogListeningFacts.TryRead(read, out FogListeningRecord? failedLeg), Is.True);
+                Assert.That(failedLeg.HasValue && !failedLeg.Value.Succeeded, Is.True);
+                Assert.That(failedLeg.Value.HullIntegrity, Is.Zero);
+                Assert.That(vars.GetInt(M05LandingFacts.ConfirmedKey), Is.Zero);
 
                 // Repeat the same handoff with no physical manifest. The
                 // opening returns to dock control; it must not offer sailing.
@@ -180,9 +220,16 @@ namespace Rpg.Tests.Editor
             finally
             {
                 if (owner != null) UnityEngine.Object.Destroy(owner);
+                if (failedOwner != null) UnityEngine.Object.Destroy(failedOwner);
                 if (noShipOwner != null) UnityEngine.Object.Destroy(noShipOwner);
             }
             yield return new ExitPlayMode();
+        }
+
+        private static Button FindButton(GameObject owner, string name)
+        {
+            return owner.GetComponentsInChildren<Button>(true)
+                .Single(b => b.gameObject.name == name);
         }
     }
 }
