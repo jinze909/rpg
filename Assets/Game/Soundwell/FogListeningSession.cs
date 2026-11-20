@@ -227,7 +227,11 @@ namespace Rpg.Soundwell
                         return FogResolution.HazardAvoided;
                     if (action == FogHelmAction.TurnPort)
                         return FogResolution.HullScraped;
-                    return FogResolution.SafePassage;
+                    // Only deliberately holding course keeps a side reef
+                    // safely abeam. Answering a non-signal cannot clear it.
+                    return action == FogHelmAction.HoldCourse
+                        ? FogResolution.SafePassage
+                        : FogResolution.LostBearing;
 
                 case FogBearing.Starboard:
                     if (action == FogHelmAction.TurnPort ||
@@ -235,7 +239,9 @@ namespace Rpg.Soundwell
                         return FogResolution.HazardAvoided;
                     if (action == FogHelmAction.TurnStarboard)
                         return FogResolution.HullScraped;
-                    return FogResolution.SafePassage;
+                    return action == FogHelmAction.HoldCourse
+                        ? FogResolution.SafePassage
+                        : FogResolution.LostBearing;
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(bearing));
