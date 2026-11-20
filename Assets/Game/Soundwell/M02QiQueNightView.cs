@@ -14,6 +14,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button progressButton;
@@ -24,6 +26,7 @@ namespace Rpg.Soundwell
 
         public M02QiQueNight Night => night;
         public Text Dialogue => dialogue;
+        public Image StageIcon => stageIcon;
         public Button ProgressButton => progressButton;
 
         public M02QiQueNightView(Transform parent, bool debtAlreadyKnown, Action onFinished)
@@ -37,14 +40,19 @@ namespace Rpg.Soundwell
             night.Begin();
             this.onFinished = onFinished;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
 
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M02 Qi Que warehouse canvas", 125, out authoredView,
                 new Color(0.04f, 0.06f, 0.08f, 0.98f));
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M02 Qi Que stage icon",
+                new Vector2(-346f, 39f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 25,
                 new Vector2(0f, 211f), new Vector2(835f, 50f));
             dialogue = SoundwellUiTheme.CreateLabel(authoredView, 21,
-                new Vector2(0f, 39f), new Vector2(825f, 265f));
+                new Vector2(72f, 39f), new Vector2(678f, 265f));
             dialogue.alignment = TextAnchor.MiddleLeft;
             progressButton = SoundwellUiTheme.CreateButton(authoredView,
                 "M02 Qi Que continue", new Vector2(0f, -213f),
@@ -81,6 +89,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
 
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -111,6 +121,23 @@ namespace Rpg.Soundwell
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     progressButton);
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            switch (night.Stage)
+            {
+                case M02QiQueNightStage.AtWarehouse:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(false, artManifest);
+                case M02QiQueNightStage.ConfrontingDebt:
+                    return RpgStoryArtResolver.ResolveM02LedgerSprite(artManifest);
+                case M02QiQueNightStage.OfferingCake:
+                    return RpgStoryArtResolver.ResolveM03TidalChartSprite(false, artManifest);
+                case M02QiQueNightStage.ReviewingChart:
+                    return RpgStoryArtResolver.ResolveM03TidalChartSprite(true, artManifest);
+                default:
+                    return null;
+            }
         }
 
         private void Advance()

@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -26,6 +27,51 @@ namespace Rpg.Tests.Editor
             if (root != null)
                 UnityEngine.Object.DestroyImmediate(root);
             SoundwellUiLocalization.SetLanguage(previousLanguage);
+        }
+
+        [Test]
+        public void StageIconTracksWarehouseLedgerChartAndHidesOnFinishWithoutLeakingDebt()
+        {
+            RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+            Assert.That(manifest, Is.Not.Null);
+
+            view = new M02QiQueNightView(root.transform, true, () => { });
+            AssertStageIcon(view.StageIcon, manifest.M07CargoCoverCrateClosed);
+
+            view.ProgressButton.onClick.Invoke();
+            AssertStageIcon(view.StageIcon, manifest.M02BridgeKeeperOpenLedger);
+
+            view.ProgressButton.onClick.Invoke();
+            AssertStageIcon(view.StageIcon, manifest.M03TidalChartFolded);
+
+            view.ProgressButton.onClick.Invoke();
+            AssertStageIcon(view.StageIcon, manifest.M03TidalChartOpen);
+
+            view.ProgressButton.onClick.Invoke();
+            Assert.That(view.Night.Stage, Is.EqualTo(M02QiQueNightStage.Finished));
+            Assert.That(view.StageIcon.sprite, Is.Null);
+            Assert.That(view.StageIcon.enabled, Is.False);
+            Assert.That(view.StageIcon.gameObject.activeSelf, Is.False);
+            view.Dispose();
+
+            // Unknown debt skips the ledger confrontation and goes straight to the folded chart.
+            view = new M02QiQueNightView(root.transform, false, () => { });
+            AssertStageIcon(view.StageIcon, manifest.M07CargoCoverCrateClosed);
+            view.ProgressButton.onClick.Invoke();
+            AssertStageIcon(view.StageIcon, manifest.M03TidalChartFolded);
+        }
+
+        private static void AssertStageIcon(Image icon, Sprite expected)
+        {
+            Assert.That(icon, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(icon.sprite, Is.EqualTo(expected));
+            Assert.That(icon.preserveAspect, Is.True);
+            Assert.That(icon.raycastTarget, Is.False);
+            Assert.That(icon.enabled, Is.True);
+            Assert.That(icon.gameObject.activeSelf, Is.True);
+            Assert.That(icon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(icon.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
         }
 
         [Test]
