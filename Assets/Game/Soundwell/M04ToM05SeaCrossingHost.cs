@@ -225,14 +225,28 @@ namespace Rpg.Soundwell
 
             if (!record.Succeeded)
             {
-                fogHost?.Dispose();
-                fogHost = null;
+                // The fog outcome has already been saved by M04SailedFogLegHost.
+                // Do not tear down Continue until the scene's failure handoff
+                // actually accepts it. If navigation throws, the same saved
+                // failure can be delivered again without replaying the fog
+                // encounter, rewriting its result, or claiming M05 arrival.
                 stage = M04ToM05SeaCrossingStage.FogFailed;
+                try
+                {
+                    onFogFailed?.Invoke(record);
+                }
+                catch
+                {
+                    if (!disposed)
+                        stage = M04ToM05SeaCrossingStage.FogPassage;
+                    throw;
+                }
+                if (disposed) return;
                 finishedDelivered = true;
-                Action<FogListeningRecord> callback = onFogFailed;
                 onFogFailed = null;
                 onOuterHarborCompleted = null;
-                callback?.Invoke(record);
+                fogHost?.Dispose();
+                fogHost = null;
                 return;
             }
 
