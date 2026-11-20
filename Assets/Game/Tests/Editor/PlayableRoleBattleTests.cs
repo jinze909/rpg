@@ -114,7 +114,20 @@ namespace Rpg.Tests.Editor
                     ", submittedActions=" + encounter.SubmittedActionCount +
                     ", animations=" + encounter.ActivePresentationCount +
                     ", enemyChooser=" + encounter.EnemyChooserActive +
-                    ", threatSubmitted=" + encounter.EnemyThreatSubmitted);
+                    ", threatSubmitted=" + encounter.EnemyThreatSubmitted +
+                    ", turnSubmitted=" + encounter.TurnSubmittedPartyCount +
+                    ", partyStates=" + string.Join(",", encounter.Party.Members
+                        .Select(member => member.Actions.ActionState.ToString())) +
+                    ", partyChoosers=" + string.Join(",", encounter.Party.Members
+                        .Select(member => member.Actions.IsChoosing)) +
+                    ", partyCurrent=" + string.Join(",", encounter.Party.Members
+                        .Select(member => member.Actions.Current == null ? "none" :
+                            member.Actions.Current.GetType().Name)) +
+                    ", enemyState=" + encounter.Party.Beast.Actions.ActionState +
+                    ", enemyCurrent=" + (encounter.Party.Beast.Actions.Current == null ? "none" :
+                        encounter.Party.Beast.Actions.Current.GetType().Name) +
+                    ", enemyNextActions=" + encounter.Party.Beast.Actions.NextActionCount +
+                    ", nativeInBattle=" + ORK.Control.InBattle);
                 int actor = encounter.Party.ChoosingRescuerIndex;
                 if (!encounter.IsPresenting && actor >= 0)
                 {

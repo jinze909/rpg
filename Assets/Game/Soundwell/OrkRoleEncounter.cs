@@ -92,6 +92,7 @@ namespace Rpg.Soundwell
         public bool IsPresenting => presentationCount > 0;
         // Read-only QA diagnostics for ORK's classic-turn action submission.
         public int SubmittedActionCount => submittedActions.Count;
+        public int TurnSubmittedPartyCount => turnSubmittedParty.Count;
         public int ActivePresentationCount => presentationCount;
         public bool EnemyChooserActive => party != null && party.Beast != null &&
             party.Beast.Actions.IsChoosing;
