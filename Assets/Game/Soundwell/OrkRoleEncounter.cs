@@ -518,10 +518,17 @@ namespace Rpg.Soundwell
             {
                 if (enemy && (Kind == Threat.Gather || Interrupted))
                 {
-                    // Complete the real ORK action lifecycle and invoke notify
-                    // with an empty target list so minimum-damage clamps or
-                    // target status changes can never damage the party.
-                    base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, notify);
+                    // Complete the real ORK action lifecycle with zero target
+                    // damage and guarantee notify fires once even if ORK skips
+                    // calculation callbacks for empty target lists.
+                    bool notified = false;
+                    base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, () =>
+                    {
+                        notified = true;
+                        notify?.Invoke();
+                    });
+                    if (!notified)
+                        notify?.Invoke();
                     return;
                 }
                 bool consumeExposed = !enemy && User == owner.party.Members[1] && owner.IsExposed;
@@ -532,28 +539,31 @@ namespace Rpg.Soundwell
             }
         }
 
-        private sealed class UtilityAction : NoneAction
+        private sealed class UtilityAction : AbilityAction
         {
             private readonly OrkRoleEncounter owner;
             private readonly Action effect;
             private readonly bool supportive;
 
             public UtilityAction(OrkRoleEncounter owner, Combatant actor, Action effect, bool supportive)
-                : base(actor, false)
+                : base(actor, actor.Abilities.GetCurrentBaseAttack())
             {
                 this.owner = owner;
                 this.effect = effect;
                 this.supportive = supportive;
+                SetTarget(supportive ? actor : owner.party.Beast);
             }
 
             protected override void ActionStartSetup() { }
+            public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
                 owner.StartCoroutine(owner.Present(
                     User, supportive ? User : owner.party.Beast,
                     false, true, false));
-                // Utility actions must obey the same synchronous ORK lifecycle
-                // as attacks; only their presentation animates asynchronously.
+                // Use the same verified no-schematic Prototype Attack ORK
+                // lifecycle as StrikeAction so utility actions never stall on
+                // vendor NoneAction schematics or endTurn=false.
                 base.PerformAction();
             }
 
@@ -561,7 +571,14 @@ namespace Rpg.Soundwell
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
             {
                 effect();
-                base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
+                bool notified = false;
+                base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, () =>
+                {
+                    notified = true;
+                    notify?.Invoke();
+                });
+                if (!notified)
+                    notify?.Invoke();
             }
         }
     }
