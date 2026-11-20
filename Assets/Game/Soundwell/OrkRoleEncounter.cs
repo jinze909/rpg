@@ -414,7 +414,6 @@ namespace Rpg.Soundwell
                 planned = CreateThreat(next, nextTarget);
                 submittedEnemyThreat = null;
                 plannedQueuedIntoAi = false;
-                allPartySubmittedAt = -1f;
                 turnSubmittedParty.Clear();
                 threatWaitingForQueue = planned;
                 threatQueueAfterFrame = Time.frameCount + 1;
