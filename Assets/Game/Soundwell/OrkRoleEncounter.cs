@@ -61,7 +61,6 @@ namespace Rpg.Soundwell
         private float previousDecisionTime;
         private bool configured;
         private bool observedBattle;
-        private bool partySubmittedThisTurn;
         private int presentationCount;
         private int lastCommandFrame = -1;
         private bool ending;
@@ -166,15 +165,11 @@ namespace Rpg.Soundwell
                     }
                     threatWaitingForQueue = null;
                 }
-                // The starter enemy's default Battle AI has no configured
-                // decision nodes. On Classic turns the enemy can therefore
-                // fail to expose IsChoosing while the rescuers' real ORK
-                // actions are queued: the battle waits indefinitely with
-                // no active player or enemy chooser. Submit the same authored
-                // ORK threat once after the party has queued its commands this
-                // turn, without re-submitting an already-started action.
-                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing ||
-                    (partySubmittedThisTurn && party.ChoosingRescuerIndex < 0);
+                // The absence of a chooser during a party handoff is not an
+                // enemy turn. Injecting an ORK action into that gap can strand
+                // the next rescuer after Gather. Leave the authored threat
+                // in the native AI queue until ORK exposes the enemy chooser.
+                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing;
                 if (threatWaitingForQueue == null &&
                     enemyNeedsQueuedAction && !IsPresenting &&
                     planned != null && !planned.Started &&
@@ -193,7 +188,6 @@ namespace Rpg.Soundwell
             else if (observedBattle && !ending)
             {
                 ending = true;
-                partySubmittedThisTurn = false;
                 submittedActions.Clear();
                 submittedEnemyThreat = null;
                 threatWaitingForQueue = null;
@@ -382,7 +376,6 @@ namespace Rpg.Soundwell
             // action before any PerformAction runs. Track per-actor submission
             // and same-frame debounce without blocking the next choosing ally.
             lastCommandFrame = Time.frameCount;
-            partySubmittedThisTurn = true;
             submittedActions.Add(actor);
             action.finishedCallback += _ => submittedActions.Remove(actor);
             actor.Actions.AddAccess(action, false);
@@ -401,7 +394,6 @@ namespace Rpg.Soundwell
                 Threat next = kind == Threat.Lunge ? Threat.Howl : Threat.Lunge;
                 int nextTarget = kind == Threat.Gather ? target : (target + 1) % party.Members.Count;
                 planned = CreateThreat(next, nextTarget);
-                partySubmittedThisTurn = false;
                 submittedEnemyThreat = null;
                 // ORK may still be completing this exact action; changing its
                 // queue synchronously can prevent the next player chooser.
