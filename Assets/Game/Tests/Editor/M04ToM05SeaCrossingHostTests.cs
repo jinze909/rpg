@@ -178,6 +178,84 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedFinalHarborNavigationKeepsLastBeatRetryableWithoutReplayingOrRewriting()
+        {
+            var root = new GameObject("M05 final scene handoff retry");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            int sailedWrites = 0, fogWrites = 0, landingWrites = 0, letterWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M04DepartureFacts.SailedKey && value == 1) sailedWrites++;
+                if (key == FogListeningFacts.CompletedKey && value == 1) fogWrites++;
+                if (key == M05LandingFacts.ConfirmedKey && value == 1) landingWrites++;
+                if (key == M05LettersFacts.DecisionKey) letterWrites++;
+                values[key] = value;
+            };
+            M04ToM05SeaCrossingHost host = null;
+            try
+            {
+                int attempts = 0;
+                M05OuterHarborOutcome accepted = default;
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, ClearFogLeg,
+                    new M05LandingReport(3, 8, true, true), read, write,
+                    outcome =>
+                    {
+                        attempts++;
+                        if (attempts == 1)
+                            throw new InvalidOperationException("Next scene temporarily unavailable");
+                        accepted = outcome;
+                    },
+                    _ => Assert.Fail("Successful fog passage must not fail"),
+                    out host), Is.True);
+
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                host.FogHost.View.HoldButton.onClick.Invoke();
+                host.FogHost.View.ContinueButton.onClick.Invoke();
+                host.OuterHarborHost.LandingCheckView.ConfirmButton.onClick.Invoke();
+                host.OuterHarborHost.ArrivalSession.SeranView.TakeButton.onClick.Invoke();
+                host.OuterHarborHost.ArrivalSession.SeranView.ContinueButton.onClick.Invoke();
+                var lastBeat = host.OuterHarborHost.ArrivalSession.HarborWalkView;
+                lastBeat.AdvanceButton.onClick.Invoke();
+                lastBeat.AdvanceButton.onClick.Invoke();
+                Assert.That(lastBeat.Beat, Is.EqualTo(M05HarborBeat.MarketAccusation));
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    lastBeat.AdvanceButton.onClick.Invoke());
+                Assert.That(attempts, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.OuterHarbor));
+                Assert.That(host.OuterHarborHost.Stage, Is.EqualTo(M05OuterHarborFlowStage.ArrivalSession));
+                Assert.That(lastBeat.AdvanceButton.interactable, Is.True);
+                Assert.That(lastBeat.Beat, Is.EqualTo(M05HarborBeat.MarketAccusation));
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+                Assert.That(sailedWrites, Is.EqualTo(1));
+                Assert.That(fogWrites, Is.EqualTo(1));
+                Assert.That(landingWrites, Is.EqualTo(1));
+                Assert.That(letterWrites, Is.EqualTo(1));
+
+                // Re-deliver the same saved arrival and letter choice; no
+                // duplicate voyage, landing, or packet decision is permitted.
+                lastBeat.AdvanceButton.onClick.Invoke();
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.Completed));
+                Assert.That(host.OuterHarborHost, Is.Null);
+                Assert.That(accepted.Landing.ReadyRescueBerths, Is.EqualTo(8));
+                Assert.That(accepted.LetterDecision, Is.EqualTo(M05LetterDecision.TakePacket));
+                Assert.That(sailedWrites, Is.EqualTo(1));
+                Assert.That(fogWrites, Is.EqualTo(1));
+                Assert.That(landingWrites, Is.EqualTo(1));
+                Assert.That(letterWrites, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FailedFogHandoffKeepsCastOffArmedForRetryWithoutDoubleSailing()
         {
             var root = new GameObject("M04 to M05 fog handoff retry");

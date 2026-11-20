@@ -36,6 +36,7 @@ namespace Rpg.Soundwell
         private M04ToM05SeaCrossingStage stage;
         private float? lastAspect;
         private bool finishedDelivered;
+        private bool deliveringCompletion;
         private bool disposed;
 
         public M04ToM05SeaCrossingStage Stage => stage;
@@ -277,18 +278,33 @@ namespace Rpg.Soundwell
 
         private void OnOuterHarborFlowCompleted(M05OuterHarborOutcome outcome)
         {
-            if (disposed || finishedDelivered ||
+            if (disposed || finishedDelivered || deliveringCompletion ||
                 stage != M04ToM05SeaCrossingStage.OuterHarbor)
                 return;
 
+            // The next scene must accept this verified M05 outcome before we
+            // retire the last harbor beat. Otherwise a transient navigation
+            // error strands the player after Seran's saved letter choice with
+            // no remaining Continue button to retry the same journey.
+            deliveringCompletion = true;
+            try
+            {
+                onOuterHarborCompleted?.Invoke(outcome);
+            }
+            finally
+            {
+                deliveringCompletion = false;
+            }
+
+            // The callback can legitimately dispose the host while replacing
+            // the scene. Never revive its UI or call it a second time.
+            if (disposed) return;
             finishedDelivered = true;
             stage = M04ToM05SeaCrossingStage.Completed;
             outerHarborHost?.Dispose();
             outerHarborHost = null;
-            Action<M05OuterHarborOutcome> callback = onOuterHarborCompleted;
             onOuterHarborCompleted = null;
             onFogFailed = null;
-            callback?.Invoke(outcome);
         }
 
         public void Dispose()
