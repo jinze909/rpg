@@ -165,6 +165,10 @@ namespace Rpg.Soundwell
                     {
                         night.Leave(onFinished);
                         onFinished = null;
+                        // The host may keep this view alive after the successful
+                        // handoff. Refresh the Finished presentation so the
+                        // previous chart icon cannot linger on the overlay.
+                        Refresh();
                     }
                     catch
                     {
