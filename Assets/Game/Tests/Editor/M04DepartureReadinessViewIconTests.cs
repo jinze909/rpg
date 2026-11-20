@@ -1,6 +1,8 @@
+using System.IO;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -96,6 +98,90 @@ namespace Rpg.Tests.Editor
             {
                 view?.Dispose();
                 UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void BlockedAndReadyReadinessScreensProduceActualGameViewEvidence()
+        {
+            var root = new GameObject("M04 readiness visual evidence");
+            M04DepartureReadinessView view = null;
+            try
+            {
+                view = new M04DepartureReadinessView(root.transform,
+                    Plan(false, stamped: false), _ => { }, () => { });
+                Canvas canvas = root.GetComponentInChildren<Canvas>(true);
+                Assert.That(canvas, Is.Not.Null);
+                CaptureUiFrame(canvas, "m04-readiness-blocked");
+
+                view.SetConfirmedManifest(Plan(true));
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+                CaptureUiFrame(canvas, "m04-readiness-ready");
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void CaptureUiFrame(Canvas canvas, string name)
+        {
+            // The repository's Unity P0 job archives these real UGUI camera
+            // captures for review; a blank frame fails, not a false green.
+            const int width = 960;
+            const int height = 540;
+            var cameraObject = new GameObject("M04 UI evidence camera", typeof(Camera));
+            Camera camera = cameraObject.GetComponent<Camera>();
+            RenderTexture target = RenderTexture.GetTemporary(width, height, 24);
+            RenderTexture previousActive = RenderTexture.active;
+            RenderMode previousMode = canvas.renderMode;
+            Camera previousCamera = canvas.worldCamera;
+            float previousPlane = canvas.planeDistance;
+            var frame = new Texture2D(width, height, TextureFormat.RGB24, false);
+            try
+            {
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = Color.black;
+                camera.cullingMask = 1 << 5;
+                camera.orthographic = true;
+                camera.orthographicSize = 5f;
+                camera.transform.position = new Vector3(0f, 0f, -10f);
+                camera.targetTexture = target;
+
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = camera;
+                canvas.planeDistance = 1f;
+                Canvas.ForceUpdateCanvases();
+                camera.Render();
+
+                RenderTexture.active = target;
+                frame.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+                frame.Apply();
+                int visiblePixels = 0;
+                foreach (Color32 pixel in frame.GetPixels32())
+                    if (pixel.r > 24 || pixel.g > 24 || pixel.b > 24)
+                        visiblePixels++;
+                Assert.That(visiblePixels, Is.GreaterThan(16000),
+                    "M04 screenshot cannot be an empty or black camera frame.");
+
+                const string folder = "artifacts/p0/story";
+                Directory.CreateDirectory(folder);
+                string file = Path.Combine(folder, name + ".png");
+                File.WriteAllBytes(file, frame.EncodeToPNG());
+                Assert.That(new FileInfo(file).Length, Is.GreaterThan(2000),
+                    "M04 state must produce a readable PNG screenshot.");
+            }
+            finally
+            {
+                canvas.renderMode = previousMode;
+                canvas.worldCamera = previousCamera;
+                canvas.planeDistance = previousPlane;
+                camera.targetTexture = null;
+                RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
+                UnityEngine.Object.DestroyImmediate(frame);
+                UnityEngine.Object.DestroyImmediate(cameraObject);
             }
         }
     }
