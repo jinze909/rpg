@@ -22,6 +22,11 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(host.MapRenderer.ChunkCount, Is.EqualTo(6));
                 Assert.That(host.MapRenderer.LightHaloCount, Is.EqualTo(4));
+                Assert.That(host.MapRenderer.UsedRealArtSlices, Is.True);
+                Assert.That(host.HeroSpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.ShenLiSpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.EnemySpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.EnemySpriteRenderer.flipX, Is.True);
                 Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(3));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
                 Assert.That(root.GetComponentInChildren<GraphicRaycaster>(), Is.Null,
@@ -65,10 +70,14 @@ namespace Rpg.Tests.Editor
                 host.BellAdvanced += b => bells.Add(b);
                 host.ThirdBellCollapseReady += () => collapseCount++;
 
-                // Bell 1: Shield Parry counters SpearThrustAtHero -> Bell 1/3, shake triggered.
+                // Bell 1: Shield Parry counters SpearThrustAtHero -> Bell 1/3, brace pose + shake.
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.True);
                 Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(1));
                 Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
+                Assert.That(host.HeroSpriteRenderer.sprite,
+                    Is.EqualTo(RpgPixelArtManifest.LoadDefault().FerryGuideBrace));
+                Assert.That(host.ShenLiSpriteRenderer.sprite,
+                    Is.EqualTo(RpgPixelArtManifest.LoadDefault().ShenLiBraceCable));
                 Assert.That(host.ShakeRemaining, Is.GreaterThan(0f));
                 host.ComputeFramedCameraPosition(new Vector3(24f, 22f, -10f), 0.3f);
                 Assert.That(host.ShakeRemaining, Is.Zero);
