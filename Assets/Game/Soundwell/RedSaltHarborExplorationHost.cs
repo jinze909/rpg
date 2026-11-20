@@ -233,8 +233,11 @@ namespace Rpg.Soundwell
                 districtLabel.text = zh ? "赤盐外港" : "Red Salt Harbor";
             }
 
+            // Initialize before the short-circuit so the trigger is definitely assigned
+            // even when a dialogue is already open.
+            RpgMapTriggerAnchor trigger = default(RpgMapTriggerAnchor);
             bool showPrompt = !IsDialogueOpen &&
-                explorer.TryFindNearestTrigger(out RpgMapTriggerAnchor trigger);
+                explorer.TryFindNearestTrigger(out trigger);
             promptBox.SetActive(showPrompt);
             if (showPrompt)
                 promptLabel.text = FormatTriggerPrompt(trigger.Id, zh);
