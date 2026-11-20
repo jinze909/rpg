@@ -459,7 +459,16 @@ namespace Rpg.Soundwell
             public override void Calculate(List<Combatant> targets, float damageFactor,
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
             {
-                if (enemy && Kind == Threat.Gather) return;
+                if (enemy && Kind == Threat.Gather)
+                {
+                    // The wind-up must still complete the real ORK action.
+                    // Returning without invoking its calculation completion
+                    // leaves the battle turn busy forever at the Gather cue.
+                    // Resolve the configured attack at zero damage instead
+                    // of applying HP ourselves or skipping ORK's callback.
+                    base.Calculate(targets, 0f, options, flyingTextTarget, notify);
+                    return;
+                }
                 if (!enemy && User == owner.party.Members[1])
                     owner.party.Beast.Variables.Set("rpg.role.exposed", 0);
                 base.Calculate(targets, damageFactor * strength * (Covered ? 0.25f : 1f),

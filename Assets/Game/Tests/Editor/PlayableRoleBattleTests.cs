@@ -48,12 +48,17 @@ namespace Rpg.Tests.Editor
             Assert.That(encounter.Party.Beast.Status[1].GetValue(), Is.EqualTo(36));
             Assert.That(encounter.Party.Members.All(member => member.Status[1].GetValue() == 16), Is.True);
             Capture(encounter, "role-01-queued-threat");
+            int[] hpBeforeGather = encounter.Party.Members
+                .Select(member => member.Status[1].GetValue()).ToArray();
 
             // ORK's first enemy action winds up. Player commands are sent
             // through the same buttons used by keyboard/gamepad Submit.
             yield return PlayUntil(encounter,
                 () => encounter.PendingThreat == OrkRoleEncounter.Threat.Lunge,
                 interrupt: true);
+            Assert.That(encounter.Party.Members.Select(member => member.Status[1].GetValue()),
+                Is.EqualTo(hpBeforeGather),
+                "The completed ORK gather action must not damage the party.");
             int[] beforeLunge = encounter.Party.Members.Select(member => member.Status[1].GetValue()).ToArray();
             yield return Wait(() => encounter.Party.ChoosingRescuerIndex >= 0 && !encounter.IsPresenting,
                 "player response window");
