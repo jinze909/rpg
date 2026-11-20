@@ -66,18 +66,22 @@ namespace Rpg.Tests.Editor
                 // Bell 1: Shield Parry counters SpearThrustAtHero -> Bell 1/3, shake triggered.
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.True);
                 Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(1));
-                Assert.That(host.ShakeRemaining, GreaterThanZero());
+                Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
+                Assert.That(host.ShakeRemaining, Is.GreaterThan(0f));
                 host.ComputeFramedCameraPosition(new Vector3(24f, 22f, -10f), 0.3f);
                 Assert.That(host.ShakeRemaining, Is.Zero);
 
-                // Wrong counter on SapperRushCable stalls cut (stays 1/3) and updates feedback.
+                // Wrong counter on SapperRushCable stalls cut (stays 1/3) and keeps SapperRushCable active.
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.False);
                 Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(1));
+                Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
                 Assert.That(host.StageStatusLabel.text, Does.Contain("受阻"));
 
-                // Bell 2 (Spear) + Bell 3 (Sapper repelled) -> ThirdBellCollapseReady fires once.
-                Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.True);
+                // Bell 2 (Repel the unresolved Sapper) + Bell 3 (Parry next Spear) -> ThirdBellCollapseReady fires once.
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.BladeRepel), Is.True);
+                Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(2));
+                Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SpearThrustAtHero));
+                Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.True);
                 Assert.That(host.CableTracker.ReadyForThirdBellCollapse, Is.True);
                 Assert.That(bells, Is.EqualTo(new[] { 1, 2, 3 }));
                 Assert.That(collapseCount, Is.EqualTo(1));
@@ -116,11 +120,6 @@ namespace Rpg.Tests.Editor
                 host?.Dispose();
                 UnityEngine.Object.DestroyImmediate(root);
             }
-        }
-
-        private static NUnit.Framework.Constraints.GreaterThanConstraint GreaterThanZero()
-        {
-            return Is.GreaterThan(0f);
         }
     }
 }
