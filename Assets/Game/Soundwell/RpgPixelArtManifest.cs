@@ -5,8 +5,9 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Runtime Resources-loaded manifest referencing the authored pixel-art
     /// sprite slices under Assets/Game/Art/ by direct GUID/fileID without
-    /// relocating source textures. Gives all three 4x RPG maps and character
-    /// hosts zero-setup access to real hand-drawn 16-PPU pixel sprites.
+    /// relocating source textures. Gives all three 4x RPG maps, character
+    /// hosts, and combat VFX directors zero-setup access to real hand-drawn
+    /// 16-PPU pixel sprites.
     /// </summary>
     [CreateAssetMenu(menuName = "Return/Pixel Art Manifest", fileName = "RpgPixelArtManifest")]
     public sealed class RpgPixelArtManifest : ScriptableObject
@@ -34,6 +35,26 @@ namespace Rpg.Soundwell
         [SerializeField] private Sprite outerHarborFisher;
         [SerializeField] private Sprite miningFamilySaltVendor;
 
+        [Header("S00 Whitewater Battle Actions (24x24)")]
+        [SerializeField] private Sprite s00PlayerReady;
+        [SerializeField] private Sprite s00PlayerDraw;
+        [SerializeField] private Sprite s00PlayerSlash;
+        [SerializeField] private Sprite s00PlayerRecover;
+        [SerializeField] private Sprite s00PlayerRaise;
+        [SerializeField] private Sprite s00PlayerHold;
+        [SerializeField] private Sprite s00PlayerParry;
+        [SerializeField] private Sprite s00PlayerHit;
+        [SerializeField] private Sprite s00SapperReady;
+        [SerializeField] private Sprite s00SapperRush;
+        [SerializeField] private Sprite s00SapperCut;
+        [SerializeField] private Sprite s00SapperRepelled;
+
+        [Header("Universal Combat Feedback VFX (24x24, 3 frames each)")]
+        [SerializeField] private Sprite[] parrySparkFrames;
+        [SerializeField] private Sprite[] bladeRepelTrailFrames;
+        [SerializeField] private Sprite[] threatLockBreakFrames;
+        [SerializeField] private Sprite[] acousticPulseFrames;
+
         private static RpgPixelArtManifest cachedDefault;
 
         public Sprite[] SoundwellTiles => soundwellTiles;
@@ -53,6 +74,24 @@ namespace Rpg.Soundwell
         public Sprite HarborRepairer => harborRepairer;
         public Sprite OuterHarborFisher => outerHarborFisher;
         public Sprite MiningFamilySaltVendor => miningFamilySaltVendor;
+
+        public Sprite S00PlayerReady => s00PlayerReady;
+        public Sprite S00PlayerDraw => s00PlayerDraw;
+        public Sprite S00PlayerSlash => s00PlayerSlash;
+        public Sprite S00PlayerRecover => s00PlayerRecover;
+        public Sprite S00PlayerRaise => s00PlayerRaise;
+        public Sprite S00PlayerHold => s00PlayerHold;
+        public Sprite S00PlayerParry => s00PlayerParry;
+        public Sprite S00PlayerHit => s00PlayerHit;
+        public Sprite S00SapperReady => s00SapperReady;
+        public Sprite S00SapperRush => s00SapperRush;
+        public Sprite S00SapperCut => s00SapperCut;
+        public Sprite S00SapperRepelled => s00SapperRepelled;
+
+        public Sprite[] ParrySparkFrames => parrySparkFrames;
+        public Sprite[] BladeRepelTrailFrames => bladeRepelTrailFrames;
+        public Sprite[] ThreatLockBreakFrames => threatLockBreakFrames;
+        public Sprite[] AcousticPulseFrames => acousticPulseFrames;
 
         public static RpgPixelArtManifest LoadDefault()
         {

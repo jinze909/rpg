@@ -61,3 +61,31 @@ MonoBehaviour:
   harborRepairer: {fileID: -5593145734732868953, guid: 0593dfaf4d044347b868b228ece41766, type: 3}
   outerHarborFisher: {fileID: 180794819925285916, guid: 0593dfaf4d044347b868b228ece41766, type: 3}
   miningFamilySaltVendor: {fileID: -1379897276236937679, guid: 0593dfaf4d044347b868b228ece41766, type: 3}
+  s00PlayerReady: {fileID: -5282955199768563493, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00PlayerDraw: {fileID: 3264183262655240663, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00PlayerSlash: {fileID: 2128059836725506759, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00PlayerRecover: {fileID: 4034047103174184616, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00PlayerRaise: {fileID: 4225937320298762116, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00PlayerHold: {fileID: 126882573115214303, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00PlayerParry: {fileID: 8468001006950040244, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00PlayerHit: {fileID: 1932763338343575456, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00SapperReady: {fileID: 7040702582651873343, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00SapperRush: {fileID: 8744236570175366181, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00SapperCut: {fileID: 4399324676267020661, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  s00SapperRepelled: {fileID: 6119458168326071565, guid: dae6c559d2e246e3b19c9e9a464021b0, type: 3}
+  parrySparkFrames:
+  - {fileID: -7508502037416198904, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: -2066146651123916629, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: -4835729581138992544, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  bladeRepelTrailFrames:
+  - {fileID: -4602556346817295907, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: -4399202475906007301, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: 155503559835634930, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  threatLockBreakFrames:
+  - {fileID: 6954993259250582423, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: 8617330578125121638, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: -5392118076121756566, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  acousticPulseFrames:
+  - {fileID: -7114379941051327520, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: 5570382511087641049, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
+  - {fileID: 1158816398848001384, guid: e484dfed6dd84caebd2c544357b36d98, type: 3}
