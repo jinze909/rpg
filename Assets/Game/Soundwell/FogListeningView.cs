@@ -24,6 +24,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authored;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image cueIcon;
         private readonly Text heading;
         private readonly Text statusText;
         private readonly Text cueText;
@@ -49,6 +51,7 @@ namespace Rpg.Soundwell
         public FogListeningSession Session => session;
         public Text StatusText => statusText;
         public Text CueText => cueText;
+        public Image CueIcon => cueIcon;
         public Button FocusButton => focusButton;
         public Button HoldButton => holdButton;
         public Button SlowButton => slowButton;
@@ -67,6 +70,7 @@ namespace Rpg.Soundwell
             this.onFinished = onFinished ?? throw new ArgumentNullException(nameof(onFinished));
 
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "Fog listening canvas", 131, out authored,
                 FogBackdropColor, FogPaperColor);
@@ -74,8 +78,11 @@ namespace Rpg.Soundwell
             heading = SoundwellUiTheme.CreateLabel(authored, 23, new Vector2(0f, 215f), new Vector2(840f, 42f), FogInkColor);
             statusText = SoundwellUiTheme.CreateLabel(authored, 17, new Vector2(0f, 155f), new Vector2(840f, 64f), FogInkColor);
             statusText.alignment = TextAnchor.UpperLeft;
-            cueText = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(0f, 54f), new Vector2(840f, 122f), FogInkColor);
+            cueText = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(46f, 54f), new Vector2(710f, 122f), FogInkColor);
             cueText.alignment = TextAnchor.UpperLeft;
+            cueIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authored,
+                "M04 identified fog clue", new Vector2(-350f, 60f),
+                new Vector2(92f, 92f), ResolveCueSprite());
 
             focusButton = SoundwellUiTheme.CreateButton(authored, "Fog focus listen",
                 new Vector2(0f, -44f), new Vector2(400f, 40f), 16, out focusLabel, FogButtonColor, FogInkColor);
@@ -137,6 +144,7 @@ namespace Rpg.Soundwell
             heading.text = zh ? "航行听雾 · 辨声掌舵" : "FOG LISTENING · LISTEN AND STEER";
             statusText.text = FogListeningCopy.DescribeStatus(session, zh);
             cueText.text = FogListeningCopy.DescribeCurrentCue(session, lastResolution, zh);
+            RpgStoryArtResolver.ApplyPixelSprite(cueIcon, ResolveCueSprite());
 
             focusLabel.text = zh ? "凝神听雾" : "Focus listen";
             portLabel.text = zh ? "向左舷避让" : "Turn port";
@@ -167,6 +175,31 @@ namespace Rpg.Soundwell
                     : focusButton.interactable ? focusButton
                     : slowButton;
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, preferred);
+            }
+        }
+
+        // Visual clues are gated by the same effective clarity as the
+        // written bearing. An unidentified sound, a false echo, or a
+        // completed leg must never expose a reef/signal identity early.
+        // This icon is display-only and has no ORK/Makinom authority.
+        private Sprite ResolveCueSprite()
+        {
+            if (session.IsComplete ||
+                session.EffectiveClarity() < ClearCueThreshold)
+                return null;
+
+            switch (session.CurrentCue.Kind)
+            {
+                case FogCueKind.ReefSurf:
+                    return RpgStoryArtResolver.ResolveM04ReefSprite(
+                        exposed: false, withWash: false, manifest: artManifest);
+                case FogCueKind.FogBell:
+                case FogCueKind.SignalResponse:
+                    return RpgStoryArtResolver.ResolveM04LanternSprite(
+                        lit: true, manifest: artManifest);
+                default:
+                    // A real signal lantern must not appear for a false echo.
+                    return null;
             }
         }
 
