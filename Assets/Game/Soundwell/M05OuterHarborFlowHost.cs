@@ -92,8 +92,12 @@ namespace Rpg.Soundwell
                 return true;
             }
 
+            // The save authority also checks the current M03 route against
+            // the vessel that actually sailed. Never show a landing confirmation
+            // that M05LandingFacts.TryRecord would reject on this visit.
             if (!observedLanding.HasValue ||
-                !IsValidObservedLanding(observedLanding.Value, departure))
+                !IsValidObservedLanding(observedLanding.Value, departure) ||
+                !M05LandingFacts.CanRecord(observedLanding.Value, getInt))
                 return false;
 
             host = new M05OuterHarborFlowHost(parent, getInt, setInt,

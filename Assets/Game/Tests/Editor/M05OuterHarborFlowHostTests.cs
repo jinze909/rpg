@@ -162,6 +162,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ChangedCurrentRouteCannotOfferAnUnsaveableLandingConfirmation()
+        {
+            var root = new GameObject("M05 changed route landing gate");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                writes++;
+                values[key] = value;
+            };
+            var observed = new M05LandingReport(3, 8, true, true);
+            try
+            {
+                // The actual M04 hull sailed the merchant route; a later M03
+                // choice from another visit cannot confirm its M05 arrival.
+                var newVisit = new M03LuJunEncounter(M02BridgeEvidence.None, true);
+                newVisit.Begin();
+                newVisit.ObserveRollCall();
+                newVisit.Ask(M03LuJunOpening.NeedAShip);
+                newVisit.ChooseVoyage(M03VoyageChoice.HanQiaoOfficial);
+                Assert.That(M03LuJunFacts.TryRecord(newVisit, write), Is.True);
+                writes = 0;
+
+                Assert.That(M05LandingFacts.CanRecord(observed, read), Is.False);
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    observed, read, write, _ => Assert.Fail("Wrong ship arrived"),
+                    out M05OuterHarborFlowHost rejected), Is.False);
+                Assert.That(rejected, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(writes, Is.Zero);
+                Assert.That(values.ContainsKey(M05LandingFacts.ConfirmedKey), Is.False);
+
+                // A valid current route matching the actually sailed ship is
+                // still allowed; only the contradictory journey is blocked.
+                values[M03LuJunFacts.VoyageKey] =
+                    (int)M03VoyageChoice.QiQueMerchant + 1;
+                Assert.That(M05LandingFacts.CanRecord(observed, read), Is.True);
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    observed, read, write, _ => { },
+                    out M05OuterHarborFlowHost valid), Is.True);
+                valid.Dispose();
+                Assert.That(values.ContainsKey(M05LandingFacts.ConfirmedKey), Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FullOuterHarborFlowSequencesLandingCheckSeranAndHarborWalkWithSingleCanvas()
         {
             var root = new GameObject("M05 full flow test");
