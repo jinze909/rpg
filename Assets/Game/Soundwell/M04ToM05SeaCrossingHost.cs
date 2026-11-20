@@ -191,13 +191,15 @@ namespace Rpg.Soundwell
             if (disposed || parent == null || stage != M04ToM05SeaCrossingStage.CastOff)
                 return;
 
-            // Open the sailed fog leg before releasing castOffView only if valid;
-            // dispose castOffView first so only one canvas is ever mounted.
-            castOffView?.Dispose();
-            castOffView = null;
+            // Open the fog host before releasing castOffView so a failed
+            // handoff keeps M04CastOffView armed for a clean retry without
+            // double-sailing or stranding the player with zero canvases.
             if (!TryOpenFogPassage())
                 throw new InvalidOperationException(
                     "Unable to open sailed M04 fog passage after cast-off.");
+
+            castOffView?.Dispose();
+            castOffView = null;
         }
 
         private bool TryOpenFogPassage()
@@ -205,9 +207,10 @@ namespace Rpg.Soundwell
             FogListeningSession leg = createFogLeg();
             if (leg == null ||
                 !M04SailedFogLegHost.TryOpen(
-                    parent, leg, getInt, setInt, OnFogCompleted, out fogHost))
+                    parent, leg, getInt, setInt, OnFogCompleted, out M04SailedFogLegHost nextFog))
                 return false;
 
+            fogHost = nextFog;
             stage = M04ToM05SeaCrossingStage.FogPassage;
             if (lastAspect.HasValue)
                 fogHost.LayoutForViewportAspect(lastAspect.Value);
@@ -233,21 +236,25 @@ namespace Rpg.Soundwell
                 return;
             }
 
-            // Dispose the fog host before opening M05 so only one canvas is active.
-            fogHost?.Dispose();
-            fogHost = null;
+            // Open M05 before disposing fogHost so a failed outer-harbor
+            // handoff leaves FogListeningView's Continue button armed for
+            // retry without double-writing FogListeningFacts.
             if (!TryOpenOuterHarbor())
                 throw new InvalidOperationException(
                     "Unable to open M05 outer-harbor flow after succeeded fog crossing.");
+
+            fogHost?.Dispose();
+            fogHost = null;
         }
 
         private bool TryOpenOuterHarbor()
         {
             if (!M05OuterHarborFlowHost.TryOpen(
                 parent, observedLanding, getInt, setInt,
-                OnOuterHarborFlowCompleted, out outerHarborHost))
+                OnOuterHarborFlowCompleted, out M05OuterHarborFlowHost nextHarbor))
                 return false;
 
+            outerHarborHost = nextHarbor;
             stage = M04ToM05SeaCrossingStage.OuterHarbor;
             if (lastAspect.HasValue)
                 outerHarborHost.LayoutForViewportAspect(lastAspect.Value);

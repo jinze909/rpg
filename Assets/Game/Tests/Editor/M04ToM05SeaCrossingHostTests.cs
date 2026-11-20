@@ -178,6 +178,103 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedFogHandoffKeepsCastOffArmedForRetryWithoutDoubleSailing()
+        {
+            var root = new GameObject("M04 to M05 fog handoff retry");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            int sailedWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M04DepartureFacts.SailedKey && value == 1)
+                    sailedWrites++;
+                values[key] = value;
+            };
+            int fogFactoryCalls = 0;
+            M04ToM05SeaCrossingHost host = null;
+            try
+            {
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform,
+                    () => ++fogFactoryCalls == 1 ? null : ClearFogLeg(),
+                    new M05LandingReport(3, 8, true, true),
+                    read, write, _ => { }, _ => { }, out host), Is.True);
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.CastOffView.CastOffButton.onClick.Invoke());
+                Assert.That(sailedWrites, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.CastOff));
+                Assert.That(host.CastOffView, Is.Not.Null);
+                Assert.That(host.CastOffView.CastOffButton.interactable, Is.True);
+                Assert.That(host.FogHost, Is.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                Assert.That(sailedWrites, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+                Assert.That(host.CastOffView, Is.Null);
+                Assert.That(host.FogHost, Is.Not.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void FailedOuterHarborHandoffKeepsFogContinueArmedForRetryWithoutDoubleWrite()
+        {
+            var root = new GameObject("M04 to M05 harbor handoff retry");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            int fogWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == FogListeningFacts.CompletedKey && value == 1)
+                    fogWrites++;
+                values[key] = value;
+            };
+            M04ToM05SeaCrossingHost host = null;
+            try
+            {
+                // Null observed landing forces M05OuterHarborFlowHost.TryOpen to return false
+                // until a verified landing report exists in the save store.
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, ClearFogLeg, observedLanding: null,
+                    read, write, _ => { }, _ => { }, out host), Is.True);
+
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                host.FogHost.View.HoldButton.onClick.Invoke();
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.FogHost.View.ContinueButton.onClick.Invoke());
+                Assert.That(fogWrites, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+                Assert.That(host.FogHost, Is.Not.Null);
+                Assert.That(host.FogHost.View.ContinueButton.interactable, Is.True);
+                Assert.That(host.OuterHarborHost, Is.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                Assert.That(M05LandingFacts.TryRecord(
+                    new M05LandingReport(3, 8, true, true), read, write), Is.True);
+                host.FogHost.View.ContinueButton.onClick.Invoke();
+                Assert.That(fogWrites, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.OuterHarbor));
+                Assert.That(host.FogHost, Is.Null);
+                Assert.That(host.OuterHarborHost, Is.Not.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FailedFogPassageStopsBeforeM05AndNeverRecordsArrival()
         {
             var root = new GameObject("M04 to M05 fog failure");
