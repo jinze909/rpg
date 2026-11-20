@@ -188,18 +188,17 @@ namespace Rpg.Soundwell
                     }
                     threatWaitingForQueue = null;
                 }
-                // Never inject the enemy threat during a mid-party chooser
-                // handoff (after only 1 or 2 rescuers). Only submit once ORK
-                // exposes the enemy chooser, or after every living rescuer has
-                // submitted its action for this turn and no player chooser
-                // remains.
-                int livingParty = LivingPartyCount();
-                bool allPartySubmitted = livingParty > 0 && turnSubmittedParty.Count >= livingParty;
-                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing ||
-                    (allPartySubmitted && party.ChoosingRescuerIndex < 0);
+                // AddAccess can only submit an enemy action while ORK itself
+                // is choosing for that combatant. The previous shortcut
+                // treated "all rescuers submitted" as an enemy chooser and
+                // injected an AI action in the native turn-handoff gap.
+                // That left ORK with all ActionStates Available and a phantom
+                // submitted enemy threat that never reached PerformAction.
+                // Keep the authored action in ORK's AI queue until its actual
+                // chooser opens; never advance native turns from the scene.
                 if (threatWaitingForQueue == null &&
                     plannedQueuedIntoAi &&
-                    enemyNeedsQueuedAction && !IsPresenting &&
+                    party.Beast.Actions.IsChoosing && !IsPresenting &&
                     planned != null && !planned.HasPerformed &&
                     submittedEnemyThreat != planned &&
                     planned.CanUse())
