@@ -94,8 +94,9 @@ namespace Rpg.Soundwell
                 !verifiedLanding.HasValue)
                 return false;
 
-            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? savedDecision))
-                return false;
+            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? savedDecision) ||
+                (!savedDecision.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
+                return false; // Invalid nonzero code is not a missing answer.
 
             session = new M05OuterHarborArrivalSession(parent, getInt, setInt,
                 verifiedLanding.Value, savedDecision, onCompleted);

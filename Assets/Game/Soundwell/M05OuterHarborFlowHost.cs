@@ -73,11 +73,14 @@ namespace Rpg.Soundwell
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding))
                 return false;
 
+            // Reject a corrupted nonzero letter choice *before* creating the
+            // landing or Seran UI, where the choice cannot be saved again.
+            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? savedLetters) ||
+                (!savedLetters.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
+                return false;
+
             if (savedLanding.HasValue)
             {
-                if (!M05LettersFacts.TryRead(getInt, out _))
-                    return false;
-
                 host = new M05OuterHarborFlowHost(parent, getInt, setInt,
                     observedLanding: null, resumeFromSavedLanding: true, onCompleted);
                 return true;
