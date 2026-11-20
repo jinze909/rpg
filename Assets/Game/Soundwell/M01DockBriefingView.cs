@@ -16,6 +16,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button[] choices = new Button[3];
@@ -29,6 +31,7 @@ namespace Rpg.Soundwell
         public M01DockStage Stage => briefing.Stage;
         public M01VoyageLead? InspectedLead => briefing.InspectedLead;
         public Text Dialogue => dialogue;
+        public Image StageIcon => stageIcon;
         public Button AdvanceButton => advanceButton;
 
         // When opening the route chart, prefer the first explorable lead.
@@ -58,15 +61,20 @@ namespace Rpg.Soundwell
             briefing = new M01DockBriefing();
             briefing.Begin();
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
 
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M01 dock briefing canvas", 122, out authoredView,
                 new Color(0.05f, 0.07f, 0.08f, 0.98f));
 
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M01 dock briefing stage icon",
+                new Vector2(-346f, 76f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 25,
                 new Vector2(0f, 216f), new Vector2(830f, 50f));
             dialogue = SoundwellUiTheme.CreateLabel(authoredView, 20,
-                new Vector2(0f, 76f), new Vector2(830f, 235f));
+                new Vector2(72f, 76f), new Vector2(686f, 235f));
             dialogue.alignment = TextAnchor.MiddleLeft;
             Color buttonColor = new Color(0.81f, 0.82f, 0.76f);
             for (int i = 0; i < choices.Length; i++)
@@ -117,6 +125,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             M01DockBeat beat = M01DockBriefingDialogue.Describe(briefing, chinese);
@@ -138,6 +148,35 @@ namespace Rpg.Soundwell
             {
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     PreferredFocusTarget);
+            }
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            if (delivered || briefing.Stage == M01DockStage.Complete)
+                return null;
+            switch (briefing.Stage)
+            {
+                case M01DockStage.AwaitingOpeningReply:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(false, artManifest);
+                case M01DockStage.OfferingCake:
+                    return RpgStoryArtResolver.ResolveM03TidalChartSprite(false, artManifest);
+                case M01DockStage.ReviewingRoutes:
+                    if (!briefing.InspectedLead.HasValue)
+                        return RpgStoryArtResolver.ResolveM03TidalChartSprite(true, artManifest);
+                    switch (briefing.InspectedLead.Value)
+                    {
+                        case M01VoyageLead.HanQiaoOfficialDock:
+                            return RpgStoryArtResolver.ResolveM02OfficialSeal(artManifest);
+                        case M01VoyageLead.LuJunOldGuard:
+                            return RpgStoryArtResolver.ResolveM03StandardSprite(false, 0, artManifest);
+                        case M01VoyageLead.QiQueMerchantRoute:
+                            return RpgStoryArtResolver.ResolveM04LanternSprite(true, artManifest);
+                        default:
+                            return RpgStoryArtResolver.ResolveM03TidalChartSprite(true, artManifest);
+                    }
+                default:
+                    return null;
             }
         }
 
