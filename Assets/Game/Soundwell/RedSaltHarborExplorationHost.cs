@@ -274,8 +274,20 @@ namespace Rpg.Soundwell
             if (getInt(M05LettersFacts.DecisionKey) != 0)
                 return false;
 
+            // Capture the verified physical arrival at the time the player
+            // meets Seran. The dialogue can remain open while a new voyage
+            // resets these Makinom facts, so recheck before writing a choice.
+            M05LandingReport openedLanding = savedLanding.Value;
             activeSeranView = new M05SeranLettersView(parent, decision =>
             {
+                if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? current) ||
+                    !current.HasValue ||
+                    current.Value.CrewArrived != openedLanding.CrewArrived ||
+                    current.Value.ReadyRescueBerths != openedLanding.ReadyRescueBerths ||
+                    current.Value.TenderArrived != openedLanding.TenderArrived ||
+                    current.Value.ReceiverMet != openedLanding.ReceiverMet)
+                    throw new InvalidOperationException(
+                        "Seran's open dialogue no longer matches the verified M05 landing.");
                 if (!M05LettersFacts.TryRecord(decision, getInt, setInt))
                     throw new InvalidOperationException("Unable to persist M05 Seran letter choice.");
                 activeSeranView?.Dispose();

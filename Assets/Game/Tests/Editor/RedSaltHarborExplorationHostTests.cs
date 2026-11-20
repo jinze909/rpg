@@ -292,6 +292,62 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void StaleSeranMapDialogueCannotWriteLettersAfterVoyageResetOrChangedLanding()
+        {
+            var root = new GameObject("M05 stale Seran map dialogue");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            int letterWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M05LettersFacts.DecisionKey && value != 0)
+                    letterWrites++;
+                values[key] = value;
+            };
+            var firstLanding = new M05LandingReport(3, 10, true, true);
+            Assert.That(M05LandingFacts.TryRecord(firstLanding, read, write), Is.True);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                WalkTo(host, 50.5f, 26.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveSeranView, Is.Not.Null);
+                host.ActiveSeranView.TakeButton.onClick.Invoke();
+                Assert.That(host.ActiveSeranView.SelectedDecision,
+                    Is.EqualTo(M05LetterDecision.TakePacket));
+
+                // A new visit invalidates the previously open UGUI action.
+                // It must not silently assign old letters to a new voyage.
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.ActiveSeranView.ContinueButton.onClick.Invoke());
+                Assert.That(read(M05LettersFacts.DecisionKey), Is.Zero);
+                Assert.That(letterWrites, Is.Zero);
+                Assert.That(host.IsDialogueOpen, Is.True,
+                    "The refused callback leaves the choice visible without changing facts.");
+
+                // Even if a different ship visit subsequently verifies a
+                // different actual landing, this older choice stays stale.
+                SeedCompletedCrossing(values);
+                var secondLanding = new M05LandingReport(2, 0, false, false);
+                Assert.That(M05LandingFacts.TryRecord(secondLanding, read, write), Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.ActiveSeranView.ContinueButton.onClick.Invoke());
+                Assert.That(read(M05LettersFacts.DecisionKey), Is.Zero);
+                Assert.That(letterWrites, Is.Zero);
+                Assert.That(host.IsDialogueOpen, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         private static void WalkTo(RedSaltHarborExplorationHost host, float x, float y,
             bool yFirst = false)
         {
