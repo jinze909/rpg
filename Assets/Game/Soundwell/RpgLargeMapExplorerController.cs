@@ -242,6 +242,11 @@ namespace Rpg.Soundwell
                     return;
                 }
             }
+
+            // Walkable connector corridors sit between named zones. Leaving a
+            // room must clear its label; otherwise the HUD falsely shows the
+            // previous room until another named zone is reached.
+            CurrentZone = null;
         }
     }
 }

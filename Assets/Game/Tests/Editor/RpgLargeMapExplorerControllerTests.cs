@@ -57,6 +57,35 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SoundwellConnectorClearsPreviousZoneAndRestoresNextRoomOnEntry()
+        {
+            SoundwellLargeMapLayout map = SoundwellLargeMapLayout.Build();
+            var explorer = RpgLargeMapExplorerController.ForSoundwell(map, () => false);
+            var entered = new List<string>();
+            explorer.ZoneEntered += zone => entered.Add(zone.Id);
+
+            Assert.That(explorer.CurrentZone.HasValue, Is.True);
+            Assert.That(explorer.CurrentZone.Value.Id, Is.EqualTo("soundwell.entry"));
+
+            // The carved link at (22,29) is walkable but belongs to no room.
+            // It should show the Soundwell fallback, not the previous room.
+            Assert.That(explorer.TryPlaceAtWalkableTile(new Vector2Int(22, 29)), Is.True);
+            Assert.That(explorer.CurrentZone.HasValue, Is.False);
+            Assert.That(entered, Is.Empty, "Restoring a position is not a live zone-entry event.");
+
+            // Walking into the central chamber must now emit exactly one
+            // real entry, rather than preserving the old room through the link.
+            Assert.That(explorer.StepMovement(Vector2.right, 1f), Is.True);
+            Assert.That(explorer.CurrentZone.HasValue, Is.True);
+            Assert.That(explorer.CurrentZone.Value.Id, Is.EqualTo("soundwell.central-hall"));
+            Assert.That(entered, Is.EqualTo(new[] { "soundwell.central-hall" }));
+
+            // Returning to the connector also clears the chamber label.
+            Assert.That(explorer.TryPlaceAtWalkableTile(new Vector2Int(22, 29)), Is.True);
+            Assert.That(explorer.CurrentZone.HasValue, Is.False);
+        }
+
+        [Test]
         public void HitstopPausesMovementAndScreenShakeDecaysCleanly()
         {
             RedSaltHarborMapLayout map = RedSaltHarborMapLayout.Build();
