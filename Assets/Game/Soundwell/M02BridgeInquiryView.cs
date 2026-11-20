@@ -23,6 +23,8 @@ namespace Rpg.Soundwell
         private readonly M02BridgeInquiry inquiry;
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text narrative;
         private readonly Text[] clueLabels = new Text[3];
@@ -37,6 +39,7 @@ namespace Rpg.Soundwell
 
         public Button ContinueButton => continueButton;
         public Text Narrative => narrative;
+        public Image StageIcon => stageIcon;
         public M02BridgeInquiry Inquiry => inquiry;
 
         // Prefer undiscovered evidence, not an already-read clue or a hidden
@@ -81,14 +84,19 @@ namespace Rpg.Soundwell
             this.onCompleted = onCompleted;
             this.onObserved = onObserved;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M02 bridge evidence canvas", 122, out authoredView,
                 new Color(0.05f, 0.08f, 0.09f, 0.98f));
 
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M02 bridge inquiry stage icon",
+                new Vector2(-346f, 58f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 24,
                 new Vector2(0f, 215f), new Vector2(840f, 50f), Ink);
             narrative = SoundwellUiTheme.CreateLabel(authoredView, 19,
-                new Vector2(0f, 58f), new Vector2(835f, 205f), Ink);
+                new Vector2(72f, 58f), new Vector2(692f, 205f), Ink);
             narrative.alignment = TextAnchor.MiddleLeft;
 
             for (int i = 0; i < clueButtons.Length; i++)
@@ -140,6 +148,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
 
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -174,6 +184,39 @@ namespace Rpg.Soundwell
             continueButton.gameObject.SetActive(!completed && location != M02EvidenceLocation.Finished);
             if (!completed)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            if (completed || inquiry.Location == M02EvidenceLocation.Finished)
+                return null;
+            if (inquiry.LastExamined.HasValue)
+            {
+                switch (inquiry.LastExamined.Value)
+                {
+                    case M02BridgeEvidence.CleanCableCut:
+                        return RpgStoryArtResolver.ResolveM02EvidenceSprite(
+                            M02BridgeEvidence.CleanCableCut, artManifest);
+                    case M02BridgeEvidence.FerrymanLog:
+                        return RpgStoryArtResolver.ResolveM02LedgerSprite(artManifest);
+                    case M02BridgeEvidence.ThirdBellSignal:
+                        return RpgStoryArtResolver.ResolveM04LanternSprite(true, artManifest);
+                    case M02BridgeEvidence.WarReportDraft:
+                        return RpgStoryArtResolver.ResolveM02EvidenceSprite(
+                            M02BridgeEvidence.WarReportDraft, artManifest);
+                    default:
+                        return null;
+                }
+            }
+            switch (inquiry.Location)
+            {
+                case M02EvidenceLocation.FerryWarehouse:
+                    return RpgStoryArtResolver.ResolveM07CargoCrateSprite(false, artManifest);
+                case M02EvidenceLocation.HarborArchive:
+                    return RpgStoryArtResolver.ResolveM02OfficialSeal(artManifest);
+                default:
+                    return null;
+            }
         }
 
         private void Examine(int index)
