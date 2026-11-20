@@ -86,6 +86,33 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BlockedWallInputIsIdleButDiagonalInputStillSlidesAlongTheWall()
+        {
+            SoundwellLargeMapLayout map = SoundwellLargeMapLayout.Build();
+            var explorer = RpgLargeMapExplorerController.ForSoundwell(map, () => false);
+
+            // The entry-shaft floor begins at x=4. The actor's 0.28-tile
+            // footprint cannot cross the wall to the west from this tile.
+            Assert.That(explorer.TryPlaceAtWalkableTile(new Vector2Int(4, 26)), Is.True);
+            Vector2 atWall = explorer.Position;
+            int zoneEvents = 0;
+            explorer.ZoneEntered += _ => zoneEvents++;
+
+            Assert.That(explorer.StepMovement(Vector2.left, 0.15f), Is.False,
+                "Blocked horizontal input must not be marked as movement by the unchanged Y axis.");
+            Assert.That(explorer.Position, Is.EqualTo(atWall));
+            Assert.That(zoneEvents, Is.Zero);
+            Assert.That(explorer.Facing, Is.EqualTo(Vector2Int.left),
+                "A blocked turn still faces the requested direction.");
+
+            Assert.That(explorer.StepMovement(new Vector2(-1f, 1f), 0.15f), Is.True,
+                "Diagonal input against a wall should still slide along its free axis.");
+            Assert.That(explorer.Position.x, Is.EqualTo(atWall.x).Within(0.001f));
+            Assert.That(explorer.Position.y, Is.GreaterThan(atWall.y));
+            Assert.That(zoneEvents, Is.Zero);
+        }
+
+        [Test]
         public void HitstopPausesMovementAndScreenShakeDecaysCleanly()
         {
             RedSaltHarborMapLayout map = RedSaltHarborMapLayout.Build();
