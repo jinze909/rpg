@@ -54,11 +54,12 @@ namespace Rpg.Soundwell
         private RoleCombatView view;
         private StrikeAction planned;
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
+        private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
         private float previousDecisionTime;
         private bool configured;
         private bool observedBattle;
         private int presentationCount;
-        private BaseAction pendingPlayerAction;
+        private int lastCommandFrame = -1;
         private bool ending;
         private string lastExchange = string.Empty;
         private RpgLargeMapChunkRenderer mapRenderer;
@@ -83,20 +84,7 @@ namespace Rpg.Soundwell
 
         public OrkPartyBridge Party => party;
         public bool IsConfigured => configured;
-        public bool IsPresenting => pendingPlayerAction != null || presentationCount > 0;
-        // Diagnostic-only: the ORK actor owning the queued player command.
-        // -1 means no command, -2 means its actor has left the current party.
-        public int PendingPlayerActorIndex
-        {
-            get
-            {
-                if (pendingPlayerAction == null || party == null) return -1;
-                for (int i = 0; i < party.Members.Count; i++)
-                    if (party.Members[i] == pendingPlayerAction.User) return i;
-                return -2;
-            }
-        }
-        public int ActivePresentationCount => presentationCount;
+        public bool IsPresenting => presentationCount > 0;
         public bool IsActive => configured && party != null && party.BattleInProgress;
         public bool IsInterrupted => planned != null && planned.Interrupted;
         public bool IsExposed => party != null && party.Beast != null &&
@@ -146,16 +134,6 @@ namespace Rpg.Soundwell
             if (party.BattleInProgress)
             {
                 observedBattle = true;
-                // The ORK chooser is authoritative. If the battle has moved
-                // to a different rescuer, a stale finishedCallback from the
-                // previous command must not permanently lock the new turn.
-                // A still-running presentation keeps its separate animation
-                // lock, and a command for the current actor stays protected.
-                int choosingIndex = party.ChoosingRescuerIndex;
-                if (pendingPlayerAction != null &&
-                    choosingIndex >= 0 && choosingIndex < party.Members.Count &&
-                    party.Members[choosingIndex] != pendingPlayerAction.User)
-                    pendingPlayerAction = null;
                 // Submit only when ORK grants the enemy its actual turn.
                 if (party.Beast.Actions.IsChoosing && !IsPresenting)
                 {
@@ -166,7 +144,7 @@ namespace Rpg.Soundwell
             else if (observedBattle && !ending)
             {
                 ending = true;
-                pendingPlayerAction = null;
+                submittedActions.Clear();
                 SetExchange(party.Beast.Status.IsDead
                     ? "借声兽退倒了，通道已经安全。" : "小队没能守住，重新整队再来。",
                     party.Beast.Status.IsDead
@@ -276,8 +254,12 @@ namespace Rpg.Soundwell
         public bool CanChoose(int option)
         {
             if (!IsActive || IsPresenting || option < 0 || option > 1) return false;
+            if (lastCommandFrame == Time.frameCount) return false;
             int index = party.ChoosingRescuerIndex;
             if (index < 0 || index >= party.Members.Count) return false;
+            Combatant actor = party.Members[index];
+            if (actor == null || !actor.Actions.IsChoosing || submittedActions.Contains(actor))
+                return false;
             if (index == 1 && option == 1)
                 return planned != null && !planned.Interrupted && planned.Kind == Threat.Lunge;
             if (index == 2 && option == 0)
@@ -290,7 +272,6 @@ namespace Rpg.Soundwell
             if (!CanChoose(option)) return false;
             int index = party.ChoosingRescuerIndex;
             Combatant actor = party.Members[index];
-            if (actor == null || !actor.Actions.IsChoosing) return false;
             BaseAction action;
             if (index == 0 && option == 1)
             {
@@ -345,12 +326,12 @@ namespace Rpg.Soundwell
                     Threat.Gather, 0);
             }
             if (!action.CanUse()) return false;
-            pendingPlayerAction = action;
-            action.finishedCallback += _ =>
-            {
-                if (pendingPlayerAction == action)
-                    pendingPlayerAction = null;
-            };
+            // In ORK Classic turn-based mode, each party member submits its
+            // action before any PerformAction runs. Track per-actor submission
+            // and same-frame debounce without blocking the next choosing ally.
+            lastCommandFrame = Time.frameCount;
+            submittedActions.Add(actor);
+            action.finishedCallback += _ => submittedActions.Remove(actor);
             actor.Actions.AddAccess(action, false);
             return true;
         }
@@ -387,8 +368,6 @@ namespace Rpg.Soundwell
         private IEnumerator Present(Combatant actor, Combatant target, bool enemy, bool utility,
             bool interrupted, Action resolve)
         {
-            if (!enemy && pendingPlayerAction != null && pendingPlayerAction.User == actor)
-                pendingPlayerAction = null;
             presentationCount++;
             try
             {
@@ -424,6 +403,8 @@ namespace Rpg.Soundwell
             }
             finally
             {
+                if (!enemy && actor != null)
+                    submittedActions.Remove(actor);
                 presentationCount = Mathf.Max(0, presentationCount - 1);
             }
         }
