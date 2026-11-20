@@ -15,6 +15,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform panel;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image statusIcon;
         private readonly Text heading;
         private readonly Text summary;
         private readonly Text confirmLabel;
@@ -28,6 +30,7 @@ namespace Rpg.Soundwell
         public Text Summary => summary;
         public Button ConfirmButton => confirmButton;
         public RectTransform Panel => panel;
+        public Image StatusIcon => statusIcon;
 
         public M05LandingCheckView(Transform parent, M05LandingReport report,
             Action<M05LandingReport> onConfirmed)
@@ -41,6 +44,7 @@ namespace Rpg.Soundwell
 
             this.report = report;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = new GameObject("M05 landing check canvas",
                 typeof(RectTransform), typeof(Canvas));
             canvasObject.transform.SetParent(parent, false);
@@ -66,12 +70,16 @@ namespace Rpg.Soundwell
                 new Vector2(904f, 206f), new Color(0.64f, 0.56f, 0.42f, 1f));
             SoundwellUiTheme.CreatePanel(panel, "M05 landing backing",
                 new Vector2(900f, 202f), new Color(0.06f, 0.09f, 0.11f, 0.97f));
+            statusIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                panel, "M05 landing status icon",
+                new Vector2(-372f, 20f), new Vector2(96f, 96f),
+                ResolveStatusSprite());
             Color ink = new Color(0.93f, 0.89f, 0.81f, 1f);
             heading = SoundwellUiTheme.CreateLabel(panel, 19,
-                new Vector2(0f, 78f), new Vector2(842f, 30f), ink);
+                new Vector2(64f, 78f), new Vector2(714f, 30f), ink);
             heading.alignment = TextAnchor.MiddleLeft;
             summary = SoundwellUiTheme.CreateLabel(panel, 16,
-                new Vector2(0f, 8f), new Vector2(842f, 112f), ink);
+                new Vector2(64f, 8f), new Vector2(714f, 112f), ink);
             summary.alignment = TextAnchor.MiddleLeft;
             summary.horizontalOverflow = HorizontalWrapMode.Wrap;
             confirmButton = SoundwellUiTheme.CreateButton(panel, "M05 landing confirm",
@@ -105,6 +113,9 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            if (statusIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(statusIcon, ResolveStatusSprite());
+
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = summary.font = confirmLabel.font = font;
@@ -116,6 +127,12 @@ namespace Rpg.Soundwell
             confirmButton.interactable = !delivered;
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, confirmButton);
+        }
+
+        private Sprite ResolveStatusSprite()
+        {
+            return RpgStoryArtResolver.ResolveM07PassSprite(
+                report.HasUsableLandingCapacity, artManifest);
         }
 
         private bool CanvasDestroyed()

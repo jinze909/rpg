@@ -18,6 +18,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform panel;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image statusIcon;
         private readonly Text heading;
         private readonly Text details;
         private readonly Text actionLabel;
@@ -30,6 +32,7 @@ namespace Rpg.Soundwell
         public Button CastOffButton => castOffButton;
         public Text Details => details;
         public RectTransform Panel => panel;
+        public Image StatusIcon => statusIcon;
 
         public M04CastOffView(Transform parent,
             Func<string, int> read, Action<string, int> write, Action onSailed)
@@ -39,6 +42,7 @@ namespace Rpg.Soundwell
             this.write = write ?? throw new ArgumentNullException(nameof(write));
             this.onSailed = onSailed ?? throw new ArgumentNullException(nameof(onSailed));
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
 
             canvasObject = new GameObject("M04 cast off canvas",
                 typeof(RectTransform), typeof(Canvas));
@@ -65,13 +69,17 @@ namespace Rpg.Soundwell
             SoundwellUiTheme.CreatePanel(panel, "M04 cast off dark backing",
                 new Vector2(908f, 192f),
                 new Color(0.06f, 0.09f, 0.12f, 0.97f));
+            statusIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                panel, "M04 cast off lantern",
+                new Vector2(-376f, 20f), new Vector2(96f, 96f),
+                ResolveStatusSprite(false));
 
             Color paper = new Color(0.94f, 0.90f, 0.81f, 1f);
             heading = SoundwellUiTheme.CreateLabel(panel, 21,
-                new Vector2(0f, 71f), new Vector2(835f, 35f), paper);
+                new Vector2(64f, 71f), new Vector2(707f, 35f), paper);
             heading.alignment = TextAnchor.MiddleLeft;
             details = SoundwellUiTheme.CreateLabel(panel, 17,
-                new Vector2(0f, 8f), new Vector2(838f, 95f), paper);
+                new Vector2(64f, 8f), new Vector2(710f, 95f), paper);
             details.alignment = TextAnchor.MiddleLeft;
             details.horizontalOverflow = HorizontalWrapMode.Wrap;
 
@@ -113,6 +121,8 @@ namespace Rpg.Soundwell
 
             bool ready = TryReadStatus(out M04DepartureRecord? manifest,
                 out bool sailed);
+            if (statusIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(statusIcon, ResolveStatusSprite(ready));
             details.text = M04CastOffCopy.Describe(
                 ready ? manifest : null, sailed, zh);
             actionLabel.text = sailed
@@ -122,6 +132,11 @@ namespace Rpg.Soundwell
             castOffButton.interactable = !completed && !transitioning && ready;
             if (castOffButton.interactable)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, castOffButton);
+        }
+
+        private Sprite ResolveStatusSprite(bool ready)
+        {
+            return RpgStoryArtResolver.ResolveM04LanternSprite(ready, artManifest);
         }
 
         private bool TryReadStatus(out M04DepartureRecord? manifest, out bool sailed)
