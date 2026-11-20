@@ -16,6 +16,10 @@ namespace Rpg.Tests.Editor
 
         private static void ConfirmReady(Dictionary<string, int> saved)
         {
+            // The actual M04 departure follows a committed M03 route.
+            saved[M03LuJunFacts.ConfessionKey] = (int)M03LuConfession.NotAsked + 1;
+            saved[M03LuJunFacts.SecrecyKey] = (int)M03SecrecyAnswer.NotTriggered + 1;
+            saved[M03LuJunFacts.VoyageKey] = (int)M03VoyageChoice.QiQueMerchant + 1;
             var manifest = new M04DepartureManifest(
                 M03VoyageChoice.QiQueMerchant, "Verified hull", "A Yuan", 4,
                 "Actual shallow tender", true, 15, 9, "Named landing receiver",
@@ -117,6 +121,53 @@ namespace Rpg.Tests.Editor
                 Assert.That(view.Details.text, Does.Contain("still at the dock"));
                 Assert.That(saved[M04DepartureFacts.SailedKey], Is.Zero,
                     "Merely opening a cast-off view does not set sail.");
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ChangingOrClearingTheM03RouteInvalidatesAStaleCastOffScreen()
+        {
+            var root = new GameObject("M04 stale route check");
+            var saved = new Dictionary<string, int>();
+            M04CastOffView view = null;
+            try
+            {
+                ConfirmReady(saved);
+                int transitions = 0;
+                view = new M04CastOffView(root.transform, Reader(saved),
+                    (key, value) => saved[key] = value, () => transitions++);
+                Assert.That(view.CastOffButton.interactable, Is.True);
+
+                // A changed M03 choice must invalidate the old M04 hull,
+                // including direct onClick.Invoke that bypasses interactable.
+                saved[M03LuJunFacts.VoyageKey] = (int)M03VoyageChoice.LuJunEscort + 1;
+                view.Refresh();
+                Assert.That(view.CastOffButton.interactable, Is.False);
+                view.CastOffButton.onClick.Invoke();
+                Assert.That(saved[M04DepartureFacts.SailedKey], Is.Zero);
+                Assert.That(transitions, Is.Zero);
+
+                // A new visit without a committed route cannot borrow
+                // the previous departure confirmation.
+                saved[M03LuJunFacts.VoyageKey] = 0;
+                view.Refresh();
+                Assert.That(view.CastOffButton.interactable, Is.False);
+                view.CastOffButton.onClick.Invoke();
+                Assert.That(saved[M04DepartureFacts.SailedKey], Is.Zero);
+                Assert.That(transitions, Is.Zero);
+
+                // An identical, complete route remains eligible.
+                saved[M03LuJunFacts.VoyageKey] = (int)M03VoyageChoice.QiQueMerchant + 1;
+                view.Refresh();
+                Assert.That(view.CastOffButton.interactable, Is.True);
+                view.CastOffButton.onClick.Invoke();
+                Assert.That(saved[M04DepartureFacts.SailedKey], Is.EqualTo(1));
+                Assert.That(transitions, Is.EqualTo(1));
             }
             finally
             {
