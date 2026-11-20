@@ -219,6 +219,62 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldHarborDialogueCannotCreditChangedVoyageLanding()
+        {
+            var root = new GameObject("M05 stale harbor visit after new landing");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            int visitWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M05HarborVisitFacts.VisitedMaskKey && value != 0)
+                    visitWrites++;
+                values[key] = value;
+            };
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 10, true, true), read, write), Is.True);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                WalkTo(host, 84.5f, 30.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                var oldDialogue = host.ActiveHarborWalkView;
+                Assert.That(oldDialogue.Beat, Is.EqualTo(M05HarborBeat.RepairStall));
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldDialogue.AdvanceButton.onClick.Invoke());
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+                Assert.That(visitWrites, Is.Zero);
+                Assert.That(host.IsDialogueOpen, Is.True);
+                Assert.That(oldDialogue.AdvanceButton.interactable, Is.True);
+
+                // A different valid landing does not turn the original
+                // repair-stall exchange into a newly observed event.
+                SeedCompletedCrossing(values);
+                Assert.That(M05LandingFacts.TryRecord(
+                    new M05LandingReport(2, 0, false, false), read, write), Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldDialogue.AdvanceButton.onClick.Invoke());
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+                Assert.That(visitWrites, Is.Zero);
+                Assert.That(host.IsDialogueOpen, Is.True);
+                Assert.That(oldDialogue.AdvanceButton.interactable, Is.True);
+                host.RefreshHud();
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(5),
+                    "Only the new verified landing is complete; the old conversation must not count.");
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WalkingToBerthAndQuayTriggersLandingCheckThenSeranWithoutFabricatingArrival()
         {
             var root = new GameObject("Red Salt playable exploration test");

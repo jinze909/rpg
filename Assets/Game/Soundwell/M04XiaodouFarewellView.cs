@@ -12,6 +12,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button advance;
@@ -24,6 +26,7 @@ namespace Rpg.Soundwell
 
         public M04XiaodouFarewell Encounter => encounter;
         public Text Dialogue => dialogue;
+        public Image StageIcon => stageIcon;
         public Button AdvanceButton => advance;
         public Button GetChoiceButton(int index) => choices[index];
 
@@ -36,13 +39,18 @@ namespace Rpg.Soundwell
             encounter = new M04XiaodouFarewell(promptedOnStage);
             encounter.Begin();
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M04 Xiaodou farewell canvas", 127, out authoredView);
 
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M04 Xiaodou farewell stage icon",
+                new Vector2(-346f, 53f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 24, new Vector2(0f, 208f),
                 new Vector2(820f, 48f));
-            dialogue = SoundwellUiTheme.CreateLabel(authoredView, 20, new Vector2(0f, 53f),
-                new Vector2(830f, 237f));
+            dialogue = SoundwellUiTheme.CreateLabel(authoredView, 20, new Vector2(72f, 53f),
+                new Vector2(686f, 237f));
             dialogue.alignment = TextAnchor.MiddleLeft;
             for (int i = 0; i < choices.Length; i++)
             {
@@ -82,6 +90,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = dialogue.font = advanceLabel.font = font;
@@ -103,6 +113,26 @@ namespace Rpg.Soundwell
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     advance.gameObject.activeInHierarchy ? advance : choices[0]);
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            if (delivered || encounter.Stage == M04FarewellStage.Complete)
+                return null;
+            switch (encounter.Stage)
+            {
+                case M04FarewellStage.Greeting:
+                    return RpgStoryArtResolver.ResolveM04LanternSprite(true, artManifest);
+                case M04FarewellStage.ChoosingTrueLine:
+                    return RpgStoryArtResolver.ResolveM02EvidenceSprite(
+                        M02BridgeEvidence.CleanCableCut, artManifest);
+                case M04FarewellStage.HearingResponse:
+                    return encounter.TaughtRealLine
+                        ? RpgStoryArtResolver.ResolveM02DocumentSprite(false, artManifest)
+                        : RpgStoryArtResolver.ResolveM04LanternSprite(false, artManifest);
+                default:
+                    return null;
+            }
         }
 
         private void Choose(int index)
