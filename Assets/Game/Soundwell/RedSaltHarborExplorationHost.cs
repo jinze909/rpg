@@ -160,10 +160,15 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool CanConfirmObservedLanding()
+        {
+            return observedLanding.HasValue &&
+                M05LandingFacts.CanRecord(observedLanding.Value, getInt);
+        }
+
         private bool TryOpenLandingCheck()
         {
-            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? saved) ||
-                saved.HasValue || !observedLanding.HasValue)
+            if (!CanConfirmObservedLanding())
                 return false;
 
             activeLandingView = new M05LandingCheckView(
@@ -229,7 +234,7 @@ namespace Rpg.Soundwell
             switch (id)
             {
                 case "m05.landing-check":
-                    return observedLanding.HasValue && !HasVerifiedLanding();
+                    return CanConfirmObservedLanding();
                 case "m05.seran-letters":
                     return HasVerifiedLanding() &&
                         getInt(M05LettersFacts.DecisionKey) == 0;

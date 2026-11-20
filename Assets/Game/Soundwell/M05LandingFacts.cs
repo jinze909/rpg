@@ -51,13 +51,20 @@ namespace Rpg.Soundwell
                 (key, value) => variables.Set(key, value));
         }
 
+        // Shared, read-only eligibility check. The playable map should never
+        // offer a landing confirmation that this same save authority will reject.
+        public static bool CanRecord(M05LandingReport report, Func<string, int> getInt)
+        {
+            return getInt != null &&
+                getInt(ConfirmedKey) == 0 &&
+                TryReadCompletedCrossing(getInt, out M04DepartureRecord departure) &&
+                IsValidReport(report, departure);
+        }
+
         public static bool TryRecord(M05LandingReport report,
             Func<string, int> getInt, Action<string, int> setInt)
         {
-            if (getInt == null || setInt == null ||
-                getInt(ConfirmedKey) != 0 ||
-                !TryReadCompletedCrossing(getInt, out M04DepartureRecord departure) ||
-                !IsValidReport(report, departure))
+            if (setInt == null || !CanRecord(report, getInt))
                 return false;
 
             // An interrupted Makinom write cannot publish a partial arrival.

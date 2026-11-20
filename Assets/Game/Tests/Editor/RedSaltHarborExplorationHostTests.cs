@@ -167,6 +167,96 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LandingInteractionOnlyOpensForSailedAndSafelyCrossedCurrentVoyage()
+        {
+            var root = new GameObject("M05 physical landing eligibility");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                writes++;
+                values[key] = value;
+            };
+            var report = new M05LandingReport(3, 10, true, true);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write, report);
+                for (int i = 0; i < 10; i++)
+                    host.StepExploration(Vector2.right, 0.1f);
+
+                Assert.That(M05LandingFacts.CanRecord(report, read), Is.False);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
+                    "An observed boat cannot dock without verified departure and crossing.");
+                Assert.That(host.IsDialogueOpen, Is.False);
+
+                SeedCompletedCrossing(values);
+                values[M04DepartureFacts.SailedKey] = 0;
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
+                    "A prepared but unlaunched boat must not open the landing panel.");
+                values[M04DepartureFacts.SailedKey] = 1;
+                values[FogListeningFacts.SucceededKey] = 0;
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
+                    "A failed fog leg must not offer an arrival.");
+                values[FogListeningFacts.SucceededKey] = 1;
+                Assert.That(M05LandingFacts.CanRecord(report, read), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveLandingView, Is.Not.Null);
+                host.ActiveLandingView.ConfirmButton.onClick.Invoke();
+                Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
+                    "The same landing cannot be reconfirmed.");
+                Assert.That(writes, Is.GreaterThan(0));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ImplausibleOrCorruptLandingDoesNotPresentAnUnfinishablePanel()
+        {
+            var root = new GameObject("M05 impossible landing");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                writes++;
+                values[key] = value;
+            };
+            // The confirmed M04 manifest has only 16 berths.
+            var impossible = new M05LandingReport(3, 17, true, true);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform,
+                    read, write, impossible);
+                for (int i = 0; i < 10; i++)
+                    host.StepExploration(Vector2.right, 0.1f);
+
+                Assert.That(M05LandingFacts.CanRecord(impossible, read), Is.False);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False);
+                values[M05LandingFacts.ConfirmedKey] = 1;
+                values[M05LandingFacts.CrewArrivedKey] = 99;
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
+                    "A corrupt committed arrival must not reopen its confirmation.");
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(writes, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void SeranTriggerRefusesEntryBeforeVerifiedLandingAndDisposesCleanly()
         {
             var root = new GameObject("Red Salt gate test");
