@@ -22,8 +22,10 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(host.MapRenderer.ChunkCount, Is.EqualTo(6));
                 Assert.That(host.MapRenderer.LightHaloCount, Is.EqualTo(4));
+                Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(3));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
                 Assert.That(root.GetComponentInChildren<GraphicRaycaster>(), Is.Null,
-                    "S00 stage and lock-break overlays must not block ORK battle clicks.");
+                    "S00 stage, minimap, and lock-break overlays must not block ORK battle clicks.");
                 Assert.That(host.StageTitleLabel.text, Does.Contain("白水渡"));
                 Assert.That(host.LockBreakHud.ObjectiveLabel.text, Does.Contain("0/3"));
 
@@ -76,6 +78,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(1));
                 Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
                 Assert.That(host.StageStatusLabel.text, Does.Contain("受阻"));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
 
                 // Bell 2 (Repel the unresolved Sapper) + Bell 3 (Parry next Spear) -> ThirdBellCollapseReady fires once.
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.BladeRepel), Is.True);
@@ -86,6 +89,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(bells, Is.EqualTo(new[] { 1, 2, 3 }));
                 Assert.That(collapseCount, Is.EqualTo(1));
                 Assert.That(host.LockBreakHud.ObjectiveLabel.text, Does.Contain("3/3"));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(1));
             }
             finally
             {
@@ -113,6 +117,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.IsDisposed, Is.True);
                 Assert.That(host.MapRenderer.IsDisposed, Is.True);
                 Assert.That(host.LockBreakHud.IsDisposed, Is.True);
+                Assert.That(host.MinimapHud.IsDisposed, Is.True);
                 Assert.That(root.transform.childCount, Is.Zero);
             }
             finally
