@@ -151,7 +151,7 @@ namespace Rpg.Soundwell
                     // ORK's asynchronous BattleStart clears AI.ActionQueue after
                     // TryStartDirectEncounter(). Enqueue the opening Gather threat
                     // once the battle is live so the enemy AI always consumes it.
-                    if (planned != null && !planned.Started && !plannedQueuedIntoAi)
+                    if (planned != null && !planned.HasPerformed && !plannedQueuedIntoAi)
                     {
                         party.Beast.AI.ActionQueue.Clear();
                         party.Beast.AI.ActionQueue.Add(planned);
@@ -165,7 +165,7 @@ namespace Rpg.Soundwell
                 if (threatWaitingForQueue != null &&
                     Time.frameCount >= threatQueueAfterFrame)
                 {
-                    if (planned == threatWaitingForQueue && !planned.Started && !plannedQueuedIntoAi)
+                    if (planned == threatWaitingForQueue && !planned.HasPerformed && !plannedQueuedIntoAi)
                     {
                         party.Beast.AI.ActionQueue.Clear();
                         party.Beast.AI.ActionQueue.Add(planned);
@@ -181,7 +181,7 @@ namespace Rpg.Soundwell
                 if (threatWaitingForQueue == null &&
                     plannedQueuedIntoAi &&
                     enemyNeedsQueuedAction && !IsPresenting &&
-                    planned != null && !planned.Started &&
+                    planned != null && !planned.HasPerformed &&
                     submittedEnemyThreat != planned &&
                     planned.CanUse())
                 {
@@ -518,6 +518,7 @@ namespace Rpg.Soundwell
             public int TargetIndex;
             public bool Interrupted;
             public bool Covered;
+            public bool HasPerformed { get; private set; }
 
             public StrikeAction(OrkRoleEncounter owner, Combatant actor, Combatant target,
                 float strength, bool enemy, Threat kind, int targetIndex)
@@ -537,6 +538,7 @@ namespace Rpg.Soundwell
             public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
+                HasPerformed = true;
                 // ORK owns current-action progression. Deferring its base
                 // PerformAction into a Unity coroutine causes a classic-turn
                 // deadlock after the first hit: queued allies remain suspended,
