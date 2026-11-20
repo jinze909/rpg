@@ -80,6 +80,20 @@ namespace Rpg.Soundwell
             UpdateCurrentZone(raiseEvent: false);
         }
 
+        // Re-entry uses the same collision footprint as ordinary movement.
+        // This can restore a witnessed M05 tile, but never teleport through
+        // walls, water, outside the current map, or a closed gate.
+        public bool TryPlaceAtWalkableTile(Vector2Int tile)
+        {
+            var destination = new Vector2(tile.x + 0.5f, tile.y + 0.5f);
+            if (!IsPositionWalkable(destination))
+                return false;
+            Position = destination;
+            CurrentZone = null;
+            UpdateCurrentZone(raiseEvent: false);
+            return true;
+        }
+
         public void TriggerHitstop(float seconds)
         {
             if (seconds > HitstopRemaining)

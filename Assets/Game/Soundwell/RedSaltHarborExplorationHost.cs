@@ -37,6 +37,7 @@ namespace Rpg.Soundwell
         private M05LandingCheckView activeLandingView;
         private M05SeranLettersView activeSeranView;
         private M05HarborWalkView activeHarborWalkView;
+        private Vector2Int? lastPersistedTile;
         private bool disposed;
 
         public RedSaltHarborMapLayout Layout => layout;
@@ -77,8 +78,15 @@ namespace Rpg.Soundwell
             chunkRenderer = RpgLargeMapChunkRenderer.BuildForRedSaltHarbor(
                 parent, layout, harborTileSlices);
             explorer = RpgLargeMapExplorerController.ForRedSaltHarbor(layout);
+            // Never trust an old save location without a real, verified M05
+            // arrival and a walkable tile from this exact map layout.
+            if (HasVerifiedLanding() &&
+                M05HarborPositionFacts.TryRead(getInt, layout, out Vector2Int? savedTile) &&
+                savedTile.HasValue && explorer.TryPlaceAtWalkableTile(savedTile.Value))
+                lastPersistedTile = savedTile.Value;
             explorer.ZoneEntered += _ => RefreshHud();
             minimapHud = RpgLargeMapMinimapAndBeaconHud.BuildForRedSaltHarbor(parent, layout);
+            minimapHud.UpdatePlayerPosition(explorer.Position);
 
             Transform actorParent = chunkRenderer.RootObject.transform;
             heroVisual = new RpgMapActorVisualBinder(
@@ -182,7 +190,23 @@ namespace Rpg.Soundwell
                 moved ? RpgActorVisualState.Moving : RpgActorVisualState.Idle,
                 deltaTime);
             if (moved)
+            {
                 minimapHud.UpdatePlayerPosition(explorer.Position);
+                if (HasVerifiedLanding())
+                {
+                    var walkedTile = new Vector2Int(
+                        Mathf.FloorToInt(explorer.Position.x),
+                        Mathf.FloorToInt(explorer.Position.y));
+                    if (!lastPersistedTile.HasValue || lastPersistedTile.Value != walkedTile)
+                    {
+                        if (!M05HarborPositionFacts.TryRecord(
+                            walkedTile, layout, getInt, setInt))
+                            throw new InvalidOperationException(
+                                "Unable to persist the walkable M05 player tile.");
+                        lastPersistedTile = walkedTile;
+                    }
+                }
+            }
             RefreshHud();
             return moved;
         }

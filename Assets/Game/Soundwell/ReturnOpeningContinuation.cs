@@ -80,6 +80,9 @@ namespace Rpg.Soundwell
             // A new voyage must not inherit M05 locations visited on an
             // earlier crossing, even if a subsequent reset is interrupted.
             setInt(M05HarborVisitFacts.VisitedMaskKey, 0);
+            // The next voyage must start at the actual landing berth, not
+            // resume coordinates from a prior confirmed voyage.
+            setInt(M05HarborPositionFacts.PositionKey, 0);
 
             return M04DepartureFacts.TryResetForNewVisit(setInt) &&
                 M04RosterFacts.TryResetForNewVisit(setInt) &&

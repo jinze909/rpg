@@ -34,6 +34,76 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void M05ResumeRestoresOnlyActuallyWalkedWalkableTileAfterVerifiedLanding()
+        {
+            var root = new GameObject("M05 position continuity");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                // Sailing successfully is not landing. Walking the preflight
+                // map may not publish a reusable post-arrival location.
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                host.StepExploration(Vector2.right, 0.4f);
+                Assert.That(read(M05HarborPositionFacts.PositionKey), Is.Zero);
+                host.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+
+                root = new GameObject("M05 verified harbor walk");
+                var landing = new M05LandingReport(3, 10, true, true);
+                Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                WalkTo(host, 84.5f, 30.5f);
+                Vector2Int witnessedTile = new Vector2Int(
+                    Mathf.FloorToInt(host.PlayerPosition.x),
+                    Mathf.FloorToInt(host.PlayerPosition.y));
+                Assert.That(M05HarborPositionFacts.TryRead(
+                    read, host.Layout, out Vector2Int? saved), Is.True);
+                Assert.That(saved, Is.EqualTo(witnessedTile));
+
+                host.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+                root = new GameObject("M05 resumed harbor walk");
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                Assert.That(host.PlayerPosition,
+                    Is.EqualTo(new Vector2(witnessedTile.x + 0.5f, witnessedTile.y + 0.5f)));
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True,
+                    "The previously reached repair stall remains physically reachable.");
+                Assert.That(host.ActiveHarborWalkView.Beat, Is.EqualTo(M05HarborBeat.RepairStall));
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(1),
+                    "Restoring physical position cannot invent an unwitnessed dialogue.");
+
+                // A corrupt or now-impassable saved tile must safely fall
+                // back to authored berth spawn, never into deep water.
+                values[M05HarborPositionFacts.PositionKey] = 1 + host.Layout.Width * 3;
+                host.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+                root = new GameObject("M05 invalid saved harbor tile");
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                Assert.That(host.PlayerPosition,
+                    Is.EqualTo(new Vector2(host.Layout.PlayerSpawn.x + 0.5f,
+                        host.Layout.PlayerSpawn.y + 0.5f)));
+                Assert.That(M05HarborPositionFacts.TryRead(
+                    read, host.Layout, out _), Is.False);
+                Assert.That(host.HarborWalkCompleted, Is.False);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                Assert.That(read(M05HarborPositionFacts.PositionKey), Is.Zero,
+                    "Starting a new voyage cannot re-use last voyage's map position.");
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void VisitedHarborScenesPersistAcrossMapReloadAndResetOnlyForNewVoyage()
         {
             var root = new GameObject("M05 saved map observations");
