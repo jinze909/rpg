@@ -15,6 +15,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button[] choices = new Button[5];
@@ -28,6 +30,7 @@ namespace Rpg.Soundwell
 
         public M03LuJunEncounter Encounter => encounter;
         public Text Dialogue => dialogue;
+        public Image StageIcon => stageIcon;
         public Button AdvanceButton => advance;
         public int RollCallBeat => rollCallBeat;
 
@@ -56,12 +59,17 @@ namespace Rpg.Soundwell
             encounter.Begin();
             this.onFinished = onFinished;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M03 Lu Jun camp canvas", 126, out authoredView);
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M03 Lu Jun stage icon",
+                new Vector2(-346f, 106f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 23,
                 new Vector2(0f, 218f), new Vector2(835f, 48f));
             dialogue = SoundwellUiTheme.CreateLabel(authoredView, 19,
-                new Vector2(0f, 106f), new Vector2(835f, 151f));
+                new Vector2(72f, 106f), new Vector2(690f, 151f));
             dialogue.alignment = TextAnchor.MiddleLeft;
             for (int i = 0; i < choices.Length; i++)
             {
@@ -110,6 +118,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = dialogue.font = advanceLabel.font = font;
@@ -139,6 +149,30 @@ namespace Rpg.Soundwell
                 encounter.Stage == M03LuJunStage.VisitingVeterans);
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            if (delivered || encounter.Stage == M03LuJunStage.Complete)
+                return null;
+            switch (encounter.Stage)
+            {
+                case M03LuJunStage.VisitingVeterans:
+                    return rollCallBeat == 0
+                        ? RpgStoryArtResolver.ResolveM03CampCoalsSprite(artManifest)
+                        : RpgStoryArtResolver.ResolveM03LuJunSprite(true, artManifest);
+                case M03LuJunStage.ChoosingOpening:
+                    return RpgStoryArtResolver.ResolveM03LuJunSprite(false, artManifest);
+                case M03LuJunStage.RespondingToConfession:
+                    return RpgStoryArtResolver.ResolveM02EvidenceSprite(
+                        M02BridgeEvidence.WarReportDraft, artManifest);
+                case M03LuJunStage.ReplyingToSecrecyRequest:
+                    return RpgStoryArtResolver.ResolveM03StandardSprite(false, 0, artManifest);
+                case M03LuJunStage.ChoosingVoyage:
+                    return RpgStoryArtResolver.ResolveM03TidalChartSprite(true, artManifest);
+                default:
+                    return null;
+            }
         }
 
         private void Choose(int index)
