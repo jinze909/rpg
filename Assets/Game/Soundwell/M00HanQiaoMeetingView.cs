@@ -20,6 +20,8 @@ namespace Rpg.Soundwell
         private readonly GameObject canvasObject;
         private readonly RectTransform authoredView;
         private readonly Font latinFont;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image stageIcon;
         private readonly Text heading;
         private readonly Text dialogue;
         private readonly Button[] choices = new Button[3];
@@ -34,6 +36,7 @@ namespace Rpg.Soundwell
         public M00HanQiaoMeetingBeat CurrentBeat { get; private set; }
         public Text DialogueText => dialogue;
         public Text HeadingText => heading;
+        public Image StageIcon => stageIcon;
         public Button ContinueButton => continueButton;
 
         public M00HanQiaoMeetingView(Transform parent,
@@ -51,14 +54,19 @@ namespace Rpg.Soundwell
             this.onFinished = onFinished;
             this.onRansomCountShown = onRansomCountShown;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            artManifest = RpgPixelArtManifest.LoadDefault();
             canvasObject = SoundwellUiTheme.CreateOverlayCanvas(
                 parent, "M00 Han Qiao meeting canvas", 122, out authoredView,
                 new Color(0.03f, 0.06f, 0.07f, 0.96f), Paper);
 
+            stageIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, "M00 Han Qiao stage icon",
+                new Vector2(-346f, 65f), new Vector2(112f, 112f),
+                ResolveStageSprite());
             heading = SoundwellUiTheme.CreateLabel(authoredView, 25,
                 new Vector2(0f, 225f), new Vector2(840f, 46f), Brass);
             dialogue = SoundwellUiTheme.CreateLabel(authoredView, 19,
-                new Vector2(0f, 65f), new Vector2(832f, 275f), Ink);
+                new Vector2(72f, 65f), new Vector2(688f, 275f), Ink);
             dialogue.alignment = TextAnchor.MiddleLeft;
             dialogue.resizeTextMinSize = 11;
 
@@ -101,6 +109,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (stageIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
 
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             CurrentBeat = M00HanQiaoMeetingDialogue.Describe(sequence, chinese);
@@ -125,6 +135,24 @@ namespace Rpg.Soundwell
                 firstVisible = choices[0];
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, firstVisible);
+        }
+
+        private Sprite ResolveStageSprite()
+        {
+            switch (sequence.Stage)
+            {
+                case M00HanQiaoMeetingStage.AwaitingOpeningChoice:
+                    return RpgStoryArtResolver.ResolveM02OfficialSeal(artManifest);
+                case M00HanQiaoMeetingStage.RansomCount:
+                    return RpgStoryArtResolver.ResolveM02LedgerSprite(artManifest);
+                case M00HanQiaoMeetingStage.AwaitingNextStepChoice:
+                    return RpgStoryArtResolver.ResolveM02EvidenceSprite(
+                        M02BridgeEvidence.WarReportDraft, artManifest);
+                case M00HanQiaoMeetingStage.Closing:
+                    return RpgStoryArtResolver.ResolveM02LedgerSprite(artManifest);
+                default:
+                    return null;
+            }
         }
 
         public void LayoutForViewportAspect(float aspect)
