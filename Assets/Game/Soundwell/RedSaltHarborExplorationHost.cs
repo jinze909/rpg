@@ -327,8 +327,12 @@ namespace Rpg.Soundwell
             bool letterDecisionRecorded = M05LettersFacts.TryRead(getInt,
                 out M05LetterDecision? recordedLetters) && recordedLetters.HasValue;
             minimapHud?.SetBeaconCompleted("m05.seran-letters", letterDecisionRecorded);
+            // C# definite-assignment must not depend on the preceding
+            // short-circuited landing check. No valid landing => no
+            // completed map objectives, even if stale visit bits exist.
+            int observedMask = 0;
             bool savedBeatsValid = HasVerifiedLanding() &&
-                M05HarborVisitFacts.TryRead(getInt, out int observedMask);
+                M05HarborVisitFacts.TryRead(getInt, out observedMask);
             minimapHud?.SetBeaconCompleted("m05.repair-stall",
                 savedBeatsValid && M05HarborVisitFacts.Contains(observedMask, M05HarborBeat.RepairStall));
             minimapHud?.SetBeaconCompleted("m05.fisher-rumor",
