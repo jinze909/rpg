@@ -280,12 +280,7 @@ namespace Rpg.Soundwell
             M05LandingReport openedLanding = savedLanding.Value;
             activeSeranView = new M05SeranLettersView(parent, decision =>
             {
-                if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? current) ||
-                    !current.HasValue ||
-                    current.Value.CrewArrived != openedLanding.CrewArrived ||
-                    current.Value.ReadyRescueBerths != openedLanding.ReadyRescueBerths ||
-                    current.Value.TenderArrived != openedLanding.TenderArrived ||
-                    current.Value.ReceiverMet != openedLanding.ReceiverMet)
+                if (!HasSameCurrentLanding(openedLanding))
                     throw new InvalidOperationException(
                         "Seran's open dialogue no longer matches the verified M05 landing.");
                 if (!M05LettersFacts.TryRecord(decision, getInt, setInt))
@@ -304,6 +299,19 @@ namespace Rpg.Soundwell
                 saved.HasValue;
         }
 
+        private bool HasSameCurrentLanding(M05LandingReport openedLanding)
+        {
+            // Persisted M05 arrival is the only authority. A dialogue may
+            // outlive the voyage it was opened for; reject missing, invalid,
+            // or different observed landings before committing its outcome.
+            return M05LandingFacts.TryRead(getInt, out M05LandingReport? current) &&
+                current.HasValue &&
+                current.Value.CrewArrived == openedLanding.CrewArrived &&
+                current.Value.ReadyRescueBerths == openedLanding.ReadyRescueBerths &&
+                current.Value.TenderArrived == openedLanding.TenderArrived &&
+                current.Value.ReceiverMet == openedLanding.ReceiverMet;
+        }
+
         private bool CanOfferHarborBeat(M05HarborBeat beat)
         {
             return HasVerifiedLanding() &&
@@ -313,11 +321,20 @@ namespace Rpg.Soundwell
 
         private bool TryOpenHarborWalk(M05HarborBeat beat)
         {
-            if (!CanOfferHarborBeat(beat))
+            if (!CanOfferHarborBeat(beat) ||
+                !M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding) ||
+                !savedLanding.HasValue)
                 return false;
 
+            M05LandingReport openedLanding = savedLanding.Value;
             activeHarborWalkView = new M05HarborWalkView(parent, () =>
             {
+                // A new voyage may have replaced the physical arrival while
+                // this location's dialogue remained open. Never credit an
+                // old repair, rumor, or accusation to the new ship's visit.
+                if (!HasSameCurrentLanding(openedLanding))
+                    throw new InvalidOperationException(
+                        "The observed harbor conversation no longer belongs to this landing.");
                 // Save the witnessed beat first. A failed Makinom write leaves
                 // the same dialogue available for retry and does not advance
                 // the beacon or replace another scene's save authority.
