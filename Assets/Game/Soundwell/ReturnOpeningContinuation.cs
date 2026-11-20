@@ -23,6 +23,7 @@ namespace Rpg.Soundwell
         private M04DockPreflightView dockPreflight;
         private bool dockPreflightPending;
         private M04CastOffView castOff;
+        private M04SailedFogLegHost sailedFog;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -324,6 +325,12 @@ namespace Rpg.Soundwell
         public static bool TryReadCurrentCastOff(
             Func<string, int> getInt, out M04DepartureRecord? departure)
         {
+            return TryReadCurrentDeparture(getInt, sailed: false, out departure);
+        }
+
+        private static bool TryReadCurrentDeparture(Func<string, int> getInt,
+            bool sailed, out M04DepartureRecord? departure)
+        {
             departure = null;
             if (getInt == null ||
                 !M03LuJunFacts.TryRead(getInt, out _, out _,
@@ -332,7 +339,7 @@ namespace Rpg.Soundwell
                 !M04DepartureFacts.TryRead(getInt, out M04DepartureRecord? verified) ||
                 !verified.HasValue ||
                 verified.Value.Route != chosenRoute.Value ||
-                getInt(M04DepartureFacts.SailedKey) != 0)
+                getInt(M04DepartureFacts.SailedKey) != (sailed ? 1 : 0))
                 return false;
 
             departure = verified;
@@ -358,11 +365,36 @@ namespace Rpg.Soundwell
             // A real host has already confirmed and saved all required
             // resources. Offer one deliberate cast-off action and persist
             // that action only on the player's click.
-            var next = new M04CastOffView(transform, read,
-                (key, value) => variables.Set(key, value), CloseOpening);
+            Action<string, int> write = (key, value) => variables.Set(key, value);
+            var next = new M04CastOffView(transform, read, write,
+                () => OpenSailedFog(read, write));
             dockPreflight?.Dispose();
             dockPreflight = null;
             castOff = next;
+        }
+
+        private void OpenSailedFog(Func<string, int> read, Action<string, int> write)
+        {
+            if (!TryReadCurrentDeparture(read, sailed: true, out _))
+                throw new InvalidOperationException(
+                    "The current voyage has not recorded a matching cast-off.");
+
+            // The first shared stretch of reef water is on the way to Red Salt.
+            // This passage does not determine who or what reaches the harbor.
+            var leg = new FogListeningSession(new[]
+            {
+                new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 45),
+                new FogListeningCue(FogBearing.Port, FogCueKind.FalseEcho, 40),
+                new FogListeningCue(FogBearing.Starboard, FogCueKind.ReefSurf, 55),
+                new FogListeningCue(FogBearing.Ahead, FogCueKind.FogBell, 75)
+            }, maxListenFocus: 2, maxHullIntegrity: 2);
+            if (!M04SailedFogLegHost.TryOpen(transform, leg, read, write,
+                _ => CloseOpening(), out M04SailedFogLegHost next))
+                throw new InvalidOperationException("Unable to open the current voyage's fog leg.");
+
+            castOff?.Dispose();
+            castOff = null;
+            sailedFog = next;
         }
 
         private void CloseOpening()
@@ -380,6 +412,8 @@ namespace Rpg.Soundwell
             dockPreflightPending = false;
             castOff?.Dispose();
             castOff = null;
+            sailedFog?.Dispose();
+            sailedFog = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -424,6 +458,7 @@ namespace Rpg.Soundwell
                 qiQueCup?.LayoutForViewportAspect(aspect);
                 dockPreflight?.LayoutForViewportAspect(aspect);
                 castOff?.LayoutForViewportAspect(aspect);
+                sailedFog?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -439,6 +474,7 @@ namespace Rpg.Soundwell
             qiQueCup?.Dispose();
             dockPreflight?.Dispose();
             castOff?.Dispose();
+            sailedFog?.Dispose();
             onFinished = null;
         }
     }
