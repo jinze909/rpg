@@ -66,6 +66,7 @@ namespace Rpg.Soundwell
         private bool wasBattleActive;
         private EnemyIntentKind? verifiedOrkIntent;
         private Transform pulsedButton;
+        private Vector3 pulsedButtonOriginalScale;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureDirector()
@@ -409,21 +410,31 @@ namespace Rpg.Soundwell
                 : null;
 
             if (pulsedButton != nextTarget)
+            {
                 RestorePulsedButton();
+                pulsedButton = nextTarget;
+                if (pulsedButton != null)
+                    pulsedButtonOriginalScale = pulsedButton.localScale;
+            }
 
-            pulsedButton = nextTarget;
             if (pulsedButton != null)
             {
                 float s = 1f + 0.045f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 6.5f));
-                pulsedButton.localScale = new Vector3(s, s, 1f);
+                // Pulse relative to the actual authored responsive UI scale.
+                // Never replace a layout's non-unit dimensions with (1,1,1).
+                pulsedButton.localScale = new Vector3(
+                    pulsedButtonOriginalScale.x * s,
+                    pulsedButtonOriginalScale.y * s,
+                    pulsedButtonOriginalScale.z);
             }
         }
 
         private void RestorePulsedButton()
         {
             if (pulsedButton != null)
-                pulsedButton.localScale = Vector3.one;
+                pulsedButton.localScale = pulsedButtonOriginalScale;
             pulsedButton = null;
+            pulsedButtonOriginalScale = Vector3.one;
         }
 
         private void RestoreAllRecoils()
