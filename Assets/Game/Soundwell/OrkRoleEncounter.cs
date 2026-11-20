@@ -518,17 +518,10 @@ namespace Rpg.Soundwell
             {
                 if (enemy && (Kind == Threat.Gather || Interrupted))
                 {
-                    // Complete the real ORK action lifecycle with zero target
-                    // damage and guarantee notify fires once even if ORK skips
-                    // calculation callbacks for empty target lists.
-                    bool notified = false;
-                    base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, () =>
-                    {
-                        notified = true;
-                        notify?.Invoke();
-                    });
-                    if (!notified)
-                        notify?.Invoke();
+                    // Complete the real ORK action lifecycle and invoke notify
+                    // with an empty target list so minimum-damage clamps or
+                    // target status changes can never damage the party.
+                    base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, notify);
                     return;
                 }
                 bool consumeExposed = !enemy && User == owner.party.Members[1] && owner.IsExposed;
@@ -571,14 +564,7 @@ namespace Rpg.Soundwell
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
             {
                 effect();
-                bool notified = false;
-                base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, () =>
-                {
-                    notified = true;
-                    notify?.Invoke();
-                });
-                if (!notified)
-                    notify?.Invoke();
+                base.Calculate(new List<Combatant>(), 0f, options, flyingTextTarget, notify);
             }
         }
     }
