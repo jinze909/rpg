@@ -107,19 +107,18 @@ namespace Rpg.Tests.Editor
             while (!completed())
             {
                 Assert.That(Time.realtimeSinceStartup, Is.LessThan(deadline),
-                    "Role battle stalled. Actor=" + encounter.Party.ChoosingRescuerIndex +
-                    ", threat=" + encounter.PendingThreat + ", busy=" + encounter.IsPresenting +
-                    ", beastHp=" + encounter.Party.Beast.Status[1].GetValue() +
-                    ", exposed=" + encounter.IsExposed +
-                    ", submittedActions=" + encounter.SubmittedActionCount +
-                    ", turnSubmitted=" + encounter.TurnSubmittedPartyCount +
-                    ", plannedPerformed=" + encounter.PlannedPerformed +
-                    ", beastState=" + encounter.Party.Beast.Actions.ActionState +
-                    ", partyStates=" + string.Join(",", encounter.Party.Members
+                    "Role battle stalled. B=" + encounter.Party.Beast.Actions.ActionState +
+                    ", P=" + string.Join("/", encounter.Party.Members
                         .Select(member => member.Actions.ActionState.ToString())) +
-                    ", animations=" + encounter.ActivePresentationCount +
-                    ", enemyChooser=" + encounter.EnemyChooserActive +
-                    ", threatSubmitted=" + encounter.EnemyThreatSubmitted);
+                    ", threat=" + encounter.PendingThreat +
+                    ", hp=" + encounter.Party.Beast.Status[1].GetValue() +
+                    ", sub=" + encounter.SubmittedActionCount +
+                    ", turn=" + encounter.TurnSubmittedPartyCount +
+                    ", perf=" + encounter.PlannedPerformed +
+                    ", tSub=" + encounter.EnemyThreatSubmitted +
+                    ", eCh=" + encounter.EnemyChooserActive +
+                    ", Actor=" + encounter.Party.ChoosingRescuerIndex +
+                    ", busy=" + encounter.IsPresenting);
                 int actor = encounter.Party.ChoosingRescuerIndex;
                 if (!encounter.IsPresenting && actor >= 0)
                 {
