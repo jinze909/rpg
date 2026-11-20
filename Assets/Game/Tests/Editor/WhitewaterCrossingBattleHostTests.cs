@@ -18,15 +18,17 @@ namespace Rpg.Tests.Editor
             try
             {
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
                 host = new WhitewaterCrossingBattleHost(root.transform);
 
                 Assert.That(host.MapRenderer.ChunkCount, Is.EqualTo(6));
                 Assert.That(host.MapRenderer.LightHaloCount, Is.EqualTo(4));
                 Assert.That(host.MapRenderer.UsedRealArtSlices, Is.True);
-                Assert.That(host.HeroSpriteRenderer.sprite, Is.Not.Null);
-                Assert.That(host.ShenLiSpriteRenderer.sprite, Is.Not.Null);
-                Assert.That(host.EnemySpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.HeroSpriteRenderer.sprite, Is.EqualTo(manifest.S00PlayerReady));
+                Assert.That(host.ShenLiSpriteRenderer.sprite, Is.EqualTo(manifest.ShenLiBridgeIdle));
+                Assert.That(host.EnemySpriteRenderer.sprite, Is.EqualTo(manifest.S00SapperReady));
                 Assert.That(host.EnemySpriteRenderer.flipX, Is.True);
+                Assert.That(host.CombatVfxSpriteRenderer.enabled, Is.False);
                 Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(3));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
                 Assert.That(root.GetComponentInChildren<GraphicRaycaster>(), Is.Null,
@@ -66,26 +68,30 @@ namespace Rpg.Tests.Editor
             try
             {
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
                 host = new WhitewaterCrossingBattleHost(root.transform, startingMomentum: 1);
                 host.BellAdvanced += b => bells.Add(b);
                 host.ThirdBellCollapseReady += () => collapseCount++;
 
-                // Bell 1: Shield Parry counters SpearThrustAtHero -> Bell 1/3, brace pose + shake.
+                // Bell 1: Shield Parry counters SpearThrustAtHero -> Bell 1/3, parry pose + spark VFX + shake.
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.True);
                 Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(1));
                 Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
-                Assert.That(host.HeroSpriteRenderer.sprite,
-                    Is.EqualTo(RpgPixelArtManifest.LoadDefault().FerryGuideBrace));
-                Assert.That(host.ShenLiSpriteRenderer.sprite,
-                    Is.EqualTo(RpgPixelArtManifest.LoadDefault().ShenLiBraceCable));
+                Assert.That(host.HeroSpriteRenderer.sprite, Is.EqualTo(manifest.S00PlayerParry));
+                Assert.That(host.ShenLiSpriteRenderer.sprite, Is.EqualTo(manifest.ShenLiBraceCable));
+                Assert.That(host.EnemySpriteRenderer.sprite, Is.EqualTo(manifest.S00SapperRush));
+                Assert.That(host.CombatVfxSpriteRenderer.enabled, Is.True);
+                Assert.That(host.CombatVfxSpriteRenderer.sprite, Is.EqualTo(manifest.ParrySparkFrames[0]));
                 Assert.That(host.ShakeRemaining, Is.GreaterThan(0f));
                 host.ComputeFramedCameraPosition(new Vector3(24f, 22f, -10f), 0.3f);
                 Assert.That(host.ShakeRemaining, Is.Zero);
+                Assert.That(host.CombatVfxSpriteRenderer.enabled, Is.False);
 
-                // Wrong counter on SapperRushCable stalls cut (stays 1/3) and keeps SapperRushCable active.
+                // Wrong counter on SapperRushCable stalls cut (stays 1/3), shows hit pose, keeps SapperRushCable active.
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.False);
                 Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(1));
                 Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
+                Assert.That(host.HeroSpriteRenderer.sprite, Is.EqualTo(manifest.S00PlayerHit));
                 Assert.That(host.StageStatusLabel.text, Does.Contain("受阻"));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
 
@@ -93,8 +99,15 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.BladeRepel), Is.True);
                 Assert.That(host.CableTracker.BellsCompleted, Is.EqualTo(2));
                 Assert.That(host.CableTracker.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SpearThrustAtHero));
+                Assert.That(host.HeroSpriteRenderer.sprite, Is.EqualTo(manifest.S00PlayerSlash));
+                Assert.That(host.EnemySpriteRenderer.sprite, Is.EqualTo(manifest.S00SapperRepelled));
+                Assert.That(host.CombatVfxSpriteRenderer.enabled, Is.True);
+                Assert.That(host.CombatVfxSpriteRenderer.sprite, Is.EqualTo(manifest.BladeRepelTrailFrames[0]));
+
                 Assert.That(host.ResolveAuthoritativeCounter(CombatLockKind.ShieldParry), Is.True);
                 Assert.That(host.CableTracker.ReadyForThirdBellCollapse, Is.True);
+                Assert.That(host.CombatVfxSpriteRenderer.enabled, Is.True);
+                Assert.That(host.CombatVfxSpriteRenderer.sprite, Is.EqualTo(manifest.ThreatLockBreakFrames[0]));
                 Assert.That(bells, Is.EqualTo(new[] { 1, 2, 3 }));
                 Assert.That(collapseCount, Is.EqualTo(1));
                 Assert.That(host.LockBreakHud.ObjectiveLabel.text, Does.Contain("3/3"));
