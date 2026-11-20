@@ -29,6 +29,7 @@ namespace Rpg.Soundwell
         private readonly Text advanceLabel;
         private readonly Button advance;
         private Action onFinished;
+        private readonly Action<M05HarborBeat> onBeatObserved;
         private M05HarborBeat beat;
         private readonly bool singleBeat;
         private bool delivering;
@@ -42,20 +43,28 @@ namespace Rpg.Soundwell
 
         // The original sequential staging remains available to existing M05 hosts.
         public M05HarborWalkView(Transform parent, Action onFinished)
-            : this(parent, onFinished, M05HarborBeat.RepairStall, false) { }
+            : this(parent, onFinished, M05HarborBeat.RepairStall, false, null) { }
+
+        // A sequential host can record a completed conversation before the
+        // view advances. The view itself owns no new save authority.
+        public M05HarborWalkView(Transform parent, Action onFinished,
+            Action<M05HarborBeat> onBeatObserved)
+            : this(parent, onFinished, M05HarborBeat.RepairStall, false, onBeatObserved) { }
 
         // The exploration map presents only the scene tied to its physical location.
         public M05HarborWalkView(Transform parent, Action onFinished, M05HarborBeat onlyBeat)
-            : this(parent, onFinished, onlyBeat, true) { }
+            : this(parent, onFinished, onlyBeat, true, null) { }
 
         private M05HarborWalkView(Transform parent, Action onFinished,
-            M05HarborBeat startBeat, bool singleBeat)
+            M05HarborBeat startBeat, bool singleBeat,
+            Action<M05HarborBeat> onBeatObserved)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (startBeat < M05HarborBeat.RepairStall ||
                 startBeat >= M05HarborBeat.Finished)
                 throw new ArgumentOutOfRangeException(nameof(startBeat));
             this.onFinished = onFinished ?? throw new ArgumentNullException(nameof(onFinished));
+            this.onBeatObserved = onBeatObserved;
             this.singleBeat = singleBeat;
             beat = startBeat;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -163,16 +172,20 @@ namespace Rpg.Soundwell
             if (disposed || delivering || canvasObject == null ||
                 beat == M05HarborBeat.Finished)
                 return;
-            if (!singleBeat && beat < M05HarborBeat.MarketAccusation)
-            {
-                beat++;
-                Refresh();
-                return;
-            }
+            // A failed save must leave this same witnessed beat actionable;
+            // do not advance to the next conversation until it is committed.
             delivering = true;
             Refresh();
             try
             {
+                onBeatObserved?.Invoke(beat);
+                if (!singleBeat && beat < M05HarborBeat.MarketAccusation)
+                {
+                    beat++;
+                    delivering = false;
+                    if (!disposed) Refresh();
+                    return;
+                }
                 onFinished?.Invoke();
                 onFinished = null;
                 beat = M05HarborBeat.Finished;

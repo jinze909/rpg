@@ -181,7 +181,8 @@ namespace Rpg.Soundwell
 
         private void OpenHarborWalk()
         {
-            M05HarborWalkView next = new M05HarborWalkView(parent, OnHarborWalkFinished);
+            M05HarborWalkView next = new M05HarborWalkView(
+                parent, OnHarborWalkFinished, OnHarborBeatObserved);
             try
             {
                 if (lastAspect.HasValue)
@@ -194,6 +195,20 @@ namespace Rpg.Soundwell
             }
             harborWalkView = next;
             stage = M05OuterHarborStage.HarborWalk;
+        }
+
+        private void OnHarborBeatObserved(M05HarborBeat observed)
+        {
+            // Sequential M05 conversations are the same physical visits as
+            // the free-roam harbor. Record each witnessed beat in the existing
+            // Makinom mask, never fabricate another arrival or story authority.
+            RequireCurrentLanding();
+            if (!letterDecision.HasValue ||
+                !M05LettersFacts.TryRead(getInt, out M05LetterDecision? currentChoice) ||
+                currentChoice != letterDecision ||
+                !M05HarborVisitFacts.TryRecord(observed, getInt, setInt))
+                throw new InvalidOperationException(
+                    "Unable to record the current M05 harbor conversation.");
         }
 
         private void OnHarborWalkFinished()
