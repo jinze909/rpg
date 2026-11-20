@@ -144,6 +144,16 @@ namespace Rpg.Soundwell
                 !fog.HasValue || !fog.Value.Succeeded)
                 return false;
 
+            // Existing saves may predate the M03 route key, but a current
+            // recorded M03 choice must agree with the ship that actually
+            // crossed the fog. Otherwise an old vessel/landing can become
+            // a false arrival for a different current journey.
+            if (getInt(M03LuJunFacts.VoyageKey) != 0 &&
+                (!M03LuJunFacts.TryRead(getInt, out _, out _,
+                    out M03VoyageChoice? selectedRoute) ||
+                 !selectedRoute.HasValue || selectedRoute.Value != ready.Value.Route))
+                return false;
+
             departure = ready.Value;
             return true;
         }
