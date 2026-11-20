@@ -16,6 +16,16 @@ namespace Rpg.Soundwell
         public const string BootstrapSceneName = "Bootstrap";
         public static bool RoleEncounterRequested { get; private set; }
 
+        // The selected player-facing encounter applies only to the next loaded
+        // Soundwell scene. Otherwise a later prototype comparison or reload
+        // can silently inherit the previous battle mode.
+        internal static bool ConsumeRoleEncounterRequest()
+        {
+            if (!RoleEncounterRequested) return false;
+            RoleEncounterRequested = false;
+            return true;
+        }
+
         private AsyncOperation trialLoad;
         private Button entryButton;
         private RectTransform entryRect;

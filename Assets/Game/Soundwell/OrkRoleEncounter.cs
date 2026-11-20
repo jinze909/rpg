@@ -20,7 +20,7 @@ namespace Rpg.Soundwell
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (!SoundwellEntrance.RoleEncounterRequested || scene.name != SoundwellEntrance.SceneName)
+            if (scene.name != SoundwellEntrance.SceneName || !SoundwellEntrance.ConsumeRoleEncounterRequest())
                 return;
             var party = UnityEngine.Object.FindFirstObjectByType<SoundwellOrkParty>();
             if (party != null && party.GetComponent<OrkRoleEncounter>() == null)
@@ -45,6 +45,19 @@ namespace Rpg.Soundwell
         private Material lineMaterial;
         private AudioSource audioSource;
         private AudioClip hitSound;
+
+        // The trial camera may be retained by another scene/test. Never leak
+        // role-combat framing or disabled follow components into exploration.
+        private Camera encounterCamera;
+        private Vector3 previousCameraPosition;
+        private bool previousCameraOrthographic;
+        private float previousCameraOrthographicSize;
+        private Unity.Cinemachine.CinemachineBrain previousCameraBrain;
+        private bool previousBrainEnabled;
+        private SoundwellCameraRig previousCameraRig;
+        private bool previousRigEnabled;
+        private UnityEngine.Rendering.Universal.PixelPerfectCamera previousPixelCamera;
+        private UnityEngine.Rendering.Universal.PixelPerfectCamera.CropFrame previousCropFrame;
 
         public OrkPartyBridge Party => party;
         public bool IsConfigured => configured;
@@ -150,18 +163,31 @@ namespace Rpg.Soundwell
             Camera camera = Camera.main;
             if (camera != null)
             {
-                var brain = camera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
-                if (brain != null) brain.enabled = false;
-                var rig = camera.GetComponent<SoundwellCameraRig>();
-                if (rig != null) rig.enabled = false;
+                encounterCamera = camera;
+                previousCameraPosition = camera.transform.position;
+                previousCameraOrthographic = camera.orthographic;
+                previousCameraOrthographicSize = camera.orthographicSize;
+                previousCameraBrain = camera.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+                if (previousCameraBrain != null)
+                {
+                    previousBrainEnabled = previousCameraBrain.enabled;
+                    previousCameraBrain.enabled = false;
+                }
+                previousCameraRig = camera.GetComponent<SoundwellCameraRig>();
+                if (previousCameraRig != null)
+                {
+                    previousRigEnabled = previousCameraRig.enabled;
+                    previousCameraRig.enabled = false;
+                }
+                previousPixelCamera = camera.GetComponent<UnityEngine.Rendering.Universal.PixelPerfectCamera>();
+                if (previousPixelCamera != null)
+                {
+                    previousCropFrame = previousPixelCamera.cropFrame;
+                    previousPixelCamera.cropFrame = UnityEngine.Rendering.Universal.PixelPerfectCamera.CropFrame.None;
+                }
                 camera.transform.position = new Vector3(41f, 28f, -10f);
                 camera.orthographic = true;
                 camera.orthographicSize = 5.625f;
-                var pixelPerfect = camera.GetComponent<UnityEngine.Rendering.Universal.PixelPerfectCamera>();
-                if (pixelPerfect != null)
-                {
-                    pixelPerfect.cropFrame = UnityEngine.Rendering.Universal.PixelPerfectCamera.CropFrame.None;
-                }
             }
             lineMaterial = new Material(Shader.Find("Sprites/Default"));
             for (int i = 0; i < 3; i++)
@@ -350,6 +376,21 @@ namespace Rpg.Soundwell
 
         private void OnDestroy()
         {
+            // Restore the owning camera before another scene uses its live
+            // pixel-perfect framing; do not resurrect destroyed scene objects.
+            if (encounterCamera != null)
+            {
+                encounterCamera.transform.position = previousCameraPosition;
+                encounterCamera.orthographic = previousCameraOrthographic;
+                encounterCamera.orthographicSize = previousCameraOrthographicSize;
+            }
+            if (previousPixelCamera != null)
+                previousPixelCamera.cropFrame = previousCropFrame;
+            if (previousCameraRig != null)
+                previousCameraRig.enabled = previousRigEnabled;
+            if (previousCameraBrain != null)
+                previousCameraBrain.enabled = previousBrainEnabled;
+
             foreach (var item in restingPositions)
                 if (item.Key != null) item.Key.localPosition = item.Value;
             if (configured && party != null && party.Beast != null)

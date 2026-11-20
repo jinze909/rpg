@@ -27,9 +27,17 @@ namespace Rpg.Tests.Editor
             var button = entry.GetComponentsInChildren<UnityEngine.UI.Button>()
                 .Single(value => value.name == "Enter Soundwell button");
             button.onClick.Invoke();
-            yield return Wait(() => UnityEngine.Object.FindFirstObjectByType<OrkRoleEncounter>()?.IsActive == true,
-                "the visible entry must start the actual role encounter");
-            var encounter = UnityEngine.Object.FindFirstObjectByType<OrkRoleEncounter>();
+            OrkRoleEncounter encounter = null;
+            yield return Wait(() =>
+            {
+                encounter = UnityEngine.Object.FindFirstObjectByType<OrkRoleEncounter>();
+                return encounter != null && encounter.IsActive && encounter.Party != null &&
+                    encounter.Party.Beast != null && encounter.Party.Members.Count == 3 &&
+                    encounter.View != null;
+            }, "the visible entry must start a fully initialized ORK role encounter");
+            Assert.That(encounter, Is.Not.Null, "The visible entry must retain the live encounter.");
+            Assert.That(SoundwellEntrance.RoleEncounterRequested, Is.False,
+                "The selected encounter mode must be consumed at scene load.");
             Assert.That(encounter.Party.Members.Count, Is.EqualTo(3));
             Assert.That(encounter.Party.Beast.Status[1].GetValue(), Is.EqualTo(36));
             Assert.That(encounter.Party.Members.All(member => member.Status[1].GetValue() == 16), Is.True);
