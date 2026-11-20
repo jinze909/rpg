@@ -522,7 +522,9 @@ namespace Rpg.Soundwell
                 SetTarget(target);
             }
 
-            protected override void ActionStartSetup() { }
+            // Keep ORK's ability action-start setup; the HUD's separate
+            // presentation coroutine must not bypass the framework lifecycle.
+            protected override void ActionStartSetup() => base.ActionStartSetup();
             public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
@@ -582,7 +584,9 @@ namespace Rpg.Soundwell
                 SetTarget(owner.party.Beast);
             }
 
-            protected override void ActionStartSetup() { }
+            // Keep ORK's ability action-start setup; the HUD's separate
+            // presentation coroutine must not bypass the framework lifecycle.
+            protected override void ActionStartSetup() => base.ActionStartSetup();
             public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
