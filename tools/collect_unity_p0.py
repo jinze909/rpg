@@ -36,6 +36,10 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # Require every test actually declared in the clean candidate; never accept
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
+    "Assets/Game/Tests/Editor/M04PreflightCastOffHandoffTests.cs": {
+        "LivePreflightOffersCastOffOnlyWithSavedPhysicalReadiness":
+            "Rpg.Tests.Editor.M04PreflightCastOffHandoffTests.LivePreflightOffersCastOffOnlyWithSavedPhysicalReadiness",
+    },
     "Assets/Game/Tests/Editor/M04QiQueCupFactsTests.cs": {
         "CupStateDistinguishesUnplayedDepartureFromCompletedGiftAndNoGift":
             "Rpg.Tests.Editor.M04QiQueCupFactsTests.CupStateDistinguishesUnplayedDepartureFromCompletedGiftAndNoGift",

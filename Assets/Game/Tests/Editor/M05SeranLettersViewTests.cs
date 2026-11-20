@@ -33,6 +33,9 @@ namespace Rpg.Tests.Editor
 
                 view.TakeButton.onClick.Invoke();
                 Assert.That(view.SelectedDecision, Is.EqualTo(M05LetterDecision.TakePacket));
+                Assert.That(view.ReadPacketButton.gameObject.activeSelf, Is.True);
+                Assert.That(view.Dialogue.text, Does.Not.Contain("household accounts"));
+                view.ReadPacketButton.onClick.Invoke();
                 Assert.That(view.Dialogue.text, Does.Contain("household accounts"));
                 Assert.That(view.Dialogue.text, Does.Contain("child's drawing"));
                 Assert.That(view.Dialogue.text, Does.Contain("None has been delivered yet"));
@@ -73,6 +76,9 @@ namespace Rpg.Tests.Editor
                 });
                 view.LeaveButton.onClick.Invoke();
                 Assert.That(view.Dialogue.text, Does.Contain("next boat"));
+                Assert.That(view.ReadPacketButton.gameObject.activeSelf, Is.False);
+                view.ReadPacketButton.onClick.Invoke();
+                Assert.That(view.Dialogue.text, Does.Not.Contain("doorstep"));
                 view.TakeButton.onClick.Invoke();
                 Assert.That(view.SelectedDecision,
                     Is.EqualTo(M05LetterDecision.LeaveForNextBoat));
@@ -136,7 +142,12 @@ namespace Rpg.Tests.Editor
                 view = new M05SeranLettersView(root.transform, _ => { });
                 view.TakeButton.onClick.Invoke();
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Dialogue.text, Does.Not.Contain("我把门槛修好了"));
+                view.ReadPacketButton.onClick.Invoke();
                 Assert.That(view.Dialogue.text, Does.Contain("我把门槛修好了"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(view.Dialogue.text, Does.Contain("I fixed the doorstep"));
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
                 Assert.That(view.Dialogue.text, Does.Contain("还没有送达任何人"));
                 Assert.That(view.SelectedDecision, Is.EqualTo(M05LetterDecision.TakePacket));
                 foreach (float aspect in new[] { 9f / 16f, 16f / 9f, 32f / 9f })
