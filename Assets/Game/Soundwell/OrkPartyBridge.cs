@@ -106,6 +106,7 @@ namespace Rpg.Soundwell
         private const float BattleStartTimeout = 8f;
 
         public bool IsReady { get; private set; }
+        public OrkRoleEncounter RoleEncounter { get; internal set; }
         public string InitializationError { get; private set; }
         public Group PlayerGroup { get; private set; }
         public Group EnemyGroup { get; private set; }
@@ -863,7 +864,8 @@ namespace Rpg.Soundwell
                 inBattle = IsBattleRunning();
             }
 
-            if (!IsReady || formation == null)
+            if (!IsReady || formation == null ||
+                (RoleEncounter != null && RoleEncounter.IsConfigured))
                 return;
             if (checkpointRegroupQueued && !inBattle)
             {

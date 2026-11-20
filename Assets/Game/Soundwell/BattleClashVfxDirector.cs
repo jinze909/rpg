@@ -192,7 +192,7 @@ namespace Rpg.Soundwell
             UpdateRecoils(dt);
 
             OrkPartyBridge party = FindFirstObjectByType<OrkPartyBridge>();
-            bool active = party != null && party.BattleInProgress;
+            bool active = party != null && party.BattleInProgress && party.RoleEncounter == null;
             if (!active)
             {
                 if (wasBattleActive)

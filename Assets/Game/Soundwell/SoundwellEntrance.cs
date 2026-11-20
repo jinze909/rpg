@@ -14,6 +14,7 @@ namespace Rpg.Soundwell
     {
         public const string SceneName = "SoundwellTrial";
         public const string BootstrapSceneName = "Bootstrap";
+        public static bool RoleEncounterRequested { get; private set; }
 
         private AsyncOperation trialLoad;
         private Button entryButton;
@@ -71,6 +72,7 @@ namespace Rpg.Soundwell
 
         private void Awake()
         {
+            RoleEncounterRequested = false;
             SoundwellInputAdapter.SetEntryContext();
             SoundwellInputAdapter.EnsureEventSystem(transform);
             var canvas = new GameObject("Soundwell entry prompt", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
@@ -108,7 +110,7 @@ namespace Rpg.Soundwell
             entryButton.navigation = new Navigation { mode = Navigation.Mode.Automatic };
             actionText = SoundwellView.AddLabel(rect, "[F2 / Pad A] Enter the trial", 22,
                 new Color(1f, 0.72f, 0.33f), Vector2.zero, new Vector2(440f, 50f));
-            entryButton.onClick.AddListener(() => OpenTrial());
+            entryButton.onClick.AddListener(() => OpenPlayableTrial());
 
             footerText = SoundwellView.AddLabel(canvas.transform, "CLICK / ENTER / PAD A TO BEGIN", 15,
                 new Color(0.65f, 0.78f, 0.83f), new Vector2(0f, -65f), new Vector2(440f, 28f));
@@ -738,7 +740,7 @@ namespace Rpg.Soundwell
                 selected == languageButton.gameObject || selected == prologueButton.gameObject ||
                 selected == saveCheckpointButton.gameObject || selected == loadCheckpointButton.gameObject;
             if (entryRequested && (!settingFocused || SoundwellInputAdapter.EntryKeyboardShortcutPressed()))
-                OpenTrial();
+                OpenPlayableTrial();
         }
 
         public void OpenPrelude()
@@ -863,6 +865,17 @@ namespace Rpg.Soundwell
                 " 1-3: " + string.Join(" / ", amount);
         }
 
+        public AsyncOperation OpenPlayableTrial()
+        {
+            if (checkpointLoading || trialLoad != null || currentPrelude != null || currentMemorial != null ||
+                lastOpeningExitFrame == Time.frameCount)
+                return trialLoad;
+            RoleEncounterRequested = true;
+            return OpenTrial();
+        }
+
+        // Explicit prototype entry retained for callers comparing the original
+        // movement/formation experiment. The visible player entry uses roles.
         public AsyncOperation OpenTrial()
         {
             if (checkpointLoading || trialLoad != null || currentPrelude != null || currentMemorial != null ||

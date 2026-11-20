@@ -149,7 +149,7 @@ namespace Rpg.Soundwell
         private void LateUpdate()
         {
             OrkPartyBridge party = FindFirstObjectByType<OrkPartyBridge>();
-            bool active = party != null && party.BattleInProgress;
+            bool active = party != null && party.BattleInProgress && party.RoleEncounter == null;
             if (!active)
             {
                 if (battleAttached)
