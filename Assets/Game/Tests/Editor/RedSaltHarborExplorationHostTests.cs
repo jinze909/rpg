@@ -85,14 +85,14 @@ namespace Rpg.Tests.Editor
             }
         }
 
-
-        private static void WalkTo(RedSaltHarborExplorationHost host, float x, float y)
+        private static void WalkTo(RedSaltHarborExplorationHost host, float x, float y,
+            bool yFirst = false)
         {
             Vector2 target = new Vector2(x, y);
-            // The authored harbor quays are continuous and walkable, so follow
-            // X and Y separately to exercise the actual explorer motor.
-            for (int axis = 0; axis < 2; axis++)
+            int[] axes = yFirst ? new[] { 1, 0 } : new[] { 0, 1 };
+            for (int a = 0; a < axes.Length; a++)
             {
+                int axis = axes[a];
                 for (int i = 0; i < 900; i++)
                 {
                     float delta = axis == 0
@@ -117,9 +117,11 @@ namespace Rpg.Tests.Editor
             SeedCompletedCrossing(values);
             Func<string, int> read = Reader(values);
             Action<string, int> write = (key, value) => values[key] = value;
+            string prevLang = SoundwellUiLocalization.Language;
             RedSaltHarborExplorationHost host = null;
             try
             {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 host = new RedSaltHarborExplorationHost(root.transform, read, write,
                     observedLanding: new M05LandingReport(3, 10, true, true));
                 WalkTo(host, 22.5f, 24.5f);
@@ -139,7 +141,8 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
                     "Already witnessed dialogue must not re-open at the same stall.");
 
-                WalkTo(host, 118.5f, 22.5f);
+                // Walk south first so the route clears the lantern post at (118, 25).
+                WalkTo(host, 118.5f, 22.5f, yFirst: true);
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
                 Assert.That(host.ActiveHarborWalkView.Beat, Is.EqualTo(M05HarborBeat.FisherRumor));
                 Assert.That(host.ActiveHarborWalkView.Dialogue.text, Does.Contain("Three boats"));
@@ -158,6 +161,7 @@ namespace Rpg.Tests.Editor
             finally
             {
                 host?.Dispose();
+                SoundwellUiLocalization.SetLanguage(prevLang);
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
