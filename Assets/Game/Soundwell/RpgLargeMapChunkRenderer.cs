@@ -8,8 +8,9 @@ namespace Rpg.Soundwell
     /// Renders 4x-scale RPG tilemap layouts (Soundwell 96x60, Red Salt Harbor
     /// 140x84, Whitewater Crossing 80x44) into crisp 16-PPU, Point-filtered
     /// 32x32-tile SpriteRenderer chunks plus warm beacon halos at every
-    /// RpgLight2DAnchor. Keeps draw calls low (~6-15 chunks) and guarantees
-    /// 1:1 world-to-tile alignment with RpgLargeMapExplorerController.
+    /// RpgLight2DAnchor. Automatically loads authored pixel-art slices from
+    /// RpgPixelArtManifest when tileSlices is omitted, keeping draw calls low
+    /// (~6-15 chunks) and guaranteeing 1:1 world-to-tile alignment.
     /// </summary>
     public sealed class RpgLargeMapChunkRenderer : IDisposable
     {
@@ -26,6 +27,7 @@ namespace Rpg.Soundwell
         public GameObject RootObject => rootObject;
         public int ChunkCount => chunkRenderers.Count;
         public int LightHaloCount => lightHalos.Count;
+        public bool UsedRealArtSlices { get; }
         public bool IsDisposed => disposed;
 
         public static RpgLargeMapChunkRenderer BuildForSoundwell(Transform parent,
@@ -34,12 +36,13 @@ namespace Rpg.Soundwell
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (layout == null) throw new ArgumentNullException(nameof(layout));
 
+            Sprite[] resolvedSlices = tileSlices ?? RpgPixelArtManifest.LoadDefault()?.SoundwellTiles;
             return new RpgLargeMapChunkRenderer(parent, "Soundwell large map chunks",
                 layout.Width, layout.Height,
                 (x, y) => (int)layout.Tiles[x, y],
                 SoundwellFallbackColor,
                 layout.PointLights,
-                tileSlices);
+                resolvedSlices);
         }
 
         public static RpgLargeMapChunkRenderer BuildForRedSaltHarbor(Transform parent,
@@ -48,12 +51,13 @@ namespace Rpg.Soundwell
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (layout == null) throw new ArgumentNullException(nameof(layout));
 
+            Sprite[] resolvedSlices = tileSlices ?? RpgPixelArtManifest.LoadDefault()?.HarborTiles;
             return new RpgLargeMapChunkRenderer(parent, "Red Salt Harbor large map chunks",
                 layout.Width, layout.Height,
                 (x, y) => (int)layout.Tiles[x, y],
                 HarborFallbackColor,
                 layout.PointLights,
-                tileSlices);
+                resolvedSlices);
         }
 
         public static RpgLargeMapChunkRenderer BuildForWhitewaterCrossing(Transform parent,
@@ -62,12 +66,13 @@ namespace Rpg.Soundwell
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (layout == null) throw new ArgumentNullException(nameof(layout));
 
+            Sprite[] resolvedSlices = tileSlices ?? RpgPixelArtManifest.LoadDefault()?.HarborTiles;
             return new RpgLargeMapChunkRenderer(parent, "Whitewater Crossing large map chunks",
                 layout.Width, layout.Height,
                 (x, y) => (int)layout.Tiles[x, y],
                 HarborFallbackColor,
                 layout.PointLights,
-                tileSlices);
+                resolvedSlices);
         }
 
         private RpgLargeMapChunkRenderer(Transform parent, string rootName,
@@ -79,7 +84,8 @@ namespace Rpg.Soundwell
             rootObject = new GameObject(rootName);
             rootObject.transform.SetParent(parent, false);
 
-            var cachedSlicePixels = ExtractReadableSlices(tileSlices);
+            var cachedSlicePixels = ExtractReadableSlices(tileSlices, out int readableCount);
+            UsedRealArtSlices = readableCount > 0;
 
             for (int cy = 0; cy < mapHeight; cy += ChunkSizeTiles)
             {
@@ -184,8 +190,9 @@ namespace Rpg.Soundwell
             }
         }
 
-        private static Color32[][] ExtractReadableSlices(Sprite[] slices)
+        private static Color32[][] ExtractReadableSlices(Sprite[] slices, out int readableCount)
         {
+            readableCount = 0;
             if (slices == null || slices.Length == 0)
                 return null;
 
@@ -206,6 +213,7 @@ namespace Rpg.Soundwell
                 for (int p = 0; p < raw.Length; p++)
                     buf[p] = raw[p];
                 result[i] = buf;
+                readableCount++;
             }
             return result;
         }
