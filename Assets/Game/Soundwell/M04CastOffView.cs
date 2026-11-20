@@ -143,8 +143,14 @@ namespace Rpg.Soundwell
         {
             manifest = null;
             sailed = false;
-            if (!M04DepartureFacts.TryRead(read, out M04DepartureRecord? record) ||
-                !record.HasValue ||
+            // The M03 choice can be reset or changed while this dock UI is
+            // still open. A once-confirmed M04 hull must not sail on an old
+            // route after that happens. Both facts come from Makinom.
+            if (!M03LuJunFacts.TryRead(read, out _, out _,
+                    out M03VoyageChoice? chosenRoute) ||
+                !chosenRoute.HasValue ||
+                !M04DepartureFacts.TryRead(read, out M04DepartureRecord? record) ||
+                !record.HasValue || record.Value.Route != chosenRoute.Value ||
                 !M04DepartureFacts.TryReadSailed(read, out sailed))
                 return false;
             // A corrupt, noncanonical cast-off bit must never enable the
