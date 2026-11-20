@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private readonly RectTransform authored;
         private readonly Font latinFont;
         private readonly Text heading;
+        private readonly Image rosterIcon;
         private readonly Text summary;
         private readonly Text selectedDetails;
         private readonly Button prevButton;
@@ -48,6 +49,7 @@ namespace Rpg.Soundwell
         public M04RosterLedger Ledger => ledger;
         public int VerifiedBerths => verifiedBerths;
         public int SelectedIndex => selectedIndex;
+        public Image RosterIcon => rosterIcon;
         public Text Summary => summary;
         public Text SelectedDetails => selectedDetails;
         public Button PrevButton => prevButton;
@@ -80,9 +82,12 @@ namespace Rpg.Soundwell
                 parent, "M04 roster reconciliation canvas", 130, out authored);
 
             heading = SoundwellUiTheme.CreateLabel(authored, 23, new Vector2(0f, 215f), new Vector2(840f, 42f));
-            summary = SoundwellUiTheme.CreateLabel(authored, 17, new Vector2(0f, 150f), new Vector2(840f, 72f));
+            rosterIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authored, "M04 roster status icon",
+                new Vector2(-382f, 108f), new Vector2(68f, 68f), null);
+            summary = SoundwellUiTheme.CreateLabel(authored, 17, new Vector2(44f, 150f), new Vector2(752f, 72f));
             summary.alignment = TextAnchor.UpperLeft;
-            selectedDetails = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(0f, 52f), new Vector2(840f, 108f));
+            selectedDetails = SoundwellUiTheme.CreateLabel(authored, 18, new Vector2(44f, 52f), new Vector2(752f, 108f));
             selectedDetails.alignment = TextAnchor.UpperLeft;
 
             prevButton = SoundwellUiTheme.CreateButton(authored, "M04 roster prev",
@@ -174,6 +179,7 @@ namespace Rpg.Soundwell
             summary.text = M04RosterReconciliationCopy.DescribeSummary(ledger, verifiedBerths, zh);
             selectedDetails.text = M04RosterReconciliationCopy.DescribeEntry(
                 current, selectedIndex, entries.Length, zh);
+            UpdateRosterIcon(current);
 
             prevLabel.text = zh ? "上一条" : "Previous";
             nextLabel.text = zh ? "下一条" : "Next";
@@ -219,6 +225,24 @@ namespace Rpg.Soundwell
                     : backButton;
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, preferred);
             }
+        }
+
+        private void UpdateRosterIcon(M04RosterEntry current)
+        {
+            if (rosterIcon == null)
+                return;
+            Sprite sprite;
+            if (current == null)
+                sprite = RpgStoryArtResolver.ResolveM02LedgerSprite();
+            else if (current.RequiresRollCorrection || ledger.BookedCount > verifiedBerths)
+                sprite = RpgStoryArtResolver.ResolveM07PassSprite(stamped: false);
+            else if (current.Status == M04RosterStatus.BookedForVoyage)
+                sprite = RpgStoryArtResolver.ResolveM07PassSprite(stamped: true);
+            else if (current.Status == M04RosterStatus.ConfirmedAtDock)
+                sprite = RpgStoryArtResolver.ResolveM02DocumentSprite(sealedDocument: true);
+            else
+                sprite = RpgStoryArtResolver.ResolveM02LedgerSprite();
+            RpgStoryArtResolver.ApplyPixelSprite(rosterIcon, sprite);
         }
 
         private bool IsDestroyedExternally()
