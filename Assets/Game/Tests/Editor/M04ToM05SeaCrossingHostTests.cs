@@ -316,6 +316,66 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FailedFogSceneCallbackCanRetrySavedFailureWithoutReplayingOrArriving()
+        {
+            var root = new GameObject("M04 failed fog callback retry");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            int savedFogCompletions = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == FogListeningFacts.CompletedKey && value == 1)
+                    savedFogCompletions++;
+                values[key] = value;
+            };
+            M04ToM05SeaCrossingHost host = null;
+            try
+            {
+                int failures = 0;
+                int arrivals = 0;
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, FailingFogLeg,
+                    new M05LandingReport(3, 8, true, true), read, write,
+                    _ => arrivals++, record =>
+                    {
+                        failures++;
+                        Assert.That(record.Succeeded, Is.False);
+                        if (failures == 1)
+                            throw new InvalidOperationException("Failure scene unavailable");
+                    }, out host), Is.True);
+
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                host.FogHost.View.HoldButton.onClick.Invoke();
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.FogHost.View.ContinueButton.onClick.Invoke());
+                Assert.That(values[FogListeningFacts.CompletedKey], Is.EqualTo(1));
+                Assert.That(values[FogListeningFacts.SucceededKey], Is.Zero);
+                Assert.That(savedFogCompletions, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+                Assert.That(host.FogHost, Is.Not.Null);
+                Assert.That(host.FogHost.View.ContinueButton.interactable, Is.True);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+                Assert.That(arrivals, Is.Zero);
+                Assert.That(values.ContainsKey(M05LandingFacts.ConfirmedKey), Is.False);
+
+                host.FogHost.View.ContinueButton.onClick.Invoke();
+                Assert.That(failures, Is.EqualTo(2));
+                Assert.That(savedFogCompletions, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogFailed));
+                Assert.That(host.FogHost, Is.Null);
+                Assert.That(host.OuterHarborHost, Is.Null);
+                Assert.That(arrivals, Is.Zero);
+                Assert.That(values.ContainsKey(M05LandingFacts.ConfirmedKey), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void TryOpenGatesUnverifiedOrMismatchedRouteAndResumesFromSavedMilestones()
         {
             var root = new GameObject("M04 to M05 resume gates");
