@@ -393,6 +393,10 @@ namespace Rpg.Soundwell
                     return true;
 
                 case "soundwell.extraction":
+                    // The extraction callback can unload this scene and
+                    // must never award the same completed escape twice.
+                    if (ExtractionCompleted)
+                        return false;
                     if (!IsGateOpen)
                     {
                         SetFeedback("铁闸尚未开启，无法进入撤退井口。", "Open the iron gate before extracting.");
