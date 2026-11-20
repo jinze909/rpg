@@ -60,7 +60,6 @@ namespace Rpg.Soundwell
         private AcousticIntentTelegraph telegraph = new AcousticIntentTelegraph();
         private OrkPartyBridge.BattleUnitSnapshot[] previousSnapshots;
         private bool wasBattleActive;
-        private int lockedAllySlot;
 
         private float shakeRemaining;
         private float shakeIntensity;
@@ -117,23 +116,25 @@ namespace Rpg.Soundwell
             return new BattleSnapshotDelta(enemyLoss, allyLoss, struckAlly, newGuardAlly);
         }
 
-        public static string FormatThreatBanner(EnemyIntentKind intent, int lockedSlot, bool zh)
+        // AcousticIntentTelegraph is a local advisory model, not ORK's
+        // authoritative enemy target or action queue. Never display a
+        // guessed locked ally, committed charge, or confirmed opening.
+        public static string FormatThreatBanner(EnemyIntentKind intent, bool zh)
         {
-            int displaySlot = Mathf.Clamp(lockedSlot, 0, 2) + 1;
             switch (intent)
             {
                 case EnemyIntentKind.ChargedLunge:
                     return zh
-                        ? "⚠ 敌方蓄力锁定 " + displaySlot + " 号位 · 推荐前排举盾挡伤或趁破绽反击"
-                        : "⚠ LOCKED ON SLOT " + displaySlot + " · GUARD TO MITIGATE OR COUNTER";
+                        ? "战术建议：遇蓄力可架挡；敌方意图未确认"
+                        : "TACTICAL TIP · Guard against charges; intent unverified";
                 case EnemyIntentKind.ListeningAlert:
                     return zh
-                        ? "◎ 敌方警觉监听中 · 注意阵型节奏，适时防反"
-                        : "◎ ENEMY ALERT · WATCH NOISE & GUARD LOCKED ALLY";
+                        ? "战术建议：留意声响并掩护；敌方意图未确认"
+                        : "TACTICAL TIP · Watch noise and cover; intent unverified";
                 case EnemyIntentKind.Recovering:
                     return zh
-                        ? "★ 敌方失衡破绽 · 趁现在全力集火输出！"
-                        : "★ ENEMY STAGGERED · PRESS ATTACK NOW!";
+                        ? "战术建议：敌人失衡时反击；敌方意图未确认"
+                        : "TACTICAL TIP · Strike if staggered; intent unverified";
                 default:
                     return string.Empty;
             }
@@ -147,20 +148,20 @@ namespace Rpg.Soundwell
             {
                 if (zh)
                     return charging
-                        ? "【1号·前排护阵】 推荐 [防御] 举盾挡下蓄力  ｜  [攻击] 强行压阵"
+                        ? "【1号·前排护阵】 若遇蓄力可[防御]架挡  ｜  [攻击]压阵"
                         : "【1号·前排护阵】 [攻击] 稳击压阵  ｜  [防御] 举盾减伤稳阵";
                 return charging
-                    ? "[Slot 1 · Vanguard] TIP: [Guard] Shield Charge  |  [Attack] Press Strike"
+                    ? "[Slot 1 · Vanguard] IF charged: [Guard]  |  [Attack] Press Strike"
                     : "[Slot 1 · Vanguard] [Attack] Press Strike  |  [Guard] Shield Cover";
             }
             if (chooserIndex == 1)
             {
                 if (zh)
                     return opening
-                        ? "【2号·破阵主力】 推荐 [攻击] 趁破绽重击！  ｜  [防御] 稳索防反"
+                        ? "【2号·破阵主力】 若见破绽可[攻击]重击  ｜  [防御]稳索"
                         : "【2号·破阵主力】 [攻击] 破阵斩击  ｜  [防御] 稳索防反";
                 return opening
-                    ? "[Slot 2 · Breaker] TIP: [Attack] Punish Opening!  |  [Guard] Brace"
+                    ? "[Slot 2 · Breaker] IF staggered: [Attack]  |  [Guard] Brace"
                     : "[Slot 2 · Breaker] [Attack] Break Strike  |  [Guard] Brace Cable";
             }
 
@@ -298,8 +299,7 @@ namespace Rpg.Soundwell
             if (!wasBattleActive)
             {
                 wasBattleActive = true;
-                telegraph = new AcousticIntentTelegraph(20, EnemyIntentKind.ChargedLunge);
-                lockedAllySlot = 0;
+                telegraph = new AcousticIntentTelegraph(20, EnemyIntentKind.ListeningAlert);
                 previousSnapshots = null;
                 SetOverlayVisible(true);
             }
@@ -342,7 +342,6 @@ namespace Rpg.Soundwell
                     new Vector2(-310f, y), new Color(0.98f, 0.28f, 0.26f, 1f));
                 PlayClipIfAudioAvailable(hitClip);
                 telegraph.AdvanceTelegraphAfterOrkEnemyTurn();
-                lockedAllySlot = (lockedAllySlot + 1) % 3;
             }
 
             if (delta.NewGuardAllyIndex >= 0)
@@ -360,17 +359,12 @@ namespace Rpg.Soundwell
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             threatText.font = roleStripText.font = font;
-            threatText.text = FormatThreatBanner(telegraph.CurrentIntent, lockedAllySlot, zh);
+            threatText.text = FormatThreatBanner(telegraph.CurrentIntent, zh);
             roleStripText.text = FormatRoleHint(chooserIndex, telegraph.CurrentIntent, zh);
 
+            // Neutral border: an acoustic hint is not a confirmed threat state.
             if (threatBorder != null)
-            {
-                threatBorder.color = telegraph.CurrentIntent == EnemyIntentKind.ChargedLunge
-                    ? new Color(0.92f, 0.28f, 0.24f, 0.95f)
-                    : telegraph.CurrentIntent == EnemyIntentKind.Recovering
-                        ? new Color(0.42f, 0.78f, 0.92f, 0.95f)
-                        : new Color(0.94f, 0.72f, 0.30f, 0.95f);
-            }
+                threatBorder.color = new Color(0.68f, 0.58f, 0.38f, 0.85f);
         }
 
         private void SpawnPopup(string text, Vector2 anchoredPos, Color color)
