@@ -17,6 +17,7 @@ _TOOLS_DIR = str(Path(__file__).resolve().parent)
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
 
+import close_merged_pending as cleanup
 import install_ork
 import verify_ork
 
@@ -864,29 +865,6 @@ class Urp2DAcceptanceContractTests(unittest.TestCase):
 
 class PendingBranchCleanupWorkflowTests(unittest.TestCase):
     def test_reviewed_legacy_retirements_keep_exact_sha_evidence_and_valid_python(self):
-        # The cleanup workflow is a YAML-embedded Python program. Compiler-
-        # check its exact checked-out body before a green Unity verification
-        # may deliver a replacement for any of these diverged branches.
-        import textwrap
-        source = (Path(__file__).resolve().parents[1] /
-                  ".github/workflows/close-merged-pending.yml").read_text(encoding="utf-8")
-        opening = "          python3 - <<'PY'\n"
-        closing = "\n          PY"
-        self.assertEqual(source.count(opening), 1)
-        body = source.split(opening, 1)[1].split(closing, 1)[0]
-        script = textwrap.dedent(body)
-        compile(script, "close-merged-pending.yml:python", "exec")
-        # Besides being syntactically valid, the original-run check must
-        # execute inside the per-branch proof, never at module scope.
-        import ast
-        module = ast.parse(script)
-        proof = next((node for node in module.body
-                      if isinstance(node, ast.FunctionDef)
-                      and node.name == "verified_archived_proof"), None)
-        self.assertIsNotNone(proof)
-        self.assertIn('if entry.get("original_run"):',
-                      ast.get_source_segment(script, proof))
-
         expected = {
             "codex/pending/story-003-ork-attack-choice":
                 ("6f546b89d4a2bc59688e82bb2451adf13c24290a", 43125796222),
@@ -899,72 +877,40 @@ class PendingBranchCleanupWorkflowTests(unittest.TestCase):
         }
         for name, (head, original_run) in expected.items():
             with self.subTest(name=name):
-                start = script.index('"' + name + '": {')
-                receipt = script[start:start + 450]
-                self.assertIn('"head": "' + head + '"', receipt)
-                self.assertIn('"verified": "84f7ff5a255b56c1099daa7421f7e22e8546ed50"', receipt)
-                self.assertIn('"run": 43757378497', receipt)
-                self.assertIn('"original_run": ' + str(original_run), receipt)
-                self.assertIn('"pin_verified_snapshot": True', receipt)
-        # Never accept a green replacement without confirming its original
-        # SHA and artifact; this is stronger than the generic snapshot rule.
-        self.assertIn('original.get("head_sha")==sha', script)
-        self.assertIn('"original candidate exact-SHA artifact missing"', script)
+                receipt = cleanup.ARCHIVED[name]
+                self.assertEqual(receipt["head"], head)
+                self.assertEqual(receipt["verified"], "84f7ff5a255b56c1099daa7421f7e22e8546ed50")
+                self.assertEqual(receipt["run"], 43757378497)
+                self.assertEqual(receipt["original_run"], original_run)
+                self.assertIs(receipt["pin_verified_snapshot"], True)
 
+        # Even a green replacement may not stand in for the original run or artifact.
+        name = "codex/pending/story-003-ork-attack-choice"
+        sha, run_id = expected[name]
+        proof = cleanup.Proofs(cleanup.ARCHIVED[name]["verified"])
+        original = {"head_sha": sha, "name": "Unity ORK P0", "status": "completed",
+                    "conclusion": "success", "run_attempt": 1}
+        with patch.object(cleanup, "api", return_value={**original, "head_sha": "0" * 40}) as api:
+            with self.assertRaisesRegex(RuntimeError, "original SHA lacks successful Unity verification"):
+                proof.verified_archived_proof(name, sha)
+            api.assert_called_once_with(f"/repos/jinze909/rpg/actions/runs/{run_id}")
+        with patch.object(cleanup, "api", return_value=original), patch.object(cleanup, "pages", return_value=[]):
+            with self.assertRaisesRegex(RuntimeError, "original candidate exact-SHA artifact missing"):
+                proof.verified_archived_proof(name, sha)
 
     def test_cleanup_refuses_queued_or_running_branch_ci(self):
-        # Execute only the cleanup workflow's exact runs_for function with
-        # an in-memory API stub: no network, branch deletion or workflow edits.
-        # A string-only assertion would pass even if its safety check were
-        # accidentally moved outside the function or stopped executing.
-        import ast
-        import textwrap
-        import urllib.parse
-
-        workflow = (Path(__file__).resolve().parents[1] /
-                    ".github/workflows/close-merged-pending.yml").read_text(
-                        encoding="utf-8")
-        opening = "          python3 - <<'PY'\n"
-        closing = "\n          PY"
-        self.assertEqual(workflow.count(opening), 1)
-        script = textwrap.dedent(workflow.split(opening, 1)[1].split(closing, 1)[0])
-        tree = ast.parse(script)
-        function = next((node for node in tree.body
-                         if isinstance(node, ast.FunctionDef)
-                         and node.name == "runs_for"), None)
-        self.assertIsNotNone(function, "The cleanup must keep a per-branch CI gate.")
-
-        isolated = ast.fix_missing_locations(
-            ast.Module(body=[function], type_ignores=[]))
-        def require(ok, reason):
-            if not ok:
-                raise RuntimeError(reason)
-
+        branch = "codex/pending/r5-ci-safety"
         for status in ("queued", "in_progress", "waiting", "requested"):
-            with self.subTest(status=status):
-                calls = []
-                def pages(path, key):
-                    calls.append((path, key))
-                    return [{"status": "completed"}, {"status": status}]
-                scope = {"REPO": "jinze909/rpg", "urllib": urllib,
-                         "pages": pages, "check": require}
-                exec(compile(isolated, "cleanup:runs_for", "exec"), scope)
+            runs = [{"status": "completed"}, {"status": status}]
+            with self.subTest(status=status), patch.object(cleanup, "pages", return_value=runs) as pages:
                 with self.assertRaisesRegex(RuntimeError, "active or queued CI"):
-                    scope["runs_for"]("codex/pending/r5-ci-safety")
-                self.assertEqual(len(calls), 1)
-                self.assertEqual(calls[0][1], "workflow_runs")
-                self.assertIn("branch=codex%2Fpending%2Fr5-ci-safety", calls[0][0])
+                    cleanup.runs_for(branch)
+                pages.assert_called_once_with(
+                    "/repos/jinze909/rpg/actions/runs?branch=codex%2Fpending%2Fr5-ci-safety", "workflow_runs")
 
-        # No active job must leave the branch eligible for the remaining
-        # exact-SHA / artifact checks; it must not make the branch deletable.
-        for statuses in ([], [{"status": "completed"}]):
-            def pages(path, key):
-                return statuses
-            scope = {"REPO": "jinze909/rpg", "urllib": urllib,
-                     "pages": pages, "check": require}
-            exec(compile(isolated, "cleanup:runs_for", "exec"), scope)
-            self.assertEqual(scope["runs_for"]("codex/pending/r5-ci-safety"),
-                             statuses)
+        for runs in ([], [{"status": "completed"}]):
+            with self.subTest(runs=runs), patch.object(cleanup, "pages", return_value=runs):
+                self.assertEqual(cleanup.runs_for(branch), runs)
 
 
 class UnityTestManifestPreflightTests(unittest.TestCase):
