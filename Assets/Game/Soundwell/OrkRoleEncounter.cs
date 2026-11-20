@@ -52,11 +52,12 @@ namespace Rpg.Soundwell
 
         private OrkPartyBridge party;
         private RoleCombatView view;
-        private StrikeAction planned;
-        private StrikeAction submittedEnemyThreat;
-        private StrikeAction threatWaitingForQueue;
+        private EnemyThreatAction planned;
+        private EnemyThreatAction submittedEnemyThreat;
+        private EnemyThreatAction threatWaitingForQueue;
         private int threatQueueAfterFrame;
         private bool plannedQueuedIntoAi;
+        private float allPartySubmittedAt = -1f;
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
         private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
         private readonly HashSet<Combatant> turnSubmittedParty = new HashSet<Combatant>();
@@ -116,11 +117,9 @@ namespace Rpg.Soundwell
             ConfigureWorld();
 
             previousDecisionTime = party.Beast.AI.DecisionTime;
-            // Enemies are AI-controlled in ORK Classic turn mode. A 120-second
-            // decision delay kept the AI out of IsChoosing while the party's
-            // submitted actions waited forever for the next combatant.
-            // Keep a brief readable enemy choice delay, but allow ORK's
-            // native AI to consume the authored action this turn.
+            // Enemies are AI-controlled in ORK Classic turn mode. Keep a brief
+            // readable enemy choice delay so ORK's native AI consumes the
+            // authored threat action without a 120-second wait.
             party.Beast.AI.DecisionTime = 0.1f;
             foreach (Combatant member in party.Members)
                 InitializeHealth(member, 16);
@@ -128,6 +127,7 @@ namespace Rpg.Soundwell
             party.Beast.Variables.Set("rpg.role.exposed", 0);
             planned = null;
             plannedQueuedIntoAi = false;
+            allPartySubmittedAt = -1f;
             turnSubmittedParty.Clear();
             configured = true;
             view = new RoleCombatView(transform, this);
@@ -162,8 +162,8 @@ namespace Rpg.Soundwell
                 {
                     observedBattle = true;
                     // Construct and enqueue the opening Gather threat only once
-                    // ORK's battle is live so the AbilityAction binds live battle
-                    // state and asynchronous BattleStart cannot wipe ActionQueue.
+                    // ORK's battle is live so asynchronous BattleStart cannot
+                    // wipe ActionQueue.
                     if (planned == null)
                         planned = CreateThreat(Threat.Gather, 0);
                     if (!planned.HasPerformed && !plannedQueuedIntoAi)
@@ -174,9 +174,8 @@ namespace Rpg.Soundwell
                     }
                 }
                 // Never rewrite ORK's queued AI actions from inside the prior
-                // action's finishedCallback. The vendor is still retiring
-                // that active action at that point; publish the next threat
-                // one frame later so the native battle can advance its turn.
+                // action's finishedCallback. Publish the next threat one frame
+                // later so the native battle can advance its turn cleanly.
                 if (threatWaitingForQueue != null &&
                     Time.frameCount >= threatQueueAfterFrame)
                 {
@@ -188,17 +187,22 @@ namespace Rpg.Soundwell
                     }
                     threatWaitingForQueue = null;
                 }
-                // Never inject the enemy threat while a party action is still
-                // pending execution (submittedActions.Count > 0) or during a
-                // mid-party chooser handoff. Wait until ORK exposes the enemy
-                // chooser, or until every living rescuer has finished its
-                // submitted action for this turn and no player chooser remains.
                 int livingParty = LivingPartyCount();
-                bool allPartyDone = livingParty > 0 &&
-                    turnSubmittedParty.Count >= livingParty &&
-                    submittedActions.Count == 0;
-                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing ||
-                    (allPartyDone && party.ChoosingRescuerIndex < 0);
+                bool allPartySubmitted = livingParty > 0 && turnSubmittedParty.Count >= livingParty;
+                if (allPartySubmitted && allPartySubmittedAt < 0f)
+                    allPartySubmittedAt = Time.realtimeSinceStartup;
+                else if (!allPartySubmitted)
+                    allPartySubmittedAt = -1f;
+
+                // Prefer ORK's native AI queue consumption (0.1s DecisionTime).
+                // If ORK exposes the enemy chooser, or if all living rescuers
+                // submitted and 0.35s elapsed without the enemy AI performing,
+                // submit the queued NoneAction threat once.
+                bool fallbackReady = allPartySubmitted &&
+                    party.ChoosingRescuerIndex < 0 &&
+                    allPartySubmittedAt >= 0f &&
+                    Time.realtimeSinceStartup - allPartySubmittedAt >= 0.35f;
+                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing || fallbackReady;
                 if (threatWaitingForQueue == null &&
                     plannedQueuedIntoAi &&
                     enemyNeedsQueuedAction && !IsPresenting &&
@@ -220,6 +224,7 @@ namespace Rpg.Soundwell
                 ending = true;
                 submittedActions.Clear();
                 turnSubmittedParty.Clear();
+                allPartySubmittedAt = -1f;
                 submittedEnemyThreat = null;
                 threatWaitingForQueue = null;
                 plannedQueuedIntoAi = false;
@@ -357,7 +362,6 @@ namespace Rpg.Soundwell
                 {
                     if (planned != null)
                     {
-                        planned.SetTarget(actor);
                         planned.TargetIndex = index;
                         planned.Covered = true;
                     }
@@ -371,9 +375,6 @@ namespace Rpg.Soundwell
                 {
                     if (planned != null && planned.Kind == countered)
                     {
-                        // Keep the action eligible for ORK's lifecycle so its
-                        // finishedCallback advances the threat queue while
-                        // Calculate resolves at zero damage factor.
                         planned.Interrupted = true;
                         party.Beast.Variables.Set("rpg.role.exposed", 1);
                         SetExchange(index == 1 ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
@@ -400,13 +401,9 @@ namespace Rpg.Soundwell
             else
             {
                 float strength = index == 1 ? (IsExposed ? 10f : 4f) : 2f;
-                action = new StrikeAction(this, actor, party.Beast, strength, false,
-                    Threat.Gather, 0);
+                action = new StrikeAction(this, actor, party.Beast, strength);
             }
             if (!action.CanUse()) return false;
-            // In ORK Classic turn-based mode, each party member submits its
-            // action before any PerformAction runs. Track per-actor submission
-            // and same-frame debounce without blocking the next choosing ally.
             lastCommandFrame = Time.frameCount;
             submittedActions.Add(actor);
             turnSubmittedParty.Add(actor);
@@ -415,12 +412,10 @@ namespace Rpg.Soundwell
             return true;
         }
 
-        private StrikeAction CreateThreat(Threat kind, int target)
+        private EnemyThreatAction CreateThreat(Threat kind, int target)
         {
-            var action = new StrikeAction(this, party.Beast, party.Members[target],
-                kind == Threat.Lunge ? 8f : 4f, true, kind, target);
-            if (kind == Threat.Howl)
-                action.SetTargets(new List<Combatant>(party.Members));
+            int damage = kind == Threat.Gather ? 0 : (kind == Threat.Lunge ? 8 : 4);
+            var action = new EnemyThreatAction(this, party.Beast, kind, target, damage);
             action.finishedCallback += _ =>
             {
                 if (this == null || ending || party == null || party.Beast.Status.IsDead) return;
@@ -429,10 +424,8 @@ namespace Rpg.Soundwell
                 planned = CreateThreat(next, nextTarget);
                 submittedEnemyThreat = null;
                 plannedQueuedIntoAi = false;
+                allPartySubmittedAt = -1f;
                 turnSubmittedParty.Clear();
-                // ORK may still be completing this exact action; changing its
-                // queue synchronously can prevent the next player chooser.
-                // Enqueue the same authentic StrikeAction in the next Update.
                 threatWaitingForQueue = planned;
                 threatQueueAfterFrame = Time.frameCount + 1;
             };
@@ -478,10 +471,6 @@ namespace Rpg.Soundwell
                 if (visual != null) visual.localPosition = home;
                 if (this != null && actor != null && actor.GameObject != null && !ending)
                 {
-                    // ORK's base PerformAction has already run synchronously
-                    // on the live battle action, never from this delayed
-                    // presentation coroutine. This effect cannot own HP,
-                    // callbacks or battle-turn advancement.
                     if (!utility && !interrupted && audioSource != null)
                         audioSource.PlayOneShot(hitSound);
                     if (!utility)
@@ -538,63 +527,83 @@ namespace Rpg.Soundwell
         {
             private readonly OrkRoleEncounter owner;
             private readonly float strength;
-            private readonly bool enemy;
+
+            public StrikeAction(OrkRoleEncounter owner, Combatant actor, Combatant target, float strength)
+                : base(actor, actor.Abilities.GetCurrentBaseAttack())
+            {
+                this.owner = owner;
+                this.strength = strength;
+                SetTarget(target);
+            }
+
+            // Do not override PerformAction or ActionStartSetup: let ORK's
+            // native no-schematic Prototype Attack lifecycle drive execution
+            // and turn advancement while Calculate applies role scaling.
+            public override void Calculate(List<Combatant> targets, float damageFactor,
+                ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
+            {
+                owner.StartCoroutine(owner.Present(User, owner.party.Beast, false, false, false));
+                bool consumeExposed = User == owner.party.Members[1] && owner.IsExposed;
+                base.Calculate(targets, damageFactor * strength, options, flyingTextTarget, notify);
+                if (consumeExposed && owner != null && owner.party != null && owner.party.Beast != null)
+                    owner.party.Beast.Variables.Set("rpg.role.exposed", 0);
+            }
+        }
+
+        private sealed class EnemyThreatAction : NoneAction
+        {
+            private readonly OrkRoleEncounter owner;
+            private readonly int baseDamage;
             public readonly Threat Kind;
             public int TargetIndex;
             public bool Interrupted;
             public bool Covered;
             public bool HasPerformed { get; private set; }
 
-            public StrikeAction(OrkRoleEncounter owner, Combatant actor, Combatant target,
-                float strength, bool enemy, Threat kind, int targetIndex)
-                : base(actor, actor.Abilities.GetCurrentBaseAttack())
+            public EnemyThreatAction(OrkRoleEncounter owner, Combatant beast,
+                Threat kind, int targetIndex, int baseDamage)
+                : base(beast, false)
             {
                 this.owner = owner;
-                this.strength = strength;
-                this.enemy = enemy;
                 Kind = kind;
                 TargetIndex = targetIndex;
-                SetTarget(target);
+                this.baseDamage = baseDamage;
             }
 
-            // Skip optional starter schematics/camera setup just like
-            // OrkPartyBridge.OpenGateAction so enemy Gather/Lunge actions
-            // never stall waiting for starter animations.
+            // Use ORK's verified NoneAction lifecycle (matching
+            // OrkPartyBridge.OpenGateAction) so enemy telegraphs, interrupts,
+            // and multi-target Howls never deadlock on AbilityAction setup.
             protected override void ActionStartSetup() { }
             public override bool CanUse() => base.CanUse();
-            public override void PerformAction()
-            {
-                HasPerformed = true;
-                // ORK owns current-action progression. Deferring its base
-                // PerformAction into a Unity coroutine causes a classic-turn
-                // deadlock after the first hit: queued allies remain suspended,
-                // while ORK grants no next chooser. Start graphics first but
-                // invoke the actual ORK ability on this same action call.
-                owner.StartCoroutine(owner.Present(User,
-                    enemy ? owner.party.Members[TargetIndex] : owner.party.Beast,
-                    enemy, enemy && Kind == Threat.Gather, Interrupted));
-                base.PerformAction();
-            }
 
             public override void Calculate(List<Combatant> targets, float damageFactor,
                 ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
             {
-                if (enemy && (Kind == Threat.Gather || Interrupted))
+                HasPerformed = true;
+                Combatant primaryTarget = owner.party.Members[Mathf.Clamp(TargetIndex, 0, owner.party.Members.Count - 1)];
+                owner.StartCoroutine(owner.Present(User, primaryTarget, true, Kind == Threat.Gather, Interrupted));
+                if (Kind != Threat.Gather && !Interrupted && baseDamage > 0)
                 {
-                    // Complete the real ORK action lifecycle with a non-empty
-                    // target list and zero damage factor so ORK always invokes
-                    // notify and finishes the turn without damaging the party.
-                    List<Combatant> zeroTargets = targets != null && targets.Count > 0
-                        ? targets
-                        : new List<Combatant> { owner.party.Members[TargetIndex] };
-                    base.Calculate(zeroTargets, 0f, options, flyingTextTarget, notify);
-                    return;
+                    int actualDamage = Covered ? Mathf.Max(1, Mathf.RoundToInt(baseDamage * 0.25f)) : baseDamage;
+                    if (Kind == Threat.Howl)
+                    {
+                        foreach (Combatant member in owner.party.Members)
+                            ApplyDamage(member, actualDamage);
+                    }
+                    else
+                    {
+                        ApplyDamage(primaryTarget, actualDamage);
+                    }
                 }
-                bool consumeExposed = !enemy && User == owner.party.Members[1] && owner.IsExposed;
-                base.Calculate(targets, damageFactor * strength * (Covered ? 0.25f : 1f),
-                    options, flyingTextTarget, notify);
-                if (consumeExposed && owner != null && owner.party != null && owner.party.Beast != null)
-                    owner.party.Beast.Variables.Set("rpg.role.exposed", 0);
+                base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
+            }
+
+            private static void ApplyDamage(Combatant member, int amount)
+            {
+                if (member == null || member.Status.IsDead) return;
+                StatusValue health = member.Status[OrkPartyBridge.HealthStatusIndex];
+                health.SetValueAccess(Mathf.Max(0, health.GetValue() - amount),
+                    false, false, false, true, false, null);
             }
         }
 
