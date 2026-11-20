@@ -61,7 +61,16 @@ namespace Rpg.Tests.Editor
                 "The completed ORK gather action must not damage the party.");
             int[] beforeLunge = encounter.Party.Members.Select(member => member.Status[1].GetValue()).ToArray();
             yield return Wait(() => encounter.Party.ChoosingRescuerIndex >= 0 && !encounter.IsPresenting,
-                "player response window");
+                "player response window", () =>
+                    "Actor=" + encounter.Party.ChoosingRescuerIndex +
+                    ", threat=" + encounter.PendingThreat +
+                    ", presenting=" + encounter.IsPresenting +
+                    ", enemyChooser=" + encounter.EnemyChooserActive +
+                    ", threatSubmitted=" + encounter.EnemyThreatSubmitted +
+                    ", activePartyChoosers=" + string.Join(",", encounter.Party.Members
+                        .Select(member => member.Actions.IsChoosing)) +
+                    ", submittedActions=" + encounter.SubmittedActionCount +
+                    ", animations=" + encounter.ActivePresentationCount);
             yield return PlayUntil(encounter,
                 () => encounter.PendingThreat == OrkRoleEncounter.Threat.Howl,
                 interrupt: true);
@@ -118,12 +127,14 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        private static IEnumerator Wait(Func<bool> condition, string stage)
+        private static IEnumerator Wait(Func<bool> condition, string stage,
+            Func<string> diagnostic = null)
         {
             float deadline = Time.realtimeSinceStartup + 30;
             while (!condition())
             {
-                Assert.That(Time.realtimeSinceStartup, Is.LessThan(deadline), stage);
+                Assert.That(Time.realtimeSinceStartup, Is.LessThan(deadline),
+                    stage + (diagnostic != null ? ": " + diagnostic() : string.Empty));
                 yield return null;
             }
         }

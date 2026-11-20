@@ -54,6 +54,8 @@ namespace Rpg.Soundwell
         private RoleCombatView view;
         private StrikeAction planned;
         private StrikeAction submittedEnemyThreat;
+        private StrikeAction threatWaitingForQueue;
+        private int threatQueueAfterFrame;
         private readonly Dictionary<Transform, Vector3> restingPositions = new Dictionary<Transform, Vector3>();
         private readonly HashSet<Combatant> submittedActions = new HashSet<Combatant>();
         private float previousDecisionTime;
@@ -150,6 +152,20 @@ namespace Rpg.Soundwell
             if (party.BattleInProgress)
             {
                 observedBattle = true;
+                // Never rewrite ORK's queued AI actions from inside the prior
+                // action's finishedCallback. The vendor is still retiring
+                // that active action at that point; publish the next threat
+                // one frame later so the native battle can advance its turn.
+                if (threatWaitingForQueue != null &&
+                    Time.frameCount >= threatQueueAfterFrame)
+                {
+                    if (planned == threatWaitingForQueue && !planned.Started)
+                    {
+                        party.Beast.AI.ActionQueue.Clear();
+                        party.Beast.AI.ActionQueue.Add(planned);
+                    }
+                    threatWaitingForQueue = null;
+                }
                 // The starter enemy's default Battle AI has no configured
                 // decision nodes. On Classic turns the enemy can therefore
                 // fail to expose IsChoosing while the rescuers' real ORK
@@ -159,7 +175,8 @@ namespace Rpg.Soundwell
                 // turn, without re-submitting an already-started action.
                 bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing ||
                     (partySubmittedThisTurn && party.ChoosingRescuerIndex < 0);
-                if (enemyNeedsQueuedAction && !IsPresenting &&
+                if (threatWaitingForQueue == null &&
+                    enemyNeedsQueuedAction && !IsPresenting &&
                     planned != null && !planned.Started &&
                     submittedEnemyThreat != planned &&
                     planned.CanUse())
@@ -179,6 +196,7 @@ namespace Rpg.Soundwell
                 partySubmittedThisTurn = false;
                 submittedActions.Clear();
                 submittedEnemyThreat = null;
+                threatWaitingForQueue = null;
                 SetExchange(party.Beast.Status.IsDead
                     ? "借声兽退倒了，通道已经安全。" : "小队没能守住，重新整队再来。",
                     party.Beast.Status.IsDead
@@ -385,10 +403,11 @@ namespace Rpg.Soundwell
                 planned = CreateThreat(next, nextTarget);
                 partySubmittedThisTurn = false;
                 submittedEnemyThreat = null;
-                // Future telegraphs must also be consumed through ORK's
-                // native AI queue; no user-facing chooser is assumed.
-                party.Beast.AI.ActionQueue.Clear();
-                party.Beast.AI.ActionQueue.Add(planned);
+                // ORK may still be completing this exact action; changing its
+                // queue synchronously can prevent the next player chooser.
+                // Enqueue the same authentic StrikeAction in the next Update.
+                threatWaitingForQueue = planned;
+                threatQueueAfterFrame = Time.frameCount + 1;
             };
             return action;
         }
