@@ -124,6 +124,63 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SequentialHarborBeatsPersistPerSceneAndRetryPartialWritesWithoutDuplication()
+        {
+            var root = new GameObject("M05 sequential beat write retry");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 8, true, true));
+            Func<string, int> read = Reader(values);
+            int beatWrites = 0;
+            bool interruptOnce = true;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key != M05HarborVisitFacts.VisitedMaskKey)
+                    return;
+                beatWrites++;
+                if (interruptOnce)
+                {
+                    interruptOnce = false;
+                    throw new InvalidOperationException("Beat write acknowledged late");
+                }
+            };
+            M05OuterHarborArrivalSession session = null;
+            try
+            {
+                int completions = 0;
+                Assert.That(M05OuterHarborArrivalSession.TryOpen(
+                    root.transform, read, write, _ => completions++, out session), Is.True);
+                session.SeranView.TakeButton.onClick.Invoke();
+                session.SeranView.ContinueButton.onClick.Invoke();
+                Assert.That(session.HarborWalkView.Beat, Is.EqualTo(M05HarborBeat.RepairStall));
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.HarborWalkView.AdvanceButton.onClick.Invoke());
+                Assert.That(session.HarborWalkView.Beat, Is.EqualTo(M05HarborBeat.RepairStall));
+                Assert.That(session.HarborWalkView.AdvanceButton.interactable, Is.True);
+                Assert.That(values[M05HarborVisitFacts.VisitedMaskKey], Is.EqualTo(1));
+                Assert.That(beatWrites, Is.EqualTo(1));
+
+                // A committed beat advances on retry without writing twice.
+                session.HarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(session.HarborWalkView.Beat, Is.EqualTo(M05HarborBeat.FisherRumor));
+                Assert.That(beatWrites, Is.EqualTo(1));
+                session.HarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(values[M05HarborVisitFacts.VisitedMaskKey], Is.EqualTo(3));
+                session.HarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(completions, Is.EqualTo(1));
+                Assert.That(beatWrites, Is.EqualTo(3));
+                Assert.That(values[M05HarborVisitFacts.VisitedMaskKey],
+                    Is.EqualTo(M05HarborVisitFacts.AllBeatsMask));
+            }
+            finally
+            {
+                session?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ExistingPersistedLetterDecisionResumesDirectlyAtHarborWalkWithoutReasking()
         {
             var root = new GameObject("M05 arrival resume test");
