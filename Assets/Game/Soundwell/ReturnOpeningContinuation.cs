@@ -77,6 +77,9 @@ namespace Rpg.Soundwell
             // the previous outer-harbor visit.
             setInt(M05LettersFacts.DecisionKey, 0);
             setInt(M05LandingFacts.ConfirmedKey, 0);
+            // A new voyage must not inherit M05 locations visited on an
+            // earlier crossing, even if a subsequent reset is interrupted.
+            setInt(M05HarborVisitFacts.VisitedMaskKey, 0);
 
             return M04DepartureFacts.TryResetForNewVisit(setInt) &&
                 M04RosterFacts.TryResetForNewVisit(setInt) &&

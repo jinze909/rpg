@@ -34,6 +34,121 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void VisitedHarborScenesPersistAcrossMapReloadAndResetOnlyForNewVoyage()
+        {
+            var root = new GameObject("M05 saved map observations");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var landing = new M05LandingReport(3, 10, true, true);
+            Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write, landing);
+                WalkTo(host, 84.5f, 30.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero,
+                    "Opening a conversation is not completing it.");
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(1));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
+
+                host.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+                root = new GameObject("M05 loaded map observations");
+                host = new RedSaltHarborExplorationHost(root.transform, read, write, landing);
+                Assert.That(host.HarborWalkCompleted, Is.False);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4),
+                    "Reload must preserve the already-witnessed repair scene.");
+                WalkTo(host, 84.5f, 30.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
+                    "Reloaded map must not replay the repair stall or award the beat twice.");
+
+                WalkTo(host, 118.5f, 22.5f, yFirst: true);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+
+                WalkTo(host, 76.5f, 56.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(host.HarborWalkCompleted, Is.True);
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey),
+                    Is.EqualTo(M05HarborVisitFacts.AllBeatsMask));
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero,
+                    "A fresh M03 voyage clears only the previous voyage's witnessed scenes.");
+                Assert.That(host.HarborWalkCompleted, Is.False);
+                host.RefreshHud();
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(6),
+                    "An old landing and its old visits must not become new-voyage beacons.");
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void FailedVisitSaveCanRetryAndCorruptMaskCannotInventVisitedLocations()
+        {
+            var root = new GameObject("M05 interrupted map visit");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 10, true, true), read, write), Is.True);
+            int attemptedWrites = 0;
+            Action<string, int> flakyWrite = (key, value) =>
+            {
+                if (key == M05HarborVisitFacts.VisitedMaskKey && attemptedWrites++ == 0)
+                    throw new InvalidOperationException("Interrupted Makinom visit write");
+                values[key] = value;
+            };
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, flakyWrite);
+                WalkTo(host, 84.5f, 30.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke());
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+                Assert.That(host.IsDialogueOpen, Is.True,
+                    "An interrupted save must keep the identical dialogue open for retry.");
+                host.ActiveHarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(1));
+                Assert.That(attemptedWrites, Is.EqualTo(2));
+
+                values[M05HarborVisitFacts.VisitedMaskKey] = 32;
+                Assert.That(M05HarborVisitFacts.TryRead(read, out _), Is.False);
+                Assert.That(host.HarborWalkCompleted, Is.False);
+                Assert.That(M05HarborVisitFacts.TryRecord(
+                    M05HarborBeat.FisherRumor, read, flakyWrite), Is.False);
+                Assert.That(values[M05HarborVisitFacts.VisitedMaskKey], Is.EqualTo(32),
+                    "A corrupted mask cannot be silently repaired by a scene interaction.");
+
+                Assert.That(M05HarborVisitFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+                Assert.That(M05HarborVisitFacts.TryRecord(
+                    M05HarborBeat.Finished, read, write), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WalkingToBerthAndQuayTriggersLandingCheckThenSeranWithoutFabricatingArrival()
         {
             var root = new GameObject("Red Salt playable exploration test");

@@ -37,8 +37,6 @@ namespace Rpg.Soundwell
         private M05LandingCheckView activeLandingView;
         private M05SeranLettersView activeSeranView;
         private M05HarborWalkView activeHarborWalkView;
-        private readonly bool[] visitedHarborBeats = new bool[(int)M05HarborBeat.Finished];
-        private bool harborWalkCompleted;
         private bool disposed;
 
         public RedSaltHarborMapLayout Layout => layout;
@@ -56,7 +54,9 @@ namespace Rpg.Soundwell
         public M05LandingCheckView ActiveLandingView => activeLandingView;
         public M05SeranLettersView ActiveSeranView => activeSeranView;
         public M05HarborWalkView ActiveHarborWalkView => activeHarborWalkView;
-        public bool HarborWalkCompleted => harborWalkCompleted;
+        public bool HarborWalkCompleted => HasVerifiedLanding() &&
+            M05HarborVisitFacts.TryRead(getInt, out int mask) &&
+            mask == M05HarborVisitFacts.AllBeatsMask;
         public bool IsDisposed => disposed;
 
         public RedSaltHarborExplorationHost(Transform parent,
@@ -268,16 +268,26 @@ namespace Rpg.Soundwell
                 saved.HasValue;
         }
 
+        private bool CanOfferHarborBeat(M05HarborBeat beat)
+        {
+            return HasVerifiedLanding() &&
+                M05HarborVisitFacts.TryRead(getInt, out int mask) &&
+                !M05HarborVisitFacts.Contains(mask, beat);
+        }
+
         private bool TryOpenHarborWalk(M05HarborBeat beat)
         {
-            if (visitedHarborBeats[(int)beat] || !HasVerifiedLanding())
+            if (!CanOfferHarborBeat(beat))
                 return false;
 
             activeHarborWalkView = new M05HarborWalkView(parent, () =>
             {
-                visitedHarborBeats[(int)beat] = true;
-                harborWalkCompleted = visitedHarborBeats[0] &&
-                    visitedHarborBeats[1] && visitedHarborBeats[2];
+                // Save the witnessed beat first. A failed Makinom write leaves
+                // the same dialogue available for retry and does not advance
+                // the beacon or replace another scene's save authority.
+                if (!M05HarborVisitFacts.TryRecord(beat, getInt, setInt))
+                    throw new InvalidOperationException(
+                        "Unable to persist the observed outer-harbor conversation.");
                 activeHarborWalkView?.Dispose();
                 activeHarborWalkView = null;
                 RefreshHud();
@@ -296,11 +306,11 @@ namespace Rpg.Soundwell
                     return HasVerifiedLanding() &&
                         getInt(M05LettersFacts.DecisionKey) == 0;
                 case "m05.repair-stall":
-                    return HasVerifiedLanding() && !visitedHarborBeats[0];
+                    return CanOfferHarborBeat(M05HarborBeat.RepairStall);
                 case "m05.fisher-rumor":
-                    return HasVerifiedLanding() && !visitedHarborBeats[1];
+                    return CanOfferHarborBeat(M05HarborBeat.FisherRumor);
                 case "m05.salt-market":
-                    return HasVerifiedLanding() && !visitedHarborBeats[2];
+                    return CanOfferHarborBeat(M05HarborBeat.MarketAccusation);
                 default:
                     return false;
             }
@@ -317,9 +327,14 @@ namespace Rpg.Soundwell
             bool letterDecisionRecorded = M05LettersFacts.TryRead(getInt,
                 out M05LetterDecision? recordedLetters) && recordedLetters.HasValue;
             minimapHud?.SetBeaconCompleted("m05.seran-letters", letterDecisionRecorded);
-            minimapHud?.SetBeaconCompleted("m05.repair-stall", visitedHarborBeats[0]);
-            minimapHud?.SetBeaconCompleted("m05.fisher-rumor", visitedHarborBeats[1]);
-            minimapHud?.SetBeaconCompleted("m05.salt-market", visitedHarborBeats[2]);
+            bool savedBeatsValid = HasVerifiedLanding() &&
+                M05HarborVisitFacts.TryRead(getInt, out int observedMask);
+            minimapHud?.SetBeaconCompleted("m05.repair-stall",
+                savedBeatsValid && M05HarborVisitFacts.Contains(observedMask, M05HarborBeat.RepairStall));
+            minimapHud?.SetBeaconCompleted("m05.fisher-rumor",
+                savedBeatsValid && M05HarborVisitFacts.Contains(observedMask, M05HarborBeat.FisherRumor));
+            minimapHud?.SetBeaconCompleted("m05.salt-market",
+                savedBeatsValid && M05HarborVisitFacts.Contains(observedMask, M05HarborBeat.MarketAccusation));
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
