@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
+using UnityEngine;
 
 namespace Rpg.Tests.Editor
 {
@@ -130,7 +131,9 @@ namespace Rpg.Tests.Editor
             {
                 var altered = new Dictionary<string, int>(valid) { [bad.Item1] = bad.Item2 };
                 Assert.That(M05LandingFacts.TryRead(Reader(altered),
-                    out M05LandingReport? record), Is.True);
+                    out M05LandingReport? record),
+                    Is.EqualTo(bad.Item1 != M05LandingFacts.ConfirmedKey),
+                    bad.Item1);
                 Assert.That(record, Is.Null, bad.Item1);
             }
             values[M04DepartureFacts.SailedKey] = 0;
@@ -140,6 +143,40 @@ namespace Rpg.Tests.Editor
             values[FogListeningFacts.SucceededKey] = 0;
             Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? failedFog), Is.True);
             Assert.That(failedFog, Is.Null);
+        }
+
+        [Test]
+        public void InvalidNonzeroLandingMarkerCannotOpenAnUnfinishableArrivalCheck()
+        {
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            var landing = new M05LandingReport(3, 8, true, true);
+            foreach (int corruptMarker in new[] { -1, 2, int.MaxValue })
+            {
+                var root = new GameObject("M05 corrupt landing marker");
+                int writes = 0;
+                values[M05LandingFacts.ConfirmedKey] = corruptMarker;
+                try
+                {
+                    Assert.That(M05LandingFacts.TryRead(read,
+                        out M05LandingReport? saved), Is.False);
+                    Assert.That(saved, Is.Null);
+                    Assert.That(M05OuterHarborFlowHost.TryOpen(
+                        root.transform, landing, read,
+                        (key, value) => { writes++; values[key] = value; },
+                        _ => { }, out var host), Is.False);
+                    Assert.That(host, Is.Null);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                    Assert.That(writes, Is.Zero);
+                    Assert.That(values[M05LandingFacts.ConfirmedKey],
+                        Is.EqualTo(corruptMarker));
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
         }
 
         [Test]
