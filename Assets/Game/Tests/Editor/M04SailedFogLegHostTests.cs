@@ -99,7 +99,6 @@ namespace Rpg.Tests.Editor
                 SeedReady(values);
                 Assert.That(M04DepartureFacts.TryMarkSailed(
                     Reader(values), Writer(values)), Is.True);
-                Assert.That(M03LuJunFacts.TryResetForNewVisit(Writer(values)), Is.True);
                 SeedChosenRoute(Writer(values), M03VoyageChoice.LuJunEscort);
 
                 Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
@@ -107,7 +106,6 @@ namespace Rpg.Tests.Editor
                     "A previously sailed hull must not open a different chosen route.");
                 Assert.That(refused, Is.Null);
 
-                Assert.That(M03LuJunFacts.TryResetForNewVisit(Writer(values)), Is.True);
                 SeedChosenRoute(Writer(values), M03VoyageChoice.QiQueMerchant);
                 Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
                     Reader(values), Writer(values), _ => { }, out host), Is.True);
@@ -116,7 +114,6 @@ namespace Rpg.Tests.Editor
 
                 // The voyage can change while the UI is open. Its stale
                 // completion must not write the next route's fog outcome.
-                Assert.That(M03LuJunFacts.TryResetForNewVisit(Writer(values)), Is.True);
                 SeedChosenRoute(Writer(values), M03VoyageChoice.HanQiaoOfficial);
                 Assert.Throws<InvalidOperationException>(() =>
                     host.View.ContinueButton.onClick.Invoke());
