@@ -46,6 +46,60 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [Test]
+        public void IsolatedHarborBeatShowsOnlyItsOwnLocationAndCanRetryHostFailure()
+        {
+            foreach (M05HarborBeat beat in new[]
+            {
+                M05HarborBeat.RepairStall,
+                M05HarborBeat.FisherRumor,
+                M05HarborBeat.MarketAccusation
+            })
+            {
+                var root = new GameObject("M05 isolated harbor beat " + beat);
+                M05HarborWalkView view = null;
+                try
+                {
+                    int attempts = 0;
+                    view = new M05HarborWalkView(root.transform, () =>
+                    {
+                        attempts++;
+                        if (attempts == 1)
+                            throw new InvalidOperationException("Failed scene handoff");
+                    }, beat);
+                    Assert.That(view.Beat, Is.EqualTo(beat));
+                    Assert.That(view.Dialogue.text,
+                        Is.EqualTo(M05HarborWalkCopy.Describe(beat, false)));
+                    Assert.Throws<InvalidOperationException>(() =>
+                        view.AdvanceButton.onClick.Invoke());
+                    Assert.That(view.Beat, Is.EqualTo(beat),
+                        "The current location remains open for a retry.");
+                    view.AdvanceButton.onClick.Invoke();
+                    view.AdvanceButton.onClick.Invoke();
+                    Assert.That(view.Beat, Is.EqualTo(M05HarborBeat.Finished));
+                    Assert.That(attempts, Is.EqualTo(2));
+                }
+                finally
+                {
+                    view?.Dispose();
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+
+            var invalidRoot = new GameObject("Invalid harbor beat");
+            try
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() =>
+                    new M05HarborWalkView(invalidRoot.transform, () => { },
+                        M05HarborBeat.Finished));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(invalidRoot);
+            }
+        }
+
         [Test]
         public void LocaleSwitchAndAspectChangesPreserveTheWitnessedBeat()
         {

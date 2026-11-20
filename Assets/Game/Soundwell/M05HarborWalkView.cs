@@ -28,6 +28,7 @@ namespace Rpg.Soundwell
         private readonly Button advance;
         private Action onFinished;
         private M05HarborBeat beat;
+        private readonly bool singleBeat;
         private bool delivering;
         private bool disposed;
 
@@ -36,10 +37,24 @@ namespace Rpg.Soundwell
         public Button AdvanceButton => advance;
         public RectTransform Panel => panel;
 
+        // The original sequential staging remains available to existing M05 hosts.
         public M05HarborWalkView(Transform parent, Action onFinished)
+            : this(parent, onFinished, M05HarborBeat.RepairStall, false) { }
+
+        // The exploration map presents only the scene tied to its physical location.
+        public M05HarborWalkView(Transform parent, Action onFinished, M05HarborBeat onlyBeat)
+            : this(parent, onFinished, onlyBeat, true) { }
+
+        private M05HarborWalkView(Transform parent, Action onFinished,
+            M05HarborBeat startBeat, bool singleBeat)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
+            if (startBeat < M05HarborBeat.RepairStall ||
+                startBeat >= M05HarborBeat.Finished)
+                throw new ArgumentOutOfRangeException(nameof(startBeat));
             this.onFinished = onFinished ?? throw new ArgumentNullException(nameof(onFinished));
+            this.singleBeat = singleBeat;
+            beat = startBeat;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             canvasObject = new GameObject("M05 harbor walk canvas",
                 typeof(RectTransform), typeof(Canvas));
@@ -107,7 +122,9 @@ namespace Rpg.Soundwell
             dialogue.text = M05HarborWalkCopy.Describe(beat, zh);
             advanceLabel.text = beat == M05HarborBeat.MarketAccusation
                 ? (zh ? "离开盐市" : "Leave the market")
-                : (zh ? "继续听" : "Keep listening");
+                : singleBeat
+                    ? (zh ? "返回外港" : "Return to harbor")
+                    : (zh ? "继续听" : "Keep listening");
             advance.gameObject.SetActive(beat != M05HarborBeat.Finished);
             advance.interactable = !delivering && beat != M05HarborBeat.Finished;
             if (advance.interactable)
@@ -120,7 +137,7 @@ namespace Rpg.Soundwell
             if (disposed || delivering || canvasObject == null ||
                 beat == M05HarborBeat.Finished)
                 return;
-            if (beat < M05HarborBeat.MarketAccusation)
+            if (!singleBeat && beat < M05HarborBeat.MarketAccusation)
             {
                 beat++;
                 Refresh();

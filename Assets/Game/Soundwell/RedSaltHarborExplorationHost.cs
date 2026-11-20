@@ -30,6 +30,7 @@ namespace Rpg.Soundwell
         private M05LandingCheckView activeLandingView;
         private M05SeranLettersView activeSeranView;
         private M05HarborWalkView activeHarborWalkView;
+        private readonly bool[] visitedHarborBeats = new bool[(int)M05HarborBeat.Finished];
         private bool harborWalkCompleted;
         private bool disposed;
 
@@ -149,9 +150,11 @@ namespace Rpg.Soundwell
                 case "m05.seran-letters":
                     return TryOpenSeranLetters();
                 case "m05.repair-stall":
+                    return TryOpenHarborWalk(M05HarborBeat.RepairStall);
                 case "m05.fisher-rumor":
+                    return TryOpenHarborWalk(M05HarborBeat.FisherRumor);
                 case "m05.salt-market":
-                    return TryOpenHarborWalk();
+                    return TryOpenHarborWalk(M05HarborBeat.MarketAccusation);
                 default:
                     return false;
             }
@@ -197,23 +200,48 @@ namespace Rpg.Soundwell
             return true;
         }
 
-        private bool TryOpenHarborWalk()
+        private bool HasVerifiedLanding()
         {
-            if (harborWalkCompleted)
-                return false;
-            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding) ||
-                !savedLanding.HasValue)
+            return M05LandingFacts.TryRead(getInt, out M05LandingReport? saved) &&
+                saved.HasValue;
+        }
+
+        private bool TryOpenHarborWalk(M05HarborBeat beat)
+        {
+            if (visitedHarborBeats[(int)beat] || !HasVerifiedLanding())
                 return false;
 
             activeHarborWalkView = new M05HarborWalkView(parent, () =>
             {
-                harborWalkCompleted = true;
+                visitedHarborBeats[(int)beat] = true;
+                harborWalkCompleted = visitedHarborBeats[0] &&
+                    visitedHarborBeats[1] && visitedHarborBeats[2];
                 activeHarborWalkView?.Dispose();
                 activeHarborWalkView = null;
                 RefreshHud();
-            });
+            }, beat);
             RefreshHud();
             return true;
+        }
+
+        private bool CanOfferPrompt(string id)
+        {
+            switch (id)
+            {
+                case "m05.landing-check":
+                    return observedLanding.HasValue && !HasVerifiedLanding();
+                case "m05.seran-letters":
+                    return HasVerifiedLanding() &&
+                        getInt(M05LettersFacts.DecisionKey) == 0;
+                case "m05.repair-stall":
+                    return HasVerifiedLanding() && !visitedHarborBeats[0];
+                case "m05.fisher-rumor":
+                    return HasVerifiedLanding() && !visitedHarborBeats[1];
+                case "m05.salt-market":
+                    return HasVerifiedLanding() && !visitedHarborBeats[2];
+                default:
+                    return false;
+            }
         }
 
         public void RefreshHud()
@@ -237,7 +265,8 @@ namespace Rpg.Soundwell
             // even when a dialogue is already open.
             RpgMapTriggerAnchor trigger = default(RpgMapTriggerAnchor);
             bool showPrompt = !IsDialogueOpen &&
-                explorer.TryFindNearestTrigger(out trigger);
+                explorer.TryFindNearestTrigger(out trigger) &&
+                CanOfferPrompt(trigger.Id);
             promptBox.SetActive(showPrompt);
             if (showPrompt)
                 promptLabel.text = FormatTriggerPrompt(trigger.Id, zh);
