@@ -146,6 +146,11 @@ namespace Rpg.Soundwell
             if (disposed || parent == null || stage != M05OuterHarborStage.SeranLetters)
                 return;
 
+            // The player may leave/restart a voyage while Seran's panel is
+            // still visible. Never attach an old packet decision to a new or
+            // now-invalid arrival, even via direct UGUI onClick invocation.
+            RequireCurrentLanding();
+
             // A Makinom write can persist the answer before an interrupted
             // transition throws. Retrying that exact choice must continue,
             // not dead-end on the already committed decision; a different
@@ -197,6 +202,15 @@ namespace Rpg.Soundwell
                 stage != M05OuterHarborStage.HarborWalk)
                 return;
 
+            // Both the landing and the letter choice may have been reset
+            // after this view opened. Never publish an old harbor visit for
+            // the new voyage or silently replace the player's saved answer.
+            RequireCurrentLanding();
+            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? currentChoice) ||
+                currentChoice != letterDecision)
+                throw new InvalidOperationException(
+                    "The saved Seran letter decision no longer belongs to this visit.");
+
             // Invoke the host before retiring the view so an interrupted
             // transition keeps the final beat armed for retry.
             var outcome = new M05OuterHarborOutcome(landing, letterDecision.Value);
@@ -207,6 +221,22 @@ namespace Rpg.Soundwell
             stage = M05OuterHarborStage.Completed;
             harborWalkView?.Dispose();
             harborWalkView = null;
+        }
+
+        private void RequireCurrentLanding()
+        {
+            // No new save authority: compare the live Makinom arrival with
+            // the one actually observed when this scene opened. TryRead
+            // rejects changed M03 routes, incomplete voyages, and malformed
+            // M05 arrival data before a stale UI can publish anything.
+            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? current) ||
+                !current.HasValue ||
+                current.Value.CrewArrived != landing.CrewArrived ||
+                current.Value.ReadyRescueBerths != landing.ReadyRescueBerths ||
+                current.Value.TenderArrived != landing.TenderArrived ||
+                current.Value.ReceiverMet != landing.ReceiverMet)
+                throw new InvalidOperationException(
+                    "The M05 arrival no longer belongs to the current voyage.");
         }
 
         public void Dispose()

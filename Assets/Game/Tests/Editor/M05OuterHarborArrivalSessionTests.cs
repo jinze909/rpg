@@ -257,6 +257,103 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReplacedVoyageCannotCommitStaleSeranLettersFromAnOpenPanel()
+        {
+            var root = new GameObject("M05 letters stale arrival");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 8, true, true));
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M05OuterHarborArrivalSession session = null;
+            try
+            {
+                Assert.That(M05OuterHarborArrivalSession.TryOpen(
+                    root.transform, read, write, _ => { }, out session), Is.True);
+                session.SeranView.TakeButton.onClick.Invoke();
+
+                // A different M03 voyage now owns the current passage.
+                WriteVoyageChoice(write, M03VoyageChoice.LuJunEscort);
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.SeranView.ContinueButton.onClick.Invoke());
+                Assert.That(values.ContainsKey(M05LettersFacts.DecisionKey), Is.False);
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.SeranLetters));
+                Assert.That(session.SeranView.ContinueButton.interactable, Is.True);
+                Assert.That(session.HarborWalkView, Is.Null);
+
+                // Restoring the same real route allows exactly that chosen
+                // answer to be committed, without inventing any arrival.
+                WriteVoyageChoice(write, M03VoyageChoice.QiQueMerchant);
+                session.SeranView.ContinueButton.onClick.Invoke();
+                Assert.That(values[M05LettersFacts.DecisionKey],
+                    Is.EqualTo((int)M05LetterDecision.TakePacket));
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.HarborWalk));
+            }
+            finally
+            {
+                session?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ResetVoyageOrLetterChoiceCannotPublishStaleHarborCompletion()
+        {
+            var root = new GameObject("M05 stale harbor completion");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 8, true, true));
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M05OuterHarborArrivalSession session = null;
+            try
+            {
+                int completions = 0;
+                Assert.That(M05OuterHarborArrivalSession.TryOpen(
+                    root.transform, read, write, _ => completions++,
+                    out session), Is.True);
+                session.SeranView.LeaveButton.onClick.Invoke();
+                session.SeranView.ContinueButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.HarborWalk));
+                session.HarborWalkView.AdvanceButton.onClick.Invoke();
+                session.HarborWalkView.AdvanceButton.onClick.Invoke();
+
+                WriteVoyageChoice(write, M03VoyageChoice.LuJunEscort);
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.HarborWalkView.AdvanceButton.onClick.Invoke());
+                Assert.That(completions, Is.Zero);
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.HarborWalk));
+                Assert.That(session.HarborWalkView.AdvanceButton.interactable, Is.True);
+
+                WriteVoyageChoice(write, M03VoyageChoice.QiQueMerchant);
+                values[M05LettersFacts.DecisionKey] = 0;
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.HarborWalkView.AdvanceButton.onClick.Invoke());
+                Assert.That(completions, Is.Zero);
+
+                values[M05LettersFacts.DecisionKey] =
+                    (int)M05LetterDecision.LeaveForNextBoat;
+                session.HarborWalkView.AdvanceButton.onClick.Invoke();
+                Assert.That(completions, Is.EqualTo(1));
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.Completed));
+            }
+            finally
+            {
+                session?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void WriteVoyageChoice(
+            Action<string, int> write, M03VoyageChoice route)
+        {
+            var encounter = new M03LuJunEncounter(M02BridgeEvidence.None, true);
+            encounter.Begin();
+            encounter.ObserveRollCall();
+            encounter.Ask(M03LuJunOpening.NeedAShip);
+            encounter.ChooseVoyage(route);
+            Assert.That(M03LuJunFacts.TryRecord(encounter, write), Is.True);
+        }
+
+        [Test]
         public void InterruptedSeranSaveAndInterruptedCompletionBothAllowCleanRetry()
         {
             var root = new GameObject("M05 arrival retry test");
