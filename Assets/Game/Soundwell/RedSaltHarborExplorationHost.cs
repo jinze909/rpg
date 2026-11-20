@@ -283,8 +283,22 @@ namespace Rpg.Soundwell
                 if (!HasSameCurrentLanding(openedLanding))
                     throw new InvalidOperationException(
                         "Seran's open dialogue no longer matches the verified M05 landing.");
-                if (!M05LettersFacts.TryRecord(decision, getInt, setInt))
-                    throw new InvalidOperationException("Unable to persist M05 Seran letter choice.");
+                // A write can commit before the UI handoff throws.
+                // A retry accepts only the identical saved choice and never
+                // writes a second letter event or overwrites another answer.
+                if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? savedChoice))
+                    throw new InvalidOperationException(
+                        "Unable to read M05 Seran letter choice.");
+                if (savedChoice.HasValue)
+                {
+                    if (savedChoice.Value != decision)
+                        throw new InvalidOperationException(
+                            "The saved M05 Seran choice differs from the selected answer.");
+                }
+                else if (getInt(M05LettersFacts.DecisionKey) != 0 ||
+                    !M05LettersFacts.TryRecord(decision, getInt, setInt))
+                    throw new InvalidOperationException(
+                        "Unable to persist M05 Seran letter choice.");
                 activeSeranView?.Dispose();
                 activeSeranView = null;
                 RefreshHud();

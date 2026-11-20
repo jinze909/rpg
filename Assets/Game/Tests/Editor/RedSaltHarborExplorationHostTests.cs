@@ -397,6 +397,83 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MapSeranSavedLetterChoiceIsRetryableAfterAnAcknowledgedWriteThrows()
+        {
+            var root = new GameObject("Seran map late acknowledgement");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M05LettersFacts.DecisionKey)
+                {
+                    writes++;
+                    if (writes == 1)
+                        throw new InvalidOperationException("Saved; host callback interrupted");
+                }
+            };
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 10, true, true), read, write), Is.True);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                WalkTo(host, 50.5f, 26.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                host.ActiveSeranView.TakeButton.onClick.Invoke();
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.ActiveSeranView.ContinueButton.onClick.Invoke());
+                Assert.That(host.IsDialogueOpen, Is.True);
+                Assert.That(read(M05LettersFacts.DecisionKey),
+                    Is.EqualTo((int)M05LetterDecision.TakePacket));
+                Assert.That(writes, Is.EqualTo(1));
+                host.ActiveSeranView.ContinueButton.onClick.Invoke();
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(writes, Is.EqualTo(1));
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(3));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void MapSeranCannotOverwriteACompetingSavedLetterAnswer()
+        {
+            var root = new GameObject("Seran map conflicting answer");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 10, true, true), read, write), Is.True);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                WalkTo(host, 50.5f, 26.5f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                host.ActiveSeranView.TakeButton.onClick.Invoke();
+                values[M05LettersFacts.DecisionKey] =
+                    (int)M05LetterDecision.LeaveForNextBoat;
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.ActiveSeranView.ContinueButton.onClick.Invoke());
+                Assert.That(host.IsDialogueOpen, Is.True);
+                Assert.That(read(M05LettersFacts.DecisionKey),
+                    Is.EqualTo((int)M05LetterDecision.LeaveForNextBoat));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void StaleSeranMapDialogueCannotWriteLettersAfterVoyageResetOrChangedLanding()
         {
             var root = new GameObject("M05 stale Seran map dialogue");
