@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -56,6 +57,40 @@ namespace Rpg.Tests.Editor
             {
                 view?.Dispose();
                 SoundwellUiLocalization.SetLanguage(previousLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void SpeakerPortraitDisplaysPointFilteredSeranCourierSpriteWithoutBlockingInput()
+        {
+            var root = new GameObject("M05 Seran portrait test");
+            M05SeranLettersView view = null;
+            try
+            {
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+                Assert.That(manifest, Is.Not.Null);
+                Assert.That(manifest.SeranLetterCarrier, Is.Not.Null);
+
+                view = new M05SeranLettersView(root.transform, _ => { });
+                Image portrait = view.SpeakerPortrait;
+                Assert.That(portrait, Is.Not.Null);
+                Assert.That(portrait.sprite, Is.EqualTo(manifest.SeranLetterCarrier));
+                Assert.That(portrait.preserveAspect, Is.True);
+                Assert.That(portrait.raycastTarget, Is.False);
+                Assert.That(portrait.enabled, Is.True);
+                Assert.That(portrait.gameObject.activeSelf, Is.True);
+                Assert.That(portrait.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(portrait.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+
+                view.TakeButton.onClick.Invoke();
+                view.ReadPacketButton.onClick.Invoke();
+                Assert.That(portrait.sprite, Is.EqualTo(manifest.SeranLetterCarrier));
+                Assert.That(portrait.raycastTarget, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
