@@ -79,6 +79,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CorruptCommittedLandingDoesNotOpenAnUnfinishableLandingScreen()
+        {
+            var root = new GameObject("M05 corrupted confirmed arrival");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            var observed = new M05LandingReport(3, 8, true, true);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                writes++;
+                values[key] = value;
+            };
+
+            try
+            {
+                // Simulate an interrupted or corrupted saved report whose
+                // confirmed flag was published despite an impossible crew.
+                values[M05LandingFacts.ConfirmedKey] = 1;
+                values[M05LandingFacts.CrewArrivedKey] = 99;
+                values[M05LandingFacts.ReadyBerthsKey] = 8;
+                values[M05LandingFacts.TenderArrivedKey] = 1;
+                values[M05LandingFacts.ReceiverMetKey] = 1;
+                Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? corrupt),
+                    Is.True);
+                Assert.That(corrupt.HasValue, Is.False);
+
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    observed, read, write, _ => Assert.Fail("Corrupt arrival cannot complete"),
+                    out M05OuterHarborFlowHost host), Is.False);
+                Assert.That(host, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(writes, Is.Zero);
+                Assert.That(values[M05LandingFacts.ConfirmedKey], Is.EqualTo(1));
+
+                // A truly unconfirmed arrival remains playable and writable.
+                values[M05LandingFacts.ConfirmedKey] = 0;
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    observed, read, write, _ => { }, out host), Is.True);
+                Assert.That(host.LandingCheckView, Is.Not.Null);
+                host.Dispose();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void TryOpenRefusesIncompleteCrossingOrInvalidObservedLanding()
         {
             var root = new GameObject("M05 flow gate test");

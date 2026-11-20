@@ -72,6 +72,12 @@ namespace Rpg.Soundwell
 
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding))
                 return false;
+            // A committed-but-invalid landing is not an unsaved landing.
+            // Never show a confirm button that M05LandingFacts.TryRecord
+            // must reject because its completion marker is already set.
+            if (!savedLanding.HasValue &&
+                getInt(M05LandingFacts.ConfirmedKey) != 0)
+                return false;
 
             // Reject a corrupted nonzero letter choice *before* creating the
             // landing or Seran UI, where the choice cannot be saved again.
