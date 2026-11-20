@@ -69,6 +69,10 @@ namespace Rpg.Tests.Editor
                     ", threatSubmitted=" + encounter.EnemyThreatSubmitted +
                     ", activePartyChoosers=" + string.Join(",", encounter.Party.Members
                         .Select(member => member.Actions.IsChoosing)) +
+                    ", actionStates=" + string.Join(",", encounter.Party.Members
+                        .Select(member => member.Actions.ActionState.ToString())) +
+                    ", orkInBattle=" + ORK.Control.InBattle +
+                    ", participants=" + ORK.Game.Combatants.GetInBattle().Count +
                     ", submittedActions=" + encounter.SubmittedActionCount +
                     ", animations=" + encounter.ActivePresentationCount);
             yield return PlayUntil(encounter,

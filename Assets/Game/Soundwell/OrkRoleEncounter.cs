@@ -534,7 +534,10 @@ namespace Rpg.Soundwell
             public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
-                Started = true;
+                // BaseAction.Started belongs to ORK's action lifecycle.
+                // Setting it by hand before the base call can make ORK treat
+                // an unprocessed turn as already started and strand queued
+                // rescuers with no next chooser.
                 // ORK owns current-action progression. Deferring its base
                 // PerformAction into a Unity coroutine causes a classic-turn
                 // deadlock after the first hit: queued allies remain suspended,
