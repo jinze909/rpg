@@ -9,8 +9,9 @@ namespace Rpg.Soundwell
     /// stage host wiring WhitewaterCrossingMapLayout, RpgLargeMapChunkRenderer
     /// (6 Point-filtered 32x32 chunks + 4 flaming brazier halos),
     /// S00BridgeheadCableTracker (1-hero solo bridgehead hold for 3 bells while
-    /// Shen Li cuts the pontoon cable), CombatLockBreakHudView, clamped stage
-    /// camera framing with clash shake, and a visual-only bottom status strip.
+    /// Shen Li cuts the pontoon cable), CombatLockBreakHudView,
+    /// RpgLargeMapMinimapAndBeaconHud, clamped stage camera framing with clash
+    /// shake, and a visual-only bottom status strip.
     /// Strictly subordinate to ORK 3: owns no HP, damage, turn, or defeat state.
     /// </summary>
     public sealed class WhitewaterCrossingBattleHost : IDisposable
@@ -32,6 +33,7 @@ namespace Rpg.Soundwell
         public RpgLargeMapChunkRenderer MapRenderer { get; }
         public S00BridgeheadCableTracker CableTracker { get; }
         public CombatLockBreakHudView LockBreakHud { get; }
+        public RpgLargeMapMinimapAndBeaconHud MinimapHud { get; }
 
         public Vector3 HeroDefenseWorldPosition { get; }
         public Vector3 ShenLiCableWorldPosition { get; }
@@ -57,6 +59,8 @@ namespace Rpg.Soundwell
                 hostRoot.transform, Layout, tileSlices);
             CableTracker = new S00BridgeheadCableTracker(startingMomentum);
             LockBreakHud = new CombatLockBreakHudView(hostRoot.transform, CableTracker);
+            MinimapHud = RpgLargeMapMinimapAndBeaconHud.BuildForWhitewaterCrossing(
+                hostRoot.transform, Layout);
 
             HeroDefenseWorldPosition = new Vector3(
                 Layout.BridgeheadDefenseTile.x + 0.5f,
@@ -67,6 +71,9 @@ namespace Rpg.Soundwell
             EnemyFrontWorldPosition = new Vector3(
                 Layout.BridgeheadDefenseTile.x + 6.5f,
                 Layout.BridgeheadDefenseTile.y + 0.5f, 0f);
+
+            MinimapHud.UpdatePlayerPosition(new Vector2(
+                HeroDefenseWorldPosition.x, HeroDefenseWorldPosition.y));
 
             lastStatusZh = "单人独守西桥头 — 掩护沈砾完成三声钟断缆。";
             lastStatusEn = "Hold the west bridgehead alone — cover Shen Li across 3 bells.";
@@ -136,6 +143,8 @@ namespace Rpg.Soundwell
                 TriggerClashShake(0.24f, 0.14f);
                 if (CableTracker.ReadyForThirdBellCollapse)
                 {
+                    MinimapHud.SetBeaconCompleted("s00.cable-anchor", true);
+                    MinimapHud.SetBeaconCompleted("s00.bridgehead", true);
                     lastStatusZh = "第三声钟响！沈砾斩断主缆，浮桥即将倾覆！";
                     lastStatusEn = "Third bell tolls! Shen Li severs the main cable — bridge collapse ready!";
                 }
@@ -228,6 +237,7 @@ namespace Rpg.Soundwell
             }
             SoundwellUiTheme.ApplyViewportAspectScale(stagePanel, aspect);
             LockBreakHud.LayoutForViewportAspect(aspect);
+            MinimapHud.LayoutForViewportAspect(aspect);
         }
 
         public void RefreshHud()
@@ -248,6 +258,7 @@ namespace Rpg.Soundwell
                 : "S00 Whitewater Crossing · West Bridgehead Hold";
             stageStatusLabel.text = zh ? lastStatusZh : lastStatusEn;
             LockBreakHud.Refresh();
+            MinimapHud.Refresh();
         }
 
         private bool CanvasDestroyed()
@@ -268,6 +279,7 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             SoundwellUiLocalization.Changed -= RefreshHud;
+            MinimapHud.Dispose();
             LockBreakHud.Dispose();
             MapRenderer.Dispose();
             SoundwellUiTheme.SafeDestroyCanvas(stageHudCanvasObject);
