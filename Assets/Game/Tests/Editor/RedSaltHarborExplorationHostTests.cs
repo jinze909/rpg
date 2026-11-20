@@ -166,6 +166,54 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SavedSeranChoiceDoesNotCompleteMapBeaconWithoutCurrentVerifiedLanding()
+        {
+            var root = new GameObject("M05 stale Seran beacon");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 10, true, true), read, write), Is.True);
+            Assert.That(M05LettersFacts.TryRecord(
+                M05LetterDecision.TakePacket, read, write), Is.True);
+
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4),
+                    "The verified arrival and witnessed Seran decision initially complete two beacons.");
+
+                // A partial new-visit reset can invalidate the landing before
+                // the older letter bit is cleared. No old completion may leak
+                // into the still-unverified new harbor visit's map.
+                Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+                Assert.That(read(M05LettersFacts.DecisionKey),
+                    Is.EqualTo((int)M05LetterDecision.TakePacket));
+                host.RefreshHud();
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(6),
+                    "The old letters are not this voyage's verified Seran encounter.");
+                Assert.That(host.HarborWalkCompleted, Is.False);
+
+                // Even a corrupt committed landing must not revive the
+                // stale letter beacon.
+                values[M05LandingFacts.ConfirmedKey] = 1;
+                values[M05LandingFacts.CrewArrivedKey] = 99;
+                host.RefreshHud();
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(6));
+                Assert.That(read(M05LettersFacts.DecisionKey),
+                    Is.EqualTo((int)M05LetterDecision.TakePacket),
+                    "Presentation must not silently rewrite the saved choice.");
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FailedVisitSaveCanRetryAndCorruptMaskCannotInventVisitedLocations()
         {
             var root = new GameObject("M05 interrupted map visit");
