@@ -31,6 +31,9 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(host.MapRenderer.ChunkCount, Is.EqualTo(6));
                 Assert.That(host.MapRenderer.LightHaloCount, Is.EqualTo(4));
+                Assert.That(host.MapRenderer.UsedRealArtSlices, Is.True);
+                Assert.That(host.HeroVisual.SpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.BeastVisual.SpriteRenderer.sprite, Is.Not.Null);
                 Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(4));
                 Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
                 Assert.That(host.MinimapHud.IsThreatMarkerVisible, Is.True);
@@ -43,6 +46,8 @@ namespace Rpg.Tests.Editor
                 host.Step(Vector2.right, 0.1f, camObj.transform);
                 Assert.That(host.MinimapHud.PlayerMarkerRect.anchoredPosition.x,
                     Is.GreaterThan(initialMarker.x));
+                Assert.That(host.HeroVisual.ActorObject.transform.localPosition.x,
+                    Is.EqualTo(host.Explorer.Position.x).Within(0.01f));
                 float halfW = RpgWorldMapScale.LogicalScreenTilesX * 0.5f;
                 float halfH = RpgWorldMapScale.LogicalScreenTilesY * 0.5f;
                 Assert.That(camObj.transform.position.x, Is.GreaterThanOrEqualTo(halfW));
@@ -149,10 +154,12 @@ namespace Rpg.Tests.Editor
                 Vector2 initialBeastPos = host.BeastPatrol.Position;
                 Vector2 initialThreatMarker = host.MinimapHud.ThreatMarkerRect.anchoredPosition;
 
-                // Stepping the host advances both the beast and its live minimap threat marker.
+                // Stepping the host advances the beast, its live world sprite, and its minimap marker.
                 for (int i = 0; i < 10; i++)
                     host.Step(Vector2.zero, 0.1f);
                 Assert.That(host.BeastPatrol.Position, Is.Not.EqualTo(initialBeastPos));
+                Assert.That(host.BeastVisual.ActorObject.transform.localPosition.x,
+                    Is.EqualTo(host.BeastPatrol.Position.x).Within(0.01f));
                 Assert.That(host.MinimapHud.ThreatMarkerRect.anchoredPosition,
                     Is.Not.EqualTo(initialThreatMarker));
 
@@ -191,6 +198,8 @@ namespace Rpg.Tests.Editor
 
                 host.Dispose();
                 Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.HeroVisual.IsDisposed, Is.True);
+                Assert.That(host.BeastVisual.IsDisposed, Is.True);
                 Assert.That(host.MapRenderer.IsDisposed, Is.True);
                 Assert.That(host.LockBreakHud.IsDisposed, Is.True);
                 Assert.That(host.MinimapHud.IsDisposed, Is.True);
