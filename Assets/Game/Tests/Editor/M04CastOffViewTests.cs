@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -48,6 +49,48 @@ namespace Rpg.Tests.Editor
             Assert.That(M04CastOffCopy.Describe(null, false, false),
                 Does.Not.Contain("This voyage:"),
                 "No route may be presented as verified without a confirmed manifest.");
+        }
+
+        [Test]
+        public void StatusIconReflectsVerifiedManifestWithPointFilteredPixelArt()
+        {
+            var root = new GameObject("M04 cast off status icon");
+            var saved = new Dictionary<string, int>();
+            M04CastOffView view = null;
+            try
+            {
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+                Assert.That(manifest, Is.Not.Null);
+
+                view = new M04CastOffView(root.transform,
+                    Reader(saved), (key, value) => saved[key] = value, () => { });
+                AssertStatusIcon(view.StatusIcon, manifest.FogSignalLanternOff);
+
+                ConfirmReady(saved);
+                view.Refresh();
+                AssertStatusIcon(view.StatusIcon, manifest.FogSignalLanternOn);
+
+                view.CastOffButton.onClick.Invoke();
+                AssertStatusIcon(view.StatusIcon, manifest.FogSignalLanternOn);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void AssertStatusIcon(Image icon, Sprite expected)
+        {
+            Assert.That(icon, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(icon.sprite, Is.EqualTo(expected));
+            Assert.That(icon.preserveAspect, Is.True);
+            Assert.That(icon.raycastTarget, Is.False);
+            Assert.That(icon.enabled, Is.True);
+            Assert.That(icon.gameObject.activeSelf, Is.True);
+            Assert.That(icon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(icon.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
         }
 
         [Test]
