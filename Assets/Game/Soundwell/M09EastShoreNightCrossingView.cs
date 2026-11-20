@@ -89,13 +89,13 @@ namespace Rpg.Soundwell
                 int index = i;
                 choices[i] = SoundwellUiTheme.CreateButton(
                     panel, "M09 night ferry choice " + i,
-                    new Vector2(-280f + i * 280f, -74f),
+                    new Vector2(-280f + i * 280f, -55f),
                     new Vector2(270f, 36f), 14, out labels[i]);
                 choices[i].onClick.AddListener(() => Choose(index));
             }
             finishButton = SoundwellUiTheme.CreateButton(
                 panel, "M09 night ferry commit outcome",
-                new Vector2(0f, -112f), new Vector2(320f, 36f),
+                new Vector2(0f, -102f), new Vector2(320f, 36f),
                 15, out finishLabel);
             finishButton.onClick.AddListener(Finish);
 

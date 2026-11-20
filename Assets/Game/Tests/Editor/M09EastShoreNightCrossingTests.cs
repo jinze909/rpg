@@ -140,7 +140,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 view = new M09EastShoreNightCrossingView(root.transform, session, 2,
-                    _ => Assert.Fail("No verified boarding can occur"),
+                    _ => { Assert.Fail("No verified boarding can occur"); return false; },
                     _ => { });
                 view.DeferButton.onClick.Invoke();
                 Assert.That(session.Stage, Is.EqualTo(M09NightCrossingStage.FogApproach));
