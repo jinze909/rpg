@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -26,6 +27,38 @@ namespace Rpg.Tests.Editor
             if (root != null)
                 UnityEngine.Object.DestroyImmediate(root);
             SoundwellUiLocalization.SetLanguage(previousLanguage);
+        }
+
+        [Test]
+        public void DocumentIconRemainsUnsealedUntilFormalStampAndEnforcesPixelFidelity()
+        {
+            RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+            Assert.That(manifest, Is.Not.Null);
+
+            view = new M02MissingReturnView(root.transform,
+                M01PensionChoice.RequestMissingReturnReview,
+                M02BridgeEvidence.WarReportDraft, false, _ => { });
+            AssertDocumentIcon(view.DocumentIcon, manifest.M02IdentityDocumentUnsealed);
+
+            // Requesting alone must never display a sealed/stamped document.
+            view.RequestButton.onClick.Invoke();
+            AssertDocumentIcon(view.DocumentIcon, manifest.M02IdentityDocumentUnsealed);
+
+            view.StampButton.onClick.Invoke();
+            AssertDocumentIcon(view.DocumentIcon, manifest.M02IdentityDocumentSealed);
+        }
+
+        private static void AssertDocumentIcon(Image icon, Sprite expected)
+        {
+            Assert.That(icon, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(icon.sprite, Is.EqualTo(expected));
+            Assert.That(icon.preserveAspect, Is.True);
+            Assert.That(icon.raycastTarget, Is.False);
+            Assert.That(icon.enabled, Is.True);
+            Assert.That(icon.gameObject.activeSelf, Is.True);
+            Assert.That(icon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(icon.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
         }
 
         [Test]
