@@ -149,11 +149,17 @@ namespace Rpg.Soundwell
             if (party.BattleInProgress)
             {
                 observedBattle = true;
-                // ORK normally consumes the queued enemy threat itself. For
-                // battle setups that expose a direct chooser instead, use
-                // that same queued action exactly once without cloning the
-                // turn or simulating damage.
-                if (party.Beast.Actions.IsChoosing && !IsPresenting &&
+                // The starter enemy's default Battle AI has no configured
+                // decision nodes. On Classic turns the enemy can therefore
+                // fail to expose IsChoosing while the rescuers' real ORK
+                // actions are queued: the battle waits indefinitely with
+                // no active player or enemy chooser. Submit the same authored
+                // ORK threat after the party has queued its commands rather
+                // than fabricate damage or advance a parallel combat turn.
+                bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing ||
+                    (submittedActions.Count >= 2 &&
+                     party.ChoosingRescuerIndex < 0);
+                if (enemyNeedsQueuedAction && !IsPresenting &&
                     planned != null && submittedEnemyThreat != planned &&
                     planned.CanUse())
                 {
