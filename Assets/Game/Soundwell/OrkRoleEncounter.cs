@@ -59,6 +59,7 @@ namespace Rpg.Soundwell
         private float previousDecisionTime;
         private bool configured;
         private bool observedBattle;
+        private bool partySubmittedThisTurn;
         private int presentationCount;
         private int lastCommandFrame = -1;
         private bool ending;
@@ -154,13 +155,13 @@ namespace Rpg.Soundwell
                 // fail to expose IsChoosing while the rescuers' real ORK
                 // actions are queued: the battle waits indefinitely with
                 // no active player or enemy chooser. Submit the same authored
-                // ORK threat after the party has queued its commands rather
-                // than fabricate damage or advance a parallel combat turn.
+                // ORK threat once after the party has queued its commands this
+                // turn, without re-submitting an already-started action.
                 bool enemyNeedsQueuedAction = party.Beast.Actions.IsChoosing ||
-                    (submittedActions.Count >= 2 &&
-                     party.ChoosingRescuerIndex < 0);
+                    (partySubmittedThisTurn && party.ChoosingRescuerIndex < 0);
                 if (enemyNeedsQueuedAction && !IsPresenting &&
-                    planned != null && submittedEnemyThreat != planned &&
+                    planned != null && !planned.Started &&
+                    submittedEnemyThreat != planned &&
                     planned.CanUse())
                 {
                     BaseAction next = party.Beast.AI.GetNextQueuedAction();
@@ -175,6 +176,7 @@ namespace Rpg.Soundwell
             else if (observedBattle && !ending)
             {
                 ending = true;
+                partySubmittedThisTurn = false;
                 submittedActions.Clear();
                 submittedEnemyThreat = null;
                 SetExchange(party.Beast.Status.IsDead
@@ -362,6 +364,7 @@ namespace Rpg.Soundwell
             // action before any PerformAction runs. Track per-actor submission
             // and same-frame debounce without blocking the next choosing ally.
             lastCommandFrame = Time.frameCount;
+            partySubmittedThisTurn = true;
             submittedActions.Add(actor);
             action.finishedCallback += _ => submittedActions.Remove(actor);
             actor.Actions.AddAccess(action, false);
@@ -380,6 +383,7 @@ namespace Rpg.Soundwell
                 Threat next = kind == Threat.Lunge ? Threat.Howl : Threat.Lunge;
                 int nextTarget = kind == Threat.Gather ? target : (target + 1) % party.Members.Count;
                 planned = CreateThreat(next, nextTarget);
+                partySubmittedThisTurn = false;
                 submittedEnemyThreat = null;
                 // Future telegraphs must also be consumed through ORK's
                 // native AI queue; no user-facing chooser is assumed.
@@ -493,6 +497,7 @@ namespace Rpg.Soundwell
             public int TargetIndex;
             public bool Interrupted;
             public bool Covered;
+            public bool Started;
 
             public StrikeAction(OrkRoleEncounter owner, Combatant actor, Combatant target,
                 float strength, bool enemy, Threat kind, int targetIndex)
@@ -510,6 +515,7 @@ namespace Rpg.Soundwell
             public override bool CanUse() => base.CanUse();
             public override void PerformAction()
             {
+                Started = true;
                 // ORK owns current-action progression. Deferring its base
                 // PerformAction into a Unity coroutine causes a classic-turn
                 // deadlock after the first hit: queued allies remain suspended,
