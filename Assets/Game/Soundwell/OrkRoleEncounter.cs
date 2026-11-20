@@ -393,62 +393,71 @@ namespace Rpg.Soundwell
                 return true;
             }
 
-            BaseAction action;
+            // Spend the role's major action through ORK's existing, verified
+            // DefendShortcut lifecycle instead of queuing a scene-authored
+            // NoneAction. The old queued utility could remain unfinished while
+            // all four combatants were Available, stranding the native chooser.
+            if (!party.CanGuard(index) ||
+                !actor.Shortcuts.DefendShortcut.Use(
+                    actor, new List<Combatant> { actor }, true))
+                return false;
+
+            lastCommandFrame = Time.frameCount;
+            submittedActions.Add(actor);
+            turnSubmittedParty.Add(actor);
+
+            // Only apply the role's supplementary effect after ORK accepted
+            // and consumed the native action. ORK still owns turns, combatants,
+            // the defense status, health values, and victory.
             if (index == 0 && option == 1)
             {
-                action = new UtilityAction(this, actor, () =>
-                {
-                    targetIndex = index;
-                    covered = true;
-                    SetExchange("前卫举盾接下这次袭击，伤害降低。", "The vanguard covers the party and weakens the next strike.");
-                }, true);
+                targetIndex = index;
+                covered = true;
+                SetExchange("前卫举盾接下这次袭击，伤害降低。",
+                    "The vanguard covers the party and weakens the next strike.");
             }
             else if ((index == 1 && option == 1) || (index == 2 && option == 0))
             {
                 Threat countered = index == 1 ? Threat.Lunge : Threat.Howl;
-                action = new UtilityAction(this, actor, () =>
+                if (pendingThreat == countered)
                 {
-                    if (pendingThreat == countered)
-                    {
-                        interrupted = true;
-                        party.Beast.Variables.Set("rpg.role.exposed", 1);
-                        SetExchange(index == 1 ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
-                            index == 1 ? "The decoy bell cancels the lunge. The beast is exposed!" : "The wet cloth muffles the echo. The howl is cancelled!");
-                    }
-                }, false);
+                    interrupted = true;
+                    party.Beast.Variables.Set("rpg.role.exposed", 1);
+                    SetExchange(index == 1
+                            ? "铃声引偏猛扑！借声兽露出了破绽。" : "湿布压住回声！嚎叫被打断。",
+                        index == 1
+                            ? "The decoy bell cancels the lunge. The beast is exposed!"
+                            : "The wet cloth muffles the echo. The howl is cancelled!");
+                }
             }
             else
             {
-                action = new UtilityAction(this, actor, () =>
+                int injuredIndex = -1;
+                Combatant injured = null;
+                for (int i = 0; i < party.Members.Count; i++)
                 {
-                    int injuredIndex = -1;
-                    Combatant injured = null;
-                    for (int i = 0; i < party.Members.Count; i++)
+                    Combatant member = party.Members[i];
+                    if (!member.Status.IsDead && (injured == null ||
+                        member.Status[OrkPartyBridge.HealthStatusIndex].GetValue() <
+                        injured.Status[OrkPartyBridge.HealthStatusIndex].GetValue()))
                     {
-                        Combatant member = party.Members[i];
-                        if (!member.Status.IsDead && (injured == null ||
-                            member.Status[OrkPartyBridge.HealthStatusIndex].GetValue() <
-                            injured.Status[OrkPartyBridge.HealthStatusIndex].GetValue()))
-                        {
-                            injured = member;
-                            injuredIndex = i;
-                        }
+                        injured = member;
+                        injuredIndex = i;
                     }
-                    if (injured == null) return;
+                }
+                if (injured != null)
+                {
                     StatusValue health = injured.Status[OrkPartyBridge.HealthStatusIndex];
                     int healed = Mathf.Min(health.GetMaxValue(), health.GetValue() + 5);
                     health.SetValueAccess(healed, false, false, false, true, false, null);
                     if (injuredIndex >= 0 && injuredIndex < roundStartPartyHp.Length)
                         roundStartPartyHp[injuredIndex] = healed;
-                    SetExchange("支援队员完成包扎，受伤的伙伴恢复了体力。", "The support bandages the wounded ally, restoring health.");
-                }, true);
+                    SetExchange("支援队员完成包扎，受伤的伙伴恢复了体力。",
+                        "The support bandages the wounded ally, restoring health.");
+                }
             }
-            if (!action.CanUse()) return false;
-            lastCommandFrame = Time.frameCount;
-            submittedActions.Add(actor);
-            turnSubmittedParty.Add(actor);
-            action.finishedCallback += _ => submittedActions.Remove(actor);
-            actor.Actions.AddAccess(action, false);
+
+            StartCoroutine(Present(actor, actor, false, true, false));
             return true;
         }
 
@@ -541,35 +550,6 @@ namespace Rpg.Soundwell
             view?.Dispose();
         }
 
-        private sealed class UtilityAction : NoneAction
-        {
-            private readonly OrkRoleEncounter owner;
-            private readonly Action effect;
-            private readonly bool supportive;
 
-            public UtilityAction(OrkRoleEncounter owner, Combatant actor, Action effect, bool supportive)
-                : base(actor, false)
-            {
-                this.owner = owner;
-                this.effect = effect;
-                this.supportive = supportive;
-            }
-
-            // Match OrkPartyBridge.OpenGateAction: use ORK's ordinary no-target
-            // NoneAction lifecycle without starter schematics or enemy-targeted
-            // ability setup, keeping presentation purely visual.
-            protected override void ActionStartSetup() { }
-            public override bool CanUse() => base.CanUse();
-
-            public override void Calculate(List<Combatant> targets, float damageFactor,
-                ActionCalculationOptions options, GameObject flyingTextTarget, ActionCalculationFinished notify)
-            {
-                owner.StartCoroutine(owner.Present(
-                    User, supportive ? User : owner.party.Beast,
-                    false, true, false));
-                effect();
-                base.Calculate(targets, damageFactor, options, flyingTextTarget, notify);
-            }
-        }
     }
 }
