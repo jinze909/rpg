@@ -48,6 +48,12 @@ namespace Rpg.Tests.Editor
                     observedLanding: new M05LandingReport(3, 10, true, true));
 
                 Assert.That(host.ChunkRenderer.ChunkCount, Is.EqualTo(15));
+                Assert.That(host.ChunkRenderer.UsedRealArtSlices, Is.True);
+                Assert.That(host.HeroVisual.SpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.SeranVisual.SpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.RepairerVisual.SpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.FisherVisual.SpriteRenderer.sprite, Is.Not.Null);
+                Assert.That(host.SaltVendorVisual.SpriteRenderer.sprite, Is.Not.Null);
                 Assert.That(host.IsDialogueOpen, Is.False);
                 Assert.That(host.MinimapHud, Is.Not.Null);
                 Assert.That(host.MinimapHud.BeaconCount, Is.EqualTo(6));
@@ -60,6 +66,8 @@ namespace Rpg.Tests.Editor
                 // Walk east from spawn (16, 24) to landing-check trigger (22, 24).
                 for (int i = 0; i < 10; i++)
                     host.StepExploration(Vector2.right, 0.1f);
+                Assert.That(host.HeroVisual.ActorObject.transform.localPosition.x,
+                    Is.EqualTo(host.Explorer.Position.x).Within(0.01f));
                 Assert.That(host.MinimapHud.PlayerMarkerRect.anchoredPosition.x,
                     Is.GreaterThan(startMarker.x),
                     "The minimap marker follows the actual player motor.");
@@ -301,6 +309,11 @@ namespace Rpg.Tests.Editor
 
                 host.Dispose();
                 Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.HeroVisual.IsDisposed, Is.True);
+                Assert.That(host.SeranVisual.IsDisposed, Is.True);
+                Assert.That(host.RepairerVisual.IsDisposed, Is.True);
+                Assert.That(host.FisherVisual.IsDisposed, Is.True);
+                Assert.That(host.SaltVendorVisual.IsDisposed, Is.True);
                 Assert.That(root.transform.childCount, Is.Zero);
             }
             finally
