@@ -263,8 +263,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(visitWrites, Is.Zero);
                 Assert.That(host.IsDialogueOpen, Is.True);
                 Assert.That(oldDialogue.AdvanceButton.interactable, Is.True);
-                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(6),
-                    "No old conversation should complete a new voyage beacon.");
+                host.RefreshHud();
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(5),
+                    "Only the new verified landing is complete; the old conversation must not count.");
             }
             finally
             {
