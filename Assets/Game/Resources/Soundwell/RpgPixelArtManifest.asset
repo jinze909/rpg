@@ -109,3 +109,35 @@ MonoBehaviour:
   m03TidalChartOpen: {fileID: -6158719234619460758, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
   m03TidalChartFolded: {fileID: -7892494873397540705, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
   m03CampCoals: {fileID: 3463010256041976685, guid: 7b8847657f1845e09578650c96db6d08, type: 3}
+  fogBankLowA: {fileID: -7510305136317406795, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogBankLowB: {fileID: -271947499068218285, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogBankDense: {fileID: 4597436612296573049, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogReefHintSubmerged: {fileID: 933510742372667573, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogReefHintExposed: {fileID: 3946214677774054081, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogReefWash: {fileID: 48836834032842101, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogBowWakeA: {fileID: -6973925399592006262, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogBowWakeB: {fileID: 1625212681772842197, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogSternWakeA: {fileID: 2200767084955792804, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogSternWakeB: {fileID: -5197598554169468743, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogSignalLanternOff: {fileID: -7691416426997026848, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  fogSignalLanternOn: {fileID: -6933086204390935411, guid: 48d9060e8e0e4642af8ba68862d94a23, type: 3}
+  m07OulinHiddenLockClosed: {fileID: -1630390800652450315, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07OulinHiddenLockOpen: {fileID: -3381893491850079392, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07MainPumpLeverRunning: {fileID: -3211853328994708810, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07MainPumpLeverCutoff: {fileID: -8547313161409411512, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07UpperMusterSign: {fileID: -3016373218139896077, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07UpperMusterChalk: {fileID: 4558667942123218767, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07CargoCoverCrateClosed: {fileID: -5436160806453931571, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07CargoCoverCrateOpen: {fileID: 2683689724889458413, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07InspectionPendingPass: {fileID: -7618014854697993815, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07InspectionStampedPass: {fileID: -6749643587859420248, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07BerthTagAvailable: {fileID: -8323796676164063797, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07BerthTagBoarded: {fileID: 2563467917841007627, guid: 9e123fd746bf441581a6930795d4d276, type: 3}
+  m07BackupHandPumpIdle: {fileID: -2876747224177932341, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
+  m07BackupHandPumpWorking: {fileID: 4418398727840681932, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
+  m07SluiceLockedShut: {fileID: -6393774423179254725, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
+  m07SluiceReleasedOpen: {fileID: 8406553758320623336, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
+  m07BoardingGangwayRaised: {fileID: -2339200272229229576, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
+  m07BoardingGangwayLowered: {fileID: -1538081874831007559, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
+  m07InspectionBarrierClosed: {fileID: 3243024024059313070, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
+  m07InspectionBarrierOpen: {fileID: 2501519239032809309, guid: 8fe3a0ce08b54aaa95a3096a6fffcb54, type: 3}
