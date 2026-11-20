@@ -131,6 +131,57 @@ namespace Rpg.Tests.Editor
                 Assert.That(Mathf.RoundToInt(s.textureRect.width), Is.EqualTo(32));
                 Assert.That(Mathf.RoundToInt(s.textureRect.height), Is.EqualTo(32));
             }
+
+            // P2 M04 fog crossing overlays (12 slices, 32x32)
+            foreach (Sprite s in new[]
+            {
+                manifest.FogBankLowA, manifest.FogBankLowB, manifest.FogBankDense,
+                manifest.FogReefHintSubmerged, manifest.FogReefHintExposed, manifest.FogReefWash,
+                manifest.FogBowWakeA, manifest.FogBowWakeB,
+                manifest.FogSternWakeA, manifest.FogSternWakeB,
+                manifest.FogSignalLanternOff, manifest.FogSignalLanternOn
+            })
+            {
+                Assert.That(s, Is.Not.Null);
+                Assert.That(s.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+                Assert.That(s.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(Mathf.RoundToInt(s.textureRect.width), Is.EqualTo(32));
+                Assert.That(Mathf.RoundToInt(s.textureRect.height), Is.EqualTo(32));
+            }
+
+            // P3 M07 evacuation route props (12 slices, 16x16)
+            foreach (Sprite s in new[]
+            {
+                manifest.M07OulinHiddenLockClosed, manifest.M07OulinHiddenLockOpen,
+                manifest.M07MainPumpLeverRunning, manifest.M07MainPumpLeverCutoff,
+                manifest.M07UpperMusterSign, manifest.M07UpperMusterChalk,
+                manifest.M07CargoCoverCrateClosed, manifest.M07CargoCoverCrateOpen,
+                manifest.M07InspectionPendingPass, manifest.M07InspectionStampedPass,
+                manifest.M07BerthTagAvailable, manifest.M07BerthTagBoarded
+            })
+            {
+                Assert.That(s, Is.Not.Null);
+                Assert.That(s.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+                Assert.That(s.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(Mathf.RoundToInt(s.textureRect.width), Is.EqualTo(16));
+                Assert.That(Mathf.RoundToInt(s.textureRect.height), Is.EqualTo(16));
+            }
+
+            // P3 M07 evacuation structures (8 slices, 32x32)
+            foreach (Sprite s in new[]
+            {
+                manifest.M07BackupHandPumpIdle, manifest.M07BackupHandPumpWorking,
+                manifest.M07SluiceLockedShut, manifest.M07SluiceReleasedOpen,
+                manifest.M07BoardingGangwayRaised, manifest.M07BoardingGangwayLowered,
+                manifest.M07InspectionBarrierClosed, manifest.M07InspectionBarrierOpen
+            })
+            {
+                Assert.That(s, Is.Not.Null);
+                Assert.That(s.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
+                Assert.That(s.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(Mathf.RoundToInt(s.textureRect.width), Is.EqualTo(32));
+                Assert.That(Mathf.RoundToInt(s.textureRect.height), Is.EqualTo(32));
+            }
         }
 
         [Test]

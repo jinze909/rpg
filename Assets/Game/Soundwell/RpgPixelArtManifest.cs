@@ -6,8 +6,9 @@ namespace Rpg.Soundwell
     /// Runtime Resources-loaded manifest referencing the authored pixel-art
     /// sprite slices under Assets/Game/Art/ by direct GUID/fileID without
     /// relocating source textures. Gives all three 4x RPG maps, character
-    /// hosts, story prop boards, and combat VFX directors zero-setup access
-    /// to real hand-drawn 16-PPU pixel sprites.
+    /// hosts, story prop boards, fog-crossing overlays, M07 evacuation props,
+    /// and combat VFX directors zero-setup access to real hand-drawn 16-PPU
+    /// pixel sprites.
     /// </summary>
     [CreateAssetMenu(menuName = "Return/Pixel Art Manifest", fileName = "RpgPixelArtManifest")]
     public sealed class RpgPixelArtManifest : ScriptableObject
@@ -81,6 +82,44 @@ namespace Rpg.Soundwell
         [SerializeField] private Sprite m03TidalChartFolded;
         [SerializeField] private Sprite m03CampCoals;
 
+        [Header("M04 Fog Crossing Overlays (32x32)")]
+        [SerializeField] private Sprite fogBankLowA;
+        [SerializeField] private Sprite fogBankLowB;
+        [SerializeField] private Sprite fogBankDense;
+        [SerializeField] private Sprite fogReefHintSubmerged;
+        [SerializeField] private Sprite fogReefHintExposed;
+        [SerializeField] private Sprite fogReefWash;
+        [SerializeField] private Sprite fogBowWakeA;
+        [SerializeField] private Sprite fogBowWakeB;
+        [SerializeField] private Sprite fogSternWakeA;
+        [SerializeField] private Sprite fogSternWakeB;
+        [SerializeField] private Sprite fogSignalLanternOff;
+        [SerializeField] private Sprite fogSignalLanternOn;
+
+        [Header("M07 Evacuation Route Props (16x16)")]
+        [SerializeField] private Sprite m07OulinHiddenLockClosed;
+        [SerializeField] private Sprite m07OulinHiddenLockOpen;
+        [SerializeField] private Sprite m07MainPumpLeverRunning;
+        [SerializeField] private Sprite m07MainPumpLeverCutoff;
+        [SerializeField] private Sprite m07UpperMusterSign;
+        [SerializeField] private Sprite m07UpperMusterChalk;
+        [SerializeField] private Sprite m07CargoCoverCrateClosed;
+        [SerializeField] private Sprite m07CargoCoverCrateOpen;
+        [SerializeField] private Sprite m07InspectionPendingPass;
+        [SerializeField] private Sprite m07InspectionStampedPass;
+        [SerializeField] private Sprite m07BerthTagAvailable;
+        [SerializeField] private Sprite m07BerthTagBoarded;
+
+        [Header("M07 Evacuation Structures (32x32)")]
+        [SerializeField] private Sprite m07BackupHandPumpIdle;
+        [SerializeField] private Sprite m07BackupHandPumpWorking;
+        [SerializeField] private Sprite m07SluiceLockedShut;
+        [SerializeField] private Sprite m07SluiceReleasedOpen;
+        [SerializeField] private Sprite m07BoardingGangwayRaised;
+        [SerializeField] private Sprite m07BoardingGangwayLowered;
+        [SerializeField] private Sprite m07InspectionBarrierClosed;
+        [SerializeField] private Sprite m07InspectionBarrierOpen;
+
         private static RpgPixelArtManifest cachedDefault;
 
         public Sprite[] SoundwellTiles => soundwellTiles;
@@ -141,6 +180,41 @@ namespace Rpg.Soundwell
         public Sprite M03TidalChartOpen => m03TidalChartOpen;
         public Sprite M03TidalChartFolded => m03TidalChartFolded;
         public Sprite M03CampCoals => m03CampCoals;
+
+        public Sprite FogBankLowA => fogBankLowA;
+        public Sprite FogBankLowB => fogBankLowB;
+        public Sprite FogBankDense => fogBankDense;
+        public Sprite FogReefHintSubmerged => fogReefHintSubmerged;
+        public Sprite FogReefHintExposed => fogReefHintExposed;
+        public Sprite FogReefWash => fogReefWash;
+        public Sprite FogBowWakeA => fogBowWakeA;
+        public Sprite FogBowWakeB => fogBowWakeB;
+        public Sprite FogSternWakeA => fogSternWakeA;
+        public Sprite FogSternWakeB => fogSternWakeB;
+        public Sprite FogSignalLanternOff => fogSignalLanternOff;
+        public Sprite FogSignalLanternOn => fogSignalLanternOn;
+
+        public Sprite M07OulinHiddenLockClosed => m07OulinHiddenLockClosed;
+        public Sprite M07OulinHiddenLockOpen => m07OulinHiddenLockOpen;
+        public Sprite M07MainPumpLeverRunning => m07MainPumpLeverRunning;
+        public Sprite M07MainPumpLeverCutoff => m07MainPumpLeverCutoff;
+        public Sprite M07UpperMusterSign => m07UpperMusterSign;
+        public Sprite M07UpperMusterChalk => m07UpperMusterChalk;
+        public Sprite M07CargoCoverCrateClosed => m07CargoCoverCrateClosed;
+        public Sprite M07CargoCoverCrateOpen => m07CargoCoverCrateOpen;
+        public Sprite M07InspectionPendingPass => m07InspectionPendingPass;
+        public Sprite M07InspectionStampedPass => m07InspectionStampedPass;
+        public Sprite M07BerthTagAvailable => m07BerthTagAvailable;
+        public Sprite M07BerthTagBoarded => m07BerthTagBoarded;
+
+        public Sprite M07BackupHandPumpIdle => m07BackupHandPumpIdle;
+        public Sprite M07BackupHandPumpWorking => m07BackupHandPumpWorking;
+        public Sprite M07SluiceLockedShut => m07SluiceLockedShut;
+        public Sprite M07SluiceReleasedOpen => m07SluiceReleasedOpen;
+        public Sprite M07BoardingGangwayRaised => m07BoardingGangwayRaised;
+        public Sprite M07BoardingGangwayLowered => m07BoardingGangwayLowered;
+        public Sprite M07InspectionBarrierClosed => m07InspectionBarrierClosed;
+        public Sprite M07InspectionBarrierOpen => m07InspectionBarrierOpen;
 
         public static RpgPixelArtManifest LoadDefault()
         {
