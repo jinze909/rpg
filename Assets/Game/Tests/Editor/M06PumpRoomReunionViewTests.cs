@@ -77,7 +77,11 @@ namespace Rpg.Tests.Editor
                 Assert.That(view.Body.text, Does.Contain("老张"));
 
                 view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                Assert.That(view.ShenHelpButton.gameObject.activeSelf, Is.True);
+                view.ShenHelpButton.onClick.Invoke();
                 Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+                Assert.That(view.Body.text, Does.Contain("老张走的那天"));
                 Assert.That(view.MinerShutdownButton.gameObject.activeSelf, Is.True);
 
                 view.MinerShutdownButton.onClick.Invoke();
@@ -152,6 +156,8 @@ namespace Rpg.Tests.Editor
                 view.GreetingBringBackButton.onClick.Invoke();
                 view.AdvanceButton.onClick.Invoke();
                 view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                view.ShenAskButton.onClick.Invoke();
                 Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
 
                 Assert.Throws<InvalidOperationException>(() => view.CargoCoverButton.onClick.Invoke());

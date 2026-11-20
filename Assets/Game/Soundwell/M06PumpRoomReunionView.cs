@@ -38,6 +38,9 @@ namespace Rpg.Soundwell
         public Button CargoCoverButton => choiceButtons[1];
         public Button MinerShutdownButton => choiceButtons[2];
         public Button ForceBreakoutButton => choiceButtons[3];
+        public Button ShenAskButton => choiceButtons[0];
+        public Button ShenHelpButton => choiceButtons[1];
+        public Button ShenWaitButton => choiceButtons[2];
 
         public M06PumpRoomReunionView(
             Transform parent,
@@ -181,11 +184,23 @@ namespace Rpg.Soundwell
                     ShowAdvance(zh ? "回到大泵前商定方案" : "Return to plan rescue");
                     break;
 
+                case M06ReunionStage.ShenResponse:
+                    heading.text = zh ? "地下主泵房 · 回应沈砾" : "UNDERGROUND PUMP HALL · ANSWER SHEN LI";
+                    body.text = zh
+                        ? "欧林说起断粮后没能活下来的两位矿工。你决定怎样回应沈砾？"
+                        : "Oulin tells you about the two miners who died after the ration cuts. How do you respond to Shen Li?";
+                    ShowChoice(0, zh ? "直接问她那两位老矿工的事" : "Ask her directly about the two miners");
+                    ShowChoice(1, zh ? "先帮她把眼前的阀修完再谈" : "Help finish the valve repair before talking");
+                    ShowChoice(2, zh ? "等她自己开口" : "Give her time to speak");
+                    SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, choiceButtons[0]);
+                    break;
+
                 case M06ReunionStage.RescuePlanDecision:
                     heading.text = zh ? "地下主泵房 · 敲定营救方案" : "UNDERGROUND PUMP HALL · RESCUE PLAN";
-                    body.text = zh
+                    body.text = (zh
                         ? "沈砾指着主排水泵：「无准备停转，下层五百人三天水漫。不管走哪条路，都不能为了出港淹了后面的人。」"
-                        : "Shen Li points at the main drainage pump: \"Stop this unprepared and five hundred below flood in three days. Whichever route we pick, we do not drown those left behind.\"";
+                        : "Shen Li points at the main drainage pump: \"Stop this unprepared and five hundred below flood in three days. Whichever route we pick, we do not drown those left behind.\"")
+                        + "\n" + FormatShenReply(zh);
                     ShowChoice(0, M06PumpRoomReunionSession.FormatPlanLabel(M06RescuePlan.OfficialHandover, zh), !submittingPlan);
                     ShowChoice(1, M06PumpRoomReunionSession.FormatPlanLabel(M06RescuePlan.CargoCover, zh), !submittingPlan);
                     ShowChoice(2, M06PumpRoomReunionSession.FormatPlanLabel(M06RescuePlan.MinerShutdown, zh), !submittingPlan);
@@ -200,6 +215,24 @@ namespace Rpg.Soundwell
                         ? M06PumpRoomReunionSession.FormatPlanLabel(session.ConfirmedPlan.Value, zh)
                         : string.Empty;
                     break;
+            }
+        }
+
+        private string FormatShenReply(bool zh)
+        {
+            switch (session.SelectedShenResponse)
+            {
+                case M06ShenResponse.AskAboutMiners:
+                    return zh ? "她说：「顶得住和该顶是两回事。」"
+                        : "She admits: enduring something and deserving it are different things.";
+                case M06ShenResponse.HelpRepairValve:
+                    return zh ? "修好阀后，她低声说起老张走的那天。"
+                        : "After repairing the valve, she quietly recounts Old Zhang's last day.";
+                case M06ShenResponse.LetHerSpeak:
+                    return zh ? "她说：「先把这班人送出去，行吗？」"
+                        : "She asks to get this shift safely out first.";
+                default:
+                    return string.Empty;
             }
         }
 
@@ -225,6 +258,13 @@ namespace Rpg.Soundwell
             if (session.Stage == M06ReunionStage.VesselBriefing && index >= 0 && index <= 2)
             {
                 session.AnswerVesselBriefing((M06ReunionGreeting)index);
+                Refresh();
+                return;
+            }
+
+            if (session.Stage == M06ReunionStage.ShenResponse && index >= 0 && index <= 2)
+            {
+                session.RespondToShen((M06ShenResponse)(index + 1));
                 Refresh();
                 return;
             }
