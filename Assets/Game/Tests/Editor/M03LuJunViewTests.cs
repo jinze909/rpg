@@ -132,6 +132,38 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SuccessfulVoyageHandoffShowsCompletedCopyWithoutSceneUnload()
+        {
+            int recorded = 0;
+            view = new M03LuJunView(root.transform, M02BridgeEvidence.None,
+                false, _ => recorded++);
+            for (int beat = 0; beat < 4; beat++)
+                view.AdvanceButton.onClick.Invoke();
+
+            // Asking for passage never reveals the unasked bridge confession.
+            view.GetChoiceButton(2).onClick.Invoke();
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingVoyage));
+            Assert.That(view.Dialogue.text, Does.Contain("Official passage requires"));
+
+            // The host can persist the accepted route without immediately
+            // destroying this UGUI view; finished text must appear at once.
+            view.GetChoiceButton(4).onClick.Invoke();
+            Assert.That(recorded, Is.EqualTo(1));
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.Complete));
+            Assert.That(view.Encounter.Voyage, Is.EqualTo(M03VoyageChoice.MixedWithCivilian));
+            Assert.That(view.Dialogue.text, Does.Contain("actual departure preparations"));
+            Assert.That(view.Dialogue.text, Does.Not.Contain("Official passage requires"));
+            for (int index = 0; index < 5; index++)
+                Assert.That(view.GetChoiceButton(index).gameObject.activeSelf, Is.False);
+            Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.False);
+
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(view.Dialogue.text, Does.Contain("接下来的准备才真正开始"));
+            view.GetChoiceButton(4).onClick.Invoke();
+            Assert.That(recorded, Is.EqualTo(1), "The completed route cannot be delivered twice.");
+        }
+
+        [Test]
         public void InterruptedVoyageHostWriteKeepsRouteChoicesAndBlocksReentrantSubmit()
         {
             int attempts = 0;
