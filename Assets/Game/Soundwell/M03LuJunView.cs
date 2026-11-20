@@ -169,6 +169,10 @@ namespace Rpg.Soundwell
                     {
                         encounter.ChooseVoyage((M03VoyageChoice)index, onFinished);
                         onFinished = null;
+                        // A successful host write can keep this camp view alive.
+                        // Show the completed passage plan rather than leaving
+                        // the pre-selection dialogue on screen.
+                        Refresh();
                     }
                     catch
                     {
