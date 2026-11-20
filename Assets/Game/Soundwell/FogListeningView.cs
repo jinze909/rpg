@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         private readonly Font latinFont;
         private readonly RpgPixelArtManifest artManifest;
         private readonly Image cueIcon;
+        private readonly FogListeningAudioCuePlayer cueAudio;
         private readonly Text heading;
         private readonly Text statusText;
         private readonly Text cueText;
@@ -52,6 +53,8 @@ namespace Rpg.Soundwell
         public Text StatusText => statusText;
         public Text CueText => cueText;
         public Image CueIcon => cueIcon;
+        public AudioSource CueAudioSource => cueAudio.Source;
+        public AudioLowPassFilter CueAudioLowPass => cueAudio.LowPass;
         public Button FocusButton => focusButton;
         public Button HoldButton => holdButton;
         public Button SlowButton => slowButton;
@@ -83,6 +86,7 @@ namespace Rpg.Soundwell
             cueIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authored,
                 "M04 identified fog clue", new Vector2(-350f, 60f),
                 new Vector2(92f, 92f), ResolveCueSprite());
+            cueAudio = new FogListeningAudioCuePlayer(canvasObject.transform);
 
             focusButton = SoundwellUiTheme.CreateButton(authored, "Fog focus listen",
                 new Vector2(0f, -44f), new Vector2(400f, 40f), 16, out focusLabel, FogButtonColor, FogInkColor);
@@ -145,6 +149,7 @@ namespace Rpg.Soundwell
             statusText.text = FogListeningCopy.DescribeStatus(session, zh);
             cueText.text = FogListeningCopy.DescribeCurrentCue(session, lastResolution, zh);
             RpgStoryArtResolver.ApplyPixelSprite(cueIcon, ResolveCueSprite());
+            cueAudio.Sync(session);
 
             focusLabel.text = zh ? "凝神听雾" : "Focus listen";
             portLabel.text = zh ? "向左舷避让" : "Turn port";
@@ -263,6 +268,7 @@ namespace Rpg.Soundwell
             if (starboardButton != null) starboardButton.onClick.RemoveAllListeners();
             if (signalButton != null) signalButton.onClick.RemoveAllListeners();
             if (continueButton != null) continueButton.onClick.RemoveAllListeners();
+            cueAudio.Dispose();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
         }
     }
