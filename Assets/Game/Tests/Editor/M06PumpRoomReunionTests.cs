@@ -118,6 +118,7 @@ namespace Rpg.Tests.Editor
             session.AnswerVesselBriefing(M06ReunionGreeting.DiscussWithdrawalOrChannel);
             session.WitnessPumpRoomAndInspection();
             session.HearOulinRetaliationTruth();
+            session.RespondToShen(M06ShenResponse.HelpRepairValve);
             Assert.That(session.TryConfirmRescuePlan(M06RescuePlan.OfficialHandover, read, write), Is.True);
             Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? saved), Is.True);
             Assert.That(saved.HasValue, Is.True);
@@ -178,6 +179,8 @@ namespace Rpg.Tests.Editor
                     "Validation N76: cannot record delivered letters without a carried M05 packet.");
 
                 session.HearOulinRetaliationTruth();
+
+                session.RespondToShen(M06ShenResponse.HelpRepairValve);
                 Assert.That(session.TryConfirmRescuePlan(M06RescuePlan.CargoCover, read, write), Is.True);
                 Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? saved), Is.True);
                 Assert.That(saved.HasValue, Is.True);
@@ -208,6 +211,8 @@ namespace Rpg.Tests.Editor
             Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.OulinRetaliationTruth));
 
             session.HearOulinRetaliationTruth();
+
+            session.RespondToShen(M06ShenResponse.HelpRepairValve);
             Assert.That(session.RetaliationHistoryHeard, Is.True);
             Assert.That(session.TryConfirmRescuePlan(M06RescuePlan.MinerShutdown, read, write), Is.True);
             Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.Completed));
@@ -216,6 +221,7 @@ namespace Rpg.Tests.Editor
             Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? saved), Is.True);
             Assert.That(saved.HasValue, Is.True);
             Assert.That(saved.Value.Plan, Is.EqualTo(M06RescuePlan.MinerShutdown));
+            Assert.That(saved.Value.ShenResponse, Is.EqualTo(M06ShenResponse.HelpRepairValve));
             Assert.That(saved.Value.LetterDelivery, Is.EqualTo(M06LetterDeliveryOutcome.DeliveredWithPending));
             Assert.That(saved.Value.RetaliationHistoryHeard, Is.True);
         }
@@ -240,6 +246,7 @@ namespace Rpg.Tests.Editor
                 session.AnswerVesselBriefing(M06ReunionGreeting.ComeToBringYouBack);
                 session.WitnessPumpRoomAndInspection();
                 session.HearOulinRetaliationTruth();
+                session.RespondToShen(M06ShenResponse.HelpRepairValve);
                 Assert.That(session.TryConfirmRescuePlan(plan, read, write), Is.True);
 
                 Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? saved), Is.True);
@@ -271,6 +278,7 @@ namespace Rpg.Tests.Editor
             session.AnswerVesselBriefing(M06ReunionGreeting.ComeToBringYouBack);
             session.WitnessPumpRoomAndInspection();
             session.HearOulinRetaliationTruth();
+            session.RespondToShen(M06ShenResponse.HelpRepairValve);
 
             int failOnce = 0;
             Assert.Throws<InvalidOperationException>(() =>
@@ -303,6 +311,57 @@ namespace Rpg.Tests.Editor
             Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
             Assert.That(values[M06RescuePlanFacts.ConfirmedKey], Is.Zero);
             Assert.That(values[M06RescuePlanFacts.PlanKey], Is.Zero);
+        }
+
+        [Test]
+        public void ThreeDistinctShenResponsesAreRequiredAndPersistAcrossSaveRead()
+        {
+            foreach (M06ShenResponse response in new[]
+            {
+                M06ShenResponse.AskAboutMiners,
+                M06ShenResponse.HelpRepairValve,
+                M06ShenResponse.LetHerSpeak
+            })
+            {
+                var values = new Dictionary<string, int>();
+                SeedVerifiedM05Arrival(values);
+                Func<string, int> read = Reader(values);
+                Action<string, int> write = (key, value) => values[key] = value;
+                Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+                session.AnswerVesselBriefing(M06ReunionGreeting.ComeToBringYouBack);
+                session.WitnessPumpRoomAndInspection();
+                session.HearOulinRetaliationTruth();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.TryConfirmRescuePlan(M06RescuePlan.OfficialHandover, read, write));
+                Assert.Throws<ArgumentOutOfRangeException>(() =>
+                    session.RespondToShen((M06ShenResponse)99));
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                session.RespondToShen(response);
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+                Assert.That(session.TryConfirmRescuePlan(M06RescuePlan.OfficialHandover, read, write), Is.True);
+                Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.ShenResponse, Is.EqualTo(response));
+            }
+        }
+
+        [Test]
+        public void OldSavedM06RecordWithoutResponseRemainsReadable()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            Assert.That(M06RescuePlanFacts.TryRecord(
+                new M06ReunionRecord(M06RescuePlan.CargoCover, true,
+                    M06LetterDeliveryOutcome.NotCarried, true), read, write), Is.True);
+            Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? oldRecord), Is.True);
+            Assert.That(oldRecord.HasValue, Is.True);
+            Assert.That(oldRecord.Value.ShenResponse, Is.Null);
+            values[M06RescuePlanFacts.ShenResponseKey] = 99;
+            Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? corrupt), Is.True);
+            Assert.That(corrupt, Is.Null);
         }
 
         [Test]

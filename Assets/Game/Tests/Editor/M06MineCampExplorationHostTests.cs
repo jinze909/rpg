@@ -168,6 +168,8 @@ namespace Rpg.Tests.Editor
                 host.ActiveReunionView.AdvanceButton.onClick.Invoke();
                 host.ActiveReunionView.AdvanceButton.onClick.Invoke();
                 host.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                Assert.That(host.ActiveReunionView.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                host.ActiveReunionView.ShenWaitButton.onClick.Invoke();
                 host.ActiveReunionView.OfficialHandoverButton.onClick.Invoke();
 
                 Assert.That(host.IsDialogueOpen, Is.False);

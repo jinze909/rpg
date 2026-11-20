@@ -9,7 +9,8 @@ namespace Rpg.Soundwell
         LetterHandoff = 2,
         OulinRetaliationTruth = 3,
         RescuePlanDecision = 4,
-        Completed = 5
+        Completed = 5,
+        ShenResponse = 6
     }
 
     public enum M06ReunionGreeting
@@ -17,6 +18,18 @@ namespace Rpg.Soundwell
         ComeToBringYouBack = 0,
         UglyWrenchNames = 1,
         DiscussWithdrawalOrChannel = 2
+    }
+
+    /// <summary>
+    /// The player's response to Shen Li after learning about the two miners
+    /// who died during Rus's retaliation. This is an interpersonal choice,
+    /// not a score or a replacement for the later M07 Liang decision.
+    /// </summary>
+    public enum M06ShenResponse
+    {
+        AskAboutMiners = 1,
+        HelpRepairValve = 2,
+        LetHerSpeak = 3
     }
 
     /// <summary>
@@ -41,6 +54,7 @@ namespace Rpg.Soundwell
         public bool PendingReturnLetterNoted { get; private set; }
         public bool RetaliationHistoryHeard { get; private set; }
         public M06RescuePlan? ConfirmedPlan { get; private set; }
+        public M06ShenResponse? SelectedShenResponse { get; private set; }
 
         public M06PumpRoomReunionSession(
             M04DepartureRecord departure,
@@ -144,6 +158,16 @@ namespace Rpg.Soundwell
         {
             EnsureStage(M06ReunionStage.OulinRetaliationTruth);
             RetaliationHistoryHeard = true;
+            Stage = M06ReunionStage.ShenResponse;
+        }
+
+        public void RespondToShen(M06ShenResponse response)
+        {
+            EnsureStage(M06ReunionStage.ShenResponse);
+            if (!Enum.IsDefined(typeof(M06ShenResponse), response))
+                throw new ArgumentOutOfRangeException(nameof(response));
+
+            SelectedShenResponse = response;
             Stage = M06ReunionStage.RescuePlanDecision;
         }
 
@@ -163,7 +187,8 @@ namespace Rpg.Soundwell
                 plan,
                 Landing.HasUsableLandingCapacity,
                 outcome,
-                RetaliationHistoryHeard);
+                RetaliationHistoryHeard,
+                SelectedShenResponse);
 
             if (!M06RescuePlanFacts.TryRecord(record, getInt, setInt))
                 return false;

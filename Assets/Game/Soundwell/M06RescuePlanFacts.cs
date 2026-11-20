@@ -34,18 +34,21 @@ namespace Rpg.Soundwell
             M06RescuePlan plan,
             bool reportedUsableCapacity,
             M06LetterDeliveryOutcome letterDelivery,
-            bool retaliationHistoryHeard)
+            bool retaliationHistoryHeard,
+            M06ShenResponse? shenResponse = null)
         {
             Plan = plan;
             ReportedUsableCapacity = reportedUsableCapacity;
             LetterDelivery = letterDelivery;
             RetaliationHistoryHeard = retaliationHistoryHeard;
+            ShenResponse = shenResponse;
         }
 
         public M06RescuePlan Plan { get; }
         public bool ReportedUsableCapacity { get; }
         public M06LetterDeliveryOutcome LetterDelivery { get; }
         public bool RetaliationHistoryHeard { get; }
+        public M06ShenResponse? ShenResponse { get; }
     }
 
     /// <summary>
@@ -61,6 +64,7 @@ namespace Rpg.Soundwell
         public const string UsableCapacityKey = "rpg.return.m06.reported-usable-capacity";
         public const string LetterDeliveryKey = "rpg.return.m06.letter-delivery";
         public const string RetaliationHeardKey = "rpg.return.m06.retaliation-history-heard";
+        public const string ShenResponseKey = "rpg.return.m06.shen-response";
 
         public static bool CanRecord(M06ReunionRecord record, Func<string, int> getInt)
         {
@@ -92,6 +96,7 @@ namespace Rpg.Soundwell
             setInt(UsableCapacityKey, record.ReportedUsableCapacity ? 1 : 0);
             setInt(LetterDeliveryKey, (int)record.LetterDelivery);
             setInt(RetaliationHeardKey, record.RetaliationHistoryHeard ? 1 : 0);
+            setInt(ShenResponseKey, record.ShenResponse.HasValue ? (int)record.ShenResponse.Value : 0);
             setInt(ConfirmedKey, 1);
             return true;
         }
@@ -116,18 +121,21 @@ namespace Rpg.Soundwell
             int rawUsable = getInt(UsableCapacityKey);
             int rawLetters = getInt(LetterDeliveryKey);
             int rawRetaliation = getInt(RetaliationHeardKey);
+            int rawShenResponse = getInt(ShenResponseKey);
 
             if (!Enum.IsDefined(typeof(M06RescuePlan), rawPlan) ||
                 !Enum.IsDefined(typeof(M06LetterDeliveryOutcome), rawLetters) ||
                 (rawUsable != 0 && rawUsable != 1) ||
-                (rawRetaliation != 0 && rawRetaliation != 1))
+                (rawRetaliation != 0 && rawRetaliation != 1) ||
+                (rawShenResponse != 0 && !Enum.IsDefined(typeof(M06ShenResponse), rawShenResponse)))
                 return true;
 
             var saved = new M06ReunionRecord(
                 (M06RescuePlan)rawPlan,
                 rawUsable == 1,
                 (M06LetterDeliveryOutcome)rawLetters,
-                rawRetaliation == 1);
+                rawRetaliation == 1,
+                rawShenResponse == 0 ? (M06ShenResponse?)null : (M06ShenResponse)rawShenResponse);
             if (IsValidRecord(saved, getInt))
                 record = saved;
             return true;
@@ -149,13 +157,16 @@ namespace Rpg.Soundwell
             setInt(UsableCapacityKey, 0);
             setInt(LetterDeliveryKey, 0);
             setInt(RetaliationHeardKey, 0);
+            setInt(ShenResponseKey, 0);
             return true;
         }
 
         private static bool IsValidRecord(M06ReunionRecord record, Func<string, int> getInt)
         {
             if (!Enum.IsDefined(typeof(M06RescuePlan), record.Plan) ||
-                !Enum.IsDefined(typeof(M06LetterDeliveryOutcome), record.LetterDelivery))
+                !Enum.IsDefined(typeof(M06LetterDeliveryOutcome), record.LetterDelivery) ||
+                (record.ShenResponse.HasValue &&
+                    !Enum.IsDefined(typeof(M06ShenResponse), record.ShenResponse.Value)))
                 return false;
 
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
