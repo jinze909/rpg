@@ -197,19 +197,43 @@ namespace Rpg.Soundwell
                     : "This voyage has no verified hull and landing plan yet. A route choice or Qi Que's cup is not departure readiness. You cannot cast off.";
 
             M04DepartureRecord m = manifest.Value;
+            // Show the already-confirmed route at the irreversible cast-off
+            // decision. Never derive this label from an unverified choice.
+            string routeLine = zh
+                ? "本趟航路：" + RouteName(m.Route, true) + "。\n"
+                : "This voyage: " + RouteName(m.Route, false) + ".\n";
             if (sailed)
                 return zh
-                    ? "缆绳已经松开，船已离岸。本航次只记一次真实拔锚；下一段听雾仍需亲自完成。"
-                    : "The lines are free and the ship has left the dock. This cast-off is recorded only once; the fog passage still has to be navigated.";
+                    ? routeLine + "缆绳已经松开，船已离岸。本航次只记一次真实拔锚；下一段听雾仍需亲自完成。"
+                    : routeLine + "The lines are free and the ship has left the dock. This cast-off is recorded only once; the fog passage still has to be navigated.";
             if (zh)
-                return "已核实领航船准备：船员 " + m.AssignedCrew +
+                return routeLine + "已核实领航船准备：船员 " + m.AssignedCrew +
                     " 人，可用铺位 " + m.AvailableBerths +
                     " 个，为营救预留 " + m.ReturneesToBook +
                     " 个。\n船仍停在码头。由你松开缆绳才会正式出航，不能提前算成抵港。";
-            return "Verified departure plan: " + m.AssignedCrew +
+            return routeLine + "Verified departure plan: " + m.AssignedCrew +
                 " crew, " + m.AvailableBerths +
                 " berths, " + m.ReturneesToBook +
                 " reserved for the rescue.\nThe ship is still at the dock. Cast off to depart; that does not mean you've arrived.";
+        }
+
+        private static string RouteName(M03VoyageChoice route, bool zh)
+        {
+            switch (route)
+            {
+                case M03VoyageChoice.LuJunEscort:
+                    return zh ? "陆钧护航" : "Lu Jun escort";
+                case M03VoyageChoice.QiQueMerchant:
+                    return zh ? "祁雀商路" : "Qi Que merchant route";
+                case M03VoyageChoice.HanQiaoOfficial:
+                    return zh ? "韩峤官船" : "Han Qiao official ship";
+                case M03VoyageChoice.MixedWithOfficial:
+                    return zh ? "官船混合航路" : "Mixed convoy (official)";
+                case M03VoyageChoice.MixedWithCivilian:
+                    return zh ? "民船混合航路" : "Mixed convoy (civilian)";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(route));
+            }
         }
     }
 }

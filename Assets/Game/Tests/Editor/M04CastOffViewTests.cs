@@ -25,6 +25,32 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CastOffSummaryShowsActualVerifiedRouteBeforeAndAfterDeparture()
+        {
+            var routes = new[]
+            {
+                (M03VoyageChoice.LuJunEscort, "陆钧护航", "Lu Jun escort"),
+                (M03VoyageChoice.QiQueMerchant, "祁雀商路", "Qi Que merchant route"),
+                (M03VoyageChoice.HanQiaoOfficial, "韩峤官船", "Han Qiao official ship"),
+                (M03VoyageChoice.MixedWithOfficial, "官船混合航路", "Mixed convoy (official)"),
+                (M03VoyageChoice.MixedWithCivilian, "民船混合航路", "Mixed convoy (civilian)")
+            };
+            foreach (var (route, chineseName, englishName) in routes)
+            {
+                var confirmed = new M04DepartureRecord(route, 4, 15, 9, false, false);
+                string awaitingCastOff = M04CastOffCopy.Describe(confirmed, false, false);
+                string sailed = M04CastOffCopy.Describe(confirmed, true, true);
+                Assert.That(awaitingCastOff, Does.Contain(englishName));
+                Assert.That(awaitingCastOff, Does.Contain("still at the dock"));
+                Assert.That(sailed, Does.Contain(chineseName));
+                Assert.That(sailed, Does.Contain("船已离岸"));
+            }
+            Assert.That(M04CastOffCopy.Describe(null, false, false),
+                Does.Not.Contain("This voyage:"),
+                "No route may be presented as verified without a confirmed manifest.");
+        }
+
+        [Test]
         public void ChosenRouteAndUnconfirmedPlanCannotLaunchAnyVessel()
         {
             var root = new GameObject("M04 unconfirmed cast off");
