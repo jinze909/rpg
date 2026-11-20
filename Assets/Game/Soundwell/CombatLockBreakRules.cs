@@ -156,9 +156,16 @@ namespace Rpg.Soundwell
 
             if (!ReadyForThirdBellCollapse)
             {
-                SetThreat(CurrentThreat == S00BridgeThreatKind.SpearThrustAtHero
-                    ? S00BridgeThreatKind.SapperRushCable
-                    : S00BridgeThreatKind.SpearThrustAtHero);
+                // A failed cable defense must remain an unresolved sapper
+                // threat. Alternating to the spear anyway would let players
+                // progress all three bells while never defending Shen Li.
+                if (CurrentThreat == S00BridgeThreatKind.SpearThrustAtHero ||
+                    brokeLock)
+                {
+                    SetThreat(CurrentThreat == S00BridgeThreatKind.SpearThrustAtHero
+                        ? S00BridgeThreatKind.SapperRushCable
+                        : S00BridgeThreatKind.SpearThrustAtHero);
+                }
             }
             return brokeLock;
         }

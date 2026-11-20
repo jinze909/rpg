@@ -47,17 +47,27 @@ namespace Rpg.Tests.Editor
             Assert.That(s00.Momentum.Current, Is.EqualTo(2));
             Assert.That(s00.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
 
-            // Turn 2: Wrong response (parrying instead of repelling sapper) stalls Shen Li's cut.
-            Assert.That(s00.ResolveHeroCounter(CombatLockKind.ShieldParry), Is.False);
-            Assert.That(s00.BellsCompleted, Is.EqualTo(1));
-            Assert.That(s00.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SpearThrustAtHero));
+            // An unanswered cable rush cannot be bypassed by repeatedly
+            // choosing Shield Parry: the second bell stays stalled.
+            for (int attempt = 0; attempt < 4; attempt++)
+            {
+                Assert.That(s00.ResolveHeroCounter(CombatLockKind.ShieldParry), Is.False);
+                Assert.That(s00.BellsCompleted, Is.EqualTo(1));
+                Assert.That(s00.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SapperRushCable));
+                Assert.That(s00.CurrentLocks.RemainingLocks, Is.EqualTo(1));
+                Assert.That(s00.ReadyForThirdBellCollapse, Is.False);
+            }
 
-            // Turn 3: Parry spear -> Bell 2/3; Turn 4: Repel sapper -> Bell 3/3 -> Collapse ready.
-            Assert.That(s00.ResolveHeroCounter(CombatLockKind.ShieldParry), Is.True);
-            Assert.That(s00.BellsCompleted, Is.EqualTo(2));
+            // Repel the actual cable threat -> bell 2/3; hold against the
+            // next spear -> bell 3/3. Only then may the authored bridge end.
             Assert.That(s00.ResolveHeroCounter(CombatLockKind.BladeRepel), Is.True);
+            Assert.That(s00.BellsCompleted, Is.EqualTo(2));
+            Assert.That(s00.CurrentThreat, Is.EqualTo(S00BridgeThreatKind.SpearThrustAtHero));
+            Assert.That(s00.ResolveHeroCounter(CombatLockKind.ShieldParry), Is.True);
             Assert.That(s00.BellsCompleted, Is.EqualTo(3));
             Assert.That(s00.ReadyForThirdBellCollapse, Is.True);
+            Assert.That(s00.ResolveHeroCounter(CombatLockKind.BladeRepel), Is.False);
+            Assert.That(s00.BellsCompleted, Is.EqualTo(3));
         }
 
         [Test]
