@@ -100,7 +100,10 @@ namespace Rpg.Tests.Editor
             {
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 camera.backgroundColor = Color.black;
-                camera.cullingMask = 1 << 5; // Unity UGUI layer
+                // The runtime-created overlay and its graphics inherit the
+                // actual authored canvas layer (normally Default), not the
+                // built-in UI layer. Culling only layer 5 rendered black evidence.
+                camera.cullingMask = 1 << canvas.gameObject.layer;
                 camera.orthographic = true;
                 camera.orthographicSize = 5f;
                 camera.transform.position = new Vector3(0f, 0f, -10f);
