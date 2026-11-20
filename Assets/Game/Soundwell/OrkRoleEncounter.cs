@@ -110,19 +110,22 @@ namespace Rpg.Soundwell
             ConfigureWorld();
 
             previousDecisionTime = party.Beast.AI.DecisionTime;
-            // ORK owns the chooser. Its decision window allows this encounter
-            // to submit the already-advertised action before fallback AI runs.
-            party.Beast.AI.DecisionTime = 120f;
+            // Enemies are AI-controlled in ORK Classic turn mode. A 120-second
+            // decision delay kept the AI out of IsChoosing while the party's
+            // submitted actions waited forever for the next combatant.
+            // Keep a brief readable enemy choice delay, but allow ORK's
+            // native AI to consume the authored action this turn.
+            party.Beast.AI.DecisionTime = 0.1f;
             foreach (Combatant member in party.Members)
                 InitializeHealth(member, 16);
             InitializeHealth(party.Beast, 36);
             party.Beast.Variables.Set("rpg.role.exposed", 0);
             planned = CreateThreat(Threat.Gather, 0);
-            // The live battle chooses actions through ORK's Actions gate.
-            // Do not also put this same mutable action in the AI queue:
-            // AI may consume it before the scene sees IsChoosing, leaving
-            // the opponent with no action until its long fallback timer.
+            // ORK's own AI queue, not a parallel scene combat loop, owns the
+            // enemy's advertised action. The AI can select its queued attack
+            // without entering the player-only IsChoosing gate.
             party.Beast.AI.ActionQueue.Clear();
+            party.Beast.AI.ActionQueue.Add(planned);
             configured = true;
             view = new RoleCombatView(transform, this);
             SetExchange("救出被困的人。看清借声兽的动作，再决定怎样配合。",
@@ -144,16 +147,21 @@ namespace Rpg.Soundwell
             if (party.BattleInProgress)
             {
                 observedBattle = true;
-                // Let ORK own the turn. Once the enemy becomes its live
-                // chooser, submit the authored threat directly, exactly once.
-                // The AI queue is not an authority for a scene-owned threat:
-                // dequeuing it elsewhere can strand the classic turn.
+                // ORK normally consumes the queued enemy threat itself. For
+                // battle setups that expose a direct chooser instead, use
+                // that same queued action exactly once without cloning the
+                // turn or simulating damage.
                 if (party.Beast.Actions.IsChoosing && !IsPresenting &&
                     planned != null && submittedEnemyThreat != planned &&
                     planned.CanUse())
                 {
-                    submittedEnemyThreat = planned;
-                    party.Beast.Actions.AddAccess(planned, false);
+                    BaseAction next = party.Beast.AI.GetNextQueuedAction();
+                    if (next == null) next = planned;
+                    if (next == planned)
+                    {
+                        submittedEnemyThreat = planned;
+                        party.Beast.Actions.AddAccess(next, false);
+                    }
                 }
             }
             else if (observedBattle && !ending)
@@ -365,6 +373,10 @@ namespace Rpg.Soundwell
                 int nextTarget = kind == Threat.Gather ? target : (target + 1) % party.Members.Count;
                 planned = CreateThreat(next, nextTarget);
                 submittedEnemyThreat = null;
+                // Future telegraphs must also be consumed through ORK's
+                // native AI queue; no user-facing chooser is assumed.
+                party.Beast.AI.ActionQueue.Clear();
+                party.Beast.AI.ActionQueue.Add(planned);
             };
             return action;
         }
