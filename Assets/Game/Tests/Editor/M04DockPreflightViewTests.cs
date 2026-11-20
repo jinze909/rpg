@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -48,6 +49,52 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.SetLanguage(previous);
                 UnityEngine.Object.DestroyImmediate(root);
             }
+        }
+
+        [Test]
+        public void StageIconTracksEachPreflightBeatWithPointFilteredPixelArtAndHidesOnFinish()
+        {
+            var root = new GameObject("M04 preflight stage icon");
+            M04DockPreflightView view = null;
+            try
+            {
+                RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+                Assert.That(manifest, Is.Not.Null);
+
+                view = new M04DockPreflightView(root.transform,
+                    M03VoyageChoice.QiQueMerchant, () => { });
+                AssertStageIcon(view.StageIcon, manifest.M07CargoCoverCrateClosed);
+
+                view.AdvanceButton.onClick.Invoke();
+                AssertStageIcon(view.StageIcon, manifest.M03TidalChartOpen);
+
+                view.AdvanceButton.onClick.Invoke();
+                AssertStageIcon(view.StageIcon, manifest.M02BridgeKeeperOpenLedger);
+
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(view.Stage, Is.EqualTo(M04DockPreflightStage.Finished));
+                Assert.That(view.StageIcon.sprite, Is.Null);
+                Assert.That(view.StageIcon.enabled, Is.False);
+                Assert.That(view.StageIcon.gameObject.activeSelf, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void AssertStageIcon(Image icon, Sprite expected)
+        {
+            Assert.That(icon, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(icon.sprite, Is.EqualTo(expected));
+            Assert.That(icon.preserveAspect, Is.True);
+            Assert.That(icon.raycastTarget, Is.False);
+            Assert.That(icon.enabled, Is.True);
+            Assert.That(icon.gameObject.activeSelf, Is.True);
+            Assert.That(icon.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(icon.sprite.pixelsPerUnit, Is.EqualTo(RpgWorldMapScale.PixelsPerUnit));
         }
 
         [Test]
