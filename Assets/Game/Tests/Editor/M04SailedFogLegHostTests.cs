@@ -89,6 +89,53 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornFogPayloadRefusesFreshViewUntilExplicitNewLegReset()
+        {
+            var scene = new GameObject("M04 interrupted fog persistence");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = Writer(values);
+            M04SailedFogLegHost fresh = null;
+            string[] payloadKeys =
+            {
+                FogListeningFacts.SucceededKey,
+                FogListeningFacts.HullIntegrityKey,
+                FogListeningFacts.AvoidedHazardsKey,
+                FogListeningFacts.MatchedSignalsKey,
+                FogListeningFacts.RemainingFocusKey
+            };
+            try
+            {
+                SeedReady(values);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                foreach (string key in payloadKeys)
+                {
+                    Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                    values[key] = 1;
+                    int writes = 0;
+                    Assert.That(FogListeningFacts.HasUnconfirmedPayload(read), Is.True);
+                    Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
+                        read, (k, v) => { writes++; values[k] = v; }, _ => { },
+                        out M04SailedFogLegHost rejected), Is.False, key);
+                    Assert.That(rejected, Is.Null);
+                    Assert.That(scene.transform.childCount, Is.Zero);
+                    Assert.That(values[key], Is.EqualTo(1));
+                    Assert.That(writes, Is.Zero);
+                }
+
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                Assert.That(FogListeningFacts.HasUnconfirmedPayload(read), Is.False);
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
+                    read, write, _ => { }, out fresh), Is.True);
+            }
+            finally
+            {
+                fresh?.Dispose();
+                UnityEngine.Object.DestroyImmediate(scene);
+            }
+        }
+
+        [Test]
         public void OldSailedHullCannotStartOrCompleteAReplacedRoute()
         {
             var scene = new GameObject("M04 stale sailed-route protection");

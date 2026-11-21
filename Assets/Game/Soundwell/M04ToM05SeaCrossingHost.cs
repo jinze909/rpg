@@ -103,7 +103,10 @@ namespace Rpg.Soundwell
 
             if (!sailed)
             {
-                if (getInt(FogListeningFacts.CompletedKey) != 0)
+                // Reject torn fog data *before* cast-off. Otherwise the UI
+                // could sail and then strand the player at the fog handoff.
+                if (getInt(FogListeningFacts.CompletedKey) != 0 ||
+                    FogListeningFacts.HasUnconfirmedPayload(getInt))
                     return false;
                 host = new M04ToM05SeaCrossingHost(
                     parent, getInt, setInt, createFogLeg, observedLanding,
@@ -117,7 +120,8 @@ namespace Rpg.Soundwell
 
             if (!savedFog.HasValue)
             {
-                if (getInt(FogListeningFacts.CompletedKey) != 0)
+                if (getInt(FogListeningFacts.CompletedKey) != 0 ||
+                    FogListeningFacts.HasUnconfirmedPayload(getInt))
                     return false;
                 var candidate = new M04ToM05SeaCrossingHost(
                     parent, getInt, setInt, createFogLeg, observedLanding,
