@@ -142,12 +142,28 @@ namespace Rpg.Soundwell
                 M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt);
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(M07ExtractionRecord record, Func<string, int> getInt)
         {
             if (getInt == null || getInt(ConfirmedKey) != 0 ||
                 HasOrphanedM08SuccessorFacts(getInt))
                 return false;
-            return IsValidRecord(record, getInt);
+            return IsValidRecord(record, getInt) &&
+                CompatiblePending(getInt, ExecutedRouteKey, (int)record.ExecutedRoute) &&
+                CompatiblePending(getInt, PumpStateKey, (int)record.PumpState) &&
+                CompatiblePending(getInt, RouteCostsKey, (int)record.RouteCosts) &&
+                CompatiblePending(getInt, BoardedFirstBatchKey, record.BoardedFirstBatchCount) &&
+                CompatiblePending(getInt, LowerLevelEvacuatedKey, record.LowerLevelEvacuatedCount) &&
+                CompatiblePending(getInt, RusFateKey, (int)record.RusFate) &&
+                CompatiblePending(getInt, LedgerStateKey, (int)record.LedgerState) &&
+                CompatiblePending(getInt, LiangChoiceKey, (int)record.LiangChoice) &&
+                CompatiblePending(getInt, YidaChoiceKey, (int)record.YidaChoice) &&
+                CompatiblePending(getInt, TaoJiRescuedKey, record.TaoJiRescued ? 1 : 0);
         }
 
         public static bool TryRecord(M07ExtractionRecord record)
@@ -167,16 +183,17 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            // Write primary route and survivor choices first so an interrupted
+            // save locks out competing outcomes while allowing identical retries.
             setInt(ExecutedRouteKey, (int)record.ExecutedRoute);
+            setInt(LiangChoiceKey, (int)record.LiangChoice);
+            setInt(YidaChoiceKey, (int)record.YidaChoice);
+            setInt(RusFateKey, (int)record.RusFate);
+            setInt(LedgerStateKey, (int)record.LedgerState);
             setInt(PumpStateKey, (int)record.PumpState);
             setInt(RouteCostsKey, (int)record.RouteCosts);
             setInt(BoardedFirstBatchKey, record.BoardedFirstBatchCount);
             setInt(LowerLevelEvacuatedKey, record.LowerLevelEvacuatedCount);
-            setInt(RusFateKey, (int)record.RusFate);
-            setInt(LedgerStateKey, (int)record.LedgerState);
-            setInt(LiangChoiceKey, (int)record.LiangChoice);
-            setInt(YidaChoiceKey, (int)record.YidaChoice);
             setInt(TaoJiRescuedKey, record.TaoJiRescued ? 1 : 0);
             setInt(ConfirmedKey, 1);
             return true;
