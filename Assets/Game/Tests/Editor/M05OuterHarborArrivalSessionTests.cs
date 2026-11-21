@@ -123,6 +123,81 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [Test]
+        public void HarborBeatMaskCannotCrossArrivalsWhenVoyageResetIsInterrupted()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 10, true, true));
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            int firstArrival = read(M05LandingFacts.ArrivalSequenceKey);
+
+            // An interrupted first observation may leave only its binding.
+            Assert.Throws<InvalidOperationException>(() =>
+                M05HarborVisitFacts.TryRecord(M05HarborBeat.RepairStall,
+                    read, (key, value) =>
+                    {
+                        write(key, value);
+                        if (key == M05HarborVisitFacts.VisitedArrivalIdentityKey)
+                            throw new InvalidOperationException("Interrupted after arrival binding");
+                    }));
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(firstArrival + 1));
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.RepairStall, read, write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.FisherRumor, read, write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int firstMask), Is.True);
+            Assert.That(firstMask, Is.EqualTo(3));
+
+            // The next actual arrival has its own identity, even if an
+            // interrupted replay reset leaves the old story mask behind.
+            values[M05LandingFacts.ArrivalSequenceKey] = firstArrival + 1;
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int staleMask), Is.True);
+            Assert.That(staleMask, Is.Zero);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.MarketAccusation, read, write), Is.False);
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(firstArrival + 1));
+
+            Assert.That(M05HarborVisitFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.MarketAccusation, read, write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int currentMask), Is.True);
+            Assert.That(currentMask, Is.EqualTo(4));
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(firstArrival + 2));
+
+            values[M05HarborVisitFacts.VisitedArrivalIdentityKey] = -1;
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int corrupt), Is.False);
+            Assert.That(corrupt, Is.Zero);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.RepairStall, read, write), Is.False);
+        }
+
+        [Test]
+        public void EarlierUnsignedHarborObservationsRemainReadableWhenArrivalIsVerified()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 10, true, true));
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+
+            // Persisted observations from pre-identity releases are not
+            // erased merely by loading the new build.
+            values[M05HarborVisitFacts.VisitedMaskKey] = 1;
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int olderMask), Is.True);
+            Assert.That(olderMask, Is.EqualTo(1));
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.FisherRumor, read, write), Is.True);
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(read(M05LandingFacts.ArrivalSequenceKey) + 1));
+        }
+
         [Test]
         public void SequentialHarborBeatsPersistPerSceneAndRetryPartialWritesWithoutDuplication()
         {

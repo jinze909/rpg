@@ -11,6 +11,10 @@ namespace Rpg.Soundwell
     public static class M05HarborVisitFacts
     {
         public const string VisitedMaskKey = "rpg.return.m05.harbor-beats-observed";
+        // Identity of the actual M05 landing. Stored as arrival sequence + 1
+        // so old pre-sequence saves can be bound without using zero (legacy).
+        public const string VisitedArrivalIdentityKey =
+            "rpg.return.m05.harbor-beats-arrival-identity";
         public const int AllBeatsMask = 7;
 
         public static bool TryRead(Func<string, int> getInt, out int mask)
@@ -19,8 +23,27 @@ namespace Rpg.Soundwell
             if (getInt == null)
                 return false;
             int saved = getInt(VisitedMaskKey);
-            if (saved < 0 || (saved & ~AllBeatsMask) != 0)
+            int identity = getInt(VisitedArrivalIdentityKey);
+            if (saved < 0 || (saved & ~AllBeatsMask) != 0 ||
+                identity < 0)
                 return false;
+            if (saved == 0)
+                return true;
+
+            // An old incomplete replay reset may leave an earlier voyage's
+            // dialogue mask. It must never become observed dialogue at a new
+            // landing simply because this replay arrived successfully.
+            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
+                !landing.HasValue)
+                return true;
+            int sequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (sequence < 0 || sequence == int.MaxValue)
+                return false;
+            if (identity != 0 && identity != sequence + 1)
+                return true;
+
+            // Identity=0 represents an existing pre-signature save; retain
+            // its verified observations for backward compatibility.
             mask = saved;
             return true;
         }
@@ -45,6 +68,20 @@ namespace Rpg.Soundwell
             // Idempotent after a successful Makinom write: if a UI handoff
             // then throws, retrying the same observed scene must not write
             // a duplicate event or unlock an unvisited location.
+            int sequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (sequence < 0 || sequence == int.MaxValue)
+                return false;
+            int currentIdentity = sequence + 1;
+            int bound = getInt(VisitedArrivalIdentityKey);
+            if (bound < 0 || (bound != 0 && bound != currentIdentity))
+                return false;
+
+            // Persist the arrival binding before the first observed beat.
+            // If Makinom interrupts this write, only the same arrival can
+            // resume; an old mask never migrates into the next voyage.
+            if (bound == 0)
+                setInt(VisitedArrivalIdentityKey, currentIdentity);
+
             int next = mask | (1 << (int)beat);
             if (next != mask)
                 setInt(VisitedMaskKey, next);
@@ -55,6 +92,7 @@ namespace Rpg.Soundwell
         {
             if (setInt == null) return false;
             setInt(VisitedMaskKey, 0);
+            setInt(VisitedArrivalIdentityKey, 0);
             return true;
         }
     }
