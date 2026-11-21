@@ -102,8 +102,18 @@ namespace Rpg.Soundwell
 
         private bool IsCurrentVoyage()
         {
-            return !disposed && openedArrivalSequence.HasValue &&
-                getInt(M05LandingFacts.ArrivalSequenceKey) == openedArrivalSequence.Value;
+            if (disposed || !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                return false;
+
+            // Legacy saves and scene-only tests may not carry a monotonic
+            // arrival counter yet. Once an actual M05 arrival has minted one,
+            // a reset clears its completion marker BEFORE the next arrival
+            // increments the sequence; do not verify boarding in that gap.
+            if (openedArrivalSequence.Value == 0)
+                return true;
+            return M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) &&
+                landing.HasValue;
         }
 
         public void Dispose()
