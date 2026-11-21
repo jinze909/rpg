@@ -60,6 +60,26 @@ namespace Rpg.Soundwell
                 resolvedSlices);
         }
 
+        /// <summary>
+        /// Materializes the existing M06 Red Salt Mine Camp floorplan as actual
+        /// 16-PPU SpriteRenderer chunks and authored point-light anchors.
+        /// The camp uses SoundwellTileKind, not HarborTileKind.
+        /// </summary>
+        public static RpgLargeMapChunkRenderer BuildForMineCamp(Transform parent,
+            M06MineCampMapLayout layout, Sprite[] tileSlices = null)
+        {
+            if (parent == null) throw new ArgumentNullException(nameof(parent));
+            if (layout == null) throw new ArgumentNullException(nameof(layout));
+
+            Sprite[] resolvedSlices = tileSlices ?? RpgPixelArtManifest.LoadDefault()?.SoundwellTiles;
+            return new RpgLargeMapChunkRenderer(parent, "M06 Red Salt Mine Camp chunks",
+                layout.Width, layout.Height,
+                (x, y) => (int)layout.Tiles[x, y],
+                SoundwellFallbackColor,
+                layout.PointLights,
+                resolvedSlices);
+        }
+
         public static RpgLargeMapChunkRenderer BuildForWhitewaterCrossing(Transform parent,
             WhitewaterCrossingMapLayout layout, Sprite[] tileSlices = null)
         {

@@ -18,6 +18,9 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
         private readonly M06MineCampMapLayout layout;
+        private readonly RpgLargeMapChunkRenderer chunkRenderer;
+        private readonly RpgMapActorVisualBinder heroVisual;
+        private readonly RpgMapActorVisualBinder shenLiVisual;
         private readonly GameObject hudCanvasObject;
         private readonly Font latinFont;
         private readonly Text districtBanner;
@@ -29,6 +32,9 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M06MineCampMapLayout Layout => layout;
+        public RpgLargeMapChunkRenderer ChunkRenderer => chunkRenderer;
+        public RpgMapActorVisualBinder HeroVisual => heroVisual;
+        public RpgMapActorVisualBinder ShenLiVisual => shenLiVisual;
         public Vector2 PlayerPosition => playerPosition;
         public Vector2 Facing => facing;
         public RpgMapZone? CurrentDistrict => layout.FindDistrictAtTile(CurrentTile);
@@ -63,6 +69,27 @@ namespace Rpg.Soundwell
             layout = M06MineCampMapLayout.Build();
             playerPosition = new Vector2(layout.PlayerSpawn.x + 0.5f, layout.PlayerSpawn.y + 0.5f);
 
+            // The previous host only constructed a HUD. Mount the authored
+            // 96x64 map and its actual 16-PPU party/NPC sprites as visible
+            // world objects without giving Unity a second ORK fact store.
+            RpgPixelArtManifest art = RpgPixelArtManifest.LoadDefault();
+            chunkRenderer = RpgLargeMapChunkRenderer.BuildForMineCamp(parent, layout);
+            Transform actors = chunkRenderer.RootObject.transform;
+            heroVisual = new RpgMapActorVisualBinder(
+                actors, "M06 mine camp player",
+                art != null ? art.FerryGuideIdle : null,
+                art != null ? art.FerryGuideWalk1 : null,
+                art != null ? art.FerryGuideWalk2 : null,
+                art != null ? art.FerryGuideBrace : null);
+            heroVisual.Sync(playerPosition, Vector2Int.up, RpgActorVisualState.Idle);
+            shenLiVisual = new RpgMapActorVisualBinder(
+                actors, "M06 Shen Li by main pump",
+                art != null ? art.ShenLiBridgeIdle : null);
+            shenLiVisual.Sync(new Vector2(54.5f, 36.5f),
+                Vector2Int.down, RpgActorVisualState.Idle);
+            // Never reveal an NPC in this voyage before a real M05 landing.
+            shenLiVisual.ActorObject.SetActive(HasVerifiedLanding());
+
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             hudCanvasObject = new GameObject("M06 mine camp HUD canvas",
                 typeof(RectTransform), typeof(Canvas));
@@ -95,17 +122,20 @@ namespace Rpg.Soundwell
                 return false;
 
             playerPosition = new Vector2(tile.x + 0.5f, tile.y + 0.5f);
+            SyncHero(moving: false, deltaSeconds: 0f);
             RefreshHud();
             return true;
         }
 
         public bool StepMovement(Vector2 input, float deltaSeconds)
         {
-            if (disposed || IsDialogueOpen || deltaSeconds <= 0f)
+            if (disposed)
                 return false;
-
-            if (input.sqrMagnitude < 0.0001f)
+            if (IsDialogueOpen || deltaSeconds <= 0f || input.sqrMagnitude < 0.0001f)
+            {
+                SyncHero(moving: false, deltaSeconds: 0f);
                 return false;
+            }
 
             Vector2 dir = input.normalized;
             facing = dir;
@@ -143,7 +173,41 @@ namespace Rpg.Soundwell
                 playerPosition = next;
                 RefreshHud();
             }
+            SyncHero(moving: moved, deltaSeconds: deltaSeconds);
             return moved;
+        }
+
+        private void SyncHero(bool moving, float deltaSeconds)
+        {
+            Vector2Int cardinal = Mathf.Abs(facing.x) >= Mathf.Abs(facing.y)
+                ? (facing.x >= 0f ? Vector2Int.right : Vector2Int.left)
+                : (facing.y >= 0f ? Vector2Int.up : Vector2Int.down);
+            heroVisual.Sync(playerPosition, cardinal,
+                moving ? RpgActorVisualState.Moving : RpgActorVisualState.Idle,
+                deltaSeconds);
+        }
+
+        // The map is larger than one screen; let the owning scene drive its
+        // only camera (Cinemachine/Pixel Perfect remains the final authority).
+        public Vector3 StepCamera(Vector3 currentCameraPosition, float deltaSeconds)
+        {
+            if (disposed) return currentCameraPosition;
+
+            float halfW = RpgWorldMapScale.LogicalScreenTilesX * 0.5f;
+            float halfH = RpgWorldMapScale.LogicalScreenTilesY * 0.5f;
+            float minX = layout.CameraBounds.min.x + halfW;
+            float maxX = layout.CameraBounds.max.x - halfW;
+            float minY = layout.CameraBounds.min.y + halfH;
+            float maxY = layout.CameraBounds.max.y - halfH;
+            float targetX = minX <= maxX
+                ? Mathf.Clamp(playerPosition.x, minX, maxX) : layout.CameraBounds.center.x;
+            float targetY = minY <= maxY
+                ? Mathf.Clamp(playerPosition.y, minY, maxY) : layout.CameraBounds.center.y;
+            float t = deltaSeconds > 0f ? 1f - Mathf.Exp(-8f * deltaSeconds) : 0f;
+            return new Vector3(
+                Mathf.Clamp(Mathf.Lerp(currentCameraPosition.x, targetX, t), minX, maxX),
+                Mathf.Clamp(Mathf.Lerp(currentCameraPosition.y, targetY, t), minY, maxY),
+                currentCameraPosition.z);
         }
 
         public string FindNearbyInteractableTriggerId()
@@ -193,6 +257,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || hudCanvasObject == null)
                 return;
+
+            // The established M05 landing is a live scene prerequisite;
+            // do not leak Shen Li into an unverified visit.
+            if (shenLiVisual?.ActorObject != null)
+                shenLiVisual.ActorObject.SetActive(HasVerifiedLanding());
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -341,6 +410,9 @@ namespace Rpg.Soundwell
             activeReconView = null;
             activeReunionView?.Dispose();
             activeReunionView = null;
+            heroVisual?.Dispose();
+            shenLiVisual?.Dispose();
+            chunkRenderer?.Dispose();
             SoundwellUiTheme.SafeDestroyCanvas(hudCanvasObject);
         }
     }
