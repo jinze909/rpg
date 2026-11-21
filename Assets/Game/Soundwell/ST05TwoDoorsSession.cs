@@ -2,154 +2,168 @@ using System;
 
 namespace Rpg.Soundwell
 {
-    public enum ST05Stage
+    public enum ST05TwoDoorsPhase
     {
-        StaircaseBedBlockage = 0,
-        FleaMarketGifts = 1,
-        YardDinnerMediation = 2,
-        LivingArrangementChoice = 3,
-        ChengAssignmentDecision = 4,
-        Completed = 5
+        UnblockStaircase = 0,
+        TestMarketGifts = 1,
+        ClearCourtyardConflict = 2,
+        HearBothPartners = 3,
+        AgreeHomeAndKeys = 4,
+        AwaitChengOwnJobDecision = 5,
+        Completed = 6
     }
 
     /// <summary>
-    /// Authoritative ST-05 ("两扇门的乔迁宴") state machine.
-    /// Guides the player through staircase bed removal, selecting both practical
-    /// flea-market gifts, resolving the courtyard map/oven wind incident,
-    /// confirming a mutual living arrangement, and recording Cheng Wu's own
-    /// local vs out-of-town survey decision with retry-safe Makinom persistence.
+    /// Scene-callable ST-05 narrative session. Yu He and Cheng Wu make all
+    /// living and assignment decisions themselves; the player only clears
+    /// obstacles, checks costs and communicates their own words.
     /// </summary>
     public sealed class ST05TwoDoorsSession
     {
-        public ST05Stage Stage { get; private set; } = ST05Stage.StaircaseBedBlockage;
-        public ST05BedHandling? BedHandling { get; private set; }
-        public ST05GiftChecks GiftsSelected { get; private set; } = ST05GiftChecks.None;
-        public bool YardIncidentResolved { get; private set; }
-        public ST05LivingArrangement? LivingArrangement { get; private set; }
-        public bool BothConsentedToCohabit { get; private set; }
-        public ST05ChengAssignment? ChengAssignment { get; private set; }
-        public ST05TwoDoorsRecord? CompletedRecord { get; private set; }
-        public bool IsCompleted => Stage == ST05Stage.Completed;
+        private ST05BedResolution? bed;
+        private ST05HomeArrangement? arrangement;
+        private bool mutualTrialConsent;
+        private ST05ChengAssignment? assignment;
 
-        public bool TryHandleStuckBed(ST05BedHandling handling)
+        public ST05TwoDoorsPhase Phase { get; private set; } =
+            ST05TwoDoorsPhase.UnblockStaircase;
+        public ST05HouseholdRecord? CompletedHome { get; private set; }
+        public ST05ChengAssignment? CompletedAssignment { get; private set; }
+
+        public static bool TryCreate(Func<string, int> read,
+            out ST05TwoDoorsSession session)
         {
-            if (Stage != ST05Stage.StaircaseBedBlockage ||
-                !Enum.IsDefined(typeof(ST05BedHandling), handling))
+            session = null;
+            if (read == null || read(ST05TwoDoorsFacts.HomeConfirmedKey) != 0)
                 return false;
-
-            BedHandling = handling;
-            Stage = ST05Stage.FleaMarketGifts;
+            session = new ST05TwoDoorsSession();
             return true;
         }
 
-        public bool TrySelectGift(ST05GiftChecks gift)
+        public bool TryClearStaircase(ST05BedResolution resolution,
+            bool returnHaulageFeePaid)
         {
-            if (Stage != ST05Stage.FleaMarketGifts)
+            if (Phase != ST05TwoDoorsPhase.UnblockStaircase ||
+                !Enum.IsDefined(typeof(ST05BedResolution), resolution) ||
+                (resolution == ST05BedResolution.ReturnBedAndPayHaulage &&
+                 !returnHaulageFeePaid))
                 return false;
-            if (gift != ST05GiftChecks.NightDraftingLamp &&
-                gift != ST05GiftChecks.BreadCoolingStoneSlab)
-                return false;
-            if ((GiftsSelected & gift) != 0)
-                return false;
-
-            GiftsSelected |= gift;
-            if (GiftsSelected == ST05GiftChecks.All)
-                Stage = ST05Stage.YardDinnerMediation;
+            bed = resolution;
+            Phase = ST05TwoDoorsPhase.TestMarketGifts;
             return true;
         }
 
-        public bool TryResolveYardDinnerIncident()
+        public bool TryChoosePracticalGifts(bool drawingLampTested,
+            bool coolingStoneCracksChecked, bool stallholderAdviceHeard)
         {
-            if (Stage != ST05Stage.YardDinnerMediation ||
-                GiftsSelected != ST05GiftChecks.All)
+            if (Phase != ST05TwoDoorsPhase.TestMarketGifts ||
+                !drawingLampTested || !coolingStoneCracksChecked ||
+                !stallholderAdviceHeard)
                 return false;
-
-            YardIncidentResolved = true;
-            Stage = ST05Stage.LivingArrangementChoice;
+            Phase = ST05TwoDoorsPhase.ClearCourtyardConflict;
             return true;
         }
 
-        public bool TryChooseLivingArrangement(
-            ST05LivingArrangement arrangement,
-            bool yuHeConsented,
-            bool chengWuConsented)
+        public bool TryResolveSharedCourtyard(bool windblownMapsRecovered,
+            bool mapRackMovedAwayFromOven, bool guestsRedirected)
         {
-            if (Stage != ST05Stage.LivingArrangementChoice ||
-                !Enum.IsDefined(typeof(ST05LivingArrangement), arrangement))
+            if (Phase != ST05TwoDoorsPhase.ClearCourtyardConflict ||
+                !windblownMapsRecovered || !mapRackMovedAwayFromOven ||
+                !guestsRedirected)
                 return false;
+            Phase = ST05TwoDoorsPhase.HearBothPartners;
+            return true;
+        }
 
-            if (arrangement == ST05LivingArrangement.TrialCohabitAndStudio)
+        public bool TryHearOwnWords(bool yuheSpokeToAunt,
+            bool chengSpokeToFriends, bool shopAccessDiscussed,
+            bool keysAndVisitorsDiscussed, bool travelCostsDiscussed)
+        {
+            if (Phase != ST05TwoDoorsPhase.HearBothPartners ||
+                !yuheSpokeToAunt || !chengSpokeToFriends ||
+                !shopAccessDiscussed || !keysAndVisitorsDiscussed ||
+                !travelCostsDiscussed)
+                return false;
+            Phase = ST05TwoDoorsPhase.AgreeHomeAndKeys;
+            return true;
+        }
+
+        public bool TryAgreeLivingArrangement(ST05HomeArrangement decidedByBoth,
+            bool eachConsentedToSharedTrial)
+        {
+            if (Phase != ST05TwoDoorsPhase.AgreeHomeAndKeys ||
+                arrangement.HasValue ||
+                !Enum.IsDefined(typeof(ST05HomeArrangement), decidedByBoth) ||
+                eachConsentedToSharedTrial !=
+                    (decidedByBoth == ST05HomeArrangement.MutuallyAgreedTrialSharedHomeAndStudio))
+                return false;
+            arrangement = decidedByBoth;
+            mutualTrialConsent = eachConsentedToSharedTrial;
+            return true;
+        }
+
+        public bool TryCommitLivingAgreement(Func<string, int> read,
+            Action<string, int> write)
+        {
+            if (Phase != ST05TwoDoorsPhase.AgreeHomeAndKeys ||
+                !bed.HasValue || !arrangement.HasValue ||
+                read == null || write == null)
+                return false;
+            var expected = new ST05HouseholdRecord(
+                bed.Value, arrangement.Value, mutualTrialConsent);
+            // Recover a successful store with a lost acknowledgement. A home
+            // write that stopped early may only retry its original intent.
+            if (read(ST05TwoDoorsFacts.HomeConfirmedKey) == 1)
             {
-                if (!yuHeConsented || !chengWuConsented)
-                    return false;
-                BothConsentedToCohabit = true;
-            }
-            else
-            {
-                BothConsentedToCohabit = false;
-            }
-
-            LivingArrangement = arrangement;
-            Stage = ST05Stage.ChengAssignmentDecision;
-            return true;
-        }
-
-        public bool TryRecordChengAssignmentAndCommit(
-            ST05ChengAssignment chengOwnDecision,
-            Func<string, int> getInt,
-            Action<string, int> setInt)
-        {
-            if (Stage != ST05Stage.ChengAssignmentDecision ||
-                !BedHandling.HasValue ||
-                GiftsSelected != ST05GiftChecks.All ||
-                !YardIncidentResolved ||
-                !LivingArrangement.HasValue ||
-                !Enum.IsDefined(typeof(ST05ChengAssignment), chengOwnDecision) ||
-                getInt == null || setInt == null)
-                return false;
-
-            var record = new ST05TwoDoorsRecord(
-                BedHandling.Value,
-                GiftsSelected,
-                YardIncidentResolved,
-                LivingArrangement.Value,
-                BothConsentedToCohabit,
-                chengOwnDecision);
-
-            if (!ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsRecord? existing))
-                return false;
-
-            // Recover idempotently if a prior write committed ConfirmedKey = 1
-            // before its acknowledgement was lost.
-            if (existing.HasValue)
-            {
-                if (!Matches(record, existing.Value))
+                if (!ST05TwoDoorsFacts.TryRead(read, out ST05TwoDoorsOutcome? saved) ||
+                    !saved.HasValue || !Matches(expected, saved.Value.Home))
                     return false;
             }
-            else if (getInt(ST05TwoDoorsFacts.ConfirmedKey) != 0 ||
-                     !ST05TwoDoorsFacts.TryRecord(record, getInt, setInt))
-            {
-                return false;
-            }
-
-            if (!ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsRecord? saved) ||
-                !saved.HasValue || !Matches(record, saved.Value))
+            else if (!ST05TwoDoorsFacts.TryRecordHome(expected, read, write))
                 return false;
 
-            ChengAssignment = chengOwnDecision;
-            CompletedRecord = saved.Value;
-            Stage = ST05Stage.Completed;
+            if (!ST05TwoDoorsFacts.TryRead(read, out ST05TwoDoorsOutcome? committed) ||
+                !committed.HasValue || !Matches(expected, committed.Value.Home))
+                return false;
+            CompletedHome = committed.Value.Home;
+            Phase = ST05TwoDoorsPhase.AwaitChengOwnJobDecision;
             return true;
         }
 
-        private static bool Matches(ST05TwoDoorsRecord expected, ST05TwoDoorsRecord saved)
+        public bool TryHearChengAssignment(ST05ChengAssignment hisOwnChoice,
+            bool chengPersonallyAcceptedOrDeclined,
+            bool shopCoverArranged, bool keysChecked, bool returnDateTalkedThrough)
         {
-            return expected.BedHandling == saved.BedHandling &&
-                expected.GiftsSelected == saved.GiftsSelected &&
-                expected.YardIncidentResolved == saved.YardIncidentResolved &&
-                expected.LivingArrangement == saved.LivingArrangement &&
-                expected.BothConsentedToCohabit == saved.BothConsentedToCohabit &&
-                expected.ChengAssignment == saved.ChengAssignment;
+            if (Phase != ST05TwoDoorsPhase.AwaitChengOwnJobDecision ||
+                assignment.HasValue ||
+                !Enum.IsDefined(typeof(ST05ChengAssignment), hisOwnChoice) ||
+                !chengPersonallyAcceptedOrDeclined || !shopCoverArranged ||
+                !keysChecked || !returnDateTalkedThrough)
+                return false;
+            assignment = hisOwnChoice;
+            return true;
+        }
+
+        public bool TryCommitChengAssignment(Func<string, int> read,
+            Action<string, int> write)
+        {
+            if (Phase != ST05TwoDoorsPhase.AwaitChengOwnJobDecision ||
+                !assignment.HasValue || read == null || write == null ||
+                !ST05TwoDoorsFacts.TryRecordAssignment(assignment.Value, read, write))
+                return false;
+            if (!ST05TwoDoorsFacts.TryRead(read, out ST05TwoDoorsOutcome? saved) ||
+                !saved.HasValue || saved.Value.Assignment != assignment)
+                return false;
+            CompletedAssignment = assignment;
+            Phase = ST05TwoDoorsPhase.Completed;
+            return true;
+        }
+
+        private static bool Matches(ST05HouseholdRecord a, ST05HouseholdRecord b)
+        {
+            return a.Bed == b.Bed &&
+                a.Arrangement == b.Arrangement &&
+                a.MutualTrialConsent == b.MutualTrialConsent;
         }
     }
 }
