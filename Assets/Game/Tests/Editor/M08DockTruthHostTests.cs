@@ -142,6 +142,39 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornUnconfirmedDockResponseCannotOpenFreshDialogue()
+        {
+            var root = new GameObject("M08 torn dock response");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M08DockTruthHost host = null;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () => true, read, write);
+                values[M08DockTruthFacts.ShenRelationResponseKey] =
+                    (int)M08DockTruthResponse.StaySilent;
+                Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+                Assert.That(host.TryOpen(), Is.False,
+                    "A partially committed Shen Li reply cannot be overwritten by a fresh conversation.");
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(read(M08DockTruthFacts.ShenRelationResponseKey),
+                    Is.EqualTo((int)M08DockTruthResponse.StaySilent));
+
+                Assert.That(M08DockTruthFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(host.TryOpen(), Is.True,
+                    "An explicitly reset voyage still allows the dock conversation.");
+                Assert.That(host.ActiveView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void AllThreeDockRepliesSaveAndReplayTheActualPlayerChoiceOnce()
         {
             foreach (M08DockTruthResponse choice in new[] {

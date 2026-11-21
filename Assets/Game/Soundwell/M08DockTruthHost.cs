@@ -44,7 +44,11 @@ namespace Rpg.Soundwell
                 !shenLiPresent() ||
                 // Refuse a damaged confirmed record until the voyage is
                 // explicitly reset, rather than allowing contradictory edits.
-                getInt(M08DockTruthFacts.ConfirmedKey) != 0)
+                getInt(M08DockTruthFacts.ConfirmedKey) != 0 ||
+                // An interrupted Makinom write may have saved the response
+                // without its final marker. Do not reopen a fresh dialogue
+                // that could replace the player's earlier relationship choice.
+                getInt(M08DockTruthFacts.ShenRelationResponseKey) != 0)
                 return false;
 
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool completed) ||
