@@ -67,7 +67,17 @@ namespace Rpg.Tests.Editor
             try
             {
                 using (var midgame = new ReturnMidgameFlowHost(
-                    root.transform, new ReturnMidgameFlowContext(), read, write))
+                    root.transform, new ReturnMidgameFlowContext
+                    {
+                        // Simulated observed facts for this full-voyage integration test.
+                        // Production defaults remain unobserved and fail closed.
+                        RealDaybreakObserved = () => true,
+                        AtSecondBatchTable = () => true,
+                        ShenLiPresentAtTable = () => true,
+                        BaseBerths = () => 14,
+                        PendingNames = () => 23,
+                        RuiyaOutcome = () => M09RuiyaOutcome.Rescued
+                    }, read, write))
                 using (var rosterHub = new ReturnRosterCasesHubHost(
                     root.transform, new ReturnRosterCasesHubContext(), read, write))
                 using (var regionalHub = new ReturnRegionalStoriesHubHost(

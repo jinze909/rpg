@@ -50,6 +50,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void UnobservedDaybreakAndUnknownBerthsNeverInventMidgameProgress()
+        {
+            var root = new GameObject("Unobserved midgame handoffs");
+            var values = new Dictionary<string, int>();
+            SeedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var context = new ReturnMidgameFlowContext();
+
+            try
+            {
+                using (var flow = new ReturnMidgameFlowHost(root.transform, context, read, write))
+                {
+                    var winch = new M08FirstWinchOrderSession();
+                    Assert.That(winch.TryAcquirePart(M08WinchPart.ScrapGear), Is.True);
+                    Assert.That(winch.TryAcquirePart(M08WinchPart.DockCable), Is.True);
+                    Assert.That(winch.TryAssemble(), Is.True);
+                    Assert.That(winch.TryTightenCable(), Is.True);
+                    Assert.That(winch.TryTestLift(), Is.True);
+                    Assert.That(M08WorkshopDepositFacts.TryConfirm(winch, read, write), Is.True);
+
+                    Assert.That(flow.CanOpenOptionalDockTruth(), Is.False);
+                    Assert.That(flow.EvaluateNextRequiredStage(),
+                        Is.EqualTo(ReturnMidgameStage.M08FirstWorldNotice));
+                    Assert.That(flow.TryOpenNextRequiredStage(), Is.False);
+                    context.RealDaybreakObserved = null;
+                    Assert.That(flow.TryOpenNextRequiredStage(), Is.False);
+
+                    // Once notice is genuinely recorded, zero/unknown berth
+                    // counts still cannot open a fictional rescue negotiation.
+                    Assert.That(M08FirstWorldNoticeFacts.TryRecord(true, read, write), Is.True);
+                    Assert.That(flow.EvaluateNextRequiredStage(),
+                        Is.EqualTo(ReturnMidgameStage.M09BerthTable));
+                    Assert.That(flow.TryOpenNextRequiredStage(), Is.False);
+                    context.AtSecondBatchTable = () => true;
+                    context.BaseBerths = null;
+                    Assert.That(flow.TryOpenNextRequiredStage(), Is.False);
+                    Assert.That(flow.HasActiveHost, Is.False);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                    Assert.That(read(M09BerthTableFacts.ConfirmedKey), Is.Zero);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FailsClosedBeforeM07AndAdvancesM08ThroughM09WithoutRequiringDockTruth()
         {
             var root = new GameObject("MidgameFlowChainRoot");
@@ -61,7 +110,13 @@ namespace Rpg.Tests.Editor
             {
                 var ctx = new ReturnMidgameFlowContext
                 {
-                    ShenLiPresentAtDock = () => false
+                    ShenLiPresentAtDock = () => false,
+                    RealDaybreakObserved = () => true,
+                    AtSecondBatchTable = () => true,
+                    ShenLiPresentAtTable = () => true,
+                    BaseBerths = () => 14,
+                    PendingNames = () => 23,
+                    RuiyaOutcome = () => M09RuiyaOutcome.Rescued
                 };
                 using (var flow = new ReturnMidgameFlowHost(root.transform, ctx, read, write))
                 {
@@ -130,7 +185,10 @@ namespace Rpg.Tests.Editor
             try
             {
                 var flow = new ReturnMidgameFlowHost(
-                    root.transform, new ReturnMidgameFlowContext(), read, write);
+                    root.transform, new ReturnMidgameFlowContext
+                    {
+                        ShenLiPresentAtDock = () => true
+                    }, read, write);
                 Assert.That(flow.CanOpenOptionalDockTruth(), Is.True);
                 Assert.That(flow.TryOpenOptionalDockTruth(), Is.True);
                 Assert.That(flow.CurrentStage, Is.EqualTo(ReturnMidgameStage.M08OptionalDockTruth));

@@ -15,20 +15,21 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Live scene-readiness and context delegates for sequencing M08 through M09
-    /// via ReturnMidgameFlowHost.
+    /// via ReturnMidgameFlowHost. An unwired scene must not manufacture daylight,
+    /// berth availability, a rescued Ruiya, or Shen Li's attendance.
     /// </summary>
     public sealed class ReturnMidgameFlowContext
     {
-        public Func<bool> ShenLiPresentAtDock { get; set; } = () => true;
-        public Func<bool> RealDaybreakObserved { get; set; } = () => true;
+        public Func<bool> ShenLiPresentAtDock { get; set; } = () => false;
+        public Func<bool> RealDaybreakObserved { get; set; } = () => false;
 
-        public Func<bool> AtSecondBatchTable { get; set; } = () => true;
-        public Func<bool> ShenLiPresentAtTable { get; set; } = () => true;
+        public Func<bool> AtSecondBatchTable { get; set; } = () => false;
+        public Func<bool> ShenLiPresentAtTable { get; set; } = () => false;
         public Func<bool> QiDebtAlreadyKnown { get; set; } = () => false;
-        public Func<int> BaseBerths { get; set; } = () => 14;
-        public Func<int> PendingNames { get; set; } = () => 23;
+        public Func<int> BaseBerths { get; set; } = () => 0;
+        public Func<int> PendingNames { get; set; } = () => 0;
         public Func<M09RuiyaOutcome?> RuiyaOutcome { get; set; } =
-            () => M09RuiyaOutcome.Rescued;
+            () => null;
     }
 
     /// <summary>
@@ -84,7 +85,8 @@ namespace Rpg.Soundwell
 
         public bool CanOpenOptionalDockTruth()
         {
-            if (disposed || !context.ShenLiPresentAtDock())
+            if (disposed || context.ShenLiPresentAtDock == null ||
+                !context.ShenLiPresentAtDock())
                 return false;
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool depositPaid) || !depositPaid)
                 return false;
@@ -104,6 +106,26 @@ namespace Rpg.Soundwell
             return Activate(ReturnMidgameStage.M08OptionalDockTruth, host, host.TryOpen());
         }
 
+        // Validate callbacks before closing a prior host. The sub-hosts
+        // enforce observed values, but null scene wiring must not throw.
+        private bool HasSceneInputs(ReturnMidgameStage stage)
+        {
+            switch (stage)
+            {
+                case ReturnMidgameStage.M08FirstWorldNotice:
+                    return context.RealDaybreakObserved != null;
+                case ReturnMidgameStage.M09BerthTable:
+                    return context.AtSecondBatchTable != null &&
+                        context.ShenLiPresentAtTable != null &&
+                        context.QiDebtAlreadyKnown != null &&
+                        context.BaseBerths != null &&
+                        context.PendingNames != null &&
+                        context.RuiyaOutcome != null;
+                default:
+                    return true;
+            }
+        }
+
         public bool TryOpenNextRequiredStage()
         {
             if (disposed)
@@ -118,6 +140,8 @@ namespace Rpg.Soundwell
             }
 
             if (activeHost != null && currentStage == next)
+                return false;
+            if (!HasSceneInputs(next))
                 return false;
 
             CloseActiveHost();
