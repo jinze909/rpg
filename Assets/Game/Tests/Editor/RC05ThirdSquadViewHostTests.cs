@@ -207,6 +207,65 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public void SettlementRechecksLiveMillEvidenceAndAllowsRecovery(int withdrawnProof)
+        {
+            var root = new GameObject("RC05 live settlement proofs");
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            // Boatman count, squad roster, witness testimony, M00 stele,
+            // and recorded skirmish must still match the final scene.
+            var proof = new[] { true, true, true, true, true };
+            RC05ThirdSquadHost host = null;
+            try
+            {
+                host = new RC05ThirdSquadHost(root.transform, () => true,
+                    () => proof[3], () => proof[0], () => proof[1],
+                    () => proof[2], () => proof[4], read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.ObserveRollCallButton.onClick.Invoke();
+                view.DeliverSaltGrainButton.onClick.Invoke();
+                view.MentionStoneButton.onClick.Invoke();
+                view.VerifyZhengYuanButton.onClick.Invoke();
+                view.ProceedTalksButton.onClick.Invoke();
+                Assert.That(host.Session.Stage, Is.EqualTo(RC05Stage.ThreePartyDecision));
+                Assert.That(host.Session.OldWomanStoneMentioned, Is.True);
+                Assert.That(host.Session.RealZhengYuanVerified, Is.True);
+                Assert.That(host.Session.SkirmishOccurred, Is.True);
+
+                proof[withdrawnProof] = false;
+                view.CivilianPardonButton.onClick.Invoke();
+                Assert.That(host.IsResolved, Is.False,
+                    "The stale decision must not persist withdrawn scene facts.");
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(values.ContainsKey(RC05ThirdSquadFacts.ConfirmedKey), Is.False);
+
+                proof[withdrawnProof] = true;
+                view.CivilianPardonButton.onClick.Invoke();
+                Assert.That(host.IsResolved, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(RC05ThirdSquadFacts.TryRead(read,
+                    out RC05ThirdSquadRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.Resolution, Is.EqualTo(RC05Resolution.CivilianPardon));
+                Assert.That(saved.Value.RealZhengYuanVerified, Is.True);
+                Assert.That(saved.Value.OldWomanStoneMentioned, Is.True);
+                Assert.That(saved.Value.SkirmishOccurred, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void LocaleAspectPresenceWithdrawalAndDisposalGuardsWorkCleanly()
         {
