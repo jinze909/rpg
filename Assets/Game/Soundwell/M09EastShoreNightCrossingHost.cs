@@ -22,6 +22,8 @@ namespace Rpg.Soundwell
         // An otherwise identical replayed voyage is a different M05 arrival;
         // stale UI must not invoke actual-boarding or save callbacks.
         private int? openedArrivalSequence;
+        private int? openedAvailableBerths;
+        private int? openedHouseholdSize;
         private M09EastShoreNightCrossingSession session;
         private M09EastShoreNightCrossingView activeView;
         private M09RuiyaOutcome? committedOutcome;
@@ -71,13 +73,15 @@ namespace Rpg.Soundwell
                 return false;
 
             openedArrivalSequence = arrivalSequence;
+            openedAvailableBerths = berths;
+            openedHouseholdSize = household;
             session = new M09EastShoreNightCrossingSession(berths);
             activeView = new M09EastShoreNightCrossingView(
                 parent,
                 session,
                 household,
                 count => IsCurrentVoyage() && nightFerryReady() &&
-                    confirmActuallyBoarded(count),
+                    LiveTransferCountsMatch() && confirmActuallyBoarded(count),
                 HandleCompleted);
             return true;
         }
@@ -86,7 +90,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed != session || !completed.IsComplete ||
                 !completed.Outcome.HasValue || !nightFerryReady() ||
-                !IsCurrentVoyage())
+                !IsCurrentVoyage() || !LiveTransferCountsMatch())
                 throw new InvalidOperationException(
                     "Night crossing outcome cannot be committed while scene is not ready.");
 
@@ -98,6 +102,17 @@ namespace Rpg.Soundwell
             committedBoardedCount = completed.ActuallyBoardedCount;
             activeView?.Dispose();
             activeView = null;
+        }
+
+        // Berths and the actual household roll-call are physical facts, not
+        // immutable dialogue options. A live scene may lose capacity or add
+        // members while this panel is open. Never verify boarding or submit
+        // an outcome using the older numbers until the same facts return.
+        private bool LiveTransferCountsMatch()
+        {
+            return openedAvailableBerths.HasValue && openedHouseholdSize.HasValue &&
+                availableBerths() == openedAvailableBerths.Value &&
+                observedHouseholdSize() == openedHouseholdSize.Value;
         }
 
         private bool IsCurrentVoyage()
@@ -123,6 +138,8 @@ namespace Rpg.Soundwell
             activeView?.Dispose();
             activeView = null;
             openedArrivalSequence = null;
+            openedAvailableBerths = null;
+            openedHouseholdSize = null;
         }
     }
 }
