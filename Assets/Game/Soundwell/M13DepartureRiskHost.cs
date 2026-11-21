@@ -7,8 +7,8 @@ namespace Rpg.Soundwell
     /// Scene-callable M13 approach route and A Yuan risk-consent host.
     /// Enforces live fleet-briefing readiness, live safety-prep revalidation
     /// at commit time, monotonic M05 arrival identity, and clean
-    /// M13DepartureRiskFacts state (blocking torn/partial saves) before
-    /// opening M13DepartureRiskView.
+    /// M13DepartureRiskFacts state (blocking torn/partial saves and orphaned
+    /// downstream Act-3 facts) before opening M13DepartureRiskView.
     /// </summary>
     public sealed class M13DepartureRiskHost : IDisposable
     {
@@ -53,7 +53,8 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !fleetBriefingReady() ||
-                HasAnyPersistedFacts())
+                HasAnyPersistedFacts() ||
+                M13DepartureRiskFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             bool safetyPrep = initialSafetyPrepComplete();
