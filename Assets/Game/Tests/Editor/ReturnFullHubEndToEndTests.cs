@@ -71,7 +71,11 @@ namespace Rpg.Tests.Editor
                 using (var rosterHub = new ReturnRosterCasesHubHost(
                     root.transform, new ReturnRosterCasesHubContext(), read, write))
                 using (var regionalHub = new ReturnRegionalStoriesHubHost(
-                    root.transform, new ReturnRegionalStoriesHubContext(), read, write))
+                    root.transform, new ReturnRegionalStoriesHubContext
+                    {
+                        // This full-voyage fixture explicitly reaches the Luting dock.
+                        AtLutingDock = () => true
+                    }, read, write))
                 using (var finale = new ReturnFinaleFlowHost(
                     root.transform, new ReturnFinaleFlowContext(), read, write))
                 {

@@ -72,7 +72,13 @@ namespace Rpg.Tests.Editor
 
             try
             {
-                using (var hub = new ReturnHarborCommandHubHost(root.transform, read, write))
+                using (var hub = new ReturnHarborCommandHubHost(
+                    root.transform, read, write,
+                    regionalContext: new ReturnRegionalStoriesHubContext
+                    {
+                        // This mutual-exclusion fixture explicitly visits Luting dock.
+                        AtLutingDock = () => true
+                    }))
                 {
                     Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.None));
                     Assert.That(hub.TryBuildProgressSnapshot(out var snap), Is.True);
