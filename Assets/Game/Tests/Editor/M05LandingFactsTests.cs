@@ -90,6 +90,36 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void IdenticalNewLandingGetsNewPersistentSequenceWithoutReusingOldArrival()
+        {
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var report = new M05LandingReport(3, 10, true, true);
+
+            Assert.That(M05LandingFacts.TryRecord(report, read, write), Is.True);
+            int firstSequence = read(M05LandingFacts.ArrivalSequenceKey);
+            Assert.That(firstSequence, Is.EqualTo(1));
+            Assert.That(M05LandingFacts.TryRecord(report, read, write), Is.False);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(firstSequence));
+
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(firstSequence));
+            SeedCompletedCrossing(values);
+            Assert.That(M05LandingFacts.TryRecord(report, read, write), Is.True);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                Is.EqualTo(firstSequence + 1));
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? second), Is.True);
+            Assert.That(second.HasValue, Is.True);
+            Assert.That(second.Value.CrewArrived, Is.EqualTo(report.CrewArrived));
+
+            values[M05LandingFacts.ArrivalSequenceKey] = -1;
+            Assert.That(M05LandingFacts.TryRead(read, out _), Is.False);
+            Assert.That(M05LandingFacts.CanRecord(report, read), Is.False);
+        }
+
+        [Test]
         public void ReadinessSailingAndFogDoNotAutomaticallyInventAnArrival()
         {
             var values = new Dictionary<string, int>();

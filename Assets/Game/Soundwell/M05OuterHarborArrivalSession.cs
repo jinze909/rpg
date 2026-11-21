@@ -43,6 +43,7 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
         private readonly M05LandingReport landing;
+        private readonly int arrivalSequence;
         private Action<M05OuterHarborOutcome> onCompleted;
         private M05SeranLettersView seranView;
         private M05HarborWalkView harborWalkView;
@@ -99,14 +100,15 @@ namespace Rpg.Soundwell
                 return false; // Invalid nonzero code is not a missing answer.
 
             session = new M05OuterHarborArrivalSession(parent, getInt, setInt,
-                verifiedLanding.Value, savedDecision, onCompleted);
+                verifiedLanding.Value, getInt(M05LandingFacts.ArrivalSequenceKey),
+                savedDecision, onCompleted);
             return true;
         }
 
         private M05OuterHarborArrivalSession(Transform parent,
             Func<string, int> getInt,
             Action<string, int> setInt,
-            M05LandingReport landing,
+            M05LandingReport landing, int arrivalSequence,
             M05LetterDecision? existingDecision,
             Action<M05OuterHarborOutcome> onCompleted)
         {
@@ -114,6 +116,7 @@ namespace Rpg.Soundwell
             this.getInt = getInt;
             this.setInt = setInt;
             this.landing = landing;
+            this.arrivalSequence = arrivalSequence;
             this.onCompleted = onCompleted;
 
             if (existingDecision.HasValue)
@@ -246,6 +249,7 @@ namespace Rpg.Soundwell
             // M05 arrival data before a stale UI can publish anything.
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? current) ||
                 !current.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
                 current.Value.CrewArrived != landing.CrewArrived ||
                 current.Value.ReadyRescueBerths != landing.ReadyRescueBerths ||
                 current.Value.TenderArrived != landing.TenderArrived ||

@@ -38,6 +38,10 @@ namespace Rpg.Soundwell
     public static class M05LandingFacts
     {
         public const string ConfirmedKey = "rpg.return.m05.landing-confirmed";
+        // Monotonic identity: two voyages with equal crews and berth counts
+        // must not accept callbacks from each other's open dialogues.
+        // Pre-existing saves without this key read as sequence zero.
+        public const string ArrivalSequenceKey = "rpg.return.m05.landing-sequence";
         public const string CrewArrivedKey = "rpg.return.m05.landing-crew-arrived";
         public const string ReadyBerthsKey = "rpg.return.m05.landing-ready-berths";
         public const string TenderArrivedKey = "rpg.return.m05.landing-tender-arrived";
@@ -57,6 +61,8 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
+                getInt(ArrivalSequenceKey) >= 0 &&
+                getInt(ArrivalSequenceKey) < int.MaxValue &&
                 TryReadCompletedCrossing(getInt, out M04DepartureRecord departure) &&
                 IsValidReport(report, departure);
         }
@@ -67,13 +73,16 @@ namespace Rpg.Soundwell
             if (setInt == null || !CanRecord(report, getInt))
                 return false;
 
-            // An interrupted Makinom write cannot publish a partial arrival.
-            // Keep confirmation last, as with the M04 departure and fog facts.
+            // Advance identity before confirming this landing. A torn write
+            // may consume a sequence number, but can never publish a mixed
+            // old/new arrival. The completion marker remains last.
+            int nextSequence = getInt(ArrivalSequenceKey) + 1;
             setInt(ConfirmedKey, 0);
             setInt(CrewArrivedKey, report.CrewArrived);
             setInt(ReadyBerthsKey, report.ReadyRescueBerths);
             setInt(TenderArrivedKey, report.TenderArrived ? 1 : 0);
             setInt(ReceiverMetKey, report.ReceiverMet ? 1 : 0);
+            setInt(ArrivalSequenceKey, nextSequence);
             setInt(ConfirmedKey, 1);
             return true;
         }
@@ -96,6 +105,8 @@ namespace Rpg.Soundwell
             // reject the read so the flow host cannot show an arrival UI
             // whose confirm callback would be permanently refused.
             if (confirmed != 0 && confirmed != 1)
+                return false;
+            if (getInt(ArrivalSequenceKey) < 0)
                 return false;
             if (confirmed == 0 ||
                 !TryReadCompletedCrossing(getInt, out M04DepartureRecord departure))
