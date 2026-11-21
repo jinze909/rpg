@@ -90,6 +90,36 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OpeningContinuationRejectsTornFogBeforeOfferingRealCastOff()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = Writer(values);
+            SeedChosenRoute(write, M03VoyageChoice.QiQueMerchant);
+            SeedVerifiedDeparture(write, M03VoyageChoice.QiQueMerchant);
+            Assert.That(ReturnOpeningContinuation.TryReadCurrentCastOff(read, out _), Is.True);
+            string[] payloadKeys =
+            {
+                FogListeningFacts.SucceededKey,
+                FogListeningFacts.HullIntegrityKey,
+                FogListeningFacts.AvoidedHazardsKey,
+                FogListeningFacts.MatchedSignalsKey,
+                FogListeningFacts.RemainingFocusKey
+            };
+            foreach (string key in payloadKeys)
+            {
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                values[key] = 1;
+                Assert.That(ReturnOpeningContinuation.TryReadCurrentCastOff(read,
+                    out M04DepartureRecord? rejected), Is.False, key);
+                Assert.That(rejected.HasValue, Is.False);
+                Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
+            }
+            Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+            Assert.That(ReturnOpeningContinuation.TryReadCurrentCastOff(read, out _), Is.True);
+        }
+
+        [Test]
         public void CorruptOrIncompletePhysicalManifestCannotUnlockCastOff()
         {
             var data = new Dictionary<string, int>();
