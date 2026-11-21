@@ -158,6 +158,59 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public void HostRejectsStaleLiveEvidenceAtFinalCommitAndAllowsFreshRetry(int withdrawnEvidence)
+        {
+            var root = new GameObject("ST03 host live evidence reset");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var ready = new[] { true, true, true, true };
+            ST03BathhouseHost host = null;
+            try
+            {
+                host = new ST03BathhouseHost(root.transform, () => true,
+                    () => ready[0], () => ready[1], () => ready[2],
+                    () => ready[3], read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.BoilerClueButton.onClick.Invoke();
+                view.LockersClueButton.onClick.Invoke();
+                view.LettersClueButton.onClick.Invoke();
+                view.InterviewWuSuButton.onClick.Invoke();
+                view.MakeSafeRouteButton.onClick.Invoke();
+                view.CompleteTrialNightButton.onClick.Invoke();
+                view.ReconcileBudgetButton.onClick.Invoke();
+                Assert.That(host.Session.Phase,
+                    Is.EqualTo(ST03BathhousePhase.CompareOperatingPlans));
+
+                // The original proof was valid when used, but has been revoked
+                // by the world before this long-lived panel can commit.
+                ready[withdrawnEvidence] = false;
+                view.ElderBackroomButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(values.ContainsKey(ST03BathhouseFacts.ConfirmedKey), Is.False);
+
+                ready[withdrawnEvidence] = true;
+                view.ElderBackroomButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(ST03BathhouseFacts.TryRead(read,
+                    out ST03BathhouseRecord? outcome), Is.True);
+                Assert.That(outcome.HasValue, Is.True);
+                Assert.That(outcome.Value.Choice,
+                    Is.EqualTo(ST03BathhouseChoice.ElderRunLaundryBackroom));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void LocaleAspectPresenceWithdrawalAndDisposalGuardsWorkCleanly()
         {
