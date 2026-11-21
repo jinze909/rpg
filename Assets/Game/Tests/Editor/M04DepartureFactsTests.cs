@@ -331,6 +331,57 @@ namespace Rpg.Tests.Editor
 
 
         [Test]
+        public void AChangedOrCorruptM03RouteCannotSailAnOldConfirmedHull()
+        {
+            var store = new Dictionary<string, int>();
+            Action<string, int> write = (key, value) => store[key] = value;
+            Func<string, int> read = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+
+            Assert.That(M04DepartureFacts.TryRecord(
+                ReadyManifest(M03VoyageChoice.QiQueMerchant,
+                    officialStamp: false, escortFlag: false), write), Is.True);
+
+            // The player changed the actual M03 route after this manifest
+            // was confirmed. A direct host call must not sail that old ship.
+            var newVisit = new M03LuJunEncounter(M02BridgeEvidence.None, true);
+            newVisit.Begin();
+            newVisit.ObserveRollCall();
+            newVisit.Ask(M03LuJunOpening.NeedAShip);
+            newVisit.ChooseVoyage(M03VoyageChoice.LuJunEscort);
+            Assert.That(M03LuJunFacts.TryRecord(newVisit, write), Is.True);
+
+            int sailingWrites = 0;
+            Action<string, int> observedWrite = (key, value) =>
+            {
+                if (key == M04DepartureFacts.SailedKey)
+                    sailingWrites++;
+                write(key, value);
+            };
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, observedWrite), Is.False);
+            Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
+            Assert.That(sailingWrites, Is.Zero);
+
+            // Invalid M03 route or an interrupted dialogue cannot authorize
+            // the same voyage either, even if its route integer looks valid.
+            write(M03LuJunFacts.VoyageKey, 999);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, observedWrite), Is.False);
+            write(M03LuJunFacts.VoyageKey,
+                (int)M03VoyageChoice.QiQueMerchant + 1);
+            int savedSecrecy = read(M03LuJunFacts.SecrecyKey);
+            write(M03LuJunFacts.SecrecyKey, 999);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, observedWrite), Is.False);
+
+            // Restoring the complete current itinerary permits exactly one
+            // real cast-off, without rewriting the confirmed manifest.
+            write(M03LuJunFacts.SecrecyKey, savedSecrecy);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, observedWrite), Is.True);
+            Assert.That(read(M04DepartureFacts.SailedKey), Is.EqualTo(1));
+            Assert.That(sailingWrites, Is.EqualTo(1));
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, observedWrite), Is.False);
+        }
+
+        [Test]
         public void ActualSailingRequiresConfirmedReadinessAndNeverFollowsItAutomatically()
         {
             var store = new Dictionary<string, int>();
