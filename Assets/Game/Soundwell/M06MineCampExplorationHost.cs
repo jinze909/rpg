@@ -8,7 +8,8 @@ namespace Rpg.Soundwell
     /// Playable M06 ("她没有在原地等你") Red Salt Mine Camp exploration host
     /// connecting the 96x64 4x-scale M06MineCampMapLayout with physical trigger
     /// discovery for the four M06MineCampReconView leads and the underground
-    /// M06PumpRoomReunionView decision, strictly gated on verified M05 landing.
+    /// M06PumpRoomReunionView decision, strictly gated on verified M05 landing,
+    /// M05 arrival voyage identity, and clean M06RescuePlanFacts state.
     /// </summary>
     public sealed class M06MineCampExplorationHost : IDisposable
     {
@@ -326,9 +327,19 @@ namespace Rpg.Soundwell
                 saved.HasValue;
         }
 
+        private bool HasAnyPersistedRescuePlanFacts()
+        {
+            return getInt(M06RescuePlanFacts.ConfirmedKey) != 0 ||
+                getInt(M06RescuePlanFacts.PlanKey) != 0 ||
+                getInt(M06RescuePlanFacts.UsableCapacityKey) != 0 ||
+                getInt(M06RescuePlanFacts.LetterDeliveryKey) != 0 ||
+                getInt(M06RescuePlanFacts.RetaliationHeardKey) != 0 ||
+                getInt(M06RescuePlanFacts.ShenResponseKey) != 0;
+        }
+
         private bool CanOfferTrigger(string triggerId)
         {
-            if (!HasVerifiedLanding())
+            if (!HasVerifiedLanding() || getInt(M05LandingFacts.ArrivalSequenceKey) < 0)
                 return false;
 
             if (TryMapReconTrigger(triggerId, out M06MineCampLead lead))
@@ -338,19 +349,29 @@ namespace Rpg.Soundwell
             }
 
             if (triggerId == "m06.pump-reunion")
-                return !RescuePlanSettled;
+                return !RescuePlanSettled && !HasAnyPersistedRescuePlanFacts();
 
             return false;
         }
 
         private bool TryOpenReconLead(M06MineCampLead lead)
         {
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0)
+                return false;
+
             if (!M06MineCampReconSession.TryLoad(getInt, out M06MineCampReconSession session) ||
                 session.IsLeadObserved(lead))
                 return false;
 
             activeReconView = new M06MineCampReconView(parent, lead, inspected =>
             {
+                if (disposed ||
+                    getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                    !HasVerifiedLanding())
+                    throw new InvalidOperationException(
+                        "The M06 mine-camp recon belongs to a previous or invalid voyage.");
+
                 if (!session.TryInspectLead(inspected, getInt, setInt))
                     throw new InvalidOperationException(
                         "Unable to persist the inspected M06 mine-camp reconnaissance lead.");
@@ -365,13 +386,22 @@ namespace Rpg.Soundwell
 
         private bool TryOpenPumpRoomReunion()
         {
-            if (RescuePlanSettled ||
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 ||
+                RescuePlanSettled ||
+                HasAnyPersistedRescuePlanFacts() ||
                 !M06PumpRoomReunionSession.TryCreateFromSavedFacts(
                     getInt, out M06PumpRoomReunionSession session))
                 return false;
 
             activeReunionView = new M06PumpRoomReunionView(parent, session, plan =>
             {
+                if (disposed ||
+                    getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                    !HasVerifiedLanding())
+                    throw new InvalidOperationException(
+                        "The M06 pump-room reunion belongs to a previous or invalid voyage.");
+
                 if (!session.TryConfirmRescuePlan(plan, getInt, setInt))
                     throw new InvalidOperationException(
                         "Unable to persist the M06 rescue plan decision.");
