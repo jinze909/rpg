@@ -74,6 +74,7 @@ namespace Rpg.Tests.Editor
 
             string[] tornKeys =
             {
+                RC05ThirdSquadFacts.PendingSignatureKey,
                 RC05ThirdSquadFacts.TrialDeliveryKey,
                 RC05ThirdSquadFacts.ResolutionKey,
                 RC05ThirdSquadFacts.SkirmishKey,

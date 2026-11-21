@@ -59,6 +59,7 @@ namespace Rpg.Soundwell
     {
         public const int RosterCaseNumber = 5;
         public const string ConfirmedKey = "rpg.return.rc05.case-confirmed";
+        public const string PendingSignatureKey = "rpg.return.rc05.pending-resolution-signature";
         public const string TrialDeliveryKey = "rpg.return.rc05.trial-delivery-verified";
         public const string ResolutionKey = "rpg.return.rc05.third-squad";
         public const string SkirmishKey = "rpg.return.rc05.skirmish-occurred";
@@ -79,11 +80,50 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // The intent is persisted before any story payload. Without this lock,
+        // a second encounter could replace the original resolution after a
+        // partially written save (including before ResolutionKey is written).
+        private static int Signature(RC05ThirdSquadRecord record)
+        {
+            return 1000 + (int)record.Resolution * 100 +
+                (record.SkirmishOccurred ? 10 : 0) +
+                (record.RealZhengYuanVerified ? 2 : 0) +
+                (record.OldWomanStoneMentioned ? 1 : 0);
+        }
+
+        private static bool CompatiblePending(Func<string, int> read,
+            string key, int expected)
+        {
+            int raw = read(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(RC05ThirdSquadRecord record, Func<string, int> getInt)
         {
-            return getInt != null &&
-                getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record, getInt))
+                return false;
+
+            int intent = getInt(PendingSignatureKey);
+            if (intent == 0)
+            {
+                // Orphaned legacy payload without an intent is not a clean
+                // start and must never be claimed by a new decision.
+                return getInt(TrialDeliveryKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(SkirmishKey) == 0 &&
+                    getInt(RealZhengYuanVerifiedKey) == 0 &&
+                    getInt(OldWomanStoneMentionedKey) == 0;
+            }
+
+            return intent == Signature(record) &&
+                CompatiblePending(getInt, TrialDeliveryKey, 1) &&
+                CompatiblePending(getInt, ResolutionKey, (int)record.Resolution) &&
+                CompatiblePending(getInt, SkirmishKey, record.SkirmishOccurred ? 1 : 0) &&
+                CompatiblePending(getInt, RealZhengYuanVerifiedKey,
+                    record.RealZhengYuanVerified ? 1 : 0) &&
+                CompatiblePending(getInt, OldWomanStoneMentionedKey,
+                    record.OldWomanStoneMentioned ? 1 : 0);
         }
 
         public static bool TryRecord(RC05ThirdSquadRecord record)
@@ -103,7 +143,9 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            // Write immutable decision intent FIRST; a torn write can only
+            // resume the same resolution and the same witness facts.
+            setInt(PendingSignatureKey, Signature(record));
             setInt(TrialDeliveryKey, record.TrialDeliveryVerified ? 1 : 0);
             setInt(ResolutionKey, (int)record.Resolution);
             setInt(SkirmishKey, record.SkirmishOccurred ? 1 : 0);
@@ -125,8 +167,20 @@ namespace Rpg.Soundwell
             record = null;
             if (getInt == null)
                 return false;
-            if (getInt(ConfirmedKey) != 1)
-                return true;
+            int confirmed = getInt(ConfirmedKey);
+            if (confirmed == 0)
+            {
+                // A partial record is not a completed roster case. The session
+                // may recover it only by matching CanRecord's pending intent.
+                return getInt(PendingSignatureKey) == 0 &&
+                    getInt(TrialDeliveryKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(SkirmishKey) == 0 &&
+                    getInt(RealZhengYuanVerifiedKey) == 0 &&
+                    getInt(OldWomanStoneMentionedKey) == 0;
+            }
+            if (confirmed != 1)
+                return false;
 
             int rawTrial = getInt(TrialDeliveryKey);
             int rawRes = getInt(ResolutionKey);
@@ -147,7 +201,11 @@ namespace Rpg.Soundwell
                 rawSkirmish == 1,
                 rawRealZy == 1,
                 rawStone == 1);
-            if (IsValidRecord(saved, getInt))
+            // Older confirmed save files predate the intent key and remain
+            // readable; new confirmations must retain their matching lock.
+            int intent = getInt(PendingSignatureKey);
+            if (IsValidRecord(saved, getInt) &&
+                (intent == 0 || intent == Signature(saved)))
                 record = saved;
             return true;
         }
@@ -164,6 +222,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
             setInt(TrialDeliveryKey, 0);
             setInt(ResolutionKey, 0);
             setInt(SkirmishKey, 0);

@@ -124,7 +124,12 @@ namespace Rpg.Soundwell
                 outcome,
                 linSuRegisterNoteRecorded: true);
 
-            if (!RC01ChenYanFacts.TryRead(getInt, out RC01ChenYanRecord? existing))
+            if (!RC01ChenYanFacts.TryRead(
+                    getInt, out RC01ChenYanRecord? existing) &&
+                // Recover an interrupted payload only when its persisted
+                // immutable intent and every written field match this choice.
+                (getInt(RC01ChenYanFacts.ConfirmedKey) != 0 ||
+                 !RC01ChenYanFacts.CanRecord(record, getInt)))
                 return false;
 
             // Recover idempotently if a prior write committed ConfirmedKey = 1
