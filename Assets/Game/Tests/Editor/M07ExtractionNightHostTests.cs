@@ -176,6 +176,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CompetingValidRollCallWithSameChoicesButDifferentBoardingCannotCloseScene()
+        {
+            var root = new GameObject("M07 competing roll call");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.OfficialHandover);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M07ExtractionNightHost host = null;
+            try
+            {
+                host = new M07ExtractionNightHost(
+                    root.transform, () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                AdvanceToDockRollCall(view);
+                Assert.That(host.Session.BoardedFirstBatchCount, Is.EqualTo(300));
+
+                // A separate scene has already committed a *valid* M07
+                // record with the same Liang/Yida answers but only 200
+                // people boarded. The old host checked only those answers
+                // and silently retired this 300-person roll call.
+                Assert.That(M07ExtractionNightSession.TryCreateFromSavedFacts(
+                    read, out M07ExtractionNightSession other), Is.True);
+                other.ExecuteRoute(blockedInField: false, boardedFirstBatchCount: 200);
+                other.AdvanceTunnelOpening();
+                other.ResolveRusConfrontation(
+                    M07RusFate.Arrested, M07LedgerState.Preserved);
+                other.AdvanceReturnLettersCheck();
+                Assert.That(other.TryCompleteDockRollCall(
+                    M07LiangChoice.StayOnIsland,
+                    M07YidaChoice.HandToInspector,
+                    taoJiRescued: true, read, write), Is.True);
+                Assert.That(host.IsCompleted, Is.True);
+
+                view.LiangStayButton.onClick.Invoke();
+                Assert.That(host.ActiveView, Is.SameAs(view),
+                    "Different verified boarding counts must not be acknowledged as one event.");
+                Assert.That(host.Session.Stage, Is.EqualTo(M07ExtractionStage.DockRollCall));
+                Assert.That(host.Session.CompletedRecord.HasValue, Is.False);
+                Assert.That(M07ExtractionFacts.TryRead(
+                    read, out M07ExtractionRecord? persisted), Is.True);
+                Assert.That(persisted.HasValue, Is.True);
+                Assert.That(persisted.Value.BoardedFirstBatchCount, Is.EqualTo(200));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReadinessWithdrawalAtRollCallBlocksWriteUntilReadyAgain()
         {
             var root = new GameObject("M07 host readiness");

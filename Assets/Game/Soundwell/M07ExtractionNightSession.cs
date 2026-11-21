@@ -164,13 +164,48 @@ namespace Rpg.Soundwell
                 yidaChoice,
                 taoJiRescued);
 
-            if (!M07ExtractionFacts.TryRecord(record, getInt, setInt))
+            if (getInt == null || setInt == null ||
+                !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? existing))
+                return false;
+
+            // A Makinom commit can succeed before the acknowledgement
+            // throws. A retry may accept the *same complete extraction
+            // outcome* without writing again, but must never accept another
+            // voyage's different boarding, route, ledger or survivor facts.
+            if (existing.HasValue)
+            {
+                if (!MatchesRecord(record, existing.Value))
+                    return false;
+            }
+            else if (getInt(M07ExtractionFacts.ConfirmedKey) != 0 ||
+                     !M07ExtractionFacts.TryRecord(record, getInt, setInt))
+            {
+                return false;
+            }
+
+            if (!M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? saved) ||
+                !saved.HasValue || !MatchesRecord(record, saved.Value))
                 return false;
 
             XiaoqiAnsweredByNumberSeventyTwo = true;
             CompletedRecord = record;
             Stage = M07ExtractionStage.Completed;
             return true;
+        }
+
+        private static bool MatchesRecord(
+            M07ExtractionRecord expected, M07ExtractionRecord persisted)
+        {
+            return expected.ExecutedRoute == persisted.ExecutedRoute &&
+                expected.PumpState == persisted.PumpState &&
+                expected.RouteCosts == persisted.RouteCosts &&
+                expected.BoardedFirstBatchCount == persisted.BoardedFirstBatchCount &&
+                expected.LowerLevelEvacuatedCount == persisted.LowerLevelEvacuatedCount &&
+                expected.RusFate == persisted.RusFate &&
+                expected.LedgerState == persisted.LedgerState &&
+                expected.LiangChoice == persisted.LiangChoice &&
+                expected.YidaChoice == persisted.YidaChoice &&
+                expected.TaoJiRescued == persisted.TaoJiRescued;
         }
 
         private void EnsureStage(M07ExtractionStage expected)
