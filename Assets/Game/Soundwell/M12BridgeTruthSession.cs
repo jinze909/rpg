@@ -52,7 +52,7 @@ namespace Rpg.Soundwell
             out M12BridgeTruthSession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || M12BridgeTruthFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (m03SecrecyPromised && !m03PriorConfession)
                 return false;

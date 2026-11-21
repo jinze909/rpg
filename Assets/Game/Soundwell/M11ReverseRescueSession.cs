@@ -53,7 +53,7 @@ namespace Rpg.Soundwell
             out M11ReverseRescueSession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || M11ReverseRescueFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M10AssemblyFacts.TryRead(getInt, out M10AssemblyRecord? m10) ||
                 !m10.HasValue)
