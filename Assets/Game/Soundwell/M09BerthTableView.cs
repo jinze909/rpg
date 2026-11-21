@@ -33,6 +33,9 @@ namespace Rpg.Soundwell
         private readonly int hanQiaoGain;
         private readonly int shipwrightGain;
         private readonly int qiQueGain;
+        // Scene-owned evidence of an already-paid shipyard deal. No money
+        // is created, charged, or inferred by the UI.
+        private readonly Func<bool> shipwrightFeePaidInWorld;
         private Action<M09BerthTableSession> onSettleRequested;
         private bool settling;
         private bool disposed;
@@ -53,7 +56,8 @@ namespace Rpg.Soundwell
             Action<M09BerthTableSession> onSettleRequested,
             int hanQiaoGain = 3,
             int shipwrightGain = 2,
-            int qiQueGain = 3)
+            int qiQueGain = 3,
+            Func<bool> shipwrightFeePaidInWorld = null)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             this.session = session ?? throw new ArgumentNullException(nameof(session));
@@ -66,6 +70,7 @@ namespace Rpg.Soundwell
             this.hanQiaoGain = hanQiaoGain;
             this.shipwrightGain = shipwrightGain;
             this.qiQueGain = qiQueGain;
+            this.shipwrightFeePaidInWorld = shipwrightFeePaidInWorld ?? (() => false);
 
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             canvasObject = new GameObject("M09 berth table canvas",
@@ -182,9 +187,11 @@ namespace Rpg.Soundwell
             hanQiaoLabel.text = zh
                 ? $"韩峤民用航次（+{hanQiaoGain}铺，需正式登记在世）"
                 : $"Han Qiao civilian voyage (+{hanQiaoGain}, living registry)";
-            shipwrightLabel.text = zh
-                ? $"修船匠加铺（+{shipwrightGain}铺，沈砾留教两天）"
-                : $"Shipwright extra berths (+{shipwrightGain}, Shen Li teaches 2d)";
+            shipwrightLabel.text = session.ShenLiPresent
+                ? (zh ? $"修船匠加铺（+{shipwrightGain}铺，沈砾留教两天）"
+                      : $"Shipwright extra berths (+{shipwrightGain}, Shen Li teaches 2d)")
+                : (zh ? $"修船匠加铺（+{shipwrightGain}铺，已付修船费）"
+                      : $"Shipwright extra berths (+{shipwrightGain}, verified fee paid)");
             qiQueLabel.text = zh
                 ? $"祁雀让出载货航次（+{qiQueGain}铺，谈船工分成）"
                 : $"Qi Que cargo voyage (+{qiQueGain}, crew profit-share)";
@@ -203,8 +210,11 @@ namespace Rpg.Soundwell
             hanQiaoButton.gameObject.SetActive(!session.IsSettled);
             hanQiaoButton.interactable = active && !hanUsed;
 
-            shipwrightButton.gameObject.SetActive(!session.IsSettled && session.ShenLiPresent);
-            shipwrightButton.interactable = active && session.ShenLiPresent && !shipUsed;
+            bool paidDealObserved = !session.ShenLiPresent && shipwrightFeePaidInWorld();
+            shipwrightButton.gameObject.SetActive(!session.IsSettled &&
+                (session.ShenLiPresent || paidDealObserved));
+            shipwrightButton.interactable = active && !shipUsed &&
+                (session.ShenLiPresent || paidDealObserved);
 
             qiQueButton.gameObject.SetActive(!session.IsSettled);
             qiQueButton.interactable = active && !qiUsed;
@@ -223,7 +233,12 @@ namespace Rpg.Soundwell
             if (disposed || settling || session.IsSettled || CanvasDestroyed())
                 return;
 
-            if (session.TryNegotiateExchange(exchange, gain))
+            bool needsPaidDeal = exchange == M09BerthExchangeFlags.ShipwrightExtraBerths &&
+                !session.ShenLiPresent;
+            if (needsPaidDeal && !shipwrightFeePaidInWorld())
+                return;
+            if (session.TryNegotiateExchange(exchange, gain,
+                    shipwrightFeePaid: needsPaidDeal))
                 Refresh();
         }
 
