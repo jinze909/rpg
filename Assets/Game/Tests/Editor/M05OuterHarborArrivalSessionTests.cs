@@ -152,9 +152,22 @@ namespace Rpg.Tests.Editor
             Assert.That(M05HarborVisitFacts.TryRead(read, out int firstMask), Is.True);
             Assert.That(firstMask, Is.EqualTo(3));
 
-            // The next actual arrival has its own identity, even if an
-            // interrupted replay reset leaves the old story mask behind.
-            values[M05LandingFacts.ArrivalSequenceKey] = firstArrival + 1;
+            // Reconstruct a genuinely sailed and signed new arrival. A mere
+            // increment of ArrivalSequenceKey invalidates M05's landing
+            // signature, so it cannot stand in for a replayed voyage.
+            // Simulate a reset interrupted BEFORE the harbor-visit mask is
+            // cleared: the old mask survives, but the M04/fog/M05 authorities
+            // have already started the new crossing.
+            Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+            SeedVerifiedLanding(values, new M05LandingReport(3, 10, true, true));
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                Is.EqualTo(firstArrival + 1));
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? replayed),
+                Is.True);
+            Assert.That(replayed.HasValue, Is.True);
             Assert.That(M05HarborVisitFacts.TryRead(read, out int staleMask), Is.True);
             Assert.That(staleMask, Is.Zero);
             Assert.That(M05HarborVisitFacts.TryRecord(
