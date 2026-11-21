@@ -81,6 +81,9 @@ namespace Rpg.Soundwell
                 session,
                 household,
                 count => IsCurrentVoyage() && nightFerryReady() &&
+                    // An unrelated berth-table settlement invalidates this
+                    // still-visible ferry panel before real boarding begins.
+                    getInt(M09BerthTableFacts.ConfirmedKey) == 0 &&
                     LiveTransferCountsMatch() && confirmActuallyBoarded(count),
                 HandleCompleted);
             return true;
@@ -90,6 +93,9 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed != session || !completed.IsComplete ||
                 !completed.Outcome.HasValue || !nightFerryReady() ||
+                // A competing or corrupted M09 settlement must not be
+                // overwritten by an older ferry panel's outcome callback.
+                getInt(M09BerthTableFacts.ConfirmedKey) != 0 ||
                 !IsCurrentVoyage() || !LiveTransferCountsMatch(
                     allowVerifiedBoardingConsumption: true))
                 throw new InvalidOperationException(
