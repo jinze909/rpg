@@ -65,12 +65,19 @@ namespace Rpg.Soundwell
                 getInt(ConfirmedKey) != 0)
                 return false;
 
+            // If Makinom was interrupted after writing a reply but before
+            // confirming it, only that exact reply may be retried. The public
+            // facts API must enforce this even without the scene host.
+            int pendingReply = getInt(ShenRelationResponseKey);
+            if (pendingReply != 0 && pendingReply != (int)response)
+                return false;
+
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool completed) ||
                 !completed)
                 return false;
 
-            // Publish the chosen relationship response only after a complete
-            // write. If an interruption occurs, the host can retry safely.
+            // Write the relationship response before the final marker.
+            // Incomplete writes may retry only the same original decision.
             setInt(ConfirmedKey, 0);
             setInt(ShenRelationResponseKey, (int)response);
             setInt(ConfirmedKey, 1);
