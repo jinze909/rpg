@@ -387,5 +387,66 @@ namespace Rpg.Tests.Editor
                 Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(), Is.False);
             }
         }
+
+        [Test]
+        public void CommittedRescuePlanWithLostAcknowledgementCanRetryWithoutDuplicateWrite()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+            session.AnswerVesselBriefing(M06ReunionGreeting.ComeToBringYouBack);
+            session.WitnessPumpRoomAndInspection();
+            session.HearOulinRetaliationTruth();
+            session.RespondToShen(M06ShenResponse.HelpRepairValve);
+
+            int committed = 0;
+            Action<string, int> unreliable = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M06RescuePlanFacts.ConfirmedKey && value == 1 && ++committed == 1)
+                    throw new InvalidOperationException("Lost acknowledgement after Makinom commit");
+            };
+
+            Assert.Throws<InvalidOperationException>(() =>
+                session.TryConfirmRescuePlan(M06RescuePlan.CargoCover, read, unreliable));
+            Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+            Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Plan, Is.EqualTo(M06RescuePlan.CargoCover));
+            Assert.That(session.TryConfirmRescuePlan(
+                M06RescuePlan.ForceBreakout, read, unreliable), Is.False);
+            values[M06RescuePlanFacts.ShenResponseKey] = (int)M06ShenResponse.LetHerSpeak;
+            Assert.That(session.TryConfirmRescuePlan(
+                M06RescuePlan.CargoCover, read, unreliable), Is.False,
+                "The companion response is part of the committed choice.");
+            values[M06RescuePlanFacts.ShenResponseKey] = (int)M06ShenResponse.HelpRepairValve;
+            Assert.That(session.TryConfirmRescuePlan(
+                M06RescuePlan.CargoCover, read, unreliable), Is.True);
+            Assert.That(committed, Is.EqualTo(1));
+            Assert.That(session.ConfirmedPlan, Is.EqualTo(M06RescuePlan.CargoCover));
+            Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.Completed));
+        }
+
+        [Test]
+        public void CorruptedConfirmedRecordDoesNotGetRewritten()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+            session.AnswerVesselBriefing(M06ReunionGreeting.ComeToBringYouBack);
+            session.WitnessPumpRoomAndInspection();
+            session.HearOulinRetaliationTruth();
+            session.RespondToShen(M06ShenResponse.LetHerSpeak);
+
+            values[M06RescuePlanFacts.ConfirmedKey] = 1;
+            int writes = 0;
+            Assert.That(session.TryConfirmRescuePlan(
+                M06RescuePlan.OfficialHandover, read,
+                (k, v) => { writes++; values[k] = v; }), Is.False);
+            Assert.That(writes, Is.Zero);
+            Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+        }
     }
 }

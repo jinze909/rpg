@@ -190,12 +190,40 @@ namespace Rpg.Soundwell
                 RetaliationHistoryHeard,
                 SelectedShenResponse);
 
-            if (!M06RescuePlanFacts.TryRecord(record, getInt, setInt))
+            if (getInt == null || setInt == null ||
+                !M06RescuePlanFacts.TryRead(getInt, out M06ReunionRecord? existing))
+                return false;
+
+            // The Makinom confirmation marker may have been written before
+            // its acknowledgement was lost. Only the exact choice, evidence
+            // and Shen response may be acknowledged; never rewrite it.
+            if (existing.HasValue)
+            {
+                if (!Matches(record, existing.Value))
+                    return false;
+            }
+            else if (getInt(M06RescuePlanFacts.ConfirmedKey) != 0 ||
+                     !M06RescuePlanFacts.TryRecord(record, getInt, setInt))
+            {
+                return false;
+            }
+
+            if (!M06RescuePlanFacts.TryRead(getInt, out M06ReunionRecord? saved) ||
+                !saved.HasValue || !Matches(record, saved.Value))
                 return false;
 
             ConfirmedPlan = plan;
             Stage = M06ReunionStage.Completed;
             return true;
+        }
+
+        private static bool Matches(M06ReunionRecord expected, M06ReunionRecord saved)
+        {
+            return expected.Plan == saved.Plan &&
+                expected.ReportedUsableCapacity == saved.ReportedUsableCapacity &&
+                expected.LetterDelivery == saved.LetterDelivery &&
+                expected.RetaliationHistoryHeard == saved.RetaliationHistoryHeard &&
+                expected.ShenResponse == saved.ShenResponse;
         }
 
         public static string FormatPlanLabel(M06RescuePlan plan, bool zh)
