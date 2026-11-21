@@ -152,6 +152,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornIntentLocksAllChoicesAndLegacyConfirmedSavesStillRead()
+        {
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var initial = new RC05ThirdSquadRecord(
+                true, RC05Resolution.CivilianPardon, true, true, false);
+            var changed = new RC05ThirdSquadRecord(
+                true, RC05Resolution.ContinueSmuggling, true, true, false);
+            var alteredWitness = new RC05ThirdSquadRecord(
+                true, RC05Resolution.CivilianPardon, true, false, false);
+
+            // Crash immediately after intent, before the actual resolution
+            // and witnesses have been written: a new encounter cannot steal it.
+            Assert.Throws<InvalidOperationException>(() =>
+                RC05ThirdSquadFacts.TryRecord(initial, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == RC05ThirdSquadFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Interrupted after intent");
+                }));
+            Assert.That(read(RC05ThirdSquadFacts.PendingSignatureKey), Is.Not.Zero);
+            Assert.That(RC05ThirdSquadFacts.TryRead(
+                read, out RC05ThirdSquadRecord? incomplete), Is.False);
+            Assert.That(incomplete, Is.Null);
+            Assert.That(RC05ThirdSquadFacts.TryRecord(changed, read, write), Is.False);
+            Assert.That(RC05ThirdSquadFacts.TryRecord(alteredWitness, read, write), Is.False);
+
+            Assert.That(RC05ThirdSquadFacts.TryRecord(initial, read, write), Is.True);
+            Assert.That(RC05ThirdSquadFacts.TryRead(
+                read, out RC05ThirdSquadRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Resolution, Is.EqualTo(RC05Resolution.CivilianPardon));
+            Assert.That(saved.Value.RealZhengYuanVerified, Is.True);
+
+            // A pre-upgrade confirmed record has no signature. That legitimate
+            // historic save must remain readable without resetting progress.
+            values[RC05ThirdSquadFacts.PendingSignatureKey] = 0;
+            Assert.That(RC05ThirdSquadFacts.TryRead(
+                read, out RC05ThirdSquadRecord? historic), Is.True);
+            Assert.That(historic.HasValue, Is.True);
+
+            Assert.That(RC05ThirdSquadFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(RC05ThirdSquadFacts.PendingSignatureKey), Is.Zero);
+            // An orphaned old payload without a recorded intent is unsafe.
+            values[RC05ThirdSquadFacts.TrialDeliveryKey] = 1;
+            Assert.That(RC05ThirdSquadFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC05ThirdSquadFacts.TryRecord(initial, read, write), Is.False);
+        }
+
+        [Test]
         public void CorruptOrResetUpstreamFactsInvalidateReadbackAndNullDelegatesFailClosed()
         {
             var values = new Dictionary<string, int>();
