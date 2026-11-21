@@ -114,8 +114,8 @@ namespace Rpg.Tests.Editor
             Assert.That(M11ReverseRescueFacts.TryRecord(new M11ReverseRescueRecord(
                 true, M11PassEntryMethod.LandGateNegotiation, true,
                 M11ThirdSquadConscriptionStance.NotInPass,
-                M11RescueProvider.FallbackPaidArtisans, 0, false,
-                M11ShenDivisionPact.NoneShenAbsent), read, write), Is.True);
+                M11RescueProvider.ShenLiShallowBoat, 3, true,
+                M11ShenDivisionPact.MutualConsultAndDivision), read, write), Is.True);
 
             bool priorConfession = true;
             bool secrecyPromised = false;
@@ -130,33 +130,34 @@ namespace Rpg.Tests.Editor
                     () => shenLi, () => linSu, read, write))
                 {
                     Assert.That(host.TryOpen(), Is.True);
-                    Assert.That(host.Session.TryConfrontLuJun(
-                        M12LuConfrontationReply.YouSaidThatLastTime), Is.True);
-                    Assert.That(host.Session.TryHearStatement(M12StatementFlags.JiangShenHeard), Is.True);
-                    Assert.That(host.Session.TryHearStatement(M12StatementFlags.HanAndYiLeiHeard), Is.True);
-                    host.ActiveView.Refresh();
+                    var view = host.ActiveView;
+                    view.YouSaidThatLastTimeButton.onClick.Invoke();
+                    view.HearHanAndYiLeiButton.onClick.Invoke();
+                    view.HearJiangShenButton.onClick.Invoke();
+                    view.HearShenLiButton.onClick.Invoke();
+                    Assert.That(host.Session.Phase, Is.EqualTo(M12Phase.TruthDisclosureChoice));
 
                     shenLi = false;
-                    host.ActiveView.PublishTruthButton.onClick.Invoke();
+                    view.PublishTruthButton.onClick.Invoke();
                     Assert.That(host.IsCompleted, Is.False);
 
                     shenLi = true;
                     linSu = false;
-                    host.ActiveView.PublishTruthButton.onClick.Invoke();
+                    view.PublishTruthButton.onClick.Invoke();
                     Assert.That(host.IsCompleted, Is.False);
 
                     linSu = true;
                     priorConfession = false;
-                    host.ActiveView.PublishTruthButton.onClick.Invoke();
+                    view.PublishTruthButton.onClick.Invoke();
                     Assert.That(host.IsCompleted, Is.False);
 
                     priorConfession = true;
                     secrecyPromised = true;
-                    host.ActiveView.PublishTruthButton.onClick.Invoke();
+                    view.PublishTruthButton.onClick.Invoke();
                     Assert.That(host.IsCompleted, Is.False);
 
                     secrecyPromised = false;
-                    host.ActiveView.PublishTruthButton.onClick.Invoke();
+                    view.PublishTruthButton.onClick.Invoke();
                     Assert.That(host.IsCompleted, Is.True);
                     Assert.That(host.ActiveView, Is.Null);
                 }
