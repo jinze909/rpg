@@ -165,6 +165,37 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldReconSessionCannotCreditSameNumbersOnASecondConfirmedLanding()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+
+            Assert.That(M06MineCampReconSession.TryLoad(read, out var oldSession), Is.True);
+            int firstArrivalSequence = read(M05LandingFacts.ArrivalSequenceKey);
+            Assert.That(oldSession.ObservedCount, Is.Zero);
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+            Assert.That(oldSession.TryInspectLead(
+                M06MineCampLead.GuardPatrol, read, write), Is.False);
+            SeedVerifiedM05Arrival(values);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                Is.GreaterThan(firstArrivalSequence));
+            Assert.That(oldSession.TryInspectLead(
+                M06MineCampLead.GuardPatrol, read, write), Is.False);
+            Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.Zero);
+            Assert.That(oldSession.ObservedCount, Is.Zero);
+
+            Assert.That(M06MineCampReconSession.TryLoad(read, out var newSession), Is.True);
+            Assert.That(newSession.TryInspectLead(
+                M06MineCampLead.GuardPatrol, read, write), Is.True);
+            Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.EqualTo(2));
+            Assert.That(oldSession.TryInspectLead(
+                M06MineCampLead.SupplyLedger, read, write), Is.False);
+            Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.EqualTo(2));
+        }
+
+        [Test]
         public void BilingualLeadNotesCoverAllFourMineCampLeads()
         {
             foreach (M06MineCampLead lead in new[]
