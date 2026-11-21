@@ -139,6 +139,20 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(WorldNoticeThreeKey) != 0 ||
+                getInt(RosterAccuracyKey) != 0 ||
+                getInt(BattleReportSourceKey) != 0 ||
+                getInt(HanLedgerUseKey) != 0 ||
+                getInt(SupplyContractKey) != 0 ||
+                getInt(LeverageWeakenedRC02Key) != 0 ||
+                getInt(CoversRC05FamiliesKey) != 0 ||
+                getInt(BellTowerSeizureKey) != 0;
+        }
+
         public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
         {
             return getInt == null ||
