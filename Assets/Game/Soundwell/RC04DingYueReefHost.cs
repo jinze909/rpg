@@ -53,7 +53,11 @@ namespace Rpg.Soundwell
         public bool TryOpenListening()
         {
             if (disposed || listeningView != null || resolutionView != null ||
-                getInt(RC04DingYueReefFacts.ConfirmedKey) != 0)
+                getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
+                getInt(RC04DingYueReefFacts.RoundsCompletedKey) != 0 ||
+                getInt(RC04DingYueReefFacts.AyuanSongUsedKey) != 0 ||
+                getInt(RC04DingYueReefFacts.ResolutionKey) != 0 ||
+                getInt(RC04DingYueReefFacts.DecoyPreparedKey) != 0)
                 return false;
 
             if (!M08FirstWorldNoticeFacts.TryCaseAvailable(
