@@ -15,6 +15,9 @@ namespace Rpg.Soundwell
         private readonly Func<bool> shenLiPresent;
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
+        // This conversation belongs to one concrete M05 arrival, not just
+        // an identical-looking M08 workshop outcome on a later voyage.
+        private int? openedArrivalSequence;
         private M08DockTruthView activeView;
         private bool disposed;
 
@@ -48,6 +51,10 @@ namespace Rpg.Soundwell
                 !completed)
                 return false;
 
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0)
+                return false;
+            openedArrivalSequence = arrivalSequence;
             var session = new M08DockTruthSession(
                 shenLiPresent: true, firstWinchConfirmed: true);
             activeView = new M08DockTruthView(parent, session, SaveResponse);
@@ -58,7 +65,9 @@ namespace Rpg.Soundwell
         {
             // Presence and prior commission are checked again at commit time.
             // A party split mid-conversation never grants dialogue credit.
-            if (disposed || !shenLiPresent() ||
+            if (disposed || !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                !shenLiPresent() ||
                 !M08WorkshopDepositFacts.TryRead(getInt, out bool completed) ||
                 !completed)
                 return false;
@@ -85,6 +94,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
             return true;
         }
 
@@ -94,6 +104,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

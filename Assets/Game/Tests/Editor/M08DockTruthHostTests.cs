@@ -58,6 +58,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PreviousDockReplyCannotBeSavedAfterAnIdenticalNewArrival()
+        {
+            var root = new GameObject("M08 dock reply voyage replay");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M08DockTruthHost oldHost = null;
+            M08DockTruthHost currentHost = null;
+            try
+            {
+                int firstArrival = read(M05LandingFacts.ArrivalSequenceKey);
+                oldHost = new M08DockTruthHost(root.transform, () => true, read, write);
+                Assert.That(oldHost.TryOpen(), Is.True);
+                var oldView = oldHost.ActiveView;
+                oldView.HearButton.onClick.Invoke();
+                oldView.SecondResponseButton.onClick.Invoke();
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                oldView.FinishButton.onClick.Invoke();
+                Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+
+                SeedConfirmedWorkshop(values);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(firstArrival));
+                oldView.FinishButton.onClick.Invoke();
+                Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+                Assert.That(oldHost.ActiveView, Is.SameAs(oldView));
+
+                oldHost.Dispose();
+                oldHost = null;
+                currentHost = new M08DockTruthHost(root.transform, () => true, read, write);
+                Assert.That(currentHost.TryOpen(), Is.True);
+                currentHost.ActiveView.HearButton.onClick.Invoke();
+                currentHost.ActiveView.SecondResponseButton.onClick.Invoke();
+                currentHost.ActiveView.FinishButton.onClick.Invoke();
+                Assert.That(currentHost.HasRecordedResponse, Is.True);
+                Assert.That(currentHost.ActiveView, Is.Null);
+            }
+            finally
+            {
+                oldHost?.Dispose();
+                currentHost?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DockNeverOpensWithoutVerifiedWinchOrPresentShenLi()
         {
             var root = new GameObject("M08 dock gating");
