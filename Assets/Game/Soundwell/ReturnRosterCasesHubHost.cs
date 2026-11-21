@@ -16,28 +16,29 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Live scene-readiness and context delegates for dispatching all five
     /// roster cases (RC-01..RC-05) through ReturnRosterCasesHubHost.
+    /// Missing world observations never count as verified evidence.
     /// </summary>
     public sealed class ReturnRosterCasesHubContext
     {
-        public Func<bool> AtWhiteReedFerry { get; set; } = () => true;
+        public Func<bool> AtWhiteReedFerry { get; set; } = () => false;
 
-        public Func<bool> AtIntakeDesk { get; set; } = () => true;
+        public Func<bool> AtIntakeDesk { get; set; } = () => false;
         public Func<bool> RealZhengYuanFoundOverride { get; set; }
-        public Func<bool> ShiLengWillingForAdoption { get; set; } = () => true;
+        public Func<bool> ShiLengWillingForAdoption { get; set; } = () => false;
 
-        public Func<bool> OnBaijiIsland { get; set; } = () => true;
-        public Func<bool> DiagramMatchedAtPumpTwo { get; set; } = () => true;
-        public Func<bool> SuccessorTrainingConfirmed { get; set; } = () => true;
-        public Func<bool> LanRuoWillingToStayOneYear { get; set; } = () => true;
+        public Func<bool> OnBaijiIsland { get; set; } = () => false;
+        public Func<bool> DiagramMatchedAtPumpTwo { get; set; } = () => false;
+        public Func<bool> SuccessorTrainingConfirmed { get; set; } = () => false;
+        public Func<bool> LanRuoWillingToStayOneYear { get; set; } = () => false;
 
-        public Func<bool> CanApproachReef { get; set; } = () => true;
-        public Func<RC04Resolution, bool> VerifiedReefSceneConditions { get; set; } = _ => true;
+        public Func<bool> CanApproachReef { get; set; } = () => false;
+        public Func<RC04Resolution, bool> VerifiedReefSceneConditions { get; set; } = _ => false;
 
-        public Func<bool> AtAbandonedMill { get; set; } = () => true;
+        public Func<bool> AtAbandonedMill { get; set; } = () => false;
         public Func<bool> OldWomanStoneTriggered { get; set; } = () => false;
-        public Func<bool> BoatmanCountMatched { get; set; } = () => true;
-        public Func<bool> SquadRosterChecked { get; set; } = () => true;
-        public Func<bool> ZhengYuanTestimonyConfirmed { get; set; } = () => true;
+        public Func<bool> BoatmanCountMatched { get; set; } = () => false;
+        public Func<bool> SquadRosterChecked { get; set; } = () => false;
+        public Func<bool> ZhengYuanTestimonyConfirmed { get; set; } = () => false;
         public Func<bool> SkirmishTriggered { get; set; } = () => false;
     }
 
@@ -120,9 +121,41 @@ namespace Rpg.Soundwell
             return count;
         }
 
+        // Check callbacks before closing a settled active case. A partially
+        // configured scene must fail closed without orphaning the prior UI.
+        private bool HasRequiredDelegates(ReturnRosterCaseId caseId)
+        {
+            switch (caseId)
+            {
+                case ReturnRosterCaseId.RC01ChenYan:
+                    return context.AtWhiteReedFerry != null;
+                case ReturnRosterCaseId.RC02ZhengYuan:
+                    return context.AtIntakeDesk != null &&
+                        context.ShiLengWillingForAdoption != null;
+                case ReturnRosterCaseId.RC03BaijiMine:
+                    return context.OnBaijiIsland != null &&
+                        context.DiagramMatchedAtPumpTwo != null &&
+                        context.SuccessorTrainingConfirmed != null &&
+                        context.LanRuoWillingToStayOneYear != null;
+                case ReturnRosterCaseId.RC04DingYueReef:
+                    return context.CanApproachReef != null &&
+                        context.VerifiedReefSceneConditions != null;
+                case ReturnRosterCaseId.RC05ThirdSquad:
+                    return context.AtAbandonedMill != null &&
+                        context.OldWomanStoneTriggered != null &&
+                        context.BoatmanCountMatched != null &&
+                        context.SquadRosterChecked != null &&
+                        context.ZhengYuanTestimonyConfirmed != null &&
+                        context.SkirmishTriggered != null;
+                default:
+                    return false;
+            }
+        }
+
         public bool TryOpenCase(ReturnRosterCaseId caseId)
         {
-            if (disposed || !IsCaseAvailable(caseId))
+            if (disposed || !IsCaseAvailable(caseId) ||
+                !HasRequiredDelegates(caseId))
                 return false;
 
             if (activeHost != null)

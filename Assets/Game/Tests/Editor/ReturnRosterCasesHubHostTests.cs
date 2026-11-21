@@ -13,6 +13,28 @@ namespace Rpg.Tests.Editor
             return key => values.TryGetValue(key, out int value) ? value : 0;
         }
 
+        // These tests explicitly simulate observed world locations and proof.
+        // Production's unconfigured context is intentionally not permissive.
+        private static ReturnRosterCasesHubContext ObservedCaseScenes()
+        {
+            return new ReturnRosterCasesHubContext
+            {
+                AtWhiteReedFerry = () => true,
+                AtIntakeDesk = () => true,
+                ShiLengWillingForAdoption = () => true,
+                OnBaijiIsland = () => true,
+                DiagramMatchedAtPumpTwo = () => true,
+                SuccessorTrainingConfirmed = () => true,
+                LanRuoWillingToStayOneYear = () => true,
+                CanApproachReef = () => true,
+                VerifiedReefSceneConditions = _ => true,
+                AtAbandonedMill = () => true,
+                BoatmanCountMatched = () => true,
+                SquadRosterChecked = () => true,
+                ZhengYuanTestimonyConfirmed = () => true
+            };
+        }
+
         private static void SeedThroughM08Notice(Dictionary<string, int> values)
         {
             Func<string, int> read = Reader(values);
@@ -59,6 +81,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MissingOrUnobservedWorldEvidenceCannotOpenAnyRosterCase()
+        {
+            var root = new GameObject("Unobserved roster cases");
+            var values = new Dictionary<string, int>();
+            SeedThroughM08Notice(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var context = new ReturnRosterCasesHubContext();
+
+            try
+            {
+                using (var hub = new ReturnRosterCasesHubHost(
+                    root.transform, context, read, write))
+                {
+                    for (int i = 1; i <= 5; i++)
+                    {
+                        var caseId = (ReturnRosterCaseId)i;
+                        Assert.That(hub.IsCaseAvailable(caseId), Is.True);
+                        Assert.That(hub.TryOpenCase(caseId), Is.False,
+                            "An M08 case notice is not evidence of reaching its real scene.");
+                    }
+
+                    context.AtWhiteReedFerry = null;
+                    context.VerifiedReefSceneConditions = null;
+                    Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC01ChenYan),
+                        Is.False);
+                    Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC04DingYueReef),
+                        Is.False);
+                    Assert.That(hub.HasActiveCase, Is.False);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                    Assert.That(hub.CountSettledCases(), Is.Zero);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void HubGatesAllCasesOnM08NoticeAndEnforcesSingleActiveCaseExclusion()
         {
             var root = new GameObject("RosterHubGateRoot");
@@ -69,7 +131,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 using (var hub = new ReturnRosterCasesHubHost(
-                    root.transform, new ReturnRosterCasesHubContext(), read, write))
+                    root.transform, ObservedCaseScenes(), read, write))
                 {
                     Assert.That(hub.IsCaseAvailable(ReturnRosterCaseId.RC01ChenYan), Is.False);
                     Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC01ChenYan), Is.False);
@@ -109,7 +171,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 using (var hub = new ReturnRosterCasesHubHost(
-                    root.transform, new ReturnRosterCasesHubContext(), read, write))
+                    root.transform, ObservedCaseScenes(), read, write))
                 {
                     Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC05ThirdSquad), Is.True);
                     var rc05 = hub.ActiveRC05Host.Session;
@@ -150,7 +212,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 var hub = new ReturnRosterCasesHubHost(
-                    root.transform, new ReturnRosterCasesHubContext(), read, write);
+                    root.transform, ObservedCaseScenes(), read, write);
                 Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC03BaijiMine), Is.True);
                 var rc03Host = hub.ActiveRC03Host;
                 Assert.That(rc03Host.IsDisposed, Is.False);
