@@ -133,17 +133,21 @@ namespace Rpg.Tests.Editor
                     Assert.That(rc02.TryOpen(), Is.True);
                     var view = rc02.ActiveView;
                     view.ToothCheckButton.onClick.Invoke();
-                    view.BattleFlankButton.onClick.Invoke();
-                    view.DominantHandButton.onClick.Invoke();
-                    view.HearRoofConfessionButton.onClick.Invoke();
-                    view.MotherCalledShiLengButton.onClick.Invoke();
+                    view.FlankQuestionButton.onClick.Invoke();
+                    view.HandQuestionButton.onClick.Invoke();
+                    view.HearConfessionButton.onClick.Invoke();
+                    view.BeginAdoptionButton.onClick.Invoke();
+                    Assert.That(rc02.Session.Stage, Is.EqualTo(RC02Stage.AdoptionNameMoment));
+                    view.WaitQuietlyButton.onClick.Invoke();
+                    Assert.That(rc02.Session.MotherCalledShiLeng, Is.True);
+                    Assert.That(rc02.Session.ShiLengConsented, Is.True);
 
                     shiLengConsent = false;
-                    view.AdoptAsShiLengButton.onClick.Invoke();
+                    view.ConfirmAdoptionButton.onClick.Invoke();
                     Assert.That(rc02.IsResolved, Is.False);
 
                     shiLengConsent = true;
-                    view.AdoptAsShiLengButton.onClick.Invoke();
+                    view.ConfirmAdoptionButton.onClick.Invoke();
                     Assert.That(rc02.IsResolved, Is.True);
                 }
 
@@ -152,9 +156,13 @@ namespace Rpg.Tests.Editor
                 {
                     Assert.That(rc03.TryOpen(), Is.True);
                     var view = rc03.ActiveView;
-                    view.CanteenButton.onClick.Invoke();
-                    view.PumpRoomButton.onClick.Invoke();
-                    view.CharterButton.onClick.Invoke();
+                    view.CanteenVisitButton.onClick.Invoke();
+                    view.PumpRoomVisitButton.onClick.Invoke();
+                    view.CharterTalksButton.onClick.Invoke();
+                    view.VerifyDiagramButton.onClick.Invoke();
+                    view.SecureTrainingButton.onClick.Invoke();
+                    Assert.That(rc03.Session.PumpDiagramVerified, Is.True);
+                    Assert.That(rc03.Session.SuccessorTrainingSecured, Is.True);
 
                     trainingSecured = false;
                     view.AmendCharterButton.onClick.Invoke();
