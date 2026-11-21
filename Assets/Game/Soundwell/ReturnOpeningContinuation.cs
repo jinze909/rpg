@@ -83,6 +83,7 @@ namespace Rpg.Soundwell
             // The next voyage must start at the actual landing berth, not
             // resume coordinates from a prior confirmed voyage.
             setInt(M05HarborPositionFacts.PositionKey, 0);
+            setInt(M05HarborPositionFacts.PositionArrivalIdentityKey, 0);
 
             // All later confirmed stories belong to the old voyage as well.
             // Invalidate their public markers BEFORE clearing individual
