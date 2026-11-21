@@ -108,6 +108,17 @@ namespace Rpg.Tests.Editor
                     Assert.That(staleM12.ActiveView, Is.Not.Null);
                 }
 
+                // M09's confirmed berth facts now bind to the actual arrival.
+                // Replay the same observed second-batch outcome for voyage 2;
+                // a stale signature from voyage 1 must not unlock Act 3.
+                Assert.That(M09BerthTableFacts.TryRead(read, out M09BerthTableRecord? staleBerths),
+                    Is.True);
+                Assert.That(staleBerths, Is.Null);
+                Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
+                    20, 23, M09BerthExchangeFlags.HanQiaoCivilianVoyage,
+                    M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
+
                 // Fresh M12 host opened on arrivalSequence == 2 commits cleanly.
                 using (var freshM12 = new M12BridgeTruthHost(
                     root.transform, () => true, () => true, () => false,
@@ -142,6 +153,14 @@ namespace Rpg.Tests.Editor
                     Assert.That(staleM16.IsCompleted, Is.False);
                     Assert.That(staleM16.ActiveView, Is.Not.Null);
                 }
+
+                // The third replay also requires an M09 manifest signed for
+                // its own arrival. Retain the same factual scenario while
+                // exercising the M16 host's independent stale-view guard.
+                Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
+                    20, 23, M09BerthExchangeFlags.HanQiaoCivilianVoyage,
+                    M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
 
                 using (var freshM16 = new M16EpilogueHost(
                     root.transform, () => true, () => true,

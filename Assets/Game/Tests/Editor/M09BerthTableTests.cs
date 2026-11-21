@@ -239,6 +239,84 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornWriteCannotReplaceRuiyaRescueCapacityOrShipwrightCost()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var original = new M09BerthTableRecord(
+                23, 23,
+                M09BerthExchangeFlags.QiQueCargoVoyage |
+                M09BerthExchangeFlags.ShipwrightExtraBerths,
+                M09RuiyaOutcome.Rescued, true, true,
+                shipwrightFeePaid: false);
+            var changedRescue = new M09BerthTableRecord(
+                23, 23, original.Exchanges, M09RuiyaOutcome.NotRescued,
+                true, true);
+            var changedBerths = new M09BerthTableRecord(
+                24, 23, original.Exchanges, original.RuiyaOutcome,
+                true, true);
+            var changedCost = new M09BerthTableRecord(
+                23, 23, original.Exchanges, original.RuiyaOutcome,
+                true, true, shipwrightFeePaid: true);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                M09BerthTableFacts.TryRecord(original, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == M09BerthTableFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Torn just after M09 intent");
+                }));
+            int intent = read(M09BerthTableFacts.PendingSignatureKey);
+            Assert.That(intent, Is.Not.Zero);
+            Assert.That(M09BerthTableFacts.TryRecord(changedRescue, read, write), Is.False);
+            Assert.That(M09BerthTableFacts.TryRecord(changedBerths, read, write), Is.False);
+            Assert.That(M09BerthTableFacts.TryRecord(changedCost, read, write), Is.False);
+            Assert.That(M09BerthTableFacts.TryRecord(original, read, write), Is.True);
+            Assert.That(M09BerthTableFacts.TryRead(
+                read, out M09BerthTableRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.RuiyaOutcome, Is.EqualTo(M09RuiyaOutcome.Rescued));
+            Assert.That(saved.Value.TotalBerths, Is.EqualTo(23));
+            Assert.That(saved.Value.ShipwrightFeePaid, Is.False);
+
+            // A confirmed legacy berth table has no intent key.
+            values[M09BerthTableFacts.PendingSignatureKey] = 0;
+            Assert.That(M09BerthTableFacts.TryRead(
+                read, out M09BerthTableRecord? legacy), Is.True);
+            Assert.That(legacy.HasValue, Is.True);
+
+            Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(M09BerthTableFacts.PendingSignatureKey), Is.Zero);
+            values[M09BerthTableFacts.RuiyaOutcomeKey] = (int)M09RuiyaOutcome.Rescued;
+            Assert.That(M09BerthTableFacts.TryRecord(original, read, write), Is.False,
+                "Orphaned legacy outcome without intent cannot silently be overwritten.");
+        }
+
+        [Test]
+        public void PendingM09IntentCannotBeReusedAcrossDifferentArrivals()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var record = new M09BerthTableRecord(
+                18, 23, M09BerthExchangeFlags.None,
+                M09RuiyaOutcome.Deferred, false, false);
+            Assert.Throws<InvalidOperationException>(() =>
+                M09BerthTableFacts.TryRecord(record, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == M09BerthTableFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Torn berth intent");
+                }));
+            values[M05LandingFacts.ArrivalSequenceKey]++;
+            Assert.That(M09BerthTableFacts.TryRecord(record, read, write), Is.False,
+                "An old arrival cannot finalize its berth table on a new voyage.");
+        }
+
+        [Test]
         public void MissingSaveAuthorityOrNullDelegatesNeverFabricateM09Facts()
         {
             var record = new M09BerthTableRecord(
