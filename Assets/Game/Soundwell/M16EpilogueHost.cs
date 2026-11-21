@@ -5,9 +5,10 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M16 ("一个普通的下午") playable epilogue host. Enforces
-    /// verified M15FinalRollCallFacts, live Linchao afternoon presence, monotonic
-    /// M05 arrival identity, and clean M16EpilogueFacts state (blocking torn/partial
-    /// saves) before opening M16EpilogueView.
+    /// verified M15FinalRollCallFacts, live Linchao afternoon presence, live
+    /// Shen Li willingness and closing-tone revalidation at commit time,
+    /// monotonic M05 arrival identity, and clean M16EpilogueFacts state
+    /// (blocking torn/partial saves) before opening M16EpilogueView.
     /// </summary>
     public sealed class M16EpilogueHost : IDisposable
     {
@@ -20,6 +21,8 @@ namespace Rpg.Soundwell
         private M16EpilogueSession session;
         private M16EpilogueView activeView;
         private int? openedArrivalSequence;
+        private bool openedShenLiWillingToMeet;
+        private M16RespectAgencyTone openedClosingTone;
         private bool disposed;
 
         public M16EpilogueSession Session => session;
@@ -54,13 +57,17 @@ namespace Rpg.Soundwell
                 HasAnyPersistedFacts())
                 return false;
 
+            bool shenWilling = shenLiWillingToMeet();
+            M16RespectAgencyTone closingTone = resolveClosingTone();
             if (!M16EpilogueSession.TryCreateFromSavedFacts(
-                    getInt, shenLiWillingToMeet(), resolveClosingTone(),
+                    getInt, shenWilling, closingTone,
                     out M16EpilogueSession created))
                 return false;
 
             session = created;
             openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedShenLiWillingToMeet = shenWilling;
+            openedClosingTone = closingTone;
             activeView = new M16EpilogueView(
                 parent,
                 session,
@@ -83,7 +90,9 @@ namespace Rpg.Soundwell
         {
             if (disposed || session == null || !atLinchaoAfternoon() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                shenLiWillingToMeet() != openedShenLiWillingToMeet ||
+                resolveClosingTone() != openedClosingTone)
                 return;
 
             if (!session.TryChooseStandingSpotAndCommit(spot, getInt, setInt))

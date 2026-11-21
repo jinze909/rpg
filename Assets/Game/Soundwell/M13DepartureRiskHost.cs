@@ -5,9 +5,10 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M13 approach route and A Yuan risk-consent host.
-    /// Enforces live fleet-briefing readiness, monotonic M05 arrival identity,
-    /// and clean M13DepartureRiskFacts state (blocking torn/partial saves)
-    /// before opening M13DepartureRiskView.
+    /// Enforces live fleet-briefing readiness, live safety-prep revalidation
+    /// at commit time, monotonic M05 arrival identity, and clean
+    /// M13DepartureRiskFacts state (blocking torn/partial saves) before
+    /// opening M13DepartureRiskView.
     /// </summary>
     public sealed class M13DepartureRiskHost : IDisposable
     {
@@ -20,6 +21,7 @@ namespace Rpg.Soundwell
         private M13DepartureRiskSession session;
         private M13DepartureRiskView activeView;
         private int? openedArrivalSequence;
+        private bool openedSafetyPrepComplete;
         private bool disposed;
 
         public M13DepartureRiskSession Session => session;
@@ -54,8 +56,10 @@ namespace Rpg.Soundwell
                 HasAnyPersistedFacts())
                 return false;
 
-            session = new M13DepartureRiskSession(initialSafetyPrepComplete());
+            bool safetyPrep = initialSafetyPrepComplete();
+            session = new M13DepartureRiskSession(safetyPrep);
             openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedSafetyPrepComplete = safetyPrep;
             activeView = new M13DepartureRiskView(
                 parent, session, HandleDepartureRequested);
             return true;
@@ -89,7 +93,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || session == null || !fleetBriefingReady() || !canDepartNow() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                initialSafetyPrepComplete() != openedSafetyPrepComplete)
                 return;
 
             if (!M13DepartureRiskFacts.TryReadDeparture(
