@@ -31,6 +31,9 @@ namespace Rpg.Soundwell
         public Func<bool> SuccessorTrainingConfirmed { get; set; } = () => false;
         public Func<bool> LanRuoWillingToStayOneYear { get; set; } = () => false;
 
+        // The reef listening station must be physically observed before its
+        // listening UI opens. CanApproachReef is a later tidal-window gate.
+        public Func<bool> AtReefListeningPoint { get; set; } = () => false;
         public Func<bool> CanApproachReef { get; set; } = () => false;
         public Func<RC04Resolution, bool> VerifiedReefSceneConditions { get; set; } = _ => false;
 
@@ -138,7 +141,8 @@ namespace Rpg.Soundwell
                         context.SuccessorTrainingConfirmed != null &&
                         context.LanRuoWillingToStayOneYear != null;
                 case ReturnRosterCaseId.RC04DingYueReef:
-                    return context.CanApproachReef != null &&
+                    return context.AtReefListeningPoint != null &&
+                        context.CanApproachReef != null &&
                         context.VerifiedReefSceneConditions != null;
                 case ReturnRosterCaseId.RC05ThirdSquad:
                     return context.AtAbandonedMill != null &&
@@ -156,6 +160,12 @@ namespace Rpg.Soundwell
         {
             if (disposed || !IsCaseAvailable(caseId) ||
                 !HasRequiredDelegates(caseId))
+                return false;
+
+            // A notice alone cannot open reef listening at an unvisited shore;
+            // retain the separate later approach/tidal-window decision.
+            if (caseId == ReturnRosterCaseId.RC04DingYueReef &&
+                !context.AtReefListeningPoint())
                 return false;
 
             if (activeHost != null)

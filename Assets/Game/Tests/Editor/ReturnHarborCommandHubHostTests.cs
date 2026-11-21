@@ -72,7 +72,13 @@ namespace Rpg.Tests.Editor
 
             try
             {
-                using (var hub = new ReturnHarborCommandHubHost(root.transform, read, write))
+                using (var hub = new ReturnHarborCommandHubHost(
+                    root.transform, read, write,
+                    rosterContext: new ReturnRosterCasesHubContext
+                    {
+                        // The cross-hub test explicitly visits the RC-01 ferry.
+                        AtWhiteReedFerry = () => true
+                    }))
                 {
                     Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.None));
                     Assert.That(hub.TryBuildProgressSnapshot(out var snap), Is.True);

@@ -69,7 +69,11 @@ namespace Rpg.Tests.Editor
                 using (var midgame = new ReturnMidgameFlowHost(
                     root.transform, new ReturnMidgameFlowContext(), read, write))
                 using (var rosterHub = new ReturnRosterCasesHubHost(
-                    root.transform, new ReturnRosterCasesHubContext(), read, write))
+                    root.transform, new ReturnRosterCasesHubContext
+                    {
+                        // The E2E fixture explicitly simulates reaching RC-01's ferry.
+                        AtWhiteReedFerry = () => true
+                    }, read, write))
                 using (var regionalHub = new ReturnRegionalStoriesHubHost(
                     root.transform, new ReturnRegionalStoriesHubContext(), read, write))
                 using (var finale = new ReturnFinaleFlowHost(

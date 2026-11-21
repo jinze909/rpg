@@ -26,6 +26,7 @@ namespace Rpg.Tests.Editor
                 DiagramMatchedAtPumpTwo = () => true,
                 SuccessorTrainingConfirmed = () => true,
                 LanRuoWillingToStayOneYear = () => true,
+                AtReefListeningPoint = () => true,
                 CanApproachReef = () => true,
                 VerifiedReefSceneConditions = _ => true,
                 AtAbandonedMill = () => true,
@@ -104,6 +105,7 @@ namespace Rpg.Tests.Editor
                     }
 
                     context.AtWhiteReedFerry = null;
+                    context.AtReefListeningPoint = null;
                     context.VerifiedReefSceneConditions = null;
                     Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC01ChenYan),
                         Is.False);
