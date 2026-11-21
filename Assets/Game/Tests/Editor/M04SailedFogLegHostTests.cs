@@ -321,7 +321,12 @@ namespace Rpg.Tests.Editor
                 Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero);
                 Assert.That(FogListeningFacts.HasUnconfirmedPayload(read), Is.True);
                 Assert.That(delivered, Is.Zero);
-                Assert.That(FogListeningFacts.TryRecord(HullFailureLeg(),
+                var competing = HullFailureLeg();
+                Assert.That(competing.ApplyHelmAction(FogHelmAction.HoldCourse),
+                    Is.EqualTo(FogResolution.HullScraped));
+                Assert.That(competing.IsComplete, Is.True);
+                Assert.That(competing.Succeeded, Is.False);
+                Assert.That(FogListeningFacts.TryRecord(competing,
                     read, write), Is.False, "The first intent must own the retry.");
                 Assert.That(host.View.ContinueButton.interactable, Is.True);
                 host.View.ContinueButton.onClick.Invoke();
