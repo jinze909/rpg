@@ -1,0 +1,128 @@
+using System;
+using UnityEngine;
+
+namespace Rpg.Soundwell
+{
+    /// <summary>
+    /// Scene-callable M07 ("把还活着的人带出来") extraction-night and pre-dawn
+    /// dock roll-call host. Enforces upstream M06RescuePlanFacts, live scene
+    /// readiness, and clean ConfirmedKey before opening M07ExtractionNightView,
+    /// and persists roll-call settlement to Makinom with interrupted-write
+    /// retry and idempotent commit-then-throw recovery.
+    /// </summary>
+    public sealed class M07ExtractionNightHost : IDisposable
+    {
+        private readonly Transform parent;
+        private readonly Func<bool> nightExtractionReady;
+        private readonly Func<bool> taoJiRescuedInScene;
+        private readonly Func<string, int> getInt;
+        private readonly Action<string, int> setInt;
+        private readonly int defaultBoardedCount;
+        private readonly int fallbackBoardedCount;
+        private readonly M07YidaChoice defaultYidaChoice;
+        private M07ExtractionNightSession session;
+        private M07ExtractionNightView activeView;
+        private bool disposed;
+
+        public M07ExtractionNightSession Session => session;
+        public M07ExtractionNightView ActiveView => activeView;
+        public bool IsDisposed => disposed;
+        public bool IsCompleted =>
+            M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? saved) &&
+            saved.HasValue;
+
+        public M07ExtractionNightHost(
+            Transform parent,
+            Func<bool> nightExtractionReady,
+            Func<bool> taoJiRescuedInScene,
+            Func<string, int> getInt,
+            Action<string, int> setInt,
+            int defaultBoardedCount = 300,
+            int fallbackBoardedCount = 180,
+            M07YidaChoice defaultYidaChoice = M07YidaChoice.HandToInspector)
+        {
+            this.parent = parent ?? throw new ArgumentNullException(nameof(parent));
+            this.nightExtractionReady = nightExtractionReady ??
+                throw new ArgumentNullException(nameof(nightExtractionReady));
+            this.taoJiRescuedInScene = taoJiRescuedInScene ??
+                throw new ArgumentNullException(nameof(taoJiRescuedInScene));
+            this.getInt = getInt ?? throw new ArgumentNullException(nameof(getInt));
+            this.setInt = setInt ?? throw new ArgumentNullException(nameof(setInt));
+            if (defaultBoardedCount <= 0 || defaultBoardedCount > M07ExtractionFacts.MaxFirstBatchBoarded)
+                throw new ArgumentOutOfRangeException(nameof(defaultBoardedCount));
+            if (fallbackBoardedCount <= 0 || fallbackBoardedCount > M07ExtractionFacts.MaxFirstBatchBoarded)
+                throw new ArgumentOutOfRangeException(nameof(fallbackBoardedCount));
+            if (!Enum.IsDefined(typeof(M07YidaChoice), defaultYidaChoice))
+                throw new ArgumentOutOfRangeException(nameof(defaultYidaChoice));
+
+            this.defaultBoardedCount = defaultBoardedCount;
+            this.fallbackBoardedCount = fallbackBoardedCount;
+            this.defaultYidaChoice = defaultYidaChoice;
+        }
+
+        public bool TryOpen()
+        {
+            if (disposed || activeView != null || !nightExtractionReady() ||
+                getInt(M07ExtractionFacts.ConfirmedKey) != 0)
+                return false;
+
+            if (!M07ExtractionNightSession.TryCreateFromSavedFacts(
+                    getInt, out M07ExtractionNightSession created))
+                return false;
+
+            session = created;
+            activeView = new M07ExtractionNightView(
+                parent,
+                session,
+                HandleRollCallConfirmed,
+                defaultBoardedCount,
+                fallbackBoardedCount,
+                defaultYidaChoice);
+            return true;
+        }
+
+        private void HandleRollCallConfirmed(
+            M07LiangChoice liangChoice,
+            M07YidaChoice yidaChoice)
+        {
+            if (disposed || session == null || !nightExtractionReady())
+                return;
+
+            if (!M07ExtractionFacts.TryRead(
+                    getInt, out M07ExtractionRecord? existing))
+                return;
+
+            // Handle a write that succeeded before a lost acknowledgement
+            // without issuing duplicate writes.
+            if (existing.HasValue)
+            {
+                if (existing.Value.LiangChoice != liangChoice ||
+                    existing.Value.YidaChoice != yidaChoice)
+                    return;
+            }
+            else if (!session.TryCompleteDockRollCall(
+                liangChoice, yidaChoice, taoJiRescuedInScene(), getInt, setInt))
+            {
+                return;
+            }
+
+            if (!M07ExtractionFacts.TryRead(
+                    getInt, out M07ExtractionRecord? persisted) ||
+                !persisted.HasValue ||
+                persisted.Value.LiangChoice != liangChoice ||
+                persisted.Value.YidaChoice != yidaChoice)
+                return;
+
+            activeView?.Dispose();
+            activeView = null;
+        }
+
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true;
+            activeView?.Dispose();
+            activeView = null;
+        }
+    }
+}
