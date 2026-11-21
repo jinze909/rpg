@@ -148,6 +148,27 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(ThreeBellsKey) != 0 ||
+                getInt(EntryMethodKey) != 0 ||
+                getInt(ConscriptionObservedKey) != 0 ||
+                getInt(ThirdSquadStanceKey) != 0 ||
+                getInt(RescueProviderKey) != 0 ||
+                getInt(EchoCallsKey) != 0 ||
+                getInt(OulinJoinedKey) != 0 ||
+                getInt(DivisionPactKey) != 0;
+        }
+
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M12BridgeTruthFacts.HasAnyPersistedFacts(getInt) ||
+                M12BridgeTruthFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);
@@ -158,6 +179,7 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
+                !HasOrphanedDownstreamFacts(getInt) &&
                 IsValidRecord(record, getInt) &&
                 CompatiblePending(getInt, ThreeBellsKey, record.ThreeBellsObserved ? 1 : 0) &&
                 CompatiblePending(getInt, EntryMethodKey, (int)record.EntryMethod) &&

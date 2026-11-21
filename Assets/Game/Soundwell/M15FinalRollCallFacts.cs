@@ -99,6 +99,23 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(ReaderKey) != 0 ||
+                getInt(IdentityResponseKey) != 0 ||
+                getInt(PensionClosureKey) != 0 ||
+                getInt(SteleInscriptionKey) != 0 ||
+                getInt(ConsentedNamesCountKey) != 0 ||
+                getInt(XiaoqiByNumberKey) != 0;
+        }
+
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null || M16EpilogueFacts.HasAnyPersistedFacts(getInt);
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);
@@ -109,6 +126,7 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
+                !HasOrphanedDownstreamFacts(getInt) &&
                 IsValidRecord(record) &&
                 CompatiblePending(getInt, ReaderKey, (int)record.Reader) &&
                 CompatiblePending(getInt, IdentityResponseKey, (int)record.IdentityResponse) &&
