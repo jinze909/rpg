@@ -90,7 +90,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed != session || !completed.IsComplete ||
                 !completed.Outcome.HasValue || !nightFerryReady() ||
-                !IsCurrentVoyage() || !LiveTransferCountsMatch())
+                !IsCurrentVoyage() || !LiveTransferCountsMatch(
+                    allowVerifiedBoardingConsumption: true))
                 throw new InvalidOperationException(
                     "Night crossing outcome cannot be committed while scene is not ready.");
 
@@ -104,15 +105,26 @@ namespace Rpg.Soundwell
             activeView = null;
         }
 
-        // Berths and the actual household roll-call are physical facts, not
-        // immutable dialogue options. A live scene may lose capacity or add
-        // members while this panel is open. Never verify boarding or submit
-        // an outcome using the older numbers until the same facts return.
-        private bool LiveTransferCountsMatch()
+        // Before verifying boarding, the live berth and household counts
+        // must still equal those observed when the dialogue opened. After
+        // confirmed boarding, some ferry controllers immediately deduct
+        // precisely those occupied berths. That change is expected evidence
+        // consumption, not another party stealing capacity. Refusals and
+        // deferrals never occupy any berths, so they require an exact match.
+        private bool LiveTransferCountsMatch(
+            bool allowVerifiedBoardingConsumption = false)
         {
-            return openedAvailableBerths.HasValue && openedHouseholdSize.HasValue &&
-                availableBerths() == openedAvailableBerths.Value &&
-                observedHouseholdSize() == openedHouseholdSize.Value;
+            if (!openedAvailableBerths.HasValue || !openedHouseholdSize.HasValue ||
+                observedHouseholdSize() != openedHouseholdSize.Value)
+                return false;
+
+            int liveBerths = availableBerths();
+            if (liveBerths == openedAvailableBerths.Value)
+                return true;
+            return allowVerifiedBoardingConsumption &&
+                session != null && session.Outcome == M09RuiyaOutcome.Rescued &&
+                session.ActuallyBoardedCount > 0 &&
+                liveBerths == openedAvailableBerths.Value - session.ActuallyBoardedCount;
         }
 
         private bool IsCurrentVoyage()
