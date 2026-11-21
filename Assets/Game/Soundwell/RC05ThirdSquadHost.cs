@@ -86,8 +86,16 @@ namespace Rpg.Soundwell
         {
             if (disposed || session == null || !atAbandonedMill() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                !boatmanCountMatched() ||
+                (session.OldWomanStoneMentioned && !oldWomanStoneTriggered()) ||
+                (session.RealZhengYuanVerified &&
+                    (!squadRosterChecked() || !zhengYuanTestimonyConfirmed())) ||
+                session.SkirmishOccurred != skirmishTriggered())
                 return;
+
+            // A long-lived decision panel cannot commit an old delivery,
+            // identity, memorial or skirmish account after live evidence changes.
 
             if (!session.TrySettleResolution(resolution, getInt, setInt))
                 return;
