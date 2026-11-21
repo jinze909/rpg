@@ -32,7 +32,7 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Immutable M15 memorial roll-call and stele inscription outcome.
-    /// Enforces SCENE_SCRIPT_M15.md & STORY_OUTLINE.md invariants:
+    /// Enforces SCENE_SCRIPT_M15.md &amp; STORY_OUTLINE.md invariants:
     /// - PublicTrueName must settle PensionClosure.StoppedAndReconciled.
     /// - PrivateCustodianResponse never forces public disclosure or erases
     ///   earlier M00/M01/M02/M10/M12 history.
@@ -99,11 +99,23 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(M15FinalRollCallRecord record, Func<string, int> getInt)
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record);
+                IsValidRecord(record) &&
+                CompatiblePending(getInt, ReaderKey, (int)record.Reader) &&
+                CompatiblePending(getInt, IdentityResponseKey, (int)record.IdentityResponse) &&
+                CompatiblePending(getInt, PensionClosureKey, (int)record.PensionClosure) &&
+                CompatiblePending(getInt, SteleInscriptionKey, (int)record.SteleInscription) &&
+                CompatiblePending(getInt, ConsentedNamesCountKey, record.ConsentedVerifiedNamesCount) &&
+                CompatiblePending(getInt, XiaoqiByNumberKey, record.XiaoqiCalledByNumberSeventyTwo ? 1 : 0);
         }
 
         public static bool TryRecord(M15FinalRollCallRecord record)
@@ -123,11 +135,12 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
-            setInt(ReaderKey, (int)record.Reader);
+            // Write primary ceremony decisions first so an interrupted save
+            // locks out competing choices while allowing identical retries.
             setInt(IdentityResponseKey, (int)record.IdentityResponse);
-            setInt(PensionClosureKey, (int)record.PensionClosure);
             setInt(SteleInscriptionKey, (int)record.SteleInscription);
+            setInt(ReaderKey, (int)record.Reader);
+            setInt(PensionClosureKey, (int)record.PensionClosure);
             setInt(ConsentedNamesCountKey, record.ConsentedVerifiedNamesCount);
             setInt(XiaoqiByNumberKey, record.XiaoqiCalledByNumberSeventyTwo ? 1 : 0);
             setInt(ConfirmedKey, 1);

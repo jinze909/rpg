@@ -133,11 +133,25 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(M12BridgeTruthRecord record, Func<string, int> getInt)
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+                IsValidRecord(record, getInt) &&
+                CompatiblePending(getInt, M03PriorConfessionKey, record.M03PriorConfession ? 1 : 0) &&
+                CompatiblePending(getInt, M03SecrecyPromisedKey, record.M03SecrecyPromised ? 1 : 0) &&
+                CompatiblePending(getInt, LuReplyKey, (int)record.LuReply) &&
+                CompatiblePending(getInt, ShenLiParticipatingKey, record.ShenLiParticipating ? 1 : 0) &&
+                CompatiblePending(getInt, StatementsMaskKey, (int)record.StatementsHeard) &&
+                CompatiblePending(getInt, LinSuEchoKey, record.LinSuEchoHeard ? 1 : 0) &&
+                CompatiblePending(getInt, M10HanExposedKey, record.M10HanExposedPublicly ? 1 : 0) &&
+                CompatiblePending(getInt, DisclosureKey, (int)record.Disclosure);
         }
 
         public static bool TryRecord(M12BridgeTruthRecord record)
@@ -157,15 +171,16 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            // Write primary disclosure and confrontation reply first so an
+            // interrupted save locks out competing choices while allowing retries.
+            setInt(DisclosureKey, (int)record.Disclosure);
+            setInt(LuReplyKey, (int)record.LuReply);
+            setInt(StatementsMaskKey, (int)record.StatementsHeard);
             setInt(M03PriorConfessionKey, record.M03PriorConfession ? 1 : 0);
             setInt(M03SecrecyPromisedKey, record.M03SecrecyPromised ? 1 : 0);
-            setInt(LuReplyKey, (int)record.LuReply);
             setInt(ShenLiParticipatingKey, record.ShenLiParticipating ? 1 : 0);
-            setInt(StatementsMaskKey, (int)record.StatementsHeard);
             setInt(LinSuEchoKey, record.LinSuEchoHeard ? 1 : 0);
             setInt(M10HanExposedKey, record.M10HanExposedPublicly ? 1 : 0);
-            setInt(DisclosureKey, (int)record.Disclosure);
             setInt(ConfirmedKey, 1);
             return true;
         }
