@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable RC-02 ("借来的名字") host. Enforces M08 case-2
     /// availability, live intake-desk presence, monotonic M05 arrival identity,
-    /// live adoption consent revalidation at commit time, and clean ConfirmedKey
-    /// before opening RC02ZhengYuanView.
+    /// live adoption consent revalidation at commit time, and clean
+    /// RC02ZhengYuanFacts state (blocking torn/partial saves) before opening.
     /// </summary>
     public sealed class RC02ZhengYuanHost : IDisposable
     {
@@ -51,7 +51,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atIntakeDesk() ||
-                getInt(RC02ZhengYuanFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!RC02ZhengYuanSession.TryCreateFromSavedFacts(
@@ -63,6 +63,17 @@ namespace Rpg.Soundwell
             activeView = new RC02ZhengYuanView(
                 parent, session, shiLengWillingForAdoption, HandleResolutionSubmitted);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(RC02ZhengYuanFacts.ConfirmedKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.ChecksMaskKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.RoofConfessionKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.ResolutionKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.MotherCalledKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.ShiLengConsentedKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.RealZhengYuanFoundKey) != 0;
         }
 
         private void HandleResolutionSubmitted(RC02Resolution resolution)

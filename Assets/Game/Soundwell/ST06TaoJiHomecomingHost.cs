@@ -5,9 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable ST-06 ("陶霁返乡") homecoming host. Enforces verified
-    /// M07 Tao Ji rescue, monotonic M05 arrival identity, and live woodshop
-    /// presence, drives ST06TaoJiHomecomingView, and persists settlement to
-    /// Makinom with interrupted-write retry and idempotent recovery.
+    /// M07 Tao Ji rescue, monotonic M05 arrival identity, live woodshop presence,
+    /// and clean ST06TaoJiHomecomingFacts state (blocking torn/partial saves)
+    /// before opening ST06TaoJiHomecomingView.
     /// </summary>
     public sealed class ST06TaoJiHomecomingHost : IDisposable
     {
@@ -43,7 +43,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !taoJiAtWoodshop() ||
-                getInt(ST06TaoJiHomecomingFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!ST06TaoJiHomecomingSession.TryCreateFromSavedFacts(
@@ -55,6 +55,17 @@ namespace Rpg.Soundwell
             activeView = new ST06TaoJiHomecomingView(
                 parent, session, HandleSettleRequested);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(ST06TaoJiHomecomingFacts.ConfirmedKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.ChairResolutionKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.CoverUpRemediatedKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.WelcomeDinnerKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.TraveledFarKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.LetterStatusKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.MarketTicketKey) != 0;
         }
 
         private void HandleSettleRequested(ST06TaoJiHomecomingSession activeSession)

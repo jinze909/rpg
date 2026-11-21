@@ -6,9 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M13 approach route and A Yuan risk-consent host.
     /// Enforces live fleet-briefing readiness, monotonic M05 arrival identity,
-    /// and clean DepartureConfirmedKey before opening M13DepartureRiskView,
-    /// supports scene-driven Qi Que warning delivery, and persists departure to
-    /// Makinom with interrupted-write retry and idempotent recovery.
+    /// and clean M13DepartureRiskFacts state (blocking torn/partial saves)
+    /// before opening M13DepartureRiskView.
     /// </summary>
     public sealed class M13DepartureRiskHost : IDisposable
     {
@@ -52,7 +51,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !fleetBriefingReady() ||
-                getInt(M13DepartureRiskFacts.DepartureConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             session = new M13DepartureRiskSession(initialSafetyPrepComplete());
@@ -60,6 +59,17 @@ namespace Rpg.Soundwell
             activeView = new M13DepartureRiskView(
                 parent, session, HandleDepartureRequested);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M13DepartureRiskFacts.DepartureConfirmedKey) != 0 ||
+                getInt(M13DepartureRiskFacts.RouteKey) != 0 ||
+                getInt(M13DepartureRiskFacts.SafetyPrepKey) != 0 ||
+                getInt(M13DepartureRiskFacts.QiWarningKey) != 0 ||
+                getInt(M13DepartureRiskFacts.RiskConsentKey) != 0 ||
+                getInt(M13DepartureRiskFacts.ThreeBellSignalKey) != 0 ||
+                getInt(M13DepartureRiskFacts.AyuanOutcomeKey) != 0;
         }
 
         public bool TryDeliverQiQueWarning()
