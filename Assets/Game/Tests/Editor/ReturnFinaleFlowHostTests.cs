@@ -171,6 +171,7 @@ namespace Rpg.Tests.Editor
                     Assert.That(M15FinalRollCallFacts.TryRecord(new M15FinalRollCallRecord(
                         M15RollCallReader.Protagonist,
                         M15FinalIdentityResponse.PublicTrueName,
+                        M15PensionClosure.StoppedAndReconciled,
                         M15SteleInscription.CarveConsentedVerifiedNames,
                         12, false), read, write), Is.True);
                     Assert.That(flow.TryOpenNextStage(), Is.False);
