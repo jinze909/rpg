@@ -174,11 +174,27 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(M14FinalPassageRecord record, Func<string, int> getInt)
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+                IsValidRecord(record, getInt) &&
+                CompatiblePending(getInt, M13DepartureRiskFacts.AyuanOutcomeKey, (int)record.AyuanOutcome) &&
+                CompatiblePending(getInt, ExecutedRouteKey, (int)record.ExecutedRoute) &&
+                CompatiblePending(getInt, PassageOutcomeKey, (int)record.PassageOutcome) &&
+                CompatiblePending(getInt, CivilianExitVerifiedKey, record.CivilianExitVerified ? 1 : 0) &&
+                CompatiblePending(getInt, DepartingCountKey, record.VerifiedDepartingCount) &&
+                CompatiblePending(getInt, StayingCountKey, record.VerifiedStayingCount) &&
+                CompatiblePending(getInt, UndecidedCountKey, record.UndecidedHoldingTicketCount) &&
+                CompatiblePending(getInt, BorderForceActionKey, (int)record.BorderForceAction) &&
+                CompatiblePending(getInt, LuJunDispositionKey, (int)record.LuJunDisposition) &&
+                CompatiblePending(getInt, FogMasteryBonusKey, record.FogMasteryBonusApplied ? 1 : 0);
         }
 
         public static bool TryRecord(M14FinalPassageRecord record)
@@ -212,15 +228,16 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            setInt(ConfirmedKey, 0);
+            // Write primary passage disposition and outcome keys first so an
+            // interrupted save locks out competing outcomes while allowing retries.
             setInt(ExecutedRouteKey, (int)record.ExecutedRoute);
             setInt(PassageOutcomeKey, (int)record.PassageOutcome);
+            setInt(BorderForceActionKey, (int)record.BorderForceAction);
+            setInt(LuJunDispositionKey, (int)record.LuJunDisposition);
             setInt(CivilianExitVerifiedKey, record.CivilianExitVerified ? 1 : 0);
             setInt(DepartingCountKey, record.VerifiedDepartingCount);
             setInt(StayingCountKey, record.VerifiedStayingCount);
             setInt(UndecidedCountKey, record.UndecidedHoldingTicketCount);
-            setInt(BorderForceActionKey, (int)record.BorderForceAction);
-            setInt(LuJunDispositionKey, (int)record.LuJunDisposition);
             setInt(FogMasteryBonusKey, record.FogMasteryBonusApplied ? 1 : 0);
             setInt(ConfirmedKey, 1);
             return true;
