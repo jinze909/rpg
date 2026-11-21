@@ -6,9 +6,10 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M07 ("把还活着的人带出来") extraction-night and pre-dawn
     /// dock roll-call host. Enforces upstream M06RescuePlanFacts, live scene
-    /// readiness, and clean ConfirmedKey before opening M07ExtractionNightView,
-    /// and persists roll-call settlement to Makinom with interrupted-write
-    /// retry and idempotent commit-then-throw recovery.
+    /// readiness, M05 arrival voyage identity, and clean M07ExtractionFacts
+    /// before opening M07ExtractionNightView, and persists roll-call settlement
+    /// to Makinom with interrupted-write retry and idempotent commit-then-throw
+    /// recovery.
     /// </summary>
     public sealed class M07ExtractionNightHost : IDisposable
     {
@@ -20,6 +21,7 @@ namespace Rpg.Soundwell
         private readonly int defaultBoardedCount;
         private readonly int fallbackBoardedCount;
         private readonly M07YidaChoice defaultYidaChoice;
+        private int? openedArrivalSequence;
         private M07ExtractionNightSession session;
         private M07ExtractionNightView activeView;
         private bool disposed;
@@ -60,16 +62,36 @@ namespace Rpg.Soundwell
             this.defaultYidaChoice = defaultYidaChoice;
         }
 
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M07ExtractionFacts.ConfirmedKey) != 0 ||
+                getInt(M07ExtractionFacts.ExecutedRouteKey) != 0 ||
+                getInt(M07ExtractionFacts.PumpStateKey) != 0 ||
+                getInt(M07ExtractionFacts.RouteCostsKey) != 0 ||
+                getInt(M07ExtractionFacts.BoardedFirstBatchKey) != 0 ||
+                getInt(M07ExtractionFacts.LowerLevelEvacuatedKey) != 0 ||
+                getInt(M07ExtractionFacts.RusFateKey) != 0 ||
+                getInt(M07ExtractionFacts.LedgerStateKey) != 0 ||
+                getInt(M07ExtractionFacts.LiangChoiceKey) != 0 ||
+                getInt(M07ExtractionFacts.YidaChoiceKey) != 0 ||
+                getInt(M07ExtractionFacts.TaoJiRescuedKey) != 0;
+        }
+
         public bool TryOpen()
         {
             if (disposed || activeView != null || !nightExtractionReady() ||
-                getInt(M07ExtractionFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0)
                 return false;
 
             if (!M07ExtractionNightSession.TryCreateFromSavedFacts(
                     getInt, out M07ExtractionNightSession created))
                 return false;
 
+            openedArrivalSequence = arrivalSequence;
             session = created;
             activeView = new M07ExtractionNightView(
                 parent,
@@ -85,7 +107,9 @@ namespace Rpg.Soundwell
             M07LiangChoice liangChoice,
             M07YidaChoice yidaChoice)
         {
-            if (disposed || session == null || !nightExtractionReady())
+            if (disposed || session == null || !nightExtractionReady() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             // The session owns all ten authoritative extraction fields.
@@ -97,6 +121,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -105,6 +130,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }
