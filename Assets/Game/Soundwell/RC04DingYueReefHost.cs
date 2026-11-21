@@ -108,7 +108,14 @@ namespace Rpg.Soundwell
                 !available)
                 return false;
 
-            if (!RC04DingYueReefFacts.TryRead(getInt, out RC04ReefRecord? existing))
+            // An interrupted write is deliberately unreadable as a finished
+            // record. Let the session validate a same-intent retry; it will
+            // reject a competing choice or mismatching partial payload.
+            // Corrupt confirmations and legacy orphaned data must fail closed.
+            if (!RC04DingYueReefFacts.TryRead(
+                    getInt, out RC04ReefRecord? existing) &&
+                (getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
+                 getInt(RC04DingYueReefFacts.PendingSignatureKey) == 0))
                 return false;
 
             // Handle a commit that succeeded before a lost acknowledgement
