@@ -44,6 +44,10 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private readonly M05LandingReport landing;
         private readonly int arrivalSequence;
+        // Raw save snapshot distinguishes a stale legacy answer present when
+        // the panel opened from a conflicting answer written while it stayed open.
+        private readonly int initialLetterDecisionCode;
+        private readonly int initialLetterDecisionArrivalIdentity;
         private Action<M05OuterHarborOutcome> onCompleted;
         private M05SeranLettersView seranView;
         private M05HarborWalkView harborWalkView;
@@ -116,6 +120,9 @@ namespace Rpg.Soundwell
             this.setInt = setInt;
             this.landing = landing;
             this.arrivalSequence = arrivalSequence;
+            initialLetterDecisionCode = getInt(M05LettersFacts.DecisionKey);
+            initialLetterDecisionArrivalIdentity =
+                getInt(M05LettersFacts.DecisionArrivalIdentityKey);
             this.onCompleted = onCompleted;
 
             if (existingDecision.HasValue)
@@ -153,10 +160,27 @@ namespace Rpg.Soundwell
             // now-invalid arrival, even via direct UGUI onClick invocation.
             RequireCurrentLanding();
 
+            // TryRead deliberately hides valid choices from older or unsigned
+            // arrivals. Preserve that recovery path, but do not let a new valid
+            // answer written after this panel opened masquerade as stale legacy data.
+            int savedCode = getInt(M05LettersFacts.DecisionKey);
+            int savedIdentity = getInt(M05LettersFacts.DecisionArrivalIdentityKey);
+            if (arrivalSequence < 0 || arrivalSequence == int.MaxValue)
+                throw new InvalidOperationException(
+                    "The M05 arrival identity is invalid.");
+            int currentIdentity = arrivalSequence + 1;
+            bool unchangedSinceOpen =
+                savedCode == initialLetterDecisionCode &&
+                savedIdentity == initialLetterDecisionArrivalIdentity;
+            bool alreadyCommittedSameChoice =
+                savedCode == (int)decision && savedIdentity == currentIdentity;
+            if (savedCode != 0 && !unchangedSinceOpen && !alreadyCommittedSameChoice)
+                throw new InvalidOperationException(
+                    "Saved M05 Seran letter choice changed while this visit was open.");
+
             // A Makinom write can persist the answer before an interrupted
-            // transition throws. Retrying that exact choice must continue,
-            // not dead-end on the already committed decision; a different
-            // answer or corrupt state must never be silently accepted.
+            // transition throws. Retrying that exact, arrival-bound choice must
+            // continue; a partial clear/bind with no answer is also retryable.
             if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? saved))
                 throw new InvalidOperationException(
                     "Unable to read M05 Seran letter choice.");
