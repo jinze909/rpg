@@ -116,6 +116,44 @@ namespace Rpg.Soundwell
                 specs.ToArray());
         }
 
+        /// <summary>
+        /// M06's actually interactable four reconnaissance leads and Shen Li
+        /// pump-room reunion. The authored Oulin truth anchor is not yet a
+        /// playable interaction and must not be advertised as an objective.
+        /// </summary>
+        public static RpgLargeMapMinimapAndBeaconHud BuildForMineCamp(
+            Transform parent, M06MineCampMapLayout layout)
+        {
+            if (parent == null) throw new ArgumentNullException(nameof(parent));
+            if (layout == null) throw new ArgumentNullException(nameof(layout));
+
+            Color amber = new Color(0.98f, 0.80f, 0.36f, 1f);
+            Color green = new Color(0.44f, 0.88f, 0.58f, 1f);
+            var specs = new List<(string id, Vector2Int tile, Color color)>();
+            foreach (RpgMapTriggerAnchor trigger in layout.Triggers)
+            {
+                switch (trigger.Id)
+                {
+                    case "m06.recon.escort-schedule":
+                    case "m06.recon.guard-patrol":
+                    case "m06.recon.supply-ledger":
+                    case "m06.recon.mine-tunnel-pump":
+                        specs.Add((trigger.Id, trigger.Tile, amber));
+                        break;
+                    case "m06.pump-reunion":
+                        specs.Add((trigger.Id, trigger.Tile, green));
+                        break;
+                }
+            }
+
+            return new RpgLargeMapMinimapAndBeaconHud(
+                parent, "赤盐矿营 · 96×64", "Red Salt Mine Camp · 96x64",
+                layout.Width, layout.Height,
+                (x, y) => SoundwellMinimapColor(layout.Tiles[x, y]),
+                new Vector2(layout.PlayerSpawn.x + 0.5f, layout.PlayerSpawn.y + 0.5f),
+                specs.ToArray());
+        }
+
         public static RpgLargeMapMinimapAndBeaconHud BuildForWhitewaterCrossing(
             Transform parent, WhitewaterCrossingMapLayout layout)
         {
