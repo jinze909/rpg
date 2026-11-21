@@ -77,7 +77,11 @@ namespace Rpg.Soundwell
 
         private void HandleCommitRequested()
         {
-            if (disposed || session == null || !atZhonglingBathhouse())
+            // A panel may remain open after a replay or scene evidence reset.
+            // Recheck every live proof before writing permanent regional facts.
+            if (disposed || session == null || !atZhonglingBathhouse() ||
+                !careHomeInterviewReady() || !safeRouteReady() ||
+                !trialNightReady() || !transportBudgetReady())
                 return;
 
             if (!session.TryCommit(getInt, setInt))
