@@ -284,6 +284,71 @@ namespace Rpg.Tests.Editor
             Assert.That(confirmed.Value.ReadyRescueBerths, Is.EqualTo(9));
         }
 
+
+        [Test]
+        public void TornLandingLocksFirstReportAndReusesTheReservedArrivalSequence()
+        {
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var first = new M05LandingReport(3, 9, true, true);
+            var competing = new M05LandingReport(2, 8, true, true);
+
+            // Crash after publishing only the first intent.
+            Assert.Throws<InvalidOperationException>(() =>
+                M05LandingFacts.TryRecord(first, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == M05LandingFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Makinom interrupted at intent");
+                }));
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? partial),
+                Is.True);
+            Assert.That(partial, Is.Null);
+            Assert.That(M05LandingFacts.CanRecord(competing, read), Is.False);
+            Assert.That(M05LandingFacts.TryRecord(competing, read, write), Is.False);
+            Assert.That(M05LandingFacts.TryRecord(first, read, write), Is.True);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(1));
+
+            // The next replay resets this visit but keeps the monotonic identity.
+            Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(1));
+            Assert.Throws<InvalidOperationException>(() =>
+                M05LandingFacts.TryRecord(first, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == M05LandingFacts.ArrivalSequenceKey)
+                        throw new InvalidOperationException("Makinom stopped before confirmation");
+                }));
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(2));
+            Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+            Assert.That(read(M05LandingFacts.PendingArrivalSequenceKey),
+                Is.EqualTo(2));
+            Assert.That(M05LandingFacts.TryRecord(competing, read, write), Is.False);
+            Assert.That(M05LandingFacts.TryRecord(first, read, write), Is.True);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(2),
+                "Retry must not advance the persistent arrival identity twice.");
+
+            // A different but otherwise valid berth count cannot replace an
+            // immutable, signed landing after the completion marker.
+            values[M05LandingFacts.ReadyBerthsKey] = 8;
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? altered),
+                Is.True);
+            Assert.That(altered, Is.Null);
+            values[M05LandingFacts.ReadyBerthsKey] = 9;
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? saved),
+                Is.True);
+            Assert.That(saved.HasValue, Is.True);
+
+            // Previously confirmed unsigned saves remain readable.
+            values[M05LandingFacts.PendingSignatureKey] = 0;
+            values[M05LandingFacts.PendingArrivalSequenceKey] = 0;
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? legacy),
+                Is.True);
+            Assert.That(legacy.HasValue, Is.True);
+        }
+
         [Test]
         public void NextVoyageClearsArrivalAndItsCapacityBeforeReusingOldData()
         {

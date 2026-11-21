@@ -38,7 +38,8 @@ namespace Rpg.Tests.Editor
             Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
             Assert.That(M05LandingFacts.TryRecord(
                 new M05LandingReport(3, 10, true, true), read, write), Is.True);
-            values[M05LandingFacts.ArrivalSequenceKey] = arrivalSequence;
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(arrivalSequence),
+                "Replayed arrival must use a newly signed M05 confirmation.");
 
             Assert.That(M06RescuePlanFacts.TryRecord(
                 new M06ReunionRecord(
@@ -68,54 +69,10 @@ namespace Rpg.Tests.Editor
                 M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
         }
 
-        // Simulate the actual downstream facts of a replayed landing.
-        // M06 now signs the arrival identity: changing only the sequence
-        // while retaining last voyage's M06/M07/M08 facts is not a fresh voyage.
-        private static void ReseedRescueThroughNoticeForCurrentArrival(
-            Dictionary<string, int> values)
+        private static void SeedAssemblyAndReverseRescue(Dictionary<string, int> values)
         {
             Func<string, int> read = Reader(values);
             Action<string, int> write = (k, v) => values[k] = v;
-
-            Assert.That(M08FirstWorldNoticeFacts.TryResetForNewVoyage(write), Is.True);
-            Assert.That(M08WorkshopDepositFacts.TryResetForNewVoyage(write), Is.True);
-            Assert.That(M07ExtractionFacts.TryResetForNewVoyage(write), Is.True);
-            Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
-
-            Assert.That(M06RescuePlanFacts.TryRecord(
-                new M06ReunionRecord(
-                    M06RescuePlan.OfficialHandover, true,
-                    M06LetterDeliveryOutcome.NotCarried, true), read, write), Is.True);
-            Assert.That(M07ExtractionFacts.TryRecord(new M07ExtractionRecord(
-                M07ExecutedRoute.OfficialHandover,
-                M07PumpShutdownState.KeptRunning,
-                M07RouteCostFlags.HarborSupplyDebt,
-                boardedFirstBatchCount: 10,
-                lowerLevelEvacuatedCount: 0,
-                M07RusFate.Arrested, M07LedgerState.Preserved,
-                M07LiangChoice.StayOnIsland,
-                M07YidaChoice.HandToInspector,
-                taoJiRescued: false), read, write), Is.True);
-
-            var winch = new M08FirstWinchOrderSession();
-            Assert.That(winch.TryAcquirePart(M08WinchPart.ScrapGear), Is.True);
-            Assert.That(winch.TryAcquirePart(M08WinchPart.DockCable), Is.True);
-            Assert.That(winch.TryAssemble(), Is.True);
-            Assert.That(winch.TryTightenCable(), Is.True);
-            Assert.That(winch.TryTestLift(), Is.True);
-            Assert.That(M08WorkshopDepositFacts.TryConfirm(winch, read, write), Is.True);
-            Assert.That(M08FirstWorldNoticeFacts.TryRecord(true, read, write), Is.True);
-        }
-
-        [Test]
-        public void StaleM12AndM16HostsCannotCommitAfterArrivalSequenceAdvances()
-        {
-            var root = new GameObject("Act3VoyageIdentityRoot");
-            var values = new Dictionary<string, int>();
-            SeedThroughM09(values, arrivalSequence: 1);
-            Func<string, int> read = Reader(values);
-            Action<string, int> write = (k, v) => values[k] = v;
-
             Assert.That(M10AssemblyFacts.TryRecord(new M10AssemblyRecord(
                 true, M10RosterAccuracy.VerifiedFirstPass, M10BattleReportSource.CarriedFromM02,
                 M10HanLedgerUse.KeepConfidential, M10SupplyContractStatus.SignedFullCoverage,
@@ -125,6 +82,19 @@ namespace Rpg.Tests.Editor
                 M11ThirdSquadConscriptionStance.NotInPass,
                 M11RescueProvider.FallbackPaidArtisans, 0, false,
                 M11ShenDivisionPact.NoneShenAbsent), read, write), Is.True);
+        }
+
+        [Test]
+        public void StaleM12AndM16HostsCannotCommitAfterArrivalSequenceAdvances()
+        {
+            var root = new GameObject("Act3VoyageIdentityRoot");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values, arrivalSequence: 1);
+            Dictionary<string, int> active = values;
+            Func<string, int> read = key => active.TryGetValue(key, out int value) ? value : 0;
+            Action<string, int> write = (k, v) => active[k] = v;
+
+            SeedAssemblyAndReverseRescue(values);
 
             try
             {
@@ -141,7 +111,7 @@ namespace Rpg.Tests.Editor
                     staleM12.ActiveView.Refresh();
 
                     // Simulate identical replayed voyage advancing arrival sequence.
-                    values[M05LandingFacts.ArrivalSequenceKey] = 2;
+                    active[M05LandingFacts.ArrivalSequenceKey] = 2;
                     staleM12.ActiveView.PublishTruthButton.onClick.Invoke();
                     Assert.That(staleM12.IsCompleted, Is.False);
                     Assert.That(staleM12.ActiveView, Is.Not.Null);
@@ -153,11 +123,14 @@ namespace Rpg.Tests.Editor
                 Assert.That(M09BerthTableFacts.TryRead(read, out M09BerthTableRecord? staleBerths),
                     Is.True);
                 Assert.That(staleBerths, Is.Null);
-                Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
-                ReseedRescueThroughNoticeForCurrentArrival(values);
-                Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
-                    20, 23, M09BerthExchangeFlags.HanQiaoCivilianVoyage,
-                    M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
+                // Build the second voyage with a real signed arrival and
+                // its own M06-M11 prerequisites, not a relabeled M05 save.
+                active = new Dictionary<string, int>
+                {
+                    [M05LandingFacts.ArrivalSequenceKey] = 1
+                };
+                SeedThroughM09(active, arrivalSequence: 2);
+                SeedAssemblyAndReverseRescue(active);
 
                 // Fresh M12 host opened on arrivalSequence == 2 commits cleanly.
                 using (var freshM12 = new M12BridgeTruthHost(
@@ -188,7 +161,7 @@ namespace Rpg.Tests.Editor
                     staleM16.ActiveView.ProceedToDeskButton.onClick.Invoke();
                     staleM16.ActiveView.StepOutsideButton.onClick.Invoke();
 
-                    values[M05LandingFacts.ArrivalSequenceKey] = 3;
+                    active[M05LandingFacts.ArrivalSequenceKey] = 3;
                     staleM16.ActiveView.PierButton.onClick.Invoke();
                     Assert.That(staleM16.IsCompleted, Is.False);
                     Assert.That(staleM16.ActiveView, Is.Not.Null);
@@ -197,11 +170,16 @@ namespace Rpg.Tests.Editor
                 // The third replay also requires an M09 manifest signed for
                 // its own arrival. Retain the same factual scenario while
                 // exercising the M16 host's independent stale-view guard.
-                Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
-                ReseedRescueThroughNoticeForCurrentArrival(values);
-                Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
-                    20, 23, M09BerthExchangeFlags.HanQiaoCivilianVoyage,
-                    M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
+                active = new Dictionary<string, int>
+                {
+                    [M05LandingFacts.ArrivalSequenceKey] = 2
+                };
+                SeedThroughM09(active, arrivalSequence: 3);
+                SeedAssemblyAndReverseRescue(active);
+                Assert.That(M15FinalRollCallFacts.TryRecord(new M15FinalRollCallRecord(
+                    M15RollCallReader.Protagonist, M15FinalIdentityResponse.PublicTrueName,
+                    M15PensionClosure.StoppedAndReconciled, M15SteleInscription.KeepOriginal,
+                    0, false), read, write), Is.True);
 
                 using (var freshM16 = new M16EpilogueHost(
                     root.transform, () => true, () => true,

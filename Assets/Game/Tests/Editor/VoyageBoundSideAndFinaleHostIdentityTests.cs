@@ -38,7 +38,8 @@ namespace Rpg.Tests.Editor
             Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
             Assert.That(M05LandingFacts.TryRecord(
                 new M05LandingReport(3, 10, true, true), read, write), Is.True);
-            values[M05LandingFacts.ArrivalSequenceKey] = arrivalSequence;
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(arrivalSequence),
+                "Replayed arrival must be recorded through the actual M05 authority.");
 
             Assert.That(M06RescuePlanFacts.TryRecord(
                 new M06ReunionRecord(
@@ -75,53 +76,15 @@ namespace Rpg.Tests.Editor
             view.TalkQiuniangButton.onClick.Invoke();
         }
 
-        // Simulate the actual downstream facts of a replayed landing.
-        // M06 now signs the arrival identity: changing only the sequence
-        // while retaining last voyage's M06/M07/M08 facts is not a fresh voyage.
-        private static void ReseedRescueThroughNoticeForCurrentArrival(
-            Dictionary<string, int> values)
-        {
-            Func<string, int> read = Reader(values);
-            Action<string, int> write = (k, v) => values[k] = v;
-
-            Assert.That(M08FirstWorldNoticeFacts.TryResetForNewVoyage(write), Is.True);
-            Assert.That(M08WorkshopDepositFacts.TryResetForNewVoyage(write), Is.True);
-            Assert.That(M07ExtractionFacts.TryResetForNewVoyage(write), Is.True);
-            Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
-
-            Assert.That(M06RescuePlanFacts.TryRecord(
-                new M06ReunionRecord(
-                    M06RescuePlan.OfficialHandover, true,
-                    M06LetterDeliveryOutcome.NotCarried, true), read, write), Is.True);
-            Assert.That(M07ExtractionFacts.TryRecord(new M07ExtractionRecord(
-                M07ExecutedRoute.OfficialHandover,
-                M07PumpShutdownState.KeptRunning,
-                M07RouteCostFlags.HarborSupplyDebt,
-                boardedFirstBatchCount: 10,
-                lowerLevelEvacuatedCount: 0,
-                M07RusFate.Arrested, M07LedgerState.Preserved,
-                M07LiangChoice.StayOnIsland,
-                M07YidaChoice.HandToInspector,
-                taoJiRescued: true), read, write), Is.True);
-
-            var winch = new M08FirstWinchOrderSession();
-            Assert.That(winch.TryAcquirePart(M08WinchPart.ScrapGear), Is.True);
-            Assert.That(winch.TryAcquirePart(M08WinchPart.DockCable), Is.True);
-            Assert.That(winch.TryAssemble(), Is.True);
-            Assert.That(winch.TryTightenCable(), Is.True);
-            Assert.That(winch.TryTestLift(), Is.True);
-            Assert.That(M08WorkshopDepositFacts.TryConfirm(winch, read, write), Is.True);
-            Assert.That(M08FirstWorldNoticeFacts.TryRecord(true, read, write), Is.True);
-        }
-
         [Test]
         public void StaleM13AndRC01HostsCannotCommitAfterArrivalSequenceAdvances()
         {
             var root = new GameObject("SideFinaleVoyageIdentityRoot");
             var values = new Dictionary<string, int>();
             SeedThroughM08Notice(values, arrivalSequence: 1);
-            Func<string, int> read = Reader(values);
-            Action<string, int> write = (k, v) => values[k] = v;
+            Dictionary<string, int> active = values;
+            Func<string, int> read = key => active.TryGetValue(key, out int value) ? value : 0;
+            Action<string, int> write = (k, v) => active[k] = v;
 
             try
             {
@@ -130,15 +93,20 @@ namespace Rpg.Tests.Editor
                     root.transform, () => true, () => false, () => true, read, write))
                 {
                     Assert.That(staleM13.TryOpen(), Is.True);
-                    values[M05LandingFacts.ArrivalSequenceKey] = 2;
+                    active[M05LandingFacts.ArrivalSequenceKey] = 2;
                     Assert.That(staleM13.TryDeliverQiQueWarning(), Is.False);
                     staleM13.ActiveView.RouteAButton.onClick.Invoke();
                     Assert.That(staleM13.IsDeparted, Is.False);
                     Assert.That(staleM13.ActiveView, Is.Not.Null);
                 }
 
-                // A replay must re-establish M06/M07/M08 for the new arrival.
-                ReseedRescueThroughNoticeForCurrentArrival(values);
+                // Reconstruct the next confirmed M05 arrival from the real
+                // authority rather than relabeling the signed prior landing.
+                active = new Dictionary<string, int>
+                {
+                    [M05LandingFacts.ArrivalSequenceKey] = 1
+                };
+                SeedThroughM08Notice(active, arrivalSequence: 2);
 
                 // Fresh M13 on arrivalSequence == 2 commits cleanly.
                 using (var freshM13 = new M13DepartureRiskHost(
@@ -156,14 +124,17 @@ namespace Rpg.Tests.Editor
                     Assert.That(staleRC01.TryOpen(), Is.True);
                     AdvanceRC01ToDecision(staleRC01.ActiveView);
 
-                    values[M05LandingFacts.ArrivalSequenceKey] = 3;
+                    active[M05LandingFacts.ArrivalSequenceKey] = 3;
                     staleRC01.ActiveView.KeepDeadButton.onClick.Invoke();
                     Assert.That(staleRC01.IsResolved, Is.False);
                     Assert.That(staleRC01.ActiveView, Is.Not.Null);
                 }
 
-                // The third arrival likewise needs its own M06 plan and extraction.
-                ReseedRescueThroughNoticeForCurrentArrival(values);
+                active = new Dictionary<string, int>
+                {
+                    [M05LandingFacts.ArrivalSequenceKey] = 2
+                };
+                SeedThroughM08Notice(active, arrivalSequence: 3);
 
                 // Fresh RC-01 on arrivalSequence == 3 commits cleanly.
                 using (var freshRC01 = new RC01ChenYanHost(
