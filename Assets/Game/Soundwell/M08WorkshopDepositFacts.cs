@@ -39,16 +39,18 @@ namespace Rpg.Soundwell
             return true;
         }
 
-        // A torn new-voyage reset can clear the workshop marker while
-        // leaving an older dock reply or dawn notice in the same Makinom
-        // store. Both occur strictly AFTER a completed M08 winch, so any
-        // nonzero downstream value forbids issuing a fresh deposit.
+        // A torn new-voyage reset can clear the workshop marker (and even the
+        // dawn notice) while leaving an older dock reply, dawn notice, or
+        // RC-01..RC-05 roster case in the same Makinom store. All occur
+        // strictly AFTER a completed M08 winch, so any nonzero downstream
+        // value forbids issuing a fresh deposit.
         public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
         {
             return getInt == null ||
                 getInt(M08DockTruthFacts.ConfirmedKey) != 0 ||
                 getInt(M08DockTruthFacts.ShenRelationResponseKey) != 0 ||
-                getInt(M08FirstWorldNoticeFacts.ConfirmedKey) != 0;
+                getInt(M08FirstWorldNoticeFacts.ConfirmedKey) != 0 ||
+                M08FirstWorldNoticeFacts.HasOrphanedRosterCaseFacts(getInt);
         }
 
         public static bool TryConfirm(M08FirstWinchOrderSession session)
