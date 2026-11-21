@@ -46,6 +46,7 @@ namespace Rpg.Soundwell
     {
         public const int RequiredListeningRounds = 3;
         public const string ConfirmedKey = "rpg.return.rc04.reef-confirmed";
+        public const string PendingSignatureKey = "rpg.return.rc04.pending-resolution-signature";
         public const string RoundsCompletedKey = "rpg.return.rc04.listening-rounds";
         public const string AyuanSongUsedKey = "rpg.return.rc04.ayuan-song-used";
         public const string ResolutionKey = "rpg.return.rc04.resolution";
@@ -66,11 +67,46 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // Persist the unique choice and actual song/decoy strategy before any
+        // outcome field. An interrupted save cannot be claimed by a different
+        // resolution, including one with the same button but different proof.
+        private static int Signature(RC04ReefRecord record)
+        {
+            return 1000 + (int)record.Resolution * 100 +
+                (record.AyuanSongUsed ? 10 : 0) +
+                (record.DecoyAmbushPrepared ? 1 : 0);
+        }
+
+        private static bool CompatiblePending(
+            Func<string, int> read, string key, int expected)
+        {
+            int actual = read(key);
+            return actual == 0 || actual == expected;
+        }
+
         public static bool CanRecord(RC04ReefRecord record, Func<string, int> getInt)
         {
-            return getInt != null &&
-                getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record);
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record))
+                return false;
+
+            int intent = getInt(PendingSignatureKey);
+            if (intent == 0)
+            {
+                // Orphaned payload from a legacy interrupted write does not
+                // authorize an unrelated new result.
+                return getInt(RoundsCompletedKey) == 0 &&
+                    getInt(AyuanSongUsedKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(DecoyPreparedKey) == 0;
+            }
+
+            return intent == Signature(record) &&
+                CompatiblePending(getInt, RoundsCompletedKey, RequiredListeningRounds) &&
+                CompatiblePending(getInt, AyuanSongUsedKey, record.AyuanSongUsed ? 1 : 0) &&
+                CompatiblePending(getInt, ResolutionKey, (int)record.Resolution) &&
+                CompatiblePending(getInt, DecoyPreparedKey,
+                    record.DecoyAmbushPrepared ? 1 : 0);
         }
 
         public static bool TryRecord(RC04ReefRecord record)
@@ -90,7 +126,7 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, Signature(record));
             setInt(RoundsCompletedKey, record.ListeningRoundsCompleted);
             setInt(AyuanSongUsedKey, record.AyuanSongUsed ? 1 : 0);
             setInt(ResolutionKey, (int)record.Resolution);
@@ -111,8 +147,18 @@ namespace Rpg.Soundwell
             record = null;
             if (getInt == null)
                 return false;
-            if (getInt(ConfirmedKey) != 1)
-                return true;
+            int confirmed = getInt(ConfirmedKey);
+            if (confirmed == 0)
+            {
+                // A torn outcome is never a completed reef encounter.
+                return getInt(PendingSignatureKey) == 0 &&
+                    getInt(RoundsCompletedKey) == 0 &&
+                    getInt(AyuanSongUsedKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(DecoyPreparedKey) == 0;
+            }
+            if (confirmed != 1)
+                return false;
 
             int rounds = getInt(RoundsCompletedKey);
             int rawSong = getInt(AyuanSongUsedKey);
@@ -128,7 +174,11 @@ namespace Rpg.Soundwell
             var saved = new RC04ReefRecord(
                 rounds, rawSong == 1, (RC04Resolution)rawRes,
                 decoyAmbushPrepared: rawDecoy == 1);
-            if (IsValidRecord(saved))
+            // A fully confirmed older save has no intent key and must
+            // remain readable. New saves must match their own durable intent.
+            int intent = getInt(PendingSignatureKey);
+            if (IsValidRecord(saved) &&
+                (intent == 0 || intent == Signature(saved)))
                 record = saved;
             return true;
         }
@@ -138,6 +188,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
             setInt(RoundsCompletedKey, 0);
             setInt(AyuanSongUsedKey, 0);
             setInt(ResolutionKey, 0);
