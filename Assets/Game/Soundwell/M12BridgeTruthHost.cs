@@ -5,9 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M12 ("一面旗帜不等于每个人") host. Enforces verified
-    /// M11ReverseRescueFacts, live bell-tower/camp presence, and clean
-    /// ConfirmedKey before opening M12BridgeTruthView, and persists the chosen
-    /// truth disclosure through M12BridgeTruthSession with retry-safe recovery.
+    /// M11ReverseRescueFacts, live bell-tower/camp presence, monotonic M05 arrival
+    /// identity, and clean ConfirmedKey before opening M12BridgeTruthView, and
+    /// persists the chosen truth disclosure through M12BridgeTruthSession.
     /// </summary>
     public sealed class M12BridgeTruthHost : IDisposable
     {
@@ -21,6 +21,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private M12BridgeTruthSession session;
         private M12BridgeTruthView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public M12BridgeTruthSession Session => session;
@@ -71,6 +72,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M12BridgeTruthView(
                 parent,
                 session,
@@ -81,7 +83,9 @@ namespace Rpg.Soundwell
 
         private void HandleDisclosureSubmitted(M12TruthDisclosure disclosure)
         {
-            if (disposed || session == null || !atBellTowerCamp())
+            if (disposed || session == null || !atBellTowerCamp() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TryDecideTruthAndCommit(disclosure, getInt, setInt))
@@ -89,6 +93,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -97,6 +102,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

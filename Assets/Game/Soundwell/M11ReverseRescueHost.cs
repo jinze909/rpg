@@ -5,9 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M11 ("这次轮到她来找你") host. Enforces verified
-    /// M10AssemblyFacts, live Huilan Pass presence, and clean ConfirmedKey
-    /// before opening M11ReverseRescueView, and persists the outcome through
-    /// M11ReverseRescueSession with retry-safe idempotent commit recovery.
+    /// M10AssemblyFacts, live Huilan Pass presence, monotonic M05 arrival identity,
+    /// and clean ConfirmedKey before opening M11ReverseRescueView, and persists
+    /// the outcome through M11ReverseRescueSession with retry-safe recovery.
     /// </summary>
     public sealed class M11ReverseRescueHost : IDisposable
     {
@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private M11ReverseRescueSession session;
         private M11ReverseRescueView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public M11ReverseRescueSession Session => session;
@@ -59,6 +60,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M11ReverseRescueView(
                 parent,
                 session,
@@ -68,7 +70,9 @@ namespace Rpg.Soundwell
 
         private void HandleCommitRequested()
         {
-            if (disposed || session == null || !atHuilanPass())
+            if (disposed || session == null || !atHuilanPass() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TryCommit(getInt, setInt))
@@ -76,6 +80,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -84,6 +89,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }
