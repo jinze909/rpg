@@ -88,6 +88,93 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OrphanedM08FactsBlockAnotherM07RollCallUntilExplicitReset()
+        {
+            var root = new GameObject("M07 orphaned M08 successor facts");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.OfficialHandover);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M07ExtractionNightHost host = null;
+            try
+            {
+                // M08 can be only partly reset: even a nonstandard or
+                // unconfirmed successor value is evidence of the old voyage.
+                string[] orphanedKeys =
+                {
+                    M08WorkshopDepositFacts.CompletedKey,
+                    M08DockTruthFacts.ConfirmedKey,
+                    M08DockTruthFacts.ShenRelationResponseKey,
+                    M08FirstWorldNoticeFacts.ConfirmedKey
+                };
+                foreach (string key in orphanedKeys)
+                {
+                    values[key] = 99;
+                    host = new M07ExtractionNightHost(
+                        root.transform, () => true, () => true, read, write);
+                    Assert.That(host.TryOpen(), Is.False,
+                        $"Stale downstream '{key}' must not reopen the old rescue.");
+                    Assert.That(host.ActiveView, Is.Null);
+                    Assert.That(read(M07ExtractionFacts.ConfirmedKey), Is.Zero);
+                    host.Dispose();
+                    host = null;
+                    values[key] = 0;
+                }
+
+                // A genuinely clean new voyage is not permanently locked.
+                host = new M07ExtractionNightHost(
+                    root.transform, () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                AdvanceToDockRollCall(host.ActiveView);
+                host.ActiveView.LiangStayButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void M08SuccessorAppearingDuringM07DialogueCannotBeOverwritten()
+        {
+            var root = new GameObject("M07 late orphaned M08 fact");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.CargoCover);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M07ExtractionNightHost host = null;
+            try
+            {
+                host = new M07ExtractionNightHost(
+                    root.transform, () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                AdvanceToDockRollCall(view);
+
+                // The UI was clean when opened, but another scene wrote a
+                // downstream fact before the authoritative M07 settlement.
+                values[M08DockTruthFacts.ShenRelationResponseKey] = 2;
+                view.LiangStayButton.onClick.Invoke();
+                Assert.That(host.ActiveView, Is.SameAs(view));
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(read(M07ExtractionFacts.ConfirmedKey), Is.Zero);
+
+                values[M08DockTruthFacts.ShenRelationResponseKey] = 0;
+                view.LiangStayButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void OldExtractionViewCannotCommitAfterIdenticalNewLanding()
         {
             var root = new GameObject("M07 stale roll-call view");
