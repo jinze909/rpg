@@ -6,8 +6,9 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M10 ("靖湾会盟") host. Enforces verified M09BerthTableFacts,
     /// live Jingwan assembly presence, monotonic M05 arrival identity, and clean
-    /// ConfirmedKey before opening M10AssemblyView, and persists the outcome through
-    /// M10AssemblySession with retry-safe idempotent commit recovery.
+    /// M10AssemblyFacts state (blocking torn/partial saves) before opening
+    /// M10AssemblyView, and persists the outcome through M10AssemblySession with
+    /// retry-safe idempotent commit recovery.
     /// </summary>
     public sealed class M10AssemblyHost : IDisposable
     {
@@ -51,7 +52,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atJingwanAssembly() ||
-                getInt(M10AssemblyFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!M10AssemblySession.TryCreateFromSavedFacts(getInt, out M10AssemblySession created))
@@ -68,6 +69,19 @@ namespace Rpg.Soundwell
                 () => M10AssemblyFacts.EvaluateRC05SupplyNeed(getInt),
                 HandleCommitRequested);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M10AssemblyFacts.ConfirmedKey) != 0 ||
+                getInt(M10AssemblyFacts.WorldNoticeThreeKey) != 0 ||
+                getInt(M10AssemblyFacts.RosterAccuracyKey) != 0 ||
+                getInt(M10AssemblyFacts.BattleReportSourceKey) != 0 ||
+                getInt(M10AssemblyFacts.HanLedgerUseKey) != 0 ||
+                getInt(M10AssemblyFacts.SupplyContractKey) != 0 ||
+                getInt(M10AssemblyFacts.LeverageWeakenedRC02Key) != 0 ||
+                getInt(M10AssemblyFacts.CoversRC05FamiliesKey) != 0 ||
+                getInt(M10AssemblyFacts.BellTowerSeizureKey) != 0;
         }
 
         private void HandleCommitRequested()

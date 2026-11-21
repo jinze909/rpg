@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M14 ("同一个海峡，不同的进场") host. Enforces verified
     /// M13DepartureRiskFacts, live strait-action presence, monotonic M05 arrival
-    /// identity, and clean ConfirmedKey before opening M14FinalPassageView, and
-    /// persists the outcome through M14FinalPassageSession with retry-safe recovery.
+    /// identity, and clean M14FinalPassageFacts state (blocking torn/partial saves)
+    /// before opening M14FinalPassageView.
     /// </summary>
     public sealed class M14FinalPassageHost : IDisposable
     {
@@ -67,7 +67,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atStraitAction() ||
-                getInt(M14FinalPassageFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!M14FinalPassageSession.TryCreateFromSavedFacts(
@@ -87,6 +87,20 @@ namespace Rpg.Soundwell
                 readCivilianCounts,
                 HandleAyuanSubmitted);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M14FinalPassageFacts.ConfirmedKey) != 0 ||
+                getInt(M14FinalPassageFacts.ExecutedRouteKey) != 0 ||
+                getInt(M14FinalPassageFacts.PassageOutcomeKey) != 0 ||
+                getInt(M14FinalPassageFacts.CivilianExitVerifiedKey) != 0 ||
+                getInt(M14FinalPassageFacts.DepartingCountKey) != 0 ||
+                getInt(M14FinalPassageFacts.StayingCountKey) != 0 ||
+                getInt(M14FinalPassageFacts.UndecidedCountKey) != 0 ||
+                getInt(M14FinalPassageFacts.BorderForceActionKey) != 0 ||
+                getInt(M14FinalPassageFacts.LuJunDispositionKey) != 0 ||
+                getInt(M14FinalPassageFacts.FogMasteryBonusKey) != 0;
         }
 
         private void HandleAyuanSubmitted(M14AyuanOutcome outcome)
