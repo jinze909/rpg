@@ -69,6 +69,7 @@ namespace Rpg.Soundwell
     {
         public const int RosterCaseNumber = 1;
         public const string ConfirmedKey = "rpg.return.rc01.case-confirmed";
+        public const string PendingSignatureKey = "rpg.return.rc01.pending-roster-signature";
         public const string CluesMaskKey = "rpg.return.rc01.clues-mask";
         public const string TalkOrderKey = "rpg.return.rc01.talk-order";
         public const string OutcomeKey = "rpg.return.rc01.chen-yan";
@@ -90,11 +91,43 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // A lost acknowledgement cannot let a second registration replace
+        // Chen Yan's chosen outcome or which household was heard first.
+        // Both fields are persisted in this intent before the story payload.
+        private static int Signature(RC01ChenYanRecord record)
+        {
+            return 1000 + (int)record.Outcome * 10 + (int)record.TalkOrder;
+        }
+
+        private static bool CompatiblePending(Func<string, int> read,
+            string key, int expected)
+        {
+            int actual = read(key);
+            return actual == 0 || actual == expected;
+        }
+
         public static bool CanRecord(RC01ChenYanRecord record, Func<string, int> getInt)
         {
-            return getInt != null &&
-                getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record, getInt))
+                return false;
+
+            int intent = getInt(PendingSignatureKey);
+            if (intent == 0)
+            {
+                // No intent means a clean new encounter only. Legacy orphaned
+                // payloads cannot be silently adopted as a new outcome.
+                return getInt(CluesMaskKey) == 0 &&
+                    getInt(TalkOrderKey) == 0 &&
+                    getInt(OutcomeKey) == 0 &&
+                    getInt(LinSuNoteKey) == 0;
+            }
+
+            return intent == Signature(record) &&
+                CompatiblePending(getInt, CluesMaskKey, (int)RC01FerryClues.All) &&
+                CompatiblePending(getInt, TalkOrderKey, (int)record.TalkOrder) &&
+                CompatiblePending(getInt, OutcomeKey, (int)record.Outcome) &&
+                CompatiblePending(getInt, LinSuNoteKey, 1);
         }
 
         public static bool TryRecord(RC01ChenYanRecord record)
@@ -114,7 +147,7 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, Signature(record));
             setInt(CluesMaskKey, (int)record.CluesFound);
             setInt(TalkOrderKey, (int)record.TalkOrder);
             setInt(OutcomeKey, (int)record.Outcome);
@@ -135,8 +168,19 @@ namespace Rpg.Soundwell
             record = null;
             if (getInt == null)
                 return false;
-            if (getInt(ConfirmedKey) != 1)
-                return true;
+            int confirmed = getInt(ConfirmedKey);
+            if (confirmed == 0)
+            {
+                // Torn records must be recovered by the exact prior choice,
+                // never represented as a clean or completed roster case.
+                return getInt(PendingSignatureKey) == 0 &&
+                    getInt(CluesMaskKey) == 0 &&
+                    getInt(TalkOrderKey) == 0 &&
+                    getInt(OutcomeKey) == 0 &&
+                    getInt(LinSuNoteKey) == 0;
+            }
+            if (confirmed != 1)
+                return false;
 
             int rawClues = getInt(CluesMaskKey);
             int rawOrder = getInt(TalkOrderKey);
@@ -154,7 +198,11 @@ namespace Rpg.Soundwell
                 (RC01TalkOrder)rawOrder,
                 (RC01ChenYanOutcome)rawOutcome,
                 linSuRegisterNoteRecorded: true);
-            if (IsValidRecord(saved, getInt))
+            // Fully confirmed pre-upgrade saves have no intent key.
+            // Retain them while rejecting mismatched new confirmations.
+            int intent = getInt(PendingSignatureKey);
+            if (IsValidRecord(saved, getInt) &&
+                (intent == 0 || intent == Signature(saved)))
                 record = saved;
             return true;
         }
@@ -171,6 +219,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
             setInt(CluesMaskKey, 0);
             setInt(TalkOrderKey, 0);
             setInt(OutcomeKey, 0);

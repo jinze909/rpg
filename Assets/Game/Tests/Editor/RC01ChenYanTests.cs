@@ -173,6 +173,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InterruptedRosterIntentCannotSwapFamilyChoiceOrTalkOrder()
+        {
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var original = new RC01ChenYanRecord(
+                RC01FerryClues.All, RC01TalkOrder.LinSuFirst,
+                RC01ChenYanOutcome.RestoreLivingName, true);
+            var differentChoice = new RC01ChenYanRecord(
+                RC01FerryClues.All, RC01TalkOrder.LinSuFirst,
+                RC01ChenYanOutcome.KeepMarkedDead, true);
+            var changedOrder = new RC01ChenYanRecord(
+                RC01FerryClues.All, RC01TalkOrder.QiuniangFirst,
+                RC01ChenYanOutcome.RestoreLivingName, true);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                RC01ChenYanFacts.TryRecord(original, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == RC01ChenYanFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Lost save after intent");
+                }));
+            Assert.That(read(RC01ChenYanFacts.PendingSignatureKey), Is.Not.Zero);
+            Assert.That(RC01ChenYanFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC01ChenYanFacts.TryRecord(differentChoice, read, write), Is.False);
+            Assert.That(RC01ChenYanFacts.TryRecord(changedOrder, read, write), Is.False);
+            Assert.That(RC01ChenYanFacts.TryRecord(original, read, write), Is.True);
+
+            Assert.That(RC01ChenYanFacts.TryRead(
+                read, out RC01ChenYanRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Outcome, Is.EqualTo(original.Outcome));
+            Assert.That(saved.Value.TalkOrder, Is.EqualTo(original.TalkOrder));
+
+            // Fully confirmed legacy registrations have no intent signature.
+            values[RC01ChenYanFacts.PendingSignatureKey] = 0;
+            Assert.That(RC01ChenYanFacts.TryRead(
+                read, out RC01ChenYanRecord? oldSave), Is.True);
+            Assert.That(oldSave.HasValue, Is.True);
+
+            Assert.That(RC01ChenYanFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(RC01ChenYanFacts.PendingSignatureKey), Is.Zero);
+            values[RC01ChenYanFacts.CluesMaskKey] = (int)RC01FerryClues.All;
+            Assert.That(RC01ChenYanFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC01ChenYanFacts.TryRecord(original, read, write), Is.False);
+        }
+
+        [Test]
         public void CorruptOrResetUpstreamFactsInvalidateReadbackAndNullDelegatesFailClosed()
         {
             var values = new Dictionary<string, int>();
