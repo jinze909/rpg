@@ -71,6 +71,7 @@ namespace Rpg.Soundwell
     {
         public const int RosterCaseNumber = 3;
         public const string ConfirmedKey = "rpg.return.rc03.case-confirmed";
+        public const string PendingSignatureKey = "rpg.return.rc03.pending-decision-signature";
         public const string VisitsMaskKey = "rpg.return.rc03.island-visits-mask";
         public const string ResolutionKey = "rpg.return.rc03.baiji";
         public const string PumpDiagramKey = "rpg.return.rc03.pump-diagram-verified";
@@ -105,11 +106,52 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // The outcome and every consent/training fact are locked before the
+        // first Makinom payload field. A torn charter decision cannot turn
+        // Lan Ruo's unconsented stay into a saved one, or overwrite a pump plan.
+        private static int Signature(RC03BaijiMineRecord record)
+        {
+            return 10000 + (int)record.Resolution * 1000 +
+                (record.PumpDiagramVerified ? 100 : 0) +
+                (record.SuccessorTrainingSecured ? 10 : 0) +
+                (record.LanRuoConsentedToStay ? 1 : 0);
+        }
+
+        private static bool CompatiblePending(Func<string, int> read,
+            string key, int expected)
+        {
+            int actual = read(key);
+            return actual == 0 || actual == expected;
+        }
+
         public static bool CanRecord(RC03BaijiMineRecord record, Func<string, int> getInt)
         {
-            return getInt != null &&
-                getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record, getInt))
+                return false;
+
+            int intent = getInt(PendingSignatureKey);
+            if (intent == 0)
+            {
+                // Legacy orphan payloads without an intent are not fresh
+                // registration records; they require an explicit reset.
+                return getInt(VisitsMaskKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(PumpDiagramKey) == 0 &&
+                    getInt(SuccessorTrainingKey) == 0 &&
+                    getInt(LanRuoStayConsentKey) == 0 &&
+                    getInt(ChairmanLuoNoteKey) == 0;
+            }
+
+            return intent == Signature(record) &&
+                CompatiblePending(getInt, VisitsMaskKey, (int)RC03IslandVisits.All) &&
+                CompatiblePending(getInt, ResolutionKey, (int)record.Resolution) &&
+                CompatiblePending(getInt, PumpDiagramKey, record.PumpDiagramVerified ? 1 : 0) &&
+                CompatiblePending(getInt, SuccessorTrainingKey,
+                    record.SuccessorTrainingSecured ? 1 : 0) &&
+                CompatiblePending(getInt, LanRuoStayConsentKey,
+                    record.LanRuoConsentedToStay ? 1 : 0) &&
+                CompatiblePending(getInt, ChairmanLuoNoteKey, 1);
         }
 
         public static bool TryRecord(RC03BaijiMineRecord record)
@@ -129,7 +171,7 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, Signature(record));
             setInt(VisitsMaskKey, (int)record.VisitsCompleted);
             setInt(ResolutionKey, (int)record.Resolution);
             setInt(PumpDiagramKey, record.PumpDiagramVerified ? 1 : 0);
@@ -152,8 +194,20 @@ namespace Rpg.Soundwell
             record = null;
             if (getInt == null)
                 return false;
-            if (getInt(ConfirmedKey) != 1)
-                return true;
+            int confirmed = getInt(ConfirmedKey);
+            if (confirmed == 0)
+            {
+                // Incomplete charter writes are not silently readable.
+                return getInt(PendingSignatureKey) == 0 &&
+                    getInt(VisitsMaskKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(PumpDiagramKey) == 0 &&
+                    getInt(SuccessorTrainingKey) == 0 &&
+                    getInt(LanRuoStayConsentKey) == 0 &&
+                    getInt(ChairmanLuoNoteKey) == 0;
+            }
+            if (confirmed != 1)
+                return false;
 
             int rawVisits = getInt(VisitsMaskKey);
             int rawRes = getInt(ResolutionKey);
@@ -177,7 +231,11 @@ namespace Rpg.Soundwell
                 rawTraining == 1,
                 rawConsent == 1,
                 chairmanLuoRegisterNoteRecorded: true);
-            if (IsValidRecord(saved, getInt))
+            // A confirmed older save predates the intent key. Preserve it,
+            // but reject newer complete records whose signature was altered.
+            int intent = getInt(PendingSignatureKey);
+            if (IsValidRecord(saved, getInt) &&
+                (intent == 0 || intent == Signature(saved)))
                 record = saved;
             return true;
         }
@@ -194,6 +252,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
             setInt(VisitsMaskKey, 0);
             setInt(ResolutionKey, 0);
             setInt(PumpDiagramKey, 0);

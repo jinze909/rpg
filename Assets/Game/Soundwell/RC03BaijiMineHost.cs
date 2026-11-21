@@ -77,6 +77,7 @@ namespace Rpg.Soundwell
         private bool HasAnyPersistedFacts()
         {
             return getInt(RC03BaijiMineFacts.ConfirmedKey) != 0 ||
+                getInt(RC03BaijiMineFacts.PendingSignatureKey) != 0 ||
                 getInt(RC03BaijiMineFacts.VisitsMaskKey) != 0 ||
                 getInt(RC03BaijiMineFacts.ResolutionKey) != 0 ||
                 getInt(RC03BaijiMineFacts.PumpDiagramKey) != 0 ||

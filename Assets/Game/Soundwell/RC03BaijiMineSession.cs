@@ -133,7 +133,12 @@ namespace Rpg.Soundwell
                 resolution == RC03Resolution.StayOneYearByConsent && LanRuoConsentedToStay,
                 chairmanLuoRegisterNoteRecorded: true);
 
-            if (!RC03BaijiMineFacts.TryRead(getInt, out RC03BaijiMineRecord? existing))
+            if (!RC03BaijiMineFacts.TryRead(
+                    getInt, out RC03BaijiMineRecord? existing) &&
+                // A torn payload is recoverable only if the previous decision
+                // and all already-persisted proof flags match this record.
+                (getInt(RC03BaijiMineFacts.ConfirmedKey) != 0 ||
+                 !RC03BaijiMineFacts.CanRecord(record, getInt)))
                 return false;
 
             // Recover idempotently if a prior write committed ConfirmedKey = 1

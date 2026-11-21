@@ -163,6 +163,56 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornBaijiIntentProtectsResolutionConsentAndTrainingAcrossRetries()
+        {
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var original = new RC03BaijiMineRecord(
+                RC03IslandVisits.All, RC03Resolution.StayOneYearByConsent,
+                false, false, true, true);
+            var differentChoice = new RC03BaijiMineRecord(
+                RC03IslandVisits.All, RC03Resolution.SecretlyEvacuateLanRuo,
+                false, false, false, true);
+            var alternateFacts = new RC03BaijiMineRecord(
+                RC03IslandVisits.All, RC03Resolution.StayOneYearByConsent,
+                true, true, true, true);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                RC03BaijiMineFacts.TryRecord(original, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == RC03BaijiMineFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Interrupted after island intent");
+                }));
+            Assert.That(read(RC03BaijiMineFacts.PendingSignatureKey), Is.Not.Zero);
+            Assert.That(RC03BaijiMineFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC03BaijiMineFacts.TryRecord(
+                differentChoice, read, write), Is.False);
+            Assert.That(RC03BaijiMineFacts.TryRecord(
+                alternateFacts, read, write), Is.False);
+            Assert.That(RC03BaijiMineFacts.TryRecord(original, read, write), Is.True);
+            Assert.That(RC03BaijiMineFacts.TryRead(
+                read, out RC03BaijiMineRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Resolution, Is.EqualTo(original.Resolution));
+            Assert.That(saved.Value.LanRuoConsentedToStay, Is.True);
+
+            values[RC03BaijiMineFacts.PendingSignatureKey] = 0;
+            Assert.That(RC03BaijiMineFacts.TryRead(
+                read, out RC03BaijiMineRecord? legacy), Is.True);
+            Assert.That(legacy.HasValue, Is.True,
+                "Old confirmed island stories must stay readable.");
+
+            Assert.That(RC03BaijiMineFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(RC03BaijiMineFacts.PendingSignatureKey), Is.Zero);
+            values[RC03BaijiMineFacts.VisitsMaskKey] = (int)RC03IslandVisits.All;
+            Assert.That(RC03BaijiMineFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC03BaijiMineFacts.TryRecord(original, read, write), Is.False);
+        }
+
+        [Test]
         public void CorruptOrResetUpstreamFactsInvalidateReadbackAndNullDelegatesFailClosed()
         {
             var values = new Dictionary<string, int>();

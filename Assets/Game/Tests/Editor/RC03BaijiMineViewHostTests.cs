@@ -104,6 +104,32 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void IncompleteCharterIntentBlocksFreshIslandEncounter()
+        {
+            var root = new GameObject("RC03 torn charter intent");
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            RC03BaijiMineHost host = null;
+            try
+            {
+                host = new RC03BaijiMineHost(root.transform,
+                    () => true, () => true, () => true, () => true, read, write);
+                values[RC03BaijiMineFacts.PendingSignatureKey] = 13000;
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                values[RC03BaijiMineFacts.PendingSignatureKey] = 0;
+                Assert.That(host.TryOpen(), Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void AmendCharterUnlocksOnlyAfterDiagramAndTrainingAndPersistsOnce()
         {
             var root = new GameObject("RC03 host amend");
