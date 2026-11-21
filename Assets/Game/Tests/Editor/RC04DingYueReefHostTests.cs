@@ -91,6 +91,45 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornUnconfirmedReefOutcomeCannotReopenAsFreshListeningEncounter()
+        {
+            var root = new GameObject("RC04 torn reef record");
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            RC04DingYueReefHost host = null;
+            try
+            {
+                host = new RC04DingYueReefHost(root.transform,
+                    () => true, _ => true, read, write);
+                foreach (string orphanedKey in new[]
+                {
+                    RC04DingYueReefFacts.RoundsCompletedKey,
+                    RC04DingYueReefFacts.AyuanSongUsedKey,
+                    RC04DingYueReefFacts.ResolutionKey,
+                    RC04DingYueReefFacts.DecoyPreparedKey
+                })
+                {
+                    values[orphanedKey] = 1;
+                    Assert.That(host.TryOpenListening(), Is.False,
+                        "Partially persisted reef outcomes cannot restart the story: " + orphanedKey);
+                    Assert.That(host.ActiveListeningView, Is.Null);
+                    values[orphanedKey] = 0;
+                }
+
+                Assert.That(host.TryOpenListening(), Is.True,
+                    "A genuinely clean voyage may start fog listening.");
+                Assert.That(host.ActiveListeningView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ListeningHandoffRequiresVerifiedApproachAndTransitionsToResolutionView()
         {
             var root = new GameObject("RC04 host handoff");
