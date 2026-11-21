@@ -5,7 +5,8 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M11 ("这次轮到她来找你") host. Enforces verified
-    /// M10AssemblyFacts, live Huilan Pass presence, monotonic M05 arrival identity,
+    /// M10AssemblyFacts, live Huilan Pass presence, live Shen Li / Oulin
+    /// participation revalidation at commit time, monotonic M05 arrival identity,
     /// and clean M11ReverseRescueFacts state (blocking torn/partial saves) before
     /// opening M11ReverseRescueView, and persists the outcome with retry safety.
     /// </summary>
@@ -20,6 +21,8 @@ namespace Rpg.Soundwell
         private M11ReverseRescueSession session;
         private M11ReverseRescueView activeView;
         private int? openedArrivalSequence;
+        private bool openedShenLiAccompanying;
+        private bool openedOulinParticipating;
         private bool disposed;
 
         public M11ReverseRescueSession Session => session;
@@ -54,13 +57,17 @@ namespace Rpg.Soundwell
                 HasAnyPersistedFacts())
                 return false;
 
+            bool shenLi = shenLiAccompanying();
+            bool oulin = oulinParticipating();
             if (!M11ReverseRescueSession.TryCreateFromSavedFacts(
-                    getInt, shenLiAccompanying(), oulinParticipating(),
+                    getInt, shenLi, oulin,
                     out M11ReverseRescueSession created))
                 return false;
 
             session = created;
             openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedShenLiAccompanying = shenLi;
+            openedOulinParticipating = oulin;
             activeView = new M11ReverseRescueView(
                 parent,
                 session,
@@ -85,7 +92,9 @@ namespace Rpg.Soundwell
         {
             if (disposed || session == null || !atHuilanPass() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                shenLiAccompanying() != openedShenLiAccompanying ||
+                oulinParticipating() != openedOulinParticipating)
                 return;
 
             if (!session.TryCommit(getInt, setInt))
