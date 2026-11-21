@@ -87,9 +87,9 @@ namespace Rpg.Tests.Editor
                 M11RescueProvider.FallbackPaidArtisans, 0, false,
                 M11ShenDivisionPact.NoneShenAbsent), read, write), Is.True);
             Assert.That(M12BridgeTruthFacts.TryRecord(new M12BridgeTruthRecord(
-                M12LuConfrontationReply.YouSaidThatLastTime,
-                M12StatementFlags.JiangShenHeard | M12StatementFlags.HanAndYiLeiHeard | M12StatementFlags.ShenLiHeard,
-                false, M12TruthDisclosure.SealTruth, false, false, false), read, write), Is.True);
+                false, false, M12LuConfrontationReply.SomeWantNoMoreWar,
+                false, M12StatementFlags.RequiredBase, false, false,
+                M12TruthDisclosure.SealTruth), read, write), Is.True);
             Assert.That(M13DepartureRiskFacts.TryRecordDeparture(new M13DepartureRecord(
                 M13ApproachRoute.RouteASupervisedCivilian, true, false, false, false),
                 read, write), Is.True);
@@ -233,7 +233,7 @@ namespace Rpg.Tests.Editor
                     Assert.That(host.IsOpen, Is.True);
 
                     var view = host.ActiveView;
-                    SoundwellUiLocalization.Language = SoundwellUiLocalization.Chinese;
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
                     Assert.That(view.Heading.text, Does.Contain("主线名册"));
                     Assert.That(view.Body.text, Does.Contain("M09"));
 
@@ -241,7 +241,7 @@ namespace Rpg.Tests.Editor
                     Assert.That(view.ActiveTab, Is.EqualTo(ReturnStoryLedgerTab.RosterCases));
                     Assert.That(view.Body.text, Does.Contain("可调查"));
 
-                    SoundwellUiLocalization.Language = SoundwellUiLocalization.English;
+                    SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                     Assert.That(view.Heading.text, Does.Contain("ROSTER CASES"));
                     Assert.That(view.Body.text, Does.Contain("Available"));
 
@@ -256,7 +256,7 @@ namespace Rpg.Tests.Editor
             }
             finally
             {
-                SoundwellUiLocalization.Language = previousLanguage;
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
