@@ -131,9 +131,21 @@ namespace Rpg.Soundwell
                   M07RouteCostFlags.PierRepairAndInjuryCost |
                   M07RouteCostFlags.FallbackTransferCost);
 
+        // M08 is strictly downstream of a completed M07 extraction. A torn
+        // new-voyage reset may clear M07 while leaving an older commission,
+        // night-dock reply or dawn notice. Read raw values: a partially written
+        // successor is still evidence that this is not a clean new roll call.
+        public static bool HasOrphanedM08SuccessorFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(M08WorkshopDepositFacts.CompletedKey) != 0 ||
+                M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         public static bool CanRecord(M07ExtractionRecord record, Func<string, int> getInt)
         {
-            if (getInt == null || getInt(ConfirmedKey) != 0)
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                HasOrphanedM08SuccessorFacts(getInt))
                 return false;
             return IsValidRecord(record, getInt);
         }
