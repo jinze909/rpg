@@ -25,6 +25,10 @@ namespace Rpg.Soundwell
     public static class M06MineCampReconFacts
     {
         public const string ObservedMaskKey = "rpg.return.m06.mine-camp-recon-observed";
+        // ArrivalSequence + 1. A zero identity means an unbound older
+        // observation that must be re-inspected before this voyage earns it.
+        public const string ObservedArrivalIdentityKey =
+            "rpg.return.m06.mine-camp-recon-arrival-identity";
         public const int AllLeadsMask = 15;
 
         public static bool TryRead(out int mask)
@@ -41,14 +45,22 @@ namespace Rpg.Soundwell
                 return false;
 
             int saved = getInt(ObservedMaskKey);
-            if (saved < 0 || (saved & ~AllLeadsMask) != 0)
+            int bound = getInt(ObservedArrivalIdentityKey);
+            if (saved < 0 || (saved & ~AllLeadsMask) != 0 || bound < 0)
                 return false;
+            if (saved == 0)
+                return true;
 
-            // Stale recon bits from a previous or invalidated voyage cannot
-            // survive without a currently verified M05 landing.
-            if (saved != 0 &&
-                (!M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
-                 !landing.HasValue))
+            // A verified landing is necessary but not sufficient: an
+            // interrupted voyage reset can preserve the old recon bits while
+            // confirming an otherwise identical second landing.
+            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
+                !landing.HasValue)
+                return true;
+            int sequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (sequence < 0 || sequence == int.MaxValue)
+                return false;
+            if (bound != sequence + 1)
                 return true;
 
             mask = saved;
@@ -93,8 +105,25 @@ namespace Rpg.Soundwell
                 return false;
 
             int saved = getInt(ObservedMaskKey);
-            if (saved < 0 || (saved & ~AllLeadsMask) != 0)
+            int bound = getInt(ObservedArrivalIdentityKey);
+            int sequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (saved < 0 || (saved & ~AllLeadsMask) != 0 ||
+                bound < 0 || sequence < 0 || sequence == int.MaxValue)
                 return false;
+
+            int identity = sequence + 1;
+            if (bound != identity)
+            {
+                // A real inspection may start this arrival's recon record.
+                // Clear the previous mask BEFORE publishing the new arrival
+                // binding: a torn Makinom write must never grant old leads
+                // to the new voyage or silently convert an unsigned legacy
+                // save into a verified observation.
+                if (saved != 0)
+                    setInt(ObservedMaskKey, 0);
+                setInt(ObservedArrivalIdentityKey, identity);
+                saved = 0;
+            }
 
             int next = saved | (1 << (int)lead);
             if (next != saved)
@@ -114,6 +143,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ObservedMaskKey, 0);
+            setInt(ObservedArrivalIdentityKey, 0);
             return true;
         }
 
