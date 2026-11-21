@@ -158,11 +158,14 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(0)]
-        [TestCase(1)]
-        [TestCase(2)]
-        [TestCase(3)]
-        public void HostRejectsStaleLiveEvidenceAtFinalCommitAndAllowsFreshRetry(int withdrawnEvidence)
+        [Test]
+        public void HostRejectsStaleLiveEvidenceAtFinalCommitAndAllowsFreshRetry()
+        {
+            for (int withdrawnEvidence = 0; withdrawnEvidence < 4; withdrawnEvidence++)
+                CheckStaleLiveEvidenceRecovery(withdrawnEvidence);
+        }
+
+        private static void CheckStaleLiveEvidenceRecovery(int withdrawnEvidence)
         {
             var root = new GameObject("ST03 host live evidence reset");
             var values = new Dictionary<string, int>();
