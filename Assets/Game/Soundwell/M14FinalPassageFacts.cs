@@ -174,6 +174,29 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(ExecutedRouteKey) != 0 ||
+                getInt(PassageOutcomeKey) != 0 ||
+                getInt(CivilianExitVerifiedKey) != 0 ||
+                getInt(DepartingCountKey) != 0 ||
+                getInt(StayingCountKey) != 0 ||
+                getInt(UndecidedCountKey) != 0 ||
+                getInt(BorderForceActionKey) != 0 ||
+                getInt(LuJunDispositionKey) != 0 ||
+                getInt(FogMasteryBonusKey) != 0 ||
+                getInt(M13DepartureRiskFacts.AyuanOutcomeKey) != 0;
+        }
+
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M15FinalRollCallFacts.HasAnyPersistedFacts(getInt) ||
+                M15FinalRollCallFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);
@@ -184,6 +207,7 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
+                !HasOrphanedDownstreamFacts(getInt) &&
                 IsValidRecord(record, getInt) &&
                 CompatiblePending(getInt, M13DepartureRiskFacts.AyuanOutcomeKey, (int)record.AyuanOutcome) &&
                 CompatiblePending(getInt, ExecutedRouteKey, (int)record.ExecutedRoute) &&

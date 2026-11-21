@@ -133,6 +133,27 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(M03PriorConfessionKey) != 0 ||
+                getInt(M03SecrecyPromisedKey) != 0 ||
+                getInt(LuReplyKey) != 0 ||
+                getInt(ShenLiParticipatingKey) != 0 ||
+                getInt(StatementsMaskKey) != 0 ||
+                getInt(LinSuEchoKey) != 0 ||
+                getInt(M10HanExposedKey) != 0 ||
+                getInt(DisclosureKey) != 0;
+        }
+
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M13DepartureRiskFacts.HasAnyPersistedFacts(getInt) ||
+                M13DepartureRiskFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);
@@ -143,6 +164,7 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
+                !HasOrphanedDownstreamFacts(getInt) &&
                 IsValidRecord(record, getInt) &&
                 CompatiblePending(getInt, M03PriorConfessionKey, record.M03PriorConfession ? 1 : 0) &&
                 CompatiblePending(getInt, M03SecrecyPromisedKey, record.M03SecrecyPromised ? 1 : 0) &&

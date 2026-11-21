@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M15 memorial roll-call and stele inscription host.
     /// Enforces live ceremony readiness, monotonic M05 arrival identity, and
-    /// clean M15FinalRollCallFacts state (blocking torn/partial saves) before
-    /// opening M15FinalRollCallView.
+    /// clean M15FinalRollCallFacts state (blocking torn/partial saves and
+    /// orphaned downstream Act-3 facts) before opening M15FinalRollCallView.
     /// </summary>
     public sealed class M15FinalRollCallHost : IDisposable
     {
@@ -54,7 +54,8 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !ceremonyReady() ||
-                HasAnyPersistedFacts())
+                HasAnyPersistedFacts() ||
+                M15FinalRollCallFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             int consentedCount = consentedVerifiedNamesCount();

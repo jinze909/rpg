@@ -37,7 +37,7 @@ namespace Rpg.Soundwell
             out M10AssemblySession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? m09) ||
                 !m09.HasValue)
