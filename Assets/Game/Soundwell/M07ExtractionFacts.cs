@@ -147,17 +147,19 @@ namespace Rpg.Soundwell
                 getInt(TaoJiRescuedKey) != 0;
         }
 
-        // M08, RC-01..RC-05, and ST-06 are strictly downstream of a completed
-        // M07 extraction. A torn new-voyage reset may clear M07 while leaving
-        // an older commission, dock reply, dawn notice, roster case, or Tao Ji
-        // homecoming outcome. Read raw values: any partially written successor
-        // is evidence that this is not a clean new extraction.
+        // M08, RC-01..RC-05, ST-06, and M09..M16 are strictly downstream of a
+        // completed M07 extraction. A torn new-voyage reset may clear M07 while
+        // leaving an older commission, dock reply, dawn notice, roster case,
+        // Tao Ji homecoming, berth table, or Act-3 outcome. Read raw values:
+        // any partially written successor proves this is not a clean extraction.
         public static bool HasOrphanedM08SuccessorFacts(Func<string, int> getInt)
         {
             return getInt == null ||
                 getInt(M08WorkshopDepositFacts.CompletedKey) != 0 ||
                 M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt) ||
                 M08FirstWorldNoticeFacts.HasOrphanedRosterCaseFacts(getInt) ||
+                M09BerthTableFacts.HasAnyPersistedFacts(getInt) ||
+                M09BerthTableFacts.HasOrphanedDownstreamFacts(getInt) ||
                 getInt(ST06TaoJiHomecomingFacts.ConfirmedKey) != 0 ||
                 getInt(ST06TaoJiHomecomingFacts.ChairResolutionKey) != 0 ||
                 getInt(ST06TaoJiHomecomingFacts.CoverUpRemediatedKey) != 0 ||

@@ -122,6 +122,20 @@ namespace Rpg.Soundwell
             return actual == 0 || actual == expected;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(PendingSignatureKey) != 0 ||
+                getInt(TotalBerthsKey) != 0 ||
+                getInt(PendingNamesKey) != 0 ||
+                getInt(ExchangesKey) != 0 ||
+                getInt(RuiyaOutcomeKey) != 0 ||
+                getInt(QiDebtDisclosedKey) != 0 ||
+                getInt(ShenReconciledKey) != 0 ||
+                getInt(ShipwrightFeePaidKey) != 0;
+        }
+
         public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
         {
             return getInt == null ||
