@@ -63,6 +63,56 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldBerthTableCannotSettleAnIdenticallyReplayedVoyage()
+        {
+            var root = new GameObject("M09 replayed arrival identity");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M09BerthTableHost oldHost = null;
+            M09BerthTableHost newHost = null;
+            try
+            {
+                int previousArrival = read(M05LandingFacts.ArrivalSequenceKey);
+                oldHost = NewHost(root.transform, values);
+                Assert.That(oldHost.TryOpen(), Is.True);
+                oldHost.ActiveView.HanQiaoButton.onClick.Invoke();
+
+                // The first negotiation stays on screen while M03 starts a
+                // new voyage; no old table may settle before arrival.
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                oldHost.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(read(M09BerthTableFacts.ConfirmedKey), Is.Zero);
+
+                // New route, crew, rescued people and table numbers are identical.
+                // Only the monotonic M05 arrival identity distinguishes visits.
+                SeedVerifiedExtraction(values);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(previousArrival));
+                oldHost.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(read(M09BerthTableFacts.ConfirmedKey), Is.Zero);
+                Assert.That(oldHost.ActiveView, Is.Not.Null);
+
+                oldHost.Dispose();
+                oldHost = null;
+                newHost = NewHost(root.transform, values);
+                Assert.That(newHost.TryOpen(), Is.True);
+                newHost.ActiveView.HanQiaoButton.onClick.Invoke();
+                newHost.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(newHost.HasRecordedTable, Is.True);
+                Assert.That(newHost.ActiveView, Is.Null);
+            }
+            finally
+            {
+                oldHost?.Dispose();
+                newHost?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void OnlyVerifiedExtractionAndUnconfirmedM09OpenTheTable()
         {
             var root = new GameObject("M09 host prerequisites");

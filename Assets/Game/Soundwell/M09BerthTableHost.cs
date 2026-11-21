@@ -19,6 +19,9 @@ namespace Rpg.Soundwell
         private readonly Func<M09RuiyaOutcome?> ruiyaOutcome;
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
+        // M05's monotonic arrival identity distinguishes otherwise identical
+        // replayed voyages; an old berth negotiation must not settle the next one.
+        private int? openedArrivalSequence;
         private M09BerthTableSession session;
         private M09BerthTableView view;
         private bool disposed;
@@ -62,7 +65,7 @@ namespace Rpg.Soundwell
                 // A corrupt or already-confirmed M09 record must not be rewritten.
                 getInt(M09BerthTableFacts.ConfirmedKey) != 0 ||
                 !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? m07) ||
-                !m07.HasValue)
+                !m07.HasValue || getInt(M05LandingFacts.ArrivalSequenceKey) < 0)
                 return false;
 
             int available = baseBerths();
@@ -70,6 +73,7 @@ namespace Rpg.Soundwell
             if (available <= 0 || waiting <= 0)
                 return false;
 
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             session = new M09BerthTableSession(
                 available, waiting, shenLiPresent(), qiDebtAlreadyKnown());
             view = new M09BerthTableView(parent, session, ConfirmTable);
@@ -79,6 +83,8 @@ namespace Rpg.Soundwell
         private bool LiveSceneStillMatches()
         {
             return !disposed && atSecondBatchTable() && session != null &&
+                openedArrivalSequence.HasValue &&
+                getInt(M05LandingFacts.ArrivalSequenceKey) == openedArrivalSequence.Value &&
                 shenLiPresent() == session.ShenLiPresent &&
                 qiDebtAlreadyKnown() == session.QiDebtPreviouslyKnown &&
                 baseBerths() == session.BaseBerths &&
@@ -140,6 +146,7 @@ namespace Rpg.Soundwell
             disposed = true;
             view?.Dispose();
             view = null;
+            openedArrivalSequence = null;
         }
     }
 }
