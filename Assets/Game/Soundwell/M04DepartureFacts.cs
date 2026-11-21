@@ -56,6 +56,22 @@ namespace Rpg.Soundwell
         // is never reset when M03 begins another trip.
         public const string SailingSequenceKey = "rpg.return.m04.sailing-sequence";
 
+        /// <summary>
+        /// A new cast-off must not launch into a prior completed, corrupt or
+        /// interrupted fog outcome. The already-open fog panel owns retries of
+        /// its unfinished write; this gate is only for *new* departures.
+        /// </summary>
+        public static bool CanBeginFreshFogLeg(Func<string, int> getInt)
+        {
+            return getInt != null &&
+                getInt(FogListeningFacts.CompletedKey) == 0 &&
+                getInt(FogListeningFacts.SucceededKey) == 0 &&
+                getInt(FogListeningFacts.HullIntegrityKey) == 0 &&
+                getInt(FogListeningFacts.AvoidedHazardsKey) == 0 &&
+                getInt(FogListeningFacts.MatchedSignalsKey) == 0 &&
+                getInt(FogListeningFacts.RemainingFocusKey) == 0;
+        }
+
         public static bool TryResetForNewVisit()
         {
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;

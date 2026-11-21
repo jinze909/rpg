@@ -177,6 +177,66 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void UnconfirmedFogPayloadDisablesLiveCastOffWithoutMarkingTheShipSailed()
+        {
+            var root = new GameObject("M04 no cast-off into torn fog");
+            var saved = new Dictionary<string, int>();
+            M04CastOffView view = null;
+            string[] keys =
+            {
+                FogListeningFacts.SucceededKey,
+                FogListeningFacts.HullIntegrityKey,
+                FogListeningFacts.AvoidedHazardsKey,
+                FogListeningFacts.MatchedSignalsKey,
+                FogListeningFacts.RemainingFocusKey
+            };
+            try
+            {
+                ConfirmReady(saved);
+                int transitions = 0, sailWrites = 0;
+                Action<string, int> write = (key, value) =>
+                {
+                    if (key == M04DepartureFacts.SailedKey && value == 1)
+                        sailWrites++;
+                    saved[key] = value;
+                };
+                Func<string, int> read = Reader(saved);
+                view = new M04CastOffView(root.transform, read, write,
+                    () => transitions++);
+                Assert.That(view.CastOffButton.interactable, Is.True);
+                foreach (string key in keys)
+                {
+                    Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                    saved[key] = 1;
+                    view.Refresh();
+                    Assert.That(view.CastOffButton.interactable, Is.False, key);
+                    view.CastOffButton.onClick.Invoke(); // Bypasses Button.interactable.
+                    Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
+                    Assert.That(saved[key], Is.EqualTo(1));
+                    Assert.That(transitions, Is.Zero);
+                    Assert.That(sailWrites, Is.Zero);
+                }
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                saved[FogListeningFacts.CompletedKey] = 1;
+                view.Refresh();
+                Assert.That(view.CastOffButton.interactable, Is.False);
+                view.CastOffButton.onClick.Invoke();
+                Assert.That(sailWrites, Is.Zero);
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                view.Refresh();
+                Assert.That(view.CastOffButton.interactable, Is.True);
+                view.CastOffButton.onClick.Invoke();
+                Assert.That(sailWrites, Is.EqualTo(1));
+                Assert.That(transitions, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CastOffMarksSailedOnlyAfterButtonAndOnlyOnce()
         {
             var root = new GameObject("M04 real cast off");

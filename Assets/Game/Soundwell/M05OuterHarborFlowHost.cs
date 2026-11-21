@@ -80,7 +80,19 @@ namespace Rpg.Soundwell
             // Never show a confirm button that M05LandingFacts.TryRecord
             // must reject because its completion marker is already set.
             if (!savedLanding.HasValue &&
-                getInt(M05LandingFacts.ConfirmedKey) != 0)
+                (getInt(M05LandingFacts.ConfirmedKey) != 0 ||
+                 // A torn landing save can leave payload fields written
+                 // without publishing the final confirmation marker. A new
+                 // arrival must not replace those facts; only the original
+                 // open landing panel may retry its interrupted write.
+                 getInt(M05LandingFacts.CrewArrivedKey) != 0 ||
+                 getInt(M05LandingFacts.ReadyBerthsKey) != 0 ||
+                 getInt(M05LandingFacts.TenderArrivedKey) != 0 ||
+                 getInt(M05LandingFacts.ReceiverMetKey) != 0 ||
+                 // Letters and harbor visits require an actual saved landing.
+                 // Refuse orphaned downstream facts on a fresh entrance.
+                 getInt(M05LettersFacts.DecisionKey) != 0 ||
+                 getInt(M05HarborVisitFacts.VisitedMaskKey) != 0))
                 return false;
 
             // Reject a corrupted nonzero letter choice *before* creating the
