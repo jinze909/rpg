@@ -111,7 +111,6 @@ namespace Rpg.Tests.Editor
                 SeedVerifiedM07(values);
                 Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
                     Is.GreaterThan(oldSequence));
-                int writes = 0;
                 var oldButton = oldView.FinishButton;
                 Assert.Throws<InvalidOperationException>(() =>
                     oldButton.onClick.Invoke());
