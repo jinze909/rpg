@@ -442,6 +442,52 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldPumpRoomDecisionCannotWriteToIdenticalNewVoyage()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+
+            Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(
+                read, out var oldSession), Is.True);
+            oldSession.AnswerVesselBriefing(M06ReunionGreeting.ComeToBringYouBack);
+            oldSession.WitnessPumpRoomAndInspection();
+            oldSession.HearOulinRetaliationTruth();
+            oldSession.RespondToShen(M06ShenResponse.LetHerSpeak);
+            int originalSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+            Assert.That(oldSession.TryConfirmRescuePlan(
+                M06RescuePlan.CargoCover, read, write), Is.False);
+            SeedVerifiedM05Arrival(values);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                Is.GreaterThan(originalSequence));
+
+            int oldWrites = 0;
+            Assert.That(oldSession.TryConfirmRescuePlan(M06RescuePlan.CargoCover,
+                read, (k, v) => { oldWrites++; values[k] = v; }), Is.False);
+            Assert.That(oldWrites, Is.Zero);
+            Assert.That(oldSession.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+            Assert.That(read(M06RescuePlanFacts.ConfirmedKey), Is.Zero);
+
+            Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(
+                read, out var newSession), Is.True);
+            newSession.AnswerVesselBriefing(M06ReunionGreeting.ComeToBringYouBack);
+            newSession.WitnessPumpRoomAndInspection();
+            newSession.HearOulinRetaliationTruth();
+            newSession.RespondToShen(M06ShenResponse.HelpRepairValve);
+            Assert.That(newSession.TryConfirmRescuePlan(
+                M06RescuePlan.OfficialHandover, read, write), Is.True);
+            Assert.That(M06RescuePlanFacts.TryRead(
+                read, out M06ReunionRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Plan, Is.EqualTo(M06RescuePlan.OfficialHandover));
+            Assert.That(oldSession.TryConfirmRescuePlan(
+                M06RescuePlan.CargoCover, read, write), Is.False);
+        }
+
+        [Test]
         public void CommittedRescuePlanWithLostAcknowledgementCanRetryWithoutDuplicateWrite()
         {
             var values = new Dictionary<string, int>();
