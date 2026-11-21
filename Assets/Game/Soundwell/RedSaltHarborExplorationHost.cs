@@ -304,9 +304,10 @@ namespace Rpg.Soundwell
             // meets Seran. The dialogue can remain open while a new voyage
             // resets these Makinom facts, so recheck before writing a choice.
             M05LandingReport openedLanding = savedLanding.Value;
+            int openedSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeSeranView = new M05SeranLettersView(parent, decision =>
             {
-                if (!HasSameCurrentLanding(openedLanding))
+                if (!HasSameCurrentLanding(openedLanding, openedSequence))
                     throw new InvalidOperationException(
                         "Seran's open dialogue no longer matches the verified M05 landing.");
                 // A write can commit before the UI handoff throws.
@@ -347,13 +348,15 @@ namespace Rpg.Soundwell
                 saved.HasValue;
         }
 
-        private bool HasSameCurrentLanding(M05LandingReport openedLanding)
+        private bool HasSameCurrentLanding(M05LandingReport openedLanding,
+            int openedSequence)
         {
             // Persisted M05 arrival is the only authority. A dialogue may
             // outlive the voyage it was opened for; reject missing, invalid,
             // or different observed landings before committing its outcome.
             return M05LandingFacts.TryRead(getInt, out M05LandingReport? current) &&
                 current.HasValue &&
+                getInt(M05LandingFacts.ArrivalSequenceKey) == openedSequence &&
                 current.Value.CrewArrived == openedLanding.CrewArrived &&
                 current.Value.ReadyRescueBerths == openedLanding.ReadyRescueBerths &&
                 current.Value.TenderArrived == openedLanding.TenderArrived &&
@@ -375,12 +378,13 @@ namespace Rpg.Soundwell
                 return false;
 
             M05LandingReport openedLanding = savedLanding.Value;
+            int openedSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeHarborWalkView = new M05HarborWalkView(parent, () =>
             {
                 // A new voyage may have replaced the physical arrival while
                 // this location's dialogue remained open. Never credit an
                 // old repair, rumor, or accusation to the new ship's visit.
-                if (!HasSameCurrentLanding(openedLanding))
+                if (!HasSameCurrentLanding(openedLanding, openedSequence))
                     throw new InvalidOperationException(
                         "The observed harbor conversation no longer belongs to this landing.");
                 // Save the witnessed beat first. A failed Makinom write leaves

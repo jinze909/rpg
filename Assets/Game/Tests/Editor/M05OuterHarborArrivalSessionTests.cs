@@ -475,6 +475,60 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void IdenticalLaterLandingCannotAcceptEarlierSeranOrHarborCallbacks()
+        {
+            var root = new GameObject("M05 identical arrival replay isolation");
+            var values = new Dictionary<string, int>();
+            var landing = new M05LandingReport(3, 10, true, true);
+            SeedVerifiedLanding(values, landing);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M05OuterHarborArrivalSession session = null;
+            try
+            {
+                Assert.That(M05OuterHarborArrivalSession.TryOpen(root.transform,
+                    read, write, _ => Assert.Fail("Stale completion"),
+                    out session), Is.True);
+                var earlierSeran = session.SeranView;
+                earlierSeran.TakeButton.onClick.Invoke();
+                int oldSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+                SeedVerifiedLanding(values, landing);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(oldSequence));
+                Assert.Throws<InvalidOperationException>(() =>
+                    earlierSeran.ContinueButton.onClick.Invoke());
+                Assert.That(read(M05LettersFacts.DecisionKey), Is.Zero);
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.SeranLetters));
+                session.Dispose();
+                session = null;
+
+                Assert.That(M05OuterHarborArrivalSession.TryOpen(root.transform,
+                    read, write, _ => Assert.Fail("Stale harbor completion"),
+                    out session), Is.True);
+                session.SeranView.LeaveButton.onClick.Invoke();
+                session.SeranView.ContinueButton.onClick.Invoke();
+                var earlierHarbor = session.HarborWalkView;
+                oldSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+                SeedVerifiedLanding(values, landing);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(oldSequence));
+                Assert.Throws<InvalidOperationException>(() =>
+                    earlierHarbor.AdvanceButton.onClick.Invoke());
+                Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+                Assert.That(session.Stage, Is.EqualTo(M05OuterHarborStage.HarborWalk));
+            }
+            finally
+            {
+                session?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ViewportAspectPropagationAndParentTeardownDisposalGuardLateCallbacks()
         {
             var root = new GameObject("M05 arrival teardown test");

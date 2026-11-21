@@ -323,6 +323,63 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void IdenticalReplayedLandingRejectsOldMapSeranAndRepairConversations()
+        {
+            foreach (bool seran in new[] { true, false })
+            {
+                var root = new GameObject("M05 identical map landing replay");
+                var values = new Dictionary<string, int>();
+                SeedCompletedCrossing(values);
+                Func<string, int> read = Reader(values);
+                Action<string, int> write = (key, value) => values[key] = value;
+                var landing = new M05LandingReport(3, 10, true, true);
+                Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+                RedSaltHarborExplorationHost host = null;
+                try
+                {
+                    host = new RedSaltHarborExplorationHost(root.transform, read, write);
+                    if (seran)
+                        WalkTo(host, 50.5f, 26.5f);
+                    else
+                        WalkTo(host, 84.5f, 30.5f);
+                    Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                    var oldSeran = host.ActiveSeranView;
+                    var oldHarbor = host.ActiveHarborWalkView;
+                    if (seran)
+                        oldSeran.TakeButton.onClick.Invoke();
+
+                    int oldSequence = read(M05LandingFacts.ArrivalSequenceKey);
+                    Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                        Is.True);
+                    SeedCompletedCrossing(values);
+                    Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+                    Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                        Is.GreaterThan(oldSequence));
+
+                    if (seran)
+                    {
+                        Assert.Throws<InvalidOperationException>(() =>
+                            oldSeran.ContinueButton.onClick.Invoke());
+                        Assert.That(read(M05LettersFacts.DecisionKey), Is.Zero);
+                        Assert.That(host.ActiveSeranView, Is.SameAs(oldSeran));
+                    }
+                    else
+                    {
+                        Assert.Throws<InvalidOperationException>(() =>
+                            oldHarbor.AdvanceButton.onClick.Invoke());
+                        Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+                        Assert.That(host.ActiveHarborWalkView, Is.SameAs(oldHarbor));
+                    }
+                }
+                finally
+                {
+                    host?.Dispose();
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void WalkingToBerthAndQuayTriggersLandingCheckThenSeranWithoutFabricatingArrival()
         {
             var root = new GameObject("Red Salt playable exploration test");
