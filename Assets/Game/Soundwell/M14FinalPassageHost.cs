@@ -5,9 +5,10 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M14 ("同一个海峡，不同的进场") host. Enforces verified
-    /// M13DepartureRiskFacts, live strait-action presence, monotonic M05 arrival
-    /// identity, and clean M14FinalPassageFacts state (blocking torn/partial saves)
-    /// before opening M14FinalPassageView.
+    /// M13DepartureRiskFacts, live strait-action presence, live route-proof
+    /// revalidation at commit time, monotonic M05 arrival identity, and clean
+    /// M14FinalPassageFacts state (blocking torn/partial saves) before opening
+    /// M14FinalPassageView.
     /// </summary>
     public sealed class M14FinalPassageHost : IDisposable
     {
@@ -103,11 +104,28 @@ namespace Rpg.Soundwell
                 getInt(M14FinalPassageFacts.FogMasteryBonusKey) != 0;
         }
 
+        private bool HasLiveRouteProofs()
+        {
+            switch (session.Departure.Route)
+            {
+                case M13ApproachRoute.RouteASupervisedCivilian:
+                    return validSupervisionCredentials() && validPortGuarantee();
+                case M13ApproachRoute.RouteBBellTowerAssault:
+                    return threeOpenDoorBellsRung();
+                case M13ApproachRoute.RouteCOldCanalNightRun:
+                    return fogRelayCompleted() &&
+                        (!session.FogMasteryBonusApplied || fogMasteryBonusAvailable());
+                default:
+                    return false;
+            }
+        }
+
         private void HandleAyuanSubmitted(M14AyuanOutcome outcome)
         {
             if (disposed || session == null || !atStraitAction() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                !HasLiveRouteProofs())
                 return;
 
             if (!session.TrySettleAyuanAndCommit(outcome, getInt, setInt))
