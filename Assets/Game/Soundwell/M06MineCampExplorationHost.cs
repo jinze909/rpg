@@ -110,23 +110,32 @@ namespace Rpg.Soundwell
             Vector2 dir = input.normalized;
             facing = dir;
             Vector2 delta = dir * (MoveSpeedTilesPerSecond * deltaSeconds);
+            // The final destination alone may be walkable even when a wall
+            // separates it from the player. Check short intermediate steps so
+            // a slow frame cannot skip the mine-camp walls or sealed rooms.
+            // Preserve independent axis movement for wall sliding.
+            int steps = Mathf.Max(1, Mathf.CeilToInt(delta.magnitude / 0.35f));
+            Vector2 step = delta / steps;
             Vector2 next = playerPosition;
             bool moved = false;
 
-            float candidateX = next.x + delta.x;
-            if (IsWalkableWorld(candidateX, next.y))
+            for (int i = 0; i < steps; i++)
             {
-                if (!Mathf.Approximately(candidateX, next.x))
+                float candidateX = next.x + step.x;
+                if (!Mathf.Approximately(candidateX, next.x) &&
+                    IsWalkableWorld(candidateX, next.y))
+                {
+                    next.x = candidateX;
                     moved = true;
-                next.x = candidateX;
-            }
+                }
 
-            float candidateY = next.y + delta.y;
-            if (IsWalkableWorld(next.x, candidateY))
-            {
-                if (!Mathf.Approximately(candidateY, next.y))
+                float candidateY = next.y + step.y;
+                if (!Mathf.Approximately(candidateY, next.y) &&
+                    IsWalkableWorld(next.x, candidateY))
+                {
+                    next.y = candidateY;
                     moved = true;
-                next.y = candidateY;
+                }
             }
 
             if (moved)
