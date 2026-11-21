@@ -89,6 +89,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryOpen(), Is.False);
 
                 values[RC02ZhengYuanFacts.ConfirmedKey] = 0;
+                values[RC02ZhengYuanFacts.PendingSignatureKey] = 1200;
+                Assert.That(host.TryOpen(), Is.False,
+                    "A pending identity decision cannot reopen the intake desk.");
+                values[RC02ZhengYuanFacts.PendingSignatureKey] = 0;
                 Assert.That(host.TryOpen(), Is.True);
                 Assert.That(host.TryOpen(), Is.False);
                 Assert.That(host.ActiveView, Is.Not.Null);

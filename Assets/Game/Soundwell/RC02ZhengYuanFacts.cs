@@ -64,6 +64,7 @@ namespace Rpg.Soundwell
     {
         public const int RosterCaseNumber = 2;
         public const string ConfirmedKey = "rpg.return.rc02.case-confirmed";
+        public const string PendingSignatureKey = "rpg.return.rc02.pending-intake-signature";
         public const string ChecksMaskKey = "rpg.return.rc02.intake-checks-mask";
         public const string RoofConfessionKey = "rpg.return.rc02.roof-confession";
         public const string ResolutionKey = "rpg.return.rc02.zheng-yuan";
@@ -96,11 +97,53 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // Persist the precise decision, adoption consent and real Zheng Yuan
+        // identity BEFORE the other facts. A torn write cannot be claimed by a
+        // later panel choosing a different name, identity or registration.
+        private static int Signature(RC02ZhengYuanRecord record)
+        {
+            return 1000 + (int)record.Resolution * 100 +
+                (record.MotherCalledShiLeng ? 10 : 0) +
+                (record.ShiLengConsented ? 4 : 0) +
+                (record.RealZhengYuanFound ? 1 : 0);
+        }
+
+        private static bool CompatiblePending(
+            Func<string, int> read, string key, int expected)
+        {
+            int actual = read(key);
+            return actual == 0 || actual == expected;
+        }
+
         public static bool CanRecord(RC02ZhengYuanRecord record, Func<string, int> getInt)
         {
-            return getInt != null &&
-                getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record, getInt))
+                return false;
+
+            int intent = getInt(PendingSignatureKey);
+            if (intent == 0)
+            {
+                // Old partial payloads without an intent need explicit reset;
+                // they cannot serve as a clean registration or a new decision.
+                return getInt(ChecksMaskKey) == 0 &&
+                    getInt(RoofConfessionKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(MotherCalledKey) == 0 &&
+                    getInt(ShiLengConsentedKey) == 0 &&
+                    getInt(RealZhengYuanFoundKey) == 0;
+            }
+
+            return intent == Signature(record) &&
+                CompatiblePending(getInt, ChecksMaskKey, (int)RC02IntakeChecks.All) &&
+                CompatiblePending(getInt, RoofConfessionKey, 1) &&
+                CompatiblePending(getInt, ResolutionKey, (int)record.Resolution) &&
+                CompatiblePending(getInt, MotherCalledKey,
+                    record.MotherCalledShiLeng ? 1 : 0) &&
+                CompatiblePending(getInt, ShiLengConsentedKey,
+                    record.ShiLengConsented ? 1 : 0) &&
+                CompatiblePending(getInt, RealZhengYuanFoundKey,
+                    record.RealZhengYuanFound ? 1 : 0);
         }
 
         public static bool TryRecord(RC02ZhengYuanRecord record)
@@ -120,7 +163,7 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, Signature(record));
             setInt(ChecksMaskKey, (int)record.ChecksCompleted);
             setInt(RoofConfessionKey, record.RoofConfessionHeard ? 1 : 0);
             setInt(ResolutionKey, (int)record.Resolution);
@@ -143,8 +186,20 @@ namespace Rpg.Soundwell
             record = null;
             if (getInt == null)
                 return false;
-            if (getInt(ConfirmedKey) != 1)
-                return true;
+            int confirmed = getInt(ConfirmedKey);
+            if (confirmed == 0)
+            {
+                // An interrupted intake is not an empty or completed case.
+                return getInt(PendingSignatureKey) == 0 &&
+                    getInt(ChecksMaskKey) == 0 &&
+                    getInt(RoofConfessionKey) == 0 &&
+                    getInt(ResolutionKey) == 0 &&
+                    getInt(MotherCalledKey) == 0 &&
+                    getInt(ShiLengConsentedKey) == 0 &&
+                    getInt(RealZhengYuanFoundKey) == 0;
+            }
+            if (confirmed != 1)
+                return false;
 
             int rawChecks = getInt(ChecksMaskKey);
             int rawRoof = getInt(RoofConfessionKey);
@@ -168,7 +223,11 @@ namespace Rpg.Soundwell
                 rawMother == 1,
                 rawConsent == 1,
                 rawReal == 1);
-            if (IsValidRecord(saved, getInt))
+            // Fully confirmed legacy saves predate this intent key; keep
+            // those results, but reject new records with a corrupted intent.
+            int intent = getInt(PendingSignatureKey);
+            if (IsValidRecord(saved, getInt) &&
+                (intent == 0 || intent == Signature(saved)))
                 record = saved;
             return true;
         }
@@ -185,6 +244,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
             setInt(ChecksMaskKey, 0);
             setInt(RoofConfessionKey, 0);
             setInt(ResolutionKey, 0);

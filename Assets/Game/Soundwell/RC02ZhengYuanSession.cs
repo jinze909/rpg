@@ -150,7 +150,12 @@ namespace Rpg.Soundwell
                 resolution == RC02Resolution.AdoptAsShiLeng && ShiLengConsented,
                 RealZhengYuanFound);
 
-            if (!RC02ZhengYuanFacts.TryRead(getInt, out RC02ZhengYuanRecord? existing))
+            if (!RC02ZhengYuanFacts.TryRead(
+                    getInt, out RC02ZhengYuanRecord? existing) &&
+                // Incomplete writes may resume only with the matching
+                // immutable registration and verified identity intent.
+                (getInt(RC02ZhengYuanFacts.ConfirmedKey) != 0 ||
+                 !RC02ZhengYuanFacts.CanRecord(record, getInt)))
                 return false;
 
             // Recover idempotently if a prior write committed ConfirmedKey = 1

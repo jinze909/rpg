@@ -172,6 +172,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornIntakeIntentRejectsDifferentRegistrationOrRealIdentity()
+        {
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var original = new RC02ZhengYuanRecord(
+                RC02IntakeChecks.All, true, RC02Resolution.AllowByException,
+                false, false, realZhengYuanFound: true);
+            var differentDecision = new RC02ZhengYuanRecord(
+                RC02IntakeChecks.All, true, RC02Resolution.ExposeImpostor,
+                false, false, realZhengYuanFound: true);
+            var differentIdentity = new RC02ZhengYuanRecord(
+                RC02IntakeChecks.All, true, RC02Resolution.AllowByException,
+                false, false, realZhengYuanFound: false);
+
+            // The signature must be the FIRST persistent story write. Crash
+            // before either the decision or the identity flag is persisted.
+            Assert.Throws<InvalidOperationException>(() =>
+                RC02ZhengYuanFacts.TryRecord(original, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == RC02ZhengYuanFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Interrupted after intent");
+                }));
+            Assert.That(read(RC02ZhengYuanFacts.PendingSignatureKey), Is.Not.Zero);
+            Assert.That(RC02ZhengYuanFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC02ZhengYuanFacts.TryRecord(
+                differentDecision, read, write), Is.False);
+            Assert.That(RC02ZhengYuanFacts.TryRecord(
+                differentIdentity, read, write), Is.False);
+            Assert.That(RC02ZhengYuanFacts.TryRecord(original, read, write), Is.True);
+            Assert.That(RC02ZhengYuanFacts.TryRead(
+                read, out RC02ZhengYuanRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Resolution, Is.EqualTo(original.Resolution));
+            Assert.That(saved.Value.RealZhengYuanFound, Is.True);
+
+            values[RC02ZhengYuanFacts.PendingSignatureKey] = 0;
+            Assert.That(RC02ZhengYuanFacts.TryRead(
+                read, out RC02ZhengYuanRecord? legacy), Is.True);
+            Assert.That(legacy.HasValue, Is.True,
+                "A fully confirmed pre-upgrade identity case must stay readable.");
+
+            Assert.That(RC02ZhengYuanFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(RC02ZhengYuanFacts.PendingSignatureKey), Is.Zero);
+            values[RC02ZhengYuanFacts.ChecksMaskKey] = (int)RC02IntakeChecks.All;
+            Assert.That(RC02ZhengYuanFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC02ZhengYuanFacts.TryRecord(original, read, write), Is.False);
+        }
+
+        [Test]
         public void CorruptOrResetUpstreamFactsInvalidateReadbackAndNullDelegatesFailClosed()
         {
             var values = new Dictionary<string, int>();

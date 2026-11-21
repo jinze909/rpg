@@ -68,6 +68,7 @@ namespace Rpg.Soundwell
         private bool HasAnyPersistedFacts()
         {
             return getInt(RC02ZhengYuanFacts.ConfirmedKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.PendingSignatureKey) != 0 ||
                 getInt(RC02ZhengYuanFacts.ChecksMaskKey) != 0 ||
                 getInt(RC02ZhengYuanFacts.RoofConfessionKey) != 0 ||
                 getInt(RC02ZhengYuanFacts.ResolutionKey) != 0 ||
