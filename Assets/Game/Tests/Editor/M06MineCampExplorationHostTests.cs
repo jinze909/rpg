@@ -186,5 +186,48 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void PumpRoomViewRetriesCommittedPlanAfterLostAcknowledgement()
+        {
+            var root = new GameObject("M06 pump plan lost ack");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values, letterDecision: null);
+            Func<string, int> read = Reader(values);
+            int committed = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M06RescuePlanFacts.ConfirmedKey && value == 1 && ++committed == 1)
+                    throw new InvalidOperationException("Lost acknowledgement");
+            };
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                var view = host.ActiveReunionView;
+                view.GreetingBringBackButton.onClick.Invoke();
+                view.AdvanceButton.onClick.Invoke();
+                view.AdvanceButton.onClick.Invoke();
+                view.ShenWaitButton.onClick.Invoke();
+                Assert.That(view.Session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.OfficialHandoverButton.onClick.Invoke());
+                Assert.That(host.IsDialogueOpen, Is.True);
+                Assert.That(host.RescuePlanSettled, Is.True);
+                view.OfficialHandoverButton.onClick.Invoke();
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(view.Session.Stage, Is.EqualTo(M06ReunionStage.Completed));
+                Assert.That(committed, Is.EqualTo(1));
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
