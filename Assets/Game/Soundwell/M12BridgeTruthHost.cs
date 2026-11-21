@@ -5,7 +5,8 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M12 ("一面旗帜不等于每个人") host. Enforces verified
-    /// M11ReverseRescueFacts, live bell-tower/camp presence, monotonic M05 arrival
+    /// M11ReverseRescueFacts, live bell-tower/camp presence, live participant
+    /// and M03-context revalidation at commit time, monotonic M05 arrival
     /// identity, and clean M12BridgeTruthFacts state (blocking torn/partial saves)
     /// before opening M12BridgeTruthView.
     /// </summary>
@@ -22,6 +23,10 @@ namespace Rpg.Soundwell
         private M12BridgeTruthSession session;
         private M12BridgeTruthView activeView;
         private int? openedArrivalSequence;
+        private bool openedPriorConfession;
+        private bool openedSecrecyPromised;
+        private bool openedShenLiParticipating;
+        private bool openedLinSuPresent;
         private bool disposed;
 
         public M12BridgeTruthSession Session => session;
@@ -62,17 +67,25 @@ namespace Rpg.Soundwell
                 HasAnyPersistedFacts())
                 return false;
 
+            bool priorConfession = m03PriorConfession();
+            bool secrecyPromised = m03SecrecyPromised();
+            bool shenLi = shenLiParticipating();
+            bool linSu = linSuPresent();
             if (!M12BridgeTruthSession.TryCreateFromSavedFacts(
                     getInt,
-                    m03PriorConfession(),
-                    m03SecrecyPromised(),
-                    shenLiParticipating(),
-                    linSuPresent(),
+                    priorConfession,
+                    secrecyPromised,
+                    shenLi,
+                    linSu,
                     out M12BridgeTruthSession created))
                 return false;
 
             session = created;
             openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedPriorConfession = priorConfession;
+            openedSecrecyPromised = secrecyPromised;
+            openedShenLiParticipating = shenLi;
+            openedLinSuPresent = linSu;
             activeView = new M12BridgeTruthView(
                 parent,
                 session,
@@ -98,7 +111,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || session == null || !atBellTowerCamp() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                m03PriorConfession() != openedPriorConfession ||
+                m03SecrecyPromised() != openedSecrecyPromised ||
+                shenLiParticipating() != openedShenLiParticipating ||
+                linSuPresent() != openedLinSuPresent)
                 return;
 
             if (!session.TryDecideTruthAndCommit(disclosure, getInt, setInt))

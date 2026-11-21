@@ -127,6 +127,81 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornResolutionIntentRejectsChangedChoicesAndLegacySavesStayReadable()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var original = new RC04ReefRecord(
+                3, false, RC04Resolution.BringDingYueBack);
+            var differentChoice = new RC04ReefRecord(
+                3, false, RC04Resolution.LeaveWithSignalBeacon);
+            var differentSong = new RC04ReefRecord(
+                3, true, RC04Resolution.BringDingYueBack);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                RC04DingYueReefFacts.TryRecord(original, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == RC04DingYueReefFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Interrupted after intent");
+                }));
+            Assert.That(read(RC04DingYueReefFacts.PendingSignatureKey), Is.Not.Zero);
+            Assert.That(RC04DingYueReefFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC04DingYueReefFacts.TryRecord(
+                differentChoice, read, write), Is.False);
+            Assert.That(RC04DingYueReefFacts.TryRecord(
+                differentSong, read, write), Is.False);
+
+            Assert.That(RC04DingYueReefFacts.TryRecord(original, read, write), Is.True);
+            Assert.That(RC04DingYueReefFacts.TryRead(
+                read, out RC04ReefRecord? completed), Is.True);
+            Assert.That(completed.HasValue, Is.True);
+            Assert.That(completed.Value.Resolution, Is.EqualTo(original.Resolution));
+
+            // Older complete saves did not carry a decision signature.
+            values[RC04DingYueReefFacts.PendingSignatureKey] = 0;
+            Assert.That(RC04DingYueReefFacts.TryRead(
+                read, out RC04ReefRecord? legacy), Is.True);
+            Assert.That(legacy.HasValue, Is.True);
+
+            Assert.That(RC04DingYueReefFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(RC04DingYueReefFacts.PendingSignatureKey), Is.Zero);
+            values[RC04DingYueReefFacts.RoundsCompletedKey] = 3;
+            Assert.That(RC04DingYueReefFacts.TryRead(read, out _), Is.False);
+            Assert.That(RC04DingYueReefFacts.TryRecord(original, read, write), Is.False);
+        }
+
+        [Test]
+        public void LostConfirmAcknowledgementCanResumeOnlyIdenticalReefOutcome()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int confirmations = 0;
+            Action<string, int> unstable = (key, value) =>
+            {
+                values[key] = value;
+                if (key == RC04DingYueReefFacts.ConfirmedKey &&
+                    value == 1 && ++confirmations == 1)
+                    throw new InvalidOperationException("Lost confirmation ack");
+            };
+            var session = new RC04DingYueReefSession();
+            for (int i = 0; i < 3; i++)
+                Assert.That(session.SubmitEchoDiscrimination(
+                    RC04EchoChoice.SlowHumanEcho), Is.True);
+            Assert.Throws<InvalidOperationException>(() =>
+                session.TryResolveReef(
+                    RC04Resolution.BringDingYueBack, read, unstable));
+            Assert.That(session.IsResolved, Is.False);
+            Assert.That(session.TryResolveReef(
+                RC04Resolution.LeaveWithSignalBeacon, read, unstable), Is.False);
+            Assert.That(session.TryResolveReef(
+                RC04Resolution.BringDingYueBack, read, unstable), Is.True);
+            Assert.That(session.IsResolved, Is.True);
+            Assert.That(confirmations, Is.EqualTo(1));
+        }
+
+        [Test]
         public void SongAndDecoyStrategiesCannotBothBePrepared()
         {
             var session = new RC04DingYueReefSession();

@@ -43,6 +43,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || activeView != null || !atWhiteReedFerry() ||
                 getInt(RC01ChenYanFacts.ConfirmedKey) != 0 ||
+                getInt(RC01ChenYanFacts.PendingSignatureKey) != 0 ||
                 getInt(RC01ChenYanFacts.CluesMaskKey) != 0 ||
                 getInt(RC01ChenYanFacts.TalkOrderKey) != 0 ||
                 getInt(RC01ChenYanFacts.OutcomeKey) != 0 ||

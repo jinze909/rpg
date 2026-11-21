@@ -86,6 +86,7 @@ namespace Rpg.Soundwell
         private bool HasAnyPersistedFacts()
         {
             return getInt(RC05ThirdSquadFacts.ConfirmedKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.PendingSignatureKey) != 0 ||
                 getInt(RC05ThirdSquadFacts.TrialDeliveryKey) != 0 ||
                 getInt(RC05ThirdSquadFacts.ResolutionKey) != 0 ||
                 getInt(RC05ThirdSquadFacts.SkirmishKey) != 0 ||
