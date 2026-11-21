@@ -79,7 +79,11 @@ namespace Rpg.Tests.Editor
                         RuiyaOutcome = () => M09RuiyaOutcome.Rescued
                     }, read, write))
                 using (var rosterHub = new ReturnRosterCasesHubHost(
-                    root.transform, new ReturnRosterCasesHubContext(), read, write))
+                    root.transform, new ReturnRosterCasesHubContext
+                    {
+                        // This E2E fixture explicitly reaches RC-01's ferry.
+                        AtWhiteReedFerry = () => true
+                    }, read, write))
                 using (var regionalHub = new ReturnRegionalStoriesHubHost(
                     root.transform, new ReturnRegionalStoriesHubContext
                     {
