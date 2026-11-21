@@ -152,6 +152,68 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PreviouslyOpenedNightFerryCannotBoardOrCommitAfterBerthTableIsConfirmedElsewhere()
+        {
+            var root = new GameObject("M09 competing berth-table confirmation");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int boardChecks = 0, commits = 0;
+            M09EastShoreNightCrossingHost host = null;
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => 4, () => 2,
+                    count => { boardChecks++; return count == 2; },
+                    _ => { commits++; return true; }, read);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                ReachJetty(view);
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(host.Session.Stage,
+                    Is.EqualTo(M09NightCrossingStage.AwaitingActualBoarding));
+
+                // A different session wins the authoritative berth-table
+                // settlement after this ferry panel has already opened.
+                values[M09BerthTableFacts.ConfirmedKey] = 1;
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.Zero,
+                    "No irreversible boarding callback may run after settlement.");
+                Assert.That(host.Session.IsComplete, Is.False);
+
+                // When the authoritative marker is cleared for an actually
+                // unsettled voyage, the same valid panel may proceed.
+                values[M09BerthTableFacts.ConfirmedKey] = 0;
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.EqualTo(1));
+                Assert.That(host.Session.Outcome,
+                    Is.EqualTo(M09RuiyaOutcome.Rescued));
+
+                // A confirmed or malformed commit flag arriving after
+                // boarding also blocks stale final outcome callbacks.
+                values[M09BerthTableFacts.ConfirmedKey] = 2;
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.FinishButton.onClick.Invoke());
+                values[M09BerthTableFacts.ConfirmedKey] = 1;
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.FinishButton.onClick.Invoke());
+                Assert.That(commits, Is.Zero);
+                Assert.That(host.IsCommitted, Is.False);
+                Assert.That(view.FinishButton.interactable, Is.True);
+
+                values[M09BerthTableFacts.ConfirmedKey] = 0;
+                view.FinishButton.onClick.Invoke();
+                Assert.That(commits, Is.EqualTo(1));
+                Assert.That(host.CommittedBoardedCount, Is.EqualTo(2));
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void VerifiedBoardingCommitsRescuedOutcomeOnceAndClosesView()
         {
             var root = new GameObject("M09 night host rescued");
