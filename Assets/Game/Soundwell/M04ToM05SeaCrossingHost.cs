@@ -27,7 +27,9 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
         private readonly Func<FogListeningSession> createFogLeg;
-        private readonly M05LandingReport? observedLanding;
+        // Read actual dock observations when the voyage reaches shore, not
+        // at pre-departure setup. The owning scene remains the authority.
+        private readonly Func<M05LandingReport?> observeLandingAtArrival;
         private Action<M05OuterHarborOutcome> onOuterHarborCompleted;
         private Action<FogListeningRecord> onFogFailed;
         private M04CastOffView castOffView;
@@ -70,6 +72,8 @@ namespace Rpg.Soundwell
                 out host);
         }
 
+        // Compatibility with existing callers that already hold a witnessed
+        // landing report (or are resuming a previously saved landing).
         public static bool TryOpen(
             Transform parent,
             Func<FogListeningSession> createFogLeg,
@@ -80,8 +84,28 @@ namespace Rpg.Soundwell
             Action<FogListeningRecord> onFogFailed,
             out M04ToM05SeaCrossingHost host)
         {
+            return TryOpenWithLandingObservation(
+                parent, createFogLeg, () => observedLanding, getInt, setInt,
+                onOuterHarborCompleted, onFogFailed, out host);
+        }
+
+        // Use this path for real gameplay: observed crew, tender and berth
+        // counts must come from a live dock observation AFTER the fog crossing.
+        // The provider is not evaluated at cast-off or during the fog leg.
+        public static bool TryOpenWithLandingObservation(
+            Transform parent,
+            Func<FogListeningSession> createFogLeg,
+            Func<M05LandingReport?> observeLandingAtArrival,
+            Func<string, int> getInt,
+            Action<string, int> setInt,
+            Action<M05OuterHarborOutcome> onOuterHarborCompleted,
+            Action<FogListeningRecord> onFogFailed,
+            out M04ToM05SeaCrossingHost host)
+        {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (createFogLeg == null) throw new ArgumentNullException(nameof(createFogLeg));
+            if (observeLandingAtArrival == null)
+                throw new ArgumentNullException(nameof(observeLandingAtArrival));
             if (onOuterHarborCompleted == null) throw new ArgumentNullException(nameof(onOuterHarborCompleted));
             if (onFogFailed == null) throw new ArgumentNullException(nameof(onFogFailed));
             host = null;
@@ -109,7 +133,7 @@ namespace Rpg.Soundwell
                     FogListeningFacts.HasUnconfirmedPayload(getInt))
                     return false;
                 host = new M04ToM05SeaCrossingHost(
-                    parent, getInt, setInt, createFogLeg, observedLanding,
+                    parent, getInt, setInt, createFogLeg, observeLandingAtArrival,
                     onOuterHarborCompleted, onFogFailed);
                 host.OpenCastOff();
                 return true;
@@ -124,7 +148,7 @@ namespace Rpg.Soundwell
                     FogListeningFacts.HasUnconfirmedPayload(getInt))
                     return false;
                 var candidate = new M04ToM05SeaCrossingHost(
-                    parent, getInt, setInt, createFogLeg, observedLanding,
+                    parent, getInt, setInt, createFogLeg, observeLandingAtArrival,
                     onOuterHarborCompleted, onFogFailed);
                 if (!candidate.TryOpenFogPassage())
                 {
@@ -140,7 +164,7 @@ namespace Rpg.Soundwell
                 return false;
 
             var resumeCandidate = new M04ToM05SeaCrossingHost(
-                parent, getInt, setInt, createFogLeg, observedLanding,
+                parent, getInt, setInt, createFogLeg, observeLandingAtArrival,
                 onOuterHarborCompleted, onFogFailed);
             if (!resumeCandidate.TryOpenOuterHarbor())
             {
@@ -156,7 +180,7 @@ namespace Rpg.Soundwell
             Func<string, int> getInt,
             Action<string, int> setInt,
             Func<FogListeningSession> createFogLeg,
-            M05LandingReport? observedLanding,
+            Func<M05LandingReport?> observeLandingAtArrival,
             Action<M05OuterHarborOutcome> onOuterHarborCompleted,
             Action<FogListeningRecord> onFogFailed)
         {
@@ -164,7 +188,7 @@ namespace Rpg.Soundwell
             this.getInt = getInt;
             this.setInt = setInt;
             this.createFogLeg = createFogLeg;
-            this.observedLanding = observedLanding;
+            this.observeLandingAtArrival = observeLandingAtArrival;
             this.onOuterHarborCompleted = onOuterHarborCompleted;
             this.onFogFailed = onFogFailed;
         }
@@ -268,8 +292,15 @@ namespace Rpg.Soundwell
 
         private bool TryOpenOuterHarbor()
         {
+            // A persisted landing needs no new world report; otherwise sample
+            // the live observation only at the actual harbor handoff. Missing
+            // observations keep the already-saved fog Continue retryable.
+            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding))
+                return false;
+            M05LandingReport? observation = savedLanding.HasValue
+                ? null : observeLandingAtArrival();
             if (!M05OuterHarborFlowHost.TryOpen(
-                parent, observedLanding, getInt, setInt,
+                parent, observation, getInt, setInt,
                 OnOuterHarborFlowCompleted, out M05OuterHarborFlowHost nextHarbor))
                 return false;
 
