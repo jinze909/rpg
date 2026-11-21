@@ -53,7 +53,7 @@ namespace Rpg.Tests.Editor
                 (M06RescuePlanFacts.UsableCapacityKey, 1),
                 (M06RescuePlanFacts.LetterDeliveryKey, (int)M06LetterDeliveryOutcome.DeliveredWithPending),
                 (M06RescuePlanFacts.RetaliationHeardKey, 1),
-                (M06RescuePlanFacts.ShenResponseKey, (int)M06ShenResponse.HoldSilenceUntilDock)
+                (M06RescuePlanFacts.ShenResponseKey, (int)M06ShenResponse.LetHerSpeak)
             };
 
             try
@@ -132,7 +132,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
                 Assert.That(M06MineCampReconFacts.TryResetForNewVoyage(write), Is.True);
                 Assert.That(M05LettersFacts.TryResetForNewVoyage(write), Is.True);
-                Assert.That(M05LandingFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
                 SeedVerifiedM05Arrival(values);
                 Assert.That(values[M05LandingFacts.ArrivalSequenceKey], Is.GreaterThan(firstArrival));
 
