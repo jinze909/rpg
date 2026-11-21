@@ -222,8 +222,21 @@ namespace Rpg.Tests.Editor
                 Assert.That(writes, Is.Zero);
                 Assert.That(values[M05LandingFacts.ConfirmedKey], Is.EqualTo(1));
 
-                // A truly unconfirmed arrival remains playable and writable.
+                // Removing only the confirmation flag does not repair the
+                // torn payload. Re-entering the harbor must still fail closed
+                // without replacing the corrupted crew with this new visit.
                 values[M05LandingFacts.ConfirmedKey] = 0;
+                int writesBeforeTornReopen = writes;
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    observed, read, write, _ => { }, out host), Is.False);
+                Assert.That(host, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(values[M05LandingFacts.CrewArrivedKey], Is.EqualTo(99));
+                Assert.That(writes, Is.EqualTo(writesBeforeTornReopen));
+
+                // Only an explicit new-visit reset clears the corrupt payload.
+                // A genuinely clean, unconfirmed arrival remains playable.
+                Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
                 Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
                     observed, read, write, _ => { }, out host), Is.True);
                 Assert.That(host.LandingCheckView, Is.Not.Null);
