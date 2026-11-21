@@ -96,10 +96,19 @@ namespace Rpg.Soundwell
             setInt(M08FirstWorldNoticeFacts.ConfirmedKey, 0);
             setInt(M08WorkshopDepositFacts.CompletedKey, 0);
             setInt(M09BerthTableFacts.ConfirmedKey, 0);
-            setInt(ST06TaoJiHomecomingFacts.ConfirmedKey, 0);
-            setInt(RC04DingYueReefFacts.ConfirmedKey, 0);
+            setInt(M10AssemblyFacts.ConfirmedKey, 0);
+            setInt(M11ReverseRescueFacts.ConfirmedKey, 0);
+            setInt(M12BridgeTruthFacts.ConfirmedKey, 0);
             setInt(M13DepartureRiskFacts.DepartureConfirmedKey, 0);
+            setInt(M14FinalPassageFacts.ConfirmedKey, 0);
             setInt(M15FinalRollCallFacts.ConfirmedKey, 0);
+            setInt(M16EpilogueFacts.ConfirmedKey, 0);
+            setInt(RC01ChenYanFacts.ConfirmedKey, 0);
+            setInt(RC02ZhengYuanFacts.ConfirmedKey, 0);
+            setInt(RC03BaijiMineFacts.ConfirmedKey, 0);
+            setInt(RC04DingYueReefFacts.ConfirmedKey, 0);
+            setInt(RC05ThirdSquadFacts.ConfirmedKey, 0);
+            setInt(ST06TaoJiHomecomingFacts.ConfirmedKey, 0);
 
             return M04DepartureFacts.TryResetForNewVisit(setInt) &&
                 M04RosterFacts.TryResetForNewVisit(setInt) &&
@@ -112,10 +121,19 @@ namespace Rpg.Soundwell
                 M08FirstWorldNoticeFacts.TryResetForNewVoyage(setInt) &&
                 M08WorkshopDepositFacts.TryResetForNewVoyage(setInt) &&
                 M09BerthTableFacts.TryResetForNewVoyage(setInt) &&
-                ST06TaoJiHomecomingFacts.TryResetForNewVoyage(setInt) &&
-                RC04DingYueReefFacts.TryResetForNewVoyage(setInt) &&
+                M10AssemblyFacts.TryResetForNewVoyage(setInt) &&
+                M11ReverseRescueFacts.TryResetForNewVoyage(setInt) &&
+                M12BridgeTruthFacts.TryResetForNewVoyage(setInt) &&
                 M13DepartureRiskFacts.TryResetForNewVoyage(setInt) &&
-                M15FinalRollCallFacts.TryResetForNewVoyage(setInt);
+                M14FinalPassageFacts.TryResetForNewVoyage(setInt) &&
+                M15FinalRollCallFacts.TryResetForNewVoyage(setInt) &&
+                M16EpilogueFacts.TryResetForNewVoyage(setInt) &&
+                RC01ChenYanFacts.TryResetForNewVoyage(setInt) &&
+                RC02ZhengYuanFacts.TryResetForNewVoyage(setInt) &&
+                RC03BaijiMineFacts.TryResetForNewVoyage(setInt) &&
+                RC04DingYueReefFacts.TryResetForNewVoyage(setInt) &&
+                RC05ThirdSquadFacts.TryResetForNewVoyage(setInt) &&
+                ST06TaoJiHomecomingFacts.TryResetForNewVoyage(setInt);
         }
 
         private static bool TryResetPreviousOutboundFacts()
