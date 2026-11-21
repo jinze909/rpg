@@ -40,7 +40,8 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !realDaybreakObserved() ||
-                getInt(M08FirstWorldNoticeFacts.ConfirmedKey) != 0)
+                getInt(M08FirstWorldNoticeFacts.ConfirmedKey) != 0 ||
+                M08FirstWorldNoticeFacts.HasOrphanedRosterCaseFacts(getInt))
                 return false;
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool paid) ||
                 !paid)

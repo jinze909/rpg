@@ -16,6 +16,46 @@ namespace Rpg.Soundwell
         public const int FirstCase = 1;
         public const int LastCase = 5;
 
+        public static bool HasOrphanedRosterCaseFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(RC01ChenYanFacts.ConfirmedKey) != 0 ||
+                getInt(RC01ChenYanFacts.PendingSignatureKey) != 0 ||
+                getInt(RC01ChenYanFacts.CluesMaskKey) != 0 ||
+                getInt(RC01ChenYanFacts.TalkOrderKey) != 0 ||
+                getInt(RC01ChenYanFacts.OutcomeKey) != 0 ||
+                getInt(RC01ChenYanFacts.LinSuNoteKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.ConfirmedKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.PendingSignatureKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.ChecksMaskKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.RoofConfessionKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.ResolutionKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.MotherCalledKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.ShiLengConsentedKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.RealZhengYuanFoundKey) != 0 ||
+                getInt(RC03BaijiMineFacts.ConfirmedKey) != 0 ||
+                getInt(RC03BaijiMineFacts.PendingSignatureKey) != 0 ||
+                getInt(RC03BaijiMineFacts.VisitsMaskKey) != 0 ||
+                getInt(RC03BaijiMineFacts.ResolutionKey) != 0 ||
+                getInt(RC03BaijiMineFacts.PumpDiagramKey) != 0 ||
+                getInt(RC03BaijiMineFacts.SuccessorTrainingKey) != 0 ||
+                getInt(RC03BaijiMineFacts.LanRuoStayConsentKey) != 0 ||
+                getInt(RC03BaijiMineFacts.ChairmanLuoNoteKey) != 0 ||
+                getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
+                getInt(RC04DingYueReefFacts.PendingSignatureKey) != 0 ||
+                getInt(RC04DingYueReefFacts.RoundsCompletedKey) != 0 ||
+                getInt(RC04DingYueReefFacts.AyuanSongUsedKey) != 0 ||
+                getInt(RC04DingYueReefFacts.ResolutionKey) != 0 ||
+                getInt(RC04DingYueReefFacts.DecoyPreparedKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.ConfirmedKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.PendingSignatureKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.TrialDeliveryKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.ResolutionKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.SkirmishKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.RealZhengYuanVerifiedKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.OldWomanStoneMentionedKey) != 0;
+        }
+
         public static bool TryRead(out bool seen)
         {
             seen = false;
@@ -50,7 +90,8 @@ namespace Rpg.Soundwell
             Action<string, int> setInt)
         {
             if (!realDaybreakObserved || getInt == null || setInt == null ||
-                getInt(ConfirmedKey) != 0)
+                getInt(ConfirmedKey) != 0 ||
+                HasOrphanedRosterCaseFacts(getInt))
                 return false;
 
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool paid) || !paid)
