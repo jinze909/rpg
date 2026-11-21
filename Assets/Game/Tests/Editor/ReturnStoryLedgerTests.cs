@@ -184,10 +184,13 @@ namespace Rpg.Tests.Editor
             Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
                 20, 23, M09BerthExchangeFlags.HanQiaoCivilianVoyage,
                 M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
+            // RC-05 chose CivilianPardon above, so a fully signed M10
+            // supply contract must cover those mountain families.
+            Assert.That(M10AssemblyFacts.EvaluateRC05SupplyNeed(read), Is.True);
             Assert.That(M10AssemblyFacts.TryRecord(new M10AssemblyRecord(
                 true, M10RosterAccuracy.VerifiedFirstPass, M10BattleReportSource.CarriedFromM02,
                 M10HanLedgerUse.KeepConfidential, M10SupplyContractStatus.SignedFullCoverage,
-                false, false, true), read, write), Is.True);
+                false, true, true), read, write), Is.True);
 
             // Simulate a torn write after the 20 marker-invalidation writes.
             int writes = 0;
