@@ -65,6 +65,16 @@ namespace Rpg.Tests.Editor
             Assert.That(M08FirstWorldNoticeFacts.TryRecord(true, read, write), Is.True);
         }
 
+        private static void AdvanceRC01ToDecision(RC01ChenYanView view)
+        {
+            view.WristScarButton.onClick.Invoke();
+            view.DoughTuneButton.onClick.Invoke();
+            view.ShrineTabletButton.onClick.Invoke();
+            view.ConfrontButton.onClick.Invoke();
+            view.TalkLinSuButton.onClick.Invoke();
+            view.TalkQiuniangButton.onClick.Invoke();
+        }
+
         [Test]
         public void StaleM13AndRC01HostsCannotCommitAfterArrivalSequenceAdvances()
         {
@@ -102,15 +112,10 @@ namespace Rpg.Tests.Editor
                     root.transform, () => true, read, write))
                 {
                     Assert.That(staleRC01.TryOpen(), Is.True);
-                    Assert.That(staleRC01.Session.TryObserveClue(RC01FerryClues.WristScar), Is.True);
-                    Assert.That(staleRC01.Session.TryObserveClue(RC01FerryClues.DoughHumTune), Is.True);
-                    Assert.That(staleRC01.Session.TryObserveClue(RC01FerryClues.BlankShrineTablet), Is.True);
-                    Assert.That(staleRC01.Session.TryInterviewLinSu(), Is.True);
-                    Assert.That(staleRC01.Session.TryInterviewQiuniang(), Is.True);
-                    staleRC01.ActiveView.Refresh();
+                    AdvanceRC01ToDecision(staleRC01.ActiveView);
 
                     values[M05LandingFacts.ArrivalSequenceKey] = 3;
-                    staleRC01.ActiveView.KeepMarkedDeadButton.onClick.Invoke();
+                    staleRC01.ActiveView.KeepDeadButton.onClick.Invoke();
                     Assert.That(staleRC01.IsResolved, Is.False);
                     Assert.That(staleRC01.ActiveView, Is.Not.Null);
                 }
@@ -120,13 +125,8 @@ namespace Rpg.Tests.Editor
                     root.transform, () => true, read, write))
                 {
                     Assert.That(freshRC01.TryOpen(), Is.True);
-                    Assert.That(freshRC01.Session.TryObserveClue(RC01FerryClues.WristScar), Is.True);
-                    Assert.That(freshRC01.Session.TryObserveClue(RC01FerryClues.DoughHumTune), Is.True);
-                    Assert.That(freshRC01.Session.TryObserveClue(RC01FerryClues.BlankShrineTablet), Is.True);
-                    Assert.That(freshRC01.Session.TryInterviewLinSu(), Is.True);
-                    Assert.That(freshRC01.Session.TryInterviewQiuniang(), Is.True);
-                    freshRC01.ActiveView.Refresh();
-                    freshRC01.ActiveView.KeepMarkedDeadButton.onClick.Invoke();
+                    AdvanceRC01ToDecision(freshRC01.ActiveView);
+                    freshRC01.ActiveView.KeepDeadButton.onClick.Invoke();
                     Assert.That(freshRC01.IsResolved, Is.True);
                 }
             }
