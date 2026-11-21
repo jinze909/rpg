@@ -74,6 +74,11 @@ namespace Rpg.Tests.Editor
             {
                 using (var hub = new ReturnHarborCommandHubHost(
                     root.transform, read, write,
+                    rosterContext: new ReturnRosterCasesHubContext
+                    {
+                        // This fixture explicitly reaches RC-01's ferry.
+                        AtWhiteReedFerry = () => true
+                    },
                     regionalContext: new ReturnRegionalStoriesHubContext
                     {
                         // This mutual-exclusion fixture explicitly visits Luting dock.
