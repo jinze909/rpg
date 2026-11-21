@@ -6,7 +6,7 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable ST-05 ("两扇门的乔迁宴") host. Enforces live Jingwan
     /// courtyard presence, live scene proof revalidation at commit time, and
-    /// clean HomeConfirmedKey / HomeIntentKey before opening ST05TwoDoorsView,
+    /// clean ST05TwoDoorsFacts state before opening ST05TwoDoorsView,
     /// and commits both the living agreement and Cheng Wu's own assignment
     /// through ST05TwoDoorsSession with retry safety.
     /// </summary>
@@ -67,7 +67,8 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atJingwanCourtyard() ||
-                getInt(ST05TwoDoorsFacts.HomeIntentKey) != 0)
+                !ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsOutcome? existing) ||
+                existing.HasValue)
                 return false;
 
             if (!ST05TwoDoorsSession.TryCreate(getInt, out ST05TwoDoorsSession created))
