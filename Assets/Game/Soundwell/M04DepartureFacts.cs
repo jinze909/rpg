@@ -65,6 +65,7 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(FogListeningFacts.CompletedKey) == 0 &&
+                getInt(FogListeningFacts.PendingSignatureKey) == 0 &&
                 getInt(FogListeningFacts.SucceededKey) == 0 &&
                 getInt(FogListeningFacts.HullIntegrityKey) == 0 &&
                 getInt(FogListeningFacts.AvoidedHazardsKey) == 0 &&
