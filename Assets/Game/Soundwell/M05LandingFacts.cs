@@ -42,6 +42,8 @@ namespace Rpg.Soundwell
         // must not accept callbacks from each other's open dialogues.
         // Pre-existing saves without this key read as sequence zero.
         public const string ArrivalSequenceKey = "rpg.return.m05.landing-sequence";
+        public const string PendingSignatureKey = "rpg.return.m05.pending-landing-signature";
+        public const string PendingArrivalSequenceKey = "rpg.return.m05.pending-landing-sequence";
         public const string CrewArrivedKey = "rpg.return.m05.landing-crew-arrived";
         public const string ReadyBerthsKey = "rpg.return.m05.landing-ready-berths";
         public const string TenderArrivedKey = "rpg.return.m05.landing-tender-arrived";
@@ -55,16 +57,89 @@ namespace Rpg.Soundwell
                 (key, value) => variables.Set(key, value));
         }
 
+        // Persist the precise port observation and its original voyage before
+        // touching any of the public arrival fields. A torn write may only
+        // resume this same report and the same reserved arrival identity.
+        private static uint Mix(uint hash, int value)
+        {
+            unchecked
+            {
+                for (int shift = 0; shift < 32; shift += 8)
+                {
+                    hash ^= (byte)(value >> shift);
+                    hash *= 16777619u;
+                }
+                return hash;
+            }
+        }
+
+        private static int Signature(M05LandingReport report,
+            int sailingSequence, int nextArrivalSequence)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                hash = Mix(hash, sailingSequence);
+                hash = Mix(hash, nextArrivalSequence);
+                hash = Mix(hash, report.CrewArrived);
+                hash = Mix(hash, report.ReadyRescueBerths);
+                hash = Mix(hash, report.TenderArrived ? 1 : 0);
+                hash = Mix(hash, report.ReceiverMet ? 1 : 0);
+                int result = (int)hash;
+                return result == 0 ? 1 : result;
+            }
+        }
+
+        private static bool CompatiblePending(Func<string, int> read,
+            string key, int expected)
+        {
+            int actual = read(key);
+            return actual == 0 || actual == expected;
+        }
+
         // Shared, read-only eligibility check. The playable map should never
         // offer a landing confirmation that this same save authority will reject.
         public static bool CanRecord(M05LandingReport report, Func<string, int> getInt)
         {
-            return getInt != null &&
-                getInt(ConfirmedKey) == 0 &&
-                getInt(ArrivalSequenceKey) >= 0 &&
-                getInt(ArrivalSequenceKey) < int.MaxValue &&
-                TryReadCompletedCrossing(getInt, out M04DepartureRecord departure) &&
-                IsValidReport(report, departure);
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !TryReadCompletedCrossing(getInt, out M04DepartureRecord departure) ||
+                !IsValidReport(report, departure))
+                return false;
+
+            int current = getInt(ArrivalSequenceKey);
+            int pendingArrival = getInt(PendingArrivalSequenceKey);
+            int sailing = getInt(M04DepartureFacts.SailingSequenceKey);
+            if (current < 0 || sailing < 0 || pendingArrival < 0)
+                return false;
+
+            // An interrupted commit may have advanced ArrivalSequenceKey
+            // already; it must not advance a second time when retried.
+            if (pendingArrival == 0 && current == int.MaxValue)
+                return false;
+            int target = pendingArrival == 0 ? current + 1 : pendingArrival;
+            if (target <= 0 || (pendingArrival != 0 &&
+                current != target - 1 && current != target))
+                return false;
+
+            int signature = getInt(PendingSignatureKey);
+            if (signature == 0)
+            {
+                // Old unsigned orphan fields must be explicitly reset, never
+                // overwritten by a different crew/berth observation.
+                return pendingArrival == 0 &&
+                    getInt(CrewArrivedKey) == 0 &&
+                    getInt(ReadyBerthsKey) == 0 &&
+                    getInt(TenderArrivedKey) == 0 &&
+                    getInt(ReceiverMetKey) == 0;
+            }
+
+            return signature == Signature(report, sailing, target) &&
+                CompatiblePending(getInt, CrewArrivedKey, report.CrewArrived) &&
+                CompatiblePending(getInt, ReadyBerthsKey, report.ReadyRescueBerths) &&
+                CompatiblePending(getInt, TenderArrivedKey,
+                    report.TenderArrived ? 1 : 0) &&
+                CompatiblePending(getInt, ReceiverMetKey,
+                    report.ReceiverMet ? 1 : 0);
         }
 
         public static bool TryRecord(M05LandingReport report,
@@ -73,11 +148,17 @@ namespace Rpg.Soundwell
             if (setInt == null || !CanRecord(report, getInt))
                 return false;
 
-            // Advance identity before confirming this landing. A torn write
-            // may consume a sequence number, but can never publish a mixed
-            // old/new arrival. The completion marker remains last.
-            int nextSequence = getInt(ArrivalSequenceKey) + 1;
-            setInt(ConfirmedKey, 0);
+            int nextSequence = getInt(PendingArrivalSequenceKey);
+            if (nextSequence == 0)
+                nextSequence = getInt(ArrivalSequenceKey) + 1;
+            int signature = Signature(report,
+                getInt(M04DepartureFacts.SailingSequenceKey), nextSequence);
+
+            // The intent goes first; target sequence follows immediately.
+            // Resume with the same target, even if the sequence was already
+            // written before an interrupted completion marker.
+            setInt(PendingSignatureKey, signature);
+            setInt(PendingArrivalSequenceKey, nextSequence);
             setInt(CrewArrivedKey, report.CrewArrived);
             setInt(ReadyBerthsKey, report.ReadyRescueBerths);
             setInt(TenderArrivedKey, report.TenderArrived ? 1 : 0);
@@ -120,7 +201,20 @@ namespace Rpg.Soundwell
 
             var saved = new M05LandingReport(getInt(CrewArrivedKey),
                 getInt(ReadyBerthsKey), tender == 1, receiver == 1);
-            if (IsValidReport(saved, departure))
+            if (!IsValidReport(saved, departure))
+                return true;
+
+            // Existing confirmed saves predate the signed intent. New records
+            // are readable only with the original report/arrival/voyage.
+            int signature = getInt(PendingSignatureKey);
+            int pendingArrival = getInt(PendingArrivalSequenceKey);
+            if (signature == 0 && pendingArrival == 0)
+                report = saved;
+            else if (signature != 0 &&
+                pendingArrival == getInt(ArrivalSequenceKey) &&
+                signature == Signature(saved,
+                    getInt(M04DepartureFacts.SailingSequenceKey),
+                    pendingArrival))
                 report = saved;
             return true;
         }
@@ -136,6 +230,8 @@ namespace Rpg.Soundwell
         {
             if (setInt == null) return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
+            setInt(PendingArrivalSequenceKey, 0);
             setInt(CrewArrivedKey, 0);
             setInt(ReadyBerthsKey, 0);
             setInt(TenderArrivedKey, 0);
