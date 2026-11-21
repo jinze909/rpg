@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M11 ("这次轮到她来找你") host. Enforces verified
     /// M10AssemblyFacts, live Huilan Pass presence, monotonic M05 arrival identity,
-    /// and clean ConfirmedKey before opening M11ReverseRescueView, and persists
-    /// the outcome through M11ReverseRescueSession with retry-safe recovery.
+    /// and clean M11ReverseRescueFacts state (blocking torn/partial saves) before
+    /// opening M11ReverseRescueView, and persists the outcome with retry safety.
     /// </summary>
     public sealed class M11ReverseRescueHost : IDisposable
     {
@@ -51,7 +51,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atHuilanPass() ||
-                getInt(M11ReverseRescueFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!M11ReverseRescueSession.TryCreateFromSavedFacts(
@@ -66,6 +66,19 @@ namespace Rpg.Soundwell
                 session,
                 HandleCommitRequested);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M11ReverseRescueFacts.ConfirmedKey) != 0 ||
+                getInt(M11ReverseRescueFacts.ThreeBellsKey) != 0 ||
+                getInt(M11ReverseRescueFacts.EntryMethodKey) != 0 ||
+                getInt(M11ReverseRescueFacts.ConscriptionObservedKey) != 0 ||
+                getInt(M11ReverseRescueFacts.ThirdSquadStanceKey) != 0 ||
+                getInt(M11ReverseRescueFacts.RescueProviderKey) != 0 ||
+                getInt(M11ReverseRescueFacts.EchoCallsKey) != 0 ||
+                getInt(M11ReverseRescueFacts.OulinJoinedKey) != 0 ||
+                getInt(M11ReverseRescueFacts.DivisionPactKey) != 0;
         }
 
         private void HandleCommitRequested()

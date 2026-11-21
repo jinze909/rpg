@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M16 ("一个普通的下午") playable epilogue host. Enforces
     /// verified M15FinalRollCallFacts, live Linchao afternoon presence, monotonic
-    /// M05 arrival identity, and clean ConfirmedKey before opening M16EpilogueView,
-    /// and persists the chosen standing spot through M16EpilogueSession.
+    /// M05 arrival identity, and clean M16EpilogueFacts state (blocking torn/partial
+    /// saves) before opening M16EpilogueView.
     /// </summary>
     public sealed class M16EpilogueHost : IDisposable
     {
@@ -51,7 +51,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atLinchaoAfternoon() ||
-                getInt(M16EpilogueFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!M16EpilogueSession.TryCreateFromSavedFacts(
@@ -66,6 +66,17 @@ namespace Rpg.Soundwell
                 session,
                 HandleStandingSpotSubmitted);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M16EpilogueFacts.ConfirmedKey) != 0 ||
+                getInt(M16EpilogueFacts.StopsVisitedKey) != 0 ||
+                getInt(M16EpilogueFacts.LettersReadKey) != 0 ||
+                getInt(M16EpilogueFacts.DeskRegisterKey) != 0 ||
+                getInt(M16EpilogueFacts.StandingSpotKey) != 0 ||
+                getInt(M16EpilogueFacts.ShenWillingKey) != 0 ||
+                getInt(M16EpilogueFacts.ClosingToneKey) != 0;
         }
 
         private void HandleStandingSpotSubmitted(M16StandingSpot spot)

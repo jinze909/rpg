@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M12 ("一面旗帜不等于每个人") host. Enforces verified
     /// M11ReverseRescueFacts, live bell-tower/camp presence, monotonic M05 arrival
-    /// identity, and clean ConfirmedKey before opening M12BridgeTruthView, and
-    /// persists the chosen truth disclosure through M12BridgeTruthSession.
+    /// identity, and clean M12BridgeTruthFacts state (blocking torn/partial saves)
+    /// before opening M12BridgeTruthView.
     /// </summary>
     public sealed class M12BridgeTruthHost : IDisposable
     {
@@ -59,7 +59,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atBellTowerCamp() ||
-                getInt(M12BridgeTruthFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!M12BridgeTruthSession.TryCreateFromSavedFacts(
@@ -79,6 +79,19 @@ namespace Rpg.Soundwell
                 () => M12BridgeTruthFacts.EvaluateM10HanExposedPublicly(getInt),
                 HandleDisclosureSubmitted);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M12BridgeTruthFacts.ConfirmedKey) != 0 ||
+                getInt(M12BridgeTruthFacts.M03PriorConfessionKey) != 0 ||
+                getInt(M12BridgeTruthFacts.M03SecrecyPromisedKey) != 0 ||
+                getInt(M12BridgeTruthFacts.LuReplyKey) != 0 ||
+                getInt(M12BridgeTruthFacts.ShenLiParticipatingKey) != 0 ||
+                getInt(M12BridgeTruthFacts.StatementsMaskKey) != 0 ||
+                getInt(M12BridgeTruthFacts.LinSuEchoKey) != 0 ||
+                getInt(M12BridgeTruthFacts.M10HanExposedKey) != 0 ||
+                getInt(M12BridgeTruthFacts.DisclosureKey) != 0;
         }
 
         private void HandleDisclosureSubmitted(M12TruthDisclosure disclosure)
