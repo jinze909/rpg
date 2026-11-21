@@ -139,11 +139,25 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(M10AssemblyRecord record, Func<string, int> getInt)
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+                IsValidRecord(record, getInt) &&
+                CompatiblePending(getInt, WorldNoticeThreeKey, record.WorldNoticeThreeObserved ? 1 : 0) &&
+                CompatiblePending(getInt, RosterAccuracyKey, (int)record.RosterAccuracy) &&
+                CompatiblePending(getInt, BattleReportSourceKey, (int)record.BattleReportSource) &&
+                CompatiblePending(getInt, HanLedgerUseKey, (int)record.HanLedgerUse) &&
+                CompatiblePending(getInt, SupplyContractKey, (int)record.SupplyContract) &&
+                CompatiblePending(getInt, LeverageWeakenedRC02Key, record.LeverageWeakenedByRC02 ? 1 : 0) &&
+                CompatiblePending(getInt, CoversRC05FamiliesKey, record.CoversRC05MountainFamilies ? 1 : 0) &&
+                CompatiblePending(getInt, BellTowerSeizureKey, record.BellTowerSeizureHeard ? 1 : 0);
         }
 
         public static bool TryRecord(M10AssemblyRecord record)
@@ -163,12 +177,13 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
-            setInt(WorldNoticeThreeKey, record.WorldNoticeThreeObserved ? 1 : 0);
-            setInt(RosterAccuracyKey, (int)record.RosterAccuracy);
-            setInt(BattleReportSourceKey, (int)record.BattleReportSource);
+            // Write primary assembly decisions first so an interrupted commit
+            // locks out competing choices while allowing identical retries.
             setInt(HanLedgerUseKey, (int)record.HanLedgerUse);
             setInt(SupplyContractKey, (int)record.SupplyContract);
+            setInt(RosterAccuracyKey, (int)record.RosterAccuracy);
+            setInt(BattleReportSourceKey, (int)record.BattleReportSource);
+            setInt(WorldNoticeThreeKey, record.WorldNoticeThreeObserved ? 1 : 0);
             setInt(LeverageWeakenedRC02Key, record.LeverageWeakenedByRC02 ? 1 : 0);
             setInt(CoversRC05FamiliesKey, record.CoversRC05MountainFamilies ? 1 : 0);
             setInt(BellTowerSeizureKey, record.BellTowerSeizureHeard ? 1 : 0);

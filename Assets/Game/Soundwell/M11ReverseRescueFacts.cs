@@ -148,11 +148,25 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(M11ReverseRescueRecord record, Func<string, int> getInt)
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+                IsValidRecord(record, getInt) &&
+                CompatiblePending(getInt, ThreeBellsKey, record.ThreeBellsObserved ? 1 : 0) &&
+                CompatiblePending(getInt, EntryMethodKey, (int)record.EntryMethod) &&
+                CompatiblePending(getInt, ConscriptionObservedKey, record.ConscriptionObserved ? 1 : 0) &&
+                CompatiblePending(getInt, ThirdSquadStanceKey, (int)record.ThirdSquadStance) &&
+                CompatiblePending(getInt, RescueProviderKey, (int)record.RescueProvider) &&
+                CompatiblePending(getInt, EchoCallsKey, record.EchoCallsHeard) &&
+                CompatiblePending(getInt, OulinJoinedKey, record.OulinJoinedExtraction ? 1 : 0) &&
+                CompatiblePending(getInt, DivisionPactKey, (int)record.DivisionPact);
         }
 
         public static bool TryRecord(M11ReverseRescueRecord record)
@@ -172,15 +186,16 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
-            setInt(ThreeBellsKey, record.ThreeBellsObserved ? 1 : 0);
-            setInt(EntryMethodKey, (int)record.EntryMethod);
-            setInt(ConscriptionObservedKey, record.ConscriptionObserved ? 1 : 0);
-            setInt(ThirdSquadStanceKey, (int)record.ThirdSquadStance);
+            // Write primary rescue-provider and pact decisions first so an
+            // interrupted save locks out competing outcomes while allowing retries.
             setInt(RescueProviderKey, (int)record.RescueProvider);
+            setInt(DivisionPactKey, (int)record.DivisionPact);
+            setInt(EntryMethodKey, (int)record.EntryMethod);
+            setInt(ThirdSquadStanceKey, (int)record.ThirdSquadStance);
+            setInt(ThreeBellsKey, record.ThreeBellsObserved ? 1 : 0);
+            setInt(ConscriptionObservedKey, record.ConscriptionObserved ? 1 : 0);
             setInt(EchoCallsKey, record.EchoCallsHeard);
             setInt(OulinJoinedKey, record.OulinJoinedExtraction ? 1 : 0);
-            setInt(DivisionPactKey, (int)record.DivisionPact);
             setInt(ConfirmedKey, 1);
             return true;
         }
