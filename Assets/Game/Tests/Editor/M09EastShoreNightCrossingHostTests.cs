@@ -20,6 +20,95 @@ namespace Rpg.Tests.Editor
             view.ListenOrProceedButton.onClick.Invoke();
         }
 
+        private static void SeedActualLanding(Dictionary<string, int> values)
+        {
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var manifest = new M04DepartureManifest(
+                M03VoyageChoice.QiQueMerchant, "Confirmed ferry hull", "A Yuan",
+                4, "Shallow tender", true, 16, 8, "Named receiver", false, false);
+            Assert.That(manifest.ConfirmDeparture(), Is.True);
+            Assert.That(M04DepartureFacts.TryRecord(manifest, write), Is.True);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+            var fog = new FogListeningSession(
+                new[] { new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 80) },
+                maxListenFocus: 1, maxHullIntegrity: 2);
+            fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+            Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 8, true, true), read, write), Is.True);
+        }
+
+        [Test]
+        public void PreviousVoyageCannotVerifyBoardingOrCommitIntoIdenticalNewLanding()
+        {
+            var root = new GameObject("M09 stale night ferry replay");
+            var values = new Dictionary<string, int>();
+            SeedActualLanding(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            int boardChecks = 0, committed = 0;
+            M09EastShoreNightCrossingHost oldHost = null;
+            M09EastShoreNightCrossingHost newHost = null;
+            try
+            {
+                int oldArrival = read(M05LandingFacts.ArrivalSequenceKey);
+                oldHost = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => 4, () => 2,
+                    _ => { boardChecks++; return true; },
+                    _ => { committed++; return true; }, read);
+                Assert.That(oldHost.TryOpen(), Is.True);
+                var oldView = oldHost.ActiveView;
+                ReachJetty(oldView);
+                oldView.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(oldHost.Session.Stage,
+                    Is.EqualTo(M09NightCrossingStage.AwaitingActualBoarding));
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                oldView.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.Zero);
+
+                SeedActualLanding(values);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(oldArrival));
+                oldView.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.Zero);
+                Assert.That(oldHost.Session.Stage,
+                    Is.EqualTo(M09NightCrossingStage.AwaitingActualBoarding));
+
+                oldView.RiskOrRefuseButton.onClick.Invoke();
+                Assert.That(oldHost.Session.IsComplete, Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldView.FinishButton.onClick.Invoke());
+                Assert.That(committed, Is.Zero);
+                Assert.That(oldHost.IsCommitted, Is.False);
+                Assert.That(oldView.FinishButton.interactable, Is.True);
+
+                oldHost.Dispose();
+                oldHost = null;
+                newHost = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => 4, () => 2,
+                    _ => { boardChecks++; return true; },
+                    _ => { committed++; return true; }, read);
+                Assert.That(newHost.TryOpen(), Is.True);
+                ReachJetty(newHost.ActiveView);
+                newHost.ActiveView.ListenOrProceedButton.onClick.Invoke();
+                newHost.ActiveView.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.EqualTo(1));
+                newHost.ActiveView.FinishButton.onClick.Invoke();
+                Assert.That(committed, Is.EqualTo(1));
+                Assert.That(newHost.CommittedOutcome, Is.EqualTo(M09RuiyaOutcome.Rescued));
+                Assert.That(newHost.CommittedBoardedCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                oldHost?.Dispose();
+                newHost?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void HostCannotOpenBeforeReadyWithInvalidCountsOrAlreadyConfirmedBerthTable()
         {
