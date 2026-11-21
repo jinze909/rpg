@@ -68,6 +68,45 @@ namespace Rpg.Tests.Editor
                 M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
         }
 
+        // Simulate the actual downstream facts of a replayed landing.
+        // M06 now signs the arrival identity: changing only the sequence
+        // while retaining last voyage's M06/M07/M08 facts is not a fresh voyage.
+        private static void ReseedRescueThroughNoticeForCurrentArrival(
+            Dictionary<string, int> values)
+        {
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+
+            Assert.That(M08FirstWorldNoticeFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(M08WorkshopDepositFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(M07ExtractionFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
+
+            Assert.That(M06RescuePlanFacts.TryRecord(
+                new M06ReunionRecord(
+                    M06RescuePlan.OfficialHandover, true,
+                    M06LetterDeliveryOutcome.NotCarried, true), read, write), Is.True);
+            Assert.That(M07ExtractionFacts.TryRecord(new M07ExtractionRecord(
+                M07ExecutedRoute.OfficialHandover,
+                M07PumpShutdownState.KeptRunning,
+                M07RouteCostFlags.HarborSupplyDebt,
+                boardedFirstBatchCount: 10,
+                lowerLevelEvacuatedCount: 0,
+                M07RusFate.Arrested, M07LedgerState.Preserved,
+                M07LiangChoice.StayOnIsland,
+                M07YidaChoice.HandToInspector,
+                taoJiRescued: false), read, write), Is.True);
+
+            var winch = new M08FirstWinchOrderSession();
+            Assert.That(winch.TryAcquirePart(M08WinchPart.ScrapGear), Is.True);
+            Assert.That(winch.TryAcquirePart(M08WinchPart.DockCable), Is.True);
+            Assert.That(winch.TryAssemble(), Is.True);
+            Assert.That(winch.TryTightenCable(), Is.True);
+            Assert.That(winch.TryTestLift(), Is.True);
+            Assert.That(M08WorkshopDepositFacts.TryConfirm(winch, read, write), Is.True);
+            Assert.That(M08FirstWorldNoticeFacts.TryRecord(true, read, write), Is.True);
+        }
+
         [Test]
         public void StaleM12AndM16HostsCannotCommitAfterArrivalSequenceAdvances()
         {
@@ -115,6 +154,7 @@ namespace Rpg.Tests.Editor
                     Is.True);
                 Assert.That(staleBerths, Is.Null);
                 Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
+                ReseedRescueThroughNoticeForCurrentArrival(values);
                 Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
                     20, 23, M09BerthExchangeFlags.HanQiaoCivilianVoyage,
                     M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
@@ -158,6 +198,7 @@ namespace Rpg.Tests.Editor
                 // its own arrival. Retain the same factual scenario while
                 // exercising the M16 host's independent stale-view guard.
                 Assert.That(M09BerthTableFacts.TryResetForNewVoyage(write), Is.True);
+                ReseedRescueThroughNoticeForCurrentArrival(values);
                 Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
                     20, 23, M09BerthExchangeFlags.HanQiaoCivilianVoyage,
                     M09RuiyaOutcome.Rescued, false, false), read, write), Is.True);
