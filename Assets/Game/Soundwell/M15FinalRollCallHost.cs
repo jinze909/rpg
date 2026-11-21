@@ -6,8 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable M15 memorial roll-call and stele inscription host.
     /// Enforces live ceremony readiness, monotonic M05 arrival identity, and
-    /// clean ConfirmedKey before opening M15FinalRollCallView, and persists the
-    /// player's reader, identity, and stele choices to Makinom with retry safety.
+    /// clean M15FinalRollCallFacts state (blocking torn/partial saves) before
+    /// opening M15FinalRollCallView.
     /// </summary>
     public sealed class M15FinalRollCallHost : IDisposable
     {
@@ -54,7 +54,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !ceremonyReady() ||
-                getInt(M15FinalRollCallFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             int consentedCount = consentedVerifiedNamesCount();
@@ -69,6 +69,17 @@ namespace Rpg.Soundwell
             activeView = new M15FinalRollCallView(
                 parent, session, HandleRollCallSubmitted);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(M15FinalRollCallFacts.ConfirmedKey) != 0 ||
+                getInt(M15FinalRollCallFacts.ReaderKey) != 0 ||
+                getInt(M15FinalRollCallFacts.IdentityResponseKey) != 0 ||
+                getInt(M15FinalRollCallFacts.PensionClosureKey) != 0 ||
+                getInt(M15FinalRollCallFacts.SteleInscriptionKey) != 0 ||
+                getInt(M15FinalRollCallFacts.ConsentedNamesCountKey) != 0 ||
+                getInt(M15FinalRollCallFacts.XiaoqiByNumberKey) != 0;
         }
 
         private void HandleRollCallSubmitted(

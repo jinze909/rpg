@@ -7,7 +7,7 @@ namespace Rpg.Soundwell
     /// Scene-callable RC-03 ("白矶岛的多数") host. Enforces M08 case-3
     /// availability, live island presence, monotonic M05 arrival identity, live
     /// diagram/training/consent proof revalidation at commit time, and clean
-    /// ConfirmedKey before opening RC03BaijiMineView.
+    /// RC03BaijiMineFacts state (blocking torn/partial saves) before opening.
     /// </summary>
     public sealed class RC03BaijiMineHost : IDisposable
     {
@@ -55,7 +55,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !onBaijiIsland() ||
-                getInt(RC03BaijiMineFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!RC03BaijiMineSession.TryCreateFromSavedFacts(
@@ -72,6 +72,17 @@ namespace Rpg.Soundwell
                 lanRuoWillingToStayOneYear,
                 HandleResolutionSubmitted);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(RC03BaijiMineFacts.ConfirmedKey) != 0 ||
+                getInt(RC03BaijiMineFacts.VisitsMaskKey) != 0 ||
+                getInt(RC03BaijiMineFacts.ResolutionKey) != 0 ||
+                getInt(RC03BaijiMineFacts.PumpDiagramKey) != 0 ||
+                getInt(RC03BaijiMineFacts.SuccessorTrainingKey) != 0 ||
+                getInt(RC03BaijiMineFacts.LanRuoStayConsentKey) != 0 ||
+                getInt(RC03BaijiMineFacts.ChairmanLuoNoteKey) != 0;
         }
 
         private void HandleResolutionSubmitted(RC03Resolution resolution)
