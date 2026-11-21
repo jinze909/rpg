@@ -136,11 +136,23 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(M16EpilogueRecord record, Func<string, int> getInt)
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
-                IsValidRecord(record, getInt);
+                IsValidRecord(record, getInt) &&
+                CompatiblePending(getInt, StopsVisitedKey, (int)record.StopsVisited) &&
+                CompatiblePending(getInt, LettersReadKey, (int)record.LettersReadMask) &&
+                CompatiblePending(getInt, DeskRegisterKey, record.DeskRegisterReviewed ? 1 : 0) &&
+                CompatiblePending(getInt, StandingSpotKey, (int)record.StandingSpot) &&
+                CompatiblePending(getInt, ShenWillingKey, record.ShenLiWillingToMeet ? 1 : 0) &&
+                CompatiblePending(getInt, ClosingToneKey, (int)record.ClosingTone);
         }
 
         public static bool TryRecord(M16EpilogueRecord record)
@@ -160,13 +172,14 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            // Write standing spot and closing tone first so an interrupted save
+            // locks out competing epilogue choices while allowing identical retries.
+            setInt(StandingSpotKey, (int)record.StandingSpot);
+            setInt(ClosingToneKey, (int)record.ClosingTone);
+            setInt(ShenWillingKey, record.ShenLiWillingToMeet ? 1 : 0);
             setInt(StopsVisitedKey, (int)record.StopsVisited);
             setInt(LettersReadKey, (int)record.LettersReadMask);
             setInt(DeskRegisterKey, record.DeskRegisterReviewed ? 1 : 0);
-            setInt(StandingSpotKey, (int)record.StandingSpot);
-            setInt(ShenWillingKey, record.ShenLiWillingToMeet ? 1 : 0);
-            setInt(ClosingToneKey, (int)record.ClosingTone);
             setInt(ConfirmedKey, 1);
             return true;
         }

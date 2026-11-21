@@ -90,11 +90,22 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecordDeparture(M13DepartureRecord record, Func<string, int> getInt)
         {
             return getInt != null &&
                 getInt(DepartureConfirmedKey) == 0 &&
-                IsValidDeparture(record);
+                IsValidDeparture(record) &&
+                CompatiblePending(getInt, RouteKey, (int)record.Route) &&
+                CompatiblePending(getInt, SafetyPrepKey, record.SafetyPreparationComplete ? 1 : 0) &&
+                CompatiblePending(getInt, QiWarningKey, record.QiQueWarningGiven ? 1 : 0) &&
+                CompatiblePending(getInt, RiskConsentKey, record.ExplicitHighRiskConsent ? 1 : 0) &&
+                CompatiblePending(getInt, ThreeBellSignalKey, record.ThreeBellReverseSignalAgreed ? 1 : 0);
         }
 
         public static bool TryRecordDeparture(M13DepartureRecord record)
@@ -114,7 +125,8 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecordDeparture(record, getInt))
                 return false;
 
-            setInt(DepartureConfirmedKey, 0);
+            // Write chosen approach route first so an interrupted commit locks
+            // out competing departure routes while allowing identical retries.
             setInt(RouteKey, (int)record.Route);
             setInt(SafetyPrepKey, record.SafetyPreparationComplete ? 1 : 0);
             setInt(QiWarningKey, record.QiQueWarningGiven ? 1 : 0);
