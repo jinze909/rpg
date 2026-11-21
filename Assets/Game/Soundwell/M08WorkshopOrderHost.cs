@@ -15,6 +15,10 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
         private M08FirstWinchOrderView activeView;
+        // Capture M05's monotonic voyage identity when this live workshop
+        // interaction begins; completing the winch cannot reuse an old scene
+        // after a new M03 sailing with otherwise identical facts.
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public M08FirstWinchOrderView ActiveView => activeView;
@@ -43,8 +47,16 @@ namespace Rpg.Soundwell
                 return false;
 
             var session = new M08FirstWinchOrderSession();
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M08FirstWinchOrderView(parent, session, completedSession =>
             {
+                if (disposed || !openedArrivalSequence.HasValue ||
+                    getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                    !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? liveExtraction) ||
+                    !liveExtraction.HasValue)
+                    throw new InvalidOperationException(
+                        "The M08 workshop belongs to a previous or invalid voyage.");
+
                 // A writer may commit the flag and then throw: a second user
                 // confirmation must acknowledge the persisted result rather
                 // than paying twice or trapping a finished commission.
@@ -67,6 +79,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

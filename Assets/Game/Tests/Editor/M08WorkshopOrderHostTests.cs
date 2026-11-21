@@ -90,6 +90,49 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void IdenticalNewVoyageCannotClaimOldWinchCompletion()
+        {
+            var root = new GameObject("M08 stale winch commission");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M08WorkshopOrderHost host = null;
+            try
+            {
+                host = new M08WorkshopOrderHost(root.transform, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var oldView = host.ActiveView;
+                CompleteWinch(oldView);
+                int oldSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                SeedVerifiedM07(values);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(oldSequence));
+                var oldButton = oldView.FinishButton;
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldButton.onClick.Invoke());
+                Assert.That(read(M08WorkshopDepositFacts.CompletedKey), Is.Zero);
+                Assert.That(host.ActiveView, Is.SameAs(oldView));
+
+                host.Dispose();
+                host = new M08WorkshopOrderHost(root.transform, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                CompleteWinch(host.ActiveView);
+                host.ActiveView.FinishButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CompletedWinchPersistsOnceAcrossNewHostInstances()
         {
             var root = new GameObject("M08 host persist test");
