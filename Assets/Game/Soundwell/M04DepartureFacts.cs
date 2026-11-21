@@ -51,6 +51,10 @@ namespace Rpg.Soundwell
         // Confirming resources is not the same as actually sailing.
         // An old save without this newer key correctly means "not sailed".
         public const string SailedKey = "rpg.return.m04.vessel-sailed";
+        // Monotonic cast-off identity belongs to the same Makinom save.
+        // Legacy saved voyages without this key read as zero; the sequence
+        // is never reset when M03 begins another trip.
+        public const string SailingSequenceKey = "rpg.return.m04.sailing-sequence";
 
         public static bool TryResetForNewVisit()
         {
@@ -67,6 +71,7 @@ namespace Rpg.Soundwell
             // A replay cannot inherit an earlier voyage's confirmed departure.
             setInt(ConfirmedKey, 0);
             setInt(SailedKey, 0);
+            // Intentionally retain SailingSequenceKey across replays.
             setInt(RouteKey, 0);
             setInt(AssignedCrewKey, 0);
             setInt(AvailableBerthsKey, 0);
@@ -195,6 +200,13 @@ namespace Rpg.Soundwell
                  currentRoute.Value != readiness.Value.Route))
                 return false;
 
+            // Write the new identity before the public sailed marker. A
+            // torn write cannot publish a sailed trip with the old identity.
+            // A retry may skip an unused sequence number, which is safe.
+            int previousSequence = getInt(SailingSequenceKey);
+            if (previousSequence < 0 || previousSequence == int.MaxValue)
+                return false;
+            setInt(SailingSequenceKey, previousSequence + 1);
             setInt(SailedKey, 1);
             return true;
         }

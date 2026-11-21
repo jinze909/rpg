@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> write;
         private readonly FogListeningSession leg;
         private readonly M04DepartureRecord departure;
+        private readonly int openedSailingSequence;
         private Action<FogListeningRecord> onCompleted;
         private readonly FogListeningView view;
         private bool delivered;
@@ -74,20 +75,27 @@ namespace Rpg.Soundwell
                 previous.HasValue)
                 return false;
 
+            // A missing sequence is valid for legacy pre-sequence saves.
+            // A corrupted negative value must never authorize a new leg.
+            int sailingSequence = read(M04DepartureFacts.SailingSequenceKey);
+            if (sailingSequence < 0)
+                return false;
+
             host = new M04SailedFogLegHost(parent, leg, read, write,
-                departure.Value, onCompleted);
+                departure.Value, sailingSequence, onCompleted);
             return true;
         }
 
         private M04SailedFogLegHost(Transform parent,
             FogListeningSession leg, Func<string, int> read,
             Action<string, int> write, M04DepartureRecord departure,
-            Action<FogListeningRecord> onCompleted)
+            int sailingSequence, Action<FogListeningRecord> onCompleted)
         {
             this.leg = leg;
             this.read = read;
             this.write = write;
             this.departure = departure;
+            openedSailingSequence = sailingSequence;
             this.onCompleted = onCompleted;
             view = new FogListeningView(parent, leg, OnFogFinished);
         }
@@ -109,6 +117,7 @@ namespace Rpg.Soundwell
             if (!M03LuJunFacts.TryRead(read, out _, out _,
                     out M03VoyageChoice? chosenRoute) ||
                 !chosenRoute.HasValue || chosenRoute.Value != departure.Route ||
+                read(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
                 !M04DepartureFacts.TryRead(read, out M04DepartureRecord? current) ||
                 !current.HasValue ||
                 !M04DepartureFacts.TryReadSailed(read, out bool sailed) ||
