@@ -5,9 +5,10 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable ST-05 ("两扇门的乔迁宴") host. Enforces live Jingwan
-    /// courtyard presence and clean HomeConfirmedKey / HomeIntentKey before
-    /// opening ST05TwoDoorsView, and commits both the living agreement and
-    /// Cheng Wu's own assignment through ST05TwoDoorsSession with retry safety.
+    /// courtyard presence, live scene proof revalidation at commit time, and
+    /// clean HomeConfirmedKey / HomeIntentKey before opening ST05TwoDoorsView,
+    /// and commits both the living agreement and Cheng Wu's own assignment
+    /// through ST05TwoDoorsSession with retry safety.
     /// </summary>
     public sealed class ST05TwoDoorsHost : IDisposable
     {
@@ -89,14 +90,16 @@ namespace Rpg.Soundwell
 
         private void HandleHomeCommitRequested()
         {
-            if (disposed || session == null || !atJingwanCourtyard())
+            if (disposed || session == null || !atJingwanCourtyard() ||
+                !marketGiftsTested() || !courtyardResolved() || !partnersHeard())
                 return;
             session.TryCommitLivingAgreement(getInt, setInt);
         }
 
         private void HandleAssignmentCommitRequested()
         {
-            if (disposed || session == null || !atJingwanCourtyard())
+            if (disposed || session == null || !atJingwanCourtyard() ||
+                !chengJobTermsReady())
                 return;
             if (!session.TryCommitChengAssignment(getInt, setInt))
                 return;
