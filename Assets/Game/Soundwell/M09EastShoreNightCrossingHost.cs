@@ -19,6 +19,9 @@ namespace Rpg.Soundwell
         private readonly Func<int, bool> confirmActuallyBoarded;
         private readonly Func<M09EastShoreNightCrossingSession, bool> commitVerifiedOutcome;
         private readonly Func<string, int> getInt;
+        // An otherwise identical replayed voyage is a different M05 arrival;
+        // stale UI must not invoke actual-boarding or save callbacks.
+        private int? openedArrivalSequence;
         private M09EastShoreNightCrossingSession session;
         private M09EastShoreNightCrossingView activeView;
         private M09RuiyaOutcome? committedOutcome;
@@ -63,15 +66,18 @@ namespace Rpg.Soundwell
 
             int berths = availableBerths();
             int household = observedHouseholdSize();
-            if (berths < 0 || household <= 0)
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (berths < 0 || household <= 0 || arrivalSequence < 0)
                 return false;
 
+            openedArrivalSequence = arrivalSequence;
             session = new M09EastShoreNightCrossingSession(berths);
             activeView = new M09EastShoreNightCrossingView(
                 parent,
                 session,
                 household,
-                confirmActuallyBoarded,
+                count => IsCurrentVoyage() && nightFerryReady() &&
+                    confirmActuallyBoarded(count),
                 HandleCompleted);
             return true;
         }
@@ -79,7 +85,8 @@ namespace Rpg.Soundwell
         private void HandleCompleted(M09EastShoreNightCrossingSession completed)
         {
             if (disposed || completed != session || !completed.IsComplete ||
-                !completed.Outcome.HasValue || !nightFerryReady())
+                !completed.Outcome.HasValue || !nightFerryReady() ||
+                !IsCurrentVoyage())
                 throw new InvalidOperationException(
                     "Night crossing outcome cannot be committed while scene is not ready.");
 
@@ -93,12 +100,29 @@ namespace Rpg.Soundwell
             activeView = null;
         }
 
+        private bool IsCurrentVoyage()
+        {
+            if (disposed || !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                return false;
+
+            // Legacy saves and scene-only tests may not carry a monotonic
+            // arrival counter yet. Once an actual M05 arrival has minted one,
+            // a reset clears its completion marker BEFORE the next arrival
+            // increments the sequence; do not verify boarding in that gap.
+            if (openedArrivalSequence.Value == 0)
+                return true;
+            return M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) &&
+                landing.HasValue;
+        }
+
         public void Dispose()
         {
             if (disposed) return;
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }
