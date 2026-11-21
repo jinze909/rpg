@@ -43,7 +43,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || activeView != null || !atLutingDock() ||
                 getInt(ST02RiverLanternsFacts.ConfirmedKey) != 0 ||
-                getInt(ST02RiverLanternsFacts.PendingSignatureKey) != 0)
+                getInt(ST02RiverLanternsFacts.PendingSignatureKey) != 0 ||
+                !ST02RiverLanternsFacts.TryRead(getInt, out _))
                 return false;
 
             session = new ST02RiverLanternsSession();

@@ -49,6 +49,49 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void HostCannotStartWithOrphanedOutcomeFactEvenWhenIntentIsClear()
+        {
+            foreach (string orphanKey in new[]
+            {
+                ST02RiverLanternsFacts.InspectionsMaskKey,
+                ST02RiverLanternsFacts.OriginalWordsRelayedKey,
+                ST02RiverLanternsFacts.DockFeedbackKey,
+                ST02RiverLanternsFacts.TrialDisclosureKey,
+                ST02RiverLanternsFacts.BidModeKey,
+                ST02RiverLanternsFacts.LockRescueKey
+            })
+                CheckOrphanedOutcomeFact(orphanKey);
+        }
+
+        private static void CheckOrphanedOutcomeFact(string orphanKey)
+        {
+            var root = new GameObject("ST02 host orphaned payload guard");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            ST02RiverLanternsHost host = null;
+            try
+            {
+                host = new ST02RiverLanternsHost(root.transform, () => true,
+                    read, (key, value) => values[key] = value);
+                values[orphanKey] = 1;
+                Assert.That(ST02RiverLanternsFacts.TryRead(read, out _), Is.False);
+                Assert.That(host.TryOpen(), Is.False,
+                    "Orphaned facts from an incomplete reset must not reopen a doomed encounter.");
+                Assert.That(host.ActiveView, Is.Null);
+
+                values[orphanKey] = 0;
+                Assert.That(host.TryOpen(), Is.True,
+                    "A genuinely clean new-game reset still allows entry.");
+                Assert.That(host.ActiveView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FullJointBidFlowInspectsBothBoatsRelaysWordsAndPersistsOnce()
         {
             var root = new GameObject("ST02 host joint bid");
