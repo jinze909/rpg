@@ -189,7 +189,10 @@ namespace Rpg.Tests.Editor
                     Assert.That(flow.TryOpenNextStage(), Is.True);
                     Assert.That(flow.CurrentStage, Is.EqualTo(ReturnFinaleStage.M14FinalPassage));
                     var m14 = flow.ActiveM14Host.Session;
-                    Assert.That(m14.TryResolveRouteASupervisedCivilian(true, true), Is.True);
+                    Assert.That(m14.TryResolveRouteASupervisedSquare(
+                        validSupervisionCredentials: true,
+                        validPortGuarantee: true,
+                        luJunDisposition: M14LuJunDisposition.RelievedOfCommand), Is.True);
                     Assert.That(m14.TryVerifyCivilianExit(12, 2, 1), Is.True);
                     Assert.That(m14.TrySettleAyuanAndCommit(M14AyuanOutcome.Safe, read, write), Is.True);
 
