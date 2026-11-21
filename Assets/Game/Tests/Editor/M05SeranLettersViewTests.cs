@@ -9,6 +9,29 @@ namespace Rpg.Tests.Editor
 {
     public sealed class M05SeranLettersViewTests
     {
+        private static void SeedVerifiedLanding(Dictionary<string, int> save)
+        {
+            Func<string, int> read = key =>
+                save.TryGetValue(key, out int value) ? value : 0;
+            Action<string, int> write = (key, value) => save[key] = value;
+            var manifest = new M04DepartureManifest(M03VoyageChoice.QiQueMerchant,
+                "Verified civilian hull", "A Yuan", 4, "Shallow tender",
+                true, 16, 8, "Named receiver", false, false);
+            Assert.That(manifest.ConfirmDeparture(), Is.True);
+            Assert.That(M04DepartureFacts.TryRecord(manifest, write), Is.True);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+
+            var fog = new FogListeningSession(
+                new[] { new FogListeningCue(FogBearing.Ahead,
+                    FogCueKind.ClearWater, 80) },
+                maxListenFocus: 1, maxHullIntegrity: 2);
+            fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+            Assert.That(fog.IsComplete && fog.Succeeded, Is.True);
+            Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 8, true, true), read, write), Is.True);
+        }
+
         [Test]
         public void TakingPacketPreviewsAuthoredLettersButOnlyTheHostRecordsTheChoice()
         {
@@ -20,6 +43,7 @@ namespace Rpg.Tests.Editor
             Action<string, int> write = (key, value) => store[key] = value;
             try
             {
+                SeedVerifiedLanding(store);
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 int calls = 0;
                 view = new M05SeranLettersView(root.transform, decision =>
