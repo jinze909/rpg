@@ -17,7 +17,7 @@ namespace Rpg.Soundwell
     /// Owns and enforces strict single-active-panel mutual exclusion across:
     /// - ReturnStoryLedgerHost (progress &amp; journal overlay),
     /// - ReturnRosterCasesHubHost (RC-01..RC-05),
-    /// - ReturnRegionalStoriesHubHost (ST-02, ST-03, ST-05, ST-06), and
+    /// - ReturnRegionalStoriesHubHost (ST-01, ST-02, ST-03, ST-05, ST-06), and
     /// - ReturnFinaleFlowHost (M10-M16 Act-3 sequence).
     /// </summary>
     public sealed class ReturnHarborCommandHubHost : IDisposable

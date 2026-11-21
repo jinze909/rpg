@@ -6,6 +6,7 @@ namespace Rpg.Soundwell
     public enum ReturnRegionalStoryId
     {
         None = 0,
+        ST01JingwanTheater = 1,
         ST02RiverLanterns = 2,
         ST03Bathhouse = 3,
         ST05TwoDoors = 5,
@@ -19,6 +20,16 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class ReturnRegionalStoriesHubContext
     {
+        public Func<bool> AtJingwanTheater { get; set; } = () => false;
+        public Func<bool> LiuLingPresent { get; set; } = () => false;
+        public Func<bool> OriginalScriptRead { get; set; } = () => false;
+        public Func<bool> RevisedScriptRead { get; set; } = () => false;
+        public Func<bool> RehearsalObserved { get; set; } = () => false;
+        public Func<bool> DisplacedResidentsHeard { get; set; } = () => false;
+        public Func<bool> AlternateStageAndFundingPrepared { get; set; } = () => false;
+        public Func<bool> PostshowResidentsForumArranged { get; set; } = () => false;
+        public Func<bool> PublicBoycottActuallyDeclared { get; set; } = () => false;
+
         public Func<bool> AtLutingDock { get; set; } = () => false;
 
         public Func<bool> AtZhonglingBathhouse { get; set; } = () => false;
@@ -39,8 +50,8 @@ namespace Rpg.Soundwell
     }
 
     /// <summary>
-    /// Scene-callable regional-stories hub coordinator for ST-02, ST-03, ST-05,
-    /// and ST-06. Enforces ST-06's M07 Tao Ji rescue gate, single-active-story
+    /// Scene-callable regional-stories hub coordinator for ST-01, ST-02, ST-03,
+    /// ST-05, and ST-06. Enforces ST-06's M07 Tao Ji rescue gate, single-active-story
     /// mutual exclusion, permanent-vs-voyage story classification, and clean
     /// sub-host disposal when switching stories or exiting the hub.
     /// </summary>
@@ -59,6 +70,7 @@ namespace Rpg.Soundwell
         public bool HasActiveStory => activeHost != null;
         public bool IsDisposed => disposed;
 
+        public ST01TheaterChoiceHost ActiveST01Host => activeHost as ST01TheaterChoiceHost;
         public ST02RiverLanternsHost ActiveST02Host => activeHost as ST02RiverLanternsHost;
         public ST03BathhouseHost ActiveST03Host => activeHost as ST03BathhouseHost;
         public ST05TwoDoorsHost ActiveST05Host => activeHost as ST05TwoDoorsHost;
@@ -78,7 +90,8 @@ namespace Rpg.Soundwell
 
         public static bool IsPermanentRegionalStory(ReturnRegionalStoryId storyId)
         {
-            return storyId == ReturnRegionalStoryId.ST02RiverLanterns ||
+            return storyId == ReturnRegionalStoryId.ST01JingwanTheater ||
+                storyId == ReturnRegionalStoryId.ST02RiverLanterns ||
                 storyId == ReturnRegionalStoryId.ST03Bathhouse ||
                 storyId == ReturnRegionalStoryId.ST05TwoDoors;
         }
@@ -87,6 +100,9 @@ namespace Rpg.Soundwell
         {
             switch (storyId)
             {
+                case ReturnRegionalStoryId.ST01JingwanTheater:
+                    return ST01RegionalStoryFacts.TryRead(getInt, out ST01RegionalOutcome r1) &&
+                        r1.Theater.HasValue;
                 case ReturnRegionalStoryId.ST02RiverLanterns:
                     return ST02RiverLanternsFacts.TryRead(getInt, out ST02RiverLanternsRecord? r2) &&
                         r2.HasValue;
@@ -116,7 +132,8 @@ namespace Rpg.Soundwell
                     m07.Value.TaoJiRescued;
             }
 
-            return storyId == ReturnRegionalStoryId.ST02RiverLanterns ||
+            return storyId == ReturnRegionalStoryId.ST01JingwanTheater ||
+                storyId == ReturnRegionalStoryId.ST02RiverLanterns ||
                 storyId == ReturnRegionalStoryId.ST03Bathhouse ||
                 storyId == ReturnRegionalStoryId.ST05TwoDoors;
         }
@@ -124,6 +141,7 @@ namespace Rpg.Soundwell
         public int CountSettledStories()
         {
             int count = 0;
+            if (IsStorySettled(ReturnRegionalStoryId.ST01JingwanTheater)) count++;
             if (IsStorySettled(ReturnRegionalStoryId.ST02RiverLanterns)) count++;
             if (IsStorySettled(ReturnRegionalStoryId.ST03Bathhouse)) count++;
             if (IsStorySettled(ReturnRegionalStoryId.ST05TwoDoors)) count++;
@@ -137,6 +155,16 @@ namespace Rpg.Soundwell
         {
             switch (storyId)
             {
+                case ReturnRegionalStoryId.ST01JingwanTheater:
+                    return context.AtJingwanTheater != null &&
+                        context.LiuLingPresent != null &&
+                        context.OriginalScriptRead != null &&
+                        context.RevisedScriptRead != null &&
+                        context.RehearsalObserved != null &&
+                        context.DisplacedResidentsHeard != null &&
+                        context.AlternateStageAndFundingPrepared != null &&
+                        context.PostshowResidentsForumArranged != null &&
+                        context.PublicBoycottActuallyDeclared != null;
                 case ReturnRegionalStoryId.ST02RiverLanterns:
                     return context.AtLutingDock != null;
                 case ReturnRegionalStoryId.ST03Bathhouse:
@@ -175,6 +203,22 @@ namespace Rpg.Soundwell
 
             switch (storyId)
             {
+                case ReturnRegionalStoryId.ST01JingwanTheater:
+                {
+                    var host = new ST01TheaterChoiceHost(
+                        uiParent,
+                        context.AtJingwanTheater,
+                        context.LiuLingPresent,
+                        context.OriginalScriptRead,
+                        context.RevisedScriptRead,
+                        context.RehearsalObserved,
+                        context.DisplacedResidentsHeard,
+                        context.AlternateStageAndFundingPrepared,
+                        context.PostshowResidentsForumArranged,
+                        context.PublicBoycottActuallyDeclared,
+                        getInt, setInt);
+                    return Activate(storyId, host, host.TryOpen());
+                }
                 case ReturnRegionalStoryId.ST02RiverLanterns:
                 {
                     var host = new ST02RiverLanternsHost(
