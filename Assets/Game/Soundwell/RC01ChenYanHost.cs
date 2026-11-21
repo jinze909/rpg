@@ -5,9 +5,8 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable RC-01 ("砚叔的两个家") host. Enforces M08 case-1
-    /// availability, live ferry presence, and clean ConfirmedKey before
-    /// opening RC01ChenYanView, and persists the roster decision through
-    /// RC01ChenYanSession with retry-safe and idempotent commit recovery.
+    /// availability, live ferry presence, monotonic M05 arrival identity, and
+    /// clean ConfirmedKey before opening RC01ChenYanView.
     /// </summary>
     public sealed class RC01ChenYanHost : IDisposable
     {
@@ -17,6 +16,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private RC01ChenYanSession session;
         private RC01ChenYanView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public RC01ChenYanSession Session => session;
@@ -50,13 +50,16 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new RC01ChenYanView(parent, session, HandleOutcomeSubmitted);
             return true;
         }
 
         private void HandleOutcomeSubmitted(RC01ChenYanOutcome outcome)
         {
-            if (disposed || session == null || !atWhiteReedFerry())
+            if (disposed || session == null || !atWhiteReedFerry() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TrySettleRosterEntry(outcome, getInt, setInt))
@@ -64,6 +67,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -72,6 +76,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

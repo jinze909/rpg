@@ -5,9 +5,8 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable RC-05 ("山上的第三班") host. Enforces M08 case-5
-    /// availability, live mountain-mill presence, and clean ConfirmedKey before
-    /// opening RC05ThirdSquadView, and persists the chosen resolution through
-    /// RC05ThirdSquadSession with retry-safe idempotent commit recovery.
+    /// availability, live mountain-mill presence, monotonic M05 arrival identity,
+    /// and clean ConfirmedKey before opening RC05ThirdSquadView.
     /// </summary>
     public sealed class RC05ThirdSquadHost : IDisposable
     {
@@ -22,6 +21,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private RC05ThirdSquadSession session;
         private RC05ThirdSquadView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public RC05ThirdSquadSession Session => session;
@@ -70,6 +70,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new RC05ThirdSquadView(
                 parent,
                 session,
@@ -83,7 +84,9 @@ namespace Rpg.Soundwell
 
         private void HandleResolutionSubmitted(RC05Resolution resolution)
         {
-            if (disposed || session == null || !atAbandonedMill())
+            if (disposed || session == null || !atAbandonedMill() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TrySettleResolution(resolution, getInt, setInt))
@@ -91,6 +94,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -99,6 +103,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

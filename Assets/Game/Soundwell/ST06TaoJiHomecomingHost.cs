@@ -5,9 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable ST-06 ("陶霁返乡") homecoming host. Enforces verified
-    /// M07 Tao Ji rescue and live woodshop presence, drives
-    /// ST06TaoJiHomecomingView, and persists settlement to Makinom with
-    /// interrupted-write retry and idempotent commit-then-throw recovery.
+    /// M07 Tao Ji rescue, monotonic M05 arrival identity, and live woodshop
+    /// presence, drives ST06TaoJiHomecomingView, and persists settlement to
+    /// Makinom with interrupted-write retry and idempotent recovery.
     /// </summary>
     public sealed class ST06TaoJiHomecomingHost : IDisposable
     {
@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private ST06TaoJiHomecomingSession session;
         private ST06TaoJiHomecomingView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public ST06TaoJiHomecomingSession Session => session;
@@ -50,6 +51,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new ST06TaoJiHomecomingView(
                 parent, session, HandleSettleRequested);
             return true;
@@ -58,7 +60,9 @@ namespace Rpg.Soundwell
         private void HandleSettleRequested(ST06TaoJiHomecomingSession activeSession)
         {
             if (disposed || activeSession != session || session == null ||
-                !session.ChairResolution.HasValue || !taoJiAtWoodshop())
+                !session.ChairResolution.HasValue || !taoJiAtWoodshop() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!ST06TaoJiHomecomingFacts.TryRead(
@@ -85,6 +89,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -93,6 +98,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

@@ -5,10 +5,10 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M13 approach route and A Yuan risk-consent host.
-    /// Enforces live fleet-briefing readiness and clean DepartureConfirmedKey
-    /// before opening M13DepartureRiskView, supports scene-driven Qi Que
-    /// warning delivery, and persists departure to Makinom with
-    /// interrupted-write retry and idempotent commit-then-throw recovery.
+    /// Enforces live fleet-briefing readiness, monotonic M05 arrival identity,
+    /// and clean DepartureConfirmedKey before opening M13DepartureRiskView,
+    /// supports scene-driven Qi Que warning delivery, and persists departure to
+    /// Makinom with interrupted-write retry and idempotent recovery.
     /// </summary>
     public sealed class M13DepartureRiskHost : IDisposable
     {
@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private M13DepartureRiskSession session;
         private M13DepartureRiskView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public M13DepartureRiskSession Session => session;
@@ -55,6 +56,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = new M13DepartureRiskSession(initialSafetyPrepComplete());
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M13DepartureRiskView(
                 parent, session, HandleDepartureRequested);
             return true;
@@ -63,7 +65,9 @@ namespace Rpg.Soundwell
         public bool TryDeliverQiQueWarning()
         {
             if (disposed || session == null || activeView == null ||
-                session.IsDeparted || session.QiQueWarningGiven)
+                session.IsDeparted || session.QiQueWarningGiven ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return false;
 
             session.DeliverQiQueWarning();
@@ -73,7 +77,9 @@ namespace Rpg.Soundwell
 
         private void HandleDepartureRequested(M13ApproachRoute route)
         {
-            if (disposed || session == null || !fleetBriefingReady() || !canDepartNow())
+            if (disposed || session == null || !fleetBriefingReady() || !canDepartNow() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!M13DepartureRiskFacts.TryReadDeparture(
@@ -100,6 +106,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -108,6 +115,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

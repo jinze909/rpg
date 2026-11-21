@@ -5,9 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable RC-04 ("丁岳与借声兽") host orchestrating the M08 roster
-    /// availability gate, three-round salt-fog listening view, verified
-    /// tidal-window reef approach handoff, and four-choice on-reef resolution
-    /// view with retry-safe Makinom persistence.
+    /// availability gate, monotonic M05 arrival identity, three-round salt-fog
+    /// listening view, verified tidal-window reef approach handoff, and
+    /// four-choice on-reef resolution view with retry-safe Makinom persistence.
     /// </summary>
     public sealed class RC04DingYueReefHost : IDisposable
     {
@@ -21,6 +21,7 @@ namespace Rpg.Soundwell
         private RC04DingYueReefSession session;
         private RC04ReefListeningView listeningView;
         private RC04ReefResolutionView resolutionView;
+        private int? openedArrivalSequence;
         private bool approachConfirmed;
         private bool disposed;
 
@@ -61,6 +62,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = session ?? new RC04DingYueReefSession();
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             listeningView = new RC04ReefListeningView(
                 parent, session, HandleApproachRequested);
             return true;
@@ -70,7 +72,9 @@ namespace Rpg.Soundwell
         {
             if (disposed || activeSession != session || session == null ||
                 !session.TidalWindowLocated || session.IsResolved ||
-                !canApproachReef())
+                !canApproachReef() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return false;
 
             if (!M08FirstWorldNoticeFacts.TryCaseAvailable(
@@ -89,7 +93,9 @@ namespace Rpg.Soundwell
         private bool HandleResolutionRequested(RC04Resolution resolution)
         {
             if (disposed || !approachConfirmed || session == null ||
-                !session.TidalWindowLocated || !verifiedSceneConditions(resolution))
+                !session.TidalWindowLocated || !verifiedSceneConditions(resolution) ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return false;
 
             if (!M08FirstWorldNoticeFacts.TryCaseAvailable(
@@ -119,6 +125,7 @@ namespace Rpg.Soundwell
 
             resolutionView?.Dispose();
             resolutionView = null;
+            openedArrivalSequence = null;
             return true;
         }
 
@@ -130,6 +137,7 @@ namespace Rpg.Soundwell
             listeningView = null;
             resolutionView?.Dispose();
             resolutionView = null;
+            openedArrivalSequence = null;
         }
     }
 }
