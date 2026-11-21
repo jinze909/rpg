@@ -38,7 +38,8 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || IsCompleted)
+            if (disposed || activeView != null || IsCompleted ||
+                getInt(M08WorkshopDepositFacts.CompletedKey) != 0)
                 return false;
 
             // No M08 commission before the actual M07 extraction is settled.
@@ -46,8 +47,12 @@ namespace Rpg.Soundwell
                 !extraction.HasValue)
                 return false;
 
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0)
+                return false;
+
             var session = new M08FirstWinchOrderSession();
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             activeView = new M08FirstWinchOrderView(parent, session, completedSession =>
             {
                 if (disposed || !openedArrivalSequence.HasValue ||
