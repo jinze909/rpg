@@ -63,7 +63,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || IsCommitted || !nightFerryReady() ||
-                getInt(M09BerthTableFacts.ConfirmedKey) != 0)
+                !HasUnsettledCleanM09State())
                 return false;
 
             int berths = availableBerths();
@@ -81,9 +81,10 @@ namespace Rpg.Soundwell
                 session,
                 household,
                 count => IsCurrentVoyage() && nightFerryReady() &&
-                    // An unrelated berth-table settlement invalidates this
-                    // still-visible ferry panel before real boarding begins.
-                    getInt(M09BerthTableFacts.ConfirmedKey) == 0 &&
+                    // An unrelated berth-table settlement, torn M09 payload,
+                    // or orphaned Act-3 fact invalidates this still-visible
+                    // ferry panel before real boarding begins.
+                    HasUnsettledCleanM09State() &&
                     LiveTransferCountsMatch() && confirmActuallyBoarded(count),
                 HandleCompleted);
             return true;
@@ -93,9 +94,9 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed != session || !completed.IsComplete ||
                 !completed.Outcome.HasValue || !nightFerryReady() ||
-                // A competing or corrupted M09 settlement must not be
-                // overwritten by an older ferry panel's outcome callback.
-                getInt(M09BerthTableFacts.ConfirmedKey) != 0 ||
+                // A competing, torn, or corrupted M09 settlement—or orphaned
+                // Act-3 downstream facts—must not be overwritten by this panel.
+                !HasUnsettledCleanM09State() ||
                 !IsCurrentVoyage() || !LiveTransferCountsMatch(
                     allowVerifiedBoardingConsumption: true))
                 throw new InvalidOperationException(
@@ -109,6 +110,12 @@ namespace Rpg.Soundwell
             committedBoardedCount = completed.ActuallyBoardedCount;
             activeView?.Dispose();
             activeView = null;
+        }
+
+        private bool HasUnsettledCleanM09State()
+        {
+            return !M09BerthTableFacts.HasAnyPersistedFacts(getInt) &&
+                !M09BerthTableFacts.HasOrphanedDownstreamFacts(getInt);
         }
 
         // Before verifying boarding, the live berth and household counts
