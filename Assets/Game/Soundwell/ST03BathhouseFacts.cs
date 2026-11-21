@@ -75,6 +75,7 @@ namespace Rpg.Soundwell
     public static class ST03BathhouseFacts
     {
         public const string ConfirmedKey = "rpg.return.st03.bathhouse-confirmed";
+        public const string PendingChoiceKey = "rpg.return.st03.pending-choice-lock";
         public const string ChoiceKey = "rpg.return.st03.bathhouse-choice";
         public const string SafeRouteKey = "rpg.return.st03.safe-route-cleared";
         public const string ReturnTripKey = "rpg.return.st03.return-trip-retimed";
@@ -97,7 +98,13 @@ namespace Rpg.Soundwell
 
         public static bool CanRecord(ST03BathhouseRecord record, Func<string, int> read)
         {
-            return read != null && Valid(record) && read(ConfirmedKey) == 0 &&
+            if (read == null || !Valid(record) || read(ConfirmedKey) != 0)
+                return false;
+            // A saved intent survives a torn write even if the outcome payload
+            // is not yet present. Legacy unsigned partial records still use
+            // the original compatible-fields check below.
+            int pendingChoice = read(PendingChoiceKey);
+            return (pendingChoice == 0 || pendingChoice == (int)record.Choice) &&
                 CompatiblePending(read, ChoiceKey, (int)record.Choice) &&
                 CompatiblePending(read, SafeRouteKey, 1) &&
                 CompatiblePending(read, ReturnTripKey, 1) &&
@@ -111,8 +118,9 @@ namespace Rpg.Soundwell
             if (write == null || !CanRecord(record, read))
                 return false;
 
-            // Do not reset a previously confirmed marker. When a write throws
-            // before this final marker, retrying the same values is safe.
+            // Lock the first permanent decision before writing the payload.
+            // A torn write can only resume the identical original choice.
+            write(PendingChoiceKey, (int)record.Choice);
             write(ChoiceKey, (int)record.Choice);
             write(SafeRouteKey, 1);
             write(ReturnTripKey, 1);
@@ -140,6 +148,7 @@ namespace Rpg.Soundwell
                 return false;
 
             int rawChoice = read(ChoiceKey);
+            int rawPendingChoice = read(PendingChoiceKey);
             int rawRoute = read(SafeRouteKey);
             int rawTrip = read(ReturnTripKey);
             int rawTrial = read(TrialNightKey);
@@ -148,11 +157,16 @@ namespace Rpg.Soundwell
             if (confirmed == 0)
             {
                 // An interrupted commit is not yet an actual business result.
-                return rawChoice == 0 && rawRoute == 0 && rawTrip == 0 &&
-                    rawTrial == 0 && rawCost == 0;
+                return rawPendingChoice == 0 && rawChoice == 0 &&
+                    rawRoute == 0 && rawTrip == 0 && rawTrial == 0 &&
+                    rawCost == 0;
             }
 
-            if (!Enum.IsDefined(typeof(ST03BathhouseChoice), rawChoice) ||
+            // Existing confirmed saves have no intent key and remain valid.
+            // Newly saved decisions cannot silently turn into another valid
+            // permanent outcome after an interrupted/corrupted save.
+            if ((rawPendingChoice != 0 && rawPendingChoice != rawChoice) ||
+                !Enum.IsDefined(typeof(ST03BathhouseChoice), rawChoice) ||
                 rawRoute != 1 || rawTrip != 1 ||
                 rawTrial != 1 || rawCost != 1)
                 return false;
@@ -173,6 +187,7 @@ namespace Rpg.Soundwell
         {
             if (write == null) return false;
             write(ConfirmedKey, 0);
+            write(PendingChoiceKey, 0);
             write(ChoiceKey, 0);
             write(SafeRouteKey, 0);
             write(ReturnTripKey, 0);

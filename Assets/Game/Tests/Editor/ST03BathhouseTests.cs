@@ -150,6 +150,55 @@ namespace Rpg.Tests.Editor
             return session;
         }
 
+
+        [Test]
+        public void FirstPersistedChoiceIntentSurvivesTornWritesAndDetectsValidOutcomeTampering()
+        {
+            var values = new Dictionary<string, int>();
+            var read = Reader(values);
+            var write = Writer(values);
+            var original = new ST03BathhouseRecord(
+                ST03BathhouseChoice.SellAndRelocateToCareHome, true, true, true, true);
+            var competing = new ST03BathhouseRecord(
+                ST03BathhouseChoice.ReopenWithSubsidizedHours, true, true, true, true);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                ST03BathhouseFacts.TryRecord(original, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == ST03BathhouseFacts.PendingChoiceKey)
+                        throw new InvalidOperationException("Interrupted after first intent");
+                }));
+            Assert.That(read(ST03BathhouseFacts.PendingChoiceKey),
+                Is.EqualTo((int)original.Choice));
+            Assert.That(read(ST03BathhouseFacts.ChoiceKey), Is.Zero);
+            Assert.That(ST03BathhouseFacts.TryRead(read, out _), Is.False);
+            Assert.That(ST03BathhouseSession.TryCreate(read, out _), Is.False);
+            Assert.That(ST03BathhouseFacts.TryRecord(competing, read, write), Is.False);
+            Assert.That(ST03BathhouseFacts.TryRecord(original, read, write), Is.True);
+            Assert.That(ST03BathhouseFacts.TryRead(read,
+                out ST03BathhouseRecord? completed), Is.True);
+            Assert.That(completed.HasValue, Is.True);
+            Assert.That(completed.Value.Choice, Is.EqualTo(original.Choice));
+
+            // Two valid choices still must not be interchangeable in a signed save.
+            values[ST03BathhouseFacts.ChoiceKey] = (int)competing.Choice;
+            Assert.That(ST03BathhouseFacts.TryRead(read, out _), Is.False);
+            values[ST03BathhouseFacts.ChoiceKey] = (int)original.Choice;
+            Assert.That(ST03BathhouseFacts.TryRead(read, out _), Is.True);
+
+            // Older already-confirmed saves did not store a choice lock.
+            values[ST03BathhouseFacts.PendingChoiceKey] = 0;
+            Assert.That(ST03BathhouseFacts.TryRead(read,
+                out ST03BathhouseRecord? legacy), Is.True);
+            Assert.That(legacy.HasValue, Is.True);
+            Assert.That(legacy.Value.Choice, Is.EqualTo(original.Choice));
+
+            Assert.That(ST03BathhouseFacts.TryResetForNewGame(write), Is.True);
+            Assert.That(read(ST03BathhouseFacts.PendingChoiceKey), Is.Zero);
+            Assert.That(ST03BathhouseFacts.TryRecord(competing, read, write), Is.True);
+        }
+
         [Test]
         public void InvalidFlagsNeverCreateBathhouseSignAndOnlyNewGameResets()
         {
