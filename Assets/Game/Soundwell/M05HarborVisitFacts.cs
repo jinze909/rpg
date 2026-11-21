@@ -12,7 +12,7 @@ namespace Rpg.Soundwell
     {
         public const string VisitedMaskKey = "rpg.return.m05.harbor-beats-observed";
         // Identity of the actual M05 landing. Stored as arrival sequence + 1
-        // so old pre-sequence saves can be bound without using zero (legacy).
+        // so unsigned legacy visits stay unverified until observed again.
         public const string VisitedArrivalIdentityKey =
             "rpg.return.m05.harbor-beats-arrival-identity";
         public const int AllBeatsMask = 7;
@@ -39,11 +39,11 @@ namespace Rpg.Soundwell
             int sequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             if (sequence < 0 || sequence == int.MaxValue)
                 return false;
-            if (identity != 0 && identity != sequence + 1)
+            // Unsigned legacy masks have no evidence of which voyage
+            // witnessed them. Never promote their old visits to this arrival.
+            if (identity != sequence + 1)
                 return true;
 
-            // Identity=0 represents an existing pre-signature save; retain
-            // its verified observations for backward compatibility.
             mask = saved;
             return true;
         }
@@ -73,17 +73,22 @@ namespace Rpg.Soundwell
                 return false;
             int currentIdentity = sequence + 1;
             int bound = getInt(VisitedArrivalIdentityKey);
-            if (bound < 0 || (bound != 0 && bound != currentIdentity))
+            if (bound < 0)
                 return false;
 
-            // Persist the arrival binding before the first observed beat.
-            // If Makinom interrupts this write, only the same arrival can
-            // resume; an old mask never migrates into the next voyage.
-            if (bound == 0)
+            if (bound != currentIdentity)
+            {
+                // A real new observation may recover an old, torn reset or
+                // unsigned legacy save. Clear old visits BEFORE assigning
+                // the new identity: interruption at either write point
+                // must leave the current voyage with zero observed beats.
+                if (getInt(VisitedMaskKey) != 0)
+                    setInt(VisitedMaskKey, 0);
                 setInt(VisitedArrivalIdentityKey, currentIdentity);
+            }
 
             int next = mask | (1 << (int)beat);
-            if (next != mask)
+            if (getInt(VisitedMaskKey) != next)
                 setInt(VisitedMaskKey, next);
             return true;
         }
