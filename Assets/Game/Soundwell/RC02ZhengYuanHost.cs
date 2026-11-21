@@ -6,7 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable RC-02 ("借来的名字") host. Enforces M08 case-2
     /// availability, live intake-desk presence, monotonic M05 arrival identity,
-    /// and clean ConfirmedKey before opening RC02ZhengYuanView.
+    /// live adoption consent revalidation at commit time, and clean ConfirmedKey
+    /// before opening RC02ZhengYuanView.
     /// </summary>
     public sealed class RC02ZhengYuanHost : IDisposable
     {
@@ -69,6 +70,9 @@ namespace Rpg.Soundwell
             if (disposed || session == null || !atIntakeDesk() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                return;
+
+            if (resolution == RC02Resolution.AdoptAsShiLeng && !shiLengWillingForAdoption())
                 return;
 
             if (!session.TrySettleResolution(resolution, getInt, setInt))

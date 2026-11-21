@@ -5,8 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable RC-03 ("白矶岛的多数") host. Enforces M08 case-3
-    /// availability, live island presence, monotonic M05 arrival identity, and
-    /// clean ConfirmedKey before opening RC03BaijiMineView.
+    /// availability, live island presence, monotonic M05 arrival identity, live
+    /// diagram/training/consent proof revalidation at commit time, and clean
+    /// ConfirmedKey before opening RC03BaijiMineView.
     /// </summary>
     public sealed class RC03BaijiMineHost : IDisposable
     {
@@ -78,6 +79,14 @@ namespace Rpg.Soundwell
             if (disposed || session == null || !onBaijiIsland() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                return;
+
+            if (resolution == RC03Resolution.AmendCharterWithSuccessors &&
+                (!diagramMatchedAtPumpTwo() || !successorTrainingConfirmed()))
+                return;
+
+            if (resolution == RC03Resolution.StayOneYearByConsent &&
+                !lanRuoWillingToStayOneYear())
                 return;
 
             if (!session.TrySettleResolution(resolution, getInt, setInt))
