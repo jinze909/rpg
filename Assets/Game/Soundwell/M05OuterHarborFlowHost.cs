@@ -23,6 +23,9 @@ namespace Rpg.Soundwell
         private readonly Transform parent;
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
+        // A previous M05 landing UI must never confirm into a new sailing,
+        // even when the replayed route, hull, crew and berths are identical.
+        private readonly int openedSailingSequence;
         private Action<M05OuterHarborOutcome> onCompleted;
         private M05LandingCheckView landingCheckView;
         private M05OuterHarborArrivalSession arrivalSession;
@@ -67,7 +70,8 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null)
                 return false;
 
-            if (!TryReadCompletedCrossing(getInt, out M04DepartureRecord departure))
+            if (getInt(M04DepartureFacts.SailingSequenceKey) < 0 ||
+                !TryReadCompletedCrossing(getInt, out M04DepartureRecord departure))
                 return false;
 
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding))
@@ -115,6 +119,7 @@ namespace Rpg.Soundwell
             this.parent = parent;
             this.getInt = getInt;
             this.setInt = setInt;
+            openedSailingSequence = getInt(M04DepartureFacts.SailingSequenceKey);
             this.onCompleted = onCompleted;
 
             if (resumeFromSavedLanding)
@@ -146,6 +151,10 @@ namespace Rpg.Soundwell
         {
             if (disposed || parent == null || stage != M05OuterHarborFlowStage.LandingCheck)
                 return;
+
+            // The manifest and observed landing can be identical on replay.
+            // Match the actual cast-off identity before any arrival write.
+            RequireCurrentSailing();
 
             // Save first, but keep the landing UI until the next scene is
             // successfully constructed. A failed handoff must remain retryable.
@@ -199,12 +208,23 @@ namespace Rpg.Soundwell
                 stage != M05OuterHarborFlowStage.ArrivalSession)
                 return;
 
+            RequireCurrentSailing();
             onCompleted?.Invoke(outcome);
             completedDelivered = true;
             onCompleted = null;
             stage = M05OuterHarborFlowStage.Completed;
             arrivalSession?.Dispose();
             arrivalSession = null;
+        }
+
+        private void RequireCurrentSailing()
+        {
+            if (getInt(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
+                !M04DepartureFacts.TryReadSailed(getInt, out bool sailed) || !sailed ||
+                !FogListeningFacts.TryRead(getInt, out FogListeningRecord? fog) ||
+                !fog.HasValue || !fog.Value.Succeeded)
+                throw new InvalidOperationException(
+                    "The M05 landing check belongs to a previous or invalid sailing.");
         }
 
         private static bool SameLanding(M05LandingReport a, M05LandingReport b)
