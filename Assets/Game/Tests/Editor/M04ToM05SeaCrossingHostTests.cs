@@ -131,6 +131,74 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LiveLandingIsObservedOnlyAfterSailedFogAndMissingEvidenceRetainsRetry()
+        {
+            var root = new GameObject("M04 to M05 deferred real landing");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            int fogWrites = 0, landingWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == FogListeningFacts.CompletedKey && value == 1)
+                    fogWrites++;
+                if (key == M05LandingFacts.ConfirmedKey && value == 1)
+                    landingWrites++;
+                values[key] = value;
+            };
+            int observations = 0;
+            M05LandingReport? actualObservation = null;
+            M04ToM05SeaCrossingHost host = null;
+            try
+            {
+                Assert.That(M04ToM05SeaCrossingHost.TryOpenWithLandingObservation(
+                    root.transform, ClearFogLeg,
+                    () => { observations++; return actualObservation; },
+                    read, write, _ => { },
+                    _ => Assert.Fail("A clear fog leg cannot fail."),
+                    out host), Is.True);
+                Assert.That(observations, Is.Zero,
+                    "A real M05 arrival cannot be observed before departure.");
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+                Assert.That(observations, Is.Zero);
+                host.FogHost.View.HoldButton.onClick.Invoke();
+                Assert.That(observations, Is.Zero);
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.FogHost.View.ContinueButton.onClick.Invoke());
+                Assert.That(observations, Is.EqualTo(1));
+                Assert.That(fogWrites, Is.EqualTo(1));
+                Assert.That(landingWrites, Is.Zero);
+                Assert.That(host.FogHost.View.ContinueButton.interactable, Is.True);
+                Assert.That(host.OuterHarborHost, Is.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                // Only a later real dock observation can open landing checks.
+                actualObservation = new M05LandingReport(2, 0, false, false);
+                host.FogHost.View.ContinueButton.onClick.Invoke();
+                Assert.That(observations, Is.EqualTo(2));
+                Assert.That(fogWrites, Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.OuterHarbor));
+                Assert.That(host.OuterHarborHost.LandingCheckView, Is.Not.Null);
+                Assert.That(landingWrites, Is.Zero,
+                    "Opening the harbor view must not auto-confirm a report.");
+                host.OuterHarborHost.LandingCheckView.ConfirmButton.onClick.Invoke();
+                Assert.That(landingWrites, Is.EqualTo(1));
+                Assert.That(M05LandingFacts.TryRead(read,
+                    out M05LandingReport? persisted), Is.True);
+                Assert.That(persisted.HasValue, Is.True);
+                Assert.That(persisted.Value.ReadyRescueBerths, Is.Zero);
+                Assert.That(persisted.Value.TenderArrived, Is.False);
+                Assert.That(persisted.Value.ReceiverMet, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DelayedTenderAndLeftLettersPassThroughVerbatimWithoutInflatingCapacity()
         {
             var root = new GameObject("M04 to M05 delayed tender");
