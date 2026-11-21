@@ -20,7 +20,7 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Immutable ST-06 ("陶霁返乡") outcome persisted in Makinom.
-    /// Enforces SCENE_SCRIPT_ST06.md, SCENE_SCRIPT_M15.md & SCENE_SCRIPT_M16.md:
+    /// Enforces SCENE_SCRIPT_ST06.md, SCENE_SCRIPT_M15.md &amp; SCENE_SCRIPT_M16.md:
     /// - Strictly requires Tao Ji rescued in M07 (M07ExtractionFacts.TaoJiRescued).
     /// - CoverUp retains UnremediatedTrustLoss until explicitly remediated
     ///   (hanging a new shop sign never erases it).
@@ -69,11 +69,23 @@ namespace Rpg.Soundwell
         public const string LetterStatusKey = "rpg.return.st06.letter-status";
         public const string MarketTicketKey = "rpg.return.st06.market-ticket-enclosed";
 
+        private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
+        {
+            int raw = getInt(key);
+            return raw == 0 || raw == expected;
+        }
+
         public static bool CanRecord(ST06HomecomingRecord record, Func<string, int> getInt)
         {
             if (getInt == null || getInt(ConfirmedKey) != 0)
                 return false;
-            return IsValidRecord(record, getInt);
+            return IsValidRecord(record, getInt) &&
+                CompatiblePending(getInt, ChairResolutionKey, (int)record.ChairResolution) &&
+                CompatiblePending(getInt, CoverUpRemediatedKey, record.CoverUpRemediated ? 1 : 0) &&
+                CompatiblePending(getInt, WelcomeDinnerKey, record.WelcomeDinnerHeld ? 1 : 0) &&
+                CompatiblePending(getInt, TraveledFarKey, record.TaoJiTraveledFar ? 1 : 0) &&
+                CompatiblePending(getInt, LetterStatusKey, (int)record.LetterStatus) &&
+                CompatiblePending(getInt, MarketTicketKey, record.MarketTicketEnclosed ? 1 : 0);
         }
 
         public static bool TryRecord(ST06HomecomingRecord record)
@@ -93,12 +105,13 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            setInt(ConfirmedKey, 0);
+            // Write primary chair resolution and letter status first so an
+            // interrupted save locks out competing choices while allowing retries.
             setInt(ChairResolutionKey, (int)record.ChairResolution);
+            setInt(LetterStatusKey, (int)record.LetterStatus);
             setInt(CoverUpRemediatedKey, record.CoverUpRemediated ? 1 : 0);
             setInt(WelcomeDinnerKey, record.WelcomeDinnerHeld ? 1 : 0);
             setInt(TraveledFarKey, record.TaoJiTraveledFar ? 1 : 0);
-            setInt(LetterStatusKey, (int)record.LetterStatus);
             setInt(MarketTicketKey, record.MarketTicketEnclosed ? 1 : 0);
             setInt(ConfirmedKey, 1);
             return true;
