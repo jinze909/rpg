@@ -88,29 +88,11 @@ namespace Rpg.Soundwell
             if (disposed || session == null || !nightExtractionReady())
                 return;
 
-            if (!M07ExtractionFacts.TryRead(
-                    getInt, out M07ExtractionRecord? existing))
-                return;
-
-            // Handle a write that succeeded before a lost acknowledgement
-            // without issuing duplicate writes.
-            if (existing.HasValue)
-            {
-                if (existing.Value.LiangChoice != liangChoice ||
-                    existing.Value.YidaChoice != yidaChoice)
-                    return;
-            }
-            else if (!session.TryCompleteDockRollCall(
-                liangChoice, yidaChoice, taoJiRescuedInScene(), getInt, setInt))
-            {
-                return;
-            }
-
-            if (!M07ExtractionFacts.TryRead(
-                    getInt, out M07ExtractionRecord? persisted) ||
-                !persisted.HasValue ||
-                persisted.Value.LiangChoice != liangChoice ||
-                persisted.Value.YidaChoice != yidaChoice)
+            // The session owns all ten authoritative extraction fields.
+            // Do not acknowledge a different roll call just because its
+            // Liang and Yida choices happen to match the current dialogue.
+            if (!session.TryCompleteDockRollCall(
+                    liangChoice, yidaChoice, taoJiRescuedInScene(), getInt, setInt))
                 return;
 
             activeView?.Dispose();
