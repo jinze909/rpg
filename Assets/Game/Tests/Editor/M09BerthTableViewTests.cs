@@ -148,6 +148,60 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AbsentShenLiCanClaimOnlyWorldVerifiedPaidShipwrightBerths()
+        {
+            var root = new GameObject("M09 paid shipyard alternate");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            bool feeVerified = false;
+            string language = SoundwellUiLocalization.Language;
+            M09BerthTableView view = null;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                var session = new M09BerthTableSession(shenLiPresent: false);
+                view = new M09BerthTableView(root.transform, session,
+                    s => Assert.That(s.TrySettleBerthTable(
+                        M09RuiyaOutcome.Deferred, read, write), Is.True),
+                    shipwrightFeePaidInWorld: () => feeVerified);
+                Assert.That(view.ShipwrightButton.gameObject.activeSelf, Is.False);
+                view.ShipwrightButton.onClick.Invoke();
+                Assert.That(session.AddedBerths, Is.Zero);
+
+                feeVerified = true; // A separate scene verified actual payment.
+                view.Refresh();
+                Assert.That(view.ShipwrightButton.gameObject.activeSelf, Is.True);
+                Assert.That(view.ShipwrightButton.interactable, Is.True);
+                Assert.That(view.ShipwrightButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Does.Contain("已付修船费"));
+                feeVerified = false; // The world proof was revoked before the click.
+                view.ShipwrightButton.onClick.Invoke();
+                Assert.That(session.AddedBerths, Is.Zero);
+
+                feeVerified = true;
+                view.ShipwrightButton.onClick.Invoke();
+                Assert.That(session.TotalBerths, Is.EqualTo(20));
+                Assert.That(session.ShipwrightFeePaid, Is.True);
+                Assert.That(session.ShenLiTwoDayApprenticeLeave, Is.False);
+                Assert.That(view.ReconcileButton.gameObject.activeSelf, Is.False);
+                view.SettleButton.onClick.Invoke();
+                Assert.That(M09BerthTableFacts.TryRead(
+                    read, out M09BerthTableRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.ShipwrightFeePaid, Is.True);
+                Assert.That(saved.Value.ShenReconciled, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(language);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedSettleSaveRetainsSettleButtonForCleanRetry()
         {
             var root = new GameObject("M09 view retry");

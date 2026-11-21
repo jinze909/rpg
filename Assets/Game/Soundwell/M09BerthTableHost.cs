@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private readonly Func<int> baseBerths;
         private readonly Func<int> pendingNames;
         private readonly Func<M09RuiyaOutcome?> ruiyaOutcome;
+        private readonly Func<bool> shipwrightFeePaidInWorld;
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
         // M05's monotonic arrival identity distinguishes otherwise identical
@@ -42,7 +43,8 @@ namespace Rpg.Soundwell
             Func<int> pendingNames,
             Func<M09RuiyaOutcome?> ruiyaOutcome,
             Func<string, int> getInt,
-            Action<string, int> setInt)
+            Action<string, int> setInt,
+            Func<bool> shipwrightFeePaidInWorld = null)
         {
             this.parent = parent ?? throw new ArgumentNullException(nameof(parent));
             this.atSecondBatchTable = atSecondBatchTable ??
@@ -57,6 +59,7 @@ namespace Rpg.Soundwell
                 throw new ArgumentNullException(nameof(ruiyaOutcome));
             this.getInt = getInt ?? throw new ArgumentNullException(nameof(getInt));
             this.setInt = setInt ?? throw new ArgumentNullException(nameof(setInt));
+            this.shipwrightFeePaidInWorld = shipwrightFeePaidInWorld ?? (() => false);
         }
 
         public bool TryOpen()
@@ -77,7 +80,8 @@ namespace Rpg.Soundwell
             openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             session = new M09BerthTableSession(
                 available, waiting, shenLiPresent(), qiDebtAlreadyKnown());
-            view = new M09BerthTableView(parent, session, ConfirmTable);
+            view = new M09BerthTableView(parent, session, ConfirmTable,
+                shipwrightFeePaidInWorld: shipwrightFeePaidInWorld);
             return true;
         }
 
@@ -112,7 +116,10 @@ namespace Rpg.Soundwell
 
         private void ConfirmTable(M09BerthTableSession proposed)
         {
-            if (view == null || proposed != session || !LiveSceneStillMatches())
+            if (view == null || proposed != session || !LiveSceneStillMatches() ||
+                // Never persist invented paid berths after scene evidence
+                // has been withdrawn or the payment was rolled back.
+                (proposed.ShipwrightFeePaid && !shipwrightFeePaidInWorld()))
                 return;
 
             M09RuiyaOutcome? outcome = ruiyaOutcome();
