@@ -74,6 +74,42 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CastOffSequenceSurvivesResetAndChangesOnIdenticalReplayedVoyage()
+        {
+            var store = new Dictionary<string, int>();
+            Func<string, int> read = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+            Action<string, int> write = (key, value) => store[key] = value;
+            var manifest = ReadyManifest(M03VoyageChoice.QiQueMerchant,
+                officialStamp: false, escortFlag: false);
+
+            Assert.That(M04DepartureFacts.TryRecord(manifest, write), Is.True);
+            Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.Zero,
+                "Legacy saves begin without a cast-off identity.");
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+            Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.EqualTo(1));
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.False);
+            Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.EqualTo(1));
+
+            Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.EqualTo(1),
+                "Replay invalidates departure facts, never the monotonically increasing identity.");
+            Assert.That(M04DepartureFacts.TryRecord(manifest, write), Is.True);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+            Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.EqualTo(2));
+
+            Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(M04DepartureFacts.TryRecord(manifest, write), Is.True);
+            write(M04DepartureFacts.SailingSequenceKey, int.MaxValue);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.False);
+            Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero,
+                "Sequence overflow must not turn a prepared ship into a sailed ship.");
+            write(M04DepartureFacts.SailingSequenceKey, -1);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.False);
+            Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
+        }
+
+        [Test]
         public void UninitializedMakinomGuardsReturnFalseWithoutThrowing()
         {
             var confirmed = ReadyManifest(M03VoyageChoice.QiQueMerchant);

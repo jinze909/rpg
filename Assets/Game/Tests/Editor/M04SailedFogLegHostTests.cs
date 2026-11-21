@@ -269,6 +269,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldCompletedFogViewCannotPublishIntoIdenticalReplayedSailing()
+        {
+            var scene = new GameObject("M04 identical voyage replay guard");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = Writer(values);
+            M04SailedFogLegHost oldHost = null;
+            M04SailedFogLegHost newHost = null;
+            try
+            {
+                SeedReady(values);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                int oldSequence = read(M04DepartureFacts.SailingSequenceKey);
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
+                    read, write, _ => { }, out oldHost), Is.True);
+                oldHost.View.HoldButton.onClick.Invoke();
+                Assert.That(oldHost.Leg.IsComplete, Is.True);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                SeedReady(values); // Replay the identical route, crew and berth count.
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                Assert.That(read(M04DepartureFacts.SailingSequenceKey),
+                    Is.GreaterThan(oldSequence));
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldHost.View.ContinueButton.onClick.Invoke());
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero,
+                    "The old voyage must not write a fog result into the new sailing.");
+                oldHost.Dispose();
+                oldHost = null;
+
+                int accepted = 0;
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
+                    read, write, _ => accepted++, out newHost), Is.True);
+                newHost.View.HoldButton.onClick.Invoke();
+                newHost.View.ContinueButton.onClick.Invoke();
+                Assert.That(accepted, Is.EqualTo(1));
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.EqualTo(1));
+            }
+            finally
+            {
+                newHost?.Dispose();
+                oldHost?.Dispose();
+                UnityEngine.Object.DestroyImmediate(scene);
+            }
+        }
+
+        [Test]
         public void CompletedOrMalformedSavedFogLegCannotBeReplaced()
         {
             var scene = new GameObject("M04 cannot override saved fog");
