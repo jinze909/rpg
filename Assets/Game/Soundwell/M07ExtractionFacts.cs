@@ -131,15 +131,24 @@ namespace Rpg.Soundwell
                   M07RouteCostFlags.PierRepairAndInjuryCost |
                   M07RouteCostFlags.FallbackTransferCost);
 
-        // M08 is strictly downstream of a completed M07 extraction. A torn
-        // new-voyage reset may clear M07 while leaving an older commission,
-        // night-dock reply or dawn notice. Read raw values: a partially written
-        // successor is still evidence that this is not a clean new roll call.
+        // M08, RC-01..RC-05, and ST-06 are strictly downstream of a completed
+        // M07 extraction. A torn new-voyage reset may clear M07 while leaving
+        // an older commission, dock reply, dawn notice, roster case, or Tao Ji
+        // homecoming outcome. Read raw values: any partially written successor
+        // is evidence that this is not a clean new extraction.
         public static bool HasOrphanedM08SuccessorFacts(Func<string, int> getInt)
         {
             return getInt == null ||
                 getInt(M08WorkshopDepositFacts.CompletedKey) != 0 ||
-                M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt);
+                M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt) ||
+                M08FirstWorldNoticeFacts.HasOrphanedRosterCaseFacts(getInt) ||
+                getInt(ST06TaoJiHomecomingFacts.ConfirmedKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.ChairResolutionKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.CoverUpRemediatedKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.WelcomeDinnerKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.TraveledFarKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.LetterStatusKey) != 0 ||
+                getInt(ST06TaoJiHomecomingFacts.MarketTicketKey) != 0;
         }
 
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
