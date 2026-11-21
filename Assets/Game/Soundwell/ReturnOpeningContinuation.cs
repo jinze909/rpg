@@ -84,10 +84,38 @@ namespace Rpg.Soundwell
             // resume coordinates from a prior confirmed voyage.
             setInt(M05HarborPositionFacts.PositionKey, 0);
 
+            // All later confirmed stories belong to the old voyage as well.
+            // Invalidate their public markers BEFORE clearing individual
+            // fields. A failed later write must never allow old outcomes,
+            // rescued people, route costs or the final roll-call to be read as
+            // part of a fresh M03 departure.
+            setInt(M06MineCampReconFacts.ObservedMaskKey, 0);
+            setInt(M06RescuePlanFacts.ConfirmedKey, 0);
+            setInt(M07ExtractionFacts.ConfirmedKey, 0);
+            setInt(M08DockTruthFacts.ConfirmedKey, 0);
+            setInt(M08FirstWorldNoticeFacts.ConfirmedKey, 0);
+            setInt(M08WorkshopDepositFacts.CompletedKey, 0);
+            setInt(M09BerthTableFacts.ConfirmedKey, 0);
+            setInt(ST06TaoJiHomecomingFacts.ConfirmedKey, 0);
+            setInt(RC04DingYueReefFacts.ConfirmedKey, 0);
+            setInt(M13DepartureRiskFacts.DepartureConfirmedKey, 0);
+            setInt(M15FinalRollCallFacts.ConfirmedKey, 0);
+
             return M04DepartureFacts.TryResetForNewVisit(setInt) &&
                 M04RosterFacts.TryResetForNewVisit(setInt) &&
                 FogListeningFacts.TryResetForNewLeg(setInt) &&
-                M05LandingFacts.TryResetForNewVisit(setInt);
+                M05LandingFacts.TryResetForNewVisit(setInt) &&
+                M06MineCampReconFacts.TryResetForNewVoyage(setInt) &&
+                M06RescuePlanFacts.TryResetForNewVoyage(setInt) &&
+                M07ExtractionFacts.TryResetForNewVoyage(setInt) &&
+                M08DockTruthFacts.TryResetForNewVoyage(setInt) &&
+                M08FirstWorldNoticeFacts.TryResetForNewVoyage(setInt) &&
+                M08WorkshopDepositFacts.TryResetForNewVoyage(setInt) &&
+                M09BerthTableFacts.TryResetForNewVoyage(setInt) &&
+                ST06TaoJiHomecomingFacts.TryResetForNewVoyage(setInt) &&
+                RC04DingYueReefFacts.TryResetForNewVoyage(setInt) &&
+                M13DepartureRiskFacts.TryResetForNewVoyage(setInt) &&
+                M15FinalRollCallFacts.TryResetForNewVoyage(setInt);
         }
 
         private static bool TryResetPreviousOutboundFacts()
