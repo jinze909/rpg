@@ -80,18 +80,20 @@ namespace Rpg.Soundwell
             {
                 case RpgActorVisualState.AlertOrBrace:
                     walkTimer = 0f;
+                    walkToggle = false;
                     spriteRenderer.sprite = alertOrBraceSprite;
                     break;
 
                 case RpgActorVisualState.Moving:
-                    if (deltaTime > 0f)
+                    if (deltaTime > 0f && !float.IsNaN(deltaTime) &&
+                        !float.IsInfinity(deltaTime))
                     {
-                        walkTimer += deltaTime;
-                        if (walkTimer >= WalkFrameDurationSeconds)
-                        {
-                            walkTimer -= WalkFrameDurationSeconds;
-                            walkToggle = !walkToggle;
-                        }
+                        // A frame can span more than one animation beat.
+                        // Preserve cycle parity and the fractional remainder
+                        // rather than flipping once and accumulating lag.
+                        walkTimer = Mathf.Repeat(
+                            walkTimer + deltaTime, 2f * WalkFrameDurationSeconds);
+                        walkToggle = walkTimer >= WalkFrameDurationSeconds;
                     }
                     spriteRenderer.sprite = walkToggle ? walkSprite2 : walkSprite1;
                     break;

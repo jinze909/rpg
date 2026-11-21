@@ -68,6 +68,59 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void HitchAdvancesAllWalkFramesAndBraceRestartsAtWalkOne()
+        {
+            var root = new GameObject("Walk frame timing regression");
+            Sprite idle = MakeTestSprite("idle-hitch");
+            Sprite first = MakeTestSprite("walk1-hitch");
+            Sprite second = MakeTestSprite("walk2-hitch");
+            Sprite brace = MakeTestSprite("brace-hitch");
+            RpgMapActorVisualBinder actor = null;
+            try
+            {
+                actor = new RpgMapActorVisualBinder(root.transform, "Walker",
+                    idle, first, second, brace);
+                actor.Sync(Vector2.zero, Vector2Int.right,
+                    RpgActorVisualState.Moving, 0.70f);
+                Assert.That(actor.SpriteRenderer.sprite, Is.EqualTo(second),
+                    "A 0.70s hitch crosses three 0.22s animation beats.");
+                actor.Sync(Vector2.zero, Vector2Int.right,
+                    RpgActorVisualState.Moving, 0.25f);
+                Assert.That(actor.SpriteRenderer.sprite, Is.EqualTo(first),
+                    "The next short frame should not stutter due to leftover lag.");
+
+                actor.Sync(Vector2.zero, Vector2Int.right,
+                    RpgActorVisualState.Moving, float.PositiveInfinity);
+                Assert.That(actor.SpriteRenderer.sprite, Is.EqualTo(first),
+                    "Invalid frame time must not poison animation state.");
+                actor.Sync(Vector2.zero, Vector2Int.right,
+                    RpgActorVisualState.Moving, 0.20f);
+                Assert.That(actor.SpriteRenderer.sprite, Is.EqualTo(second));
+
+                actor.Sync(Vector2.zero, Vector2Int.right,
+                    RpgActorVisualState.AlertOrBrace, 0.1f);
+                Assert.That(actor.SpriteRenderer.sprite, Is.EqualTo(brace));
+                actor.Sync(Vector2.zero, Vector2Int.right,
+                    RpgActorVisualState.Moving, 0.05f);
+                Assert.That(actor.SpriteRenderer.sprite, Is.EqualTo(first),
+                    "After bracing, walk animation must restart deterministically.");
+            }
+            finally
+            {
+                actor?.Dispose();
+                UnityEngine.Object.DestroyImmediate(idle.texture);
+                UnityEngine.Object.DestroyImmediate(idle);
+                UnityEngine.Object.DestroyImmediate(first.texture);
+                UnityEngine.Object.DestroyImmediate(first);
+                UnityEngine.Object.DestroyImmediate(second.texture);
+                UnityEngine.Object.DestroyImmediate(second);
+                UnityEngine.Object.DestroyImmediate(brace.texture);
+                UnityEngine.Object.DestroyImmediate(brace);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void NullParentRejected()
         {
             Assert.Throws<ArgumentNullException>(() =>
