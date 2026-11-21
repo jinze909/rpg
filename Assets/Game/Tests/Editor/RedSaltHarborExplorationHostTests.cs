@@ -397,6 +397,110 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MapLandingCommitThenThrowCanRetryWithoutDuplicateConfirmation()
+        {
+            var root = new GameObject("M05 landing lost acknowledgement");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            int commits = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M05LandingFacts.ConfirmedKey && value == 1)
+                {
+                    commits++;
+                    if (commits == 1)
+                        throw new InvalidOperationException("Landing committed, acknowledgement lost");
+                }
+            };
+            var report = new M05LandingReport(3, 10, true, true);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(root.transform, read, write, report);
+                for (int i = 0; i < 10; i++)
+                    host.StepExploration(Vector2.right, 0.1f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                var view = host.ActiveLandingView;
+
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.ConfirmButton.onClick.Invoke());
+                Assert.That(host.ActiveLandingView, Is.SameAs(view));
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+                Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.CrewArrived, Is.EqualTo(3));
+                Assert.That(saved.Value.ReadyRescueBerths, Is.EqualTo(10));
+                Assert.That(commits, Is.EqualTo(1));
+
+                view.ConfirmButton.onClick.Invoke();
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(commits, Is.EqualTo(1),
+                    "Recovery cannot write the confirmed landing a second time.");
+                Assert.That(host.MinimapHud.ActiveBeaconCount, Is.EqualTo(4));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void MapLandingCannotOverwriteCompetingOrCorruptConfirmedArrival()
+        {
+            var root = new GameObject("M05 conflicting landing record");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            int hostWrites = 0;
+            Action<string, int> intercepted = (key, value) =>
+            {
+                hostWrites++;
+                values[key] = value;
+            };
+            var observed = new M05LandingReport(3, 10, true, true);
+            RedSaltHarborExplorationHost host = null;
+            try
+            {
+                host = new RedSaltHarborExplorationHost(
+                    root.transform, read, intercepted, observed);
+                for (int i = 0; i < 10; i++)
+                    host.StepExploration(Vector2.right, 0.1f);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                var view = host.ActiveLandingView;
+
+                // An unrelated authoritative callback confirmed a different
+                // arrival while this old panel was open.
+                Action<string, int> external = (key, value) => values[key] = value;
+                var competing = new M05LandingReport(2, 0, false, false);
+                Assert.That(M05LandingFacts.TryRecord(competing, read, external), Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.ConfirmButton.onClick.Invoke());
+                Assert.That(host.ActiveLandingView, Is.SameAs(view));
+                Assert.That(hostWrites, Is.Zero);
+                Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.CrewArrived, Is.EqualTo(2));
+
+                // A corrupt confirmed marker is not an unconfirmed landing
+                // and can never be silently overwritten by the stale UI.
+                values[M05LandingFacts.ConfirmedKey] = 2;
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.ConfirmButton.onClick.Invoke());
+                Assert.That(values[M05LandingFacts.ConfirmedKey], Is.EqualTo(2));
+                Assert.That(hostWrites, Is.Zero);
+                Assert.That(view.ConfirmButton.interactable, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void MapSeranSavedLetterChoiceIsRetryableAfterAnAcknowledgedWriteThrows()
         {
             var root = new GameObject("Seran map late acknowledgement");

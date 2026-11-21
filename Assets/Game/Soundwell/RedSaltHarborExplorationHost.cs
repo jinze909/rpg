@@ -255,8 +255,34 @@ namespace Rpg.Soundwell
             activeLandingView = new M05LandingCheckView(
                 parent, observedLanding.Value, report =>
                 {
-                    if (!M05LandingFacts.TryRecord(report, getInt, setInt))
-                        throw new InvalidOperationException("Unable to persist M05 landing report.");
+                    // A confirmed write may succeed before its acknowledgement
+                    // throws. Re-read the authoritative Makinom record on
+                    // retry; accept only this exact observed landing, never
+                    // rewrite it or treat an invalid confirmed flag as empty.
+                    if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? saved))
+                        throw new InvalidOperationException(
+                            "Unable to read the current M05 landing report.");
+
+                    if (saved.HasValue)
+                    {
+                        if (!SameLanding(saved.Value, report))
+                            throw new InvalidOperationException(
+                                "Saved M05 landing differs from the witnessed arrival.");
+                    }
+                    else if (getInt(M05LandingFacts.ConfirmedKey) != 0 ||
+                        !M05LandingFacts.TryRecord(report, getInt, setInt))
+                    {
+                        throw new InvalidOperationException(
+                            "Unable to persist M05 landing report.");
+                    }
+
+                    // Never retire the only confirm control until a valid
+                    // record has actually been read back for this voyage.
+                    if (!M05LandingFacts.TryRead(getInt, out saved) ||
+                        !saved.HasValue || !SameLanding(saved.Value, report))
+                        throw new InvalidOperationException(
+                            "M05 landing confirmation was not verified after save.");
+
                     activeLandingView?.Dispose();
                     activeLandingView = null;
                     RefreshHud();
@@ -305,6 +331,14 @@ namespace Rpg.Soundwell
             });
             RefreshHud();
             return true;
+        }
+
+        private static bool SameLanding(M05LandingReport a, M05LandingReport b)
+        {
+            return a.CrewArrived == b.CrewArrived &&
+                a.ReadyRescueBerths == b.ReadyRescueBerths &&
+                a.TenderArrived == b.TenderArrived &&
+                a.ReceiverMet == b.ReceiverMet;
         }
 
         private bool HasVerifiedLanding()
