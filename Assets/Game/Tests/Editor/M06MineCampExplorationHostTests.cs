@@ -146,6 +146,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void StaleReconViewCannotSaveIntoIdenticalSecondVoyage()
+        {
+            var root = new GameObject("M06 old recon view versus next voyage");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(42, 12)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                var oldView = host.ActiveReconView;
+                int oldSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                SeedVerifiedM05Arrival(values);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(oldSequence));
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldView.ConfirmButton.onClick.Invoke());
+                Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.Zero);
+                Assert.That(host.ActiveReconView, Is.SameAs(oldView),
+                    "A rejected stale save leaves the old conversation retryable.");
+
+                host.Dispose();
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(42, 12)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                host.ActiveReconView.ConfirmButton.onClick.Invoke();
+                Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WalkingToPumpHallCompletesReunionAndSettlesRescuePlan()
         {
             var root = new GameObject("M06 host reunion");

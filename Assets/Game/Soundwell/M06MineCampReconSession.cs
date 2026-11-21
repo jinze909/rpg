@@ -9,13 +9,18 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class M06MineCampReconSession
     {
+        // A map dialogue can remain open across a new voyage. The same
+        // landing numbers on two confirmed arrivals do not mean the same
+        // inspection happened. M05 is the sole owner of this identity.
+        private readonly int arrivalSequence;
         public int ObservedMask { get; private set; }
         public int ObservedCount => M06MineCampReconFacts.CountObserved(ObservedMask);
         public bool AllLeadsObserved => ObservedMask == M06MineCampReconFacts.AllLeadsMask;
 
-        private M06MineCampReconSession(int observedMask)
+        private M06MineCampReconSession(int observedMask, int arrivalSequence)
         {
             ObservedMask = observedMask;
+            this.arrivalSequence = arrivalSequence;
         }
 
         public static bool TryLoad(Func<string, int> getInt, out M06MineCampReconSession session)
@@ -29,7 +34,8 @@ namespace Rpg.Soundwell
             if (!M06MineCampReconFacts.TryRead(getInt, out int mask))
                 return false;
 
-            session = new M06MineCampReconSession(mask);
+            session = new M06MineCampReconSession(
+                mask, getInt(M05LandingFacts.ArrivalSequenceKey));
             return true;
         }
 
@@ -43,7 +49,10 @@ namespace Rpg.Soundwell
             Func<string, int> getInt,
             Action<string, int> setInt)
         {
-            if (IsLeadObserved(lead))
+            if (IsLeadObserved(lead) || getInt == null ||
+                !M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
+                !landing.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence)
                 return false;
 
             if (!M06MineCampReconFacts.TryRecord(lead, getInt, setInt))
