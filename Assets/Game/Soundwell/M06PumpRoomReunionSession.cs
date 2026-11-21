@@ -97,7 +97,7 @@ namespace Rpg.Soundwell
             out M06PumpRoomReunionSession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M04DepartureFacts.TryRead(getInt, out M04DepartureRecord? departure) ||
                 !departure.HasValue ||
