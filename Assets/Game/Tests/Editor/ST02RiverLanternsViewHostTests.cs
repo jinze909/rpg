@@ -48,13 +48,22 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(ST02RiverLanternsFacts.InspectionsMaskKey)]
-        [TestCase(ST02RiverLanternsFacts.OriginalWordsRelayedKey)]
-        [TestCase(ST02RiverLanternsFacts.DockFeedbackKey)]
-        [TestCase(ST02RiverLanternsFacts.TrialDisclosureKey)]
-        [TestCase(ST02RiverLanternsFacts.BidModeKey)]
-        [TestCase(ST02RiverLanternsFacts.LockRescueKey)]
-        public void HostCannotStartWithOrphanedOutcomeFactEvenWhenIntentIsClear(string orphanKey)
+        [Test]
+        public void HostCannotStartWithOrphanedOutcomeFactEvenWhenIntentIsClear()
+        {
+            foreach (string orphanKey in new[]
+            {
+                ST02RiverLanternsFacts.InspectionsMaskKey,
+                ST02RiverLanternsFacts.OriginalWordsRelayedKey,
+                ST02RiverLanternsFacts.DockFeedbackKey,
+                ST02RiverLanternsFacts.TrialDisclosureKey,
+                ST02RiverLanternsFacts.BidModeKey,
+                ST02RiverLanternsFacts.LockRescueKey
+            })
+                CheckOrphanedOutcomeFact(orphanKey);
+        }
+
+        private static void CheckOrphanedOutcomeFact(string orphanKey)
         {
             var root = new GameObject("ST02 host orphaned payload guard");
             var values = new Dictionary<string, int>();
