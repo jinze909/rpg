@@ -88,6 +88,50 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldExtractionViewCannotCommitAfterIdenticalNewLanding()
+        {
+            var root = new GameObject("M07 stale roll-call view");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.CargoCover);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M07ExtractionNightHost host = null;
+            try
+            {
+                host = new M07ExtractionNightHost(
+                    root.transform, () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var oldView = host.ActiveView;
+                AdvanceToDockRollCall(oldView);
+                int originalSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                SeedVerifiedM06(values, M06RescuePlan.CargoCover);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(originalSequence));
+
+                oldView.LiangStayButton.onClick.Invoke();
+                Assert.That(read(M07ExtractionFacts.ConfirmedKey), Is.Zero);
+                Assert.That(host.ActiveView, Is.SameAs(oldView));
+
+                host.Dispose();
+                host = new M07ExtractionNightHost(
+                    root.transform, () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                AdvanceToDockRollCall(host.ActiveView);
+                host.ActiveView.LiangStayButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void MinerShutdownEndToEndPersistsRollCallOnceAndBlocksReopen()
         {
             var root = new GameObject("M07 host miner shutdown");
