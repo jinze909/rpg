@@ -185,6 +185,16 @@ namespace Rpg.Soundwell
                 !readiness.HasValue || getInt(SailedKey) != 0)
                 return false;
 
+            // A newer M03 itinerary must not sail an older confirmed hull.
+            // Retain compatibility with saves that predate the M03 route key,
+            // but fail closed for a present, malformed, or mismatched choice.
+            if (getInt(M03LuJunFacts.VoyageKey) != 0 &&
+                (!M03LuJunFacts.TryRead(getInt, out _, out _,
+                    out M03VoyageChoice? currentRoute) ||
+                 !currentRoute.HasValue ||
+                 currentRoute.Value != readiness.Value.Route))
+                return false;
+
             setInt(SailedKey, 1);
             return true;
         }
