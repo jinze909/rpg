@@ -54,6 +54,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || listeningView != null || resolutionView != null ||
                 getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
+                getInt(RC04DingYueReefFacts.PendingSignatureKey) != 0 ||
                 getInt(RC04DingYueReefFacts.RoundsCompletedKey) != 0 ||
                 getInt(RC04DingYueReefFacts.AyuanSongUsedKey) != 0 ||
                 getInt(RC04DingYueReefFacts.ResolutionKey) != 0 ||
@@ -114,7 +115,7 @@ namespace Rpg.Soundwell
             // without issuing duplicate writes.
             if (existing.HasValue)
             {
-                if (existing.Value.Resolution != resolution)
+                if (!MatchesSessionOutcome(existing.Value, resolution))
                     return false;
             }
             else if (!session.TryResolveReef(resolution, getInt, setInt))
@@ -124,13 +125,22 @@ namespace Rpg.Soundwell
 
             if (!RC04DingYueReefFacts.TryRead(getInt, out RC04ReefRecord? persisted) ||
                 !persisted.HasValue ||
-                persisted.Value.Resolution != resolution)
+                !MatchesSessionOutcome(persisted.Value, resolution))
                 return false;
 
             resolutionView?.Dispose();
             resolutionView = null;
             openedArrivalSequence = null;
             return true;
+        }
+
+        private bool MatchesSessionOutcome(RC04ReefRecord saved, RC04Resolution resolution)
+        {
+            return session != null &&
+                saved.Resolution == resolution &&
+                saved.ListeningRoundsCompleted == session.CompletedListeningRounds &&
+                saved.AyuanSongUsed == session.AyuanSongPlayed &&
+                saved.DecoyAmbushPrepared == session.DecoyAmbushPrepared;
         }
 
         public void Dispose()
