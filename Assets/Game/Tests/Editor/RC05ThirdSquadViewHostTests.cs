@@ -207,12 +207,14 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(0)]
-        [TestCase(1)]
-        [TestCase(2)]
-        [TestCase(3)]
-        [TestCase(4)]
-        public void SettlementRechecksLiveMillEvidenceAndAllowsRecovery(int withdrawnProof)
+        [Test]
+        public void SettlementRechecksLiveMillEvidenceAndAllowsRecovery()
+        {
+            for (int withdrawnProof = 0; withdrawnProof < 5; withdrawnProof++)
+                VerifyWithdrawalAndRecovery(withdrawnProof);
+        }
+
+        private static void VerifyWithdrawalAndRecovery(int withdrawnProof)
         {
             var root = new GameObject("RC05 live settlement proofs");
             var values = new Dictionary<string, int>();
