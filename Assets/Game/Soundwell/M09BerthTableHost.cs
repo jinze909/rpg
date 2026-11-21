@@ -68,6 +68,7 @@ namespace Rpg.Soundwell
                 // A corrupt or already-confirmed M09 record must not be rewritten.
                 getInt(M09BerthTableFacts.ConfirmedKey) != 0 ||
                 HasUnconfirmedBerthPayload() ||
+                M09BerthTableFacts.HasOrphanedDownstreamFacts(getInt) ||
                 !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? m07) ||
                 !m07.HasValue || getInt(M05LandingFacts.ArrivalSequenceKey) < 0)
                 return false;

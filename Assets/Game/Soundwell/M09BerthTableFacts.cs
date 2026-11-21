@@ -122,9 +122,17 @@ namespace Rpg.Soundwell
             return actual == 0 || actual == expected;
         }
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M10AssemblyFacts.HasAnyPersistedFacts(getInt) ||
+                M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         public static bool CanRecord(M09BerthTableRecord record, Func<string, int> getInt)
         {
             if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                HasOrphanedDownstreamFacts(getInt) ||
                 !IsValidRecord(record, getInt))
                 return false;
 
