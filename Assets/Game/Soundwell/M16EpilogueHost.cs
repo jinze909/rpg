@@ -5,9 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M16 ("一个普通的下午") playable epilogue host. Enforces
-    /// verified M15FinalRollCallFacts, live Linchao afternoon presence, and clean
-    /// ConfirmedKey before opening M16EpilogueView, and persists the chosen
-    /// standing spot through M16EpilogueSession with retry-safe recovery.
+    /// verified M15FinalRollCallFacts, live Linchao afternoon presence, monotonic
+    /// M05 arrival identity, and clean ConfirmedKey before opening M16EpilogueView,
+    /// and persists the chosen standing spot through M16EpilogueSession.
     /// </summary>
     public sealed class M16EpilogueHost : IDisposable
     {
@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private M16EpilogueSession session;
         private M16EpilogueView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public M16EpilogueSession Session => session;
@@ -59,6 +60,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M16EpilogueView(
                 parent,
                 session,
@@ -68,7 +70,9 @@ namespace Rpg.Soundwell
 
         private void HandleStandingSpotSubmitted(M16StandingSpot spot)
         {
-            if (disposed || session == null || !atLinchaoAfternoon())
+            if (disposed || session == null || !atLinchaoAfternoon() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TryChooseStandingSpotAndCommit(spot, getInt, setInt))
@@ -76,6 +80,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -84,6 +89,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }
