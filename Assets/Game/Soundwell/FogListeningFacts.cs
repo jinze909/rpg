@@ -66,6 +66,21 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        /// <summary>
+        /// Detects an interrupted fog save before a *new* scene can start.
+        /// A currently open fog panel may retry its own unfinished write;
+        /// a reopened one must never replace unconfirmed payload from it.
+        /// </summary>
+        public static bool HasUnconfirmedPayload(Func<string, int> getInt)
+        {
+            return getInt != null && getInt(CompletedKey) == 0 &&
+                (getInt(SucceededKey) != 0 ||
+                 getInt(HullIntegrityKey) != 0 ||
+                 getInt(AvoidedHazardsKey) != 0 ||
+                 getInt(MatchedSignalsKey) != 0 ||
+                 getInt(RemainingFocusKey) != 0);
+        }
+
         public static bool TryRecord(FogListeningSession session)
         {
             ValidateCompleted(session);

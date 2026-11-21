@@ -158,6 +158,11 @@ namespace Rpg.Soundwell
             int sailedBit = read(M04DepartureFacts.SailedKey);
             if (sailedBit != 0 && sailedBit != 1)
                 return false;
+            // Recheck on every Refresh and click: a save can become torn
+            // after this cast-off panel was first created. Never mark the
+            // vessel sailed if a fresh fog leg would immediately be refused.
+            if (!sailed && !M04DepartureFacts.CanBeginFreshFogLeg(read))
+                return false;
             manifest = record;
             return true;
         }

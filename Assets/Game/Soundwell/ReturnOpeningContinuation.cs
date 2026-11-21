@@ -391,7 +391,8 @@ namespace Rpg.Soundwell
                 !M04DepartureFacts.TryRead(getInt, out M04DepartureRecord? verified) ||
                 !verified.HasValue ||
                 verified.Value.Route != chosenRoute.Value ||
-                getInt(M04DepartureFacts.SailedKey) != (sailed ? 1 : 0))
+                getInt(M04DepartureFacts.SailedKey) != (sailed ? 1 : 0) ||
+                (!sailed && !M04DepartureFacts.CanBeginFreshFogLeg(getInt)))
                 return false;
 
             departure = verified;

@@ -133,6 +133,60 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornOrOrphanedM05LandingFactsCannotOpenFreshArrival()
+        {
+            var root = new GameObject("M05 torn arrival entry");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var observed = new M05LandingReport(3, 8, true, true);
+            string[] orphanKeys =
+            {
+                M05LandingFacts.CrewArrivedKey,
+                M05LandingFacts.ReadyBerthsKey,
+                M05LandingFacts.TenderArrivedKey,
+                M05LandingFacts.ReceiverMetKey,
+                M05LettersFacts.DecisionKey,
+                M05HarborVisitFacts.VisitedMaskKey
+            };
+
+            try
+            {
+                foreach (string key in orphanKeys)
+                {
+                    Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+                    Assert.That(M05LettersFacts.TryResetForNewVoyage(write), Is.True);
+                    Assert.That(M05HarborVisitFacts.TryResetForNewVoyage(write), Is.True);
+                    values[key] = 1;
+                    int writes = 0;
+                    Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+                    Assert.That(M05OuterHarborFlowHost.TryOpen(
+                        root.transform, observed, read,
+                        (k, v) => { writes++; values[k] = v; }, _ => { },
+                        out M05OuterHarborFlowHost rejected), Is.False,
+                        $"Fresh M05 arrival must refuse orphaned key '{key}'.");
+                    Assert.That(rejected, Is.Null);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                    Assert.That(values[key], Is.EqualTo(1));
+                    Assert.That(writes, Is.Zero);
+                }
+
+                Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+                Assert.That(M05LettersFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(M05HarborVisitFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    observed, read, write, _ => { },
+                    out M05OuterHarborFlowHost clean), Is.True);
+                clean.Dispose();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CorruptCommittedLandingDoesNotOpenAnUnfinishableLandingScreen()
         {
             var root = new GameObject("M05 corrupted confirmed arrival");
@@ -168,8 +222,21 @@ namespace Rpg.Tests.Editor
                 Assert.That(writes, Is.Zero);
                 Assert.That(values[M05LandingFacts.ConfirmedKey], Is.EqualTo(1));
 
-                // A truly unconfirmed arrival remains playable and writable.
+                // Removing only the confirmation flag does not repair the
+                // torn payload. Re-entering the harbor must still fail closed
+                // without replacing the corrupted crew with this new visit.
                 values[M05LandingFacts.ConfirmedKey] = 0;
+                int writesBeforeTornReopen = writes;
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    observed, read, write, _ => { }, out host), Is.False);
+                Assert.That(host, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(values[M05LandingFacts.CrewArrivedKey], Is.EqualTo(99));
+                Assert.That(writes, Is.EqualTo(writesBeforeTornReopen));
+
+                // Only an explicit new-visit reset clears the corrupt payload.
+                // A genuinely clean, unconfirmed arrival remains playable.
+                Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
                 Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
                     observed, read, write, _ => { }, out host), Is.True);
                 Assert.That(host.LandingCheckView, Is.Not.Null);

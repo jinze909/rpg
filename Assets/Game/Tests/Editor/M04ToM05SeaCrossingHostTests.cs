@@ -510,6 +510,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornFogSaveBlocksBothCastOffAndSavedSailingResume()
+        {
+            var root = new GameObject("M04 to M05 torn fog gate");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = Writer(values);
+            M04ToM05SeaCrossingHost resumed = null;
+            try
+            {
+                values[FogListeningFacts.HullIntegrityKey] = 2;
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, ClearFogLeg, new M05LandingReport(3, 8, true, true),
+                    read, write, _ => { }, _ => { }, out var beforeCastOff), Is.False);
+                Assert.That(beforeCastOff, Is.Null);
+                Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
+                Assert.That(root.transform.childCount, Is.Zero);
+
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, ClearFogLeg, new M05LandingReport(3, 8, true, true),
+                    read, write, _ => { }, _ => { }, out var afterCastOff), Is.False);
+                Assert.That(afterCastOff, Is.Null);
+                Assert.That(values[FogListeningFacts.HullIntegrityKey], Is.EqualTo(2));
+                Assert.That(root.transform.childCount, Is.Zero);
+
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, ClearFogLeg, new M05LandingReport(3, 8, true, true),
+                    read, write, _ => { }, _ => { }, out resumed), Is.True);
+                Assert.That(resumed.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+            }
+            finally
+            {
+                resumed?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void NullGuardsAspectPropagationAndTeardownDisposeCleanly()
         {
             var root = new GameObject("M04 to M05 teardown");

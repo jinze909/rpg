@@ -71,6 +71,7 @@ namespace Rpg.Soundwell
             // A persisted fog leg belongs to a prior run. Refuse both valid
             // and corrupt completion flags instead of silently overwriting.
             if (read(FogListeningFacts.CompletedKey) != 0 ||
+                FogListeningFacts.HasUnconfirmedPayload(read) ||
                 !FogListeningFacts.TryRead(read, out FogListeningRecord? previous) ||
                 previous.HasValue)
                 return false;
