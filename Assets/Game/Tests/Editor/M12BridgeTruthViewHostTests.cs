@@ -62,11 +62,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(M08WorkshopDepositFacts.TryConfirm(winch, read, write), Is.True);
                 Assert.That(M08FirstWorldNoticeFacts.TryRecord(true, read, write), Is.True);
                 Assert.That(RC01ChenYanFacts.TryRecord(new RC01ChenYanRecord(
-                    RC01VisitOrder.LinSuFirst,
-                    chenYanConsented: true,
-                    RC01RegistryResolution.KeepDeadStatus,
-                    registryApproved: false,
-                    publicRollCallConsent: false), read, write), Is.True);
+                    RC01FerryClues.All,
+                    RC01TalkOrder.LinSuFirst,
+                    RC01ChenYanOutcome.KeepMarkedDead,
+                    linSuRegisterNoteRecorded: true), read, write), Is.True);
             }
 
             Assert.That(M09BerthTableFacts.TryRecord(new M09BerthTableRecord(
