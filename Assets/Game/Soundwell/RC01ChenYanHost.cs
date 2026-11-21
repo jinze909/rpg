@@ -42,7 +42,11 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atWhiteReedFerry() ||
-                getInt(RC01ChenYanFacts.ConfirmedKey) != 0)
+                getInt(RC01ChenYanFacts.ConfirmedKey) != 0 ||
+                getInt(RC01ChenYanFacts.CluesMaskKey) != 0 ||
+                getInt(RC01ChenYanFacts.TalkOrderKey) != 0 ||
+                getInt(RC01ChenYanFacts.OutcomeKey) != 0 ||
+                getInt(RC01ChenYanFacts.LinSuNoteKey) != 0)
                 return false;
 
             if (!RC01ChenYanSession.TryCreateFromSavedFacts(

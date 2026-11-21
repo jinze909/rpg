@@ -101,6 +101,44 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornUnconfirmedRosterFactsCannotOpenFreshChenYanCase()
+        {
+            var root = new GameObject("RC01 torn roster outcome");
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            RC01ChenYanHost host = null;
+            try
+            {
+                host = new RC01ChenYanHost(root.transform, () => true, read, write);
+                foreach (string orphanedKey in new[]
+                {
+                    RC01ChenYanFacts.CluesMaskKey,
+                    RC01ChenYanFacts.TalkOrderKey,
+                    RC01ChenYanFacts.OutcomeKey,
+                    RC01ChenYanFacts.LinSuNoteKey
+                })
+                {
+                    values[orphanedKey] = 1;
+                    Assert.That(host.TryOpen(), Is.False,
+                        "A partially recorded roster choice must not reopen: " + orphanedKey);
+                    Assert.That(host.ActiveView, Is.Null);
+                    values[orphanedKey] = 0;
+                }
+
+                Assert.That(host.TryOpen(), Is.True,
+                    "A new voyage with clean RC01 keys remains playable.");
+                Assert.That(host.ActiveView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void LinSuFirstFlowShowsGuardedAtmosphereAndSettlesRestoreLivingOnce()
         {
             var root = new GameObject("RC01 host lin su first");
