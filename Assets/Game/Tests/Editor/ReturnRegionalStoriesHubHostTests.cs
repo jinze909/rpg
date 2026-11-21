@@ -13,6 +13,19 @@ namespace Rpg.Tests.Editor
             return key => values.TryGetValue(key, out int value) ? value : 0;
         }
 
+        // Existing positive hub tests explicitly simulate having reached the
+        // corresponding world locations. Default production context is unproven.
+        private static ReturnRegionalStoriesHubContext ObservedTestLocations()
+        {
+            return new ReturnRegionalStoriesHubContext
+            {
+                AtLutingDock = () => true,
+                AtZhonglingBathhouse = () => true,
+                AtJingwanCourtyard = () => true,
+                TaoJiAtWoodshop = () => true
+            };
+        }
+
         private static void SeedM07TaoJi(Dictionary<string, int> values, bool taoJiRescued)
         {
             Func<string, int> read = Reader(values);
@@ -50,6 +63,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void UnprovenOrMissingSceneContextCannotOpenRegionalStories()
+        {
+            var root = new GameObject("Unproven regional world context");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var context = new ReturnRegionalStoriesHubContext();
+
+            try
+            {
+                using (var hub = new ReturnRegionalStoriesHubHost(
+                    root.transform, context, read, write))
+                {
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST02RiverLanterns),
+                        Is.True, "Unsettled story availability is not proof of being at its scene.");
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.False);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST03Bathhouse), Is.False);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
+
+                    // Even a rescued companion does not teleport to the woodshop.
+                    SeedM07TaoJi(values, taoJiRescued: true);
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST06TaoJiHomecoming),
+                        Is.True);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST06TaoJiHomecoming),
+                        Is.False);
+
+                    // An explicitly missing callback must also fail closed, not throw.
+                    context.AtLutingDock = null;
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns),
+                        Is.False);
+                    Assert.That(hub.HasActiveStory, Is.False);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                    Assert.That(hub.CountSettledStories(), Is.Zero);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void HubEnforcesST06TaoJiGateAndSingleActiveStoryExclusion()
         {
             var root = new GameObject("RegionalHubGateRoot");
@@ -60,7 +115,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 using (var hub = new ReturnRegionalStoriesHubHost(
-                    root.transform, new ReturnRegionalStoriesHubContext(), read, write))
+                    root.transform, ObservedTestLocations(), read, write))
                 {
                     Assert.That(ReturnRegionalStoriesHubHost.IsPermanentRegionalStory(
                         ReturnRegionalStoryId.ST02RiverLanterns), Is.True);
@@ -106,7 +161,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 using (var hub = new ReturnRegionalStoriesHubHost(
-                    root.transform, new ReturnRegionalStoriesHubContext(), read, write))
+                    root.transform, ObservedTestLocations(), read, write))
                 {
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.True);
                     Assert.That(ST02RiverLanternsFacts.TryRecord(new ST02RiverLanternsRecord(
@@ -143,7 +198,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 var hub = new ReturnRegionalStoriesHubHost(
-                    root.transform, new ReturnRegionalStoriesHubContext(), read, write);
+                    root.transform, ObservedTestLocations(), read, write);
                 Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST03Bathhouse), Is.True);
                 var st03Host = hub.ActiveST03Host;
                 Assert.That(st03Host.IsDisposed, Is.False);
