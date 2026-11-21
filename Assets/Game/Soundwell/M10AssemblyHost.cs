@@ -5,9 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M10 ("靖湾会盟") host. Enforces verified M09BerthTableFacts,
-    /// live Jingwan assembly presence, and clean ConfirmedKey before opening
-    /// M10AssemblyView, and persists the outcome through M10AssemblySession with
-    /// retry-safe idempotent commit recovery.
+    /// live Jingwan assembly presence, monotonic M05 arrival identity, and clean
+    /// ConfirmedKey before opening M10AssemblyView, and persists the outcome through
+    /// M10AssemblySession with retry-safe idempotent commit recovery.
     /// </summary>
     public sealed class M10AssemblyHost : IDisposable
     {
@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private M10AssemblySession session;
         private M10AssemblyView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public M10AssemblySession Session => session;
@@ -57,6 +58,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M10AssemblyView(
                 parent,
                 session,
@@ -70,7 +72,9 @@ namespace Rpg.Soundwell
 
         private void HandleCommitRequested()
         {
-            if (disposed || session == null || !atJingwanAssembly())
+            if (disposed || session == null || !atJingwanAssembly() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TryCommit(getInt, setInt))
@@ -78,6 +82,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -86,6 +91,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

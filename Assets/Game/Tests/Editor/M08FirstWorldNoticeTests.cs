@@ -56,6 +56,53 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldWorldNoticeCannotUnlockRosterCasesAfterIdenticalReplay()
+        {
+            var root = new GameObject("M08 notice replay identity");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM08Winch(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M08FirstWorldNoticeHost oldHost = null;
+            M08FirstWorldNoticeHost newHost = null;
+            try
+            {
+                int oldArrival = read(M05LandingFacts.ArrivalSequenceKey);
+                oldHost = new M08FirstWorldNoticeHost(root.transform, () => true, read, write);
+                Assert.That(oldHost.TryOpen(), Is.True);
+                var oldView = oldHost.ActiveView;
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                oldView.AcknowledgeButton.onClick.Invoke();
+                Assert.That(read(M08FirstWorldNoticeFacts.ConfirmedKey), Is.Zero);
+
+                SeedVerifiedM08Winch(values);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(oldArrival));
+                oldView.AcknowledgeButton.onClick.Invoke();
+                Assert.That(read(M08FirstWorldNoticeFacts.ConfirmedKey), Is.Zero);
+                Assert.That(oldHost.IsCaseAvailable(1), Is.False);
+                Assert.That(oldHost.ActiveView, Is.SameAs(oldView));
+
+                oldHost.Dispose();
+                oldHost = null;
+                newHost = new M08FirstWorldNoticeHost(root.transform, () => true, read, write);
+                Assert.That(newHost.TryOpen(), Is.True);
+                newHost.ActiveView.AcknowledgeButton.onClick.Invoke();
+                Assert.That(newHost.NoticeRead, Is.True);
+                Assert.That(newHost.IsCaseAvailable(1), Is.True);
+                Assert.That(newHost.ActiveView, Is.Null);
+            }
+            finally
+            {
+                oldHost?.Dispose();
+                newHost?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FirstNoticeCannotAppearBeforePaidWinchAndObservedRealDawn()
         {
             var root = new GameObject("M08 first notice prerequisites");

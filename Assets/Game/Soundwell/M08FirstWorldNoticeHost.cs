@@ -14,6 +14,9 @@ namespace Rpg.Soundwell
         private readonly Func<bool> realDaybreakObserved;
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
+        // Old dawn notices cannot unlock RC-01..RC-05 for a replayed voyage
+        // whose M05 arrival happened to have identical facts.
+        private int? openedArrivalSequence;
         private M08FirstWorldNoticeView activeView;
         private bool disposed;
 
@@ -43,6 +46,10 @@ namespace Rpg.Soundwell
                 !paid)
                 return false;
 
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0)
+                return false;
+            openedArrivalSequence = arrivalSequence;
             activeView = new M08FirstWorldNoticeView(parent, ConfirmNotice);
             return true;
         }
@@ -57,7 +64,9 @@ namespace Rpg.Soundwell
 
         private bool ConfirmNotice()
         {
-            if (disposed || !realDaybreakObserved())
+            if (disposed || !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                !realDaybreakObserved())
                 return false;
 
             if (!M08FirstWorldNoticeFacts.TryRead(getInt, out bool existing))
@@ -77,6 +86,7 @@ namespace Rpg.Soundwell
             // by this host and is closed only after verified persistence.
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
             return true;
         }
 
@@ -86,6 +96,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }
