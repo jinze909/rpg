@@ -95,12 +95,114 @@ namespace Rpg.Tests.Editor
                     Is.True);
                 Assert.That(read(M05HarborPositionFacts.PositionKey), Is.Zero,
                     "Starting a new voyage cannot re-use last voyage's map position.");
+                Assert.That(read(M05HarborPositionFacts.PositionArrivalIdentityKey), Is.Zero);
             }
             finally
             {
                 host?.Dispose();
                 UnityEngine.Object.DestroyImmediate(root);
             }
+        }
+
+        [Test]
+        public void StaleOrTornHarborTileNeverRestoresIntoTheNextVerifiedArrival()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var layout = RedSaltHarborMapLayout.Build();
+            var landing = new M05LandingReport(3, 10, true, true);
+            SeedCompletedCrossing(values);
+            Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+            int firstSequence = read(M05LandingFacts.ArrivalSequenceKey);
+            Vector2Int tile = layout.PlayerSpawn;
+            Assert.That(M05HarborPositionFacts.TryRecord(tile, layout, read, write),
+                Is.True);
+            Assert.That(read(M05HarborPositionFacts.PositionArrivalIdentityKey),
+                Is.EqualTo(firstSequence + 1));
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? original), Is.True);
+            Assert.That(original, Is.EqualTo(tile));
+
+            // Simulate an interrupted voyage reset: the M05 landing and
+            // M04/fog records were cleared but the old position was not.
+            Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? unlanded), Is.True);
+            Assert.That(unlanded, Is.Null);
+
+            SeedCompletedCrossing(values);
+            Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+            int secondSequence = read(M05LandingFacts.ArrivalSequenceKey);
+            Assert.That(secondSequence, Is.GreaterThan(firstSequence));
+            Assert.That(read(M05HarborPositionFacts.PositionKey), Is.Not.Zero,
+                "The partial reset deliberately leaves the old tile in Makinom.");
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? stale), Is.True);
+            Assert.That(stale, Is.Null,
+                "An old position must not move the player on a new voyage.");
+
+            Assert.Throws<InvalidOperationException>(() =>
+                M05HarborPositionFacts.TryRecord(tile, layout, read,
+                    (key, value) =>
+                    {
+                        write(key, value);
+                        if (key == M05HarborPositionFacts.PositionKey && value == 0)
+                            throw new InvalidOperationException("Interrupted after clearing old tile");
+                    }));
+            Assert.That(read(M05HarborPositionFacts.PositionKey), Is.Zero);
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? cleared), Is.True);
+            Assert.That(cleared, Is.Null);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                M05HarborPositionFacts.TryRecord(tile, layout, read,
+                    (key, value) =>
+                    {
+                        write(key, value);
+                        if (key == M05HarborPositionFacts.PositionArrivalIdentityKey)
+                            throw new InvalidOperationException("Interrupted after rebinding arrival");
+                    }));
+            Assert.That(read(M05HarborPositionFacts.PositionArrivalIdentityKey),
+                Is.EqualTo(secondSequence + 1));
+            Assert.That(read(M05HarborPositionFacts.PositionKey), Is.Zero);
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? pending), Is.True);
+            Assert.That(pending, Is.Null);
+
+            // Only an actually walked-to tile can repopulate this voyage.
+            Assert.That(M05HarborPositionFacts.TryRecord(tile, layout, read, write),
+                Is.True);
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? restored), Is.True);
+            Assert.That(restored, Is.EqualTo(tile));
+        }
+
+        [Test]
+        public void LegacyUnboundHarborPositionSpawnsSafelyAndBindsOnNewMovement()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var layout = RedSaltHarborMapLayout.Build();
+            SeedCompletedCrossing(values);
+            Assert.That(M05LandingFacts.TryRecord(
+                new M05LandingReport(3, 10, true, true), read, write), Is.True);
+            Vector2Int tile = layout.PlayerSpawn;
+            values[M05HarborPositionFacts.PositionKey] =
+                1 + tile.x + layout.Width * tile.y;
+            Assert.That(read(M05HarborPositionFacts.PositionArrivalIdentityKey), Is.Zero);
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? legacy), Is.True);
+            Assert.That(legacy, Is.Null,
+                "An unsigned legacy location cannot prove its voyage identity.");
+            Assert.That(M05HarborPositionFacts.TryRecord(tile, layout, read, write),
+                Is.True);
+            Assert.That(M05HarborPositionFacts.TryRead(
+                read, layout, out Vector2Int? witnessed), Is.True);
+            Assert.That(witnessed, Is.EqualTo(tile));
         }
 
         [Test]
