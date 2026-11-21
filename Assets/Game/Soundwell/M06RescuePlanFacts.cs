@@ -177,13 +177,15 @@ namespace Rpg.Soundwell
             if (record.ReportedUsableCapacity != landing.Value.HasUsableLandingCapacity)
                 return false;
 
-            // Validation N76: letter delivery requires an actually taken M05 packet.
-            if (record.LetterDelivery == M06LetterDeliveryOutcome.DeliveredWithPending)
-            {
-                if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? decision) ||
-                    decision != M05LetterDecision.TakePacket)
-                    return false;
-            }
+            // Validation N76: an absent Seran answer is not a refusal, and
+            // corrupt nonzero M05 codes may not authorize M06's "not carried"
+            // outcome. Reads and direct-save entry points use the same gate.
+            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? decision) ||
+                (!decision.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
+                return false;
+            if (record.LetterDelivery == M06LetterDeliveryOutcome.DeliveredWithPending &&
+                decision != M05LetterDecision.TakePacket)
+                return false;
 
             return true;
         }
