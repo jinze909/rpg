@@ -188,6 +188,57 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldPumpRoomViewCannotSettleIdenticalReplayedLanding()
+        {
+            var root = new GameObject("M06 stale pump room view");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values, letterDecision: null);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                var oldView = host.ActiveReunionView;
+                oldView.GreetingBringBackButton.onClick.Invoke();
+                oldView.AdvanceButton.onClick.Invoke();
+                oldView.AdvanceButton.onClick.Invoke();
+                oldView.ShenWaitButton.onClick.Invoke();
+                Assert.That(oldView.Session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+                int oldSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                SeedVerifiedM05Arrival(values, letterDecision: null);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                    Is.GreaterThan(oldSequence));
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldView.OfficialHandoverButton.onClick.Invoke());
+                Assert.That(read(M06RescuePlanFacts.ConfirmedKey), Is.Zero);
+                Assert.That(host.ActiveReunionView, Is.SameAs(oldView));
+
+                host.Dispose();
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                var freshView = host.ActiveReunionView;
+                freshView.GreetingBringBackButton.onClick.Invoke();
+                freshView.AdvanceButton.onClick.Invoke();
+                freshView.AdvanceButton.onClick.Invoke();
+                freshView.ShenWaitButton.onClick.Invoke();
+                freshView.OfficialHandoverButton.onClick.Invoke();
+                Assert.That(host.RescuePlanSettled, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PumpRoomViewRetriesCommittedPlanAfterLostAcknowledgement()
         {
             var root = new GameObject("M06 pump plan lost ack");

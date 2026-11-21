@@ -41,6 +41,10 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class M06PumpRoomReunionSession
     {
+        // Sessions opened from a verified landing are bound to that arrival,
+        // not just its crew/berth numbers. Directly constructed preview
+        // sessions retain the existing public constructor contract.
+        private readonly int? openedArrivalSequence;
         public M04DepartureRecord Departure { get; }
         public M05LandingReport Landing { get; }
         public M05LetterDecision? LetterDecision { get; }
@@ -60,6 +64,15 @@ namespace Rpg.Soundwell
             M04DepartureRecord departure,
             M05LandingReport landing,
             M05LetterDecision? letterDecision)
+            : this(departure, landing, letterDecision, null)
+        {
+        }
+
+        private M06PumpRoomReunionSession(
+            M04DepartureRecord departure,
+            M05LandingReport landing,
+            M05LetterDecision? letterDecision,
+            int? arrivalSequence)
         {
             if (landing.CrewArrived <= 0 || landing.CrewArrived > departure.AssignedCrew)
                 throw new ArgumentOutOfRangeException(nameof(landing),
@@ -75,6 +88,7 @@ namespace Rpg.Soundwell
             Departure = departure;
             Landing = landing;
             LetterDecision = letterDecision;
+            openedArrivalSequence = arrivalSequence;
             Stage = M06ReunionStage.VesselBriefing;
         }
 
@@ -98,7 +112,9 @@ namespace Rpg.Soundwell
                 (!letters.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
                 return false;
 
-            session = new M06PumpRoomReunionSession(departure.Value, landing.Value, letters);
+            session = new M06PumpRoomReunionSession(
+                departure.Value, landing.Value, letters,
+                getInt(M05LandingFacts.ArrivalSequenceKey));
             return true;
         }
 
@@ -197,6 +213,7 @@ namespace Rpg.Soundwell
                 SelectedShenResponse);
 
             if (getInt == null || setInt == null ||
+                !HasSameSavedArrival(getInt) ||
                 !M06RescuePlanFacts.TryRead(getInt, out M06ReunionRecord? existing))
                 return false;
 
@@ -220,6 +237,26 @@ namespace Rpg.Soundwell
 
             ConfirmedPlan = plan;
             Stage = M06ReunionStage.Completed;
+            return true;
+        }
+
+        private bool HasSameSavedArrival(Func<string, int> getInt)
+        {
+            if (!openedArrivalSequence.HasValue)
+                return true;
+
+            if (getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                !M05LandingFacts.TryRead(getInt, out M05LandingReport? liveLanding) ||
+                !liveLanding.HasValue ||
+                liveLanding.Value.CrewArrived != Landing.CrewArrived ||
+                liveLanding.Value.ReadyRescueBerths != Landing.ReadyRescueBerths ||
+                liveLanding.Value.TenderArrived != Landing.TenderArrived ||
+                liveLanding.Value.ReceiverMet != Landing.ReceiverMet ||
+                !M05LettersFacts.TryRead(getInt, out M05LetterDecision? liveLetters) ||
+                liveLetters != LetterDecision ||
+                (!liveLetters.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
+                return false;
+
             return true;
         }
 
