@@ -135,7 +135,7 @@ namespace Rpg.Soundwell
                 // The current leg is uncommitted, not malformed. A torn write
                 // leaves Completed=0 and can be retried from this same UI.
                 if (read(FogListeningFacts.CompletedKey) != 0 ||
-                    !FogListeningFacts.TryRecord(leg, write) ||
+                    !FogListeningFacts.TryRecord(leg, read, write) ||
                     !FogListeningFacts.TryRead(read, out saved) ||
                     !saved.HasValue)
                     throw new InvalidOperationException("Unable to persist fog leg outcome.");
