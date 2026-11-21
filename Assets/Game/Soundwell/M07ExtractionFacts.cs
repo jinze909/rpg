@@ -131,6 +131,22 @@ namespace Rpg.Soundwell
                   M07RouteCostFlags.PierRepairAndInjuryCost |
                   M07RouteCostFlags.FallbackTransferCost);
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(ExecutedRouteKey) != 0 ||
+                getInt(PumpStateKey) != 0 ||
+                getInt(RouteCostsKey) != 0 ||
+                getInt(BoardedFirstBatchKey) != 0 ||
+                getInt(LowerLevelEvacuatedKey) != 0 ||
+                getInt(RusFateKey) != 0 ||
+                getInt(LedgerStateKey) != 0 ||
+                getInt(LiangChoiceKey) != 0 ||
+                getInt(YidaChoiceKey) != 0 ||
+                getInt(TaoJiRescuedKey) != 0;
+        }
+
         // M08, RC-01..RC-05, and ST-06 are strictly downstream of a completed
         // M07 extraction. A torn new-voyage reset may clear M07 while leaving
         // an older commission, dock reply, dawn notice, roster case, or Tao Ji
