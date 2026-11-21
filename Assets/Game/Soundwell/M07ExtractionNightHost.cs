@@ -74,7 +74,8 @@ namespace Rpg.Soundwell
                 getInt(M07ExtractionFacts.LedgerStateKey) != 0 ||
                 getInt(M07ExtractionFacts.LiangChoiceKey) != 0 ||
                 getInt(M07ExtractionFacts.YidaChoiceKey) != 0 ||
-                getInt(M07ExtractionFacts.TaoJiRescuedKey) != 0;
+                getInt(M07ExtractionFacts.TaoJiRescuedKey) != 0 ||
+                M07ExtractionFacts.HasOrphanedM08SuccessorFacts(getInt);
         }
 
         public bool TryOpen()
