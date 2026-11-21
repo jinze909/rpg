@@ -82,12 +82,50 @@ namespace Rpg.Soundwell
                 getInt(M15FinalRollCallFacts.XiaoqiByNumberKey) != 0;
         }
 
+        private bool LiveCeremonyEvidenceMatchesSession()
+        {
+            if (session == null ||
+                bridgeTruthSealed() != session.BridgeTruthSealed ||
+                consentedVerifiedNamesCount() != session.ConsentedVerifiedNamesCount)
+                return false;
+
+            // The name may change after the page opened. Compare the same
+            // trimmed representation used by the roll-call session.
+            string currentName = xiaoqiCustomName?.Invoke();
+            currentName = string.IsNullOrWhiteSpace(currentName)
+                ? null : currentName.Trim();
+            return string.Equals(currentName, session.XiaoqiCustomName,
+                StringComparison.Ordinal);
+        }
+
+        private static bool MatchesPersistedRollCall(
+            M15FinalRollCallRecord saved,
+            M15FinalRollCallSession current,
+            M15RollCallReader reader,
+            M15FinalIdentityResponse identityResponse,
+            M15SteleInscription steleInscription)
+        {
+            M15PensionClosure pension =
+                identityResponse == M15FinalIdentityResponse.PublicTrueName
+                    ? M15PensionClosure.StoppedAndReconciled
+                    : M15PensionClosure.UnchangedOrPrivate;
+            return saved.Reader == reader &&
+                saved.IdentityResponse == identityResponse &&
+                saved.PensionClosure == pension &&
+                saved.SteleInscription == steleInscription &&
+                saved.ConsentedVerifiedNamesCount == current.ConsentedVerifiedNamesCount &&
+                saved.XiaoqiCalledByNumberSeventyTwo == !current.XiaoqiHasCustomName;
+        }
+
         private void HandleRollCallSubmitted(
             M15RollCallReader reader,
             M15FinalIdentityResponse identityResponse,
             M15SteleInscription steleInscription)
         {
+            // A ceremony can remain open while consent, sealed bridge truth,
+            // or Xiaoqi's chosen name changes. Do not settle stale choices.
             if (disposed || session == null || !ceremonyReady() ||
+                !LiveCeremonyEvidenceMatchesSession() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
@@ -100,9 +138,10 @@ namespace Rpg.Soundwell
             // without issuing duplicate writes.
             if (existing.HasValue)
             {
-                if (existing.Value.Reader != reader ||
-                    existing.Value.IdentityResponse != identityResponse ||
-                    existing.Value.SteleInscription != steleInscription)
+                // A commit-then-throw retry must acknowledge the *entire*
+                // previously saved outcome, not just the three UI buttons.
+                if (!MatchesPersistedRollCall(
+                        existing.Value, session, reader, identityResponse, steleInscription))
                     return;
             }
             else if (!session.TryCompleteRollCall(
@@ -114,9 +153,8 @@ namespace Rpg.Soundwell
             if (!M15FinalRollCallFacts.TryRead(
                     getInt, out M15FinalRollCallRecord? persisted) ||
                 !persisted.HasValue ||
-                persisted.Value.Reader != reader ||
-                persisted.Value.IdentityResponse != identityResponse ||
-                persisted.Value.SteleInscription != steleInscription)
+                !MatchesPersistedRollCall(
+                    persisted.Value, session, reader, identityResponse, steleInscription))
                 return;
 
             activeView?.Dispose();
