@@ -6,7 +6,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Scene-callable RC-05 ("山上的第三班") host. Enforces M08 case-5
     /// availability, live mountain-mill presence, monotonic M05 arrival identity,
-    /// and clean ConfirmedKey before opening RC05ThirdSquadView.
+    /// commit-time live mill evidence revalidation, and clean RC05ThirdSquadFacts
+    /// state (blocking torn/partial saves) before opening RC05ThirdSquadView.
     /// </summary>
     public sealed class RC05ThirdSquadHost : IDisposable
     {
@@ -62,7 +63,7 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || !atAbandonedMill() ||
-                getInt(RC05ThirdSquadFacts.ConfirmedKey) != 0)
+                HasAnyPersistedFacts())
                 return false;
 
             if (!RC05ThirdSquadSession.TryCreateFromSavedFacts(
@@ -80,6 +81,16 @@ namespace Rpg.Soundwell
                 skirmishTriggered,
                 HandleResolutionSubmitted);
             return true;
+        }
+
+        private bool HasAnyPersistedFacts()
+        {
+            return getInt(RC05ThirdSquadFacts.ConfirmedKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.TrialDeliveryKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.ResolutionKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.SkirmishKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.RealZhengYuanVerifiedKey) != 0 ||
+                getInt(RC05ThirdSquadFacts.OldWomanStoneMentionedKey) != 0;
         }
 
         private void HandleResolutionSubmitted(RC05Resolution resolution)
