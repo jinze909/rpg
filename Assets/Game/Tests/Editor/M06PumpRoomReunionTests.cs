@@ -319,6 +319,71 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [Test]
+        public void InterruptedReunionWriteLocksOriginalPlanAndShenResponseUntilReset()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values, letterDecision: M05LetterDecision.TakePacket);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var first = new M06ReunionRecord(
+                M06RescuePlan.OfficialHandover, true,
+                M06LetterDeliveryOutcome.DeliveredWithPending, true,
+                M06ShenResponse.HelpRepairValve);
+            var changedPlan = new M06ReunionRecord(
+                M06RescuePlan.CargoCover, true,
+                M06LetterDeliveryOutcome.DeliveredWithPending, true,
+                M06ShenResponse.HelpRepairValve);
+            var changedResponse = new M06ReunionRecord(
+                M06RescuePlan.OfficialHandover, true,
+                M06LetterDeliveryOutcome.DeliveredWithPending, true,
+                M06ShenResponse.LetHerSpeak);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                M06RescuePlanFacts.TryRecord(first, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == M06RescuePlanFacts.PlanKey)
+                        throw new InvalidOperationException("Makinom interrupted before confirm");
+                }));
+            Assert.That(read(M06RescuePlanFacts.ConfirmedKey), Is.Zero);
+            Assert.That(read(M06RescuePlanFacts.PendingSignatureKey), Is.Not.Zero);
+            Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? torn), Is.True);
+            Assert.That(torn, Is.Null);
+
+            Assert.That(M06RescuePlanFacts.TryRecord(changedPlan, read, write), Is.False);
+            Assert.That(M06RescuePlanFacts.TryRecord(changedResponse, read, write), Is.False);
+            Assert.That(read(M06RescuePlanFacts.PlanKey),
+                Is.EqualTo((int)M06RescuePlan.OfficialHandover));
+
+            Assert.That(M06RescuePlanFacts.TryRecord(first, read, write), Is.True);
+            Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Plan, Is.EqualTo(first.Plan));
+            Assert.That(saved.Value.ShenResponse, Is.EqualTo(first.ShenResponse));
+
+            int originalArrival = read(M05LandingFacts.ArrivalSequenceKey);
+            values[M05LandingFacts.ArrivalSequenceKey] = originalArrival + 1;
+            Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? stale), Is.True);
+            Assert.That(stale, Is.Null,
+                "A signed rescue decision cannot be carried into a different voyage.");
+            values[M05LandingFacts.ArrivalSequenceKey] = originalArrival;
+
+            values[M06RescuePlanFacts.PendingSignatureKey] = 0;
+            Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? legacy), Is.True);
+            Assert.That(legacy.HasValue, Is.True,
+                "Confirmed records from before the intent key remain compatible.");
+
+            Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(M06RescuePlanFacts.PendingSignatureKey), Is.Zero);
+            values[M06RescuePlanFacts.PlanKey] = (int)M06RescuePlan.OfficialHandover;
+            Assert.That(M06RescuePlanFacts.TryRecord(changedPlan, read, write), Is.False,
+                "Unsigned orphaned rescue payloads cannot be overwritten.");
+            Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(M06RescuePlanFacts.TryRecord(changedPlan, read, write), Is.True);
+        }
+
         [Test]
         public void InterruptedSaveWriteKeepsDecisionOpenForRetryAndCorruptOrChangedVoyageInvalidatesRead()
         {

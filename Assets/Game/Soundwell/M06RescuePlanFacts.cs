@@ -60,17 +60,81 @@ namespace Rpg.Soundwell
     public static class M06RescuePlanFacts
     {
         public const string ConfirmedKey = "rpg.return.m06.reunion-confirmed";
+        public const string PendingSignatureKey = "rpg.return.m06.reunion-pending-signature";
         public const string PlanKey = "rpg.return.m06.rescue-plan";
         public const string UsableCapacityKey = "rpg.return.m06.reported-usable-capacity";
         public const string LetterDeliveryKey = "rpg.return.m06.letter-delivery";
         public const string RetaliationHeardKey = "rpg.return.m06.retaliation-history-heard";
         public const string ShenResponseKey = "rpg.return.m06.shen-response";
 
+        // Lock the first attempted rescue plan before writing any partial
+        // payload. The M05 arrival identity prevents identical new voyages
+        // from resurrecting an older interrupted or confirmed decision.
+        private static uint MixSignature(uint hash, int value)
+        {
+            unchecked
+            {
+                for (int shift = 0; shift < 32; shift += 8)
+                {
+                    hash ^= (byte)(value >> shift);
+                    hash *= 16777619u;
+                }
+                return hash;
+            }
+        }
+
+        private static int Signature(M06ReunionRecord record, Func<string, int> read)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                hash = MixSignature(hash, (int)record.Plan);
+                hash = MixSignature(hash, record.ReportedUsableCapacity ? 1 : 0);
+                hash = MixSignature(hash, (int)record.LetterDelivery);
+                hash = MixSignature(hash, record.RetaliationHistoryHeard ? 1 : 0);
+                hash = MixSignature(hash, record.ShenResponse.HasValue
+                    ? (int)record.ShenResponse.Value : 0);
+                hash = MixSignature(hash, read(M05LandingFacts.ArrivalSequenceKey));
+                int signature = (int)hash;
+                return signature == 0 ? 1 : signature;
+            }
+        }
+
+        private static bool CompatiblePending(Func<string, int> read,
+            string key, int expected)
+        {
+            int saved = read(key);
+            return saved == 0 || saved == expected;
+        }
+
         public static bool CanRecord(M06ReunionRecord record, Func<string, int> getInt)
         {
-            if (getInt == null || getInt(ConfirmedKey) != 0)
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record, getInt))
                 return false;
-            return IsValidRecord(record, getInt);
+
+            int pending = getInt(PendingSignatureKey);
+            if (pending == 0)
+            {
+                // An unsigned orphaned payload from a legacy interrupted
+                // save cannot be interpreted as a new, freely editable plan.
+                return getInt(PlanKey) == 0 &&
+                    getInt(UsableCapacityKey) == 0 &&
+                    getInt(LetterDeliveryKey) == 0 &&
+                    getInt(RetaliationHeardKey) == 0 &&
+                    getInt(ShenResponseKey) == 0;
+            }
+
+            return pending == Signature(record, getInt) &&
+                CompatiblePending(getInt, PlanKey, (int)record.Plan) &&
+                CompatiblePending(getInt, UsableCapacityKey,
+                    record.ReportedUsableCapacity ? 1 : 0) &&
+                CompatiblePending(getInt, LetterDeliveryKey,
+                    (int)record.LetterDelivery) &&
+                CompatiblePending(getInt, RetaliationHeardKey,
+                    record.RetaliationHistoryHeard ? 1 : 0) &&
+                CompatiblePending(getInt, ShenResponseKey,
+                    record.ShenResponse.HasValue ? (int)record.ShenResponse.Value : 0);
         }
 
         public static bool TryRecord(M06ReunionRecord record)
@@ -89,8 +153,9 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
-            // Keep confirmation last so an interrupted Makinom write never
-            // publishes a half-written rescue plan or blocks retry.
+            // Publish the signed intent first; a torn write may resume only
+            // the identical original plan and Shen Li response.
+            setInt(PendingSignatureKey, Signature(record, getInt));
             setInt(ConfirmedKey, 0);
             setInt(PlanKey, (int)record.Plan);
             setInt(UsableCapacityKey, record.ReportedUsableCapacity ? 1 : 0);
@@ -136,7 +201,11 @@ namespace Rpg.Soundwell
                 (M06LetterDeliveryOutcome)rawLetters,
                 rawRetaliation == 1,
                 rawShenResponse == 0 ? (M06ShenResponse?)null : (M06ShenResponse)rawShenResponse);
-            if (IsValidRecord(saved, getInt))
+            // Legacy confirmed records have no signature and stay readable.
+            // Newly written records must match the original plan and voyage.
+            int pending = getInt(PendingSignatureKey);
+            if (IsValidRecord(saved, getInt) &&
+                (pending == 0 || pending == Signature(saved, getInt)))
                 record = saved;
             return true;
         }
@@ -153,6 +222,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
             setInt(PlanKey, 0);
             setInt(UsableCapacityKey, 0);
             setInt(LetterDeliveryKey, 0);

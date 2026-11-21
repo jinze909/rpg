@@ -49,6 +49,7 @@ namespace Rpg.Tests.Editor
             var tornCases = new (string Key, int Value)[]
             {
                 (M06RescuePlanFacts.ConfirmedKey, 2),
+                (M06RescuePlanFacts.PendingSignatureKey, 1),
                 (M06RescuePlanFacts.PlanKey, (int)M06RescuePlan.OfficialHandover),
                 (M06RescuePlanFacts.UsableCapacityKey, 1),
                 (M06RescuePlanFacts.LetterDeliveryKey, (int)M06LetterDeliveryOutcome.DeliveredWithPending),
