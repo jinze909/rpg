@@ -119,6 +119,49 @@ namespace Rpg.Tests.Editor
             Assert.That(recovered.Value.Succeeded, Is.False);
         }
 
+
+        [Test]
+        public void FirstFogIntentRejectsCompetingOutcomeAndReplayedVoyage()
+        {
+            var values = new Dictionary<string, int>
+            {
+                [M04DepartureFacts.SailingSequenceKey] = 4
+            };
+            Func<string, int> read =
+                key => values.TryGetValue(key, out int stored) ? stored : 0;
+            Action<string, int> write = (key, value) => values[key] = value;
+            var original = CompletedSession(succeed: true);
+            var competing = CompletedSession(succeed: false);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                FogListeningFacts.TryRecord(original, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == FogListeningFacts.PendingSignatureKey)
+                        throw new InvalidOperationException("Interrupted after intent");
+                }));
+            Assert.That(FogListeningFacts.HasUnconfirmedPayload(read), Is.True);
+            Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero);
+            Assert.That(FogListeningFacts.TryRecord(competing, read, write), Is.False);
+            Assert.That(FogListeningFacts.TryRecord(original, read, write), Is.True);
+            Assert.That(FogListeningFacts.TryRead(read,
+                out FogListeningRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.Succeeded, Is.True);
+
+            values[M04DepartureFacts.SailingSequenceKey] = 5;
+            Assert.That(FogListeningFacts.TryRead(read,
+                out FogListeningRecord? stale), Is.True);
+            Assert.That(stale, Is.Null,
+                "A signed previous crossing cannot count as this voyage.");
+            values[M04DepartureFacts.SailingSequenceKey] = 4;
+            Assert.That(FogListeningFacts.TryRead(read, out _), Is.True);
+
+            Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+            Assert.That(read(FogListeningFacts.PendingSignatureKey), Is.Zero);
+            Assert.That(FogListeningFacts.TryRecord(competing, read, write), Is.True);
+        }
+
         [Test]
         public void CorruptedOrContradictorySavedVariablesAreRejected()
         {
