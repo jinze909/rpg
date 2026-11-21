@@ -39,7 +39,8 @@ namespace Rpg.Soundwell
         public bool TryOpen()
         {
             if (disposed || activeView != null || IsCompleted ||
-                getInt(M08WorkshopDepositFacts.CompletedKey) != 0)
+                getInt(M08WorkshopDepositFacts.CompletedKey) != 0 ||
+                M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             // No M08 commission before the actual M07 extraction is settled.

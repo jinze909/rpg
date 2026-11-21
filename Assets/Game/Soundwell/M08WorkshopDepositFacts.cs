@@ -39,6 +39,18 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // A torn new-voyage reset can clear the workshop marker while
+        // leaving an older dock reply or dawn notice in the same Makinom
+        // store. Both occur strictly AFTER a completed M08 winch, so any
+        // nonzero downstream value forbids issuing a fresh deposit.
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(M08DockTruthFacts.ConfirmedKey) != 0 ||
+                getInt(M08DockTruthFacts.ShenRelationResponseKey) != 0 ||
+                getInt(M08FirstWorldNoticeFacts.ConfirmedKey) != 0;
+        }
+
         public static bool TryConfirm(M08FirstWinchOrderSession session)
         {
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;
@@ -53,7 +65,8 @@ namespace Rpg.Soundwell
             Action<string, int> setInt)
         {
             if (session == null || !session.WorkshopDepositEarned ||
-                getInt == null || setInt == null || getInt(CompletedKey) != 0)
+                getInt == null || setInt == null || getInt(CompletedKey) != 0 ||
+                HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? extraction) ||
                 !extraction.HasValue)
