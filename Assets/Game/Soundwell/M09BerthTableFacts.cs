@@ -66,6 +66,7 @@ namespace Rpg.Soundwell
     public static class M09BerthTableFacts
     {
         public const string ConfirmedKey = "rpg.return.m09.berth-table-confirmed";
+        public const string PendingSignatureKey = "rpg.return.m09.pending-table-signature";
         public const string TotalBerthsKey = "rpg.return.m09.landing-capacity";
         public const string PendingNamesKey = "rpg.return.m09.pending-names";
         public const string ExchangesKey = "rpg.return.m09.berth-exchanges";
@@ -81,11 +82,74 @@ namespace Rpg.Soundwell
                   M09BerthExchangeFlags.ShipwrightExtraBerths |
                   M09BerthExchangeFlags.QiQueCargoVoyage);
 
+        // A torn Makinom write must not be retried with a different set of
+        // passengers, exchanges, debt, Shen Li consent or Ruiya outcome.
+        // The signed intent is stored first, before any individual payload.
+        private static uint MixSignature(uint hash, int value)
+        {
+            unchecked
+            {
+                for (int shift = 0; shift < 32; shift += 8)
+                {
+                    hash ^= (byte)(value >> shift);
+                    hash *= 16777619u;
+                }
+                return hash;
+            }
+        }
+
+        private static int Signature(M09BerthTableRecord record, Func<string, int> read)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                hash = MixSignature(hash, record.TotalBerths);
+                hash = MixSignature(hash, record.PendingNames);
+                hash = MixSignature(hash, (int)record.Exchanges);
+                hash = MixSignature(hash, (int)record.RuiyaOutcome);
+                hash = MixSignature(hash, record.QiDebtDisclosedHere ? 1 : 0);
+                hash = MixSignature(hash, record.ShenReconciled ? 1 : 0);
+                hash = MixSignature(hash, record.ShipwrightFeePaid ? 1 : 0);
+                hash = MixSignature(hash, read(M05LandingFacts.ArrivalSequenceKey));
+                int signature = (int)hash;
+                return signature == 0 ? 1 : signature;
+            }
+        }
+
+        private static bool CompatiblePending(Func<string, int> read, string key, int expected)
+        {
+            int actual = read(key);
+            return actual == 0 || actual == expected;
+        }
+
         public static bool CanRecord(M09BerthTableRecord record, Func<string, int> getInt)
         {
-            if (getInt == null || getInt(ConfirmedKey) != 0)
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record, getInt))
                 return false;
-            return IsValidRecord(record, getInt);
+
+            int pending = getInt(PendingSignatureKey);
+            if (pending == 0)
+            {
+                // A legacy orphan payload with no signed intent is ambiguous:
+                // only an empty table may start an entirely new write.
+                return getInt(TotalBerthsKey) == 0 &&
+                    getInt(PendingNamesKey) == 0 &&
+                    getInt(ExchangesKey) == 0 &&
+                    getInt(RuiyaOutcomeKey) == 0 &&
+                    getInt(QiDebtDisclosedKey) == 0 &&
+                    getInt(ShenReconciledKey) == 0 &&
+                    getInt(ShipwrightFeePaidKey) == 0;
+            }
+
+            return pending == Signature(record, getInt) &&
+                CompatiblePending(getInt, TotalBerthsKey, record.TotalBerths) &&
+                CompatiblePending(getInt, PendingNamesKey, record.PendingNames) &&
+                CompatiblePending(getInt, ExchangesKey, (int)record.Exchanges) &&
+                CompatiblePending(getInt, RuiyaOutcomeKey, (int)record.RuiyaOutcome) &&
+                CompatiblePending(getInt, QiDebtDisclosedKey, record.QiDebtDisclosedHere ? 1 : 0) &&
+                CompatiblePending(getInt, ShenReconciledKey, record.ShenReconciled ? 1 : 0) &&
+                CompatiblePending(getInt, ShipwrightFeePaidKey, record.ShipwrightFeePaid ? 1 : 0);
         }
 
         public static bool TryRecord(M09BerthTableRecord record)
@@ -105,6 +169,7 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null || !CanRecord(record, getInt))
                 return false;
 
+            setInt(PendingSignatureKey, Signature(record, getInt));
             setInt(ConfirmedKey, 0);
             setInt(TotalBerthsKey, record.TotalBerths);
             setInt(PendingNamesKey, record.PendingNames);
@@ -156,7 +221,11 @@ namespace Rpg.Soundwell
                 rawShen == 1,
                 rawShipwrightFee == 1);
 
-            if (IsValidRecord(saved, getInt))
+            // Old confirmed saves predate this intent key. New confirmed
+            // saves must still match their original signed facts and arrival.
+            int pending = getInt(PendingSignatureKey);
+            if (IsValidRecord(saved, getInt) &&
+                (pending == 0 || pending == Signature(saved, getInt)))
                 record = saved;
             return true;
         }
@@ -173,6 +242,7 @@ namespace Rpg.Soundwell
             if (setInt == null)
                 return false;
             setInt(ConfirmedKey, 0);
+            setInt(PendingSignatureKey, 0);
             setInt(TotalBerthsKey, 0);
             setInt(PendingNamesKey, 0);
             setInt(ExchangesKey, 0);

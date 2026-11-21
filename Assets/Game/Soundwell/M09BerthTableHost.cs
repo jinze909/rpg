@@ -87,7 +87,8 @@ namespace Rpg.Soundwell
         // The original live panel can still retry its own interrupted write.
         private bool HasUnconfirmedBerthPayload()
         {
-            return getInt(M09BerthTableFacts.TotalBerthsKey) != 0 ||
+            return getInt(M09BerthTableFacts.PendingSignatureKey) != 0 ||
+                getInt(M09BerthTableFacts.TotalBerthsKey) != 0 ||
                 getInt(M09BerthTableFacts.PendingNamesKey) != 0 ||
                 getInt(M09BerthTableFacts.ExchangesKey) != 0 ||
                 getInt(M09BerthTableFacts.RuiyaOutcomeKey) != 0 ||

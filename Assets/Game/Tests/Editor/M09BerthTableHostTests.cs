@@ -149,6 +149,7 @@ namespace Rpg.Tests.Editor
                 host = NewHost(root.transform, values);
                 foreach (string orphanKey in new[]
                 {
+                    M09BerthTableFacts.PendingSignatureKey,
                     M09BerthTableFacts.TotalBerthsKey,
                     M09BerthTableFacts.PendingNamesKey,
                     M09BerthTableFacts.ExchangesKey,
