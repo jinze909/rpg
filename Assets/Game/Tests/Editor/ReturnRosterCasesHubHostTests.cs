@@ -114,8 +114,9 @@ namespace Rpg.Tests.Editor
                     Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC05ThirdSquad), Is.True);
                     var rc05 = hub.ActiveRC05Host.Session;
                     Assert.That(rc05.TryObserveMountainPassRollCall(), Is.True);
-                    Assert.That(rc05.TryCompleteSaltGrainDeliveryTrial(true), Is.True);
+                    Assert.That(rc05.TryVerifySaltGrainBoatDelivery(true), Is.True);
                     Assert.That(rc05.TryVerifyRealZhengYuan(true, true), Is.True);
+                    Assert.That(rc05.TryProceedToThreePartyTalks(), Is.True);
                     Assert.That(rc05.TrySettleResolution(
                         RC05Resolution.CivilianPardon, read, write), Is.True);
                     Assert.That(hub.IsCaseSettled(ReturnRosterCaseId.RC05ThirdSquad), Is.True);
