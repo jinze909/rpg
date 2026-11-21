@@ -223,9 +223,9 @@ namespace Rpg.Soundwell
 
             // Old confirmed saves predate this intent key. New confirmed
             // saves must still match their original signed facts and arrival.
-            int pending = getInt(PendingSignatureKey);
+            int pendingSignature = getInt(PendingSignatureKey);
             if (IsValidRecord(saved, getInt) &&
-                (pending == 0 || pending == Signature(saved, getInt)))
+                (pendingSignature == 0 || pendingSignature == Signature(saved, getInt)))
                 record = saved;
             return true;
         }
