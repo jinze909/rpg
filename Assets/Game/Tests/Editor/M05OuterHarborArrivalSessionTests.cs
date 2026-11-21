@@ -123,6 +123,94 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [Test]
+        public void HarborBeatMaskCannotCrossArrivalsWhenVoyageResetIsInterrupted()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 10, true, true));
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            int firstArrival = read(M05LandingFacts.ArrivalSequenceKey);
+
+            // An interrupted first observation may leave only its binding.
+            Assert.Throws<InvalidOperationException>(() =>
+                M05HarborVisitFacts.TryRecord(M05HarborBeat.RepairStall,
+                    read, (key, value) =>
+                    {
+                        write(key, value);
+                        if (key == M05HarborVisitFacts.VisitedArrivalIdentityKey)
+                            throw new InvalidOperationException("Interrupted after arrival binding");
+                    }));
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.Zero);
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(firstArrival + 1));
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.RepairStall, read, write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.FisherRumor, read, write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int firstMask), Is.True);
+            Assert.That(firstMask, Is.EqualTo(3));
+
+            // Reconstruct a genuinely sailed and signed new arrival. A mere
+            // increment of ArrivalSequenceKey invalidates M05's landing
+            // signature, so it cannot stand in for a replayed voyage.
+            // Simulate a reset interrupted BEFORE the harbor-visit mask is
+            // cleared: the old mask survives, but the M04/fog/M05 authorities
+            // have already started the new crossing.
+            Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+            SeedVerifiedLanding(values, new M05LandingReport(3, 10, true, true));
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                Is.EqualTo(firstArrival + 1));
+            Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? replayed),
+                Is.True);
+            Assert.That(replayed.HasValue, Is.True);
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int staleMask), Is.True);
+            Assert.That(staleMask, Is.Zero);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.MarketAccusation, read, write), Is.False);
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(firstArrival + 1));
+
+            Assert.That(M05HarborVisitFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.MarketAccusation, read, write), Is.True);
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int currentMask), Is.True);
+            Assert.That(currentMask, Is.EqualTo(4));
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(firstArrival + 2));
+
+            values[M05HarborVisitFacts.VisitedArrivalIdentityKey] = -1;
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int corrupt), Is.False);
+            Assert.That(corrupt, Is.Zero);
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.RepairStall, read, write), Is.False);
+        }
+
+        [Test]
+        public void EarlierUnsignedHarborObservationsRemainReadableWhenArrivalIsVerified()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedLanding(values, new M05LandingReport(3, 10, true, true));
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+
+            // Persisted observations from pre-identity releases are not
+            // erased merely by loading the new build.
+            values[M05HarborVisitFacts.VisitedMaskKey] = 1;
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int olderMask), Is.True);
+            Assert.That(olderMask, Is.EqualTo(1));
+            Assert.That(M05HarborVisitFacts.TryRecord(
+                M05HarborBeat.FisherRumor, read, write), Is.True);
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
+                Is.EqualTo(read(M05LandingFacts.ArrivalSequenceKey) + 1));
+        }
+
         [Test]
         public void SequentialHarborBeatsPersistPerSceneAndRetryPartialWritesWithoutDuplication()
         {
