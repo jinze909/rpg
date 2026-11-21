@@ -105,6 +105,7 @@ namespace Rpg.Tests.Editor
                     () => true, _ => true, read, write);
                 foreach (string orphanedKey in new[]
                 {
+                    RC04DingYueReefFacts.PendingSignatureKey,
                     RC04DingYueReefFacts.RoundsCompletedKey,
                     RC04DingYueReefFacts.AyuanSongUsedKey,
                     RC04DingYueReefFacts.ResolutionKey,
@@ -256,6 +257,53 @@ namespace Rpg.Tests.Editor
                 resolutionView.BringDingYueButton.onClick.Invoke();
                 Assert.That(confirmCommits, Is.EqualTo(1));
                 Assert.That(host.ActiveResolutionView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void CompetingConfirmedReefResultWithSameButtonCannotBeAcknowledged()
+        {
+            var root = new GameObject("RC04 competing reef evidence");
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            RC04DingYueReefHost host = null;
+            int confirmedWrites = 0;
+            Action<string, int> tracked = (key, value) =>
+            {
+                write(key, value);
+                if (key == RC04DingYueReefFacts.ConfirmedKey && value == 1)
+                    confirmedWrites++;
+            };
+            try
+            {
+                host = new RC04DingYueReefHost(root.transform,
+                    () => true, _ => true, read, tracked);
+                Assert.That(host.TryOpenListening(), Is.True);
+                for (int i = 0; i < 3; i++)
+                    host.ActiveListeningView.SlowEchoButton.onClick.Invoke();
+                host.ActiveListeningView.ApproachButton.onClick.Invoke();
+                Assert.That(host.ActiveResolutionView, Is.Not.Null);
+                Assert.That(host.Session.AyuanSongPlayed, Is.False);
+
+                // A competing save used A Yuan's song but selected the same
+                // Bring Ding Yue Back button. This panel never heard the song.
+                Assert.That(RC04DingYueReefFacts.TryRecord(
+                    new RC04ReefRecord(3, true, RC04Resolution.BringDingYueBack),
+                    read, tracked), Is.True);
+                Assert.That(confirmedWrites, Is.EqualTo(1));
+                host.ActiveResolutionView.Refresh();
+                host.ActiveResolutionView.BringDingYueButton.onClick.Invoke();
+                Assert.That(host.ActiveResolutionView, Is.Not.Null,
+                    "A different strategy cannot be acknowledged as ours.");
+                Assert.That(host.Session.IsResolved, Is.False);
+                Assert.That(confirmedWrites, Is.EqualTo(1));
             }
             finally
             {
