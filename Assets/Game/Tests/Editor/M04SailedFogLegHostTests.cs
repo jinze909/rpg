@@ -288,6 +288,57 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [Test]
+        public void TornFogIntentOnlyRetriesTheSameLiveHelmOutcome()
+        {
+            var scene = new GameObject("M04 torn fog intent retry");
+            var values = new Dictionary<string, int>();
+            M04SailedFogLegHost host = null;
+            try
+            {
+                SeedReady(values);
+                Func<string, int> read = Reader(values);
+                Action<string, int> write = Writer(values);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                int delivered = 0;
+                bool interrupted = true;
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(),
+                    read, (key, value) =>
+                    {
+                        write(key, value);
+                        if (key == FogListeningFacts.PendingSignatureKey &&
+                            interrupted)
+                        {
+                            interrupted = false;
+                            throw new InvalidOperationException("Makinom interrupted after intent");
+                        }
+                    }, _ => delivered++, out host), Is.True);
+
+                host.View.HoldButton.onClick.Invoke();
+                Assert.Throws<InvalidOperationException>(() =>
+                    host.View.ContinueButton.onClick.Invoke());
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero);
+                Assert.That(FogListeningFacts.HasUnconfirmedPayload(read), Is.True);
+                Assert.That(delivered, Is.Zero);
+                Assert.That(FogListeningFacts.TryRecord(HullFailureLeg(),
+                    read, write), Is.False, "The first intent must own the retry.");
+                Assert.That(host.View.ContinueButton.interactable, Is.True);
+                host.View.ContinueButton.onClick.Invoke();
+                Assert.That(delivered, Is.EqualTo(1));
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.EqualTo(1));
+                Assert.That(FogListeningFacts.TryRead(read,
+                    out FogListeningRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.Succeeded, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(scene);
+            }
+        }
+
         [Test]
         public void NewVisitDuringFogInvalidatesItsOldCallbackBeforeAnySave()
         {
