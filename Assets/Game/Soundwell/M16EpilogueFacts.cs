@@ -136,6 +136,18 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(ConfirmedKey) != 0 ||
+                getInt(StopsVisitedKey) != 0 ||
+                getInt(LettersReadKey) != 0 ||
+                getInt(DeskRegisterKey) != 0 ||
+                getInt(StandingSpotKey) != 0 ||
+                getInt(ShenWillingKey) != 0 ||
+                getInt(ClosingToneKey) != 0;
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);

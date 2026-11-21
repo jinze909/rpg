@@ -139,6 +139,13 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M11ReverseRescueFacts.HasAnyPersistedFacts(getInt) ||
+                M11ReverseRescueFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);
@@ -149,6 +156,7 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(ConfirmedKey) == 0 &&
+                !HasOrphanedDownstreamFacts(getInt) &&
                 IsValidRecord(record, getInt) &&
                 CompatiblePending(getInt, WorldNoticeThreeKey, record.WorldNoticeThreeObserved ? 1 : 0) &&
                 CompatiblePending(getInt, RosterAccuracyKey, (int)record.RosterAccuracy) &&

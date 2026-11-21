@@ -90,6 +90,25 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasAnyPersistedFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                getInt(DepartureConfirmedKey) != 0 ||
+                getInt(RouteKey) != 0 ||
+                getInt(SafetyPrepKey) != 0 ||
+                getInt(QiWarningKey) != 0 ||
+                getInt(RiskConsentKey) != 0 ||
+                getInt(ThreeBellSignalKey) != 0 ||
+                getInt(AyuanOutcomeKey) != 0;
+        }
+
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M14FinalPassageFacts.HasAnyPersistedFacts(getInt) ||
+                M14FinalPassageFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);
@@ -100,6 +119,7 @@ namespace Rpg.Soundwell
         {
             return getInt != null &&
                 getInt(DepartureConfirmedKey) == 0 &&
+                !HasOrphanedDownstreamFacts(getInt) &&
                 IsValidDeparture(record) &&
                 CompatiblePending(getInt, RouteKey, (int)record.Route) &&
                 CompatiblePending(getInt, SafetyPrepKey, record.SafetyPreparationComplete ? 1 : 0) &&
