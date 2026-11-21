@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private readonly M06MineCampMapLayout layout;
         private readonly RpgLargeMapChunkRenderer chunkRenderer;
+        private readonly RpgLargeMapMinimapAndBeaconHud minimapHud;
         private readonly RpgMapActorVisualBinder heroVisual;
         private readonly RpgMapActorVisualBinder shenLiVisual;
         private readonly GameObject hudCanvasObject;
@@ -33,6 +34,7 @@ namespace Rpg.Soundwell
 
         public M06MineCampMapLayout Layout => layout;
         public RpgLargeMapChunkRenderer ChunkRenderer => chunkRenderer;
+        public RpgLargeMapMinimapAndBeaconHud MinimapHud => minimapHud;
         public RpgMapActorVisualBinder HeroVisual => heroVisual;
         public RpgMapActorVisualBinder ShenLiVisual => shenLiVisual;
         public Vector2 PlayerPosition => playerPosition;
@@ -74,6 +76,7 @@ namespace Rpg.Soundwell
             // world objects without giving Unity a second ORK fact store.
             RpgPixelArtManifest art = RpgPixelArtManifest.LoadDefault();
             chunkRenderer = RpgLargeMapChunkRenderer.BuildForMineCamp(parent, layout);
+            minimapHud = RpgLargeMapMinimapAndBeaconHud.BuildForMineCamp(parent, layout);
             Transform actors = chunkRenderer.RootObject.transform;
             heroVisual = new RpgMapActorVisualBinder(
                 actors, "M06 mine camp player",
@@ -123,6 +126,7 @@ namespace Rpg.Soundwell
 
             playerPosition = new Vector2(tile.x + 0.5f, tile.y + 0.5f);
             SyncHero(moving: false, deltaSeconds: 0f);
+            minimapHud?.UpdatePlayerPosition(playerPosition);
             RefreshHud();
             return true;
         }
@@ -171,6 +175,7 @@ namespace Rpg.Soundwell
             if (moved)
             {
                 playerPosition = next;
+                minimapHud?.UpdatePlayerPosition(playerPosition);
                 RefreshHud();
             }
             SyncHero(moving: moved, deltaSeconds: deltaSeconds);
@@ -260,8 +265,39 @@ namespace Rpg.Soundwell
 
             // The established M05 landing is a live scene prerequisite;
             // do not leak Shen Li into an unverified visit.
+            bool landed = HasVerifiedLanding();
             if (shenLiVisual?.ActorObject != null)
-                shenLiVisual.ActorObject.SetActive(HasVerifiedLanding());
+                shenLiVisual.ActorObject.SetActive(landed);
+
+            // Do not advertise active objectives from a prior, unverified
+            // voyage. Recon completion reads only the Makinom facts, never
+            // a shadow UI-progress store.
+            if (minimapHud != null)
+            {
+                minimapHud.Panel.gameObject.SetActive(landed);
+                minimapHud.UpdatePlayerPosition(playerPosition);
+                M06MineCampReconFacts.TryRead(getInt, out int mask);
+                for (int i = 0; i < 4; i++)
+                {
+                    M06MineCampLead lead = (M06MineCampLead)i;
+                    string id;
+                    switch (lead)
+                    {
+                        case M06MineCampLead.EscortSchedule:
+                            id = "m06.recon.escort-schedule"; break;
+                        case M06MineCampLead.GuardPatrol:
+                            id = "m06.recon.guard-patrol"; break;
+                        case M06MineCampLead.SupplyLedger:
+                            id = "m06.recon.supply-ledger"; break;
+                        default:
+                            id = "m06.recon.mine-tunnel-pump"; break;
+                    }
+                    minimapHud.SetBeaconCompleted(id,
+                        landed && M06MineCampReconFacts.Contains(mask, lead));
+                }
+                minimapHud.SetBeaconCompleted("m06.pump-reunion",
+                    landed && RescuePlanSettled);
+            }
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -412,6 +448,7 @@ namespace Rpg.Soundwell
             activeReunionView = null;
             heroVisual?.Dispose();
             shenLiVisual?.Dispose();
+            minimapHud?.Dispose();
             chunkRenderer?.Dispose();
             SoundwellUiTheme.SafeDestroyCanvas(hudCanvasObject);
         }
