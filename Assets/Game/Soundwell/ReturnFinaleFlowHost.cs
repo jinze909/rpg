@@ -19,41 +19,43 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Configuration delegates for ReturnFinaleFlowHost supplying live scene
     /// readiness and narrative context across M10 through M16.
+    /// An unwired scene must never fabricate presence, proofs, civilian counts,
+    /// or consented roll-call names.
     /// </summary>
     public sealed class ReturnFinaleFlowContext
     {
-        public Func<bool> AtJingwanAssembly { get; set; } = () => true;
-        public Func<bool> ThreeRecordsMatched { get; set; } = () => true;
-        public Func<bool> CarriesM02BattleReport { get; set; } = () => true;
+        public Func<bool> AtJingwanAssembly { get; set; } = () => false;
+        public Func<bool> ThreeRecordsMatched { get; set; } = () => false;
+        public Func<bool> CarriesM02BattleReport { get; set; } = () => false;
 
-        public Func<bool> AtHuilanPass { get; set; } = () => true;
-        public Func<bool> ShenLiAccompanying { get; set; } = () => true;
-        public Func<bool> OulinParticipating { get; set; } = () => true;
+        public Func<bool> AtHuilanPass { get; set; } = () => false;
+        public Func<bool> ShenLiAccompanying { get; set; } = () => false;
+        public Func<bool> OulinParticipating { get; set; } = () => false;
 
-        public Func<bool> AtBellTowerCamp { get; set; } = () => true;
-        public Func<bool> M03PriorConfession { get; set; } = () => true;
+        public Func<bool> AtBellTowerCamp { get; set; } = () => false;
+        public Func<bool> M03PriorConfession { get; set; } = () => false;
         public Func<bool> M03SecrecyPromised { get; set; } = () => false;
-        public Func<bool> LinSuPresent { get; set; } = () => true;
+        public Func<bool> LinSuPresent { get; set; } = () => false;
 
-        public Func<bool> FleetBriefingReady { get; set; } = () => true;
-        public Func<bool> SafetyPrepComplete { get; set; } = () => true;
-        public Func<bool> CanDepartNow { get; set; } = () => true;
+        public Func<bool> FleetBriefingReady { get; set; } = () => false;
+        public Func<bool> SafetyPrepComplete { get; set; } = () => false;
+        public Func<bool> CanDepartNow { get; set; } = () => false;
 
-        public Func<bool> AtStraitAction { get; set; } = () => true;
-        public Func<bool> ValidSupervisionCredentials { get; set; } = () => true;
-        public Func<bool> ValidPortGuarantee { get; set; } = () => true;
-        public Func<bool> ThreeOpenDoorBellsRung { get; set; } = () => true;
-        public Func<bool> FogRelayCompleted { get; set; } = () => true;
+        public Func<bool> AtStraitAction { get; set; } = () => false;
+        public Func<bool> ValidSupervisionCredentials { get; set; } = () => false;
+        public Func<bool> ValidPortGuarantee { get; set; } = () => false;
+        public Func<bool> ThreeOpenDoorBellsRung { get; set; } = () => false;
+        public Func<bool> FogRelayCompleted { get; set; } = () => false;
         public Func<bool> FogMasteryBonusAvailable { get; set; } = () => false;
         public Func<M14CivilianCounts> ReadCivilianCounts { get; set; } =
-            () => new M14CivilianCounts(12, 2, 1);
+            () => default;
 
-        public Func<bool> CeremonyReady { get; set; } = () => true;
-        public Func<int> ConsentedVerifiedNamesCount { get; set; } = () => 12;
+        public Func<bool> CeremonyReady { get; set; } = () => false;
+        public Func<int> ConsentedVerifiedNamesCount { get; set; } = () => 0;
         public Func<string> XiaoqiCustomName { get; set; } = () => null;
 
-        public Func<bool> AtLinchaoAfternoon { get; set; } = () => true;
-        public Func<bool> ShenLiWillingToMeet { get; set; } = () => true;
+        public Func<bool> AtLinchaoAfternoon { get; set; } = () => false;
+        public Func<bool> ShenLiWillingToMeet { get; set; } = () => false;
         public Func<M16RespectAgencyTone> ResolveClosingTone { get; set; } =
             () => M16RespectAgencyTone.RespectedOthersChoices;
     }
@@ -121,6 +123,51 @@ namespace Rpg.Soundwell
             return ReturnFinaleStage.Completed;
         }
 
+        // Validate scene callbacks before closing a prior host so missing
+        // wiring fails closed without throwing or orphaning active UI.
+        private bool HasRequiredDelegates(ReturnFinaleStage stage)
+        {
+            switch (stage)
+            {
+                case ReturnFinaleStage.M10Assembly:
+                    return context.AtJingwanAssembly != null &&
+                        context.ThreeRecordsMatched != null &&
+                        context.CarriesM02BattleReport != null;
+                case ReturnFinaleStage.M11ReverseRescue:
+                    return context.AtHuilanPass != null &&
+                        context.ShenLiAccompanying != null &&
+                        context.OulinParticipating != null;
+                case ReturnFinaleStage.M12BridgeTruth:
+                    return context.AtBellTowerCamp != null &&
+                        context.M03PriorConfession != null &&
+                        context.M03SecrecyPromised != null &&
+                        context.ShenLiAccompanying != null &&
+                        context.LinSuPresent != null;
+                case ReturnFinaleStage.M13DepartureRisk:
+                    return context.FleetBriefingReady != null &&
+                        context.SafetyPrepComplete != null &&
+                        context.CanDepartNow != null;
+                case ReturnFinaleStage.M14FinalPassage:
+                    return context.AtStraitAction != null &&
+                        context.ValidSupervisionCredentials != null &&
+                        context.ValidPortGuarantee != null &&
+                        context.ThreeOpenDoorBellsRung != null &&
+                        context.FogRelayCompleted != null &&
+                        context.FogMasteryBonusAvailable != null &&
+                        context.ReadCivilianCounts != null;
+                case ReturnFinaleStage.M15FinalRollCall:
+                    return context.CeremonyReady != null &&
+                        context.ConsentedVerifiedNamesCount != null &&
+                        context.XiaoqiCustomName != null;
+                case ReturnFinaleStage.M16Epilogue:
+                    return context.AtLinchaoAfternoon != null &&
+                        context.ShenLiWillingToMeet != null &&
+                        context.ResolveClosingTone != null;
+                default:
+                    return false;
+            }
+        }
+
         public bool TryOpenNextStage()
         {
             if (disposed)
@@ -141,6 +188,8 @@ namespace Rpg.Soundwell
             }
 
             if (activeHost != null && currentStage == next)
+                return false;
+            if (!HasRequiredDelegates(next))
                 return false;
 
             CloseActiveHost();

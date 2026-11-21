@@ -83,6 +83,11 @@ namespace Rpg.Tests.Editor
                     {
                         // This mutual-exclusion fixture explicitly visits Luting dock.
                         AtLutingDock = () => true
+                    },
+                    finaleContext: new ReturnFinaleFlowContext
+                    {
+                        // This mutual-exclusion fixture explicitly arrives at Jingwan assembly.
+                        AtJingwanAssembly = () => true
                     }))
                 {
                     Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.None));
@@ -136,7 +141,12 @@ namespace Rpg.Tests.Editor
 
             try
             {
-                var hub = new ReturnHarborCommandHubHost(root.transform, read, write);
+                var hub = new ReturnHarborCommandHubHost(
+                    root.transform, read, write,
+                    finaleContext: new ReturnFinaleFlowContext
+                    {
+                        AtJingwanAssembly = () => true
+                    });
                 Assert.That(hub.TryOpenNextFinaleStage(), Is.True);
                 Assert.That(hub.HasAnyActivePanel, Is.True);
 

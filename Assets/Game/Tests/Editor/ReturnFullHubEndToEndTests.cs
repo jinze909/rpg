@@ -91,7 +91,32 @@ namespace Rpg.Tests.Editor
                         AtLutingDock = () => true
                     }, read, write))
                 using (var finale = new ReturnFinaleFlowHost(
-                    root.transform, new ReturnFinaleFlowContext(), read, write))
+                    root.transform, new ReturnFinaleFlowContext
+                    {
+                        // Explicit observed Act-3 scene state for full-voyage E2E coverage.
+                        AtJingwanAssembly = () => true,
+                        ThreeRecordsMatched = () => true,
+                        CarriesM02BattleReport = () => true,
+                        AtHuilanPass = () => true,
+                        ShenLiAccompanying = () => true,
+                        OulinParticipating = () => true,
+                        AtBellTowerCamp = () => true,
+                        M03PriorConfession = () => true,
+                        LinSuPresent = () => true,
+                        FleetBriefingReady = () => true,
+                        SafetyPrepComplete = () => true,
+                        CanDepartNow = () => true,
+                        AtStraitAction = () => true,
+                        ValidSupervisionCredentials = () => true,
+                        ValidPortGuarantee = () => true,
+                        ThreeOpenDoorBellsRung = () => true,
+                        FogRelayCompleted = () => true,
+                        ReadCivilianCounts = () => new M14CivilianCounts(12, 2, 1),
+                        CeremonyReady = () => true,
+                        ConsentedVerifiedNamesCount = () => 12,
+                        AtLinchaoAfternoon = () => true,
+                        ShenLiWillingToMeet = () => true
+                    }, read, write))
                 {
                     // Before M08 notice: finale is locked, roster cases are locked.
                     Assert.That(finale.EvaluateNextStage(), Is.EqualTo(ReturnFinaleStage.None));

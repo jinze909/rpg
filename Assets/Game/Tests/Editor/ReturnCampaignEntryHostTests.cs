@@ -59,7 +59,13 @@ namespace Rpg.Tests.Editor
 
             try
             {
-                using (var entry = new ReturnCampaignEntryHost(root.transform, read, write))
+                using (var entry = new ReturnCampaignEntryHost(
+                    root.transform, read, write,
+                    finaleContext: new ReturnFinaleFlowContext
+                    {
+                        // Explicit observed arrival at Jingwan assembly for M10 transition.
+                        AtJingwanAssembly = () => true
+                    }))
                 {
                     // Before M07: main-story routing fails closed.
                     Assert.That(entry.TryOpenNextMainStoryStage(), Is.False);
