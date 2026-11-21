@@ -196,6 +196,122 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InterruptedVoyageResetCannotTransferOldReconIntoIdenticalNewLanding()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+
+            Assert.That(M06MineCampReconFacts.TryRecord(
+                M06MineCampLead.EscortSchedule, read, write), Is.True);
+            Assert.That(M06MineCampReconFacts.TryRecord(
+                M06MineCampLead.GuardPatrol, read, write), Is.True);
+            int firstSequence = read(M05LandingFacts.ArrivalSequenceKey);
+            Assert.That(read(M06MineCampReconFacts.ObservedArrivalIdentityKey),
+                Is.EqualTo(firstSequence + 1));
+            Assert.That(M06MineCampReconFacts.TryRead(read, out int original), Is.True);
+            Assert.That(original, Is.EqualTo(3));
+
+            // A real reset was interrupted before the M06 recon fields were
+            // reached. The previous observed mask remains in the save.
+            Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+            SeedVerifiedM05Arrival(values);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                Is.GreaterThan(firstSequence));
+            Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.EqualTo(3));
+            Assert.That(M06MineCampReconFacts.TryRead(read, out int stale), Is.True);
+            Assert.That(stale, Is.Zero);
+            Assert.That(M06MineCampReconSession.TryLoad(read, out var clean), Is.True);
+            Assert.That(clean.ObservedCount, Is.Zero);
+
+            Assert.That(clean.TryInspectLead(M06MineCampLead.SupplyLedger,
+                read, write), Is.True);
+            Assert.That(clean.ObservedMask, Is.EqualTo(4));
+            Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.EqualTo(4));
+            Assert.That(read(M06MineCampReconFacts.ObservedArrivalIdentityKey),
+                Is.EqualTo(read(M05LandingFacts.ArrivalSequenceKey) + 1));
+            Assert.That(clean.IsLeadObserved(M06MineCampLead.EscortSchedule), Is.False);
+            Assert.That(clean.IsLeadObserved(M06MineCampLead.GuardPatrol), Is.False);
+        }
+
+        [Test]
+        public void InterruptedReconRebindingRemainsHiddenAndCanRetryRealInspection()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            Assert.That(M06MineCampReconFacts.TryRecord(
+                M06MineCampLead.EscortSchedule, read, write), Is.True);
+
+            Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+            Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+            SeedVerifiedM05Arrival(values);
+            Assert.That(M06MineCampReconSession.TryLoad(read, out var session), Is.True);
+            Assert.That(session.ObservedCount, Is.Zero);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                session.TryInspectLead(M06MineCampLead.MineTunnelAndPump,
+                    read, (key, value) =>
+                    {
+                        write(key, value);
+                        if (key == M06MineCampReconFacts.ObservedMaskKey && value == 0)
+                            throw new InvalidOperationException("Clear acknowledged late");
+                    }));
+            Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.Zero);
+            Assert.That(M06MineCampReconFacts.TryRead(read, out int afterClear), Is.True);
+            Assert.That(afterClear, Is.Zero);
+            Assert.That(session.ObservedCount, Is.Zero);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                session.TryInspectLead(M06MineCampLead.MineTunnelAndPump,
+                    read, (key, value) =>
+                    {
+                        write(key, value);
+                        if (key == M06MineCampReconFacts.ObservedArrivalIdentityKey)
+                            throw new InvalidOperationException("Binding acknowledged late");
+                    }));
+            Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.Zero);
+            Assert.That(M06MineCampReconFacts.TryRead(read, out int afterBinding), Is.True);
+            Assert.That(afterBinding, Is.Zero);
+
+            Assert.That(session.TryInspectLead(M06MineCampLead.MineTunnelAndPump,
+                read, write), Is.True);
+            Assert.That(session.ObservedMask, Is.EqualTo(8));
+            Assert.That(session.AllLeadsObserved, Is.False);
+            Assert.That(M06MineCampReconFacts.TryRead(read, out int saved), Is.True);
+            Assert.That(saved, Is.EqualTo(8));
+        }
+
+        [Test]
+        public void UnsignedOldReconBitsRequireFreshInspectionWithoutInventingOtherLeads()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+
+            values[M06MineCampReconFacts.ObservedMaskKey] = 15;
+            Assert.That(read(M06MineCampReconFacts.ObservedArrivalIdentityKey), Is.Zero);
+            Assert.That(M06MineCampReconFacts.TryRead(read, out int unsigned), Is.True);
+            Assert.That(unsigned, Is.Zero);
+            Assert.That(M06MineCampReconFacts.TryRecord(
+                M06MineCampLead.GuardPatrol, read, write), Is.True);
+            Assert.That(M06MineCampReconFacts.TryRead(read, out int witnessed), Is.True);
+            Assert.That(witnessed, Is.EqualTo(2));
+            values[M06MineCampReconFacts.ObservedArrivalIdentityKey] = -1;
+            Assert.That(M06MineCampReconFacts.TryRead(read, out _), Is.False);
+            Assert.That(M06MineCampReconFacts.TryRecord(
+                M06MineCampLead.EscortSchedule, read, write), Is.False);
+            Assert.That(M06MineCampReconFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(read(M06MineCampReconFacts.ObservedArrivalIdentityKey), Is.Zero);
+        }
+
+        [Test]
         public void BilingualLeadNotesCoverAllFourMineCampLeads()
         {
             foreach (M06MineCampLead lead in new[]
