@@ -5,9 +5,8 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable RC-02 ("借来的名字") host. Enforces M08 case-2
-    /// availability, live intake-desk presence, and clean ConfirmedKey before
-    /// opening RC02ZhengYuanView, and persists the chosen resolution through
-    /// RC02ZhengYuanSession with retry-safe idempotent commit recovery.
+    /// availability, live intake-desk presence, monotonic M05 arrival identity,
+    /// and clean ConfirmedKey before opening RC02ZhengYuanView.
     /// </summary>
     public sealed class RC02ZhengYuanHost : IDisposable
     {
@@ -19,6 +18,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private RC02ZhengYuanSession session;
         private RC02ZhengYuanView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public RC02ZhengYuanSession Session => session;
@@ -58,6 +58,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new RC02ZhengYuanView(
                 parent, session, shiLengWillingForAdoption, HandleResolutionSubmitted);
             return true;
@@ -65,7 +66,9 @@ namespace Rpg.Soundwell
 
         private void HandleResolutionSubmitted(RC02Resolution resolution)
         {
-            if (disposed || session == null || !atIntakeDesk())
+            if (disposed || session == null || !atIntakeDesk() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TrySettleResolution(resolution, getInt, setInt))
@@ -73,6 +76,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -81,6 +85,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

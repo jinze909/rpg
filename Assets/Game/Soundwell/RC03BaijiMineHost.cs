@@ -5,9 +5,8 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable RC-03 ("白矶岛的多数") host. Enforces M08 case-3
-    /// availability, live island presence, and clean ConfirmedKey before
-    /// opening RC03BaijiMineView, and persists the chosen resolution through
-    /// RC03BaijiMineSession with retry-safe idempotent commit recovery.
+    /// availability, live island presence, monotonic M05 arrival identity, and
+    /// clean ConfirmedKey before opening RC03BaijiMineView.
     /// </summary>
     public sealed class RC03BaijiMineHost : IDisposable
     {
@@ -20,6 +19,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private RC03BaijiMineSession session;
         private RC03BaijiMineView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public RC03BaijiMineSession Session => session;
@@ -62,6 +62,7 @@ namespace Rpg.Soundwell
                 return false;
 
             session = created;
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new RC03BaijiMineView(
                 parent,
                 session,
@@ -74,7 +75,9 @@ namespace Rpg.Soundwell
 
         private void HandleResolutionSubmitted(RC03Resolution resolution)
         {
-            if (disposed || session == null || !onBaijiIsland())
+            if (disposed || session == null || !onBaijiIsland() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!session.TrySettleResolution(resolution, getInt, setInt))
@@ -82,6 +85,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -90,6 +94,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }

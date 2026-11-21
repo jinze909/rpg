@@ -5,10 +5,9 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Scene-callable M15 memorial roll-call and stele inscription host.
-    /// Enforces live ceremony readiness and clean ConfirmedKey before opening
-    /// M15FinalRollCallView, and persists the player's reader, identity, and
-    /// stele choices to Makinom with interrupted-write retry and idempotent
-    /// commit-then-throw recovery.
+    /// Enforces live ceremony readiness, monotonic M05 arrival identity, and
+    /// clean ConfirmedKey before opening M15FinalRollCallView, and persists the
+    /// player's reader, identity, and stele choices to Makinom with retry safety.
     /// </summary>
     public sealed class M15FinalRollCallHost : IDisposable
     {
@@ -21,6 +20,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private M15FinalRollCallSession session;
         private M15FinalRollCallView activeView;
+        private int? openedArrivalSequence;
         private bool disposed;
 
         public M15FinalRollCallSession Session => session;
@@ -65,6 +65,7 @@ namespace Rpg.Soundwell
                 bridgeTruthSealed(),
                 consentedCount,
                 xiaoqiCustomName?.Invoke());
+            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M15FinalRollCallView(
                 parent, session, HandleRollCallSubmitted);
             return true;
@@ -75,7 +76,9 @@ namespace Rpg.Soundwell
             M15FinalIdentityResponse identityResponse,
             M15SteleInscription steleInscription)
         {
-            if (disposed || session == null || !ceremonyReady())
+            if (disposed || session == null || !ceremonyReady() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
 
             if (!M15FinalRollCallFacts.TryRead(
@@ -107,6 +110,7 @@ namespace Rpg.Soundwell
 
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
 
         public void Dispose()
@@ -115,6 +119,7 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
         }
     }
 }
