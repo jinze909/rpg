@@ -13,6 +13,41 @@ namespace Rpg.Tests.Editor
             return key => values.TryGetValue(key, out int value) ? value : 0;
         }
 
+        // Positive finale tests explicitly supply observed Act-3 scene state;
+        // production defaults remain unproven and fail closed.
+        private static ReturnFinaleFlowContext ObservedFinaleScenes()
+        {
+            return new ReturnFinaleFlowContext
+            {
+                AtJingwanAssembly = () => true,
+                ThreeRecordsMatched = () => true,
+                CarriesM02BattleReport = () => true,
+                AtHuilanPass = () => true,
+                ShenLiAccompanying = () => true,
+                OulinParticipating = () => true,
+                AtBellTowerCamp = () => true,
+                M03PriorConfession = () => true,
+                M03SecrecyPromised = () => false,
+                LinSuPresent = () => true,
+                FleetBriefingReady = () => true,
+                SafetyPrepComplete = () => true,
+                CanDepartNow = () => true,
+                AtStraitAction = () => true,
+                ValidSupervisionCredentials = () => true,
+                ValidPortGuarantee = () => true,
+                ThreeOpenDoorBellsRung = () => true,
+                FogRelayCompleted = () => true,
+                FogMasteryBonusAvailable = () => false,
+                ReadCivilianCounts = () => new M14CivilianCounts(12, 2, 1),
+                CeremonyReady = () => true,
+                ConsentedVerifiedNamesCount = () => 12,
+                XiaoqiCustomName = () => null,
+                AtLinchaoAfternoon = () => true,
+                ShenLiWillingToMeet = () => true,
+                ResolveClosingTone = () => M16RespectAgencyTone.RespectedOthersChoices
+            };
+        }
+
         private static void SeedThroughM09(Dictionary<string, int> values)
         {
             Func<string, int> read = Reader(values);
@@ -62,6 +97,94 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void UnprovenOrMissingSceneContextCannotOpenAnyFinaleStage()
+        {
+            var root = new GameObject("UnprovenFinaleContextRoot");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var context = new ReturnFinaleFlowContext();
+
+            try
+            {
+                Assert.That(context.ReadCivilianCounts(), Is.EqualTo(default(M14CivilianCounts)));
+                Assert.That(context.ConsentedVerifiedNamesCount(), Is.Zero);
+
+                using (var flow = new ReturnFinaleFlowHost(root.transform, context, read, write))
+                {
+                    Assert.That(flow.EvaluateNextStage(), Is.EqualTo(ReturnFinaleStage.M10Assembly));
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+                    Assert.That(flow.HasActiveHost, Is.False);
+                    Assert.That(root.transform.childCount, Is.Zero);
+
+                    // Null delegate must fail closed without throwing.
+                    context.AtJingwanAssembly = null;
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+                    Assert.That(flow.HasActiveHost, Is.False);
+
+                    // Open M10 once observed, settle M10, and verify a missing M11
+                    // delegate fails closed without tearing down the prior active host.
+                    context.AtJingwanAssembly = () => true;
+                    Assert.That(flow.TryOpenNextStage(), Is.True);
+                    Assert.That(flow.CurrentStage, Is.EqualTo(ReturnFinaleStage.M10Assembly));
+                    var m10Host = flow.ActiveM10Host;
+                    Assert.That(M10AssemblyFacts.TryRecord(new M10AssemblyRecord(
+                        true, M10RosterAccuracy.VerifiedFirstPass, M10BattleReportSource.CarriedFromM02,
+                        M10HanLedgerUse.KeepConfidential, M10SupplyContractStatus.SignedFullCoverage,
+                        false, false, true), read, write), Is.True);
+
+                    context.AtHuilanPass = null;
+                    Assert.That(flow.EvaluateNextStage(), Is.EqualTo(ReturnFinaleStage.M11ReverseRescue));
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+                    Assert.That(flow.ActiveM10Host, Is.SameAs(m10Host));
+                    Assert.That(m10Host.IsDisposed, Is.False);
+
+                    // Unproven defaults also block M12 through M16 even when prior chapters exist.
+                    flow.CloseActiveHost();
+                    Assert.That(M11ReverseRescueFacts.TryRecord(new M11ReverseRescueRecord(
+                        true, M11PassEntryMethod.LandGateNegotiation, true,
+                        M11ThirdSquadConscriptionStance.NotInPass,
+                        M11RescueProvider.FallbackPaidArtisans, 0, false,
+                        M11ShenDivisionPact.NoneShenAbsent), read, write), Is.True);
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+
+                    Assert.That(M12BridgeTruthFacts.TryRecord(new M12BridgeTruthRecord(
+                        true, true, M12LuConfrontationReply.YouSaidThatLastTime,
+                        false, M12StatementFlags.RequiredBase, false, false,
+                        M12TruthDisclosure.SealTruth), read, write), Is.True);
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+
+                    Assert.That(M13DepartureRiskFacts.TryRecordDeparture(new M13DepartureRecord(
+                        M13ApproachRoute.RouteASupervisedCivilian, true, false, false, false),
+                        read, write), Is.True);
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+
+                    Assert.That(M14FinalPassageFacts.TryRecord(new M14FinalPassageRecord(
+                        M13ApproachRoute.RouteASupervisedCivilian,
+                        M14PassageOutcome.RouteASupervisedCivilianEstablished,
+                        true, 12, 2, 1, M14BorderForceAction.NotRouteB,
+                        M14LuJunDisposition.RelievedOfCommand, M14AyuanOutcome.Safe, false),
+                        read, write), Is.True);
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+
+                    Assert.That(M15FinalRollCallFacts.TryRecord(new M15FinalRollCallRecord(
+                        M15RollCallReader.Protagonist,
+                        M15FinalIdentityResponse.PublicTrueName,
+                        M15SteleInscription.CarveConsentedVerifiedNames,
+                        12, false), read, write), Is.True);
+                    Assert.That(flow.TryOpenNextStage(), Is.False);
+                    Assert.That(flow.HasActiveHost, Is.False);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FailsClosedBeforeM09AndResumesAtExactNextUncompletedStage()
         {
             var root = new GameObject("FinaleFlowResumeRoot");
@@ -72,7 +195,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 using (var flow = new ReturnFinaleFlowHost(
-                    root.transform, new ReturnFinaleFlowContext(), read, write))
+                    root.transform, ObservedFinaleScenes(), read, write))
                 {
                     Assert.That(flow.EvaluateNextStage(), Is.EqualTo(ReturnFinaleStage.None));
                     Assert.That(flow.TryOpenNextStage(), Is.False);
@@ -142,7 +265,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 using (var flow = new ReturnFinaleFlowHost(
-                    root.transform, new ReturnFinaleFlowContext(), read, write))
+                    root.transform, ObservedFinaleScenes(), read, write))
                 {
                     // M10
                     Assert.That(flow.TryOpenNextStage(), Is.True);
@@ -239,7 +362,7 @@ namespace Rpg.Tests.Editor
             try
             {
                 var flow = new ReturnFinaleFlowHost(
-                    root.transform, new ReturnFinaleFlowContext(), read, write);
+                    root.transform, ObservedFinaleScenes(), read, write);
                 Assert.That(flow.TryOpenNextStage(), Is.True);
                 var m10Host = flow.ActiveM10Host;
                 Assert.That(m10Host.IsDisposed, Is.False);
