@@ -281,5 +281,41 @@ namespace Rpg.Tests.Editor
                 out ST05TwoDoorsOutcome? empty), Is.True);
             Assert.That(empty.HasValue, Is.False);
         }
+
+        [Test]
+        public void InterruptedSecondGuestArrivalCannotRewriteFirstGuestsBreadOrSwapMapChoice()
+        {
+            var values = new Dictionary<string, int>();
+            CommitFullDecision(values,
+                ST05HomeArrangement.KeepTwoDoorsAndCourtyardTable,
+                ST05ChengAssignment.StayLocal);
+            var read = Read(values);
+            var write = Write(values);
+            Assert.That(ST05TwoDoorsFacts.TryMarkYuheM15Arrival(true, read, write),
+                Is.True);
+            Assert.Throws<InvalidOperationException>(() =>
+                ST05TwoDoorsFacts.TryMarkChengM15Arrival(false, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == ST05TwoDoorsFacts.ChengArrivalIntentKey)
+                        throw new InvalidOperationException("Interrupted before Cheng arrival");
+                }));
+            Assert.That(ST05TwoDoorsFacts.TryRead(read, out _), Is.False,
+                "A torn second arrival must not be presented as a complete roll call.");
+            Assert.That(ST05TwoDoorsFacts.TryMarkChengM15Arrival(true, read, write),
+                Is.False, "Retry cannot silently replace Cheng's original no-map choice.");
+            Assert.That(ST05TwoDoorsFacts.TryMarkChengM15Arrival(false, read, write),
+                Is.True);
+            Assert.That(ST05TwoDoorsFacts.TryRead(read,
+                out ST05TwoDoorsOutcome? restored), Is.True);
+            Assert.That(restored.HasValue, Is.True);
+            Assert.That(restored.Value.SeatYuheAtM15, Is.True);
+            Assert.That(restored.Value.ShowM15Bread, Is.True);
+            Assert.That(restored.Value.SeatChengAtM15, Is.True);
+            Assert.That(restored.Value.ShowM15HandedMap, Is.False);
+            Assert.That(ST05TwoDoorsFacts.TryMarkYuheM15Arrival(false, read, write),
+                Is.False, "A completed first guest cannot have her bread removed.");
+        }
+
     }
 }
