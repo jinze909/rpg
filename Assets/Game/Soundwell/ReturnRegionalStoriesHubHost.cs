@@ -15,26 +15,27 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Live scene-readiness and context delegates for dispatching merged regional
     /// stories (ST-02, ST-03, ST-05, ST-06) through ReturnRegionalStoriesHubHost.
+    /// No world event is verified merely because a caller omitted a delegate.
     /// </summary>
     public sealed class ReturnRegionalStoriesHubContext
     {
-        public Func<bool> AtLutingDock { get; set; } = () => true;
+        public Func<bool> AtLutingDock { get; set; } = () => false;
 
-        public Func<bool> AtZhonglingBathhouse { get; set; } = () => true;
-        public Func<bool> CareHomeInterviewReady { get; set; } = () => true;
-        public Func<bool> SafeRouteReady { get; set; } = () => true;
-        public Func<bool> TrialNightReady { get; set; } = () => true;
-        public Func<bool> TransportBudgetReady { get; set; } = () => true;
+        public Func<bool> AtZhonglingBathhouse { get; set; } = () => false;
+        public Func<bool> CareHomeInterviewReady { get; set; } = () => false;
+        public Func<bool> SafeRouteReady { get; set; } = () => false;
+        public Func<bool> TrialNightReady { get; set; } = () => false;
+        public Func<bool> TransportBudgetReady { get; set; } = () => false;
 
-        public Func<bool> AtJingwanCourtyard { get; set; } = () => true;
-        public Func<bool> ReturnHaulageFeePaid { get; set; } = () => true;
-        public Func<bool> MarketGiftsTested { get; set; } = () => true;
-        public Func<bool> CourtyardResolved { get; set; } = () => true;
-        public Func<bool> PartnersHeard { get; set; } = () => true;
-        public Func<bool> MutualTrialConsent { get; set; } = () => true;
-        public Func<bool> ChengJobTermsReady { get; set; } = () => true;
+        public Func<bool> AtJingwanCourtyard { get; set; } = () => false;
+        public Func<bool> ReturnHaulageFeePaid { get; set; } = () => false;
+        public Func<bool> MarketGiftsTested { get; set; } = () => false;
+        public Func<bool> CourtyardResolved { get; set; } = () => false;
+        public Func<bool> PartnersHeard { get; set; } = () => false;
+        public Func<bool> MutualTrialConsent { get; set; } = () => false;
+        public Func<bool> ChengJobTermsReady { get; set; } = () => false;
 
-        public Func<bool> TaoJiAtWoodshop { get; set; } = () => true;
+        public Func<bool> TaoJiAtWoodshop { get; set; } = () => false;
     }
 
     /// <summary>
@@ -130,9 +131,39 @@ namespace Rpg.Soundwell
             return count;
         }
 
+        // Missing scene context must never manufacture world evidence or throw
+        // after a settled active story has already been closed.
+        private bool HasRequiredDelegates(ReturnRegionalStoryId storyId)
+        {
+            switch (storyId)
+            {
+                case ReturnRegionalStoryId.ST02RiverLanterns:
+                    return context.AtLutingDock != null;
+                case ReturnRegionalStoryId.ST03Bathhouse:
+                    return context.AtZhonglingBathhouse != null &&
+                        context.CareHomeInterviewReady != null &&
+                        context.SafeRouteReady != null &&
+                        context.TrialNightReady != null &&
+                        context.TransportBudgetReady != null;
+                case ReturnRegionalStoryId.ST05TwoDoors:
+                    return context.AtJingwanCourtyard != null &&
+                        context.ReturnHaulageFeePaid != null &&
+                        context.MarketGiftsTested != null &&
+                        context.CourtyardResolved != null &&
+                        context.PartnersHeard != null &&
+                        context.MutualTrialConsent != null &&
+                        context.ChengJobTermsReady != null;
+                case ReturnRegionalStoryId.ST06TaoJiHomecoming:
+                    return context.TaoJiAtWoodshop != null;
+                default:
+                    return false;
+            }
+        }
+
         public bool TryOpenStory(ReturnRegionalStoryId storyId)
         {
-            if (disposed || !IsStoryAvailable(storyId))
+            if (disposed || !IsStoryAvailable(storyId) ||
+                !HasRequiredDelegates(storyId))
                 return false;
 
             if (activeHost != null)
