@@ -29,13 +29,35 @@ namespace Rpg.Soundwell
             ST05TwoDoorsPhase.UnblockStaircase;
         public ST05HouseholdRecord? CompletedHome { get; private set; }
         public ST05ChengAssignment? CompletedAssignment { get; private set; }
+        public bool IsCompleted => Phase == ST05TwoDoorsPhase.Completed;
 
         public static bool TryCreate(Func<string, int> read,
             out ST05TwoDoorsSession session)
         {
             session = null;
-            if (read == null || read(ST05TwoDoorsFacts.HomeConfirmedKey) != 0)
+            if (read == null ||
+                !ST05TwoDoorsFacts.TryRead(read, out ST05TwoDoorsOutcome? saved))
                 return false;
+
+            // A scene reload after the home agreement must resume Cheng's
+            // own work decision, not strand the player behind HomeConfirmed.
+            // A fully completed story cannot be reopened as a fresh session.
+            if (saved.HasValue)
+            {
+                if (saved.Value.Assignment.HasValue)
+                    return false;
+
+                session = new ST05TwoDoorsSession
+                {
+                    bed = saved.Value.Home.Bed,
+                    arrangement = saved.Value.Home.Arrangement,
+                    mutualTrialConsent = saved.Value.Home.MutualTrialConsent,
+                    CompletedHome = saved.Value.Home,
+                    Phase = ST05TwoDoorsPhase.AwaitChengOwnJobDecision
+                };
+                return true;
+            }
+
             session = new ST05TwoDoorsSession();
             return true;
         }
@@ -92,11 +114,17 @@ namespace Rpg.Soundwell
             bool eachConsentedToSharedTrial)
         {
             if (Phase != ST05TwoDoorsPhase.AgreeHomeAndKeys ||
-                arrangement.HasValue ||
                 !Enum.IsDefined(typeof(ST05HomeArrangement), decidedByBoth) ||
                 eachConsentedToSharedTrial !=
                     (decidedByBoth == ST05HomeArrangement.MutuallyAgreedTrialSharedHomeAndStudio))
                 return false;
+
+            // The same witnessed agreement may be retried after a torn save;
+            // a different arrangement or consent state may never replace it.
+            if (arrangement.HasValue)
+                return arrangement.Value == decidedByBoth &&
+                    mutualTrialConsent == eachConsentedToSharedTrial;
+
             arrangement = decidedByBoth;
             mutualTrialConsent = eachConsentedToSharedTrial;
             return true;
@@ -135,11 +163,16 @@ namespace Rpg.Soundwell
             bool shopCoverArranged, bool keysChecked, bool returnDateTalkedThrough)
         {
             if (Phase != ST05TwoDoorsPhase.AwaitChengOwnJobDecision ||
-                assignment.HasValue ||
                 !Enum.IsDefined(typeof(ST05ChengAssignment), hisOwnChoice) ||
                 !chengPersonallyAcceptedOrDeclined || !shopCoverArranged ||
                 !keysChecked || !returnDateTalkedThrough)
                 return false;
+
+            // The same personal decision can be re-acknowledged after an
+            // interrupted commit; the player's alternative cannot replace it.
+            if (assignment.HasValue)
+                return assignment.Value == hisOwnChoice;
+
             assignment = hisOwnChoice;
             return true;
         }
