@@ -138,6 +138,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TornBerthPayloadCannotReopenFreshNegotiationUntilReset()
+        {
+            var root = new GameObject("M09 torn berth table");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            try
+            {
+                host = NewHost(root.transform, values);
+                foreach (string orphanKey in new[]
+                {
+                    M09BerthTableFacts.TotalBerthsKey,
+                    M09BerthTableFacts.PendingNamesKey,
+                    M09BerthTableFacts.ExchangesKey,
+                    M09BerthTableFacts.RuiyaOutcomeKey,
+                    M09BerthTableFacts.QiDebtDisclosedKey,
+                    M09BerthTableFacts.ShenReconciledKey,
+                    M09BerthTableFacts.ShipwrightFeePaidKey
+                })
+                {
+                    values[orphanKey] = 1;
+                    Assert.That(host.TryOpen(), Is.False,
+                        "Torn berth payload must not start a new manifest: " + orphanKey);
+                    Assert.That(host.ActiveView, Is.Null);
+                    Assert.That(M09BerthTableFacts.TryResetForNewVoyage(
+                        (key, value) => values[key] = value), Is.True);
+                }
+
+                Assert.That(host.TryOpen(), Is.True,
+                    "A clean new voyage can still negotiate the second-batch table.");
+                Assert.That(host.ActiveView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void NegotiatedCapacityAndKnownOutcomePersistExactlyOnce()
         {
             var root = new GameObject("M09 host settlement");

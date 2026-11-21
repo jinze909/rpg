@@ -64,6 +64,7 @@ namespace Rpg.Soundwell
             if (disposed || view != null || !atSecondBatchTable() ||
                 // A corrupt or already-confirmed M09 record must not be rewritten.
                 getInt(M09BerthTableFacts.ConfirmedKey) != 0 ||
+                HasUnconfirmedBerthPayload() ||
                 !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? m07) ||
                 !m07.HasValue || getInt(M05LandingFacts.ArrivalSequenceKey) < 0)
                 return false;
@@ -78,6 +79,21 @@ namespace Rpg.Soundwell
                 available, waiting, shenLiPresent(), qiDebtAlreadyKnown());
             view = new M09BerthTableView(parent, session, ConfirmTable);
             return true;
+        }
+
+        // A previous Makinom write can stop before ConfirmedKey is set.
+        // A reopened table must not replace that unfinished manifest with
+        // a newly negotiated capacity or a different Ruiya outcome.
+        // The original live panel can still retry its own interrupted write.
+        private bool HasUnconfirmedBerthPayload()
+        {
+            return getInt(M09BerthTableFacts.TotalBerthsKey) != 0 ||
+                getInt(M09BerthTableFacts.PendingNamesKey) != 0 ||
+                getInt(M09BerthTableFacts.ExchangesKey) != 0 ||
+                getInt(M09BerthTableFacts.RuiyaOutcomeKey) != 0 ||
+                getInt(M09BerthTableFacts.QiDebtDisclosedKey) != 0 ||
+                getInt(M09BerthTableFacts.ShenReconciledKey) != 0 ||
+                getInt(M09BerthTableFacts.ShipwrightFeePaidKey) != 0;
         }
 
         private bool LiveSceneStillMatches()
