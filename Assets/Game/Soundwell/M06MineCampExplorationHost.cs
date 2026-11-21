@@ -330,6 +330,7 @@ namespace Rpg.Soundwell
         private bool HasAnyPersistedRescuePlanFacts()
         {
             return getInt(M06RescuePlanFacts.ConfirmedKey) != 0 ||
+                getInt(M06RescuePlanFacts.PendingSignatureKey) != 0 ||
                 getInt(M06RescuePlanFacts.PlanKey) != 0 ||
                 getInt(M06RescuePlanFacts.UsableCapacityKey) != 0 ||
                 getInt(M06RescuePlanFacts.LetterDeliveryKey) != 0 ||
