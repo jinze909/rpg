@@ -76,6 +76,7 @@ namespace Rpg.Soundwell
             // The next voyage must not inherit letters left or accepted at
             // the previous outer-harbor visit.
             setInt(M05LettersFacts.DecisionKey, 0);
+            setInt(M05LettersFacts.DecisionArrivalIdentityKey, 0);
             setInt(M05LandingFacts.ConfirmedKey, 0);
             // A new voyage must not inherit M05 locations visited on an
             // earlier crossing, even if a subsequent reset is interrupted.
