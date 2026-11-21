@@ -109,12 +109,46 @@ namespace Rpg.Soundwell
                 resolution,
                 decoyAmbushPrepared: DecoyAmbushPrepared);
 
-            if (!RC04DingYueReefFacts.TryRecord(record, getInt, setInt))
+            if (getInt == null || setInt == null)
                 return false;
 
-            CompletedRecord = record;
+            if (!RC04DingYueReefFacts.TryRead(
+                    getInt, out RC04ReefRecord? existing) &&
+                // Only a matching pending intent and partial fields are safe
+                // to retry after a save interrupted before confirmation.
+                (getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
+                 !RC04DingYueReefFacts.CanRecord(record, getInt)))
+                return false;
+
+            if (existing.HasValue)
+            {
+                // Confirm may have been written before its acknowledgement
+                // was lost. Do not write again or accept a different result.
+                if (!Matches(record, existing.Value))
+                    return false;
+            }
+            else if (getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
+                     !RC04DingYueReefFacts.TryRecord(record, getInt, setInt))
+            {
+                return false;
+            }
+
+            if (!RC04DingYueReefFacts.TryRead(
+                    getInt, out RC04ReefRecord? saved) ||
+                !saved.HasValue || !Matches(record, saved.Value))
+                return false;
+
+            CompletedRecord = saved.Value;
             IsResolved = true;
             return true;
+        }
+
+        private static bool Matches(RC04ReefRecord expected, RC04ReefRecord actual)
+        {
+            return expected.ListeningRoundsCompleted == actual.ListeningRoundsCompleted &&
+                expected.AyuanSongUsed == actual.AyuanSongUsed &&
+                expected.Resolution == actual.Resolution &&
+                expected.DecoyAmbushPrepared == actual.DecoyAmbushPrepared;
         }
     }
 }
