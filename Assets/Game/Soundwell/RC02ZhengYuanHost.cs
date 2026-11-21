@@ -80,7 +80,12 @@ namespace Rpg.Soundwell
         {
             if (disposed || session == null || !atIntakeDesk() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                // This panel snapshots whether the real Zheng Yuan was found
+                // through actual roster and testimony. If RC-05 evidence
+                // changes while the desk is open, never persist a stale claim
+                // (or erase a new discovery) under Shi Leng's decision.
+                realZhengYuanFound() != session.RealZhengYuanFound)
                 return;
 
             if (resolution == RC02Resolution.AdoptAsShiLeng && !shiLengWillingForAdoption())
