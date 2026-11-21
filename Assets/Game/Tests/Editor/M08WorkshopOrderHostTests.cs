@@ -236,6 +236,74 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PartialWorkshopResetCannotReplayDepositOverOldDockReplyOrDawnNotice()
+        {
+            var root = new GameObject("M08 orphaned downstream workshop reset");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            int depositWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M08WorkshopDepositFacts.CompletedKey && value == 1)
+                    depositWrites++;
+                values[key] = value;
+            };
+            var completedWinch = new M08FirstWinchOrderSession();
+            Assert.That(completedWinch.TryAcquirePart(M08WinchPart.ScrapGear), Is.True);
+            Assert.That(completedWinch.TryAcquirePart(M08WinchPart.DockCable), Is.True);
+            Assert.That(completedWinch.TryAssemble(), Is.True);
+            Assert.That(completedWinch.TryTightenCable(), Is.True);
+            Assert.That(completedWinch.TryTestLift(), Is.True);
+            M08WorkshopOrderHost host = null;
+            try
+            {
+                var orphanedCases = new (string Key, int Value)[]
+                {
+                    (M08DockTruthFacts.ConfirmedKey, 1),
+                    (M08DockTruthFacts.ConfirmedKey, 2),
+                    (M08DockTruthFacts.ShenRelationResponseKey, (int)M08DockTruthResponse.StaySilent),
+                    (M08DockTruthFacts.ShenRelationResponseKey, 99),
+                    (M08FirstWorldNoticeFacts.ConfirmedKey, 1),
+                    (M08FirstWorldNoticeFacts.ConfirmedKey, 2)
+                };
+                foreach (var orphan in orphanedCases)
+                {
+                    Assert.That(M08WorkshopDepositFacts.TryResetForNewVoyage(write), Is.True);
+                    Assert.That(M08DockTruthFacts.TryResetForNewVoyage(write), Is.True);
+                    Assert.That(M08FirstWorldNoticeFacts.TryResetForNewVoyage(write), Is.True);
+                    values[orphan.Key] = orphan.Value;
+                    host = new M08WorkshopOrderHost(root.transform, read, write);
+                    Assert.That(host.TryOpen(), Is.False,
+                        $"An old downstream M08 fact '{orphan.Key}' must block a new workshop.");
+                    Assert.That(host.ActiveView, Is.Null);
+                    Assert.That(M08WorkshopDepositFacts.TryConfirm(
+                        completedWinch, read, write), Is.False,
+                        "The Makinom deposit authority must also reject the stale story state.");
+                    Assert.That(depositWrites, Is.Zero);
+                    Assert.That(read(M08WorkshopDepositFacts.CompletedKey), Is.Zero);
+                    host.Dispose();
+                    host = null;
+                }
+
+                Assert.That(M08DockTruthFacts.TryResetForNewVoyage(write), Is.True);
+                Assert.That(M08FirstWorldNoticeFacts.TryResetForNewVoyage(write), Is.True);
+                host = new M08WorkshopOrderHost(root.transform, read, write);
+                Assert.That(host.TryOpen(), Is.True,
+                    "Once the explicit reset clears all orphaned facts, a genuine new commission may open.");
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(M08WorkshopDepositFacts.TryConfirm(
+                    completedWinch, read, write), Is.True);
+                Assert.That(depositWrites, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ResetOrInvalidUpstreamNeverTreatsStaleDepositAsPaid()
         {
             var values = new Dictionary<string, int>();

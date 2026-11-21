@@ -22,6 +22,8 @@ namespace Rpg.Soundwell
         // An otherwise identical replayed voyage is a different M05 arrival;
         // stale UI must not invoke actual-boarding or save callbacks.
         private int? openedArrivalSequence;
+        private int? openedAvailableBerths;
+        private int? openedHouseholdSize;
         private M09EastShoreNightCrossingSession session;
         private M09EastShoreNightCrossingView activeView;
         private M09RuiyaOutcome? committedOutcome;
@@ -71,13 +73,15 @@ namespace Rpg.Soundwell
                 return false;
 
             openedArrivalSequence = arrivalSequence;
+            openedAvailableBerths = berths;
+            openedHouseholdSize = household;
             session = new M09EastShoreNightCrossingSession(berths);
             activeView = new M09EastShoreNightCrossingView(
                 parent,
                 session,
                 household,
                 count => IsCurrentVoyage() && nightFerryReady() &&
-                    confirmActuallyBoarded(count),
+                    LiveTransferCountsMatch() && confirmActuallyBoarded(count),
                 HandleCompleted);
             return true;
         }
@@ -86,7 +90,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed != session || !completed.IsComplete ||
                 !completed.Outcome.HasValue || !nightFerryReady() ||
-                !IsCurrentVoyage())
+                !IsCurrentVoyage() || !LiveTransferCountsMatch(
+                    allowVerifiedBoardingConsumption: true))
                 throw new InvalidOperationException(
                     "Night crossing outcome cannot be committed while scene is not ready.");
 
@@ -98,6 +103,28 @@ namespace Rpg.Soundwell
             committedBoardedCount = completed.ActuallyBoardedCount;
             activeView?.Dispose();
             activeView = null;
+        }
+
+        // Before verifying boarding, the live berth and household counts
+        // must still equal those observed when the dialogue opened. After
+        // confirmed boarding, some ferry controllers immediately deduct
+        // precisely those occupied berths. That change is expected evidence
+        // consumption, not another party stealing capacity. Refusals and
+        // deferrals never occupy any berths, so they require an exact match.
+        private bool LiveTransferCountsMatch(
+            bool allowVerifiedBoardingConsumption = false)
+        {
+            if (!openedAvailableBerths.HasValue || !openedHouseholdSize.HasValue ||
+                observedHouseholdSize() != openedHouseholdSize.Value)
+                return false;
+
+            int liveBerths = availableBerths();
+            if (liveBerths == openedAvailableBerths.Value)
+                return true;
+            return allowVerifiedBoardingConsumption &&
+                session != null && session.Outcome == M09RuiyaOutcome.Rescued &&
+                session.ActuallyBoardedCount > 0 &&
+                liveBerths == openedAvailableBerths.Value - session.ActuallyBoardedCount;
         }
 
         private bool IsCurrentVoyage()
@@ -123,6 +150,8 @@ namespace Rpg.Soundwell
             activeView?.Dispose();
             activeView = null;
             openedArrivalSequence = null;
+            openedAvailableBerths = null;
+            openedHouseholdSize = null;
         }
     }
 }

@@ -192,6 +192,129 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ChangedLiveBerthsOrHouseholdCannotBoardOrCommitFromStaleDialog()
+        {
+            var root = new GameObject("M09 live roll call and berth drift");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int berths = 4, household = 2;
+            int boardChecks = 0, commits = 0;
+            M09EastShoreNightCrossingHost host = null;
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => berths, () => household,
+                    count => { boardChecks++; return count == 2; },
+                    _ => { commits++; return true; }, read);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                ReachJetty(view);
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(host.Session.Stage,
+                    Is.EqualTo(M09NightCrossingStage.AwaitingActualBoarding));
+
+                // A changed ferry capacity or observed household invalidates
+                // the original roll call before any real boarding callback.
+                berths = 1;
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.Zero);
+                Assert.That(host.Session.IsComplete, Is.False);
+                berths = 4;
+                household = 3;
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.Zero);
+                Assert.That(host.Session.IsComplete, Is.False);
+
+                household = 2;
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.EqualTo(1));
+                Assert.That(host.Session.IsComplete, Is.True);
+
+                // Even after an actual boarding was verified, an intervening
+                // capacity or roll-call change cannot publish a stale result.
+                berths = 0;
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.FinishButton.onClick.Invoke());
+                Assert.That(commits, Is.Zero);
+                Assert.That(host.IsCommitted, Is.False);
+                berths = 4;
+                household = 3;
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.FinishButton.onClick.Invoke());
+                Assert.That(commits, Is.Zero);
+                Assert.That(view.FinishButton.interactable, Is.True);
+
+                household = 2;
+                view.FinishButton.onClick.Invoke();
+                Assert.That(commits, Is.EqualTo(1));
+                Assert.That(host.CommittedOutcome, Is.EqualTo(M09RuiyaOutcome.Rescued));
+                Assert.That(host.CommittedBoardedCount, Is.EqualTo(2));
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void VerifiedBoardingMayDeductExactlyItsOccupiedBerthsBeforeFinalCommit()
+        {
+            var root = new GameObject("M09 consumed ferry berth evidence");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int freeBerths = 4, boardingChecks = 0, commits = 0;
+            M09EastShoreNightCrossingHost host = null;
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => freeBerths, () => 2,
+                    count =>
+                    {
+                        boardingChecks++;
+                        // An actual manifest update can consume capacity as
+                        // part of the independent boarding verification.
+                        freeBerths -= count;
+                        return true;
+                    },
+                    completed =>
+                    {
+                        commits++;
+                        return completed.Outcome == M09RuiyaOutcome.Rescued;
+                    }, read);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                ReachJetty(view);
+                view.ListenOrProceedButton.onClick.Invoke(); // Household consents.
+                view.ListenOrProceedButton.onClick.Invoke(); // Actually boarded.
+                Assert.That(boardingChecks, Is.EqualTo(1));
+                Assert.That(freeBerths, Is.EqualTo(2));
+                Assert.That(host.Session.ActuallyBoardedCount, Is.EqualTo(2));
+
+                // A second unexplained loss of a berth is not the same as
+                // the two witnessed boardings and must not be committed.
+                freeBerths = 1;
+                Assert.Throws<InvalidOperationException>(() =>
+                    view.FinishButton.onClick.Invoke());
+                Assert.That(commits, Is.Zero);
+                Assert.That(host.IsCommitted, Is.False);
+                freeBerths = 2;
+                view.FinishButton.onClick.Invoke();
+                Assert.That(commits, Is.EqualTo(1));
+                Assert.That(host.CommittedBoardedCount, Is.EqualTo(2));
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(boardingChecks, Is.EqualTo(1),
+                    "Retrying final save must not record the household twice.");
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DeclinedOrInterruptedCommitLeavesFinishRetryable()
         {
             var root = new GameObject("M09 night host retry");
