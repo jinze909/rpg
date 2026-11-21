@@ -38,6 +38,60 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LandingCheckFromOldSailingCannotConfirmAnIdenticalReplayedCrossing()
+        {
+            var root = new GameObject("M05 identical sailing landing protection");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var landing = new M05LandingReport(3, 8, true, true);
+            M05OuterHarborFlowHost oldHost = null;
+            M05OuterHarborFlowHost currentHost = null;
+            try
+            {
+                int oldSailing = read(M04DepartureFacts.SailingSequenceKey);
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform, landing,
+                    read, write, _ => Assert.Fail("Old landing cannot complete"),
+                    out oldHost), Is.True);
+
+                // M03 begins a fresh trip while the old landing canvas remains.
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                    Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldHost.LandingCheckView.ConfirmButton.onClick.Invoke());
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+
+                // The newly sailed hull and observed report deliberately match
+                // every old value; only the monotonic cast-off identity differs.
+                SeedCompletedCrossing(values);
+                Assert.That(read(M04DepartureFacts.SailingSequenceKey),
+                    Is.GreaterThan(oldSailing));
+                Assert.That(M05LandingFacts.CanRecord(landing, read), Is.True);
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldHost.LandingCheckView.ConfirmButton.onClick.Invoke());
+                Assert.That(oldHost.Stage, Is.EqualTo(M05OuterHarborFlowStage.LandingCheck));
+                Assert.That(oldHost.LandingCheckView.ConfirmButton.interactable, Is.True);
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+
+                oldHost.Dispose();
+                oldHost = null;
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform, landing,
+                    read, write, _ => { }, out currentHost), Is.True);
+                currentHost.LandingCheckView.ConfirmButton.onClick.Invoke();
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.EqualTo(1));
+                Assert.That(currentHost.Stage,
+                    Is.EqualTo(M05OuterHarborFlowStage.ArrivalSession));
+            }
+            finally
+            {
+                oldHost?.Dispose();
+                currentHost?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CorruptSeranDecisionRejectsFreshAndSavedArrivalBeforeShowingUnfinishableUi()
         {
             foreach (bool landingSaved in new[] { false, true })
