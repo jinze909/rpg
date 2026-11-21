@@ -95,10 +95,11 @@ namespace Rpg.Soundwell
                  getInt(M05HarborVisitFacts.VisitedMaskKey) != 0))
                 return false;
 
-            // Reject a corrupted nonzero letter choice *before* creating the
-            // landing or Seran UI, where the choice cannot be saved again.
-            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? savedLetters) ||
-                (!savedLetters.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
+            // A valid decision from an earlier or unsigned arrival is not
+            // this landing's answer; TryRead hides it so Seran can ask again.
+            // Corrupt codes still reject the flow before creating an
+            // unfinishable landing or dialogue UI.
+            if (!M05LettersFacts.TryRead(getInt, out _))
                 return false;
 
             if (savedLanding.HasValue)

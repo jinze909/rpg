@@ -187,6 +187,66 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PreviousVoyageSeranChoiceIsReaskedAfterANewVerifiedLanding()
+        {
+            var root = new GameObject("M05 stale Seran choice on new arrival");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            var landing = new M05LandingReport(3, 8, true, true);
+            M05OuterHarborFlowHost host = null;
+            try
+            {
+                Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+                Assert.That(M05LettersFacts.TryRecord(
+                    M05LetterDecision.TakePacket, read, write), Is.True);
+                int firstArrival = read(M05LandingFacts.ArrivalSequenceKey);
+                Assert.That(read(M05LettersFacts.DecisionKey),
+                    Is.EqualTo((int)M05LetterDecision.TakePacket));
+
+                // Simulate a torn reset that invalidates the old crossing and
+                // landing but leaves the previous Seran choice untouched.
+                Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+                Assert.That(M04DepartureFacts.TryResetForNewVisit(write), Is.True);
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                SeedCompletedCrossing(values);
+                Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
+                int secondArrival = read(M05LandingFacts.ArrivalSequenceKey);
+                Assert.That(secondArrival, Is.GreaterThan(firstArrival));
+                Assert.That(read(M05LettersFacts.DecisionKey),
+                    Is.EqualTo((int)M05LetterDecision.TakePacket),
+                    "The test deliberately retains the old raw save value.");
+                Assert.That(M05LettersFacts.TryRead(
+                    read, out M05LetterDecision? stale), Is.True);
+                Assert.That(stale, Is.Null);
+
+                // Resuming a real, newly verified landing must show Seran's
+                // choice again instead of silently carrying the old packet.
+                Assert.That(M05OuterHarborFlowHost.TryOpen(
+                    root.transform, null, read, write, _ => { }, out host), Is.True);
+                Assert.That(host.ArrivalSession.Stage,
+                    Is.EqualTo(M05OuterHarborStage.SeranLetters));
+                Assert.That(host.ArrivalSession.LetterDecision, Is.Null);
+                Assert.That(host.ArrivalSession.SeranView, Is.Not.Null);
+
+                host.ArrivalSession.SeranView.LeaveButton.onClick.Invoke();
+                host.ArrivalSession.SeranView.ContinueButton.onClick.Invoke();
+                Assert.That(M05LettersFacts.TryRead(
+                    read, out M05LetterDecision? current), Is.True);
+                Assert.That(current, Is.EqualTo(M05LetterDecision.LeaveForNextBoat));
+                Assert.That(M05LettersFacts.LettersCarried(current), Is.Zero);
+                Assert.That(read(M05LettersFacts.DecisionArrivalIdentityKey),
+                    Is.EqualTo(secondArrival + 1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CorruptCommittedLandingDoesNotOpenAnUnfinishableLandingScreen()
         {
             var root = new GameObject("M05 corrupted confirmed arrival");
