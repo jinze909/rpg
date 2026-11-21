@@ -151,5 +151,43 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void TornDockResponseCannotBeReplacedByAnotherChoiceBeforeConfirmation()
+        {
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            const M08DockTruthResponse original = M08DockTruthResponse.StaySilent;
+            const M08DockTruthResponse changed = M08DockTruthResponse.AdmitSharedFear;
+
+            Assert.Throws<InvalidOperationException>(() =>
+                M08DockTruthFacts.TryRecord(original, true, read, (key, value) =>
+                {
+                    write(key, value);
+                    if (key == M08DockTruthFacts.ShenRelationResponseKey)
+                        throw new InvalidOperationException("Interrupted before confirmation");
+                }));
+            Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+            Assert.That(read(M08DockTruthFacts.ShenRelationResponseKey),
+                Is.EqualTo((int)original));
+
+            Assert.That(M08DockTruthFacts.TryRecord(changed, true, read, write),
+                Is.False, "An interrupted Shen Li response is not an opportunity to rewrite it.");
+            Assert.That(read(M08DockTruthFacts.ShenRelationResponseKey),
+                Is.EqualTo((int)original));
+            Assert.That(M08DockTruthFacts.TryRecord(original, true, read, write), Is.True);
+            Assert.That(M08DockTruthFacts.TryRead(read, out M08DockTruthResponse? saved),
+                Is.True);
+            Assert.That(saved, Is.EqualTo(original));
+
+            Assert.That(M08DockTruthFacts.TryResetForNewVoyage(write), Is.True);
+            values[M08DockTruthFacts.ShenRelationResponseKey] = 99;
+            Assert.That(M08DockTruthFacts.TryRecord(changed, true, read, write),
+                Is.False, "Corrupt orphaned choices require an explicit reset.");
+            Assert.That(M08DockTruthFacts.TryResetForNewVoyage(write), Is.True);
+            Assert.That(M08DockTruthFacts.TryRecord(changed, true, read, write), Is.True);
+        }
     }
 }
