@@ -38,7 +38,7 @@ namespace Rpg.Soundwell
             out RC05ThirdSquadSession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || RC05ThirdSquadFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M08FirstWorldNoticeFacts.TryCaseAvailable(
                     RC05ThirdSquadFacts.RosterCaseNumber, getInt, out bool available) ||

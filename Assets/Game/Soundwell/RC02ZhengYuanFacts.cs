@@ -97,6 +97,16 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // RC-02 feeds M10AssemblyFacts's live RC-02 leverage check. Settling
+        // RC-02 after M10..M16 facts already exist would retroactively
+        // invalidate M10 readback and break Act-3 progression.
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M10AssemblyFacts.HasAnyPersistedFacts(getInt) ||
+                M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         // Persist the precise decision, adoption consent and real Zheng Yuan
         // identity BEFORE the other facts. A torn write cannot be claimed by a
         // later panel choosing a different name, identity or registration.
@@ -118,6 +128,7 @@ namespace Rpg.Soundwell
         public static bool CanRecord(RC02ZhengYuanRecord record, Func<string, int> getInt)
         {
             if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                HasOrphanedDownstreamFacts(getInt) ||
                 !IsValidRecord(record, getInt))
                 return false;
 

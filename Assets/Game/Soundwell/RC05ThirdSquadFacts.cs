@@ -80,6 +80,16 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // RC-05 feeds M10AssemblyFacts's live mountain-family supply check.
+        // Settling RC-05 after M10..M16 facts already exist would retroactively
+        // invalidate M10 readback and break Act-3 progression.
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M10AssemblyFacts.HasAnyPersistedFacts(getInt) ||
+                M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         // The intent is persisted before any story payload. Without this lock,
         // a second encounter could replace the original resolution after a
         // partially written save (including before ResolutionKey is written).
@@ -101,6 +111,7 @@ namespace Rpg.Soundwell
         public static bool CanRecord(RC05ThirdSquadRecord record, Func<string, int> getInt)
         {
             if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                HasOrphanedDownstreamFacts(getInt) ||
                 !IsValidRecord(record, getInt))
                 return false;
 

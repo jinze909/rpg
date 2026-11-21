@@ -46,7 +46,7 @@ namespace Rpg.Soundwell
             out RC02ZhengYuanSession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || RC02ZhengYuanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M08FirstWorldNoticeFacts.TryCaseAvailable(
                     RC02ZhengYuanFacts.RosterCaseNumber, getInt, out bool available) ||
