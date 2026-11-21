@@ -189,6 +189,59 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CorruptNonzeroSeranChoiceCannotBecomeNotCarriedAtM06()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (k, v) =>
+            {
+                writes++;
+                values[k] = v;
+            };
+            var notCarried = new M06ReunionRecord(
+                M06RescuePlan.OfficialHandover,
+                reportedUsableCapacity: true,
+                M06LetterDeliveryOutcome.NotCarried,
+                retaliationHistoryHeard: true);
+
+            foreach (int corrupt in new[] { -1, 3, 999 })
+            {
+                values[M05LettersFacts.DecisionKey] = corrupt;
+                Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(
+                    read, out M06PumpRoomReunionSession refused), Is.False);
+                Assert.That(refused, Is.Null);
+                Assert.That(M06RescuePlanFacts.TryRecord(
+                    notCarried, read, write), Is.False,
+                    "A damaged Seran choice cannot be recorded as a deliberate refusal.");
+                Assert.That(writes, Is.Zero);
+                Assert.That(read(M05LettersFacts.DecisionKey), Is.EqualTo(corrupt));
+            }
+
+            // Missing really is different from corrupt: M06 may skip
+            // handoff only when no M05 answer was ever recorded.
+            values[M05LettersFacts.DecisionKey] = 0;
+            Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(
+                read, out M06PumpRoomReunionSession session), Is.True);
+            Assert.That(session.HasCarriedLetters, Is.False);
+            Assert.That(M06RescuePlanFacts.TryRecord(notCarried, read, write), Is.True);
+            Assert.That(M06RescuePlanFacts.TryRead(
+                read, out M06ReunionRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+
+            values[M05LettersFacts.DecisionKey] = 999;
+            Assert.That(M06RescuePlanFacts.TryRead(
+                read, out M06ReunionRecord? corrupted), Is.True);
+            Assert.That(corrupted, Is.Null,
+                "An already saved reunion cannot mask subsequently corrupted letters.");
+            values[M05LettersFacts.DecisionKey] = 0;
+            Assert.That(M06RescuePlanFacts.TryRead(
+                read, out M06ReunionRecord? recovered), Is.True);
+            Assert.That(recovered.HasValue, Is.True);
+        }
+
+        [Test]
         public void TakenM05LettersPlaysDeliveryWithPendingReturnBeforeOulinTruth()
         {
             var values = new Dictionary<string, int>();

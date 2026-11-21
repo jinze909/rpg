@@ -91,7 +91,13 @@ namespace Rpg.Soundwell
                 !landing.HasValue)
                 return false;
 
-            M05LettersFacts.TryRead(getInt, out M05LetterDecision? letters);
+            // A missing Seran answer is playable, but a malformed nonzero
+            // answer is not a refusal. Do not silently skip eight carried
+            // letters because the earlier choice was corrupted.
+            if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? letters) ||
+                (!letters.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
+                return false;
+
             session = new M06PumpRoomReunionSession(departure.Value, landing.Value, letters);
             return true;
         }
