@@ -27,10 +27,19 @@ namespace Rpg.Tests.Editor
             M08FirstWorldNoticeFacts.ConfirmedKey,
             M08WorkshopDepositFacts.CompletedKey,
             M09BerthTableFacts.ConfirmedKey,
-            ST06TaoJiHomecomingFacts.ConfirmedKey,
-            RC04DingYueReefFacts.ConfirmedKey,
+            M10AssemblyFacts.ConfirmedKey,
+            M11ReverseRescueFacts.ConfirmedKey,
+            M12BridgeTruthFacts.ConfirmedKey,
             M13DepartureRiskFacts.DepartureConfirmedKey,
-            M15FinalRollCallFacts.ConfirmedKey
+            M14FinalPassageFacts.ConfirmedKey,
+            M15FinalRollCallFacts.ConfirmedKey,
+            M16EpilogueFacts.ConfirmedKey,
+            RC01ChenYanFacts.ConfirmedKey,
+            RC02ZhengYuanFacts.ConfirmedKey,
+            RC03BaijiMineFacts.ConfirmedKey,
+            RC04DingYueReefFacts.ConfirmedKey,
+            RC05ThirdSquadFacts.ConfirmedKey,
+            ST06TaoJiHomecomingFacts.ConfirmedKey
         };
 
         private static Dictionary<string, int> SeedOldVoyage()
@@ -43,8 +52,21 @@ namespace Rpg.Tests.Editor
             data[M07ExtractionFacts.TaoJiRescuedKey] = 1;
             data[M07ExtractionFacts.BoardedFirstBatchKey] = 8;
             data[M09BerthTableFacts.ShipwrightFeePaidKey] = 1;
+            data[M10AssemblyFacts.HanLedgerUseKey] = (int)M10HanLedgerUse.KeepConfidential;
+            data[M11ReverseRescueFacts.ThreeBellsKey] = 1;
+            data[M12BridgeTruthFacts.DisclosureKey] = (int)M12TruthDisclosure.SealTruth;
             data[M13DepartureRiskFacts.AyuanOutcomeKey] = 1;
+            data[M14FinalPassageFacts.DepartingCountKey] = 12;
             data[M15FinalRollCallFacts.ConsentedNamesCountKey] = 6;
+            data[M16EpilogueFacts.LettersReadKey] = 3;
+            data[RC01ChenYanFacts.OutcomeKey] = (int)RC01ChenYanOutcome.RestoreLivingName;
+            data[RC02ZhengYuanFacts.ChecksMaskKey] = 3;
+            data[RC03BaijiMineFacts.VisitsMaskKey] = 3;
+            data[RC05ThirdSquadFacts.ResolutionKey] = (int)RC05Resolution.CivilianPardon;
+            data[M05LandingFacts.ArrivalSequenceKey] = 7;
+            data[ST02RiverLanternsFacts.ConfirmedKey] = 1;
+            data[ST03BathhouseFacts.ConfirmedKey] = 1;
+            data[ST05TwoDoorsFacts.HomeConfirmedKey] = 1;
 
             // Earlier choices are historical context, not post-departure
             // results: this helper must not rewrite them.
@@ -71,8 +93,22 @@ namespace Rpg.Tests.Editor
             Assert.That(Get(values, M07ExtractionFacts.TaoJiRescuedKey), Is.Zero);
             Assert.That(Get(values, M07ExtractionFacts.BoardedFirstBatchKey), Is.Zero);
             Assert.That(Get(values, M09BerthTableFacts.ShipwrightFeePaidKey), Is.Zero);
+            Assert.That(Get(values, M10AssemblyFacts.HanLedgerUseKey), Is.Zero);
+            Assert.That(Get(values, M11ReverseRescueFacts.ThreeBellsKey), Is.Zero);
+            Assert.That(Get(values, M12BridgeTruthFacts.DisclosureKey), Is.Zero);
             Assert.That(Get(values, M13DepartureRiskFacts.AyuanOutcomeKey), Is.Zero);
+            Assert.That(Get(values, M14FinalPassageFacts.DepartingCountKey), Is.Zero);
             Assert.That(Get(values, M15FinalRollCallFacts.ConsentedNamesCountKey), Is.Zero);
+            Assert.That(Get(values, M16EpilogueFacts.LettersReadKey), Is.Zero);
+            Assert.That(Get(values, RC01ChenYanFacts.OutcomeKey), Is.Zero);
+            Assert.That(Get(values, RC02ZhengYuanFacts.ChecksMaskKey), Is.Zero);
+            Assert.That(Get(values, RC03BaijiMineFacts.VisitsMaskKey), Is.Zero);
+            Assert.That(Get(values, RC05ThirdSquadFacts.ResolutionKey), Is.Zero);
+            Assert.That(Get(values, M05LandingFacts.ArrivalSequenceKey), Is.EqualTo(7),
+                "Landing identity must not be reused by the next voyage.");
+            Assert.That(Get(values, ST02RiverLanternsFacts.ConfirmedKey), Is.EqualTo(1));
+            Assert.That(Get(values, ST03BathhouseFacts.ConfirmedKey), Is.EqualTo(1));
+            Assert.That(Get(values, ST05TwoDoorsFacts.HomeConfirmedKey), Is.EqualTo(1));
             Assert.That(Get(values, M02QiQueDebtFacts.DebtKnownKey), Is.EqualTo(1));
             Assert.That(Get(values, M03LuJunFacts.VoyageKey),
                 Is.EqualTo((int)M03VoyageChoice.QiQueMerchant));
