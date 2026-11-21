@@ -179,6 +179,56 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LateThreeRecordMismatchBlocksFinalAssemblyUntilRecordsAgreeAgain()
+        {
+            var root = new GameObject("M10 late three-record mismatch");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            bool recordsMatch = true;
+            M10AssemblyHost host = null;
+            try
+            {
+                host = new M10AssemblyHost(
+                    root.transform, () => true, () => recordsMatch,
+                    () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.ObserveNoticeButton.onClick.Invoke();
+                view.ReconcileRecordsButton.onClick.Invoke();
+                Assert.That(host.Session.Phase,
+                    Is.EqualTo(M10AssemblyPhase.HanQiaoConfrontation));
+                view.PresentM02CopyButton.onClick.Invoke();
+                view.KeepConfidentialButton.onClick.Invoke();
+                view.RecordPartialGapButton.onClick.Invoke();
+                view.HearBellTowerReportButton.onClick.Invoke();
+
+                // The three sources agreed at Yi Lei's table but a live
+                // arrival/roster update made them disagree before saving.
+                recordsMatch = false;
+                view.ConfirmAssemblyButton.onClick.Invoke();
+                Assert.That(host.Session.IsCompleted, Is.False);
+                Assert.That(host.ActiveView, Is.SameAs(view));
+                Assert.That(read(M10AssemblyFacts.ConfirmedKey), Is.Zero,
+                    "A stale name reconciliation must never be persisted.");
+
+                // After the records are genuinely consistent again the
+                // same dialogue may finish, without a duplicate write.
+                recordsMatch = true;
+                view.ConfirmAssemblyButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(read(M10AssemblyFacts.ConfirmedKey), Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedSaveAndCommitThenThrowRecoverWithoutDuplicateWrites()
         {
             var root = new GameObject("M10 host retry");

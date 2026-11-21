@@ -86,7 +86,11 @@ namespace Rpg.Soundwell
 
         private void HandleCommitRequested()
         {
+            // A match at the earlier reconciliation table is not proof that
+            // the three live records still agree when the assembly is saved.
+            // Keep the panel retryable rather than publishing a stale clearance.
             if (disposed || session == null || !atJingwanAssembly() ||
+                !threeRecordsMatched() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
