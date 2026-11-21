@@ -44,7 +44,7 @@ namespace Rpg.Soundwell
             out M14FinalPassageSession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || M14FinalPassageFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M13DepartureRiskFacts.TryReadDeparture(getInt, out M13DepartureRecord? departure) ||
                 !departure.HasValue)
