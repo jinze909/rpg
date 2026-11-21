@@ -42,9 +42,10 @@ namespace Rpg.Soundwell
         {
             if (disposed || activeView != null ||
                 !shenLiPresent() ||
-                // Refuse a damaged confirmed record until the voyage is
+                // Refuse a damaged or torn record until the voyage is
                 // explicitly reset, rather than allowing contradictory edits.
-                getInt(M08DockTruthFacts.ConfirmedKey) != 0)
+                getInt(M08DockTruthFacts.ConfirmedKey) != 0 ||
+                getInt(M08DockTruthFacts.ShenRelationResponseKey) != 0)
                 return false;
 
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool completed) ||
