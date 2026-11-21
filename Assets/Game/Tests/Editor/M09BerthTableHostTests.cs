@@ -52,14 +52,16 @@ namespace Rpg.Tests.Editor
             Func<bool> inScene = null,
             Func<bool> shenPresent = null,
             Func<M09RuiyaOutcome?> ruiya = null,
-            Action<string, int> writer = null)
+            Action<string, int> writer = null,
+            Func<bool> shipwrightFeePaidInWorld = null)
         {
             return new M09BerthTableHost(
                 parent, inScene ?? (() => true),
                 shenPresent ?? (() => true),
                 () => false, () => 18, () => 23,
                 ruiya ?? (() => M09RuiyaOutcome.Deferred),
-                Reader(data), writer ?? ((k, v) => data[k] = v));
+                Reader(data), writer ?? ((k, v) => data[k] = v),
+                shipwrightFeePaidInWorld);
         }
 
         [Test]
@@ -281,6 +283,49 @@ namespace Rpg.Tests.Editor
                 button.onClick.Invoke();
                 Assert.That(committed, Is.EqualTo(1));
                 Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void PaidShipwrightBerthsRequireStillVerifiedPaymentAtFinalSettlement()
+        {
+            var root = new GameObject("M09 paid shipwright live world proof");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            Func<string, int> read = Reader(values);
+            bool feeVerified = true;
+            M09BerthTableHost host = null;
+            try
+            {
+                host = NewHost(root.transform, values,
+                    shenPresent: () => false,
+                    shipwrightFeePaidInWorld: () => feeVerified);
+                Assert.That(host.TryOpen(), Is.True);
+                host.ActiveView.ShipwrightButton.onClick.Invoke();
+                Assert.That(host.Session.ShipwrightFeePaid, Is.True);
+                Assert.That(host.Session.ShenLiTwoDayApprenticeLeave, Is.False);
+
+                feeVerified = false;
+                host.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(read(M09BerthTableFacts.ConfirmedKey), Is.Zero);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(host.ActiveView.SettleButton.interactable, Is.True);
+
+                feeVerified = true;
+                host.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(M09BerthTableFacts.TryRead(
+                    read, out M09BerthTableRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.ShipwrightFeePaid, Is.True);
+                Assert.That(saved.Value.ShenReconciled, Is.False);
+                Assert.That(saved.Value.TotalBerths, Is.EqualTo(20));
             }
             finally
             {
