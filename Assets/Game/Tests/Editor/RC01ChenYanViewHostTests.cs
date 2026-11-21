@@ -114,6 +114,7 @@ namespace Rpg.Tests.Editor
                 host = new RC01ChenYanHost(root.transform, () => true, read, write);
                 foreach (string orphanedKey in new[]
                 {
+                    RC01ChenYanFacts.PendingSignatureKey,
                     RC01ChenYanFacts.CluesMaskKey,
                     RC01ChenYanFacts.TalkOrderKey,
                     RC01ChenYanFacts.OutcomeKey,

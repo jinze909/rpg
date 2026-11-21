@@ -117,7 +117,12 @@ namespace Rpg.Soundwell
                 RealZhengYuanVerified,
                 OldWomanStoneMentioned);
 
-            if (!RC05ThirdSquadFacts.TryRead(getInt, out RC05ThirdSquadRecord? existing))
+            if (!RC05ThirdSquadFacts.TryRead(
+                    getInt, out RC05ThirdSquadRecord? existing) &&
+                // An incomplete write is recoverable only when its immutable
+                // intent and all already-written fields match this decision.
+                (getInt(RC05ThirdSquadFacts.ConfirmedKey) != 0 ||
+                 !RC05ThirdSquadFacts.CanRecord(record, getInt)))
                 return false;
 
             // Recover idempotently if a prior write committed ConfirmedKey = 1

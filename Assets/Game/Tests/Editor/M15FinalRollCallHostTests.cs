@@ -92,6 +92,118 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LateConsentTruthOrNameChangesBlockStaleSteleUntilRestored()
+        {
+            var root = new GameObject("M15 changing ceremony evidence");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            bool sealedTruth = false;
+            int consented = 2;
+            string name = " 小七 ";
+            M15FinalRollCallHost host = null;
+            try
+            {
+                host = new M15FinalRollCallHost(
+                    root.transform, () => true, () => sealedTruth,
+                    () => consented, () => name, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.ProtagonistReaderButton.onClick.Invoke();
+                view.PublicTrueNameButton.onClick.Invoke();
+
+                // Previously verified consent is withdrawn before carving.
+                consented = 0;
+                view.CarveNamesSteleButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(host.ActiveView, Is.SameAs(view));
+                Assert.That(read(M15FinalRollCallFacts.ConfirmedKey), Is.Zero);
+
+                // Even restored consent is not enough if the live sealed
+                // bridge-truth decision changed after this dialog opened.
+                consented = 2;
+                sealedTruth = true;
+                view.CarveNamesSteleButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.False);
+
+                sealedTruth = false;
+                name = "另一个名字";
+                view.CarveNamesSteleButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(read(M15FinalRollCallFacts.ConfirmedKey), Is.Zero);
+
+                // Whitespace normalization matches the name seen at entry.
+                name = "小七";
+                view.CarveNamesSteleButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(M15FinalRollCallFacts.TryRead(
+                    read, out M15FinalRollCallRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.ConsentedVerifiedNamesCount, Is.EqualTo(2));
+                Assert.That(saved.Value.XiaoqiCalledByNumberSeventyTwo, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void CompetingSavedRollCallWithSameButtonsCannotAcknowledgeDifferentRoster()
+        {
+            var root = new GameObject("M15 competing saved ceremony");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                writes++;
+                values[key] = value;
+            };
+            M15FinalRollCallHost host = null;
+            try
+            {
+                host = new M15FinalRollCallHost(
+                    root.transform, () => true, () => false,
+                    () => 2, () => null, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.HanQiaoReaderButton.onClick.Invoke();
+                view.PublicTrueNameButton.onClick.Invoke();
+
+                // Another ceremony completed identical UI choices but with
+                // different consent and Xiaoqi name facts. An old dialog
+                // must neither overwrite nor falsely acknowledge that save.
+                Assert.That(M15FinalRollCallFacts.TryRecord(
+                    new M15FinalRollCallRecord(
+                        M15RollCallReader.HanQiao,
+                        M15FinalIdentityResponse.PublicTrueName,
+                        M15PensionClosure.StoppedAndReconciled,
+                        M15SteleInscription.KeepOriginal,
+                        1,
+                        false), read, write), Is.True);
+                int beforeRetry = writes;
+
+                view.KeepOriginalSteleButton.onClick.Invoke();
+                Assert.That(writes, Is.EqualTo(beforeRetry));
+                Assert.That(host.Session.IsCompleted, Is.False);
+                Assert.That(host.ActiveView, Is.SameAs(view));
+                Assert.That(M15FinalRollCallFacts.TryRead(
+                    read, out M15FinalRollCallRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.ConsentedVerifiedNamesCount, Is.EqualTo(1));
+                Assert.That(saved.Value.XiaoqiCalledByNumberSeventyTwo, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedWriteAndCommitThenThrowRecoverWithoutDuplicateWrites()
         {
             var root = new GameObject("M15 host retry");

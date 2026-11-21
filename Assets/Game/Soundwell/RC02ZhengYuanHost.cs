@@ -68,6 +68,7 @@ namespace Rpg.Soundwell
         private bool HasAnyPersistedFacts()
         {
             return getInt(RC02ZhengYuanFacts.ConfirmedKey) != 0 ||
+                getInt(RC02ZhengYuanFacts.PendingSignatureKey) != 0 ||
                 getInt(RC02ZhengYuanFacts.ChecksMaskKey) != 0 ||
                 getInt(RC02ZhengYuanFacts.RoofConfessionKey) != 0 ||
                 getInt(RC02ZhengYuanFacts.ResolutionKey) != 0 ||
@@ -80,7 +81,12 @@ namespace Rpg.Soundwell
         {
             if (disposed || session == null || !atIntakeDesk() ||
                 !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                // This panel snapshots whether the real Zheng Yuan was found
+                // through actual roster and testimony. If RC-05 evidence
+                // changes while the desk is open, never persist a stale claim
+                // (or erase a new discovery) under Shi Leng's decision.
+                realZhengYuanFound() != session.RealZhengYuanFound)
                 return;
 
             if (resolution == RC02Resolution.AdoptAsShiLeng && !shiLengWillingForAdoption())

@@ -89,6 +89,10 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryOpen(), Is.False);
 
                 values[RC02ZhengYuanFacts.ConfirmedKey] = 0;
+                values[RC02ZhengYuanFacts.PendingSignatureKey] = 1200;
+                Assert.That(host.TryOpen(), Is.False,
+                    "A pending identity decision cannot reopen the intake desk.");
+                values[RC02ZhengYuanFacts.PendingSignatureKey] = 0;
                 Assert.That(host.TryOpen(), Is.True);
                 Assert.That(host.TryOpen(), Is.False);
                 Assert.That(host.ActiveView, Is.Not.Null);
@@ -224,6 +228,55 @@ namespace Rpg.Tests.Editor
             {
                 host?.Dispose();
                 UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RealZhengYuanEvidenceMustStillMatchOpenPanelAtSettlement()
+        {
+            // Discovery can be recorded by RC-05 while this registration desk
+            // remains open, or its upstream evidence can be reset. Neither
+            // transition may silently persist the old snapshot.
+            foreach (bool initiallyFound in new[] { false, true })
+            {
+                var root = new GameObject("RC02 live Zheng Yuan recheck");
+                var values = new Dictionary<string, int>();
+                SeedM08RosterCasesAvailable(values);
+                Func<string, int> read = Reader(values);
+                Action<string, int> write = (key, value) => values[key] = value;
+                bool found = initiallyFound;
+                RC02ZhengYuanHost host = null;
+                try
+                {
+                    host = new RC02ZhengYuanHost(root.transform,
+                        () => true, () => found, () => true, read, write);
+                    Assert.That(host.TryOpen(), Is.True);
+                    var view = host.ActiveView;
+                    ReachDeskDecision(view);
+                    Assert.That(host.Session.RealZhengYuanFound, Is.EqualTo(initiallyFound));
+
+                    found = !initiallyFound;
+                    view.ExceptionButton.onClick.Invoke();
+                    Assert.That(host.IsResolved, Is.False,
+                        "Changed real-identity proof must block stale registration.");
+                    Assert.That(host.ActiveView, Is.Not.Null);
+                    Assert.That(values.ContainsKey(RC02ZhengYuanFacts.ConfirmedKey),
+                        Is.False);
+
+                    found = initiallyFound;
+                    view.ExceptionButton.onClick.Invoke();
+                    Assert.That(host.IsResolved, Is.True);
+                    Assert.That(host.ActiveView, Is.Null);
+                    Assert.That(RC02ZhengYuanFacts.TryRead(
+                        read, out RC02ZhengYuanRecord? saved), Is.True);
+                    Assert.That(saved.HasValue, Is.True);
+                    Assert.That(saved.Value.RealZhengYuanFound, Is.EqualTo(initiallyFound));
+                }
+                finally
+                {
+                    host?.Dispose();
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
             }
         }
 
