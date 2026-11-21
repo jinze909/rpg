@@ -50,6 +50,61 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OldDockRollCallCannotSettleIdenticalNewVoyage()
+        {
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.CargoCover,
+                M05LetterDecision.LeaveForNextBoat);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+
+            Assert.That(M07ExtractionNightSession.TryCreateFromSavedFacts(
+                read, out var oldSession), Is.True);
+            oldSession.ExecuteRoute(false, 30);
+            oldSession.AdvanceTunnelOpening();
+            oldSession.ResolveRusConfrontation(
+                M07RusFate.Arrested, M07LedgerState.Preserved);
+            oldSession.AdvanceReturnLettersCheck();
+            int originalSequence = read(M05LandingFacts.ArrivalSequenceKey);
+
+            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write),
+                Is.True);
+            Assert.That(oldSession.TryCompleteDockRollCall(
+                M07LiangChoice.StayOnIsland, M07YidaChoice.HandToInspector,
+                false, read, write), Is.False);
+            SeedVerifiedM06(values, M06RescuePlan.CargoCover,
+                M05LetterDecision.LeaveForNextBoat);
+            Assert.That(read(M05LandingFacts.ArrivalSequenceKey),
+                Is.GreaterThan(originalSequence));
+
+            int staleWrites = 0;
+            Assert.That(oldSession.TryCompleteDockRollCall(
+                M07LiangChoice.StayOnIsland, M07YidaChoice.HandToInspector,
+                false, read, (k, v) => { staleWrites++; values[k] = v; }), Is.False);
+            Assert.That(staleWrites, Is.Zero);
+            Assert.That(read(M07ExtractionFacts.ConfirmedKey), Is.Zero);
+            Assert.That(oldSession.Stage, Is.EqualTo(M07ExtractionStage.DockRollCall));
+
+            Assert.That(M07ExtractionNightSession.TryCreateFromSavedFacts(
+                read, out var current), Is.True);
+            current.ExecuteRoute(false, 30);
+            current.AdvanceTunnelOpening();
+            current.ResolveRusConfrontation(
+                M07RusFate.Arrested, M07LedgerState.Preserved);
+            current.AdvanceReturnLettersCheck();
+            Assert.That(current.TryCompleteDockRollCall(
+                M07LiangChoice.StayOnIsland, M07YidaChoice.HandToInspector,
+                false, read, write), Is.True);
+            Assert.That(M07ExtractionFacts.TryRead(
+                read, out M07ExtractionRecord? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+            Assert.That(saved.Value.BoardedFirstBatchCount, Is.EqualTo(30));
+            Assert.That(oldSession.TryCompleteDockRollCall(
+                M07LiangChoice.StayOnIsland, M07YidaChoice.HandToInspector,
+                false, read, write), Is.False);
+        }
+
+        [Test]
         public void MinerShutdownPlaysOldZhangFarewellSeparatesFiveHundredFromBoardedAndPersists()
         {
             var values = new Dictionary<string, int>();

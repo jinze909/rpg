@@ -22,6 +22,10 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class M07ExtractionNightSession
     {
+        // An extraction conversation may remain open while M03 begins the
+        // next voyage. Even identical M06 rescue plans must not allow its old
+        // dock roll-call to settle the new voyage. Only M05 owns this ID.
+        private readonly int? openedArrivalSequence;
         public M06ReunionRecord M06Record { get; }
         public M07ExtractionStage Stage { get; private set; }
         public M07ExecutedRoute? ExecutedRoute { get; private set; }
@@ -41,10 +45,17 @@ namespace Rpg.Soundwell
         public M07ExtractionRecord? CompletedRecord { get; private set; }
 
         public M07ExtractionNightSession(M06ReunionRecord m06Record)
+            : this(m06Record, null)
+        {
+        }
+
+        private M07ExtractionNightSession(
+            M06ReunionRecord m06Record, int? arrivalSequence)
         {
             if (!Enum.IsDefined(typeof(M06RescuePlan), m06Record.Plan))
                 throw new ArgumentOutOfRangeException(nameof(m06Record));
             M06Record = m06Record;
+            openedArrivalSequence = arrivalSequence;
             Stage = M07ExtractionStage.RouteExecution;
         }
 
@@ -59,7 +70,8 @@ namespace Rpg.Soundwell
                 !m06.HasValue)
                 return false;
 
-            session = new M07ExtractionNightSession(m06.Value);
+            session = new M07ExtractionNightSession(
+                m06.Value, getInt(M05LandingFacts.ArrivalSequenceKey));
             return true;
         }
 
@@ -165,6 +177,7 @@ namespace Rpg.Soundwell
                 taoJiRescued);
 
             if (getInt == null || setInt == null ||
+                !HasSameSavedVoyage(getInt) ||
                 !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? existing))
                 return false;
 
@@ -191,6 +204,27 @@ namespace Rpg.Soundwell
             CompletedRecord = record;
             Stage = M07ExtractionStage.Completed;
             return true;
+        }
+
+        private bool HasSameSavedVoyage(Func<string, int> getInt)
+        {
+            // Directly constructed authored previews retain the existing API.
+            // All live sessions loaded from Makinom carry the verified ID.
+            if (!openedArrivalSequence.HasValue)
+                return true;
+
+            if (getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                !M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
+                !landing.HasValue ||
+                !M06RescuePlanFacts.TryRead(getInt, out M06ReunionRecord? savedM06) ||
+                !savedM06.HasValue)
+                return false;
+
+            return savedM06.Value.Plan == M06Record.Plan &&
+                savedM06.Value.ReportedUsableCapacity == M06Record.ReportedUsableCapacity &&
+                savedM06.Value.LetterDelivery == M06Record.LetterDelivery &&
+                savedM06.Value.RetaliationHistoryHeard == M06Record.RetaliationHistoryHeard &&
+                savedM06.Value.ShenResponse == M06Record.ShenResponse;
         }
 
         private static bool MatchesRecord(
