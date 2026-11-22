@@ -29,6 +29,7 @@ namespace Rpg.Soundwell
         public Image StageIcon => stageIcon;
         public Button AdvanceButton => advance;
         public Button GetChoiceButton(int index) => choices[index];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M04XiaodouFarewellView(Transform parent, bool promptedOnStage,
             Action<M04XiaodouFarewell> onFinished)
@@ -74,18 +75,20 @@ namespace Rpg.Soundwell
         {
             if (disposed) return;
             // Scene unload may destroy the canvas before its owner disposes us.
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -115,6 +118,17 @@ namespace Rpg.Soundwell
                     advance.gameObject.activeInHierarchy ? advance : choices[0]);
         }
 
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || heading == null ||
+                dialogue == null || advance == null || advanceLabel == null)
+                return true;
+            for (int i = 0; i < choices.Length; i++)
+                if (choices[i] == null || choiceLabels[i] == null)
+                    return true;
+            return false;
+        }
+
         private Sprite ResolveStageSprite()
         {
             if (delivered || encounter.Stage == M04FarewellStage.Complete)
@@ -137,7 +151,13 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            if (disposed || delivered || encounter.Stage != M04FarewellStage.ChoosingTrueLine ||
+            if (disposed || delivered) return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (encounter.Stage != M04FarewellStage.ChoosingTrueLine ||
                 index < 0 || index >= choices.Length) return;
             encounter.AnswerChild((M04XiaodouAnswer)index);
             Refresh();
@@ -146,6 +166,11 @@ namespace Rpg.Soundwell
         private void Advance()
         {
             if (disposed || delivered) return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             if (encounter.Stage == M04FarewellStage.Greeting)
                 encounter.ReceiveCandy();
             else if (encounter.Stage == M04FarewellStage.HearingResponse)
@@ -164,7 +189,7 @@ namespace Rpg.Soundwell
                     // The encounter restored HearingResponse, retaining the
                     // actual choice rather than forcing the player to repeat it.
                     delivered = false;
-                    Refresh();
+                    if (!disposed) Refresh();
                     throw;
                 }
                 return;
