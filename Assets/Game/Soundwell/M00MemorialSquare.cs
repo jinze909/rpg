@@ -186,8 +186,15 @@ namespace Rpg.Soundwell
             playerImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 player",
                 new Vector2(walker.x, LaneY), actorSize, artManifest?.FerryGuideIdle);
 
-            instructions = Label(authoredView, "", 15, Ink,
-                new Vector2(0f, -224f), new Vector2(880f, 34f));
+            // Set aside the strip below the paving so the prompt stays readable
+            // over both the daylight scene and the final roll-call choice.
+            Image footer = Panel(authoredView, "M00 objective footer",
+                new Vector2(0f, -243f), new Vector2(920f, 40f),
+                new Color(0.43f, 0.47f, 0.45f));
+            Image footerBacking = Panel(footer.rectTransform, "M00 objective footer backing",
+                Vector2.zero, new Vector2(918f, 38f), SoundwellUiTheme.DefaultBackdropColor);
+            instructions = Label(footerBacking.rectTransform, "", 15, SoundwellUiTheme.DefaultPaperColor,
+                Vector2.zero, new Vector2(888f, 32f));
             for (int i = 0; i < choices.Length; i++)
                 choices[i] = CreateChoiceButton(i,
                     new Vector2(0f, -34f - i * 43f));
@@ -208,7 +215,7 @@ namespace Rpg.Soundwell
             image.pixelsPerUnitMultiplier = canvas.referencePixelsPerUnit / 64f;
         }
 
-        private static void Panel(Transform parent, string name,
+        private static Image Panel(Transform parent, string name,
             Vector2 position, Vector2 size, Color color)
         {
             var obj = new GameObject(name,
@@ -221,6 +228,7 @@ namespace Rpg.Soundwell
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
+            return image;
         }
 
         private static Text Label(Transform parent, string value, int fontSize,
