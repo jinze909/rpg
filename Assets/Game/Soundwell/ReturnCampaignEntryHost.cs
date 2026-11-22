@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class ReturnCampaignEntryHost : IDisposable
     {
+        private readonly Transform uiParent;
         private readonly ReturnMidgameFlowHost midgameHub;
         private readonly ReturnHarborCommandHubHost commandHub;
         private readonly Action<string, int> setInt;
@@ -35,6 +36,8 @@ namespace Rpg.Soundwell
         {
             get
             {
+                if (disposed)
+                    return ReturnCampaignEntryMode.None;
                 if (midgameHub.HasActiveHost)
                     return ReturnCampaignEntryMode.MidgameFlow;
                 switch (commandHub.ActiveMode)
@@ -64,7 +67,7 @@ namespace Rpg.Soundwell
             ReturnRegionalStoriesHubContext regionalContext = null,
             ReturnFinaleFlowContext finaleContext = null)
         {
-            if (uiParent == null) throw new ArgumentNullException(nameof(uiParent));
+            this.uiParent = uiParent ?? throw new ArgumentNullException(nameof(uiParent));
             if (getInt == null) throw new ArgumentNullException(nameof(getInt));
             this.setInt = setInt ?? throw new ArgumentNullException(nameof(setInt));
 
@@ -87,7 +90,7 @@ namespace Rpg.Soundwell
         /// </summary>
         public bool TryOpenNextMainStoryStage()
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
 
             ReturnMidgameStage midNext = midgameHub.EvaluateNextRequiredStage();
@@ -108,34 +111,35 @@ namespace Rpg.Soundwell
 
         public bool TryOpenOptionalM08DockTruth()
         {
-            if (disposed || commandHub.HasAnyActivePanel)
+            if (disposed || uiParent == null || commandHub.HasAnyActivePanel)
                 return false;
             return midgameHub.TryOpenOptionalDockTruth();
         }
 
         public bool TryOpenStoryLedger(Action onClosed = null)
         {
-            if (disposed || midgameHub.HasActiveHost)
+            if (disposed || uiParent == null || midgameHub.HasActiveHost)
                 return false;
             return commandHub.TryOpenStoryLedger(onClosed);
         }
 
         public bool TryOpenRosterCase(ReturnRosterCaseId caseId)
         {
-            if (disposed || midgameHub.HasActiveHost)
+            if (disposed || uiParent == null || midgameHub.HasActiveHost)
                 return false;
             return commandHub.TryOpenRosterCase(caseId);
         }
 
         public bool TryOpenRegionalStory(ReturnRegionalStoryId storyId)
         {
-            if (disposed || midgameHub.HasActiveHost)
+            if (disposed || uiParent == null || midgameHub.HasActiveHost)
                 return false;
             return commandHub.TryOpenRegionalStory(storyId);
         }
 
         public void CloseActivePanel()
         {
+            if (disposed) return;
             midgameHub.CloseActiveHost();
             commandHub.CloseActivePanel();
         }
