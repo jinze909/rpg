@@ -65,17 +65,22 @@ namespace Rpg.Soundwell
             bool changed = false;
             if (s00Tracker != null)
             {
-                if (delta.NewGuardAllyIndex >= 0)
+                if (!s00Tracker.ReadyForThirdBellCollapse)
                 {
-                    bool broke = s00Tracker.ResolveHeroCounter(CombatLockKind.ShieldParry);
-                    changed = true;
-                    CounterObserved?.Invoke(CombatLockKind.ShieldParry, broke);
-                }
-                else if (delta.TotalEnemyHpLoss > 0)
-                {
-                    bool broke = s00Tracker.ResolveHeroCounter(CombatLockKind.BladeRepel);
-                    changed = true;
-                    CounterObserved?.Invoke(CombatLockKind.BladeRepel, broke);
+                    if (delta.NewGuardAllyIndex >= 0)
+                    {
+                        bool broke = s00Tracker.ResolveHeroCounter(CombatLockKind.ShieldParry);
+                        changed = true;
+                        RefreshHud();
+                        CounterObserved?.Invoke(CombatLockKind.ShieldParry, broke);
+                    }
+                    else if (delta.TotalEnemyHpLoss > 0)
+                    {
+                        bool broke = s00Tracker.ResolveHeroCounter(CombatLockKind.BladeRepel);
+                        changed = true;
+                        RefreshHud();
+                        CounterObserved?.Invoke(CombatLockKind.BladeRepel, broke);
+                    }
                 }
             }
             else if (soundwellTracker != null)
@@ -90,16 +95,20 @@ namespace Rpg.Soundwell
 
                 // Once the beast recovers and lands an authoritative ORK strike,
                 // start a fresh acoustic lock cycle.
+                bool cycleReset = false;
                 if (delta.TotalAllyHpLoss > 0 && soundwellTracker.IsBeastBroken)
                 {
                     soundwellTracker.ResetCycle();
                     changed = true;
-                    AcousticCycleReset?.Invoke();
+                    cycleReset = true;
                 }
+
+                if (changed)
+                    RefreshHud();
+                if (cycleReset)
+                    AcousticCycleReset?.Invoke();
             }
 
-            if (changed)
-                hudView?.Refresh();
             return changed;
         }
 
@@ -109,16 +118,24 @@ namespace Rpg.Soundwell
         /// </summary>
         public bool ObserveSoundwellAcousticAction(CombatLockKind action, int momentumCost = 0)
         {
-            if (soundwellTracker == null)
+            if (soundwellTracker == null ||
+                !Enum.IsDefined(typeof(CombatLockKind), action) ||
+                momentumCost < 0)
                 return false;
 
             bool broke = soundwellTracker.ApplyAcousticCounter(action, momentumCost);
             if (broke)
             {
-                hudView?.Refresh();
+                RefreshHud();
                 CounterObserved?.Invoke(action, true);
             }
             return broke;
+        }
+
+        private void RefreshHud()
+        {
+            if (hudView != null && !hudView.IsDisposed)
+                hudView.Refresh();
         }
 
         private static OrkPartyBridge.BattleUnitSnapshot[] CloneSnapshots(
