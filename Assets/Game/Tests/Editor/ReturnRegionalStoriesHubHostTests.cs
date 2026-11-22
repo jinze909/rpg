@@ -19,6 +19,15 @@ namespace Rpg.Tests.Editor
         {
             return new ReturnRegionalStoriesHubContext
             {
+                AtJingwanTheater = () => true,
+                LiuLingPresent = () => true,
+                OriginalScriptRead = () => true,
+                RevisedScriptRead = () => true,
+                RehearsalObserved = () => true,
+                DisplacedResidentsHeard = () => true,
+                AlternateStageAndFundingPrepared = () => false,
+                PostshowResidentsForumArranged = () => false,
+                PublicBoycottActuallyDeclared = () => false,
                 AtLutingDock = () => true,
                 AtZhonglingBathhouse = () => true,
                 AtJingwanCourtyard = () => true,
@@ -78,6 +87,7 @@ namespace Rpg.Tests.Editor
                 {
                     Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST02RiverLanterns),
                         Is.True, "Unsettled story availability is not proof of being at its scene.");
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST01JingwanTheater), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST03Bathhouse), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
@@ -179,6 +189,59 @@ namespace Rpg.Tests.Editor
 
                     // Settled ST-02 cannot be reopened.
                     Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST02RiverLanterns), Is.False);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+
+        [Test]
+        public void JingwanTheaterDispatchRequiresLiveEvidenceAndPreservesBoycottNoTicketBoundary()
+        {
+            var root = new GameObject("RegionalHub ST01 Jingwan theater");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var context = ObservedTestLocations();
+            context.PublicBoycottActuallyDeclared = () => true;
+
+            try
+            {
+                using (var hub = new ReturnRegionalStoriesHubHost(
+                    root.transform, context, read, write))
+                {
+                    Assert.That(ReturnRegionalStoriesHubHost.IsPermanentRegionalStory(
+                        ReturnRegionalStoryId.ST01JingwanTheater), Is.True);
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST01JingwanTheater), Is.True);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST01JingwanTheater), Is.True);
+                    Assert.That(hub.ActiveStory, Is.EqualTo(ReturnRegionalStoryId.ST01JingwanTheater));
+                    Assert.That(hub.ActiveST01Host, Is.Not.Null);
+
+                    // The player can only declare a boycott after the real public action.
+                    Assert.That(hub.ActiveST01Host.ActiveView.BoycottButton.interactable, Is.True);
+                    Assert.That(hub.ActiveST01Host.ActiveView.RewriteButton.interactable, Is.False);
+                    Assert.That(hub.ActiveST01Host.ActiveView.ContractButton.interactable, Is.False);
+                    hub.ActiveST01Host.ActiveView.BoycottButton.onClick.Invoke();
+
+                    Assert.That(hub.ActiveST01Host.ActiveView, Is.Null);
+                    Assert.That(ST01RegionalStoryFacts.TryRead(
+                        read, out ST01RegionalOutcome outcome), Is.True);
+                    Assert.That(outcome.Departure, Is.Null,
+                        "The Jingwan meeting is valid even when the optional White Reed meeting never happened.");
+                    Assert.That(outcome.Theater,
+                        Is.EqualTo(ST01TheaterChoice.PublicBoycott));
+                    Assert.That(hub.IsStorySettled(ReturnRegionalStoryId.ST01JingwanTheater), Is.True);
+                    Assert.That(hub.CountSettledStories(), Is.EqualTo(1));
+                    Assert.That(ST01RegionalStoryFacts.TryMarkTicketSent(read, write), Is.False,
+                        "A boycott cannot manufacture the M15 reconciliation ticket.");
+
+                    // A settled theater outcome permits a clean transition to another regional story.
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.True);
+                    Assert.That(hub.ActiveStory, Is.EqualTo(ReturnRegionalStoryId.ST02RiverLanterns));
+                    Assert.That(hub.ActiveST01Host, Is.Null);
                 }
             }
             finally

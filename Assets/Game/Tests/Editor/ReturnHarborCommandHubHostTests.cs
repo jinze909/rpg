@@ -82,6 +82,15 @@ namespace Rpg.Tests.Editor
                     regionalContext: new ReturnRegionalStoriesHubContext
                     {
                         // This mutual-exclusion fixture explicitly visits Luting dock.
+                        AtJingwanTheater = () => true,
+                        LiuLingPresent = () => true,
+                        OriginalScriptRead = () => true,
+                        RevisedScriptRead = () => true,
+                        RehearsalObserved = () => true,
+                        DisplacedResidentsHeard = () => true,
+                        AlternateStageAndFundingPrepared = () => false,
+                        PostshowResidentsForumArranged = () => false,
+                        PublicBoycottActuallyDeclared = () => true,
                         AtLutingDock = () => true
                     },
                     finaleContext: new ReturnFinaleFlowContext
@@ -116,7 +125,13 @@ namespace Rpg.Tests.Editor
                     Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.RegionalStory));
                     Assert.That(hub.TryOpenNextFinaleStage(), Is.False);
 
-                    // Close ST-02 -> open M10 Finale stage -> blocks Ledger.
+                    // Close ST-02 -> open ST-01 -> still blocks the Finale panel.
+                    hub.CloseActivePanel();
+                    Assert.That(hub.TryOpenRegionalStory(ReturnRegionalStoryId.ST01JingwanTheater), Is.True);
+                    Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.RegionalStory));
+                    Assert.That(hub.TryOpenNextFinaleStage(), Is.False);
+
+                    // Close ST-01 -> open M10 Finale stage -> blocks Ledger.
                     hub.CloseActivePanel();
                     Assert.That(hub.TryOpenNextFinaleStage(), Is.True);
                     Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.FinaleFlow));
