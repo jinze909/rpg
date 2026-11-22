@@ -143,9 +143,11 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.ArrivalSession, Is.Not.Null);
                 Assert.That(host.ArrivalSession.SeranView, Is.Not.Null);
 
-                Vector3 scaleOnOpen = host.ArrivalSession.SeranView.Panel.localScale;
+                Transform authored = host.ArrivalSession.SeranView.TakeButton.transform.parent;
+                Assert.That(authored, Is.Not.Null);
+                Vector3 scaleOnOpen = authored.localScale;
                 host.ArrivalSession.SeranView.LayoutForViewportAspect(9f / 16f);
-                Assert.That(scaleOnOpen, Is.EqualTo(host.ArrivalSession.SeranView.Panel.localScale));
+                Assert.That(scaleOnOpen, Is.EqualTo(authored.localScale));
             }
             finally
             {
