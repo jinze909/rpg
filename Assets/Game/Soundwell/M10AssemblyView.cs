@@ -44,6 +44,7 @@ namespace Rpg.Soundwell
         public Button RecordPartialGapButton => choiceButtons[1];
         public Button HearBellTowerReportButton => choiceButtons[0];
         public Button ConfirmAssemblyButton => choiceButtons[0];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M10AssemblyView(
             Transform parent,
