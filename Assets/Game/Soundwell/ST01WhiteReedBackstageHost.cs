@@ -8,7 +8,7 @@ namespace Rpg.Soundwell
     /// presence and call session methods only on real player interactions.
     /// Revalidates physical presence at save time, not just at opening.
     /// </summary>
-    public sealed class ST01WhiteReedBackstageHost
+    public sealed class ST01WhiteReedBackstageHost : IDisposable
     {
         private readonly Func<bool> atWhiteReedBackstage;
         private readonly Func<bool> liuLingPresent;
@@ -16,6 +16,7 @@ namespace Rpg.Soundwell
         private readonly Func<bool> aShaoPerforming;
         private readonly Func<string, int> read;
         private readonly Action<string, int> write;
+        private bool disposed;
 
         public ST01WhiteReedBackstageHost(Func<bool> atWhiteReedBackstage,
             Func<bool> liuLingPresent, Func<bool> liuManPresent,
@@ -35,6 +36,8 @@ namespace Rpg.Soundwell
         }
 
         public ST01WhiteReedBackstageSession Session { get; private set; }
+        public bool IsDisposed => disposed;
+        public bool IsOpen => !disposed && Session != null;
 
         private bool Present()
         {
@@ -44,7 +47,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (Session != null || !Present() ||
+            if (disposed || Session != null || !Present() ||
                 !ST01WhiteReedBackstageSession.TryCreate(read, out var session))
                 return false;
             Session = session;
@@ -53,8 +56,21 @@ namespace Rpg.Soundwell
 
         public bool TrySaveAfterPerformance()
         {
-            return Session != null && Present() &&
+            return !disposed && Session != null && Present() &&
                 Session.TryCommit(read, write);
+        }
+
+        public void Close()
+        {
+            Session = null;
+        }
+
+        public void Dispose()
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            Session = null;
         }
 
         public bool HasRecordedDeparture =>
