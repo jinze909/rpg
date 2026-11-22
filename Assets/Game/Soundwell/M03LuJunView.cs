@@ -33,12 +33,13 @@ namespace Rpg.Soundwell
         public Image StageIcon => stageIcon;
         public Button AdvanceButton => advance;
         public int RollCallBeat => rollCallBeat;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         private Button PreferredFocusTarget
         {
             get
             {
-                if (disposed || delivered)
+                if (disposed || delivered || CanvasDestroyed())
                     return null;
                 if (advance.gameObject.activeInHierarchy)
                     return advance;
@@ -102,18 +103,20 @@ namespace Rpg.Soundwell
                 return;
             // The scene owner can destroy the canvas before calling Dispose.
             // Detach the locale listener instead of laying out dead Unity UI.
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -177,7 +180,14 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            if (disposed || delivered || index < 0 || index >= choices.Length)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (index < 0 || index >= choices.Length)
                 return;
             switch (encounter.Stage)
             {
@@ -212,8 +222,11 @@ namespace Rpg.Soundwell
                     {
                         // The encounter has restored ChoosingVoyage and
                         // cleared its provisional choice for a safe retry.
-                        delivered = false;
-                        Refresh();
+                        if (!disposed)
+                        {
+                            delivered = false;
+                            Refresh();
+                        }
                         throw;
                     }
                     return;
@@ -226,7 +239,14 @@ namespace Rpg.Soundwell
 
         private void Advance()
         {
-            if (disposed || delivered || encounter.Stage != M03LuJunStage.VisitingVeterans)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (encounter.Stage != M03LuJunStage.VisitingVeterans)
                 return;
             // The third unanswered name must actually be heard before the
             // opening questions become available.
@@ -243,6 +263,8 @@ namespace Rpg.Soundwell
         // into an unintended ship booking rather than a deliberate choice.
         private void FocusFirstActionAfterStageChange()
         {
+            if (disposed || CanvasDestroyed())
+                return;
             EventSystem system = EventSystem.current;
             if (system == null || system.alreadySelecting)
                 return;
@@ -267,6 +289,19 @@ namespace Rpg.Soundwell
             if (advance != null)
                 advance.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || heading == null ||
+                dialogue == null || advance == null || advanceLabel == null)
+                return true;
+            for (int i = 0; i < choices.Length; i++)
+            {
+                if (choices[i] == null || choiceLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
     }
 }
