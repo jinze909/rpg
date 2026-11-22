@@ -79,5 +79,83 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void NonFiniteMovementInputAndFrameDeltaCannotPoisonPlayerPosition()
+        {
+            var root = new GameObject("M06 invalid movement input guard");
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = BuildHost(root);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(30, 12)), Is.True);
+                Vector2 start = host.PlayerPosition;
+                var invalidInputs = new[]
+                {
+                    new Vector2(float.NaN, 0f),
+                    new Vector2(0f, float.PositiveInfinity),
+                    new Vector2(float.NegativeInfinity, 1f),
+                    new Vector2(float.MaxValue, float.MaxValue)
+                };
+                foreach (Vector2 input in invalidInputs)
+                    Assert.That(host.StepMovement(input, 0.2f), Is.False);
+
+                var invalidDeltas = new[]
+                {
+                    float.NaN,
+                    float.PositiveInfinity,
+                    float.NegativeInfinity,
+                    float.MaxValue
+                };
+                foreach (float delta in invalidDeltas)
+                    Assert.That(host.StepMovement(Vector2.right, delta), Is.False);
+
+                Assert.That(host.PlayerPosition, Is.EqualTo(start),
+                    "Invalid input or frame time must leave the actual player and minimap anchor unchanged.");
+                Assert.That(float.IsNaN(host.PlayerPosition.x) || float.IsInfinity(host.PlayerPosition.x), Is.False);
+                Assert.That(float.IsNaN(host.PlayerPosition.y) || float.IsInfinity(host.PlayerPosition.y), Is.False);
+
+                Assert.That(host.StepMovement(Vector2.right, 0.2f), Is.True,
+                    "A rejected frame must not poison the next valid movement update.");
+                Assert.That(host.PlayerPosition.x, Is.GreaterThan(start.x));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NonFiniteCameraFrameOrPositionReturnsTheLastKnownCameraValue()
+        {
+            var root = new GameObject("M06 invalid camera frame guard");
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = BuildHost(root);
+                Vector3 lastGood = new Vector3(12f, 18f, -10f);
+                foreach (float delta in new[]
+                {
+                    float.NaN, float.PositiveInfinity, float.NegativeInfinity
+                })
+                    Assert.That(host.StepCamera(lastGood, delta), Is.EqualTo(lastGood));
+
+                Vector3 invalidCamera = new Vector3(float.NaN, 18f, -10f);
+                Vector3 unchanged = host.StepCamera(invalidCamera, 0.2f);
+                Assert.That(float.IsNaN(unchanged.x), Is.True);
+                Assert.That(unchanged.y, Is.EqualTo(18f));
+                Assert.That(unchanged.z, Is.EqualTo(-10f));
+                Vector3 valid = host.StepCamera(lastGood, 0.2f);
+                Assert.That(float.IsNaN(valid.x) || float.IsInfinity(valid.x), Is.False);
+                Assert.That(float.IsNaN(valid.y) || float.IsInfinity(valid.y), Is.False);
+                Assert.That(float.IsNaN(valid.z) || float.IsInfinity(valid.z), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
