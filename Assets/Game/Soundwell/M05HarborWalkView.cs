@@ -29,7 +29,7 @@ namespace Rpg.Soundwell
         private readonly Text advanceLabel;
         private readonly Button advance;
         private Action onFinished;
-        private readonly Action<M05HarborBeat> onBeatObserved;
+        private Action<M05HarborBeat> onBeatObserved;
         private M05HarborBeat beat;
         private readonly bool singleBeat;
         private bool delivering;
@@ -40,6 +40,7 @@ namespace Rpg.Soundwell
         public Button AdvanceButton => advance;
         public RectTransform Panel => panel;
         public Image SpeakerPortrait => speakerPortrait;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         // The original sequential staging remains available to existing M05 hosts.
         public M05HarborWalkView(Transform parent, Action onFinished)
@@ -119,15 +120,20 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || panel == null) { Dispose(); return; }
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || panel == null || heading == null ||
-                dialogue == null || advance == null || advanceLabel == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -150,6 +156,12 @@ namespace Rpg.Soundwell
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, advance);
         }
 
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || panel == null || heading == null ||
+                dialogue == null || advance == null || advanceLabel == null;
+        }
+
         private Sprite ResolveSpeakerSprite(M05HarborBeat currentBeat)
         {
             if (artManifest == null) return null;
@@ -169,9 +181,13 @@ namespace Rpg.Soundwell
         private void Advance()
         {
             // Button.onClick.Invoke bypasses interactable: guard reentrancy.
-            if (disposed || delivering || canvasObject == null ||
-                beat == M05HarborBeat.Finished)
+            if (disposed || delivering || beat == M05HarborBeat.Finished)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             // A failed save must leave this same witnessed beat actionable;
             // do not advance to the next conversation until it is committed.
             delivering = true;
@@ -204,6 +220,7 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             onFinished = null;
+            onBeatObserved = null;
             SoundwellUiLocalization.Changed -= Refresh;
             if (advance != null) advance.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
