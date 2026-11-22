@@ -30,6 +30,10 @@ namespace Rpg.Soundwell
         public bool IsCompleted =>
             M15FinalRollCallFacts.TryRead(getInt, out M15FinalRollCallRecord? saved) &&
             saved.HasValue;
+        public bool ShowZhonglingStoneOnMonument =>
+            ST04EchoValleyFacts.TryRead(getInt, out ST04EchoValleyOutcome? st04) &&
+            st04.HasValue &&
+            st04.Value.ShowZhonglingStoneOnM15Monument;
 
         public M15FinalRollCallHost(
             Transform parent,
@@ -76,7 +80,7 @@ namespace Rpg.Soundwell
                 xiaoqiCustomName?.Invoke());
             openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             activeView = new M15FinalRollCallView(
-                parent, session, HandleRollCallSubmitted);
+                parent, session, HandleRollCallSubmitted, ShowZhonglingStoneOnMonument);
             return true;
         }
 
