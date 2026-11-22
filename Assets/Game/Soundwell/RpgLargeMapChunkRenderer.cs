@@ -28,7 +28,7 @@ namespace Rpg.Soundwell
         public int ChunkCount => chunkRenderers.Count;
         public int LightHaloCount => lightHalos.Count;
         public bool UsedRealArtSlices { get; }
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || rootObject == null;
 
         public static RpgLargeMapChunkRenderer BuildForSoundwell(Transform parent,
             SoundwellLargeMapLayout layout, Sprite[] tileSlices = null)
@@ -103,23 +103,30 @@ namespace Rpg.Soundwell
         {
             rootObject = new GameObject(rootName);
             rootObject.transform.SetParent(parent, false);
-
-            var cachedSlicePixels = ExtractReadableSlices(tileSlices, out int readableCount);
-            UsedRealArtSlices = readableCount > 0;
-
-            for (int cy = 0; cy < mapHeight; cy += ChunkSizeTiles)
+            try
             {
-                int chunkTilesH = Mathf.Min(ChunkSizeTiles, mapHeight - cy);
-                for (int cx = 0; cx < mapWidth; cx += ChunkSizeTiles)
-                {
-                    int chunkTilesW = Mathf.Min(ChunkSizeTiles, mapWidth - cx);
-                    BuildChunk(cx, cy, chunkTilesW, chunkTilesH,
-                        tileIndexAt, fallbackPalette, cachedSlicePixels);
-                }
-            }
+                var cachedSlicePixels = ExtractReadableSlices(tileSlices, out int readableCount);
+                UsedRealArtSlices = readableCount > 0;
 
-            if (lights != null && lights.Count > 0)
-                BuildLightHalos(lights);
+                for (int cy = 0; cy < mapHeight; cy += ChunkSizeTiles)
+                {
+                    int chunkTilesH = Mathf.Min(ChunkSizeTiles, mapHeight - cy);
+                    for (int cx = 0; cx < mapWidth; cx += ChunkSizeTiles)
+                    {
+                        int chunkTilesW = Mathf.Min(ChunkSizeTiles, mapWidth - cx);
+                        BuildChunk(cx, cy, chunkTilesW, chunkTilesH,
+                            tileIndexAt, fallbackPalette, cachedSlicePixels);
+                    }
+                }
+
+                if (lights != null && lights.Count > 0)
+                    BuildLightHalos(lights);
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
         }
 
         private void BuildChunk(int originX, int originY, int tilesW, int tilesH,
@@ -200,7 +207,9 @@ namespace Rpg.Soundwell
                 obj.transform.SetParent(rootObject.transform, false);
                 obj.transform.localPosition = new Vector3(
                     anchor.Tile.x + 0.5f, anchor.Tile.y + 0.5f, 0f);
-                float scale = Mathf.Max(1f, anchor.OuterRadiusTiles);
+                float scale = (!float.IsNaN(anchor.OuterRadiusTiles) && !float.IsInfinity(anchor.OuterRadiusTiles))
+                    ? Mathf.Max(1f, anchor.OuterRadiusTiles)
+                    : 1f;
                 obj.transform.localScale = new Vector3(scale, scale, 1f);
                 var sr = obj.AddComponent<SpriteRenderer>();
                 sr.sprite = haloSprite;
@@ -223,12 +232,14 @@ namespace Rpg.Soundwell
                 if (s == null || s.texture == null || !s.texture.isReadable)
                     continue;
                 Rect r = s.textureRect;
+                int rx = Mathf.RoundToInt(r.x);
+                int ry = Mathf.RoundToInt(r.y);
                 int w = Mathf.RoundToInt(r.width);
                 int h = Mathf.RoundToInt(r.height);
-                if (w != TilePixels || h != TilePixels)
+                if (w != TilePixels || h != TilePixels ||
+                    rx < 0 || ry < 0 || rx + w > s.texture.width || ry + h > s.texture.height)
                     continue;
-                Color[] raw = s.texture.GetPixels(
-                    Mathf.RoundToInt(r.x), Mathf.RoundToInt(r.y), w, h);
+                Color[] raw = s.texture.GetPixels(rx, ry, w, h);
                 var buf = new Color32[raw.Length];
                 for (int p = 0; p < raw.Length; p++)
                     buf[p] = raw[p];
