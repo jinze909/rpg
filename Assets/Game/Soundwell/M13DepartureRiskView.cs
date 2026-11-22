@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         public Button RouteAButton => routeAButton;
         public Button RouteBButton => routeBButton;
         public Button RouteCButton => routeCButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M13DepartureRiskView(
             Transform parent,
