@@ -26,7 +26,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public RC05ThirdSquadSession Session => session;
-        public RC05ThirdSquadView ActiveView => activeView;
+        public RC05ThirdSquadView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsResolved =>
             RC05ThirdSquadFacts.TryRead(getInt, out RC05ThirdSquadRecord? saved) &&
@@ -62,7 +63,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atAbandonedMill() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null || !atAbandonedMill() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -96,7 +103,8 @@ namespace Rpg.Soundwell
 
         private void HandleResolutionSubmitted(RC05Resolution resolution)
         {
-            if (disposed || session == null || !atAbandonedMill() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atAbandonedMill() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 !boatmanCountMatched() ||
@@ -112,7 +120,7 @@ namespace Rpg.Soundwell
             if (!session.TrySettleResolution(resolution, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
             openedArrivalSequence = null;
         }

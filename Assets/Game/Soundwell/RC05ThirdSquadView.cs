@@ -7,7 +7,7 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Bottom-anchored safe-region UGUI panel for RC-05 ("山上的第三班").
     /// Steps through mountain-pass roll-call tracking, salt-grain boat delivery
-    /// trial, abandoned-mill meeting (M00 stele callback & real Zheng Yuan
+    /// trial, abandoned-mill meeting (M00 stele callback &amp; real Zheng Yuan
     /// roster+testimony check), and three-party decision with ZH/EN support.
     /// </summary>
     public sealed class RC05ThirdSquadView : IDisposable
@@ -40,6 +40,7 @@ namespace Rpg.Soundwell
         public Button CivilianPardonButton => choiceButtons[0];
         public Button EnlistLuJunButton => choiceButtons[1];
         public Button ContinueSmugglingButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC05ThirdSquadView(
             Transform parent,
