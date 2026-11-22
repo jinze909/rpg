@@ -1817,6 +1817,26 @@ namespace Rpg.Tests.Editor
             Assert.That(leaderViewField, Is.Not.Null);
             object leaderView = leaderViewField.GetValue(trial);
             Assert.That(leaderView, Is.Not.Null);
+            // The live Soundwell threat uses the authored 16x24 creep/alert/recoil
+            // frames through the same renderer binder exercised by the map actors.
+            var beastBinderField = leaderView.GetType().GetField("beastVisualBinder",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(beastBinderField, Is.Not.Null);
+            var beastBinder = beastBinderField.GetValue(leaderView) as RpgMapActorVisualBinder;
+            Assert.That(beastBinder, Is.Not.Null);
+            Assert.That(beastBinder.SpriteRenderer, Is.Not.Null);
+            var beastArt = RpgPixelArtManifest.LoadDefault();
+            beastBinder.Sync(Vector2.zero, Vector2Int.right,
+                RpgActorVisualState.AlertOrBrace);
+            Assert.That(beastBinder.SpriteRenderer.sprite, Is.SameAs(beastArt.SoundBorrowingBeastAlert));
+            beastBinder.Sync(Vector2.zero, Vector2Int.right,
+                RpgActorVisualState.Moving, 0.23f);
+            Assert.That(beastBinder.SpriteRenderer.sprite, Is.SameAs(beastArt.SoundBorrowingBeastCreep2));
+            beastBinder.Sync(Vector2.zero, Vector2Int.right, RpgActorVisualState.Hit);
+            Assert.That(beastBinder.SpriteRenderer.sprite, Is.SameAs(beastArt.SoundwellBeastRecoil));
+            Assert.That(beastBinder.SpriteRenderer.sortingOrder, Is.EqualTo(3),
+                "The animated beast must preserve the existing Soundwell world layer.");
             // SoundwellView is intentionally internal to the runtime asmdef:
             // exercise its live presentation through reflection from tests.
             var showLeaderStep = leaderView.GetType().GetMethod("AnimatePlayerBattleStep",

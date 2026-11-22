@@ -40,8 +40,20 @@ namespace Rpg.Tests.Editor
             Assert.That(manifest.FerryGuideWalk2, Is.Not.Null);
             Assert.That(manifest.FerryGuideBrace, Is.Not.Null);
             Assert.That(manifest.RescueRiggerIdle, Is.Not.Null);
-            Assert.That(manifest.SoundBorrowingBeastIdle, Is.Not.Null);
-            Assert.That(manifest.SoundBorrowingBeastAlert, Is.Not.Null);
+            foreach (Sprite beastFrame in new[]
+            {
+                manifest.SoundBorrowingBeastIdle,
+                manifest.SoundBorrowingBeastCreep1,
+                manifest.SoundBorrowingBeastCreep2,
+                manifest.SoundBorrowingBeastAlert
+            })
+            {
+                Assert.That(beastFrame, Is.Not.Null);
+                Assert.That(beastFrame.pixelsPerUnit, Is.EqualTo(16f));
+                Assert.That(beastFrame.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(Mathf.RoundToInt(beastFrame.textureRect.width), Is.EqualTo(16));
+                Assert.That(Mathf.RoundToInt(beastFrame.textureRect.height), Is.EqualTo(24));
+            }
             Assert.That(manifest.BridgeGuardIdle, Is.Not.Null);
             Assert.That(manifest.BridgeGuardThrust, Is.Not.Null);
             Assert.That(manifest.ShenLiBridgeIdle, Is.Not.Null);
