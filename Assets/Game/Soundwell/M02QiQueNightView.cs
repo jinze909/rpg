@@ -28,6 +28,7 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public Image StageIcon => stageIcon;
         public Button ProgressButton => progressButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M02QiQueNightView(Transform parent, bool debtAlreadyKnown, Action onFinished)
         {
@@ -72,11 +73,13 @@ namespace Rpg.Soundwell
                 return;
             // A scene unload can destroy the warehouse canvas before its
             // owner disposes the view. Detach locale callbacks on that path.
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -84,7 +87,7 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -144,6 +147,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             switch (night.Stage)
             {
                 case M02QiQueNightStage.AtWarehouse:
@@ -172,8 +180,11 @@ namespace Rpg.Soundwell
                     }
                     catch
                     {
-                        delivered = false;
-                        Refresh();
+                        if (!disposed)
+                        {
+                            delivered = false;
+                            Refresh();
+                        }
                         throw;
                     }
                     return;
@@ -193,6 +204,12 @@ namespace Rpg.Soundwell
             if (progressButton != null)
                 progressButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || authoredView == null || heading == null ||
+                dialogue == null || progressButton == null || progressLabel == null;
         }
     }
 }
