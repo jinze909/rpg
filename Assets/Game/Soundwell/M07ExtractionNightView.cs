@@ -34,6 +34,16 @@ namespace Rpg.Soundwell
 
         public M07ExtractionNightSession Session => session;
         public RectTransform Panel => panel;
+        public bool IsDisposed
+        {
+            get
+            {
+                if (!disposed && CanvasDestroyed())
+                    Dispose();
+                return disposed;
+            }
+        }
+
         public Text Heading => heading;
         public Text Body => body;
         public Button AdvanceButton => advanceButton;
