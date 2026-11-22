@@ -68,6 +68,12 @@ namespace Rpg.Soundwell
         private Transform pulsedButton;
         private Vector3 pulsedButtonOriginalScale;
 
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
+        private static bool IsFinite(Vector2 value) =>
+            IsFinite(value.x) && IsFinite(value.y);
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureDirector()
         {
@@ -139,6 +145,9 @@ namespace Rpg.Soundwell
         public static (Vector2 offset, float flashAlpha) EvaluateCardRecoil(
             float normalizedTime, Vector2 impulse)
         {
+            if (!IsFinite(normalizedTime) || !IsFinite(impulse))
+                return (Vector2.zero, 0f);
+
             float t = Mathf.Clamp01(normalizedTime);
             if (t >= 1f || impulse.sqrMagnitude < 0.0001f)
                 return (Vector2.zero, 0f);
@@ -264,7 +273,7 @@ namespace Rpg.Soundwell
 
         private void SpawnSlashArc(Vector2 anchoredPos, float angleDeg, Color color)
         {
-            if (fxRoot == null) return;
+            if (fxRoot == null || !IsFinite(anchoredPos) || !IsFinite(angleDeg)) return;
             var obj = new GameObject("Battle slash VFX",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             obj.transform.SetParent(fxRoot, false);
@@ -291,7 +300,7 @@ namespace Rpg.Soundwell
 
         private void SpawnGuardPulse(Vector2 anchoredPos)
         {
-            if (fxRoot == null) return;
+            if (fxRoot == null || !IsFinite(anchoredPos)) return;
             var obj = new GameObject("Battle guard pulse VFX",
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             obj.transform.SetParent(fxRoot, false);
@@ -318,6 +327,7 @@ namespace Rpg.Soundwell
 
         private void TriggerNamedCardRecoil(string cardName, Vector2 impulse, Color flashColor)
         {
+            if (!IsFinite(impulse)) return;
             GameObject cardObj = GameObject.Find(cardName);
             if (cardObj == null) return;
             var rect = cardObj.GetComponent<RectTransform>();
@@ -345,7 +355,7 @@ namespace Rpg.Soundwell
 
         private void UpdateEffects(float dt)
         {
-            if (dt <= 0f || effects.Count == 0) return;
+            if (!IsFinite(dt) || dt <= 0f || effects.Count == 0) return;
             for (int i = effects.Count - 1; i >= 0; i--)
             {
                 ClashEffect fx = effects[i];
@@ -370,7 +380,7 @@ namespace Rpg.Soundwell
 
         private void UpdateRecoils(float dt)
         {
-            if (dt <= 0f || recoils.Count == 0) return;
+            if (!IsFinite(dt) || dt <= 0f || recoils.Count == 0) return;
             var finished = new List<RectTransform>();
             foreach (var pair in recoils)
             {
