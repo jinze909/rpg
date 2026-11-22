@@ -30,6 +30,11 @@ namespace Rpg.Soundwell
         public Func<int> PendingNames { get; set; } = () => 0;
         public Func<M09RuiyaOutcome?> RuiyaOutcome { get; set; } =
             () => null;
+        /// <summary>
+        /// Scene-owned proof that the shipyard quote was actually paid. The
+        /// coordinator never infers payment from the M08 workshop deposit.
+        /// </summary>
+        public Func<bool> ShipwrightFeePaidInWorld { get; set; } = () => false;
     }
 
     /// <summary>
@@ -179,7 +184,8 @@ namespace Rpg.Soundwell
                         context.BaseBerths,
                         context.PendingNames,
                         context.RuiyaOutcome,
-                        getInt, setInt);
+                        getInt, setInt,
+                        context.ShipwrightFeePaidInWorld);
                     return Activate(next, host, host.TryOpen());
                 }
                 default:
