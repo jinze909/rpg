@@ -1057,12 +1057,12 @@ namespace Rpg.Tests.Editor
             Assert.That(contextualHint.text,
                 Is.EqualTo(SoundwellUiLocalization.Get("hint.surveyor_ask")),
                 "Before hearing the surveyor's firsthand clue, the prompt must ask for it instead of revealing the brace action.");
-            SoundwellUiLocalization.SetLanguage(Chinese);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
             yield return null;
             Assert.That(contextualHint.text,
                 Is.EqualTo(SoundwellUiLocalization.Get("hint.surveyor_ask")),
                 "The live unasked surveyor prompt must switch into Chinese.");
-            SoundwellUiLocalization.SetLanguage(English);
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             yield return null;
             Assert.That(contextualHint.text,
                 Is.EqualTo(SoundwellUiLocalization.Get("hint.surveyor_ask")));
