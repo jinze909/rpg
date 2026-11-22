@@ -102,12 +102,14 @@ namespace Rpg.Soundwell
         public Button FirstOption => buttons[0];
         public Button SecondOption => buttons[1];
         public Button ThirdOption => buttons[2];
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
             if (CanvasDestroyed()) { Dispose(); return; }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
