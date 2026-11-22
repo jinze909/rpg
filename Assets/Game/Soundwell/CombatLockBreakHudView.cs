@@ -34,23 +34,28 @@ namespace Rpg.Soundwell
 
         public CombatLockBreakHudView(Transform parent,
             S00BridgeheadCableTracker s00Tracker)
-            : this(parent)
+            : this(parent,
+                s00Tracker ?? throw new ArgumentNullException(nameof(s00Tracker)),
+                null)
         {
-            this.s00Tracker = s00Tracker ?? throw new ArgumentNullException(nameof(s00Tracker));
-            Refresh();
         }
 
         public CombatLockBreakHudView(Transform parent,
             SoundwellAcousticBreakTracker soundwellTracker)
-            : this(parent)
+            : this(parent,
+                null,
+                soundwellTracker ?? throw new ArgumentNullException(nameof(soundwellTracker)))
         {
-            this.soundwellTracker = soundwellTracker ?? throw new ArgumentNullException(nameof(soundwellTracker));
-            Refresh();
         }
 
-        private CombatLockBreakHudView(Transform parent)
+        private CombatLockBreakHudView(
+            Transform parent,
+            S00BridgeheadCableTracker s00Tracker,
+            SoundwellAcousticBreakTracker soundwellTracker)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
+            this.s00Tracker = s00Tracker;
+            this.soundwellTracker = soundwellTracker;
             latinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
             // Pure visual HUD overlay (no GraphicRaycaster) so it never blocks clicks.
@@ -94,6 +99,7 @@ namespace Rpg.Soundwell
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
                 Mathf.Max(1, Screen.height));
             SoundwellUiLocalization.Changed += Refresh;
+            Refresh();
         }
 
         public void LayoutForViewportAspect(float aspect)
