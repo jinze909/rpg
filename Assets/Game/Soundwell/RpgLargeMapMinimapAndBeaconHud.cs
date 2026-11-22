@@ -49,7 +49,7 @@ namespace Rpg.Soundwell
         public RectTransform PlayerMarkerRect => playerMarkerRect;
         public RectTransform ThreatMarkerRect => threatMarkerRect;
         public bool IsThreatMarkerVisible =>
-            !disposed && threatMarkerRect != null && threatMarkerRect.gameObject.activeSelf;
+            !IsDisposed && threatMarkerRect != null && threatMarkerRect.gameObject.activeSelf;
         public Text TitleLabel => titleLabel;
         public Texture2D MinimapTexture => minimapTexture;
         public int BeaconCount => beacons.Count;
@@ -63,11 +63,16 @@ namespace Rpg.Soundwell
                 return count;
             }
         }
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || CanvasDestroyed();
+
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
 
         private static bool IsFinite(Vector2 value) =>
-            !float.IsNaN(value.x) && !float.IsInfinity(value.x) &&
-            !float.IsNaN(value.y) && !float.IsInfinity(value.y);
+            IsFinite(value.x) && IsFinite(value.y);
+
+        private static bool IsFinite(Color value) =>
+            IsFinite(value.r) && IsFinite(value.g) && IsFinite(value.b) && IsFinite(value.a);
 
         public static RpgLargeMapMinimapAndBeaconHud BuildForSoundwell(
             Transform parent, SoundwellLargeMapLayout layout)
@@ -302,13 +307,25 @@ namespace Rpg.Soundwell
 
         public void UpdatePlayerPosition(Vector2 tilePosition)
         {
-            if (disposed || CanvasDestroyed() || !IsFinite(tilePosition)) return;
+            if (disposed) return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (!IsFinite(tilePosition)) return;
             playerMarkerRect.anchoredPosition = TileToMinimapLocal(tilePosition);
         }
 
         public void UpdateThreatMarker(Vector2 tilePosition, bool visible, Color? tint = null)
         {
-            if (disposed || CanvasDestroyed() || threatMarkerRect == null) return;
+            if (disposed) return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (threatMarkerRect == null) return;
             if (!visible)
             {
                 threatMarkerRect.gameObject.SetActive(false);
@@ -317,13 +334,19 @@ namespace Rpg.Soundwell
             if (!IsFinite(tilePosition)) return;
             threatMarkerRect.gameObject.SetActive(true);
             threatMarkerRect.anchoredPosition = TileToMinimapLocal(tilePosition);
-            if (tint.HasValue && threatMarkerImage != null)
+            if (tint.HasValue && threatMarkerImage != null && IsFinite(tint.Value))
                 threatMarkerImage.color = tint.Value;
         }
 
         public bool SetBeaconCompleted(string beaconId, bool completed)
         {
-            if (disposed || string.IsNullOrEmpty(beaconId)) return false;
+            if (disposed) return false;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return false;
+            }
+            if (string.IsNullOrEmpty(beaconId)) return false;
             if (!beacons.TryGetValue(beaconId, out BeaconEntry entry))
                 return false;
 
@@ -341,6 +364,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (!IsFinite(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
