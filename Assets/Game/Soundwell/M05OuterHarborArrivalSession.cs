@@ -60,9 +60,11 @@ namespace Rpg.Soundwell
         public M05OuterHarborStage Stage => stage;
         public M05LandingReport Landing => landing;
         public M05LetterDecision? LetterDecision => letterDecision;
-        public M05SeranLettersView SeranView => seranView;
-        public M05HarborWalkView HarborWalkView => harborWalkView;
-        public bool IsDisposed => disposed;
+        public M05SeranLettersView SeranView =>
+            seranView != null && !seranView.IsDisposed ? seranView : null;
+        public M05HarborWalkView HarborWalkView =>
+            harborWalkView != null && !harborWalkView.IsDisposed ? harborWalkView : null;
+        public bool IsDisposed => disposed || parent == null;
 
         public static bool TryOpen(Transform parent,
             Action<M05OuterHarborOutcome> onCompleted,
@@ -145,9 +147,19 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             lastAspect = aspect;
-            seranView?.LayoutForViewportAspect(aspect);
-            harborWalkView?.LayoutForViewportAspect(aspect);
+            if (seranView != null)
+            {
+                if (seranView.IsDisposed) seranView = null;
+                else seranView.LayoutForViewportAspect(aspect);
+            }
+            if (harborWalkView != null)
+            {
+                if (harborWalkView.IsDisposed) harborWalkView = null;
+                else harborWalkView.LayoutForViewportAspect(aspect);
+            }
         }
 
         private void OnSeranFinished(M05LetterDecision decision)
@@ -239,7 +251,7 @@ namespace Rpg.Soundwell
 
         private void OnHarborWalkFinished()
         {
-            if (disposed || completedDelivered || !letterDecision.HasValue ||
+            if (disposed || parent == null || completedDelivered || !letterDecision.HasValue ||
                 stage != M05OuterHarborStage.HarborWalk)
                 return;
 
