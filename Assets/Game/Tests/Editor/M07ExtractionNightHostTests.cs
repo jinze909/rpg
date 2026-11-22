@@ -426,5 +426,67 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void DestroyedCanvasReleasesHostAndAllowsFreshExtraction()
+        {
+            var root = new GameObject("M07 host destroyed canvas");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.OfficialHandover);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M07ExtractionNightHost host = null;
+            try
+            {
+                host = new M07ExtractionNightHost(
+                    root.transform, () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                M07ExtractionNightView oldView = host.ActiveView;
+                Canvas canvas = oldView.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(host.ActiveView, Is.Not.SameAs(oldView));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedParentDisposesActiveViewAndFailsClosedOnReopen()
+        {
+            var root = new GameObject("M07 host destroyed parent");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.CargoCover);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M07ExtractionNightHost host = null;
+            try
+            {
+                host = new M07ExtractionNightHost(
+                    root.transform, () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                M07ExtractionNightView oldView = host.ActiveView;
+                UnityEngine.Object.DestroyImmediate(root);
+
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }
