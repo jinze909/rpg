@@ -35,6 +35,7 @@ namespace Rpg.Soundwell
         public Button SecondResponseButton => responseButtons[1];
         public Button ThirdResponseButton => responseButtons[2];
         public Button FinishButton => finishButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M08DockTruthView(
             Transform parent,
