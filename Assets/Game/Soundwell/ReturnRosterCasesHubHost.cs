@@ -63,7 +63,7 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public ReturnRosterCaseId ActiveCase => activeCase;
-        public bool HasActiveCase => activeHost != null;
+        public bool HasActiveCase => IsActiveHostOpen();
         public bool IsDisposed => disposed;
 
         public RC01ChenYanHost ActiveRC01Host => activeHost as RC01ChenYanHost;
@@ -181,6 +181,24 @@ namespace Rpg.Soundwell
             return count;
         }
 
+        private bool IsActiveHostOpen()
+        {
+            if (activeHost == null)
+                return false;
+            if (activeHost is RC01ChenYanHost rc01)
+                return !rc01.IsDisposed && rc01.ActiveView != null;
+            if (activeHost is RC02ZhengYuanHost rc02)
+                return !rc02.IsDisposed && rc02.ActiveView != null;
+            if (activeHost is RC03BaijiMineHost rc03)
+                return !rc03.IsDisposed && rc03.ActiveView != null;
+            if (activeHost is RC04DingYueReefHost rc04)
+                return !rc04.IsDisposed &&
+                    (rc04.ActiveListeningView != null || rc04.ActiveResolutionView != null);
+            if (activeHost is RC05ThirdSquadHost rc05)
+                return !rc05.IsDisposed && rc05.ActiveView != null;
+            return false;
+        }
+
         // Check callbacks before closing a settled active case. A partially
         // configured scene must fail closed without orphaning the prior UI.
         private bool HasRequiredDelegates(ReturnRosterCaseId caseId)
@@ -215,7 +233,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpenCase(ReturnRosterCaseId caseId)
         {
-            if (disposed || !IsCaseAvailable(caseId) ||
+            if (disposed || uiParent == null || !IsCaseAvailable(caseId) ||
                 !HasRequiredDelegates(caseId))
                 return false;
 
@@ -227,7 +245,7 @@ namespace Rpg.Soundwell
 
             if (activeHost != null)
             {
-                if (!IsActiveCaseSettled())
+                if (IsActiveHostOpen() && !IsActiveCaseSettled())
                     return false;
                 CloseActiveCase();
             }
