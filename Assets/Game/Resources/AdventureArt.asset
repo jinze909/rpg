@@ -17,6 +17,10 @@ MonoBehaviour:
   - {fileID: 5647344434883588499, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
   - {fileID: -5034309736085894853, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
   - {fileID: -4422625151897015916, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
+  BeastWindup: {fileID: 8967052488750272771, guid: cc82f6fcdc0d453ba78f0eae41129069, type: 3}
+  BeastLunge: {fileID: 7332190319805709278, guid: cc82f6fcdc0d453ba78f0eae41129069, type: 3}
+  BeastRecoil: {fileID: 7564629798761164416, guid: cc82f6fcdc0d453ba78f0eae41129069, type: 3}
+  BeastStagger: {fileID: 1129763295014223119, guid: cc82f6fcdc0d453ba78f0eae41129069, type: 3}
   SoundwellTiles:
   - {fileID: 2738850713735124592, guid: 1bf50391aab249bfb79fc647ee3a20a5, type: 3}
   - {fileID: -565195756877080199, guid: 1bf50391aab249bfb79fc647ee3a20a5, type: 3}
