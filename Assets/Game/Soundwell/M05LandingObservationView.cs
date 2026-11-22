@@ -66,7 +66,7 @@ namespace Rpg.Soundwell
         public Button BerthPlusButton => berthPlus;
         public Button ConfirmButton => confirmButton;
         public RectTransform AuthoredPanel => authored;
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || IsCanvasDestroyed();
 
         public M05LandingObservationView(
             Transform parent,
@@ -235,21 +235,21 @@ namespace Rpg.Soundwell
 
         private void DecreaseCrew()
         {
-            if (disposed || delivered || crewArrived <= 0) return;
+            if (!HasLiveUi() || delivered || crewArrived <= 0) return;
             crewArrived--;
             Refresh();
         }
 
         private void IncreaseCrew()
         {
-            if (disposed || delivered || crewArrived >= departure.AssignedCrew) return;
+            if (!HasLiveUi() || delivered || crewArrived >= departure.AssignedCrew) return;
             crewArrived++;
             Refresh();
         }
 
         private void ToggleTender()
         {
-            if (disposed || delivered) return;
+            if (!HasLiveUi() || delivered) return;
             tenderArrived = !tenderArrived;
             if (!tenderArrived) readyRescueBerths = 0;
             Refresh();
@@ -257,7 +257,7 @@ namespace Rpg.Soundwell
 
         private void ToggleReceiver()
         {
-            if (disposed || delivered) return;
+            if (!HasLiveUi() || delivered) return;
             receiverMet = !receiverMet;
             if (!receiverMet) readyRescueBerths = 0;
             Refresh();
@@ -265,7 +265,7 @@ namespace Rpg.Soundwell
 
         private void DecreaseBerths()
         {
-            if (disposed || delivered || !tenderArrived || !receiverMet ||
+            if (!HasLiveUi() || delivered || !tenderArrived || !receiverMet ||
                 readyRescueBerths <= 0) return;
             readyRescueBerths--;
             Refresh();
@@ -273,7 +273,7 @@ namespace Rpg.Soundwell
 
         private void IncreaseBerths()
         {
-            if (disposed || delivered || !tenderArrived || !receiverMet ||
+            if (!HasLiveUi() || delivered || !tenderArrived || !receiverMet ||
                 readyRescueBerths >= departure.AvailableBerths) return;
             readyRescueBerths++;
             Refresh();
@@ -298,19 +298,23 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool IsCanvasDestroyed()
+        {
+            return canvasObject == null || authored == null || heading == null ||
+                instructions == null || crewLabel == null || crewValue == null ||
+                tenderLabel == null || receiverLabel == null || berthLabel == null ||
+                berthValue == null || status == null || crewMinus == null ||
+                crewPlus == null || tenderButton == null || receiverButton == null ||
+                berthMinus == null || berthPlus == null || confirmButton == null ||
+                crewMinusLabel == null || crewPlusLabel == null ||
+                tenderButtonLabel == null || receiverButtonLabel == null ||
+                berthMinusLabel == null || berthPlusLabel == null || confirmLabel == null;
+        }
+
         private bool HasLiveUi()
         {
             if (disposed) return false;
-            if (canvasObject != null && authored != null && heading != null &&
-                instructions != null && crewLabel != null && crewValue != null &&
-                tenderLabel != null && receiverLabel != null && berthLabel != null &&
-                berthValue != null && status != null && crewMinus != null &&
-                crewPlus != null && tenderButton != null && receiverButton != null &&
-                berthMinus != null && berthPlus != null && confirmButton != null &&
-                crewMinusLabel != null && crewPlusLabel != null &&
-                tenderButtonLabel != null && receiverButtonLabel != null &&
-                berthMinusLabel != null && berthPlusLabel != null && confirmLabel != null)
-                return true;
+            if (!IsCanvasDestroyed()) return true;
             Dispose();
             return false;
         }
