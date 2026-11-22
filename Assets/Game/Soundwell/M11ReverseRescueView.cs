@@ -42,6 +42,7 @@ namespace Rpg.Soundwell
         public Button MutualDivisionButton => choiceButtons[0];
         public Button CallItEvenButton => choiceButtons[1];
         public Button ConfirmRescueButton => choiceButtons[0];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M11ReverseRescueView(
             Transform parent,
