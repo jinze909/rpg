@@ -358,5 +358,104 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void ExternalViewDisposalAllowsCleanReopenAndBerthSettlement()
+        {
+            var root = new GameObject("M09 host external view disposal");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            try
+            {
+                host = NewHost(root.transform, values);
+                Assert.That(host.TryOpen(), Is.True);
+                var firstView = host.ActiveView;
+                Assert.That(firstView, Is.Not.Null);
+
+                firstView.Dispose();
+                Assert.That(firstView.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+
+                Assert.That(host.TryOpen(), Is.True);
+                var reopenedView = host.ActiveView;
+                Assert.That(reopenedView, Is.Not.Null);
+                Assert.That(reopenedView, Is.Not.SameAs(firstView));
+
+                reopenedView.HanQiaoButton.onClick.Invoke();
+                reopenedView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedViewCanvasAllowsCleanReopenAndBerthSettlement()
+        {
+            var root = new GameObject("M09 host destroyed view canvas");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            try
+            {
+                host = NewHost(root.transform, values);
+                Assert.That(host.TryOpen(), Is.True);
+                var firstView = host.ActiveView;
+                Assert.That(firstView, Is.Not.Null);
+                Canvas canvas = firstView.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+                Assert.That(firstView.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+
+                Assert.That(host.TryOpen(), Is.True);
+                var reopenedView = host.ActiveView;
+                Assert.That(reopenedView, Is.Not.Null);
+                Assert.That(reopenedView, Is.Not.SameAs(firstView));
+
+                reopenedView.HanQiaoButton.onClick.Invoke();
+                reopenedView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedParentFailsClosedOnTryOpenWithoutThrowing()
+        {
+            var root = new GameObject("M09 host destroyed parent");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            try
+            {
+                host = NewHost(root.transform, values);
+                UnityEngine.Object.DestroyImmediate(root);
+                root = null;
+
+                bool opened = true;
+                Assert.DoesNotThrow(() => opened = host.TryOpen());
+                Assert.That(opened, Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.HasRecordedTable, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }
