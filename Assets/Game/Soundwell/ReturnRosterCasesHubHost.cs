@@ -89,6 +89,12 @@ namespace Rpg.Soundwell
             int num = (int)caseId;
             if (num < M08FirstWorldNoticeFacts.FirstCase || num > M08FirstWorldNoticeFacts.LastCase)
                 return false;
+            if (caseId == ReturnRosterCaseId.RC02ZhengYuan &&
+                RC02ZhengYuanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+            if (caseId == ReturnRosterCaseId.RC05ThirdSquad &&
+                RC05ThirdSquadFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
             return M08FirstWorldNoticeFacts.TryCaseAvailable(num, getInt, out bool available) &&
                 available &&
                 !IsCaseSettled(caseId);

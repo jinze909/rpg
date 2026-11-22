@@ -257,6 +257,12 @@ namespace Rpg.Soundwell
         {
             if (settled)
                 return ReturnRosterCaseState.Settled;
+            if (caseNumber == RC02ZhengYuanFacts.RosterCaseNumber &&
+                RC02ZhengYuanFacts.HasOrphanedDownstreamFacts(getInt))
+                return ReturnRosterCaseState.Locked;
+            if (caseNumber == RC05ThirdSquadFacts.RosterCaseNumber &&
+                RC05ThirdSquadFacts.HasOrphanedDownstreamFacts(getInt))
+                return ReturnRosterCaseState.Locked;
             if (M08FirstWorldNoticeFacts.TryCaseAvailable(caseNumber, getInt, out bool available) &&
                 available)
                 return ReturnRosterCaseState.Available;
