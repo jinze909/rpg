@@ -33,6 +33,7 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public Image StageIcon => stageIcon;
         public Button AdvanceButton => advanceButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         // When opening the route chart, prefer the first explorable lead.
         // Leaving is still allowed, but a repeated pad Submit must not
@@ -41,7 +42,7 @@ namespace Rpg.Soundwell
         {
             get
             {
-                if (disposed || delivered || canvasObject == null)
+                if (disposed || delivered || CanvasDestroyed())
                     return null;
                 if (briefing.Stage == M01DockStage.AwaitingOpeningReply ||
                     briefing.Stage == M01DockStage.ReviewingRoutes)
@@ -108,11 +109,13 @@ namespace Rpg.Soundwell
                 return;
             // The dock scene can unload before its host disposes the panel.
             // Retire stale locale/focus callbacks instead of scaling dead UI.
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -120,7 +123,7 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -184,6 +187,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             if (index < 0 || index >= choices.Length)
                 return;
             if (briefing.Stage == M01DockStage.AwaitingOpeningReply)
@@ -199,6 +207,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             if (briefing.Stage == M01DockStage.OfferingCake)
             {
                 briefing.ContinueAfterCake();
@@ -231,8 +244,11 @@ namespace Rpg.Soundwell
             }
             catch
             {
-                delivered = false;
-                Refresh();
+                if (!disposed)
+                {
+                    delivered = false;
+                    Refresh();
+                }
                 throw;
             }
         }
@@ -250,6 +266,19 @@ namespace Rpg.Soundwell
             if (advanceButton != null)
                 advanceButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || heading == null ||
+                dialogue == null || advanceButton == null || advanceLabel == null)
+                return true;
+            for (int i = 0; i < choices.Length; i++)
+            {
+                if (choices[i] == null || choiceLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
     }
 }
