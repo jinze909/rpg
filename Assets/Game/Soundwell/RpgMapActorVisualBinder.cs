@@ -7,7 +7,8 @@ namespace Rpg.Soundwell
     {
         Idle,
         Moving,
-        AlertOrBrace
+        AlertOrBrace,
+        Hit
     }
 
     /// <summary>
@@ -27,7 +28,9 @@ namespace Rpg.Soundwell
         private readonly Sprite walkSprite1;
         private readonly Sprite walkSprite2;
         private readonly Sprite alertOrBraceSprite;
+        private readonly Sprite hitSprite;
         private readonly int baseSortingOrder;
+        private readonly bool sortByY;
         private float walkTimer;
         private bool walkToggle;
         private bool disposed;
@@ -42,7 +45,9 @@ namespace Rpg.Soundwell
             Sprite walkSprite1 = null,
             Sprite walkSprite2 = null,
             Sprite alertOrBraceSprite = null,
-            int baseSortingOrder = 6)
+            int baseSortingOrder = 6,
+            Sprite hitSprite = null,
+            bool sortByY = true)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
 
@@ -50,7 +55,9 @@ namespace Rpg.Soundwell
             this.walkSprite1 = walkSprite1 ?? idleSprite;
             this.walkSprite2 = walkSprite2 ?? this.walkSprite1;
             this.alertOrBraceSprite = alertOrBraceSprite ?? idleSprite;
+            this.hitSprite = hitSprite ?? this.alertOrBraceSprite;
             this.baseSortingOrder = baseSortingOrder;
+            this.sortByY = sortByY;
 
             actorObject = new GameObject(string.IsNullOrEmpty(name) ? "MapActor" : name);
             actorObject.transform.SetParent(parent, false);
@@ -84,8 +91,9 @@ namespace Rpg.Soundwell
             {
                 actorObject.transform.localPosition = new Vector3(tilePosition.x, tilePosition.y, 0f);
                 // Lower Y renders in front for classic 2D top-down RPG depth sorting.
-                spriteRenderer.sortingOrder = baseSortingOrder +
-                    Mathf.Clamp(200 - Mathf.FloorToInt(tilePosition.y), 0, 200);
+                spriteRenderer.sortingOrder = sortByY
+                    ? baseSortingOrder + Mathf.Clamp(200 - Mathf.FloorToInt(tilePosition.y), 0, 200)
+                    : baseSortingOrder;
             }
 
             if (facing.x < 0)
@@ -100,6 +108,12 @@ namespace Rpg.Soundwell
                     walkTimer = 0f;
                     walkToggle = false;
                     spriteRenderer.sprite = alertOrBraceSprite;
+                    break;
+
+                case RpgActorVisualState.Hit:
+                    walkTimer = 0f;
+                    walkToggle = false;
+                    spriteRenderer.sprite = hitSprite;
                     break;
 
                 case RpgActorVisualState.Moving:

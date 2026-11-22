@@ -1314,6 +1314,27 @@ namespace Rpg.Tests.Editor
                 " battle=" + party.BattleInProgress +
                 " pipeline=" + damagePipelineSnapshot);
 
+            var recoilViewField = typeof(SoundwellTrial).GetField("view",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(recoilViewField, Is.Not.Null);
+            object recoilView = recoilViewField.GetValue(trial);
+            var recoilBinderField = recoilView.GetType().GetField("beastVisualBinder",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            Assert.That(recoilBinderField, Is.Not.Null);
+            var recoilBinder = recoilBinderField.GetValue(recoilView) as RpgMapActorVisualBinder;
+            Assert.That(recoilBinder, Is.Not.Null);
+            float recoilDeadline = Time.realtimeSinceStartup + 0.25f;
+            while (recoilBinder.CurrentState != RpgActorVisualState.Hit &&
+                   Time.realtimeSinceStartup < recoilDeadline)
+                yield return null;
+            Assert.That(recoilBinder.CurrentState, Is.EqualTo(RpgActorVisualState.Hit),
+                "Only the live ORK HP decrease may trigger the beast's recoil pose.");
+            RpgPixelArtManifest beastManifest = RpgPixelArtManifest.LoadDefault();
+            Assert.That(recoilBinder.SpriteRenderer.sprite, Is.SameAs(beastManifest.SoundwellBeastRecoil));
+            SoundwellSmokeHost.Capture(trial, "soundwell-beast-recoil");
+
             // The queued, player-selected ORK attack has already reduced
             // the beast's real HP. Its configured death check and battle end
             // must now complete naturally; no test-side HP mutation or

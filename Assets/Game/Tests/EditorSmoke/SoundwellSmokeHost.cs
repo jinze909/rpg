@@ -634,6 +634,7 @@ namespace Rpg.Soundwell
                     SoundwellTrial.EscapeLaneDangerRadius,
                 "The closed gate must suppress the warning, while the real beast still crosses the lane.");
             Vector2 pursued = trial.BeastPosition;
+            RequireBeastPose(trial, RpgActorVisualState.Moving, "01-ringing");
             var clear = Capture(trial, "01-ringing");
 
             ClickTrialAction(trial, "Wrap");
@@ -654,6 +655,7 @@ namespace Rpg.Soundwell
                 "Searching marker must follow the actual last-heard destination, not the player.");
             RequireAuthoredSprite(FindSprite(SceneSprites(trial), "Soundwell copper bell"), TrialProps,
                 "soundwell_wrapped_bell");
+            RequireBeastPose(trial, RpgActorVisualState.Moving, "02-wrapped-searching");
             var muffled = Capture(trial, "02-wrapped-searching");
             Require(!muffled.SequenceEqual(clear), "The two signal phases must render differently.");
             for (var wait = Until(() => Vector2.Distance(trial.BeastPosition, pursued) > 0.35f,
@@ -896,6 +898,7 @@ namespace Rpg.Soundwell
                 Vector2.Distance(beastContactRing.transform.position, trial.BeastPosition) < 0.02f &&
                 ShowsPrompt(trial, "BEAST CONTACT: Pushed back to RETREAT"),
                 "Beast contact must push the player to safety without hiding a reset or inventing rescue.");
+            RequireBeastPose(trial, RpgActorVisualState.AlertOrBrace, "06-beast-contact-retreat");
             Capture(trial, "06-beast-contact-retreat");
             Press(trial, Vector2.right);
             for (var wait = Until(() => trial.PlayerPosition.x >= 0.9f,
@@ -1779,6 +1782,40 @@ namespace Rpg.Soundwell
             var canvas = prelude.GetComponentsInChildren<Canvas>(true).SingleOrDefault(
                 candidate => candidate.gameObject.name == "S00 Whitewater playable canvas");
             CaptureStoryCanvas(canvas, stage);
+        }
+
+        private static void RequireBeastPose(
+            SoundwellTrial trial, RpgActorVisualState expectedState, string stage)
+        {
+            var viewField = typeof(SoundwellTrial).GetField("view",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Require(viewField != null, "The Soundwell trial must expose its live view to the smoke verifier.");
+            object view = viewField.GetValue(trial);
+            Require(view != null, "The live Soundwell view must exist during " + stage + ".");
+
+            var binderField = view.GetType().GetField("beastVisualBinder",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Require(binderField != null, "The Soundwell view must own the beast visual binder.");
+            var binder = binderField.GetValue(view) as RpgMapActorVisualBinder;
+            Require(binder != null && !binder.IsDisposed,
+                "The living Soundwell beast must have an active visual binder during " + stage + ".");
+
+            RpgPixelArtManifest manifest = RpgPixelArtManifest.LoadDefault();
+            Sprite[] expectedFrames = expectedState == RpgActorVisualState.Moving
+                ? new[] { manifest.SoundBorrowingBeastCreep1, manifest.SoundBorrowingBeastCreep2 }
+                : expectedState == RpgActorVisualState.AlertOrBrace
+                    ? new[] { manifest.SoundBorrowingBeastAlert }
+                    : expectedState == RpgActorVisualState.Hit
+                        ? new[] { manifest.SoundwellBeastRecoil }
+                        : new[] { manifest.SoundBorrowingBeastIdle };
+            Sprite sprite = binder.SpriteRenderer.sprite;
+            Require(binder.CurrentState == expectedState,
+                $"Unexpected Soundwell beast state during {stage}: {binder.CurrentState}.");
+            Require(sprite != null && expectedFrames.Contains(sprite),
+                $"The live Soundwell beast did not use its authored {expectedState} frame during {stage}.");
+            Require(sprite.pixelsPerUnit == 16f && sprite.texture.filterMode == FilterMode.Point &&
+                Mathf.RoundToInt(sprite.rect.width) == 16 && Mathf.RoundToInt(sprite.rect.height) == 24,
+                $"The live Soundwell beast frame must remain a 16x24 Point-filtered 16-PPU sprite: {stage}.");
         }
 
         public static void CaptureStoryCanvas(Canvas canvas, string stage)
