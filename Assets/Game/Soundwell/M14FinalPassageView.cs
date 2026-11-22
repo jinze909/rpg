@@ -59,6 +59,7 @@ namespace Rpg.Soundwell
         public Button SettleAyuanSafeButton => choiceButtons[0];
         public Button SettleAyuanInjuredButton => choiceButtons[1];
         public Button SettleAyuanLostButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M14FinalPassageView(
             Transform parent,

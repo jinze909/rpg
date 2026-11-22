@@ -28,7 +28,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M14FinalPassageSession Session => session;
-        public M14FinalPassageView ActiveView => activeView;
+        public M14FinalPassageView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M14FinalPassageFacts.TryRead(getInt, out M14FinalPassageRecord? saved) &&
@@ -67,7 +68,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atStraitAction() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null || !atStraitAction() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -122,7 +130,8 @@ namespace Rpg.Soundwell
 
         private void HandleAyuanSubmitted(M14AyuanOutcome outcome)
         {
-            if (disposed || session == null || !atStraitAction() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atStraitAction() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 !HasLiveRouteProofs())
