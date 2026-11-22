@@ -39,6 +39,7 @@ namespace Rpg.Soundwell
         public Button JointBidButton => choiceButtons[1];
         public Button BraceHullStressButton => choiceButtons[0];
         public Button DismantleLanternButton => choiceButtons[1];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public ST02RiverLanternsView(
             Transform parent,

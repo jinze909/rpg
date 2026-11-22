@@ -20,7 +20,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public ST02RiverLanternsSession Session => session;
-        public ST02RiverLanternsView ActiveView => activeView;
+        public ST02RiverLanternsView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             ST02RiverLanternsFacts.TryRead(getInt, out ST02RiverLanternsRecord? saved) &&
@@ -41,7 +42,12 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atLutingDock() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+            }
+            if (disposed || parent == null || activeView != null || !atLutingDock() ||
                 getInt(ST02RiverLanternsFacts.ConfirmedKey) != 0 ||
                 getInt(ST02RiverLanternsFacts.PendingSignatureKey) != 0 ||
                 !ST02RiverLanternsFacts.TryRead(getInt, out _))
@@ -57,13 +63,13 @@ namespace Rpg.Soundwell
 
         private void HandleRescueSubmitted(ST02LockRescueMethod rescueMethod)
         {
-            if (disposed || session == null || !atLutingDock())
+            if (disposed || session == null || activeView == null || activeView.IsDisposed || !atLutingDock())
                 return;
 
             if (!session.TryResolveOldLockAndCommit(rescueMethod, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
         }
 
