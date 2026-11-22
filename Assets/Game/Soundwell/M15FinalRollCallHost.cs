@@ -24,7 +24,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M15FinalRollCallSession Session => session;
-        public M15FinalRollCallView ActiveView => activeView;
+        public M15FinalRollCallView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M15FinalRollCallFacts.TryRead(getInt, out M15FinalRollCallRecord? saved) &&
@@ -53,7 +54,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !ceremonyReady() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null || !ceremonyReady() ||
                 HasAnyPersistedFacts() ||
                 M15FinalRollCallFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
@@ -125,7 +133,8 @@ namespace Rpg.Soundwell
         {
             // A ceremony can remain open while consent, sealed bridge truth,
             // or Xiaoqi's chosen name changes. Do not settle stale choices.
-            if (disposed || session == null || !ceremonyReady() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !ceremonyReady() ||
                 !LiveCeremonyEvidenceMatchesSession() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
