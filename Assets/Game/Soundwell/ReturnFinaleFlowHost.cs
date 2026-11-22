@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class ReturnFinaleFlowContext
     {
+        public Func<bool> AtLinchaoFerry { get; set; } = () => false;
         public Func<bool> AtJingwanAssembly { get; set; } = () => false;
         public Func<bool> ThreeRecordsMatched { get; set; } = () => false;
         public Func<bool> CarriesM02BattleReport { get; set; } = () => false;
@@ -148,7 +149,8 @@ namespace Rpg.Soundwell
             if (activeHost == null)
                 return false;
             if (activeHost is M10AssemblyHost m10)
-                return !m10.IsDisposed && m10.ActiveView != null;
+                return !m10.IsDisposed &&
+                    (m10.ActiveView != null || m10.ActiveWorldNoticeView != null);
             if (activeHost is M11ReverseRescueHost m11)
                 return !m11.IsDisposed && m11.ActiveView != null;
             if (activeHost is M12BridgeTruthHost m12)
@@ -171,7 +173,8 @@ namespace Rpg.Soundwell
             switch (stage)
             {
                 case ReturnFinaleStage.M10Assembly:
-                    return context.AtJingwanAssembly != null &&
+                    return context.AtLinchaoFerry != null &&
+                        context.AtJingwanAssembly != null &&
                         context.ThreeRecordsMatched != null &&
                         context.CarriesM02BattleReport != null;
                 case ReturnFinaleStage.M11ReverseRescue:
@@ -244,7 +247,8 @@ namespace Rpg.Soundwell
                         context.AtJingwanAssembly,
                         context.ThreeRecordsMatched,
                         context.CarriesM02BattleReport,
-                        getInt, setInt);
+                        getInt, setInt,
+                        context.AtLinchaoFerry);
                     return ActivateStage(next, host, host.TryOpen());
                 }
                 case ReturnFinaleStage.M11ReverseRescue:

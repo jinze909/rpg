@@ -208,6 +208,7 @@ namespace Rpg.Soundwell
             setInt(M08WorkshopDepositFacts.CompletedKey, 0);
             setInt(M09BerthTableFacts.ConfirmedKey, 0);
             setInt(M10AssemblyFacts.ConfirmedKey, 0);
+            setInt(M10WorldNoticeThreeFacts.ConfirmedKey, 0);
             setInt(M11ReverseRescueFacts.ConfirmedKey, 0);
             setInt(M12BridgeTruthFacts.ConfirmedKey, 0);
             setInt(M13DepartureRiskFacts.DepartureConfirmedKey, 0);
@@ -229,6 +230,7 @@ namespace Rpg.Soundwell
                 M08FirstWorldNoticeFacts.TryResetForNewVoyage(setInt) &&
                 M08WorkshopDepositFacts.TryResetForNewVoyage(setInt) &&
                 M09BerthTableFacts.TryResetForNewVoyage(setInt) &&
+                M10WorldNoticeThreeFacts.TryResetForNewVoyage(setInt) &&
                 M10AssemblyFacts.TryResetForNewVoyage(setInt) &&
                 M11ReverseRescueFacts.TryResetForNewVoyage(setInt) &&
                 M12BridgeTruthFacts.TryResetForNewVoyage(setInt) &&
