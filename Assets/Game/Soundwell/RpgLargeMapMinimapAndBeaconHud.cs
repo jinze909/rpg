@@ -65,6 +65,10 @@ namespace Rpg.Soundwell
         }
         public bool IsDisposed => disposed;
 
+        private static bool IsFinite(Vector2 value) =>
+            !float.IsNaN(value.x) && !float.IsInfinity(value.x) &&
+            !float.IsNaN(value.y) && !float.IsInfinity(value.y);
+
         public static RpgLargeMapMinimapAndBeaconHud BuildForSoundwell(
             Transform parent, SoundwellLargeMapLayout layout)
         {
@@ -298,15 +302,20 @@ namespace Rpg.Soundwell
 
         public void UpdatePlayerPosition(Vector2 tilePosition)
         {
-            if (disposed || CanvasDestroyed()) return;
+            if (disposed || CanvasDestroyed() || !IsFinite(tilePosition)) return;
             playerMarkerRect.anchoredPosition = TileToMinimapLocal(tilePosition);
         }
 
         public void UpdateThreatMarker(Vector2 tilePosition, bool visible, Color? tint = null)
         {
             if (disposed || CanvasDestroyed() || threatMarkerRect == null) return;
-            threatMarkerRect.gameObject.SetActive(visible);
-            if (!visible) return;
+            if (!visible)
+            {
+                threatMarkerRect.gameObject.SetActive(false);
+                return;
+            }
+            if (!IsFinite(tilePosition)) return;
+            threatMarkerRect.gameObject.SetActive(true);
             threatMarkerRect.anchoredPosition = TileToMinimapLocal(tilePosition);
             if (tint.HasValue && threatMarkerImage != null)
                 threatMarkerImage.color = tint.Value;
