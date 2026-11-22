@@ -23,10 +23,10 @@ namespace Rpg.Soundwell
         private float lastAspect = -1f;
 
         public static CombatLockBreakRuntimeDirector Instance => instance;
-        public bool IsBattleAttached => battleAttached;
+        public bool IsBattleAttached => HasLiveBattleUi();
         public BattleContextMode ActiveMode => activeMode;
-        public CombatLockBreakHudView HudView => hudView;
-        public OrkCombatLockBreakAdapter Adapter => adapter;
+        public CombatLockBreakHudView HudView => HasLiveBattleUi() ? hudView : null;
+        public OrkCombatLockBreakAdapter Adapter => HasLiveBattleUi() ? adapter : null;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureDirector()
@@ -88,6 +88,9 @@ namespace Rpg.Soundwell
 
         public void AttachForBattle(BattleContextMode mode, int startingMomentum = 1)
         {
+            if (!Enum.IsDefined(typeof(BattleContextMode), mode))
+                throw new ArgumentOutOfRangeException(nameof(mode));
+
             DetachBattle();
 
             activeMode = mode;
@@ -111,15 +114,23 @@ namespace Rpg.Soundwell
 
         public bool ObserveSnapshots(OrkPartyBridge.BattleUnitSnapshot[] snapshots)
         {
-            if (!battleAttached || adapter == null)
+            if (!HasLiveBattleUi())
+            {
+                if (battleAttached || hudView != null || adapter != null)
+                    DetachBattle();
                 return false;
+            }
             return adapter.ObserveOrkSnapshots(snapshots);
         }
 
         public bool ObserveSoundwellAcousticAction(CombatLockKind action, int momentumCost = 0)
         {
-            if (!battleAttached || adapter == null)
+            if (!HasLiveBattleUi())
+            {
+                if (battleAttached || hudView != null || adapter != null)
+                    DetachBattle();
                 return false;
+            }
             return adapter.ObserveSoundwellAcousticAction(action, momentumCost);
         }
 
@@ -133,6 +144,11 @@ namespace Rpg.Soundwell
                 hudView = null;
             }
             lastAspect = -1f;
+        }
+
+        private bool HasLiveBattleUi()
+        {
+            return battleAttached && adapter != null && hudView != null && !hudView.IsDisposed;
         }
 
         private void Awake()
@@ -152,12 +168,14 @@ namespace Rpg.Soundwell
             bool active = party != null && party.BattleInProgress && party.RoleEncounter == null;
             if (!active)
             {
-                if (battleAttached)
+                if (battleAttached || hudView != null || adapter != null)
                     DetachBattle();
                 return;
             }
 
             OrkPartyBridge.BattleUnitSnapshot[] snapshots = party.CaptureBattleSnapshots();
+            if (battleAttached && !HasLiveBattleUi())
+                DetachBattle();
             if (!battleAttached)
             {
                 string sceneName = SceneManager.GetActiveScene().name;
@@ -166,14 +184,21 @@ namespace Rpg.Soundwell
             }
 
             SyncViewportAspect();
-            adapter?.ObserveOrkSnapshots(snapshots);
+            if (HasLiveBattleUi())
+                adapter.ObserveOrkSnapshots(snapshots);
         }
 
         private void SyncViewportAspect()
         {
-            if (hudView == null) return;
+            if (!HasLiveBattleUi())
+            {
+                if (battleAttached || hudView != null || adapter != null)
+                    DetachBattle();
+                return;
+            }
             float aspect = (float)Mathf.Max(1, Screen.width) / Mathf.Max(1, Screen.height);
-            if (Mathf.Abs(aspect - lastAspect) > 0.005f)
+            if (!float.IsNaN(aspect) && !float.IsInfinity(aspect) && aspect > 0f &&
+                Mathf.Abs(aspect - lastAspect) > 0.005f)
             {
                 lastAspect = aspect;
                 hudView.LayoutForViewportAspect(aspect);
