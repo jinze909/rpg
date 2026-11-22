@@ -21,7 +21,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public ST06TaoJiHomecomingSession Session => session;
-        public ST06TaoJiHomecomingView ActiveView => activeView;
+        public ST06TaoJiHomecomingView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsSettled =>
             ST06TaoJiHomecomingFacts.TryRead(getInt, out ST06HomecomingRecord? saved) &&
@@ -42,7 +43,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !taoJiAtWoodshop() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null || !taoJiAtWoodshop() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -70,7 +77,8 @@ namespace Rpg.Soundwell
 
         private void HandleSettleRequested(ST06TaoJiHomecomingSession activeSession)
         {
-            if (disposed || activeSession != session || session == null ||
+            if (disposed || activeView == null || activeView.IsDisposed ||
+                activeSession != session || session == null ||
                 !session.ChairResolution.HasValue || !taoJiAtWoodshop() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
@@ -98,7 +106,7 @@ namespace Rpg.Soundwell
                 persisted.Value.ChairResolution != session.ChairResolution.Value)
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
             openedArrivalSequence = null;
         }
