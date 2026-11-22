@@ -14,7 +14,7 @@ namespace Rpg.Tests.Editor
             return key => values.TryGetValue(key, out int value) ? value : 0;
         }
 
-        private static void SeedM15WithCompletedRC01AndST02(Dictionary<string, int> values)
+        internal static void SeedM15WithCompletedRC01AndST02(Dictionary<string, int> values)
         {
             Func<string, int> read = Reader(values);
             Action<string, int> write = (k, v) => values[k] = v;
