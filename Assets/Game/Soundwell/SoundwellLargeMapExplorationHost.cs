@@ -29,6 +29,9 @@ namespace Rpg.Soundwell
             public SpriteRenderer Renderer => renderer;
             public bool IsPlaying => frames != null;
 
+            private static bool IsFinite(float value) =>
+                !float.IsNaN(value) && !float.IsInfinity(value);
+
             public VfxChannel(Transform parent, string name, int sortingOrder, float frameDurationSeconds)
             {
                 this.frameDurationSeconds = frameDurationSeconds;
@@ -42,7 +45,8 @@ namespace Rpg.Soundwell
 
             public void Trigger(Sprite[] clipFrames, Vector2 worldPosition)
             {
-                if (renderer == null || clipFrames == null || clipFrames.Length == 0 || clipFrames[0] == null)
+                if (renderer == null || clipFrames == null || clipFrames.Length == 0 ||
+                    clipFrames[0] == null || !IsFinite(worldPosition.x) || !IsFinite(worldPosition.y))
                 {
                     Stop();
                     return;
@@ -61,12 +65,12 @@ namespace Rpg.Soundwell
 
             public void Step(float deltaTime)
             {
-                if (frames == null || renderer == null || deltaTime <= 0f)
+                if (frames == null || renderer == null || !IsFinite(deltaTime) || deltaTime <= 0f)
                     return;
 
                 elapsed += deltaTime;
                 int index = Mathf.FloorToInt(elapsed / frameDurationSeconds);
-                if (index >= frames.Length || frames[index] == null)
+                if (index < 0 || index >= frames.Length || frames[index] == null)
                 {
                     Stop();
                     return;
@@ -258,18 +262,21 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            bool moved = Explorer.StepMovement(moveInput, deltaTime);
-            BeastPatrol.Step(deltaTime, Explorer.Position, moved);
-            SyncActorVisuals(moved, deltaTime);
-            acousticPulseChannel.Step(deltaTime);
-            threatBreakChannel.Step(deltaTime);
+            float safeDt = !float.IsNaN(deltaTime) && !float.IsInfinity(deltaTime) && deltaTime > 0f
+                ? deltaTime
+                : 0f;
+            bool moved = Explorer.StepMovement(moveInput, safeDt);
+            BeastPatrol.Step(safeDt, Explorer.Position, moved);
+            SyncActorVisuals(moved, safeDt);
+            acousticPulseChannel.Step(safeDt);
+            threatBreakChannel.Step(safeDt);
             MinimapHud.UpdatePlayerPosition(Explorer.Position);
             UpdateBeastMinimapMarker();
 
             if (cameraTransform != null)
             {
                 cameraTransform.position = Explorer.ComputeClampedCameraPosition(
-                    cameraTransform.position, deltaTime);
+                    cameraTransform.position, safeDt);
             }
 
             RefreshHud();
