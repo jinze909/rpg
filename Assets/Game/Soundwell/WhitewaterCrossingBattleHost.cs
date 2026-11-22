@@ -62,6 +62,9 @@ namespace Rpg.Soundwell
         public event Action<int> BellAdvanced;
         public event Action ThirdBellCollapseReady;
 
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
         public WhitewaterCrossingBattleHost(Transform parent,
             Sprite[] tileSlices = null, int startingMomentum = 1)
         {
@@ -221,12 +224,12 @@ namespace Rpg.Soundwell
         {
             if (disposed || combatVfxSpriteRenderer == null || activeVfxFrames == null)
                 return;
-            if (deltaTime <= 0f)
+            if (!IsFinite(deltaTime) || deltaTime <= 0f)
                 return;
 
             vfxElapsed += deltaTime;
             int index = Mathf.FloorToInt(vfxElapsed / VfxFrameDurationSeconds);
-            if (index >= activeVfxFrames.Length)
+            if (index < 0 || index >= activeVfxFrames.Length)
             {
                 activeVfxFrames = null;
                 vfxElapsed = 0f;
@@ -307,7 +310,9 @@ namespace Rpg.Soundwell
 
         public void TriggerClashShake(float intensity, float durationSeconds)
         {
-            if (intensity <= 0f || durationSeconds <= 0f) return;
+            if (!IsFinite(intensity) || !IsFinite(durationSeconds) ||
+                intensity <= 0f || durationSeconds <= 0f)
+                return;
             shakeIntensity = Mathf.Max(shakeIntensity, intensity);
             shakeRemaining = Mathf.Max(shakeRemaining, durationSeconds);
         }
@@ -317,25 +322,38 @@ namespace Rpg.Soundwell
             float halfViewHeight = RpgWorldMapScale.LogicalScreenTilesY * 0.5f,
             float smoothSpeed = 6f)
         {
-            StepCombatVfx(deltaTime);
+            float safeDt = IsFinite(deltaTime) && deltaTime > 0f ? deltaTime : 0f;
+            float safeHalfW = IsFinite(halfViewWidth) && halfViewWidth >= 0f
+                ? halfViewWidth
+                : RpgWorldMapScale.LogicalScreenTilesX * 0.5f;
+            float safeHalfH = IsFinite(halfViewHeight) && halfViewHeight >= 0f
+                ? halfViewHeight
+                : RpgWorldMapScale.LogicalScreenTilesY * 0.5f;
+            float safeSmooth = IsFinite(smoothSpeed) ? Mathf.Max(0.1f, smoothSpeed) : 6f;
+
+            StepCombatVfx(safeDt);
 
             Vector3 anchor = (ShenLiCableWorldPosition + EnemyFrontWorldPosition) * 0.5f;
             Bounds bounds = Layout.CameraBounds;
-            float minX = bounds.min.x + halfViewWidth;
-            float maxX = bounds.max.x - halfViewWidth;
-            float minY = bounds.min.y + halfViewHeight;
-            float maxY = bounds.max.y - halfViewHeight;
+            float minX = bounds.min.x + safeHalfW;
+            float maxX = bounds.max.x - safeHalfW;
+            float minY = bounds.min.y + safeHalfH;
+            float maxY = bounds.max.y - safeHalfH;
 
             float targetX = minX <= maxX ? Mathf.Clamp(anchor.x, minX, maxX) : bounds.center.x;
             float targetY = minY <= maxY ? Mathf.Clamp(anchor.y, minY, maxY) : bounds.center.y;
 
-            float t = deltaTime > 0f ? 1f - Mathf.Exp(-Mathf.Max(0.1f, smoothSpeed) * deltaTime) : 1f;
-            float x = Mathf.Lerp(currentCameraPos.x, targetX, t);
-            float y = Mathf.Lerp(currentCameraPos.y, targetY, t);
+            float curX = IsFinite(currentCameraPos.x) ? currentCameraPos.x : targetX;
+            float curY = IsFinite(currentCameraPos.y) ? currentCameraPos.y : targetY;
+            float curZ = IsFinite(currentCameraPos.z) ? currentCameraPos.z : -10f;
 
-            if (shakeRemaining > 0f && deltaTime > 0f)
+            float t = safeDt > 0f ? 1f - Mathf.Exp(-safeSmooth * safeDt) : 1f;
+            float x = Mathf.Lerp(curX, targetX, t);
+            float y = Mathf.Lerp(curY, targetY, t);
+
+            if (shakeRemaining > 0f && safeDt > 0f)
             {
-                shakeRemaining = Mathf.Max(0f, shakeRemaining - deltaTime);
+                shakeRemaining = Mathf.Max(0f, shakeRemaining - safeDt);
                 x += Mathf.Sin(shakeRemaining * 92f) * shakeIntensity;
                 y += Mathf.Cos(shakeRemaining * 71f) * shakeIntensity * 0.55f;
                 if (shakeRemaining <= 0f)
@@ -344,7 +362,7 @@ namespace Rpg.Soundwell
 
             if (minX <= maxX) x = Mathf.Clamp(x, minX, maxX);
             if (minY <= maxY) y = Mathf.Clamp(y, minY, maxY);
-            return new Vector3(x, y, currentCameraPos.z);
+            return new Vector3(x, y, curZ);
         }
 
         public void LayoutForViewportAspect(float aspect)
