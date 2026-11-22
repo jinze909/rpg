@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         public Button RemediateCoverUpButton => choiceButtons[0];
         public Button HoldWelcomeDinnerButton => choiceButtons[1];
         public Button SettleButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public ST06TaoJiHomecomingView(
             Transform parent,
