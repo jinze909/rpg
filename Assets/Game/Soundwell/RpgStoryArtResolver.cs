@@ -17,6 +17,9 @@ namespace Rpg.Soundwell
             return manifest != null ? manifest : RpgPixelArtManifest.LoadDefault();
         }
 
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
         // --- M02 Bridge Evidence & Harbor Desk ---
 
         public static Sprite ResolveM02EvidenceSprite(M02BridgeEvidence clue,
@@ -248,12 +251,12 @@ namespace Rpg.Soundwell
             var rect = iconObj.GetComponent<RectTransform>();
             if (rect == null)
                 rect = iconObj.AddComponent<RectTransform>();
-            rect.anchoredPosition = new Vector2(
-                Mathf.Round(anchoredPosition.x),
-                Mathf.Round(anchoredPosition.y));
-            rect.sizeDelta = new Vector2(
-                Mathf.Max(0f, Mathf.Round(size.x)),
-                Mathf.Max(0f, Mathf.Round(size.y)));
+            float safePosX = IsFinite(anchoredPosition.x) ? Mathf.Round(anchoredPosition.x) : 0f;
+            float safePosY = IsFinite(anchoredPosition.y) ? Mathf.Round(anchoredPosition.y) : 0f;
+            float safeSizeX = IsFinite(size.x) ? Mathf.Max(0f, Mathf.Round(size.x)) : 0f;
+            float safeSizeY = IsFinite(size.y) ? Mathf.Max(0f, Mathf.Round(size.y)) : 0f;
+            rect.anchoredPosition = new Vector2(safePosX, safePosY);
+            rect.sizeDelta = new Vector2(safeSizeX, safeSizeY);
 
             var image = iconObj.GetComponent<Image>();
             if (image == null)
