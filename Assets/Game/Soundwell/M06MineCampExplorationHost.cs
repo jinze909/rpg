@@ -14,6 +14,7 @@ namespace Rpg.Soundwell
     public sealed class M06MineCampExplorationHost : IDisposable
     {
         public const float MoveSpeedTilesPerSecond = 6.5f;
+        private const int MaxMovementSubsteps = 4096;
 
         private readonly Transform parent;
         private readonly Func<string, int> getInt;
@@ -136,20 +137,35 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return false;
-            if (IsDialogueOpen || deltaSeconds <= 0f || input.sqrMagnitude < 0.0001f)
+            float inputMagnitudeSquared = input.sqrMagnitude;
+            if (IsDialogueOpen || !IsFinite(input) ||
+                !IsFinite(inputMagnitudeSquared) || !IsFinite(deltaSeconds) ||
+                deltaSeconds <= 0f || inputMagnitudeSquared < 0.0001f ||
+                !IsFinite(playerPosition))
             {
                 SyncHero(moving: false, deltaSeconds: 0f);
                 return false;
             }
 
             Vector2 dir = input.normalized;
-            facing = dir;
             Vector2 delta = dir * (MoveSpeedTilesPerSecond * deltaSeconds);
+            float distance = delta.magnitude;
+            float requiredSteps = Mathf.Ceil(distance / 0.35f);
+            // A paused or corrupted frame must not turn into an unbounded
+            // collision loop. Reject it without changing position or facing.
+            if (!IsFinite(delta) || !IsFinite(distance) ||
+                !IsFinite(requiredSteps) || requiredSteps > MaxMovementSubsteps)
+            {
+                SyncHero(moving: false, deltaSeconds: 0f);
+                return false;
+            }
+
+            facing = dir;
             // The final destination alone may be walkable even when a wall
             // separates it from the player. Check short intermediate steps so
             // a slow frame cannot skip the mine-camp walls or sealed rooms.
             // Preserve independent axis movement for wall sliding.
-            int steps = Mathf.Max(1, Mathf.CeilToInt(delta.magnitude / 0.35f));
+            int steps = Mathf.Max(1, Mathf.CeilToInt(requiredSteps));
             Vector2 step = delta / steps;
             Vector2 next = playerPosition;
             bool moved = false;
@@ -183,6 +199,21 @@ namespace Rpg.Soundwell
             return moved;
         }
 
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
+        }
+
+        private static bool IsFinite(Vector2 value)
+        {
+            return IsFinite(value.x) && IsFinite(value.y);
+        }
+
+        private static bool IsFinite(Vector3 value)
+        {
+            return IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
+        }
+
         private void SyncHero(bool moving, float deltaSeconds)
         {
             Vector2Int cardinal = Mathf.Abs(facing.x) >= Mathf.Abs(facing.y)
@@ -197,7 +228,10 @@ namespace Rpg.Soundwell
         // only camera (Cinemachine/Pixel Perfect remains the final authority).
         public Vector3 StepCamera(Vector3 currentCameraPosition, float deltaSeconds)
         {
-            if (disposed) return currentCameraPosition;
+            if (disposed || !IsFinite(currentCameraPosition) ||
+                !IsFinite(playerPosition) || !IsFinite(deltaSeconds) ||
+                deltaSeconds < 0f)
+                return currentCameraPosition;
 
             float halfW = RpgWorldMapScale.LogicalScreenTilesX * 0.5f;
             float halfH = RpgWorldMapScale.LogicalScreenTilesY * 0.5f;
