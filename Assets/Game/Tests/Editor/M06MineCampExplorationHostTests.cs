@@ -322,5 +322,69 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void DestroyedReconCanvasReleasesDialogueLockAndAllowsReopening()
+        {
+            var root = new GameObject("M06 recon destroyed canvas");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(42, 12)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                M06MineCampReconView oldView = host.ActiveReconView;
+                Canvas canvas = oldView.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveReconView, Is.Null);
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveReconView, Is.Not.Null);
+                Assert.That(host.ActiveReconView, Is.Not.SameAs(oldView));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedPumpRoomCanvasReleasesDialogueLockAndAllowsReopening()
+        {
+            var root = new GameObject("M06 pump room destroyed canvas");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values, letterDecision: null);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                M06PumpRoomReunionView oldView = host.ActiveReunionView;
+                Canvas canvas = oldView.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveReunionView, Is.Null);
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveReunionView, Is.Not.Null);
+                Assert.That(host.ActiveReunionView, Is.Not.SameAs(oldView));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }
