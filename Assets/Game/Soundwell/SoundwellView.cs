@@ -25,6 +25,7 @@ namespace Rpg.Soundwell
         private readonly SpriteRenderer leaderVisualRenderer;
         private readonly Sprite beastPixelSprite;
         private readonly Sprite beastRecoilPixelSprite;
+        private readonly RpgMapActorVisualBinder beastVisualBinder;
         private readonly Sprite surveyorPixelSprite;
         private readonly Sprite surveyorFreedPixelSprite;
         private readonly Sprite surveyorWalkPixelSprite;
@@ -39,6 +40,8 @@ namespace Rpg.Soundwell
         private float? lastBattleBeastHp;
         private float? lastBattleLeaderHp;
         private float beastHitFlashUntil = float.NegativeInfinity;
+        private bool beastAnimationMoving;
+        private bool beastAnimationAlert;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
@@ -263,8 +266,11 @@ namespace Rpg.Soundwell
                 Vector2.zero, activeRescuerPixelSprite, 8);
             movePreviewMarker.color = new Color(0.43f, 0.91f, 0.72f);
             movePreviewMarker.enabled = false;
-            beastVisualRenderer = ArtSprite(beast, "Soundwell beast", Vector2.zero,
-                beastPixelSprite, 3);
+            beastVisualBinder = new RpgMapActorVisualBinder(beast, "Soundwell beast",
+                beastPixelSprite, art.SoundBorrowingBeastCreep1,
+                art.SoundBorrowingBeastCreep2, art.SoundBorrowingBeastAlert,
+                baseSortingOrder: 3, hitSprite: beastRecoilPixelSprite, sortByY: false);
+            beastVisualRenderer = beastVisualBinder.SpriteRenderer;
             beastBaseTint = beastVisualRenderer.color;
 
             // Telegraph the actual encounter radius rather than asking the
@@ -531,11 +537,7 @@ namespace Rpg.Soundwell
             beastHitFlashUntil = float.NegativeInfinity;
             if (!active)
                 ResetPlayerAnimation();
-            if (beastVisualRenderer != null)
-            {
-                beastVisualRenderer.color = beastBaseTint;
-                beastVisualRenderer.sprite = beastPixelSprite;
-            }
+            ApplyBeastAnimation(advanceWalkAnimation: false);
             layoutReady = false;
             attackTargetMarker.enabled = false;
             activeRescuerMarker.enabled = false;
@@ -867,6 +869,27 @@ namespace Rpg.Soundwell
             previousHp.HasValue && !float.IsNaN(currentHp) &&
             !float.IsInfinity(currentHp) && currentHp < previousHp.Value - 0.001f;
 
+        private void ApplyBeastAnimation(bool advanceWalkAnimation)
+        {
+            if (beastVisualBinder == null || beastVisualRenderer == null)
+                return;
+
+            bool recoiling = battleMode && Time.unscaledTime < beastHitFlashUntil;
+            RpgActorVisualState state = recoiling ? RpgActorVisualState.Hit
+                : beastAnimationAlert ? RpgActorVisualState.AlertOrBrace
+                : beastAnimationMoving ? RpgActorVisualState.Moving
+                : RpgActorVisualState.Idle;
+            float deltaTime = advanceWalkAnimation ? Time.unscaledDeltaTime : 0f;
+            if (float.IsNaN(deltaTime) || float.IsInfinity(deltaTime) || deltaTime < 0f)
+                deltaTime = 0f;
+            Vector2Int facing = beastActor != null && beastActor.right.x < 0f
+                ? Vector2Int.left : Vector2Int.right;
+            beastVisualRenderer.transform.rotation = Quaternion.identity;
+            beastVisualBinder.Sync(Vector2.zero, facing, state, deltaTime);
+            beastVisualRenderer.color = recoiling
+                ? new Color(1f, 0.93f, 0.69f) : beastBaseTint;
+        }
+
         public void RefreshBattleBeastHp(float hp)
         {
             if (beastVisualRenderer == null)
@@ -875,17 +898,15 @@ namespace Rpg.Soundwell
             {
                 lastBattleBeastHp = null;
                 beastHitFlashUntil = float.NegativeInfinity;
-                beastVisualRenderer.color = beastBaseTint;
-                beastVisualRenderer.sprite = beastPixelSprite;
+                ApplyBeastAnimation(advanceWalkAnimation: false);
                 return;
             }
             if (HasRealOrkBeastDamage(lastBattleBeastHp, hp))
                 beastHitFlashUntil = Time.unscaledTime + 0.30f;
             lastBattleBeastHp = hp;
-            bool recoiling = Time.unscaledTime < beastHitFlashUntil;
-            beastVisualRenderer.color = recoiling
-                ? new Color(1f, 0.93f, 0.69f) : beastBaseTint;
-            beastVisualRenderer.sprite = recoiling ? beastRecoilPixelSprite : beastPixelSprite;
+            // Runtime calls this HP observer separately from Refresh(). Do not
+            // advance the walk clock twice in one frame.
+            ApplyBeastAnimation(advanceWalkAnimation: false);
         }
 
         public void SetBattleReadout(string summary)
@@ -1189,13 +1210,9 @@ namespace Rpg.Soundwell
             // ORK owns combatant death and can destroy the beast actor when
             // its HP reaches minimum. The scene persists for the survivor's
             // physical escort; never read a destroyed presentation component.
-            if (beastVisualRenderer != null)
-            {
-                beastVisualRenderer.transform.rotation = Quaternion.identity;
-                float beastFacingX = beastVisualRenderer.transform.parent.right.x;
-                if (Mathf.Abs(beastFacingX) > 0.1f)
-                    beastVisualRenderer.flipX = beastFacingX < 0f;
-            }
+            beastAnimationMoving = (ringing || searching) && !beastDefeated;
+            beastAnimationAlert = !beastDefeated && (beastBlocksEscape || beastContacted);
+            ApplyBeastAnimation(advanceWalkAnimation: true);
 
             RefreshBeastSearchPresentation(ringing, searching,
                 searchRemainingFraction, beastDestination);
@@ -1633,6 +1650,7 @@ namespace Rpg.Soundwell
                 if (IsActionSelection(actionEventSystem.currentSelectedGameObject))
                     actionEventSystem.SetSelectedGameObject(null);
             }
+            beastVisualBinder?.Dispose();
             DestroyAsset(square);
             DestroyAsset(ringMaterial);
             DestroyAsset(clearBell);
