@@ -122,7 +122,8 @@ namespace Rpg.Soundwell
 
         public bool IsStoryAvailable(ReturnRegionalStoryId storyId)
         {
-            if (storyId == ReturnRegionalStoryId.None || IsStorySettled(storyId))
+            if (storyId == ReturnRegionalStoryId.None || IsStorySettled(storyId) ||
+                HasBlockingPersistedStoryFacts(storyId))
                 return false;
 
             if (storyId == ReturnRegionalStoryId.ST06TaoJiHomecoming)
@@ -136,6 +137,49 @@ namespace Rpg.Soundwell
                 storyId == ReturnRegionalStoryId.ST02RiverLanterns ||
                 storyId == ReturnRegionalStoryId.ST03Bathhouse ||
                 storyId == ReturnRegionalStoryId.ST05TwoDoors;
+        }
+
+        private bool HasBlockingPersistedStoryFacts(ReturnRegionalStoryId storyId)
+        {
+            switch (storyId)
+            {
+                case ReturnRegionalStoryId.ST01JingwanTheater:
+                {
+                    if (getInt(ST01RegionalStoryFacts.TheaterConfirmedKey) != 0)
+                        return true;
+                    int pendingRaw = getInt(ST01RegionalStoryFacts.TheaterChoiceKey);
+                    if (pendingRaw != 0 &&
+                        !Enum.IsDefined(typeof(ST01TheaterChoice), pendingRaw))
+                        return true;
+                    int departureRaw = getInt(ST01RegionalStoryFacts.DepartureChoiceKey);
+                    int departureMarker = getInt(ST01RegionalStoryFacts.DepartureConfirmedKey);
+                    if (departureMarker != 0 && departureMarker != 1)
+                        return true;
+                    if ((departureMarker == 0 && departureRaw != 0) ||
+                        (departureMarker == 1 &&
+                         !Enum.IsDefined(typeof(ST01DepartureChoice), departureRaw)))
+                        return true;
+                    return pendingRaw == 0 && !ST01RegionalStoryFacts.TryRead(getInt, out _);
+                }
+                case ReturnRegionalStoryId.ST02RiverLanterns:
+                    return getInt(ST02RiverLanternsFacts.ConfirmedKey) != 0 ||
+                        getInt(ST02RiverLanternsFacts.PendingSignatureKey) != 0 ||
+                        !ST02RiverLanternsFacts.TryRead(getInt, out _);
+                case ReturnRegionalStoryId.ST03Bathhouse:
+                    return getInt(ST03BathhouseFacts.ConfirmedKey) != 0 ||
+                        getInt(ST03BathhouseFacts.PendingChoiceKey) != 0 ||
+                        !ST03BathhouseFacts.TryRead(getInt, out _);
+                case ReturnRegionalStoryId.ST06TaoJiHomecoming:
+                    return getInt(ST06TaoJiHomecomingFacts.ConfirmedKey) != 0 ||
+                        getInt(ST06TaoJiHomecomingFacts.ChairResolutionKey) != 0 ||
+                        getInt(ST06TaoJiHomecomingFacts.CoverUpRemediatedKey) != 0 ||
+                        getInt(ST06TaoJiHomecomingFacts.WelcomeDinnerKey) != 0 ||
+                        getInt(ST06TaoJiHomecomingFacts.TraveledFarKey) != 0 ||
+                        getInt(ST06TaoJiHomecomingFacts.LetterStatusKey) != 0 ||
+                        getInt(ST06TaoJiHomecomingFacts.MarketTicketKey) != 0;
+                default:
+                    return false;
+            }
         }
 
         public int CountSettledStories()
