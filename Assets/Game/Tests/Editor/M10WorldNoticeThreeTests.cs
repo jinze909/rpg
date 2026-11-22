@@ -64,6 +64,7 @@ namespace Rpg.Tests.Editor
             Func<string, int> read = Reader(values);
             Action<string, int> write = (key, value) => values[key] = value;
             var root = new GameObject("M10 third notice flow test");
+            string previousLanguage = SoundwellUiLocalization.Language;
             bool atLinchao = true;
             bool atJingwan = false;
             var context = new ReturnFinaleFlowContext
@@ -77,6 +78,7 @@ namespace Rpg.Tests.Editor
 
             try
             {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
                 Assert.That(flow.EvaluateNextStage(), Is.EqualTo(ReturnFinaleStage.M10Assembly));
                 Assert.That(flow.TryOpenNextStage(), Is.True);
                 Assert.That(flow.ActiveM10Host, Is.Not.Null);
@@ -99,6 +101,7 @@ namespace Rpg.Tests.Editor
             finally
             {
                 flow.Dispose();
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
