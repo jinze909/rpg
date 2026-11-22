@@ -45,9 +45,38 @@ namespace Rpg.Soundwell
         public Vector2Int CurrentTile => new Vector2Int(
             Mathf.FloorToInt(playerPosition.x),
             Mathf.FloorToInt(playerPosition.y));
-        public M06MineCampReconView ActiveReconView => activeReconView;
-        public M06PumpRoomReunionView ActiveReunionView => activeReunionView;
-        public bool IsDialogueOpen => activeReconView != null || activeReunionView != null;
+        public M06MineCampReconView ActiveReconView
+        {
+            get
+            {
+                PruneDisposedDialogs();
+                return activeReconView;
+            }
+        }
+        public M06PumpRoomReunionView ActiveReunionView
+        {
+            get
+            {
+                PruneDisposedDialogs();
+                return activeReunionView;
+            }
+        }
+        public bool IsDialogueOpen
+        {
+            get
+            {
+                PruneDisposedDialogs();
+                return activeReconView != null || activeReunionView != null;
+            }
+        }
+
+        private void PruneDisposedDialogs()
+        {
+            if (activeReconView != null && activeReconView.IsDisposed)
+                activeReconView = null;
+            if (activeReunionView != null && activeReunionView.IsDisposed)
+                activeReunionView = null;
+        }
         public bool IsDisposed => disposed;
         public Text DistrictBanner => districtBanner;
         public Text PromptBanner => promptBanner;
@@ -297,6 +326,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || hudCanvasObject == null)
                 return;
+
+            PruneDisposedDialogs();
 
             // The established M05 landing is a live scene prerequisite;
             // do not leak Shen Li into an unverified visit.
