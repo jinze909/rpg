@@ -65,6 +65,7 @@ namespace Rpg.Soundwell
         private Text inscription;
         private Text childLine;
         private Text crowdLine;
+        private Image stageDialoguePanel;
         private Button[] choices = new Button[4];
         private Button rollCallButton;
         private Image choicePanel;
@@ -178,15 +179,21 @@ namespace Rpg.Soundwell
             childImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView,
                 "M00 Xiaodou in oversized uniform", new Vector2(StageX, 62f),
                 actorSize, artManifest?.M00Xiaodou);
-            // Keep the stage performance and crowd reaction in a dedicated
-            // left-side dialogue lane below the narration. The lane ends before
-            // the stage sprite begins, so the text never covers actors or art.
+            // Give the stage dialogue its own high-contrast backing in the
+            // non-walkable water band. It stays left of the stage art and below
+            // narration; both lines are clipped to this reserved panel.
+            stageDialoguePanel = Panel(authoredView, "M00 stage dialogue panel",
+                new Vector2(-280f, 80f), new Vector2(340f, 66f),
+                new Color(0.43f, 0.47f, 0.45f));
+            Panel(stageDialoguePanel.rectTransform, "M00 stage dialogue backing",
+                Vector2.zero, new Vector2(338f, 64f), SoundwellUiTheme.DefaultBackdropColor);
+            stageDialoguePanel.gameObject.SetActive(false);
             childLine = Label(authoredView, "", 16, Ink,
-                new Vector2(-270f, 92f), new Vector2(340f, 24f));
+                new Vector2(-280f, 92f), new Vector2(320f, 24f));
             childLine.gameObject.name = "M00 Xiaodou stage line";
             childLine.gameObject.SetActive(false);
             crowdLine = Label(authoredView, "", 13, Ink,
-                new Vector2(-270f, 64f), new Vector2(340f, 20f));
+                new Vector2(-280f, 62f), new Vector2(320f, 20f));
             crowdLine.gameObject.name = "M00 crowd reaction";
             crowdLine.gameObject.SetActive(false);
 
@@ -465,6 +472,7 @@ namespace Rpg.Soundwell
             childLine.text = Copy(
                 "Xiaodou (loudly): “While the bridge stands, so do I!”",
                 "小豆（台词，背得很响）：桥在我在！");
+            stageDialoguePanel.gameObject.SetActive(true);
             childLine.gameObject.SetActive(true);
             crowdLine.gameObject.SetActive(false);
             childImage.color = Color.white;
@@ -529,6 +537,7 @@ namespace Rpg.Soundwell
                 Maki.Game.Variables.Set(XiaodouPromptedKey, xiaodouPrompted ? 1 : 0);
             phase = 5;
             HideChoices();
+            HideStageDialogue();
             choicePanel.gameObject.SetActive(true);
             SoundwellInputAdapter.SetUiContext();
             narration.text = index == 0
@@ -564,6 +573,16 @@ namespace Rpg.Soundwell
                 choicePanel.gameObject.SetActive(false);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        private void HideStageDialogue()
+        {
+            if (stageDialoguePanel != null)
+                stageDialoguePanel.gameObject.SetActive(false);
+            if (childLine != null)
+                childLine.gameObject.SetActive(false);
+            if (crowdLine != null)
+                crowdLine.gameObject.SetActive(false);
         }
 
         private static string Copy(string english, string chinese) =>

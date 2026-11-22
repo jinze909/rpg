@@ -154,6 +154,7 @@ namespace Rpg.Tests.Editor
                     yield return null;
                 Assert.That(memorial.ChildLineText, Does.Contain("...the bridge"));
                 AssertStageDialogueDoesNotOverlapNarration(memorial);
+                SoundwellSmokeHost.CaptureStoryCanvas(squareCanvas, "m00-memorial-square-stage-dialogue");
 
                 input.Press(keys.aKey);
                 float stageDeadline = Time.realtimeSinceStartup + 5f;
@@ -180,7 +181,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(memorial.XiaodouPrompted, Is.True);
                 AssertAuthoredImage(memorial, "M00 Xiaodou in oversized uniform", "xiaodou_prompted");
                 Assert.That(memorial.Phase, Is.EqualTo(5));
-                AssertStageDialogueDoesNotOverlapNarration(memorial);
+                AssertStageDialogueHidden(memorial);
                 AssertChoicePanelDoesNotCoverPlayableWorld(memorial);
                 Assert.That(memorial.CurrentNarration, Does.Contain("Who has spare rope?"),
                     "M00 must echo the exact P0 rope call instead of using an altered English paraphrase.");
@@ -328,6 +329,8 @@ namespace Rpg.Tests.Editor
         {
             RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
                 .Single(rect => rect.gameObject.name == "M00 responsive authored view");
+            Image stagePanel = authored.Find("M00 stage dialogue panel").GetComponent<Image>();
+            Image stageBacking = authored.Find("M00 stage dialogue backing").GetComponent<Image>();
             Text narration = authored.Find("M00 scene narration").GetComponent<Text>();
             Text childLine = authored.Find("M00 Xiaodou stage line").GetComponent<Text>();
             Text crowdLine = authored.Find("M00 crowd reaction").GetComponent<Text>();
@@ -335,6 +338,15 @@ namespace Rpg.Tests.Editor
                 authored, narration.rectTransform);
             Bounds childBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
                 authored, childLine.rectTransform);
+            Bounds stagePanelBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                authored, stagePanel.rectTransform);
+            Assert.That(stagePanel.gameObject.activeSelf, Is.True);
+            Assert.That(stagePanel.raycastTarget || stageBacking.raycastTarget, Is.False);
+            Assert.That(stagePanelBounds.Contains(childBounds.min) &&
+                stagePanelBounds.Contains(childBounds.max), Is.True,
+                "The stage line must remain inside its dark backing.");
+            Assert.That(stagePanelBounds.Intersects(narrationBounds), Is.False,
+                "The stage dialogue panel must remain below the narration.");
             Assert.That(childLine.gameObject.activeSelf, Is.True);
             Assert.That(childBounds.Intersects(narrationBounds), Is.False,
                 "The stage line must have its own readable lane below scene narration.");
@@ -357,6 +369,9 @@ namespace Rpg.Tests.Editor
                 return;
             Bounds crowdBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
                 authored, crowdLine.rectTransform);
+            Assert.That(stagePanelBounds.Contains(crowdBounds.min) &&
+                stagePanelBounds.Contains(crowdBounds.max), Is.True,
+                "The crowd reaction must remain inside its dark backing.");
             Assert.That(crowdBounds.Intersects(narrationBounds), Is.False,
                 "The crowd reaction must not overlap scene narration.");
             Assert.That(crowdBounds.Intersects(childBounds), Is.False,
@@ -370,6 +385,15 @@ namespace Rpg.Tests.Editor
                 Assert.That(crowdBounds.Intersects(actorBounds), Is.False,
                     "The crowd reaction must not cover " + actor.name + ".");
             }
+        }
+
+        private static void AssertStageDialogueHidden(M00MemorialSquare memorial)
+        {
+            RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
+                .Single(rect => rect.gameObject.name == "M00 responsive authored view");
+            Assert.That(authored.Find("M00 stage dialogue panel").gameObject.activeSelf, Is.False);
+            Assert.That(authored.Find("M00 Xiaodou stage line").gameObject.activeSelf, Is.False);
+            Assert.That(authored.Find("M00 crowd reaction").gameObject.activeSelf, Is.False);
         }
 
         private static void AssertMemorialFitsViewport(M00MemorialSquare memorial)
@@ -390,6 +414,8 @@ namespace Rpg.Tests.Editor
             RectTransform choicePanelRect = authored.Find("M00 choice panel") as RectTransform;
             RectTransform stageLineRect = authored.Find("M00 Xiaodou stage line") as RectTransform;
             RectTransform crowdLineRect = authored.Find("M00 crowd reaction") as RectTransform;
+            RectTransform stageDialoguePanelRect =
+                authored.Find("M00 stage dialogue panel") as RectTransform;
             RectTransform[] choiceRects = memorial.GetComponentsInChildren<Button>(true)
                 .Where(button => button.gameObject.name.StartsWith("M00 choice "))
                 .Select(button => button.GetComponent<RectTransform>()).ToArray();
@@ -413,8 +439,8 @@ namespace Rpg.Tests.Editor
             Assert.That(choicePanelBounds.min.y, Is.GreaterThan(pavingBounds.max.y),
                 "The choice panel must not cover the playable paving.");
             var visibleRects = new[] { playerRect, titleRect, footer.rectTransform,
-                rollCallRect, choicePanelRect, stageLineRect, crowdLineRect }
-                .Concat(choiceRects).ToArray();
+                rollCallRect, choicePanelRect, stageLineRect, crowdLineRect,
+                stageDialoguePanelRect }.Concat(choiceRects).ToArray();
             foreach (float aspect in new[] { 9f / 16f, 32f / 9f, 5f, 16f / 9f })
             {
                 memorial.LayoutForViewportAspect(aspect);
