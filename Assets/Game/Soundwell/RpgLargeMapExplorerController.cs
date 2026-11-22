@@ -76,8 +76,15 @@ namespace Rpg.Soundwell
             this.isWalkable = isWalkable;
             this.zones = zones ?? Array.Empty<RpgMapZone>();
             this.triggers = triggers ?? Array.Empty<RpgMapTriggerAnchor>();
-            MoveSpeedTilesPerSecond = Mathf.Max(0.5f, moveSpeedTilesPerSecond);
+            MoveSpeedTilesPerSecond = IsFinite(moveSpeedTilesPerSecond)
+                ? Mathf.Max(0.5f, moveSpeedTilesPerSecond)
+                : 6.5f;
             UpdateCurrentZone(raiseEvent: false);
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         // Re-entry uses the same collision footprint as ordinary movement.
@@ -96,26 +103,32 @@ namespace Rpg.Soundwell
 
         public void TriggerHitstop(float seconds)
         {
+            if (!IsFinite(seconds) || seconds <= 0f) return;
             if (seconds > HitstopRemaining)
                 HitstopRemaining = seconds;
         }
 
         public void TriggerScreenShake(float intensity, float durationSeconds)
         {
-            if (intensity <= 0f || durationSeconds <= 0f) return;
+            if (!IsFinite(intensity) || !IsFinite(durationSeconds) ||
+                intensity <= 0f || durationSeconds <= 0f)
+                return;
             ShakeIntensity = Mathf.Max(ShakeIntensity, intensity);
             ShakeRemaining = Mathf.Max(ShakeRemaining, durationSeconds);
         }
 
         public bool StepMovement(Vector2 rawInput, float deltaTime)
         {
-            if (deltaTime <= 0f) return false;
+            if (!IsFinite(deltaTime) || deltaTime <= 0f) return false;
 
             if (HitstopRemaining > 0f)
             {
                 HitstopRemaining = Mathf.Max(0f, HitstopRemaining - deltaTime);
                 return false;
             }
+
+            if (!IsFinite(rawInput.x) || !IsFinite(rawInput.y))
+                return false;
 
             if (rawInput.sqrMagnitude < 0.0001f)
                 return false;
@@ -162,21 +175,34 @@ namespace Rpg.Soundwell
             float halfViewHeight = RpgWorldMapScale.LogicalScreenTilesY * 0.5f,
             float smoothSpeed = 8f)
         {
-            float minX = CameraBounds.min.x + halfViewWidth;
-            float maxX = CameraBounds.max.x - halfViewWidth;
-            float minY = CameraBounds.min.y + halfViewHeight;
-            float maxY = CameraBounds.max.y - halfViewHeight;
+            float safeHalfW = IsFinite(halfViewWidth) && halfViewWidth >= 0f
+                ? halfViewWidth
+                : RpgWorldMapScale.LogicalScreenTilesX * 0.5f;
+            float safeHalfH = IsFinite(halfViewHeight) && halfViewHeight >= 0f
+                ? halfViewHeight
+                : RpgWorldMapScale.LogicalScreenTilesY * 0.5f;
+            float safeSmooth = IsFinite(smoothSpeed) ? smoothSpeed : 8f;
+
+            float minX = CameraBounds.min.x + safeHalfW;
+            float maxX = CameraBounds.max.x - safeHalfW;
+            float minY = CameraBounds.min.y + safeHalfH;
+            float maxY = CameraBounds.max.y - safeHalfH;
 
             float targetX = minX <= maxX ? Mathf.Clamp(Position.x, minX, maxX) : CameraBounds.center.x;
             float targetY = minY <= maxY ? Mathf.Clamp(Position.y, minY, maxY) : CameraBounds.center.y;
 
-            // A paused frame must retain the camera's last framing rather than
-            // teleporting to the player; the bounds clamp below still applies.
-            float t = deltaTime > 0f ? 1f - Mathf.Exp(-Mathf.Max(0.1f, smoothSpeed) * deltaTime) : 0f;
-            float x = Mathf.Lerp(currentCameraPos.x, targetX, t);
-            float y = Mathf.Lerp(currentCameraPos.y, targetY, t);
+            float startX = IsFinite(currentCameraPos.x) ? currentCameraPos.x : targetX;
+            float startY = IsFinite(currentCameraPos.y) ? currentCameraPos.y : targetY;
+            float startZ = IsFinite(currentCameraPos.z) ? currentCameraPos.z : -10f;
 
-            if (ShakeRemaining > 0f && deltaTime > 0f)
+            bool validStep = IsFinite(deltaTime) && deltaTime > 0f;
+            // A paused or non-finite frame must retain the camera's last framing
+            // rather than teleporting to the player; the bounds clamp below still applies.
+            float t = validStep ? 1f - Mathf.Exp(-Mathf.Max(0.1f, safeSmooth) * deltaTime) : 0f;
+            float x = Mathf.Lerp(startX, targetX, t);
+            float y = Mathf.Lerp(startY, targetY, t);
+
+            if (ShakeRemaining > 0f && validStep)
             {
                 ShakeRemaining = Mathf.Max(0f, ShakeRemaining - deltaTime);
                 float wave = Mathf.Sin(ShakeRemaining * 90f) * ShakeIntensity;
@@ -188,7 +214,7 @@ namespace Rpg.Soundwell
 
             if (minX <= maxX) x = Mathf.Clamp(x, minX, maxX);
             if (minY <= maxY) y = Mathf.Clamp(y, minY, maxY);
-            return new Vector3(x, y, currentCameraPos.z);
+            return new Vector3(x, y, startZ);
         }
 
         public bool TryFindNearestTrigger(out RpgMapTriggerAnchor trigger)
