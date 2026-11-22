@@ -31,7 +31,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M09EastShoreNightCrossingSession Session => session;
-        public M09EastShoreNightCrossingView ActiveView => activeView;
+        public M09EastShoreNightCrossingView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public M09RuiyaOutcome? CommittedOutcome => committedOutcome;
         public int CommittedBoardedCount => committedBoardedCount;
         public bool IsCommitted => committedOutcome.HasValue;
@@ -62,7 +63,16 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || IsCommitted || !nightFerryReady() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+                openedAvailableBerths = null;
+                openedHouseholdSize = null;
+            }
+
+            if (disposed || parent == null || activeView != null || IsCommitted || !nightFerryReady() ||
                 !HasUnsettledCleanM09State())
                 return false;
 
@@ -80,7 +90,8 @@ namespace Rpg.Soundwell
                 parent,
                 session,
                 household,
-                count => IsCurrentVoyage() && nightFerryReady() &&
+                count => activeView != null && !activeView.IsDisposed &&
+                    IsCurrentVoyage() && nightFerryReady() &&
                     // An unrelated berth-table settlement, torn M09 payload,
                     // or orphaned Act-3 fact invalidates this still-visible
                     // ferry panel before real boarding begins.
@@ -92,7 +103,8 @@ namespace Rpg.Soundwell
 
         private void HandleCompleted(M09EastShoreNightCrossingSession completed)
         {
-            if (disposed || completed != session || !completed.IsComplete ||
+            if (disposed || activeView == null || activeView.IsDisposed ||
+                completed != session || !completed.IsComplete ||
                 !completed.Outcome.HasValue || !nightFerryReady() ||
                 // A competing, torn, or corrupted M09 settlement—or orphaned
                 // Act-3 downstream facts—must not be overwritten by this panel.
@@ -110,6 +122,9 @@ namespace Rpg.Soundwell
             committedBoardedCount = completed.ActuallyBoardedCount;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
+            openedAvailableBerths = null;
+            openedHouseholdSize = null;
         }
 
         private bool HasUnsettledCleanM09State()
