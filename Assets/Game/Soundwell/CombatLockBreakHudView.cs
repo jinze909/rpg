@@ -30,7 +30,7 @@ namespace Rpg.Soundwell
         public Text ObjectiveLabel => objectiveLabel;
         public Text LocksLabel => locksLabel;
         public Text MomentumLabel => momentumLabel;
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public CombatLockBreakHudView(Transform parent,
             S00BridgeheadCableTracker s00Tracker)
@@ -110,6 +110,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
