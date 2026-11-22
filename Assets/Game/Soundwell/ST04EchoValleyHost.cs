@@ -55,7 +55,8 @@ namespace Rpg.Soundwell
             this.write = write ?? throw new ArgumentNullException(nameof(write));
         }
 
-        public ST04EchoValleyView ActiveView => activeView;
+        public ST04EchoValleyView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public ST04EchoValleySession Session => session;
         public bool IsDisposed => disposed;
 
@@ -65,7 +66,9 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null ||
+            if (activeView != null && activeView.IsDisposed)
+                activeView = null;
+            if (disposed || parent == null || activeView != null ||
                 !world.AtValley || !world.SangJingAndMengHuiPresent ||
                 read(ST04EchoValleyFacts.ConfirmedKey) != 0)
                 return false;
@@ -99,7 +102,7 @@ namespace Rpg.Soundwell
         private void HandleRoadChoice(ST04RoadResolution choice)
         {
             if (disposed || session == null || activeView == null ||
-                !CanChooseRoad(choice))
+                activeView.IsDisposed || !CanChooseRoad(choice))
                 return;
 
             if (!pendingResolution.HasValue)
@@ -116,13 +119,21 @@ namespace Rpg.Soundwell
             if (!session.TryCommit(read, write))
                 return;
 
-            activeView.Dispose();
+            activeView?.Dispose();
             activeView = null;
         }
 
         public void RefreshView()
         {
-            if (!disposed) activeView?.Refresh();
+            if (disposed) return;
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView = null;
+                return;
+            }
+            activeView?.Refresh();
+            if (activeView != null && activeView.IsDisposed)
+                activeView = null;
         }
 
         public void Dispose()

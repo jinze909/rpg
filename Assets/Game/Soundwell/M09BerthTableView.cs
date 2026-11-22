@@ -151,6 +151,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
@@ -231,8 +233,13 @@ namespace Rpg.Soundwell
 
         private void HandleExchange(M09BerthExchangeFlags exchange, int gain)
         {
-            if (disposed || settling || session.IsSettled || CanvasDestroyed())
+            if (disposed || settling || session.IsSettled)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             bool needsPaidDeal = exchange == M09BerthExchangeFlags.ShipwrightExtraBerths &&
                 !session.ShenLiPresent;
@@ -245,8 +252,13 @@ namespace Rpg.Soundwell
 
         private void HandleReconcile()
         {
-            if (disposed || settling || session.IsSettled || CanvasDestroyed())
+            if (disposed || settling || session.IsSettled)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             if (session.TryPlayShenReconciliation())
                 Refresh();
@@ -254,8 +266,13 @@ namespace Rpg.Soundwell
 
         private void HandleSettle()
         {
-            if (disposed || settling || session.IsSettled || CanvasDestroyed())
+            if (disposed || settling || session.IsSettled)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             settling = true;
             Refresh();
@@ -275,8 +292,11 @@ namespace Rpg.Soundwell
         private bool CanvasDestroyed()
         {
             return canvasObject == null || panel == null || heading == null ||
-                summary == null || hanQiaoButton == null || shipwrightButton == null ||
-                qiQueButton == null || reconcileButton == null || settleButton == null;
+                summary == null || hanQiaoButton == null || hanQiaoLabel == null ||
+                shipwrightButton == null || shipwrightLabel == null ||
+                qiQueButton == null || qiQueLabel == null ||
+                reconcileButton == null || reconcileLabel == null ||
+                settleButton == null || settleLabel == null;
         }
 
         public void Dispose()

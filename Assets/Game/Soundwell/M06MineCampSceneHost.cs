@@ -21,7 +21,8 @@ namespace Rpg.Soundwell
 
         public M06MineCampExplorationHost Exploration => exploration;
         public SoundwellCameraRig CameraRig => cameraRig;
-        public bool IsDisposed => disposed;
+        public bool IsDisposed =>
+            disposed || parent == null || exploration == null || exploration.IsDisposed;
 
         public M06MineCampSceneHost(
             Transform parent, Camera camera,
@@ -76,7 +77,11 @@ namespace Rpg.Soundwell
         public void Tick(float deltaSeconds)
         {
             if (disposed) return;
-            if (parent == null) { Exit(); return; }
+            if (parent == null || exploration == null || exploration.IsDisposed)
+            {
+                Exit();
+                return;
+            }
 
             var frame = SoundwellInputAdapter.ReadGameplay();
             if (frame.Back && !exploration.IsDialogueOpen)
@@ -86,7 +91,8 @@ namespace Rpg.Soundwell
             }
             if (exploration.IsDialogueOpen) return;
 
-            exploration.StepMovement(frame.Movement, deltaSeconds);
+            if (!float.IsNaN(deltaSeconds) && !float.IsInfinity(deltaSeconds) && deltaSeconds > 0f)
+                exploration.StepMovement(frame.Movement, deltaSeconds);
             if (frame.Ring) exploration.TryInteractAtCurrentPosition();
         }
 

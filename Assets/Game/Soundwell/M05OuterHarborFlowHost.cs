@@ -35,9 +35,11 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M05OuterHarborFlowStage Stage => stage;
-        public M05LandingCheckView LandingCheckView => landingCheckView;
-        public M05OuterHarborArrivalSession ArrivalSession => arrivalSession;
-        public bool IsDisposed => disposed;
+        public M05LandingCheckView LandingCheckView =>
+            landingCheckView != null && !landingCheckView.IsDisposed ? landingCheckView : null;
+        public M05OuterHarborArrivalSession ArrivalSession =>
+            arrivalSession != null && !arrivalSession.IsDisposed ? arrivalSession : null;
+        public bool IsDisposed => disposed || parent == null;
 
         public static bool TryOpen(Transform parent,
             M05LandingReport? observedLanding,
@@ -155,9 +157,19 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             lastAspect = aspect;
-            landingCheckView?.LayoutForViewportAspect(aspect);
-            arrivalSession?.LayoutForViewportAspect(aspect);
+            if (landingCheckView != null)
+            {
+                if (landingCheckView.IsDisposed) landingCheckView = null;
+                else landingCheckView.LayoutForViewportAspect(aspect);
+            }
+            if (arrivalSession != null)
+            {
+                if (arrivalSession.IsDisposed) arrivalSession = null;
+                else arrivalSession.LayoutForViewportAspect(aspect);
+            }
         }
 
         private void OnLandingConfirmed(M05LandingReport confirmed)
@@ -217,7 +229,7 @@ namespace Rpg.Soundwell
 
         private void OnArrivalSessionCompleted(M05OuterHarborOutcome outcome)
         {
-            if (disposed || completedDelivered ||
+            if (disposed || parent == null || completedDelivered ||
                 stage != M05OuterHarborFlowStage.ArrivalSession)
                 return;
 
