@@ -330,7 +330,7 @@ namespace Rpg.Tests.Editor
             RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
                 .Single(rect => rect.gameObject.name == "M00 responsive authored view");
             Image stagePanel = authored.Find("M00 stage dialogue panel").GetComponent<Image>();
-            Image stageBacking = authored.Find("M00 stage dialogue backing").GetComponent<Image>();
+            Image stageBacking = stagePanel.transform.Find("M00 stage dialogue backing").GetComponent<Image>();
             Text narration = authored.Find("M00 scene narration").GetComponent<Text>();
             Text childLine = authored.Find("M00 Xiaodou stage line").GetComponent<Text>();
             Text crowdLine = authored.Find("M00 crowd reaction").GetComponent<Text>();
