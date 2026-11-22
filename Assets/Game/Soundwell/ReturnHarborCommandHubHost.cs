@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class ReturnHarborCommandHubHost : IDisposable
     {
+        private readonly Transform uiParent;
         private readonly ReturnStoryLedgerHost ledgerHost;
         private readonly ReturnRosterCasesHubHost rosterHub;
         private readonly ReturnRegionalStoriesHubHost regionalHub;
@@ -39,6 +40,7 @@ namespace Rpg.Soundwell
         {
             get
             {
+                if (disposed) return ReturnCommandHubMode.None;
                 if (ledgerHost.IsOpen) return ReturnCommandHubMode.StoryLedger;
                 if (rosterHub.HasActiveCase) return ReturnCommandHubMode.RosterCase;
                 if (regionalHub.HasActiveStory) return ReturnCommandHubMode.RegionalStory;
@@ -57,7 +59,7 @@ namespace Rpg.Soundwell
             ReturnRegionalStoriesHubContext regionalContext = null,
             ReturnFinaleFlowContext finaleContext = null)
         {
-            if (uiParent == null) throw new ArgumentNullException(nameof(uiParent));
+            this.uiParent = uiParent ?? throw new ArgumentNullException(nameof(uiParent));
             this.getInt = getInt ?? throw new ArgumentNullException(nameof(getInt));
             if (setInt == null) throw new ArgumentNullException(nameof(setInt));
 
@@ -80,7 +82,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpenStoryLedger(Action onClosed = null)
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
             if (ActiveMode != ReturnCommandHubMode.None &&
                 ActiveMode != ReturnCommandHubMode.StoryLedger)
@@ -90,7 +92,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpenRosterCase(ReturnRosterCaseId caseId)
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
             if (ActiveMode != ReturnCommandHubMode.None &&
                 ActiveMode != ReturnCommandHubMode.RosterCase)
@@ -100,7 +102,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpenRegionalStory(ReturnRegionalStoryId storyId)
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
             if (ActiveMode != ReturnCommandHubMode.None &&
                 ActiveMode != ReturnCommandHubMode.RegionalStory)
@@ -110,7 +112,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpenNextFinaleStage()
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
             if (ActiveMode != ReturnCommandHubMode.None &&
                 ActiveMode != ReturnCommandHubMode.FinaleFlow)
@@ -120,6 +122,7 @@ namespace Rpg.Soundwell
 
         public void CloseActivePanel()
         {
+            if (disposed) return;
             ledgerHost.Close();
             rosterHub.CloseActiveCase();
             regionalHub.CloseActiveStory();
