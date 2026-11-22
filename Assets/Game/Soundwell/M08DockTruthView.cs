@@ -25,6 +25,7 @@ namespace Rpg.Soundwell
         private readonly Text finishLabel;
         private readonly Font latinFont;
         private Func<M08DockTruthResponse, bool> recordResponse;
+        private bool acknowledging;
         private bool disposed;
 
         public M08DockTruthSession Session => session;
@@ -112,15 +113,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = body.font = hearLabel.font = finishLabel.font = font;
@@ -181,8 +182,9 @@ namespace Rpg.Soundwell
                     }
                     finishLabel.text = zh ? "记下这次回应" : "Record this response";
                     finishButton.gameObject.SetActive(true);
-                    finishButton.interactable = true;
-                    focus = finishButton;
+                    finishButton.interactable = !acknowledging;
+                    if (!acknowledging)
+                        focus = finishButton;
                     break;
 
                 case M08DockTruthStage.Completed:
@@ -204,14 +206,14 @@ namespace Rpg.Soundwell
 
         private void HearTruth()
         {
-            if (disposed || CanvasDestroyed() || !hearButton.interactable) return;
+            if (disposed || IsDestroyedExternally() || !hearButton.interactable) return;
             session.TryHearTruth();
             Refresh();
         }
 
         private void Respond(int index)
         {
-            if (disposed || CanvasDestroyed() ||
+            if (disposed || IsDestroyedExternally() ||
                 session.Stage != M08DockTruthStage.AwaitingResponse ||
                 index < 0 || index >= responseButtons.Length ||
                 !responseButtons[index].interactable)
@@ -222,15 +224,30 @@ namespace Rpg.Soundwell
 
         private void Finish()
         {
-            if (disposed || CanvasDestroyed() || !finishButton.interactable)
+            if (disposed || IsDestroyedExternally() || acknowledging || !finishButton.interactable)
                 return;
             // Host owns the authoritative shen_relation write.
-            // A failed or interrupted save keeps this confirmation retryable.
-            if (session.TryAcknowledge(recordResponse))
+            // Guard against reentrant submits while keeping failed writes retryable.
+            acknowledging = true;
+            Refresh();
+            try
             {
-                recordResponse = null;
-                Refresh();
+                if (session.TryAcknowledge(recordResponse))
+                    recordResponse = null;
             }
+            finally
+            {
+                acknowledging = false;
+                if (!disposed) Refresh();
+            }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed())
+                return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()
