@@ -19,9 +19,21 @@ namespace Rpg.Soundwell
         private float nextCallAt = float.NaN;
         private bool awaitingPersistence;
         private float layoutAspect;
+
         public M00RollCallSequence Sequence => sequence;
-        public M00RollCallView View => view;
+        public M00RollCallView View => HasLiveView() ? view : null;
         public bool AwaitingPersistence => awaitingPersistence;
+
+        private bool HasLiveView() => view != null && !view.IsDisposed;
+
+        private void PruneDeadView()
+        {
+            if (view == null || !view.IsDisposed)
+                return;
+            view.Dispose();
+            view = null;
+            nextCallAt = float.NaN;
+        }
 
         public void Begin(Action<M00RollCallOutcome> completed)
         {
@@ -44,17 +56,18 @@ namespace Rpg.Soundwell
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) / Mathf.Max(1, Screen.height));
             Tick(Time.unscaledTime);
         }
-        
+
         public void LayoutForViewportAspect(float aspect)
         {
-        if (view == null || float.IsNaN(aspect) || float.IsInfinity(aspect) ||
-            aspect <= 0f || Mathf.Approximately(aspect, layoutAspect))
-            return;
+            PruneDeadView();
+            if (view == null || float.IsNaN(aspect) || float.IsInfinity(aspect) ||
+                aspect <= 0f || Mathf.Approximately(aspect, layoutAspect))
+                return;
 
             layoutAspect = aspect;
             view.LayoutForViewportAspect(aspect);
         }
-        
+
         /// <summary>
         /// Explicit time input keeps the exact pause testable without waiting
         /// for real frames; Update uses unscaled time so a paused game cannot
@@ -62,9 +75,6 @@ namespace Rpg.Soundwell
         /// </summary>
         public void Tick(float now)
         {
-            if (view == null)
-                return;
-
             // If the save owner is momentarily unavailable, do not advance to
             // Han Qiao's meeting and do not drop the player's authored choice.
             if (awaitingPersistence)
@@ -72,6 +82,10 @@ namespace Rpg.Soundwell
                 DeliverWhenRecorded();
                 return;
             }
+
+            PruneDeadView();
+            if (view == null || float.IsNaN(now) || float.IsInfinity(now))
+                return;
 
             if (!view.IsWaitingForNextCall)
             {
@@ -109,7 +123,7 @@ namespace Rpg.Soundwell
             awaitingPersistence = false;
             Action<M00RollCallOutcome> completed = onFinished;
             onFinished = null;
-            view.Dispose();
+            view?.Dispose();
             view = null;
             completed?.Invoke(sequence.Outcome);
         }
