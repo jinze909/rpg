@@ -120,7 +120,8 @@ namespace Rpg.Tests.Editor
                         RC01FerryClues.All, RC01TalkOrder.LinSuFirst,
                         RC01ChenYanOutcome.KeepMarkedDead, true), read, write), Is.True);
 
-                    values[RC03BaijiMineFacts.ResolutionKey] = (int)RC03Resolution.KeepOldCharter;
+                    values[RC03BaijiMineFacts.ResolutionKey] =
+                        (int)RC03Resolution.AmendCharterWithSuccessors;
                     Assert.That(hub.IsCaseAvailable(ReturnRosterCaseId.RC03BaijiMine), Is.False);
                     Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC03BaijiMine), Is.False);
                     Assert.That(hub.ActiveRC01Host, Is.SameAs(rc01Host));
