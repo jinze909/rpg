@@ -1343,6 +1343,12 @@ namespace Rpg.Tests.Editor
             var questReward = ORK.Quests.Get(SoundwellOrkParty.RescueQuestGuid).reward;
             var authoredExperience = questReward.experience;
             MoveTestLeader(playerBody, safe);
+            yield return null;
+            Assert.That(trial.RescueComplete, Is.False,
+                "Reaching RETREAT with the guide alone is not a completed rescue while the surveyor is still approaching.");
+            Assert.That(contextualHint.text, Is.EqualTo(
+                SoundwellUiLocalization.Get("hint.escort_to_retreat")),
+                "At RETREAT, the live prompt must keep the player focused on bringing the surveyor home instead of suggesting Retry.");
             deadline = Time.realtimeSinceStartup + 15f;
             while (!trial.RescueComplete && Time.realtimeSinceStartup < deadline)
                 yield return null;
