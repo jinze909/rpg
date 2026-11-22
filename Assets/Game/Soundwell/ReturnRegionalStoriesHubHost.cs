@@ -223,6 +223,8 @@ namespace Rpg.Soundwell
                 return !st02.IsDisposed && st02.ActiveView != null;
             if (activeHost is ST03BathhouseHost st03)
                 return !st03.IsDisposed && st03.ActiveView != null;
+            if (activeHost is ST04EchoValleyHost st04)
+                return !st04.IsDisposed && st04.ActiveView != null;
             if (activeHost is ST05TwoDoorsHost st05)
                 return !st05.IsDisposed && st05.ActiveView != null;
             if (activeHost is ST06TaoJiHomecomingHost st06)
