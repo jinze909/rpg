@@ -32,6 +32,7 @@ namespace Rpg.Soundwell
         private readonly Font latinFont;
         private Func<RC04Resolution, bool> verifiedSceneConditions;
         private Func<RC04Resolution, bool> onResolutionRequested;
+        private bool submitting;
         private bool delivered;
         private bool disposed;
 
@@ -116,14 +117,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public bool CanChoose(RC04Resolution resolution)
         {
-            if (disposed || delivered || !session.TidalWindowLocated ||
+            if (disposed || delivered || submitting || CanvasDestroyed() ||
+                !session.TidalWindowLocated ||
                 session.IsResolved || verifiedSceneConditions == null ||
                 !verifiedSceneConditions(resolution))
                 return false;
@@ -146,8 +148,7 @@ namespace Rpg.Soundwell
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = story.font = font;
@@ -190,17 +191,17 @@ namespace Rpg.Soundwell
             for (int i = 0; i < buttons.Length; i++)
             {
                 buttons[i].gameObject.SetActive(true);
-                buttons[i].interactable = CanChoose(choices[i]);
+                buttons[i].interactable = !submitting && CanChoose(choices[i]);
                 if (focus == null && buttons[i].interactable)
                     focus = buttons[i];
             }
-            if (focus != null)
+            if (!submitting && focus != null)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, focus);
         }
 
         private void Choose(int index)
         {
-            if (disposed || delivered || CanvasDestroyed() ||
+            if (disposed || IsDestroyedExternally() || delivered || submitting ||
                 index < 0 || index >= choices.Length ||
                 !buttons[index].interactable)
                 return;
@@ -211,13 +212,29 @@ namespace Rpg.Soundwell
                 Refresh();
                 return;
             }
-            if (!onResolutionRequested(choice))
-                return;
-
-            delivered = true;
-            verifiedSceneConditions = null;
-            onResolutionRequested = null;
+            submitting = true;
             Refresh();
+            try
+            {
+                if (!onResolutionRequested(choice))
+                    return;
+
+                delivered = true;
+                verifiedSceneConditions = null;
+                onResolutionRequested = null;
+            }
+            finally
+            {
+                submitting = false;
+                if (!disposed) Refresh();
+            }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()
