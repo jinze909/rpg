@@ -25,7 +25,7 @@ namespace Rpg.Soundwell
 
         public AudioSource Source => source;
         public AudioLowPassFilter LowPass => lowPass;
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || IsDestroyedExternally();
 
         public FogListeningAudioCuePlayer(Transform parent)
         {
@@ -51,10 +51,20 @@ namespace Rpg.Soundwell
                 source.mute = SoundwellAudioBus.IsMuted;
         }
 
+        private bool IsDestroyedExternally()
+        {
+            return gameObject == null || source == null || lowPass == null;
+        }
+
         public void Sync(FogListeningSession session)
         {
-            if (disposed || gameObject == null)
+            if (disposed)
                 return;
+            if (IsDestroyedExternally())
+            {
+                Dispose();
+                return;
+            }
             if (session == null)
                 throw new ArgumentNullException(nameof(session));
 
