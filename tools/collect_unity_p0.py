@@ -29,7 +29,7 @@ M06_STORY_FRAMES = (
     "m06-mine-camp-map.png",
     "m06-pump-room-reunion.png",
 )
-PNG_SIGNATURE = b"\\x89PNG\\r\\n\\x1a\\n"
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 def validate_m06_story_frames(evidence: Path) -> list[str]:

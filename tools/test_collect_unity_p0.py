@@ -1211,18 +1211,18 @@ class M06StoryFrameEvidenceTests(unittest.TestCase):
             story = evidence / "story"
             story.mkdir()
             valid_png = (
-                b"\\x89PNG\\r\\n\\x1a\\n" + b"\\x00" * 8 +
+                b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 +
                 (960).to_bytes(4, "big") + (540).to_bytes(4, "big") +
-                b"\\x00" * 1024
+                b"\x00" * 1024
             )
             for filename in M06_STORY_FRAMES:
                 (story / filename).write_bytes(valid_png)
             self.assertEqual(validate_m06_story_frames(evidence), [])
 
             invalid_dimensions = (
-                b"\\x89PNG\\r\\n\\x1a\\n" + b"\\x00" * 8 +
+                b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 +
                 (800).to_bytes(4, "big") + (600).to_bytes(4, "big") +
-                b"\\x00" * 1024
+                b"\x00" * 1024
             )
             (story / M06_STORY_FRAMES[0]).write_bytes(invalid_dimensions)
             self.assertEqual(len(validate_m06_story_frames(evidence)), 1)
