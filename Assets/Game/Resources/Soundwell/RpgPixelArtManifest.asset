@@ -52,6 +52,8 @@ MonoBehaviour:
   ferryGuideBrace: {fileID: -8314719270007269551, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
   rescueRiggerIdle: {fileID: 5647344434883588499, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
   soundBorrowingBeastIdle: {fileID: -4422625151897015916, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
+  soundBorrowingBeastCreep1: {fileID: 7604016724474033368, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
+  soundBorrowingBeastCreep2: {fileID: 1707299565544232592, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
   soundBorrowingBeastAlert: {fileID: -6529225619564018557, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
   bridgeGuardIdle: {fileID: -5034309736085894853, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
   bridgeGuardThrust: {fileID: -1147198341244895282, guid: 38dea4da77be441f8e074069a159e6cf, type: 3}
