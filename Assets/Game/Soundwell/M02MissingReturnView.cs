@@ -34,6 +34,7 @@ namespace Rpg.Soundwell
         public Button RequestButton => requestButton;
         public Button StampButton => stampButton;
         public Button LeaveButton => leaveButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M02MissingReturnView(Transform parent, M01PensionChoice priorChoice,
             M02BridgeEvidence recordedEvidence, bool assistanceAccepted,
@@ -84,11 +85,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -96,7 +99,7 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -131,7 +134,14 @@ namespace Rpg.Soundwell
 
         private void Ask()
         {
-            if (disposed || delivered || !review.CanRequest || review.Requested)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (!review.CanRequest || review.Requested)
                 return;
             review.Request();
             Refresh();
@@ -139,7 +149,14 @@ namespace Rpg.Soundwell
 
         private void Stamp()
         {
-            if (disposed || delivered || !review.CanStamp)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (!review.CanStamp)
                 return;
             review.Stamp();
             Refresh();
@@ -149,6 +166,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             // Lock against reentrant UGUI submits before persisting through the
             // host. A failed write must not consume the stamped outcome or
             // irrevocably close the review desk.
@@ -161,8 +183,11 @@ namespace Rpg.Soundwell
             }
             catch
             {
-                delivered = false;
-                Refresh();
+                if (!disposed)
+                {
+                    delivered = false;
+                    Refresh();
+                }
                 throw;
             }
         }
@@ -181,6 +206,14 @@ namespace Rpg.Soundwell
             if (leaveButton != null)
                 leaveButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || authoredView == null || heading == null ||
+                narrative == null || requestButton == null || requestText == null ||
+                stampButton == null || stampText == null || leaveButton == null ||
+                leaveText == null;
         }
     }
 }
