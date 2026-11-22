@@ -31,7 +31,7 @@ namespace Rpg.Soundwell
                 return m.M02CableFlatUncharredCut;
             if ((clue & M02BridgeEvidence.WarReportDraft) != 0)
                 return m.M02OverwrittenBattleReport;
-            if (clue.ToString().IndexOf("Ledger", StringComparison.OrdinalIgnoreCase) >= 0)
+            if ((clue & M02BridgeEvidence.FerrymanLog) != 0)
                 return m.M02BridgeKeeperOpenLedger;
             return null;
         }
