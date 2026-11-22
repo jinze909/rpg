@@ -47,6 +47,7 @@ namespace Rpg.Soundwell
         public Text HeadingText => heading;
         public Image StageIcon => stageIcon;
         public Button ProgressButton => progressButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M01WestLaneView(
             Transform parent, M00RollCallOutcome identity, bool xiaodouPrompted,
@@ -114,11 +115,13 @@ namespace Rpg.Soundwell
                 return;
             // West Lane can be unloaded before the host releases this view.
             // Do not resize a destroyed Unity canvas; detach locale events.
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -126,7 +129,7 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -258,7 +261,14 @@ namespace Rpg.Soundwell
 
         private void Choose(M01PensionChoice choice)
         {
-            if (disposed || Stage != M01WestLaneStage.ChoosingPension)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (Stage != M01WestLaneStage.ChoosingPension)
                 return;
             M01HomecomingResponse.PensionPathFor(choice);
             Decision = choice;
@@ -270,6 +280,11 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             switch (Stage)
             {
                 case M01WestLaneStage.AtDoor:
@@ -295,8 +310,11 @@ namespace Rpg.Soundwell
                     }
                     catch
                     {
-                        delivered = false;
-                        Refresh();
+                        if (!disposed)
+                        {
+                            delivered = false;
+                            Refresh();
+                        }
                         throw;
                     }
                     break;
@@ -316,6 +334,19 @@ namespace Rpg.Soundwell
             if (progressButton != null)
                 progressButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || heading == null ||
+                dialogue == null || progressButton == null || progressLabel == null)
+                return true;
+            for (int i = 0; i < choices.Length; i++)
+            {
+                if (choices[i] == null || choiceLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
     }
 }
