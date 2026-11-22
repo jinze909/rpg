@@ -107,31 +107,39 @@ namespace Rpg.Soundwell
             if (!M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? m09) || !m09.HasValue)
                 return ReturnFinaleStage.None;
             if (!M10AssemblyFacts.TryRead(getInt, out M10AssemblyRecord? m10) || !m10.HasValue)
-                return M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt)
+                return M10AssemblyFacts.HasAnyPersistedFacts(getInt) ||
+                    M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt)
                     ? ReturnFinaleStage.None
                     : ReturnFinaleStage.M10Assembly;
             if (!M11ReverseRescueFacts.TryRead(getInt, out M11ReverseRescueRecord? m11) || !m11.HasValue)
-                return M11ReverseRescueFacts.HasOrphanedDownstreamFacts(getInt)
+                return M11ReverseRescueFacts.HasAnyPersistedFacts(getInt) ||
+                    M11ReverseRescueFacts.HasOrphanedDownstreamFacts(getInt)
                     ? ReturnFinaleStage.None
                     : ReturnFinaleStage.M11ReverseRescue;
             if (!M12BridgeTruthFacts.TryRead(getInt, out M12BridgeTruthRecord? m12) || !m12.HasValue)
-                return M12BridgeTruthFacts.HasOrphanedDownstreamFacts(getInt)
+                return M12BridgeTruthFacts.HasAnyPersistedFacts(getInt) ||
+                    M12BridgeTruthFacts.HasOrphanedDownstreamFacts(getInt)
                     ? ReturnFinaleStage.None
                     : ReturnFinaleStage.M12BridgeTruth;
             if (!M13DepartureRiskFacts.TryReadDeparture(getInt, out M13DepartureRecord? m13) || !m13.HasValue)
-                return M13DepartureRiskFacts.HasOrphanedDownstreamFacts(getInt)
+                return M13DepartureRiskFacts.HasAnyPersistedFacts(getInt) ||
+                    M13DepartureRiskFacts.HasOrphanedDownstreamFacts(getInt)
                     ? ReturnFinaleStage.None
                     : ReturnFinaleStage.M13DepartureRisk;
             if (!M14FinalPassageFacts.TryRead(getInt, out M14FinalPassageRecord? m14) || !m14.HasValue)
-                return M14FinalPassageFacts.HasOrphanedDownstreamFacts(getInt)
+                return M14FinalPassageFacts.HasAnyPersistedFacts(getInt) ||
+                    M14FinalPassageFacts.HasOrphanedDownstreamFacts(getInt)
                     ? ReturnFinaleStage.None
                     : ReturnFinaleStage.M14FinalPassage;
             if (!M15FinalRollCallFacts.TryRead(getInt, out M15FinalRollCallRecord? m15) || !m15.HasValue)
-                return M15FinalRollCallFacts.HasOrphanedDownstreamFacts(getInt)
+                return M15FinalRollCallFacts.HasAnyPersistedFacts(getInt) ||
+                    M15FinalRollCallFacts.HasOrphanedDownstreamFacts(getInt)
                     ? ReturnFinaleStage.None
                     : ReturnFinaleStage.M15FinalRollCall;
             if (!M16EpilogueFacts.TryRead(getInt, out M16EpilogueRecord? m16) || !m16.HasValue)
-                return ReturnFinaleStage.M16Epilogue;
+                return M16EpilogueFacts.HasAnyPersistedFacts(getInt)
+                    ? ReturnFinaleStage.None
+                    : ReturnFinaleStage.M16Epilogue;
             return ReturnFinaleStage.Completed;
         }
 
