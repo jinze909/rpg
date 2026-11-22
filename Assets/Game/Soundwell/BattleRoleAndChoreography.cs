@@ -201,9 +201,21 @@ namespace Rpg.Soundwell
     /// </summary>
     public static class BattleExchangeChoreography
     {
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
+        private static bool IsFinite(Vector2 value) =>
+            IsFinite(value.x) && IsFinite(value.y);
+
+        private static bool IsFinite(Vector3 value) =>
+            IsFinite(value.x) && IsFinite(value.y) && IsFinite(value.z);
+
         public static Vector2 ComputeLungeOffset(float normalizedTime,
             Vector2 directionToTarget, float lungeDistance = 0.75f)
         {
+            if (!IsFinite(normalizedTime) || !IsFinite(directionToTarget) || !IsFinite(lungeDistance))
+                return Vector2.zero;
+
             float t = Mathf.Clamp01(normalizedTime);
             if (directionToTarget.sqrMagnitude < 0.0001f || lungeDistance <= 0f)
                 return Vector2.zero;
@@ -220,7 +232,9 @@ namespace Rpg.Soundwell
             float normalizedTime, Vector2 knockbackDirection, int actualOrkHpLoss,
             float maxRecoilDistance = 0.42f)
         {
-            if (actualOrkHpLoss <= 0 || knockbackDirection.sqrMagnitude < 0.0001f)
+            if (actualOrkHpLoss <= 0 || !IsFinite(normalizedTime) ||
+                !IsFinite(knockbackDirection) || !IsFinite(maxRecoilDistance) ||
+                maxRecoilDistance <= 0f || knockbackDirection.sqrMagnitude < 0.0001f)
                 return (Vector2.zero, 0f);
 
             float t = Mathf.Clamp01(normalizedTime);
@@ -248,8 +262,10 @@ namespace Rpg.Soundwell
                 line.sortingOrder = 40;
             }
 
-            line.enabled = cue.DrawTargetLine;
-            if (cue.DrawTargetLine)
+            bool canDraw = cue.DrawTargetLine &&
+                IsFinite(enemyPosition) && IsFinite(targetAllyPosition);
+            line.enabled = canDraw;
+            if (canDraw)
             {
                 line.startColor = cue.IndicatorColor;
                 line.endColor = new Color(
