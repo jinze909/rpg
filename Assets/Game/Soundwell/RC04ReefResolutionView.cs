@@ -43,6 +43,7 @@ namespace Rpg.Soundwell
         public Button BringDingYueButton => buttons[2];
         public Button BeaconButton => buttons[3];
         public bool ResolutionDelivered => delivered;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC04ReefResolutionView(
             Transform parent,

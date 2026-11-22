@@ -26,7 +26,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M16EpilogueSession Session => session;
-        public M16EpilogueView ActiveView => activeView;
+        public M16EpilogueView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M16EpilogueFacts.TryRead(getInt, out M16EpilogueRecord? saved) &&
@@ -53,7 +54,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atLinchaoAfternoon() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null || !atLinchaoAfternoon() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -88,7 +96,8 @@ namespace Rpg.Soundwell
 
         private void HandleStandingSpotSubmitted(M16StandingSpot spot)
         {
-            if (disposed || session == null || !atLinchaoAfternoon() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atLinchaoAfternoon() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 shenLiWillingToMeet() != openedShenLiWillingToMeet ||

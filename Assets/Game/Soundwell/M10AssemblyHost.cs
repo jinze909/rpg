@@ -24,7 +24,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M10AssemblySession Session => session;
-        public M10AssemblyView ActiveView => activeView;
+        public M10AssemblyView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M10AssemblyFacts.TryRead(getInt, out M10AssemblyRecord? saved) &&
@@ -51,7 +52,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atJingwanAssembly() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null || !atJingwanAssembly() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -89,7 +96,8 @@ namespace Rpg.Soundwell
             // A match at the earlier reconciliation table is not proof that
             // the three live records still agree when the assembly is saved.
             // Keep the panel retryable rather than publishing a stale clearance.
-            if (disposed || session == null || !atJingwanAssembly() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atJingwanAssembly() ||
                 !threeRecordsMatched() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
@@ -98,7 +106,7 @@ namespace Rpg.Soundwell
             if (!session.TryCommit(getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
             openedArrivalSequence = null;
         }

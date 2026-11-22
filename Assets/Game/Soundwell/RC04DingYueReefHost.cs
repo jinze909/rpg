@@ -26,8 +26,10 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public RC04DingYueReefSession Session => session;
-        public RC04ReefListeningView ActiveListeningView => listeningView;
-        public RC04ReefResolutionView ActiveResolutionView => resolutionView;
+        public RC04ReefListeningView ActiveListeningView =>
+            (listeningView != null && !listeningView.IsDisposed) ? listeningView : null;
+        public RC04ReefResolutionView ActiveResolutionView =>
+            (resolutionView != null && !resolutionView.IsDisposed) ? resolutionView : null;
         public bool ApproachConfirmed => approachConfirmed;
         public bool IsDisposed => disposed;
         public bool IsResolved =>
@@ -52,7 +54,21 @@ namespace Rpg.Soundwell
 
         public bool TryOpenListening()
         {
-            if (disposed || listeningView != null || resolutionView != null ||
+            if (listeningView != null && listeningView.IsDisposed)
+            {
+                listeningView.Dispose();
+                listeningView = null;
+            }
+            if (resolutionView != null && resolutionView.IsDisposed)
+            {
+                resolutionView.Dispose();
+                resolutionView = null;
+                approachConfirmed = false;
+            }
+            if (listeningView == null && resolutionView == null)
+                openedArrivalSequence = null;
+
+            if (disposed || parent == null || listeningView != null || resolutionView != null ||
                 getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
                 getInt(RC04DingYueReefFacts.PendingSignatureKey) != 0 ||
                 getInt(RC04DingYueReefFacts.RoundsCompletedKey) != 0 ||
@@ -75,7 +91,8 @@ namespace Rpg.Soundwell
 
         private bool HandleApproachRequested(RC04DingYueReefSession activeSession)
         {
-            if (disposed || activeSession != session || session == null ||
+            if (disposed || parent == null || listeningView == null || listeningView.IsDisposed ||
+                activeSession != session || session == null ||
                 !session.TidalWindowLocated || session.IsResolved ||
                 !canApproachReef() ||
                 !openedArrivalSequence.HasValue ||
@@ -88,7 +105,7 @@ namespace Rpg.Soundwell
                 return false;
 
             approachConfirmed = true;
-            listeningView?.Dispose();
+            listeningView.Dispose();
             listeningView = null;
             resolutionView = new RC04ReefResolutionView(
                 parent, session, verifiedSceneConditions, HandleResolutionRequested);
@@ -97,7 +114,8 @@ namespace Rpg.Soundwell
 
         private bool HandleResolutionRequested(RC04Resolution resolution)
         {
-            if (disposed || !approachConfirmed || session == null ||
+            if (disposed || resolutionView == null || resolutionView.IsDisposed ||
+                !approachConfirmed || session == null ||
                 !session.TidalWindowLocated || !verifiedSceneConditions(resolution) ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
@@ -135,7 +153,7 @@ namespace Rpg.Soundwell
                 !MatchesSessionOutcome(persisted.Value, resolution))
                 return false;
 
-            resolutionView?.Dispose();
+            resolutionView.Dispose();
             resolutionView = null;
             openedArrivalSequence = null;
             return true;

@@ -32,7 +32,7 @@ namespace Rpg.Soundwell
         public Button RewriteButton => buttons[0];
         public Button ContractButton => buttons[1];
         public Button BoycottButton => buttons[2];
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public ST01TheaterChoiceView(
             Transform parent,

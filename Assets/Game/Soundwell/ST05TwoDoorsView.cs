@@ -47,6 +47,7 @@ namespace Rpg.Soundwell
         public Button TrialSharedHomeButton => choiceButtons[1];
         public Button ChengStayLocalButton => choiceButtons[0];
         public Button ChengOutsideSurveyButton => choiceButtons[1];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public ST05TwoDoorsView(
             Transform parent,

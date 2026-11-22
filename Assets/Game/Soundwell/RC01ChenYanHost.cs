@@ -20,7 +20,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public RC01ChenYanSession Session => session;
-        public RC01ChenYanView ActiveView => activeView;
+        public RC01ChenYanView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsResolved =>
             RC01ChenYanFacts.TryRead(getInt, out RC01ChenYanRecord? saved) &&
@@ -41,7 +42,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atWhiteReedFerry() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null || !atWhiteReedFerry() ||
                 getInt(RC01ChenYanFacts.ConfirmedKey) != 0 ||
                 getInt(RC01ChenYanFacts.PendingSignatureKey) != 0 ||
                 getInt(RC01ChenYanFacts.CluesMaskKey) != 0 ||
@@ -62,7 +69,8 @@ namespace Rpg.Soundwell
 
         private void HandleOutcomeSubmitted(RC01ChenYanOutcome outcome)
         {
-            if (disposed || session == null || !atWhiteReedFerry() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atWhiteReedFerry() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
@@ -70,7 +78,7 @@ namespace Rpg.Soundwell
             if (!session.TrySettleRosterEntry(outcome, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
             openedArrivalSequence = null;
         }

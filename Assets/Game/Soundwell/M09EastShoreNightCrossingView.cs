@@ -34,6 +34,7 @@ namespace Rpg.Soundwell
         public Button RiskOrRefuseButton => choices[1];
         public Button DeferButton => choices[2];
         public Button FinishButton => finishButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M09EastShoreNightCrossingView(
             Transform parent,

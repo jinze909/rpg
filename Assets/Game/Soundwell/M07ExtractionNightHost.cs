@@ -27,7 +27,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M07ExtractionNightSession Session => session;
-        public M07ExtractionNightView ActiveView => activeView;
+        public M07ExtractionNightView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? saved) &&
@@ -80,7 +81,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !nightExtractionReady() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null || !nightExtractionReady() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -108,7 +116,8 @@ namespace Rpg.Soundwell
             M07LiangChoice liangChoice,
             M07YidaChoice yidaChoice)
         {
-            if (disposed || session == null || !nightExtractionReady() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !nightExtractionReady() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;

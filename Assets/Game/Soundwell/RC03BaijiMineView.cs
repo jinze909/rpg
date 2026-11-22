@@ -42,6 +42,7 @@ namespace Rpg.Soundwell
         public Button AmendCharterButton => bottomButtons[0];
         public Button SecretEvacuateButton => bottomButtons[1];
         public Button StayOneYearButton => bottomButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC03BaijiMineView(
             Transform parent,

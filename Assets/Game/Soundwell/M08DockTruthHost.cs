@@ -21,7 +21,8 @@ namespace Rpg.Soundwell
         private M08DockTruthView activeView;
         private bool disposed;
 
-        public M08DockTruthView ActiveView => activeView;
+        public M08DockTruthView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool HasRecordedResponse =>
             M08DockTruthFacts.TryRead(getInt, out M08DockTruthResponse? response) &&
@@ -40,7 +41,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null ||
                 !shenLiPresent() ||
                 // Refuse a damaged or torn record until the voyage is
                 // explicitly reset, rather than allowing contradictory edits.
@@ -66,7 +74,8 @@ namespace Rpg.Soundwell
         {
             // Presence and prior commission are checked again at commit time.
             // A party split mid-conversation never grants dialogue credit.
-            if (disposed || !openedArrivalSequence.HasValue ||
+            if (disposed || activeView == null || activeView.IsDisposed ||
+                !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 !shenLiPresent() ||
                 !M08WorkshopDepositFacts.TryRead(getInt, out bool completed) ||

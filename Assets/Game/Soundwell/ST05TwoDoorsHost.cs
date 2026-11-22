@@ -27,7 +27,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public ST05TwoDoorsSession Session => session;
-        public ST05TwoDoorsView ActiveView => activeView;
+        public ST05TwoDoorsView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsOutcome? saved) &&
@@ -66,7 +67,12 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atJingwanCourtyard() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+            }
+            if (disposed || parent == null || activeView != null || !atJingwanCourtyard() ||
                 !ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsOutcome? existing) ||
                 existing.HasValue)
                 return false;
@@ -91,7 +97,8 @@ namespace Rpg.Soundwell
 
         private void HandleHomeCommitRequested()
         {
-            if (disposed || session == null || !atJingwanCourtyard() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atJingwanCourtyard() ||
                 !marketGiftsTested() || !courtyardResolved() || !partnersHeard())
                 return;
             session.TryCommitLivingAgreement(getInt, setInt);
@@ -99,13 +106,14 @@ namespace Rpg.Soundwell
 
         private void HandleAssignmentCommitRequested()
         {
-            if (disposed || session == null || !atJingwanCourtyard() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atJingwanCourtyard() ||
                 !chengJobTermsReady())
                 return;
             if (!session.TryCommitChengAssignment(getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
         }
 

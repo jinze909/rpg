@@ -46,6 +46,7 @@ namespace Rpg.Soundwell
         public Button LiangStayButton => choiceButtons[0];
         public Button LiangPersuadeButton => choiceButtons[1];
         public Button LiangForceButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M07ExtractionNightView(
             Transform parent,

@@ -67,7 +67,7 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public ReturnRegionalStoryId ActiveStory => activeStory;
-        public bool HasActiveStory => activeHost != null;
+        public bool HasActiveStory => IsActiveHostOpen();
         public bool IsDisposed => disposed;
 
         public ST01TheaterChoiceHost ActiveST01Host => activeHost as ST01TheaterChoiceHost;
@@ -198,6 +198,23 @@ namespace Rpg.Soundwell
             return count;
         }
 
+        private bool IsActiveHostOpen()
+        {
+            if (activeHost == null)
+                return false;
+            if (activeHost is ST01TheaterChoiceHost st01)
+                return !st01.IsDisposed && st01.ActiveView != null;
+            if (activeHost is ST02RiverLanternsHost st02)
+                return !st02.IsDisposed && st02.ActiveView != null;
+            if (activeHost is ST03BathhouseHost st03)
+                return !st03.IsDisposed && st03.ActiveView != null;
+            if (activeHost is ST05TwoDoorsHost st05)
+                return !st05.IsDisposed && st05.ActiveView != null;
+            if (activeHost is ST06TaoJiHomecomingHost st06)
+                return !st06.IsDisposed && st06.ActiveView != null;
+            return false;
+        }
+
         // Missing scene context must never manufacture world evidence or throw
         // after a settled active story has already been closed.
         private bool HasRequiredDelegates(ReturnRegionalStoryId storyId)
@@ -239,13 +256,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpenStory(ReturnRegionalStoryId storyId)
         {
-            if (disposed || !IsStoryAvailable(storyId) ||
+            if (disposed || uiParent == null || !IsStoryAvailable(storyId) ||
                 !HasRequiredDelegates(storyId))
                 return false;
 
             if (activeHost != null)
             {
-                if (!IsStorySettled(activeStory))
+                if (IsActiveHostOpen() && !IsStorySettled(activeStory))
                     return false;
                 CloseActiveStory();
             }

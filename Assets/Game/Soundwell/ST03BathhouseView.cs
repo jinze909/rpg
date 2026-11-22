@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         public Button ReopenSubsidizedButton => choiceButtons[0];
         public Button ElderBackroomButton => choiceButtons[1];
         public Button SellAndRelocateButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public ST03BathhouseView(
             Transform parent,

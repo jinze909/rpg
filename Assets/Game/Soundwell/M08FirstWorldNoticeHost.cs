@@ -20,7 +20,8 @@ namespace Rpg.Soundwell
         private M08FirstWorldNoticeView activeView;
         private bool disposed;
 
-        public M08FirstWorldNoticeView ActiveView => activeView;
+        public M08FirstWorldNoticeView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool NoticeRead =>
             M08FirstWorldNoticeFacts.TryRead(getInt, out bool read) && read;
@@ -39,7 +40,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !realDaybreakObserved() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null || !realDaybreakObserved() ||
                 getInt(M08FirstWorldNoticeFacts.ConfirmedKey) != 0 ||
                 M08FirstWorldNoticeFacts.HasOrphanedRosterCaseFacts(getInt))
                 return false;
@@ -65,7 +73,8 @@ namespace Rpg.Soundwell
 
         private bool ConfirmNotice()
         {
-            if (disposed || !openedArrivalSequence.HasValue ||
+            if (disposed || activeView == null || activeView.IsDisposed ||
+                !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 !realDaybreakObserved())
                 return false;

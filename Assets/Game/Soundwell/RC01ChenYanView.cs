@@ -37,6 +37,7 @@ namespace Rpg.Soundwell
         public Button RestoreLivingButton => choiceButtons[0];
         public Button KeepDeadButton => choiceButtons[1];
         public Button NewReturneeNameButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC01ChenYanView(
             Transform parent,
