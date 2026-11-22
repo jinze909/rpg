@@ -30,6 +30,16 @@ namespace Rpg.Soundwell
         public M08DockTruthSession Session => session;
         public Text Body => body;
         public RectTransform Panel => panel;
+        public bool IsDisposed
+        {
+            get
+            {
+                if (!disposed && CanvasDestroyed())
+                    Dispose();
+                return disposed;
+            }
+        }
+
         public Button HearButton => hearButton;
         public Button FirstResponseButton => responseButtons[0];
         public Button SecondResponseButton => responseButtons[1];

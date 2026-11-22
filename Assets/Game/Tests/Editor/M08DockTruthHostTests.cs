@@ -346,5 +346,65 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void DestroyedCanvasReleasesDockHostAndAllowsFreshDialogue()
+        {
+            var root = new GameObject("M08 dock destroyed canvas");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M08DockTruthHost host = null;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                M08DockTruthView oldView = host.ActiveView;
+                Canvas canvas = oldView.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(host.ActiveView, Is.Not.SameAs(oldView));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedParentDisposesDockDialogueAndFailsClosedOnReopen()
+        {
+            var root = new GameObject("M08 dock destroyed parent");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M08DockTruthHost host = null;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                M08DockTruthView oldView = host.ActiveView;
+                UnityEngine.Object.DestroyImmediate(root);
+
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                if (root != null)
+                    UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }
