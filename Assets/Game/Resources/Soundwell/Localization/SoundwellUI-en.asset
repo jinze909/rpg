@@ -23,7 +23,7 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 793743360
-    m_Localized: PLACEHOLDER   /   Entrance and observation lane
+    m_Localized: Entrance and observation lane
     m_Metadata:
       m_Items: []
   - m_Id: 797937664
@@ -87,7 +87,7 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 94572917518336
-    m_Localized: ORK TURN-BASED ENCOUNTER  /  PLACEHOLDER
+    m_Localized: Soundwell encounter
     m_Metadata:
       m_Items: []
   - m_Id: 94572955267072

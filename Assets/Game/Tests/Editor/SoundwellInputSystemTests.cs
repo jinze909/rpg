@@ -1305,11 +1305,10 @@ namespace Rpg.Tests.Editor
                 var prelude = entry.GetComponentInChildren<WhitewaterPrelude>(true);
                 Assert.That(prelude, Is.Not.Null, "Pad A must open the S00 bridge scene.");
                 Assert.That(prelude.Phase, Is.EqualTo(0));
-                // Two scene characters must be actual point-filtered 16px
-                // sprites, not featureless UGUI color rectangles. Keep their
-                // original GameObject names for existing interaction tests.
+                // The playable introduction binds the same 16 x 24 authored
+                // character sprites before any rescue or bridge interaction.
                 foreach (string actorName in new[] {
-                    "PLACEHOLDER player", "PLACEHOLDER Shen Li",
+                    "S00 player", "S00 Shen Li",
                     "S00 Han Qiao in water", "S00 last evacuee" })
                 {
                     var actorTransform = prelude.transform.Find(
@@ -1318,11 +1317,12 @@ namespace Rpg.Tests.Editor
                     var actorImage = actorTransform.GetComponent<Image>();
                     Assert.That(actorImage.sprite, Is.Not.Null,
                         actorName + " must have a pixel-art sprite.");
-                    Assert.That(actorImage.sprite.texture.width, Is.EqualTo(16));
-                    Assert.That(actorImage.sprite.texture.height, Is.EqualTo(16));
+                    Assert.That(actorImage.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
+                    Assert.That(UnityEditor.AssetDatabase.GetAssetPath(actorImage.sprite),
+                        Does.StartWith("Assets/Game/Art/"));
                     Assert.That(actorImage.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
-                    Assert.That(actorImage.rectTransform.sizeDelta, Is.EqualTo(new Vector2(32f, 32f)),
-                        "A 16px source must be enlarged by an exact 2x scale.");
+                    Assert.That(actorImage.rectTransform.sizeDelta, Is.EqualTo(new Vector2(32f, 48f)),
+                        "The authored character must be enlarged by an exact 2x scale.");
                     Assert.That(actorImage.raycastTarget, Is.False,
                         "Decorative characters must never steal UGUI input.");
                 }
@@ -1417,7 +1417,7 @@ namespace Rpg.Tests.Editor
                 yield return null;
                 Assert.That(prelude.Phase, Is.EqualTo(3),
                     "Fixing the cable must advance the playable scene.");
-                var crossing = prelude.transform.Find("S00 Whitewater playable canvas/PLACEHOLDER stretcher wagon");
+                var crossing = prelude.transform.Find("S00 Whitewater playable canvas/S00 rescue stretcher");
                 Assert.That(crossing, Is.Not.Null);
                 // Crossing is drawn on whole pixels. On the first rendered frame
                 // its unscaled step can round to zero even though the coroutine
@@ -1647,14 +1647,14 @@ namespace Rpg.Tests.Editor
                     "The story cue must share the existing M6 SFX output.");
                 Assert.That(bellAudio.outputAudioMixerGroup.name, Is.EqualTo("SFX"));
                 var rope = prelude.transform.Find(
-                    "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
+                    "S00 Whitewater playable canvas/S00 spare rope at clamp");
                 var bridgePost = prelude.transform.Find(
                     "S00 Whitewater playable canvas/S00 bridge defence post") as RectTransform;
                 Assert.That(bridgePost, Is.Not.Null);
                 Assert.That(bridgePost.gameObject.activeInHierarchy, Is.False,
                     "No battle position may be awarded before the first warning bell.");
                 var shenLi = prelude.transform.Find(
-                    "S00 Whitewater playable canvas/PLACEHOLDER Shen Li") as RectTransform;
+                    "S00 Whitewater playable canvas/S00 Shen Li") as RectTransform;
                 Assert.That(shenLi, Is.Not.Null);
                 Assert.That(bridgePost.anchoredPosition.x, Is.GreaterThan(175f),
                     "The guard position must be on the bridge's eastern clamp side.");

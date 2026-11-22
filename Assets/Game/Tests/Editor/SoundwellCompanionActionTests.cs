@@ -17,15 +17,9 @@ namespace Rpg.Tests.Editor
         [Test]
         public void BeastHitRecoilUsesOnlyRealOrkDamageAndPreservesSixteenPixelSprite()
         {
-            var flags = System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Static;
-            var type = typeof(SoundwellView);
-            var damage = type.GetMethod("HasRealOrkBeastDamage", flags);
-            var pose = type.GetMethod("WithBeastRecoilPose", flags);
-            var idleField = type.GetField("BeastPixels", flags);
+            var damage = typeof(SoundwellView).GetMethod("HasRealOrkBeastDamage",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
             Assert.That(damage, Is.Not.Null);
-            Assert.That(pose, Is.Not.Null);
-            Assert.That(idleField, Is.Not.Null);
 
             bool TookDamage(float? prior, float current) =>
                 (bool)damage.Invoke(null, new object[] { prior, current });
@@ -41,90 +35,45 @@ namespace Rpg.Tests.Editor
             Assert.That(TookDamage(10f, float.NaN), Is.False);
             Assert.That(TookDamage(10f, float.PositiveInfinity), Is.False);
 
-            var idle = (string[])idleField.GetValue(null);
-            var recoiling = (string[])pose.Invoke(null, null);
-            Assert.That(idle.Length, Is.EqualTo(16));
-            Assert.That(recoiling.Length, Is.EqualTo(16));
-            Assert.That(recoiling, Is.Not.EqualTo(idle));
-            for (int row = 0; row < 16; row++)
-            {
-                Assert.That(idle[row].Length, Is.EqualTo(16));
-                Assert.That(recoiling[row].Length, Is.EqualTo(16),
-                    "The hit frame must not change sprite scale or footprint.");
-                Assert.That(recoiling[row], row >= 1 && row <= 8
-                    ? Is.EqualTo("." + idle[row].Substring(0, 15))
-                    : Is.EqualTo(idle[row]),
-                    "Only the upper body may recoil; keep both feet anchored.");
-            }
+            var art = RpgPixelArtManifest.LoadDefault();
+            Assert.That(art, Is.Not.Null);
+            AssertImportedSprite(art.SoundBorrowingBeastIdle, "sound_borrowing_beast_idle",
+                "return_characters_sheet", 16, 24);
+            AssertImportedSprite(art.SoundwellBeastRecoil, "sound_borrowing_beast_recoil",
+                "soundwell_rescue_action_frames", 16, 24);
+            Assert.That(art.SoundwellBeastRecoil, Is.Not.SameAs(art.SoundBorrowingBeastIdle));
         }
 
         [Test]
-        public void SoundwellViewRejectsInvalidActorAndPlankPixelsBeforeTextureAllocation()
+        public void SoundwellPlankStatesUseImportedPixelSpritesWithEqualFootprints()
         {
-            var method = typeof(SoundwellView).GetMethod("CreatePixelSprite",
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Static);
-            Assert.That(method, Is.Not.Null);
-            const string invalidName = "R5 invalid SoundwellView grid allocation";
-            var actor = Enumerable.Repeat("................", 16).ToArray();
-            var plank = Enumerable.Repeat("..........................", 6).ToArray();
-            var brokenActor = (string[])actor.Clone();
-            brokenActor[15] = "...";
-            var nullActor = (string[])actor.Clone();
-            nullActor[6] = null;
-            var brokenPlank = (string[])plank.Clone();
-            brokenPlank[5] = "..........";
+            var art = RpgPixelArtManifest.LoadDefault();
+            Assert.That(art, Is.Not.Null);
+            AssertImportedSprite(art.SoundwellUpperPlank, "soundwell_upper_load_bearing_plank",
+                "soundwell_trial_crossings", 26, 6);
+            AssertImportedSprite(art.SoundwellWeakPlank, "soundwell_weak_plank_intact",
+                "soundwell_trial_crossings", 26, 6);
+            AssertImportedSprite(art.SoundwellBrokenPlank, "soundwell_weak_plank_broken",
+                "soundwell_trial_crossings", 26, 6);
+            Assert.That(art.SoundwellBrokenPlank, Is.Not.SameAs(art.SoundwellWeakPlank));
+        }
 
-            try
-            {
-                foreach (string[] rows in new string[][]
-                    { null, new string[0], new string[16], brokenActor, nullActor,
-                      brokenPlank })
-                {
-                    object[] args = { invalidName, rows, null };
-                    var error = Assert.Throws<System.Reflection.TargetInvocationException>(
-                        () => { method.Invoke(null, args); });
-                    Assert.That(error.InnerException,
-                        Is.TypeOf<System.InvalidOperationException>());
-                    Assert.That(args[2], Is.Null,
-                        "Invalid art must never expose a newly allocated native texture.");
-                    Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
-                        .Any(t => t.name == invalidName), Is.False,
-                        "Malformed actor or plank pixels must not leak Texture2D.");
-                }
-
-                // Both dimensions are actually authored in the current scene.
-                foreach (string[] rows in new[] { actor, plank })
-                {
-                    object[] args = { "R5 validated view pose", rows, null };
-                    Sprite sprite = null;
-                    Texture2D texture = null;
-                    try
-                    {
-                        sprite = (Sprite)method.Invoke(null, args);
-                        texture = (Texture2D)args[2];
-                        Assert.That(sprite, Is.Not.Null);
-                        Assert.That(texture, Is.Not.Null);
-                        Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
-                        Assert.That(texture.width, Is.EqualTo(rows[0].Length));
-                        Assert.That(texture.height, Is.EqualTo(rows.Length));
-                        Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
-                    }
-                    finally
-                    {
-                        if (sprite != null)
-                            Object.DestroyImmediate(sprite);
-                        if (texture != null)
-                            Object.DestroyImmediate(texture);
-                    }
-                }
-            }
-            finally
-            {
-                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
-                    .Where(t => t.name == invalidName))
-                    Object.DestroyImmediate(orphan);
-            }
+        private static void AssertImportedSprite(Sprite sprite, string spriteName, string sheet,
+            int width, int height)
+        {
+            Assert.That(sprite, Is.Not.Null);
+            Assert.That(sprite.name, Is.EqualTo(spriteName));
+            Assert.That(sprite.rect.size, Is.EqualTo(new Vector2(width, height)));
+            Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
+            string path = UnityEditor.AssetDatabase.GetAssetPath(sprite);
+            Assert.That(path, Does.StartWith("Assets/Game/Art/").And.EndWith("/" + sheet + ".png"));
+            var importer = UnityEditor.AssetImporter.GetAtPath(path) as UnityEditor.TextureImporter;
+            Assert.That(importer, Is.Not.Null);
+            Assert.That(importer.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(importer.mipmapEnabled, Is.False);
+            Assert.That(importer.alphaIsTransparency, Is.True);
+            Assert.That(importer.textureCompression,
+                Is.EqualTo(UnityEditor.TextureImporterCompression.Uncompressed));
         }
 
         [Test]
@@ -932,7 +881,7 @@ namespace Rpg.Tests.Editor
                     Assert.That(staleCommand.interactable, Is.False,
                         "A disabled scene actor must not expose " + actionName + ".");
                 }
-                var staleChevron = GameObject.Find("PLACEHOLDER ORK current rescuer")
+                var staleChevron = GameObject.Find("Soundwell ORK current rescuer")
                     ?.GetComponent<SpriteRenderer>();
                 Assert.That(staleChevron, Is.Not.Null);
                 Assert.That(staleChevron.enabled, Is.False,
@@ -1009,10 +958,10 @@ namespace Rpg.Tests.Editor
             Assert.That(hoodedBaseline, Is.Not.Null);
             Assert.That(hoodedBaseline, Is.Not.SameAs(baseline),
                 "Rescuer 3 must not be a recolored copy of rescuer 2.");
-            Assert.That(baseline.texture.GetPixels32().SequenceEqual(
-                hoodedBaseline.texture.GetPixels32()), Is.False,
-                "Hooded rescuer 3 must have authored 16x16 outline differences.");
-            Assert.That(hoodedBaseline.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            var art = RpgPixelArtManifest.LoadDefault();
+            Assert.That(baseline, Is.SameAs(art.RescueRiggerIdle));
+            Assert.That(hoodedBaseline, Is.SameAs(art.FerryGuideSideIdle));
+            Assert.That(hoodedBaseline.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(hoodedBaseline.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(hoodedBaseline.texture.filterMode, Is.EqualTo(FilterMode.Point));
 
@@ -1044,7 +993,7 @@ namespace Rpg.Tests.Editor
                 "One accepted attack must not turn an inactive companion.");
             Assert.That(second.sprite, Is.Not.SameAs(baseline),
                 "Rescuer 2 needs a visible attack silhouette, not a frozen idle frame.");
-            Assert.That(second.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(second.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(second.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(second.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(third.sprite, Is.SameAs(hoodedBaseline),
@@ -1167,23 +1116,27 @@ namespace Rpg.Tests.Editor
                 {
                     var actor = index == 1 ? second : third;
                     var visual = actor.GetComponent<SpriteRenderer>();
+                    var art = RpgPixelArtManifest.LoadDefault();
+                    Sprite attack = index == 1 ? art.RescueRiggerSideIdle : art.S00PlayerSlash;
+                    Sprite guard = index == 1 ? art.RescueRiggerSideBrace : art.S00PlayerHold;
+                    Sprite walking = index == 1 ? art.RescueRiggerWalk1 : art.FerryGuideSideWalk1;
                     formation.ShowAttackPose(index, null);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("attack"));
+                    Assert.That(visual.sprite, Is.SameAs(attack));
 
                     formation.ShowGuardPose(index, null, true);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("guard"),
+                    Assert.That(visual.sprite, Is.SameAs(guard),
                         "Fresh ORK Guard must not be overwritten by a prior Attack window.");
 
                     formation.ShowStepPose(index, Vector2.left);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("walking"),
+                    Assert.That(visual.sprite, Is.SameAs(walking),
                         "Fresh ORK Step must not replay the old timed Guard.");
 
                     formation.ShowAttackPose(index, null);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("attack"),
+                    Assert.That(visual.sprite, Is.SameAs(attack),
                         "Fresh ORK Attack must replace Step without moving the scene actor.");
 
                     foreach (bool threatOnRight in new[] { true, false })
@@ -1195,8 +1148,8 @@ namespace Rpg.Tests.Editor
                         Assert.That(visual.flipX, Is.EqualTo(!threatOnRight),
                             "Attack pose must face the Rigidbody2D target even before its Transform catches up.");
                         formation.ShowGuardPose(index, physicalThreat.transform, true);
-                        Assert.That(visual.flipX, Is.EqualTo(threatOnRight),
-                            "The left-hand guard shield must flip toward the actual physical threat.");
+                        Assert.That(visual.flipX, Is.EqualTo(!threatOnRight),
+                            "The authored guard pose must face the actual physical threat.");
                     }
                 }
 

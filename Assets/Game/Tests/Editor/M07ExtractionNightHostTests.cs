@@ -234,7 +234,10 @@ namespace Rpg.Tests.Editor
                     root.transform, () => true, () => true, read, write);
                 Assert.That(host.TryOpen(), Is.True);
                 var view = host.ActiveView;
+                var routeCanvas = view.Panel.GetComponentInParent<Canvas>();
+                SoundwellSmokeHost.CaptureStoryCanvas(routeCanvas, "m07-extraction-night-route");
                 AdvanceToDockRollCall(view);
+                SoundwellSmokeHost.CaptureStoryCanvas(routeCanvas, "m07-extraction-night-roll-call");
                 view.LiangStayButton.onClick.Invoke();
 
                 Assert.That(host.IsCompleted, Is.True);

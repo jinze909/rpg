@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace Rpg.Soundwell
 {
-    // Scene-local presentation for the explicitly labelled placeholder trial.
+    // Scene-local presentation for the playable Soundwell trial.
     public sealed class SoundwellView
     {
         private static readonly Color Ink = new Color(0.79f, 0.87f, 0.90f);
@@ -15,15 +15,20 @@ namespace Rpg.Soundwell
         private readonly Camera camera;
         private readonly Transform trialRoot;
         private readonly Sprite square;
+        private readonly RpgPixelArtManifest art;
         private readonly Sprite leaderPixelSprite;
         private readonly Sprite leaderWalkPixelSprite;
+        private readonly Sprite leaderWalkSecondPixelSprite;
+        private readonly Sprite leaderActionPixelSprite;
+        private readonly Sprite leaderHitPixelSprite;
         private readonly Sprite leaderGuardPixelSprite;
         private readonly SpriteRenderer leaderVisualRenderer;
         private readonly Sprite beastPixelSprite;
         private readonly Sprite beastRecoilPixelSprite;
         private readonly Sprite surveyorPixelSprite;
+        private readonly Sprite surveyorFreedPixelSprite;
         private readonly Sprite surveyorWalkPixelSprite;
-        private readonly Sprite bellStandPixelSprite;
+        private readonly Sprite surveyorWalkSecondPixelSprite;
         private readonly Sprite attackTargetPixelSprite;
         private readonly Sprite activeRescuerPixelSprite;
         private readonly Sprite lowerPlankIntactPixelSprite;
@@ -34,18 +39,6 @@ namespace Rpg.Soundwell
         private float? lastBattleBeastHp;
         private float? lastBattleLeaderHp;
         private float beastHitFlashUntil = float.NegativeInfinity;
-        private readonly Texture2D leaderPixelTexture;
-        private readonly Texture2D leaderWalkPixelTexture;
-        private readonly Texture2D leaderGuardPixelTexture;
-        private readonly Texture2D beastPixelTexture;
-        private readonly Texture2D beastRecoilPixelTexture;
-        private readonly Texture2D surveyorPixelTexture;
-        private readonly Texture2D surveyorWalkPixelTexture;
-        private readonly Texture2D bellStandPixelTexture;
-        private readonly Texture2D attackTargetPixelTexture;
-        private readonly Texture2D activeRescuerPixelTexture;
-        private readonly Texture2D lowerPlankIntactPixelTexture;
-        private readonly Texture2D lowerPlankBrokenPixelTexture;
         private readonly SoundwellPlayerVisualAnimation playerAnimation;
         private readonly Material ringMaterial;
         private readonly SpriteRenderer bellMarker;
@@ -147,75 +140,49 @@ namespace Rpg.Soundwell
             escortLeader = player;
             escortLeaderBody = player.GetComponent<Rigidbody2D>();
             retreatMarker = safe;
+            art = RpgPixelArtManifest.LoadDefault();
+            if (art == null)
+                throw new System.InvalidOperationException("The playable Soundwell requires its authored pixel art manifest.");
+
             square = Sprite.Create(Texture2D.whiteTexture,
                 new Rect(0, 0, Texture2D.whiteTexture.width, Texture2D.whiteTexture.height),
                 new Vector2(0.5f, 0.5f), Texture2D.whiteTexture.width);
-            leaderPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader",
-                LeaderPixels, out leaderPixelTexture);
-            leaderWalkPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader walk",
-                LeaderWalkPixels, out leaderWalkPixelTexture);
-            leaderGuardPixelSprite = CreatePixelSprite("PLACEHOLDER 16px leader guard shield",
-                WithLeaderGuardShield(), out leaderGuardPixelTexture);
-            beastPixelSprite = CreatePixelSprite("PLACEHOLDER 16px beast",
-                BeastPixels, out beastPixelTexture);
-            beastRecoilPixelSprite = CreatePixelSprite("SOUNDWELL 16px beast ORK hit recoil",
-                WithBeastRecoilPose(), out beastRecoilPixelTexture);
-            surveyorPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor idle",
-                SurveyorPixels, out surveyorPixelTexture);
-            surveyorWalkPixelSprite = CreatePixelSprite("PLACEHOLDER 16px surveyor walk",
-                SurveyorWalkPixels, out surveyorWalkPixelTexture);
-            bellStandPixelSprite = CreatePixelSprite("PLACEHOLDER 16px copper bell stand",
-                BellStandPixels, out bellStandPixelTexture);
-            attackTargetPixelSprite = CreatePixelSprite("PLACEHOLDER 16px ORK target cue",
-                AttackTargetPixels, out attackTargetPixelTexture);
-            activeRescuerPixelSprite = CreatePixelSprite("PLACEHOLDER 16px ORK active rescuer cue",
-                ActiveRescuerPixels, out activeRescuerPixelTexture);
-            lowerPlankIntactPixelSprite = CreatePixelSprite("PLACEHOLDER 26x6 intact weak plank",
-                LowerPlankIntactPixels, out lowerPlankIntactPixelTexture);
-            lowerPlankBrokenPixelSprite = CreatePixelSprite("PLACEHOLDER 26x6 broken weak plank",
-                LowerPlankBrokenPixels, out lowerPlankBrokenPixelTexture);
+            leaderPixelSprite = art.FerryGuideIdle;
+            leaderWalkPixelSprite = art.FerryGuideWalk1;
+            leaderWalkSecondPixelSprite = art.FerryGuideWalk2;
+            leaderGuardPixelSprite = art.S00PlayerHold;
+            leaderActionPixelSprite = art.FerryGuideBrace;
+            leaderHitPixelSprite = art.S00PlayerHit;
+            beastPixelSprite = art.SoundBorrowingBeastIdle;
+            beastRecoilPixelSprite = art.SoundwellBeastRecoil;
+            surveyorPixelSprite = art.SoundwellSurveyorTrapped;
+            surveyorFreedPixelSprite = art.SoundwellSurveyorFreed;
+            surveyorWalkPixelSprite = art.SoundwellSurveyorSupported1;
+            surveyorWalkSecondPixelSprite = art.SoundwellSurveyorSupported2;
+            attackTargetPixelSprite = art.SoundwellAttackTarget;
+            activeRescuerPixelSprite = art.SoundwellActiveRescuer;
+            lowerPlankIntactPixelSprite = art.SoundwellWeakPlank;
+            lowerPlankBrokenPixelSprite = art.SoundwellBrokenPlank;
             ringMaterial = new Material(Shader.Find("Sprites/Default"));
             camera.backgroundColor = new Color(0.055f, 0.086f, 0.115f);
 
-            Plate(root, "Trial floor", Vector2.zero, new Vector2(14f, 6.4f), new Color(0.11f, 0.19f, 0.23f), -4);
-            Plate(root, "Beast lane", new Vector2(3.7f, 0f), new Vector2(6.55f, 6.4f), new Color(0.22f, 0.16f, 0.18f), -3);
-            Plate(safe, "Retreat mark", Vector2.zero, new Vector2(1.75f, 1.75f), new Color(0.16f, 0.38f, 0.36f), -1);
-            // Two genuine 16x16 point-filtered pedestals instead of stretched
-            // solid rectangles. Both remain visual only: the bell may be
-            // placed at the same two authored world positions, and there is
-            // no extra collider, lure source, or secret interactable.
-            var entranceStand = Plate(root, "PLACEHOLDER entrance bell stand", bell.position,
-                Vector2.one, new Color(0.55f, 0.84f, 0.88f), -1);
-            entranceStand.sprite = bellStandPixelSprite;
-            var sideStand = Plate(root, "PLACEHOLDER side bell stand", SoundwellTrial.SideBellStand,
-                Vector2.one, new Color(0.97f, 0.76f, 0.40f), -1);
-            sideStand.sprite = bellStandPixelSprite;
-            // Two optional pieces of physical evidence at the entrance.
-            // Inspection changes their visual status but never gates ringing
-            // or grants an automatic solution to the sound lure.
-            ropeEvidenceMarker = Plate(root, "PLACEHOLDER severed bell rope",
-                SoundwellTrial.RopeEvidencePosition, new Vector2(0.22f, 0.78f),
-                new Color(0.53f, 0.38f, 0.27f), 2);
-            // The cart anchors the missing-person clue without revealing
-            // the sound-lure solution. It is a distinct physical prop.
-            cartEvidenceMarker = Plate(root, "PLACEHOLDER abandoned mule cart",
-                SoundwellTrial.CartEvidencePosition, new Vector2(1.02f, 0.46f),
-                new Color(0.49f, 0.35f, 0.24f), 2);
-            // A recoverable personal map kit: the surveyor must actually
-            // return to this cart after rescue to retrieve it.
-            cartMapKitMarker = Plate(root, "PLACEHOLDER cart map kit",
-                SoundwellTrial.CartEvidencePosition + new Vector2(0f, 0.22f),
-                new Vector2(0.31f, 0.26f), Gold, 4);
-            Plate(root, "PLACEHOLDER cart left wheel",
-                SoundwellTrial.CartEvidencePosition + new Vector2(-0.34f, -0.30f),
-                new Vector2(0.23f, 0.23f), Ink, 3);
-            Plate(root, "PLACEHOLDER cart right wheel",
-                SoundwellTrial.CartEvidencePosition + new Vector2(0.34f, -0.30f),
-                new Vector2(0.23f, 0.23f), Ink, 3);
-            clawEvidenceMarker = Plate(root, "PLACEHOLDER claw marks",
-                SoundwellTrial.ClawEvidencePosition, new Vector2(0.86f, 0.24f),
-                new Color(0.56f, 0.29f, 0.27f), 2);
-            clawEvidenceMarker.transform.rotation = Quaternion.Euler(0f, 0f, -24f);
+            BuildStoneFloor(root);
+            ArtSprite(safe, "Retreat mark", Vector2.zero, Tile(SoundwellTileKind.ExtractionHatch), -1);
+
+            // Both authored bell stands mark existing interaction positions.
+            Sprite bellStand = Tile(SoundwellTileKind.BellPedestal);
+            ArtSprite(root, "Soundwell entrance bell stand", root.InverseTransformPoint(bell.position),
+                bellStand, -1);
+            ArtSprite(root, "Soundwell side bell stand", SoundwellTrial.SideBellStand, bellStand, -1)
+                .color = new Color(1f, 0.90f, 0.70f);
+            ropeEvidenceMarker = ArtSprite(root, "Soundwell severed bell rope",
+                SoundwellTrial.RopeEvidencePosition, art.SoundwellRope, 2);
+            cartEvidenceMarker = ArtSprite(root, "Soundwell abandoned mule cart",
+                SoundwellTrial.CartEvidencePosition, art.SoundwellCart, 2);
+            cartMapKitMarker = ArtSprite(root, "Soundwell cart map kit",
+                SoundwellTrial.CartEvidencePosition + new Vector2(0f, 0.22f), art.SoundwellMapKit, 4);
+            clawEvidenceMarker = ArtSprite(root, "Soundwell claw marks",
+                SoundwellTrial.ClawEvidencePosition, art.SoundwellClawMarks, 2);
             // The observed claw direction is readable on the floor, not only
             // in a dialogue. Three physical scratch marks trace the old route
             // from the evidence site to the side stand; no hidden puzzle state
@@ -226,128 +193,85 @@ namespace Rpg.Soundwell
                 float distance = (i + 1f) / (revealedClawTrail.Length + 1f);
                 Vector2 site = Vector2.Lerp(SoundwellTrial.ClawEvidencePosition,
                     SoundwellTrial.SideBellStand, distance);
-                revealedClawTrail[i] = Plate(root,
-                    "PLACEHOLDER revealed claw trail " + (i + 1), site,
-                    new Vector2(0.31f, 0.10f), new Color(0.96f, 0.58f, 0.34f, 0.82f), 1);
-                revealedClawTrail[i].transform.rotation = Quaternion.Euler(0f, 0f, -65f);
+                revealedClawTrail[i] = ArtSprite(root, "Soundwell revealed claw trail " + (i + 1),
+                    site, art.SoundwellClawMarks, 1);
+                revealedClawTrail[i].color = new Color(0.96f, 0.58f, 0.34f, 0.82f);
                 revealedClawTrail[i].enabled = false;
             }
-            // M5: fixed walls live in the saved TilemapCollider2D scene layer.
-            // Only the Makinom-controlled gate retains a dynamic BoxCollider2D.
-            gateMarker = Wall(root, "PLACEHOLDER soundwell gate", new Vector2(0.25f, 0f),
-                new Vector2(0.32f, 1.6f));
-            gateBlocker = gateMarker.GetComponent<BoxCollider2D>();
-            // This warning is anchored at the same physical crossing that the
-            // rescued surveyor must use; it follows the beast's live position.
-            escapeDangerMarker = Plate(root, "PLACEHOLDER escape-lane risk",
+            // Static walls retain the scene's TilemapCollider2D. Changing the
+            // gate sprite leaves the local bounds of its dynamic collider intact.
+            gateMarker = ArtSprite(root, "Soundwell soundwell gate",
+                new Vector2(0.25f, 0f), Tile(SoundwellTileKind.GateClosed), 0);
+            gateBlocker = gateMarker.gameObject.AddComponent<BoxCollider2D>();
+            gateBlocker.size = new Vector2(0.32f, 1.6f);
+            escapeDangerMarker = Plate(root, "Soundwell escape-lane risk",
                 SoundwellTrial.EscapeLanePosition, new Vector2(0.78f, 0.78f),
                 new Color(0.90f, 0.30f, 0.25f, 0.35f), 0);
             escapeDangerMarker.enabled = false;
-            SpriteRenderer gateControl = Plate(root, "PLACEHOLDER gate control",
-                new Vector2(-0.55f, 0f), new Vector2(0.32f, 0.58f), Gold, 1);
-            // The controller, not a guessed battle location, owns this world
-            // cue. Show the 16px brackets only while the LIVE ORK chooser may
-            // actually operate the gate. This never changes physical reach.
-            // Plate assigns local scale, and the physical gate plate is
-            // deliberately non-uniformly sized. Invert only its presentation
-            // scale so this child stays one undistorted 16px world unit.
-            Vector3 gateControlScale = gateControl.transform.localScale;
-            battleGateTargetMarker = Plate(gateControl.transform,
-                "PLACEHOLDER ORK legal gate target",
-                new Vector2(0f, 0.875f / gateControlScale.y),
-                new Vector2(1f / gateControlScale.x, 1f / gateControlScale.y),
-                Gold, 7);
-            battleGateTargetMarker.sprite = attackTargetPixelSprite;
+            SpriteRenderer gateControl = ArtSprite(root, "Soundwell gate control",
+                new Vector2(-0.55f, 0f), art.SoundwellGateLever, 1);
+            battleGateTargetMarker = ArtSprite(gateControl.transform, "Soundwell ORK legal gate target",
+                new Vector2(0f, 0.875f), attackTargetPixelSprite, 7);
+            battleGateTargetMarker.color = Gold;
             battleGateTargetMarker.enabled = false;
-            // This wrong-way trail sign is a physical consequence of the
-            // surveyor's mistaken directions. He removes it after rescue.
-            falseTrailMarker = Plate(root, "PLACEHOLDER false trail marker",
-                (Vector2)safe.position + new Vector2(1.10f, -0.40f),
-                new Vector2(0.30f, 0.66f), new Color(0.94f, 0.43f, 0.29f), 2);
-            falseTrailMarker.transform.rotation = Quaternion.Euler(0f, 0f, -24f);
-            // The new sign occupies the same physical site but remains absent
-            // until the surveyor returns with his recovered map kit.
-            safeTrailMarker = Plate(root, "PLACEHOLDER verified return route marker",
-                (Vector2)safe.position + new Vector2(1.10f, -0.40f),
-                new Vector2(0.32f, 0.72f), new Color(0.38f, 0.90f, 0.72f), 2);
-            safeTrailMarker.transform.rotation = Quaternion.Euler(0f, 0f, 24f);
+
+            // The corrected sign replaces the false lead at the same site.
+            Vector2 routeSign = (Vector2)root.InverseTransformPoint(safe.position) + new Vector2(1.10f, -0.40f);
+            falseTrailMarker = ArtSprite(root, "Soundwell false trail marker",
+                routeSign, art.SoundwellFalseTrail, 2);
+            safeTrailMarker = ArtSprite(root, "Soundwell verified return route marker",
+                routeSign, art.SoundwellSafeTrail, 2);
             safeTrailMarker.enabled = false;
-            // The surveyor is a scene character, not a global quest popup.
-            // The plank is visible before dialogue; only his firsthand
-            // warning marks which part can take the load.
             surveyorFigure = new GameObject("Surveyor figure").transform;
             surveyorFigure.SetParent(root, false);
             surveyorFigure.localPosition = SoundwellTrial.SurveyorPosition;
-            // The actual survivor is one transparent, point-filtered 16px
-            // character, not scaled whiteTexture plates plus a separate face.
-            surveyorPixelRenderer = Plate(surveyorFigure, "PLACEHOLDER trapped surveyor",
-                Vector2.zero, Vector2.one, Ink, 3);
-            surveyorPixelRenderer.sprite = surveyorPixelSprite;
-            upperBoardMarker = Plate(root, "PLACEHOLDER upper load-bearing plank",
-                SoundwellTrial.UpperBoardPosition, new Vector2(1.65f, 0.3f),
-                new Color(0.30f, 0.37f, 0.40f), 1);
-            // A visible weak lower route and its collapsed state make the
-            // surveyor's warning consequential without a hidden timer.
-            // Fixed 26x6 source pixels at 16 PPU: no smooth-scaled whiteTexture
-            // rectangle. The fractured contour tells players the lower crossing
-            // is broken even without relying on transparency or a red tint.
-            // This is visual-only and never modifies collision or gate state.
-            lowerBoardMarker = Plate(root, "PLACEHOLDER unsafe lower plank",
-                SoundwellTrial.LowerBoardPosition, Vector2.one,
-                new Color(0.67f, 0.39f, 0.27f), 1);
-            lowerBoardMarker.sprite = lowerPlankIntactPixelSprite;
+            surveyorPixelRenderer = ArtSprite(surveyorFigure, "Soundwell trapped surveyor",
+                Vector2.zero, surveyorPixelSprite, 3);
+            upperBoardMarker = ArtSprite(root, "Soundwell upper load-bearing plank",
+                SoundwellTrial.UpperBoardPosition, art.SoundwellUpperPlank, 1);
+            upperBoardMarker.color = new Color(0.78f, 0.82f, 0.85f);
+            lowerBoardMarker = ArtSprite(root, "Soundwell unsafe lower plank",
+                SoundwellTrial.LowerBoardPosition, lowerPlankIntactPixelSprite, 1);
 
-            // Both silhouette and face animate under one visual-only Animator;
-            // the ORK leader's physics/transform is never animated.
-            var animatedPlayer = new GameObject("PLACEHOLDER animated player").transform;
+            // The Animator owns the one presentation child; the ORK actor
+            // and the authoritative physics transform are untouched.
+            var animatedPlayer = new GameObject("Soundwell animated player").transform;
             animatedPlayer.SetParent(player, false);
-            // The original Animator still moves this complete visual-only child.
-            // The face is part of one transparent pixel silhouette.
-            leaderVisualRenderer = Plate(animatedPlayer, "PLACEHOLDER player silhouette",
-                Vector2.zero, Vector2.one, new Color(0.43f, 0.91f, 0.72f), 3);
-            leaderVisualRenderer.sprite = leaderPixelSprite;
+            leaderVisualRenderer = ArtSprite(animatedPlayer, "Soundwell player silhouette",
+                Vector2.zero, leaderPixelSprite, 3);
             playerAnimation = animatedPlayer.gameObject.AddComponent<SoundwellPlayerVisualAnimation>();
             playerAnimation.Initialize();
-            bellMarker = Plate(bell, "PLACEHOLDER copper bell", Vector2.zero, new Vector2(0.57f, 0.57f), Gold, 2);
-            bellMarker.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            bellMarker = ArtSprite(bell, "Soundwell copper bell", Vector2.zero, art.SoundwellCopperBell, 2);
             // A small diamond marks the beast's current physical destination.
             // Gold tracks the audible signal; blue tracks the last-heard search.
             // No simulated sound waves, pathfinding state or second AI target.
-            beastIntentMarker = Plate(root, "PLACEHOLDER beast intent marker",
-                Vector2.zero, new Vector2(0.46f, 0.46f), Gold, 1);
-            beastIntentMarker.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            beastIntentMarker = ArtSprite(root, "Soundwell beast intent marker",
+                Vector2.zero, art.SoundwellBeastIntent, 1);
+            beastIntentMarker.color = Gold;
             beastIntentMarker.enabled = false;
-            // The gold 16px corner brackets mark ORK's *currently legal*
-            // attack target. This is presentation only: it neither selects a
-            // second combatant nor modifies damage, AI, or scene colliders.
-            attackTargetMarker = Plate(root, "PLACEHOLDER ORK selected beast target",
-                (Vector2)beast.position + new Vector2(0f, 1.12f), Vector2.one, Gold, 7);
-            attackTargetMarker.sprite = attackTargetPixelSprite;
+            // These indicators follow the live ORK chooser and its legal
+            // targets. They never initiate a battle action independently.
+            attackTargetMarker = ArtSprite(root, "Soundwell ORK selected beast target",
+                (Vector2)beast.position + new Vector2(0f, 1.12f), attackTargetPixelSprite, 7);
+            attackTargetMarker.color = Gold;
             attackTargetMarker.enabled = false;
-            // A separate cyan 16px chevron follows only the actual ORK
-            // combatant currently allowed to attack. Visual-only: no input,
-            // collider, invented actor choice or second battle state.
-            activeRescuerMarker = Plate(root, "PLACEHOLDER ORK current rescuer",
-                Vector2.zero, Vector2.one, new Color(0.40f, 0.90f, 0.90f), 7);
-            activeRescuerMarker.sprite = activeRescuerPixelSprite;
+            activeRescuerMarker = ArtSprite(root, "Soundwell ORK current rescuer",
+                Vector2.zero, activeRescuerPixelSprite, 7);
+            activeRescuerMarker.color = new Color(0.40f, 0.90f, 0.90f);
             activeRescuerMarker.enabled = false;
-            // The same 16 PPU arrow shows only the physical destination
-            // preview. It never moves an actor or grants a free ORK turn.
-            movePreviewMarker = Plate(root, "PLACEHOLDER ORK step destination",
-                Vector2.zero, Vector2.one, new Color(0.43f, 0.91f, 0.72f), 8);
-            movePreviewMarker.sprite = activeRescuerPixelSprite;
+            movePreviewMarker = ArtSprite(root, "Soundwell ORK step destination",
+                Vector2.zero, activeRescuerPixelSprite, 8);
+            movePreviewMarker.color = new Color(0.43f, 0.91f, 0.72f);
             movePreviewMarker.enabled = false;
-            // A horned pixel silhouette on the same authoritative ORK beast.
-            beastVisualRenderer = Plate(beast, "PLACEHOLDER beast", Vector2.zero,
-                Vector2.one, new Color(0.95f, 0.41f, 0.42f), 3);
-            beastVisualRenderer.sprite = beastPixelSprite;
+            beastVisualRenderer = ArtSprite(beast, "Soundwell beast", Vector2.zero,
+                beastPixelSprite, 3);
             beastBaseTint = beastVisualRenderer.color;
 
             // Telegraph the actual encounter radius rather than asking the
             // player to guess a hidden distance. The ring shares the same
             // authoritative radius as SoundwellTrial's knockback check and
             // is parented to the moving beast, never a copied AI position.
-            var contactObject = new GameObject("PLACEHOLDER beast contact radius");
+            var contactObject = new GameObject("Soundwell beast contact radius");
             contactObject.transform.SetParent(beast, false);
             beastContactRing = contactObject.AddComponent<LineRenderer>();
             beastContactRing.sharedMaterial = ringMaterial;
@@ -369,11 +293,11 @@ namespace Rpg.Soundwell
 
             // Visualizes the existing, short muffled-bell search window.
             // The timer uses the beast's actual remaining search fraction.
-            searchTimerTrack = Plate(root, "PLACEHOLDER beast search timer track",
+            searchTimerTrack = Plate(root, "Soundwell beast search timer track",
                 (Vector2)beast.position + new Vector2(0f, 0.92f),
                 new Vector2(1.20f, 0.15f),
                 new Color(0.13f, 0.19f, 0.25f, 0.90f), 5);
-            searchTimerFill = Plate(root, "PLACEHOLDER beast search timer fill",
+            searchTimerFill = Plate(root, "Soundwell beast search timer fill",
                 (Vector2)beast.position + new Vector2(0f, 0.92f),
                 new Vector2(1.12f, 0.11f), Cloth, 6);
             searchTimerTrack.enabled = false;
@@ -389,7 +313,7 @@ namespace Rpg.Soundwell
             pulse.sortingOrder = 1;
             pulse.widthMultiplier = 0.06f;
 
-            var guideObject = new GameObject("PLACEHOLDER surveyor guide rope");
+            var guideObject = new GameObject("Soundwell surveyor guide rope");
             guideObject.transform.SetParent(root, false);
             escortLine = guideObject.AddComponent<LineRenderer>();
             escortLine.sharedMaterial = ringMaterial;
@@ -407,7 +331,7 @@ namespace Rpg.Soundwell
             clearBell = BellClip("Copper bell", 640f, 0.75f, 0.22f);
             mutedBell = BellClip("Wrapped bell", 230f, 0.20f, 0.10f);
 
-            trialCanvas = new GameObject("PLACEHOLDER trial UI", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
+            trialCanvas = new GameObject("Soundwell trial UI", typeof(RectTransform), typeof(Canvas)).GetComponent<Canvas>();
             trialCanvas.transform.SetParent(root, false);
             trialCanvas.renderMode = RenderMode.WorldSpace;
             trialCanvas.worldCamera = camera;
@@ -1191,7 +1115,7 @@ namespace Rpg.Soundwell
             surveyorPixelRenderer.flipX = false;
             // Retry can be invoked while the escort is visibly paused. Remove
             // the amber waiting cue immediately, not one LateUpdate later.
-            surveyorPixelRenderer.color = Ink;
+            surveyorPixelRenderer.color = Color.white;
             waitingForEscortLeader = false;
             escortLine.enabled = false;
             falseTrailMarker.enabled = true;
@@ -1297,11 +1221,10 @@ namespace Rpg.Soundwell
             falseTrailMarker.enabled = !falseMarkerCleared;
             safeTrailMarker.enabled = safeRouteMarked;
             ropeEvidenceMarker.enabled = !ropeRecovered;
-            ropeEvidenceMarker.color = ropeObserved ? Cloth : new Color(0.53f, 0.38f, 0.27f);
-            cartEvidenceMarker.color = cartObserved ? new Color(0.72f, 0.80f, 0.65f)
-                : new Color(0.49f, 0.35f, 0.24f);
+            ropeEvidenceMarker.color = ropeObserved ? new Color(0.82f, 0.94f, 1f) : Color.white;
+            cartEvidenceMarker.color = cartObserved ? new Color(0.89f, 1f, 0.82f) : Color.white;
             cartMapKitMarker.enabled = !cartKitReclaimed;
-            clawEvidenceMarker.color = clawsObserved ? Gold : new Color(0.56f, 0.29f, 0.27f);
+            clawEvidenceMarker.color = clawsObserved ? Gold : Color.white;
             foreach (var trail in revealedClawTrail)
                 trail.enabled = clawsObserved;
             ringButton.interactable = atBell && !carrying;
@@ -1334,13 +1257,12 @@ namespace Rpg.Soundwell
             string interactCaption = SoundwellUiLocalization.Get(interactKey);
             if (gateButtonLabel.text != interactCaption)
                 gateButtonLabel.text = interactCaption;
-            upperBoardMarker.color = plankSecured ? new Color(0.45f, 0.92f, 0.74f)
-                : hasSurveyorClue ? Cloth : new Color(0.30f, 0.37f, 0.40f);
+            upperBoardMarker.color = plankSecured ? new Color(0.72f, 1f, 0.86f)
+                : hasSurveyorClue ? new Color(0.81f, 0.90f, 1f) : new Color(0.78f, 0.82f, 0.85f);
             lowerBoardMarker.sprite = lowerPlankBroken
                 ? lowerPlankBrokenPixelSprite : lowerPlankIntactPixelSprite;
             lowerBoardMarker.color = lowerPlankBroken
-                ? new Color(0.90f, 0.32f, 0.30f)
-                : new Color(0.67f, 0.39f, 0.27f);
+                ? new Color(1f, 0.67f, 0.58f) : Color.white;
             Vector2 npc = surveyorFigure.position;
             // All escort following, gate prompts and drawn guide lines must
             // sample the same authoritative physics position this frame.
@@ -1409,15 +1331,18 @@ namespace Rpg.Soundwell
             if (Mathf.Abs(localStepX) > 0.001f)
                 surveyorPixelRenderer.flipX = localStepX < 0f;
             bool surveyorMoving = surveyorStep.sqrMagnitude > 0.000001f;
-            surveyorPixelRenderer.sprite = surveyorMoving &&
-                Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1
-                ? surveyorWalkPixelSprite : surveyorPixelSprite;
+            if (surveyorMoving)
+                surveyorPixelRenderer.sprite = Mathf.FloorToInt(Time.time / 0.18f) % 2 == 0
+                    ? surveyorWalkPixelSprite : surveyorWalkSecondPixelSprite;
+            else
+                surveyorPixelRenderer.sprite = plankSecured || rescueComplete
+                    ? surveyorFreedPixelSprite : surveyorPixelSprite;
             // When the guide runs too far ahead, mark the actual waiting NPC
             // amber instead of relying on a distant text-only warning. This
             // is presentation of the existing escort hysteresis, not a second
             // escort timer, movement authority or quest-state transition.
             surveyorPixelRenderer.color = surveyorEscorting && waitingForEscortLeader
-                ? new Color(1f, 0.73f, 0.42f) : Ink;
+                ? new Color(1f, 0.73f, 0.42f) : Color.white;
             escortLine.enabled = surveyorLineTied && surveyorEscorting && !rescueComplete;
             if (escortLine.enabled)
             {
@@ -1459,8 +1384,7 @@ namespace Rpg.Soundwell
             if (surveyorStatus.text != speech)
                 surveyorStatus.text = speech;
             gateBlocker.enabled = !gateOpen;
-            gateMarker.color = gateOpen ? new Color(0.30f, 0.84f, 0.65f, 0.16f)
-                : new Color(0.32f, 0.43f, 0.48f);
+            gateMarker.sprite = Tile(gateOpen ? SoundwellTileKind.GateOpen : SoundwellTileKind.GateClosed);
             string gateCaption = SoundwellUiLocalization.Get(
                 gateOpen ? "status.gate_open" : "status.gate_locked");
             if (gateStatus.text != gateCaption)
@@ -1474,7 +1398,7 @@ namespace Rpg.Soundwell
             string wrapCaption = SoundwellUiLocalization.Get(wrapped ? "action.unwrap" : "action.wrap");
             if (wrapButtonLabel.text != wrapCaption)
                 wrapButtonLabel.text = wrapCaption;
-            bellMarker.color = wrapped ? Cloth : Gold;
+            bellMarker.sprite = wrapped ? art.SoundwellWrappedBell : art.SoundwellCopperBell;
             string status = SoundwellUiLocalization.Get(
                 beastDefeated ? "status.beast_defeated"
                 : ringing ? "status.beast_tracking" : searching ? "status.beast_searching"
@@ -1617,13 +1541,23 @@ namespace Rpg.Soundwell
             // between left and right; never flip the physics/ORK actor itself.
             if (moving && Mathf.Abs(horizontalMotion) > 0.01f)
                 leaderVisualRenderer.flipX = horizontalMotion < 0f;
-            bool walkFrame = playerAnimation.CurrentState == "Move" &&
-                Mathf.FloorToInt(Time.time / 0.18f) % 2 == 1;
-            // A successful ORK Guard must not disappear on the very next
-            // LateUpdate when normal movement presentation refreshes the sprite.
-            leaderVisualRenderer.sprite = Time.unscaledTime < leaderGuardUntil
-                ? leaderGuardPixelSprite : showingBattleStep ? leaderWalkPixelSprite
-                : walkFrame ? leaderWalkPixelSprite : leaderPixelSprite;
+            RefreshLeaderSprite(showingBattleStep);
+        }
+
+        private void RefreshLeaderSprite(bool showingBattleStep = false)
+        {
+            string state = playerAnimation.CurrentState;
+            if (state == "Hit")
+                leaderVisualRenderer.sprite = leaderHitPixelSprite;
+            else if (Time.unscaledTime < leaderGuardUntil)
+                leaderVisualRenderer.sprite = leaderGuardPixelSprite;
+            else if (showingBattleStep)
+                leaderVisualRenderer.sprite = leaderWalkPixelSprite;
+            else if (state == "Move")
+                leaderVisualRenderer.sprite = Mathf.FloorToInt(Time.time / 0.18f) % 2 == 0
+                    ? leaderWalkPixelSprite : leaderWalkSecondPixelSprite;
+            else
+                leaderVisualRenderer.sprite = state == "Action" ? leaderActionPixelSprite : leaderPixelSprite;
         }
 
         public void AnimatePlayerBattleStep(Vector2 direction)
@@ -1634,7 +1568,7 @@ namespace Rpg.Soundwell
             if (Mathf.Abs(direction.x) > 0.01f)
                 leaderVisualRenderer.flipX = direction.x < 0f;
             playerAnimation.UpdateMotion(true);
-            leaderVisualRenderer.sprite = leaderWalkPixelSprite;
+            RefreshLeaderSprite(true);
         }
 
         public void AnimatePlayerAction()
@@ -1642,7 +1576,7 @@ namespace Rpg.Soundwell
             leaderStepUntil = float.NegativeInfinity;
             leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.PlayAction();
-            leaderVisualRenderer.sprite = leaderPixelSprite;
+            RefreshLeaderSprite();
         }
 
         public void AnimatePlayerGuard()
@@ -1652,7 +1586,7 @@ namespace Rpg.Soundwell
             // No second defense flag, combat timer or HP mutation is created.
             playerAnimation.PlayAction();
             leaderGuardUntil = Time.unscaledTime + LeaderGuardPoseSeconds;
-            leaderVisualRenderer.sprite = leaderGuardPixelSprite;
+            RefreshLeaderSprite();
         }
 
         public void AnimatePlayerHit()
@@ -1660,7 +1594,7 @@ namespace Rpg.Soundwell
             leaderStepUntil = float.NegativeInfinity;
             leaderGuardUntil = float.NegativeInfinity;
             playerAnimation.PlayHit();
-            leaderVisualRenderer.sprite = leaderPixelSprite;
+            RefreshLeaderSprite();
         }
 
         public void ResetPlayerAnimation()
@@ -1700,30 +1634,6 @@ namespace Rpg.Soundwell
                     actionEventSystem.SetSelectedGameObject(null);
             }
             DestroyAsset(square);
-            DestroyAsset(leaderPixelSprite);
-            DestroyAsset(leaderWalkPixelSprite);
-            DestroyAsset(leaderGuardPixelSprite);
-            DestroyAsset(beastPixelSprite);
-            DestroyAsset(beastRecoilPixelSprite);
-            DestroyAsset(surveyorPixelSprite);
-            DestroyAsset(surveyorWalkPixelSprite);
-            DestroyAsset(bellStandPixelSprite);
-            DestroyAsset(attackTargetPixelSprite);
-            DestroyAsset(activeRescuerPixelSprite);
-            DestroyAsset(lowerPlankIntactPixelSprite);
-            DestroyAsset(lowerPlankBrokenPixelSprite);
-            DestroyAsset(leaderPixelTexture);
-            DestroyAsset(leaderWalkPixelTexture);
-            DestroyAsset(leaderGuardPixelTexture);
-            DestroyAsset(beastPixelTexture);
-            DestroyAsset(beastRecoilPixelTexture);
-            DestroyAsset(surveyorPixelTexture);
-            DestroyAsset(surveyorWalkPixelTexture);
-            DestroyAsset(bellStandPixelTexture);
-            DestroyAsset(attackTargetPixelTexture);
-            DestroyAsset(activeRescuerPixelTexture);
-            DestroyAsset(lowerPlankIntactPixelTexture);
-            DestroyAsset(lowerPlankBrokenPixelTexture);
             DestroyAsset(ringMaterial);
             DestroyAsset(clearBell);
             DestroyAsset(mutedBell);
@@ -1756,267 +1666,36 @@ namespace Rpg.Soundwell
             return label;
         }
 
-        // Render only: no collider, movement or ORK status depends on pixels.
-        // Retain the leader's authored 16px silhouette; add a left-hand
-        // shield on the same texture grid without resizing or moving its actor.
-        private static string[] WithLeaderGuardShield()
+        private Sprite Tile(SoundwellTileKind tile) => art.SoundwellTiles[(int)tile];
+
+        private void BuildStoneFloor(Transform root)
         {
-            var guarded = (string[])LeaderPixels.Clone();
-            for (int y = 6; y <= 10; y++)
+            // Render the same gameplay bounds in whole, point-filtered tiles.
+            // The authored walls and mechanism colliders still own movement.
+            for (int y = 0; y < 7; y++)
             {
-                char[] row = guarded[y].ToCharArray();
-                row[1] = '#';
-                row[2] = y >= 7 && y <= 9 ? '+' : '#';
-                row[3] = '#';
-                guarded[y] = new string(row);
-            }
-            return guarded;
-        }
-
-        private static readonly string[] LeaderPixels =
-        {
-            "................",
-            "......####......",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            "......####......",
-            ".....######.....",
-            "....########....",
-            "...##+####+##...",
-            "...##########...",
-            ".....######.....",
-            ".....##..##.....",
-            ".....##..##.....",
-            "....###..###....",
-            "....###..###....",
-            "................",
-        };
-
-        // Same 16px body, with a readable alternating leg pose.
-        // It is visual only: frame selection never changes movement or ORK status.
-        private static readonly string[] LeaderWalkPixels =
-        {
-            "................",
-            "......####......",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            "......####......",
-            ".....######.....",
-            "....########....",
-            "...##+####+##...",
-            "...##########...",
-            ".....######.....",
-            ".....##..##.....",
-            "....###...##....",
-            "...###....###...",
-            "..###......###..",
-            "................",
-        };
-
-        // Tilt the existing head and upper body one source pixel as a brief
-        // recoil pose. The feet and 16 PPU sprite footprint stay anchored;
-        // no extra Animator, collider, enemy actor or RPG state is created.
-        private static string[] WithBeastRecoilPose()
-        {
-            var recoiling = (string[])BeastPixels.Clone();
-            for (int row = 1; row <= 8; row++)
-                recoiling[row] = "." + recoiling[row].Substring(0, 15);
-            return recoiling;
-        }
-
-        private static readonly string[] BeastPixels =
-        {
-            "................",
-            "..##........##..",
-            "..###......###..",
-            "...##########...",
-            "..############..",
-            "..##++####++##..",
-            ".##############.",
-            ".######++######.",
-            "################",
-            "...##########...",
-            "...###....###...",
-            "..####....####..",
-            ".####......####.",
-            ".###........###.",
-            "................",
-            "................",
-        };
-
-        // Worn cap, map-satchel coat, and boots: one whole 16px silhouette.
-        private static readonly string[] SurveyorPixels =
-        {
-            "................",
-            ".....######.....",
-            "....###++###....",
-            "....##++++##....",
-            "....##++++##....",
-            ".....######.....",
-            "......####......",
-            "....########....",
-            "...###++++###...",
-            "...###+##+###...",
-            "....########....",
-            ".....######.....",
-            ".....##..##.....",
-            ".....##..##.....",
-            "....###..###....",
-            "................",
-        };
-
-        private static readonly string[] SurveyorWalkPixels =
-        {
-            "................",
-            ".....######.....",
-            "....###++###....",
-            "....##++++##....",
-            "....##++++##....",
-            ".....######.....",
-            "......####......",
-            "....########....",
-            "...###++++###...",
-            "...###+##+###...",
-            "....########....",
-            ".....######.....",
-            ".....##..##.....",
-            "....###...##....",
-            "...###....###...",
-            "................",
-        };
-
-        // Silhouette for both actual named sound-source stands.
-        // Square pixels, one world unit, no non-uniform stretching.
-        private static readonly string[] BellStandPixels =
-        {
-            "................",
-            "................",
-            ".....######.....",
-            "....########....",
-            "...##++++++##...",
-            "...##++++++##...",
-            "....########....",
-            "......####......",
-            "......####......",
-            "......####......",
-            ".....######.....",
-            "....###..###....",
-            "...###....###...",
-            "..###......###..",
-            "..###......###..",
-            "................",
-        };
-
-        // Non-interactive ORK target cue, not an alternative selection system.
-        private static readonly string[] AttackTargetPixels =
-        {
-            "................",
-            "....##....##....",
-            "...#........#...",
-            "..#..........#..",
-            "..#..........#..",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "..#..........#..",
-            "..#..........#..",
-            "...#........#...",
-            "....##....##....",
-            "................",
-        };
-
-        // Current legal ORK actor, visibly distinct from beast target brackets.
-        private static readonly string[] ActiveRescuerPixels =
-        {
-            "................",
-            ".......##.......",
-            "......####......",
-            ".....######.....",
-            "....########....",
-            "...###....###...",
-            "..##........##..",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-        };
-
-        // Hand-authored whole pixels: an intact crossing and a visibly split
-        // crossing share identical bounds and never scale with world transform.
-        private static readonly string[] LowerPlankIntactPixels =
-        {
-            "..........................",
-            "..######################..",
-            ".#++++++++++++++++++++++#.",
-            ".#++++++++++++++++++++++#.",
-            "..######################..",
-            "..........................",
-        };
-
-        private static readonly string[] LowerPlankBrokenPixels =
-        {
-            "..........................",
-            "..######........######....",
-            ".#+++++#........#++++#....",
-            "..######........#######...",
-            "....####..........####....",
-            "..........................",
-        };
-
-        private static Sprite CreatePixelSprite(string name, string[] rows,
-            out Texture2D texture)
-        {
-            // The scene renders both 16x16 actors and 26x6 weak planks.
-            // Validate *all* source rows before creating any native texture;
-            // a malformed later row must not orphan Texture2D on scene retry.
-            texture = null;
-            int height = rows != null ? rows.Length : 0;
-            int width = height > 0 && rows[0] != null ? rows[0].Length : 0;
-            if (!((width == 16 && height == 16) || (width == 26 && height == 6)))
-                throw new System.InvalidOperationException("Invalid source pixel grid dimensions.");
-            for (int y = 0; y < height; y++)
-                if (rows[y] == null || rows[y].Length != width)
-                    throw new System.InvalidOperationException("Inconsistent source pixel row width.");
-
-            texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
-            {
-                name = name,
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-                anisoLevel = 0
-            };
-            var pixels = new Color32[width * height];
-            for (int y = 0; y < height; y++)
-            {
-                string row = rows[height - 1 - y];
-                for (int x = 0; x < width; x++)
+                for (int x = 0; x < 14; x++)
                 {
-                    char value = row[x];
-                    pixels[y * width + x] = value == '#'
-                        ? new Color32(255, 255, 255, 255)
-                        : value == '+'
-                            ? new Color32(175, 175, 175, 255)
-                            : new Color32(0, 0, 0, 0);
+                    int pattern = (x * 13 + y * 7) % 17;
+                    SoundwellTileKind tile = pattern == 3 ? SoundwellTileKind.FloorCracked
+                        : pattern == 8 ? SoundwellTileKind.FloorPuddle
+                        : pattern == 13 ? SoundwellTileKind.FloorMoss : SoundwellTileKind.FloorPlain;
+                    ArtSprite(root, "Soundwell stone floor " + x + "," + y,
+                        new Vector2(x - 6.5f, y - 3f), Tile(tile), -4);
                 }
             }
-            texture.SetPixels32(pixels);
-            texture.Apply(false, false);
-            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height),
-                new Vector2(0.5f, 0.5f), 16f, 0, SpriteMeshType.FullRect);
-            // Sprite.Create does not inherit Texture2D.name; unnamed visual
-            // assets make combat-pose diagnostics and regressions ambiguous.
-            sprite.name = name;
-            return sprite;
+        }
+
+        private static SpriteRenderer ArtSprite(Transform parent, string name,
+            Vector2 position, Sprite sprite, int order)
+        {
+            var obj = new GameObject(name);
+            obj.transform.SetParent(parent, false);
+            obj.transform.localPosition = position;
+            var renderer = obj.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = order;
+            return renderer;
         }
 
         private SpriteRenderer Plate(Transform parent, string name, Vector2 position, Vector2 size, Color color, int order)
@@ -2030,13 +1709,6 @@ namespace Rpg.Soundwell
             renderer.sortingOrder = order;
             renderer.color = color;
             return renderer;
-        }
-
-        private SpriteRenderer Wall(Transform root, string name, Vector2 position, Vector2 size)
-        {
-            var wall = Plate(root, name, position, size, new Color(0.32f, 0.43f, 0.48f), 0);
-            wall.gameObject.AddComponent<BoxCollider2D>().size = Vector2.one;
-            return wall;
         }
 
         private static AudioClip BellClip(string name, float frequency, float duration, float volume)
