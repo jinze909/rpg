@@ -66,6 +66,12 @@ namespace Rpg.Soundwell
         private Vector3 appliedShakeOffset;
         private Camera shakenCamera;
 
+        private static bool IsFinite(float value) =>
+            !float.IsNaN(value) && !float.IsInfinity(value);
+
+        private static bool IsFinite(Vector2 value) =>
+            IsFinite(value.x) && IsFinite(value.y);
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureRuntimeDirector()
         {
@@ -391,7 +397,7 @@ namespace Rpg.Soundwell
 
         private void SpawnPopup(string text, Vector2 anchoredPos, Color color)
         {
-            if (overlayRoot == null) return;
+            if (overlayRoot == null || !IsFinite(anchoredPos)) return;
             var obj = new GameObject("Battle damage popup", typeof(RectTransform));
             obj.transform.SetParent(overlayRoot, false);
             var rect = (RectTransform)obj.transform;
@@ -421,7 +427,7 @@ namespace Rpg.Soundwell
 
         private void UpdatePopups(float dt)
         {
-            if (dt <= 0f || popups.Count == 0) return;
+            if (!IsFinite(dt) || dt <= 0f || popups.Count == 0) return;
             for (int i = popups.Count - 1; i >= 0; i--)
             {
                 FloatingPopup p = popups[i];
@@ -446,6 +452,9 @@ namespace Rpg.Soundwell
 
         private void TriggerCameraShake(float intensity, float duration)
         {
+            if (!IsFinite(intensity) || !IsFinite(duration) ||
+                intensity <= 0f || duration <= 0f)
+                return;
             shakeIntensity = Mathf.Max(shakeIntensity, intensity);
             shakeRemaining = Mathf.Max(shakeRemaining, duration);
         }
@@ -458,7 +467,13 @@ namespace Rpg.Soundwell
                 appliedShakeOffset = Vector3.zero;
             }
 
-            if (shakeRemaining <= 0f || dt <= 0f)
+            if (!IsFinite(shakeRemaining) || !IsFinite(shakeIntensity))
+            {
+                ClearCameraShake();
+                return;
+            }
+
+            if (shakeRemaining <= 0f || !IsFinite(dt) || dt <= 0f)
                 return;
 
             Camera cam = Camera.main;
