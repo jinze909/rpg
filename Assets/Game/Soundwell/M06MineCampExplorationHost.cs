@@ -297,7 +297,9 @@ namespace Rpg.Soundwell
                         landed && M06MineCampReconFacts.Contains(mask, lead));
                 }
                 minimapHud.SetBeaconCompleted("m06.pump-reunion",
-                    landed && RescuePlanSettled);
+                    landed && (RescuePlanSettled ||
+                        HasAnyPersistedRescuePlanFacts() ||
+                        M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt)));
             }
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
@@ -350,7 +352,9 @@ namespace Rpg.Soundwell
             }
 
             if (triggerId == "m06.pump-reunion")
-                return !RescuePlanSettled && !HasAnyPersistedRescuePlanFacts();
+                return !RescuePlanSettled &&
+                    !HasAnyPersistedRescuePlanFacts() &&
+                    !M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt);
 
             return false;
         }
@@ -391,6 +395,7 @@ namespace Rpg.Soundwell
             if (arrivalSequence < 0 ||
                 RescuePlanSettled ||
                 HasAnyPersistedRescuePlanFacts() ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt) ||
                 !M06PumpRoomReunionSession.TryCreateFromSavedFacts(
                     getInt, out M06PumpRoomReunionSession session))
                 return false;
