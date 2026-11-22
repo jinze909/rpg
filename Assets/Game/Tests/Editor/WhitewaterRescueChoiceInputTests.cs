@@ -3,6 +3,7 @@ using GamingIsLove.Makinom;
 using System.Linq;
 using NUnit.Framework;
 using Rpg.Soundwell;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -17,6 +18,19 @@ namespace Rpg.Tests.Editor
     // neither the authored choice nor a timer may automatically rescue Han Qiao.
     public sealed class WhitewaterRescueChoiceInputTests
     {
+        private static void AssertAuthoredSprite(Image image, Sprite expected, int width, int height)
+        {
+            Assert.That(image, Is.Not.Null);
+            Assert.That(expected, Is.Not.Null);
+            Assert.That(image.sprite, Is.SameAs(expected));
+            Assert.That(image.sprite.rect.width, Is.EqualTo(width));
+            Assert.That(image.sprite.rect.height, Is.EqualTo(height));
+            Assert.That(image.sprite.pixelsPerUnit, Is.EqualTo(16f));
+            Assert.That(image.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+            Assert.That(image.sprite.texture.mipmapCount, Is.EqualTo(1));
+            Assert.That(AssetDatabase.GetAssetPath(image.sprite), Does.StartWith("Assets/Game/Art/"));
+        }
+
         [Test]
         public void S00NightBackdropHidesEntryScreenAtAnyCanvasAspect()
         {
@@ -426,37 +440,29 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void SharedS00PixelRasterizerRetainsAuthoredCoatAndTransparentCorners()
+        public void WhitewaterPreludeManifestProvidesImportedVisualStates()
         {
-            var rasterizer = typeof(WhitewaterPrelude).Assembly.GetType(
-                "Rpg.Soundwell.SoundwellPixelSpriteBuilder");
-            Assert.That(rasterizer, Is.Not.Null);
-            var create = rasterizer.GetMethod("Create16Colored",
-                System.Reflection.BindingFlags.Static |
-                System.Reflection.BindingFlags.NonPublic);
-            Assert.That(create, Is.Not.Null);
-            var rows = new string[16];
-            for (int i = 0; i < rows.Length; i++)
-                rows[i] = "................";
-            rows[0] = "ck..............";
-            var coat = new Color32(73, 104, 186, 255);
-            var args = new object[] { rows, "shared S00 test coat", coat, null };
-            var sprite = (Sprite)create.Invoke(null, args);
-            var texture = (Texture2D)args[3];
-            try
+            var art = RpgPixelArtManifest.LoadDefault();
+            Assert.That(art, Is.Not.Null);
+            Sprite[] poses =
             {
-                Assert.That(texture, Is.Not.Null);
-                Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
-                Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
-                Assert.That(texture.GetPixel(0, 15), Is.EqualTo((Color)coat));
-                Assert.That(texture.GetPixel(1, 15),
-                    Is.EqualTo((Color)new Color32(24, 32, 41, 255)));
-                Assert.That(texture.GetPixel(3, 15).a, Is.Zero);
-            }
-            finally
+                art.FerryGuideIdle, art.FerryGuideWalk1, art.FerryGuideWalk2,
+                art.ShenLiBridgeIdle, art.ShenLiBridgeWrench, art.ShenLiTurnClamp,
+                art.ShenLiBraceCable, art.HanQiaoInWater, art.HanQiaoBeingHauled,
+                art.HanQiaoOnShore, art.WhitewaterRescuerReady, art.WhitewaterRescuerHauling,
+                art.WhitewaterRetreatCook, art.WhitewaterYoungShieldBearer
+            };
+            Assert.That(poses.Distinct().Count(), Is.EqualTo(poses.Length));
+            foreach (Sprite pose in poses)
             {
-                Object.DestroyImmediate(sprite);
-                Object.DestroyImmediate(texture);
+                Assert.That(pose, Is.Not.Null);
+                string path = AssetDatabase.GetAssetPath(pose);
+                Assert.That(path, Does.StartWith("Assets/Game/Art/"));
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                Assert.That(importer, Is.Not.Null);
+                Assert.That(importer.alphaIsTransparency, Is.True);
+                Assert.That(importer.filterMode, Is.EqualTo(FilterMode.Point));
+                Assert.That(pose.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             }
         }
 
@@ -511,40 +517,6 @@ namespace Rpg.Tests.Editor
             finally
             {
                 UnityEngine.Object.DestroyImmediate(root);
-            }
-        }
-
-        [Test]
-        public void TruncatedS00PixelActorDoesNotLeaveUnmanagedTexture()
-        {
-            var generator = typeof(WhitewaterPrelude).GetMethod("MakeActorSprite",
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Static);
-            Assert.That(generator, Is.Not.Null);
-            string[] art = Enumerable.Repeat("................", 16).ToArray();
-            art[4] = "truncated";
-            var existingTextures = Resources.FindObjectsOfTypeAll<Texture2D>();
-            object[] parameters = { "invalid wounded silhouette", art,
-                new Color32(128, 80, 80, 255), null };
-            try
-            {
-                var error = Assert.Throws<System.Reflection.TargetInvocationException>(
-                    () => generator.Invoke(null, parameters));
-                Assert.That(error.InnerException,
-                    Is.TypeOf<System.InvalidOperationException>());
-                Assert.That(parameters[3], Is.Null,
-                    "A rejected sprite must never hand out a native texture.");
-                Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
-                    .Where(texture => !existingTextures.Contains(texture)), Is.Empty,
-                    "Reject malformed S00 art before allocating an orphan texture.");
-            }
-            finally
-            {
-                // Clean up even if a regression creates the very leak that
-                // this test must catch, so later Unity tests stay independent.
-                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
-                    .Where(texture => !existingTextures.Contains(texture)))
-                    UnityEngine.Object.DestroyImmediate(orphan);
             }
         }
 
@@ -612,7 +584,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(bell.clip.length, Is.InRange(1.25f, 1.35f));
 
                 var walkway = stage.transform.Find(
-                    "S00 Whitewater playable canvas/PLACEHOLDER bridge walkway") as RectTransform;
+                    "S00 Whitewater playable canvas/S00 bridge walkway") as RectTransform;
                 Assert.That(walkway, Is.Not.Null);
                 float deadline = Time.realtimeSinceStartup + 8f;
                 while (stage.Phase != 18 && Time.realtimeSinceStartup < deadline)
@@ -621,24 +593,26 @@ namespace Rpg.Tests.Editor
                     "Only the earned win should reach the final blackout and historical title.");
                 Assert.That(walkway.sizeDelta.x, Is.LessThan(400f),
                     "The far span must visibly fall, not merely change a caption.");
-                Assert.That(walkway.anchoredPosition.y, Is.LessThan(-20f));
+                Assert.That(walkway.anchoredPosition.y, Is.EqualTo(12f),
+                    "The connected near span must stay beside the clamp as only the far span sinks.");
+                var farSpan = stage.transform.Find(
+                    "S00 Whitewater playable canvas/S00 sinking far span") as RectTransform;
+                Assert.That(farSpan, Is.Not.Null);
+                Assert.That(farSpan.anchoredPosition.y, Is.LessThan(-20f));
+                Assert.That(farSpan.gameObject.activeSelf, Is.False);
+                var art = RpgPixelArtManifest.LoadDefault();
+                AssertAuthoredSprite(farSpan.GetComponent<Image>(), art.SinkingFarBridge, 16, 16);
                 var torches = stage.GetComponentsInChildren<Image>(true)
                     .Where(image => image.gameObject.name ==
-                        "PLACEHOLDER S00 encircling torch light").ToArray();
+                        "S00 encircling torch light").ToArray();
                 Assert.That(torches.Length, Is.EqualTo(4),
                     "The historical encirclement must show four existing lights.");
                 var torchSprite = torches[0].sprite;
-                Assert.That(torchSprite, Is.Not.Null);
-                Assert.That(torchSprite.pixelsPerUnit, Is.EqualTo(16f));
-                Assert.That(torchSprite.texture.width, Is.EqualTo(16));
-                Assert.That(torchSprite.texture.height, Is.EqualTo(16));
-                Assert.That(torchSprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
-                Assert.That(torchSprite.texture.GetPixel(7, 12).a,
-                    Is.GreaterThan(0.99f), "The flame must contain visible authored pixels.");
+                AssertAuthoredSprite(torches[0], art.HarborTiles[(int)HarborTileKind.Brazier], 16, 16);
                 foreach (var torch in torches)
                 {
                     Assert.That(torch.sprite, Is.SameAs(torchSprite),
-                        "The four lights must share one generated 16px texture.");
+                        "The four lights must share the authored harbor brazier sprite.");
                     Assert.That(torch.raycastTarget, Is.False,
                         "Scenery cannot steal the final Exit button's input.");
                     Assert.That(torch.rectTransform.sizeDelta,
@@ -1007,6 +981,18 @@ namespace Rpg.Tests.Editor
                     var inWater = activePrelude.transform.Find(
                         "S00 Whitewater playable canvas/S00 Han Qiao in water") as RectTransform;
                     Assert.That(inWater, Is.Not.Null);
+                    var art = RpgPixelArtManifest.LoadDefault();
+                    Assert.That(art, Is.Not.Null);
+                    Image passenger = inWater.GetComponent<Image>();
+                    AssertAuthoredSprite(passenger, art.HanQiaoInWater, 16, 24);
+                    AssertAuthoredSprite(activePrelude.transform.Find(
+                        "S00 Whitewater playable canvas/S00 ferry water").GetComponent<Image>(),
+                        art.HarborTiles[(int)HarborTileKind.WaterCalm], 16, 16);
+                    AssertAuthoredSprite(activePrelude.transform.Find(
+                        "S00 Whitewater playable canvas/S00 bridge walkway").GetComponent<Image>(),
+                        art.HarborTiles[(int)HarborTileKind.BridgePlank], 16, 16);
+                    if (rescueChoice == 0)
+                        SoundwellSmokeHost.CaptureWhitewater(activePrelude, "s00-whitewater-rescue");
                     float riverStartX = inWater.anchoredPosition.x;
                     var station = activePrelude.transform.Find(
                         "S00 Whitewater playable canvas/S00 rescue station") as RectTransform;
@@ -1021,32 +1007,20 @@ namespace Rpg.Tests.Editor
                     Assert.That(soldierGraphic, Is.Not.Null);
                     Assert.That(soldierGraphic.raycastTarget, Is.False,
                         "The soldier cannot intercept the player's real rescue input.");
-                    Assert.That(soldierGraphic.sprite.texture.width, Is.EqualTo(16));
-                    Assert.That(soldierGraphic.sprite.texture.height, Is.EqualTo(16));
-                    Assert.That(soldierGraphic.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
-                    Assert.That(soldierGraphic.sprite.name, Does.Contain("ready at the rail"));
+                    AssertAuthoredSprite(soldierGraphic, art.WhitewaterRescuerReady, 16, 24);
                     var shenLiLine = activePrelude.transform.Find(
                         "S00 Whitewater playable canvas/S00 Shen Li thrown rescue line") as RectTransform;
                     Assert.That(shenLiLine, Is.Not.Null);
                     Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
                         "Shen Li cannot throw the rope before the choice is made.");
-                    var ropeGraphic = shenLiLine.GetComponent<RawImage>();
-                    Assert.That(ropeGraphic, Is.Not.Null,
-                        "The thrown rope must be rendered by a tiled pixel texture.");
+                    var ropeGraphic = shenLiLine.GetComponent<Image>();
+                    AssertAuthoredSprite(ropeGraphic, art.WhitewaterBraidedLine, 16, 4);
                     Assert.That(ropeGraphic.raycastTarget, Is.False,
                         "The rescue line must not steal clicks or gamepad focus.");
-                    var ropeTexture = ropeGraphic.texture as Texture2D;
-                    Assert.That(ropeTexture, Is.Not.Null);
-                    Assert.That(ropeTexture.width, Is.EqualTo(16));
-                    Assert.That(ropeTexture.height, Is.EqualTo(4));
-                    Assert.That(ropeTexture.filterMode, Is.EqualTo(FilterMode.Point),
-                        "The crossing line cannot use blurred stretch filtering.");
-                    Assert.That(ropeTexture.wrapMode, Is.EqualTo(TextureWrapMode.Repeat));
-                    Assert.That(ropeGraphic.uvRect.width, Is.EqualTo(315f / 16f).Within(0.01f),
+                    Assert.That(ropeGraphic.type, Is.EqualTo(Image.Type.Tiled));
+                    Assert.That(ropeGraphic.pixelsPerUnit * ropeGraphic.pixelsPerUnitMultiplier,
+                        Is.EqualTo(1f).Within(0.001f),
                         "Every rope pixel must repeat at the same size along the span.");
-                    Assert.That(ropeTexture.GetPixel(0, 1),
-                        Is.Not.EqualTo(ropeTexture.GetPixel(2, 1)),
-                        "The rope must contain visible braided strands, not solid paint.");
 
                     // The first choice is merely a plan. Back must return
                     // to the rescuer menu, not exit S00 or silently save a rescue.
@@ -1111,7 +1085,7 @@ namespace Rpg.Tests.Editor
                     if (rescueChoice == 2)
                     {
                         Assert.That(soldierHelper.anchoredPosition.x, Is.EqualTo(-108f));
-                        Assert.That(soldierGraphic.sprite.name, Does.Contain("ready at the rail"),
+                        Assert.That(soldierGraphic.sprite, Is.SameAs(art.WhitewaterRescuerReady),
                             "The soldier cannot animate a successful haul before the player's E / Pad A.");
                     }
                     if (rescueChoice == 1)
@@ -1214,12 +1188,13 @@ namespace Rpg.Tests.Editor
                     yield return null;
                     Assert.That(activePrelude.Phase, Is.EqualTo(8),
                         "Fresh gamepad South or E at the station must perform the actual rescue.");
+                    AssertAuthoredSprite(passenger, art.HanQiaoBeingHauled, 16, 24);
                     Assert.That(shenLiLine.gameObject.activeInHierarchy, Is.False,
                         "The rope retracts after the real action; it cannot stay over the boat.");
                     Assert.That(soldierHelper.gameObject.activeInHierarchy,
                         Is.EqualTo(rescueChoice == 2));
                     if (rescueChoice == 2)
-                        Assert.That(soldierGraphic.sprite.name, Does.Contain("hauling the line"),
+                        Assert.That(soldierGraphic.sprite, Is.SameAs(art.WhitewaterRescuerHauling),
                             "The helper's raised-arm sprite is earned only when the real rescue succeeds.");
                     Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                     Assert.That(activePrelude.CurrentNarration, Does.Contain(
@@ -1254,25 +1229,13 @@ namespace Rpg.Tests.Editor
                         var departingBoat = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/S00 last boat") as RectTransform;
                         Assert.That(departingBoat, Is.Not.Null);
-                        var boatImage = departingBoat.GetComponent<RawImage>();
-                        Assert.That(boatImage, Is.Not.Null,
-                            "The last ferry must have authored pixels, not a stretched flat rectangle.");
+                        var boatImage = departingBoat.GetComponent<Image>();
+                        AssertAuthoredSprite(boatImage, art.WhitewaterFerryDeck, 48, 32);
                         Assert.That(boatImage.raycastTarget, Is.False,
                             "The boat must not intercept rescue or menu input.");
-                        var boatTexture = boatImage.texture as Texture2D;
-                        Assert.That(boatTexture, Is.Not.Null);
-                        Assert.That(boatTexture.width, Is.EqualTo(48));
-                        Assert.That(boatTexture.height, Is.EqualTo(12));
-                        Assert.That(boatTexture.filterMode, Is.EqualTo(FilterMode.Point));
-                        Assert.That(boatTexture.mipmapCount, Is.EqualTo(1));
-                        Assert.That(departingBoat.sizeDelta, Is.EqualTo(new Vector2(96f, 24f)),
+                        Assert.That(departingBoat.sizeDelta, Is.EqualTo(new Vector2(96f, 64f)),
                             "The boat must render every source pixel at an exact 2x scale.");
-                        Assert.That(boatTexture.GetPixel(0, 0).a, Is.EqualTo(0f),
-                            "The rectangular texture must have transparent hull cutouts.");
-                        Assert.That(boatTexture.GetPixel(24, 5).a, Is.GreaterThan(0.9f));
-                        Assert.That(boatTexture.GetPixel(24, 5),
-                            Is.Not.EqualTo(boatTexture.GetPixel(24, 9)),
-                            "The deck and wooden hull need distinct visible pixel details.");
+                        AssertAuthoredSprite(passenger, art.HanQiaoOnShore, 16, 24);
                         Assert.That(departingBoat.gameObject.activeInHierarchy, Is.True);
                         float boatDockX = departingBoat.anchoredPosition.x;
                         float passengerDockX = inWater.anchoredPosition.x;
@@ -1283,9 +1246,7 @@ namespace Rpg.Tests.Editor
                         var cookFigure = activePrelude.transform.Find(
                             "S00 Whitewater playable canvas/S00 last evacuee")?.GetComponent<Image>();
                         Assert.That(cookFigure, Is.Not.Null);
-                        Assert.That(cookFigure.sprite.name, Does.Contain("pot-carrying cook"),
-                            "A distinct cooking-pot silhouette must accompany the v1.2 dialogue.");
-                        Assert.That(cookFigure.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
+                        AssertAuthoredSprite(cookFigure, art.WhitewaterRetreatCook, 16, 24);
                         Assert.That(soldierHelper.gameObject.activeInHierarchy, Is.False,
                             "The soldier must leave the rescue lane as the last boat departs.");
                         float departureDeadline = Time.realtimeSinceStartup + 3f;
@@ -1485,17 +1446,8 @@ namespace Rpg.Tests.Editor
                             Image actor = activePrelude.transform.Find(
                                 "S00 Whitewater playable canvas/S00 last evacuee")
                                 .GetComponent<Image>();
-                            Assert.That(actor.sprite.name, person == 1
-                                ? Does.Contain("soldier ready")
-                                : Does.Contain("young soldier with shield"));
-                            if (person == 2)
-                            {
-                                Assert.That(actor.sprite.texture.filterMode,
-                                    Is.EqualTo(FilterMode.Point));
-                                Assert.That(actor.sprite.texture.GetPixel(14, 8).a,
-                                    Is.GreaterThan(0.9f),
-                                    "The third rescued soldier must visibly carry his shield.");
-                            }
+                            AssertAuthoredSprite(actor, person == 1
+                                ? art.WhitewaterRescuerReady : art.WhitewaterYoungShieldBearer, 16, 24);
                             input.Press(keys.dKey);
                             float personDeadline = Time.realtimeSinceStartup + 6f;
                             while (!activePrelude.CanHelpEvacuee &&
@@ -1531,7 +1483,7 @@ namespace Rpg.Tests.Editor
                                 Is.EqualTo(person == 1 ? 9 : 11));
                         }
                         var coil = activePrelude.transform.Find(
-                            "S00 Whitewater playable canvas/PLACEHOLDER S00 spare rope at clamp");
+                            "S00 Whitewater playable canvas/S00 spare rope at clamp");
                         Assert.That(coil, Is.Not.Null);
                         Assert.That(coil.gameObject.activeInHierarchy, Is.False,
                             "The rope must not appear before the earned call after a safe escort.");
@@ -1539,16 +1491,9 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.Phase, Is.EqualTo(12));
                         Assert.That(coil.gameObject.activeInHierarchy, Is.True);
                         var coilImage = coil.GetComponent<Image>();
-                        Assert.That(coilImage.sprite, Is.Not.Null);
-                        Assert.That(coilImage.sprite.name, Does.Contain("spare rope coil"));
-                        Assert.That(coilImage.sprite.texture.width, Is.EqualTo(16));
-                        Assert.That(coilImage.sprite.texture.height, Is.EqualTo(16));
-                        Assert.That(coilImage.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
-                        Assert.That(coilImage.sprite.pixelsPerUnit, Is.EqualTo(16f));
+                        AssertAuthoredSprite(coilImage, art.SpareRescueRope, 16, 16);
                         Assert.That(((RectTransform)coil).sizeDelta, Is.EqualTo(new Vector2(32f, 32f)),
                             "The coil must retain exact 2x pixel scaling in the existing UGUI scene.");
-                        Assert.That(coilImage.sprite.texture.GetPixel(7, 8).a,
-                            Is.GreaterThan(0.9f), "The wound loop needs a real interior rope pixel.");
                         Assert.That(coilImage.raycastTarget, Is.False,
                             "A travelling rope cannot steal UI choice clicks or gamepad focus.");
 
@@ -1593,26 +1538,19 @@ namespace Rpg.Tests.Editor
                         float threatSpawnX = ((RectTransform)approaching).anchoredPosition.x;
                         var approachingImage = approaching.GetComponent<Image>();
                         var playerImage = activePrelude.transform.Find(
-                            "S00 Whitewater playable canvas/PLACEHOLDER player")
+                            "S00 Whitewater playable canvas/S00 player")
                             .GetComponent<Image>();
                         Assert.That(approachingImage.sprite, Is.Not.SameAs(playerImage.sprite),
                             "The far-bank spear guard must be visually distinct from the player.");
-                        Assert.That(approachingImage.sprite.texture.width, Is.EqualTo(16));
-                        Assert.That(approachingImage.sprite.texture.height, Is.EqualTo(16));
-                        Assert.That(approachingImage.sprite.texture.filterMode,
-                            Is.EqualTo(FilterMode.Point));
+                        AssertAuthoredSprite(approachingImage, art.BridgeGuardIdle, 16, 24);
+                        AssertAuthoredSprite(playerImage, art.FerryGuideIdle, 16, 24);
                         Assert.That(approachingImage.rectTransform.sizeDelta,
-                            Is.EqualTo(new Vector2(32f, 32f)),
-                            "The spear guard must use the same exact 2x pixel scaling.");
-                        Assert.That(approachingImage.sprite.texture.GetPixel(13, 15).a,
-                            Is.GreaterThan(0.9f),
-                            "The upright spear must be present in the guard silhouette.");
-                        Assert.That(playerImage.sprite.texture.GetPixel(13, 15).a,
-                            Is.EqualTo(0f), "The player silhouette must not share that spear.");
+                            Is.EqualTo(new Vector2(32f, 48f)),
+                            "The spear guard must use exact 2x pixel scaling.");
                         Assert.That(approachingImage.raycastTarget, Is.False,
                             "Distant guards cannot steal gamepad or mouse interaction.");
                         Sprite guardIdle = approachingImage.sprite;
-                        Assert.That(guardIdle.name, Does.Not.Contain("walking"));
+                        Assert.That(guardIdle, Is.Not.SameAs(art.BridgeGuardAdvance));
 
                         input.Press(keys.aKey);
                         float sightlineDeadline = Time.realtimeSinceStartup + 4f;
@@ -1673,14 +1611,14 @@ namespace Rpg.Tests.Editor
                         while (!activePrelude.CanHoldCable &&
                                Time.realtimeSinceStartup < returnDeadline)
                         {
-                            observedMarchFrame |= approachingImage.sprite != guardIdle;
+                            observedMarchFrame |= approachingImage.sprite == art.BridgeGuardAdvance;
                             yield return null;
                             Assert.That(((RectTransform)approaching).anchoredPosition.x,
                                 Is.EqualTo(Mathf.Round(
                                     ((RectTransform)approaching).anchoredPosition.x)).Within(0.001f),
                                 "The marching 16px guard must stay on whole canvas pixels.");
                         }
-                        observedMarchFrame |= approachingImage.sprite != guardIdle;
+                        observedMarchFrame |= approachingImage.sprite == art.BridgeGuardAdvance;
                         input.Release(keys.dKey);
                         yield return null;
                         Assert.That(activePrelude.CanHoldCable, Is.True,
@@ -1694,7 +1632,7 @@ namespace Rpg.Tests.Editor
                         Assert.That(approachingImage.sprite.texture.filterMode,
                             Is.EqualTo(FilterMode.Point));
                         Assert.That(approachingImage.rectTransform.sizeDelta,
-                            Is.EqualTo(new Vector2(32f, 32f)));
+                            Is.EqualTo(new Vector2(32f, 48f)));
                         float threatAfterReturnX = ((RectTransform)approaching).anchoredPosition.x;
                         Assert.That(threatAfterReturnX, Is.GreaterThan(threatStartX + 4f),
                             "The silhouettes must approach during the player-controlled return, rather than standing still.");
@@ -1706,12 +1644,10 @@ namespace Rpg.Tests.Editor
                         Assert.That(coilBeforeHold.y, Is.GreaterThan(40f),
                             "The spare rope must remain at the handoff point until the player braces the cable.");
                         var shenLiSprite = activePrelude.transform.Find(
-                            "S00 Whitewater playable canvas/PLACEHOLDER Shen Li")
+                            "S00 Whitewater playable canvas/S00 Shen Li")
                             .GetComponent<Image>();
                         Sprite beforeHoldPose = shenLiSprite.sprite;
-                        Assert.That(beforeHoldPose, Is.Not.Null);
-                        Assert.That(beforeHoldPose.texture.GetPixel(0, 7).a,
-                            Is.EqualTo(0f),
+                        Assert.That(beforeHoldPose, Is.SameAs(art.ShenLiTurnClamp),
                             "Shen Li must not brace the cable before the earned interaction.");
                         input.Press(keys.eKey);
                         yield return null;
@@ -1720,16 +1656,11 @@ namespace Rpg.Tests.Editor
                         Assert.That(activePrelude.Phase, Is.EqualTo(16));
                         Assert.That(shenLiSprite.sprite, Is.Not.SameAs(beforeHoldPose),
                             "Shen Li must visibly raise the wrench only on the actual cable hold.");
-                        Assert.That(shenLiSprite.sprite.texture.width, Is.EqualTo(16));
-                        Assert.That(shenLiSprite.sprite.texture.height, Is.EqualTo(16));
-                        Assert.That(shenLiSprite.sprite.texture.filterMode,
-                            Is.EqualTo(FilterMode.Point));
+                        AssertAuthoredSprite(shenLiSprite, art.ShenLiBraceCable, 16, 24);
                         Assert.That(shenLiSprite.rectTransform.sizeDelta,
-                            Is.EqualTo(new Vector2(32f, 32f)),
-                            "The bracing pose must retain the exact existing 2x pixel scale.");
-                        Assert.That(shenLiSprite.sprite.texture.GetPixel(0, 7).a,
-                            Is.GreaterThan(0.9f),
-                            "The new left-facing wrench must be drawn in the action frame.");
+                            Is.EqualTo(new Vector2(32f, 48f)),
+                            "The bracing pose must retain exact 2x pixel scaling.");
+                        SoundwellSmokeHost.CaptureWhitewater(activePrelude, "s00-whitewater-braced-cable");
                         Assert.That(SoundwellInputAdapter.IsUiContextActive, Is.True);
                         Assert.That(post.GetComponent<Image>().color.g, Is.GreaterThan(0.8f),
                             "The actual held post must change visibly after E / Pad A.");

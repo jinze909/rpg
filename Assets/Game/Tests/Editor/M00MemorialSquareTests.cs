@@ -83,6 +83,15 @@ namespace Rpg.Tests.Editor
                     "M00 must be owned by the real entry controller.");
                 yield return null;
                 AssertMemorialFitsViewport(memorial);
+                AssertAuthoredImage(memorial, "M00 player", "ferry_guide_idle");
+                AssertAuthoredImage(memorial, "M00 distant harbor water", "day_water");
+                AssertAuthoredImage(memorial, "M00 memorial square paving", "square_paving");
+                AssertAuthoredImage(memorial, "M00 memorial stone", "memorial_polished_stele");
+                AssertAuthoredImage(memorial, "M00 memorial statue", "memorial_statue");
+                AssertAuthoredImage(memorial, "M00 small stage", "memorial_small_stage");
+                AssertAuthoredImage(memorial, "M00 old woman wiping Hao Lie’s name", "memorial_woman_wiping");
+                AssertAuthoredImage(memorial, "M00 blue-cuffed watcher left", "blue_cuff_veteran");
+                AssertAuthoredImage(memorial, "M00 Xiaodou in oversized uniform", "xiaodou_costumed_sugar_figure");
 
                 Assert.That(memorial.Phase, Is.Zero);
                 Assert.That(memorial.CanInspectStatue, Is.False,
@@ -161,6 +170,7 @@ namespace Rpg.Tests.Editor
                     .onClick.Invoke();
                 yield return null;
                 Assert.That(memorial.XiaodouPrompted, Is.True);
+                AssertAuthoredImage(memorial, "M00 Xiaodou in oversized uniform", "xiaodou_prompted");
                 Assert.That(memorial.Phase, Is.EqualTo(5));
                 Assert.That(memorial.CurrentNarration, Does.Contain("Who has spare rope?"),
                     "M00 must echo the exact P0 rope call instead of using an altered English paraphrase.");
@@ -240,6 +250,18 @@ namespace Rpg.Tests.Editor
                 if (inputReady && input != null)
                     input.TearDown();
             }
+        }
+
+        private static void AssertAuthoredImage(M00MemorialSquare memorial, string objectName, string spriteName)
+        {
+            Image image = memorial.GetComponentsInChildren<Image>(true)
+                .Single(child => child.name == objectName);
+            Assert.That(image.isActiveAndEnabled, Is.True, objectName);
+            Assert.That(image.raycastTarget, Is.False, objectName);
+            Assert.That(image.sprite, Is.Not.Null, objectName);
+            Assert.That(image.sprite.name, Is.EqualTo(spriteName));
+            Assert.That(UnityEditor.AssetDatabase.GetAssetPath(image.sprite),
+                Does.StartWith("Assets/Game/Art/"));
         }
 
         private static void AssertMemorialFitsViewport(M00MemorialSquare memorial)

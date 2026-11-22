@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: d1c9432a53df5cd428f4c2b437a8486a
+guid: bc6a404d69bf42588ef246762dfabe6f
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -1518057660986799239
-    second: GratingJoined_0
+      213: -5906308315159703539
+    second: whitewater_braided_line
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -48,12 +48,12 @@ TextureImporter:
   compressionQuality: 50
   spriteMode: 2
   spriteExtrude: 1
-  spriteMeshType: 1
+  spriteMeshType: 0
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 16
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
-  spriteGenerateFallbackPhysicsShape: 1
+  spriteGenerateFallbackPhysicsShape: 0
   alphaUsage: 1
   alphaIsTransparency: 1
   spriteTessellationMethod: 0
@@ -90,7 +90,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -102,44 +102,44 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: GratingJoined_0
+      name: whitewater_braided_line
       rect:
         serializedVersion: 2
         x: 0
-        y: 0
+        y: 2
         width: 16
-        height: 16
+        height: 4
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
+      customData:
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 97b4250b996ceeae0800000000000000
-      internalID: -1518057660986799239
+      spriteID: 0d50f85ce19308ae0800000000000000
+      internalID: -5906308315159703539
       vertices: []
-      indices: 
+      indices:
       edges: []
       weights: []
     outline: []
-    customData: 
+    customData:
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID:
     internalID: 0
     vertices: []
-    indices: 
+    indices:
     edges: []
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      GratingJoined_0: -1518057660986799239
-  mipmapLimitGroupName: 
+      whitewater_braided_line: -5906308315159703539
+  mipmapLimitGroupName:
   pSDRemoveMatte: 0
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
+  userData:
+  assetBundleName:
+  assetBundleVariant:

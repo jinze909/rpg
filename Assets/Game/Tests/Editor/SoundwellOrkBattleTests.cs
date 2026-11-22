@@ -141,71 +141,20 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [Test]
-        public void PixelFormationPoseValidationRejectsMalformedRowsBeforeNativeAllocation()
+        private static Color[] ReadAuthoredSpritePixels(Sprite sprite)
         {
-            // Formation sprites use Create16: unlike the coloured S00 helper,
-            // it previously allocated a Texture2D before discovering an
-            // invalid row. Do not leak native textures on retrying bad art.
-            var type = typeof(PartyFormationFollower).Assembly.GetType(
-                "Rpg.Soundwell.SoundwellPixelSpriteBuilder");
-            Assert.That(type, Is.Not.Null);
-            var method = type.GetMethod("Create16",
-                System.Reflection.BindingFlags.Static |
-                System.Reflection.BindingFlags.NonPublic);
-            Assert.That(method, Is.Not.Null);
-            const string invalidName = "S00 invalid pixel formation test allocation";
-            var good = Enumerable.Repeat("................", 16).ToArray();
-            var badShort = (string[])good.Clone();
-            badShort[15] = "....";
-            var badNull = (string[])good.Clone();
-            badNull[7] = null;
-
+            string path = AssetDatabase.GetAssetPath(sprite);
+            Assert.That(path, Does.StartWith("Assets/Game/Art/"));
+            var source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             try
             {
-                foreach (string[] rows in new string[][] { null, new string[15], badShort, badNull })
-                {
-                    object[] args = { rows, invalidName, null };
-                    var thrown = Assert.Throws<System.Reflection.TargetInvocationException>(
-                        () => { method.Invoke(null, args); });
-                    Assert.That(thrown.InnerException,
-                        Is.TypeOf<System.InvalidOperationException>());
-                    Assert.That(args[2], Is.Null,
-                        "Invalid art must not allocate or return a native texture.");
-                    Assert.That(Resources.FindObjectsOfTypeAll<Texture2D>()
-                        .Any(t => t.name == invalidName), Is.False,
-                        "No orphaned native texture may survive the failed validation.");
-                }
-
-                good[0] = ".......#........";
-                object[] validArgs = { good, "S00 valid 16px test pose", null };
-                Sprite sprite = null;
-                Texture2D texture = null;
-                try
-                {
-                    sprite = (Sprite)method.Invoke(null, validArgs);
-                    texture = (Texture2D)validArgs[2];
-                    Assert.That(sprite, Is.Not.Null);
-                    Assert.That(texture, Is.Not.Null);
-                    Assert.That(sprite.pixelsPerUnit, Is.EqualTo(16f));
-                    Assert.That(texture.filterMode, Is.EqualTo(FilterMode.Point));
-                    Assert.That(texture.width, Is.EqualTo(16));
-                    Assert.That(texture.height, Is.EqualTo(16));
-                    Assert.That(texture.GetPixel(7, 15).a, Is.EqualTo(1f));
-                }
-                finally
-                {
-                    if (sprite != null)
-                        Object.DestroyImmediate(sprite);
-                    if (texture != null)
-                        Object.DestroyImmediate(texture);
-                }
+                Assert.That(ImageConversion.LoadImage(source, System.IO.File.ReadAllBytes(path)), Is.True);
+                Rect slice = sprite.rect;
+                return source.GetPixels((int)slice.x, (int)slice.y, (int)slice.width, (int)slice.height);
             }
             finally
             {
-                foreach (var orphan in Resources.FindObjectsOfTypeAll<Texture2D>()
-                    .Where(t => t.name == invalidName))
-                    Object.DestroyImmediate(orphan);
+                Object.DestroyImmediate(source);
             }
         }
 
@@ -433,7 +382,7 @@ namespace Rpg.Tests.Editor
                 "The only central opening must be controlled by the Makinom gate.");
             Assert.That(GameObject.Find("West wall"), Is.Null);
             Assert.That(GameObject.Find("Safety grating upper"), Is.Null);
-            var gateCollider = GameObject.Find("PLACEHOLDER soundwell gate")
+            var gateCollider = GameObject.Find("Soundwell soundwell gate")
                 ?.GetComponent<BoxCollider2D>();
             Assert.That(gateCollider, Is.Not.Null);
             Physics2D.SyncTransforms();
@@ -503,11 +452,11 @@ namespace Rpg.Tests.Editor
                 var follower = party.Actors[i].GetComponent<SpriteRenderer>();
                 Assert.That(follower.sprite, Is.Not.Null);
                 Assert.That(follower.sprite.pixelsPerUnit, Is.EqualTo(16f));
-                Assert.That(follower.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+                Assert.That(follower.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
                 Assert.That(follower.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
                 Assert.That(follower.sprite.texture.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
                 Assert.That(follower.transform.localScale, Is.EqualTo(Vector3.one));
-                var pixels = follower.sprite.texture.GetPixels32();
+                var pixels = ReadAuthoredSpritePixels(follower.sprite);
                 Assert.That(pixels.Count(pixel => pixel.a > 0), Is.GreaterThan(70),
                     "A rescuer needs a readable humanoid silhouette, not a single solid pixel.");
                 Assert.That(pixels.Count(pixel => pixel.a == 0), Is.GreaterThan(70),
@@ -636,27 +585,27 @@ namespace Rpg.Tests.Editor
 
             // M4: actual saved Unity Animator clips animate the entire placeholder
             // visual without writing to the leader Rigidbody2D or ORK combatant.
-            var visual = GameObject.Find("PLACEHOLDER animated player")
+            var visual = GameObject.Find("Soundwell animated player")
                 ?.GetComponent<SoundwellPlayerVisualAnimation>();
             Assert.That(visual, Is.Not.Null);
             Assert.That(visual.Controller, Is.Not.Null);
             Assert.That(visual.Controller.applyRootMotion, Is.False);
             // Leader and beast must be distinct, point-filtered 16px sprites,
             // not white rectangles; the ORK scene actors remain untouched.
-            var pixelLeader = GameObject.Find("PLACEHOLDER player silhouette")
+            var pixelLeader = GameObject.Find("Soundwell player silhouette")
                 ?.GetComponent<SpriteRenderer>();
-            var pixelBeast = GameObject.Find("PLACEHOLDER beast")
+            var pixelBeast = GameObject.Find("Soundwell beast")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(pixelLeader, Is.Not.Null);
             Assert.That(pixelBeast, Is.Not.Null);
             foreach (var actor in new[] { pixelLeader, pixelBeast })
             {
-                Assert.That(actor.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+                Assert.That(actor.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
                 Assert.That(actor.sprite.pixelsPerUnit, Is.EqualTo(16f));
                 Assert.That(actor.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
                 Assert.That(actor.sprite.texture.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
                 Assert.That(actor.transform.localScale, Is.EqualTo(Vector3.one));
-                var colorPixels = actor.sprite.texture.GetPixels32();
+                var colorPixels = ReadAuthoredSpritePixels(actor.sprite);
                 Assert.That(colorPixels.Count(pixel => pixel.a > 0), Is.GreaterThan(65));
                 Assert.That(colorPixels.Count(pixel => pixel.a == 0), Is.GreaterThan(40));
             }
@@ -665,18 +614,18 @@ namespace Rpg.Tests.Editor
             // Story 003's person to rescue must use the same authored 16px
             // character grammar, not whiteTexture rectangles and a floating face.
             var surveyorFigure = GameObject.Find("Surveyor figure");
-            var pixelSurveyor = GameObject.Find("PLACEHOLDER trapped surveyor")
+            var pixelSurveyor = GameObject.Find("Soundwell trapped surveyor")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(surveyorFigure, Is.Not.Null);
             Assert.That(pixelSurveyor, Is.Not.Null);
             Assert.That(pixelSurveyor.transform.parent, Is.SameAs(surveyorFigure.transform));
             Assert.That(pixelSurveyor.sprite, Is.Not.Null);
-            Assert.That(pixelSurveyor.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(pixelSurveyor.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(pixelSurveyor.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(pixelSurveyor.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(pixelSurveyor.sprite.texture.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
             Assert.That(pixelSurveyor.transform.localScale, Is.EqualTo(Vector3.one));
-            var surveyorPixels = pixelSurveyor.sprite.texture.GetPixels32();
+            var surveyorPixels = ReadAuthoredSpritePixels(pixelSurveyor.sprite);
             Assert.That(surveyorPixels.Count(pixel => pixel.a > 0), Is.GreaterThan(65));
             Assert.That(surveyorPixels.Count(pixel => pixel.a == 0), Is.GreaterThan(40));
             Assert.That(GameObject.Find("Surveyor face"), Is.Null,
@@ -720,7 +669,7 @@ namespace Rpg.Tests.Editor
             Assert.That(pixelLeader.sprite, Is.Not.SameAs(idleLeaderSprite),
                 "Moving leader needs a second visible pixel pose.");
             Assert.That(pixelLeader.sprite.pixelsPerUnit, Is.EqualTo(16f));
-            Assert.That(pixelLeader.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(pixelLeader.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(pixelLeader.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             trial.ApplyInput(Vector2.zero, false, false, false);
             yield return null;
@@ -853,13 +802,13 @@ namespace Rpg.Tests.Editor
                 "ORK must expose a legal player attack before testing default focus.");
             // The world-space cue identifies the actual current ORK beast
             // target, but has no collider, input or alternative combat authority.
-            var targetCue = GameObject.Find("PLACEHOLDER ORK selected beast target")
+            var targetCue = GameObject.Find("Soundwell ORK selected beast target")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(targetCue, Is.Not.Null);
             Assert.That(targetCue.enabled, Is.True,
                 "Only a legal ORK attack should reveal the target cue.");
-            Assert.That(targetCue.sprite.texture.width, Is.EqualTo(16));
-            Assert.That(targetCue.sprite.texture.height, Is.EqualTo(16));
+            Assert.That(targetCue.sprite.rect.width, Is.EqualTo(16));
+            Assert.That(targetCue.sprite.rect.height, Is.EqualTo(16));
             Assert.That(targetCue.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(targetCue.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(targetCue.transform.localScale, Is.EqualTo(Vector3.one));
@@ -870,12 +819,12 @@ namespace Rpg.Tests.Editor
                 Is.EqualTo(party.Beast.GameObject.transform.position.y + 1.12f).Within(0.01f));
             // The paired visual cue must sit over ORK's currently legal
             // attacker's real GameObject, not a duplicate turn queue.
-            var turnCue = GameObject.Find("PLACEHOLDER ORK current rescuer")
+            var turnCue = GameObject.Find("Soundwell ORK current rescuer")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(turnCue, Is.Not.Null);
             Assert.That(turnCue.enabled, Is.True);
-            Assert.That(turnCue.sprite.texture.width, Is.EqualTo(16));
-            Assert.That(turnCue.sprite.texture.height, Is.EqualTo(16));
+            Assert.That(turnCue.sprite.rect.width, Is.EqualTo(16));
+            Assert.That(turnCue.sprite.rect.height, Is.EqualTo(16));
             Assert.That(turnCue.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(turnCue.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(turnCue.transform.localScale, Is.EqualTo(Vector3.one));
@@ -1043,7 +992,7 @@ namespace Rpg.Tests.Editor
                     actualAttacker, displacedPreviewActor.transform, true, false, false, false
                 });
                 focusMoveButton.onClick.Invoke();
-                var physicsPreview = GameObject.Find("PLACEHOLDER ORK step destination")
+                var physicsPreview = GameObject.Find("Soundwell ORK step destination")
                     ?.GetComponent<SpriteRenderer>();
                 Assert.That(physicsPreview, Is.Not.Null);
                 Assert.That(physicsPreview.enabled, Is.True);
@@ -1314,8 +1263,9 @@ namespace Rpg.Tests.Editor
             Sprite guardPose = defenderVisual.sprite;
             Assert.That(guardPose, Is.Not.Null);
             Assert.That(guardPose, Is.Not.SameAs(idleBeforeGuard));
-            Assert.That(guardPose.name, Does.Contain("guard shield"));
-            // The shield is drawn on the left edge of its 16px sprite.
+            var art = RpgPixelArtManifest.LoadDefault();
+            Assert.That(guardPose, Is.SameAs(guardIndex == 1 ? art.RescueRiggerSideBrace : art.S00PlayerHold));
+            // The authored guard poses face right before mirroring.
             // During the REAL accepted ORK guard action it must face the
             // living beast, regardless of the follower's last walk heading.
             Assert.That(party.Beast.GameObject, Is.Not.Null);
@@ -1323,7 +1273,7 @@ namespace Rpg.Tests.Editor
                 party.Actors[guardIndex].transform.position.x;
             Assert.That(Mathf.Abs(guardThreatX), Is.GreaterThan(0.01f),
                 "Guard facing requires a non-overlapping live threat and defender.");
-            Assert.That(defenderVisual.flipX, Is.EqualTo(guardThreatX > 0f),
+            Assert.That(defenderVisual.flipX, Is.EqualTo(guardThreatX < 0f),
                 "The guard shield must face the real ORK enemy, not an earlier walk direction.");
 
             choiceDeadline = Time.realtimeSinceStartup + 6f;
@@ -1346,7 +1296,7 @@ namespace Rpg.Tests.Editor
                 "The turn marker must switch after an ORK-accepted Guard.");
             // Turn progression above demonstrates ORK accepted the command;
             // the shield captured on click does not invent a gameplay status.
-            Assert.That(guardPose.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(guardPose.rect.size, Is.EqualTo(new Vector2(guardIndex == 1 ? 16f : 24f, 24f)));
             Assert.That(guardPose.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(guardPose.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(attackButton.interactable, Is.True);
@@ -1851,7 +1801,7 @@ namespace Rpg.Tests.Editor
             // guard submission, just as the two companions already do. This
             // tests the shipped battle button, not a manufactured defense flag.
             var guard = GameObject.Find("Soundwell Guard button")?.GetComponent<Button>();
-            var leadPixel = GameObject.Find("PLACEHOLDER player silhouette")
+            var leadPixel = GameObject.Find("Soundwell player silhouette")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(guard, Is.Not.Null);
             Assert.That(leadPixel, Is.Not.Null);
@@ -1875,36 +1825,36 @@ namespace Rpg.Tests.Editor
             Assert.That(showLeaderStep, Is.Not.Null);
             Vector2 originalLeaderPosition = leaderBody.position;
             showLeaderStep.Invoke(leaderView, new object[] { Vector2.left });
-            Assert.That(leadPixel.sprite.name, Does.Contain("leader walk"));
-            Assert.That(leadPixel.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(leadPixel.sprite.name, Does.Contain("ferry_guide_walk_"));
+            Assert.That(leadPixel.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(leadPixel.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(leadPixel.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(leadPixel.flipX, Is.True);
             yield return null;
-            Assert.That(leadPixel.sprite.name, Does.Contain("leader walk"),
+            Assert.That(leadPixel.sprite.name, Does.Contain("ferry_guide_walk_"),
                 "Battle LateUpdate must not erase the accepted-step visual immediately.");
             Assert.That((Vector2)leaderBody.position, Is.EqualTo(originalLeaderPosition),
                 "The presentation-only step pose must never move an ORK combatant.");
             yield return new WaitForSecondsRealtime(0.50f);
-            Assert.That(leadPixel.sprite.name, Does.Not.Contain("leader walk"),
+            Assert.That(leadPixel.sprite.name, Does.Not.Contain("ferry_guide_walk_"),
                 "The leader battle step pose must expire on unscaled time.");
             guard.onClick.Invoke();
             Assert.That(leadPixel.sprite, Is.Not.SameAs(idleLeader),
                 "An ORK-accepted leader Guard must change the actual actor silhouette.");
-            Assert.That(leadPixel.sprite.name, Does.Contain("leader guard shield"));
-            Assert.That(leadPixel.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(leadPixel.sprite.name, Is.EqualTo("s00_player_hold"));
+            Assert.That(leadPixel.sprite.rect.size, Is.EqualTo(new Vector2(24f, 24f)));
             Assert.That(leadPixel.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(leadPixel.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(leadPixel.transform.localScale, Is.EqualTo(Vector3.one));
             yield return null;
-            Assert.That(leadPixel.sprite.name, Does.Contain("leader guard shield"),
+            Assert.That(leadPixel.sprite.name, Is.EqualTo("s00_player_hold"),
                 "LateUpdate must not overwrite the accepted shield pose immediately.");
             // ORK can pause the scaled clock while other turns resolve. Guard
             // feedback is only a short pose: the leader cannot remain frozen
             // behind a shield after the accepted ORK turn has moved on.
             yield return new WaitForSecondsRealtime(0.95f);
             Assert.That(leadPixel.sprite, Is.Not.Null);
-            Assert.That(leadPixel.sprite.name, Does.Not.Contain("leader guard shield"),
+            Assert.That(leadPixel.sprite.name, Is.Not.EqualTo("s00_player_hold"),
                 "The accepted leader Guard pose must expire on unscaled time without " +
                 "holding the character in a permanent shield animation.");
             deadline = Time.realtimeSinceStartup + 8f;
@@ -1938,7 +1888,7 @@ namespace Rpg.Tests.Editor
                 .Find("Soundwell Confirm Move button")?.GetComponent<Button>();
             var cancelMove = moveButton?.transform.parent
                 .Find("Soundwell Cancel Move button")?.GetComponent<Button>();
-            var stepPreview = GameObject.Find("PLACEHOLDER ORK step destination")
+            var stepPreview = GameObject.Find("Soundwell ORK step destination")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(moveButton, Is.Not.Null);
             Assert.That(westButton, Is.Not.Null);
@@ -2081,15 +2031,17 @@ namespace Rpg.Tests.Editor
                 "The real actor must arrive at the previewed position.");
             var stepActorSprite = party.Actors[movingRescuer].GetComponent<SpriteRenderer>();
             Assert.That(stepActorSprite, Is.Not.Null);
-            Assert.That(stepActorSprite.sprite.name, Does.Contain("walking"),
+            var stepArt = RpgPixelArtManifest.LoadDefault();
+            Sprite stepPose = movingRescuer == 1 ? stepArt.RescueRiggerWalk1 : stepArt.FerryGuideSideWalk1;
+            Assert.That(stepActorSprite.sprite, Is.SameAs(stepPose),
                 "A legal companion ORK step must show the existing 16px walk pose, not teleport in idle.");
-            Assert.That(stepActorSprite.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(stepActorSprite.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(stepActorSprite.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(stepActorSprite.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(stepActorSprite.flipX, Is.True,
                 "The visual step must face west with the actual ORK movement.");
             yield return new WaitForSecondsRealtime(0.46f);
-            Assert.That(stepActorSprite.sprite.name, Does.Not.Contain("walking"),
+            Assert.That(stepActorSprite.sprite, Is.Not.SameAs(stepPose),
                 "Movement feedback must expire without freezing the actor in the walk frame.");
             Assert.That(party.ChoosingRescuerIndex, Is.EqualTo(movingRescuer));
             Assert.That(party.CanStep(movingRescuer, Vector2.left), Is.False,
@@ -2378,9 +2330,9 @@ namespace Rpg.Tests.Editor
             var gate = GameObject.Find("Soundwell Battle Gate button").GetComponent<Button>();
             var guard = GameObject.Find("Soundwell Guard button").GetComponent<Button>();
             var attack = GameObject.Find("Soundwell Attack button").GetComponent<Button>();
-            var gateCue = GameObject.Find("PLACEHOLDER ORK legal gate target")
+            var gateCue = GameObject.Find("Soundwell ORK legal gate target")
                 ?.GetComponent<SpriteRenderer>();
-            var gateControl = GameObject.Find("PLACEHOLDER gate control");
+            var gateControl = GameObject.Find("Soundwell gate control");
             Assert.That(gateCue, Is.Not.Null);
             Assert.That(gateControl, Is.Not.Null);
             Assert.That(gateCue.transform.IsChildOf(gateControl.transform), Is.True,

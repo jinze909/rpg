@@ -932,7 +932,7 @@ namespace Rpg.Tests.Editor
                     Assert.That(staleCommand.interactable, Is.False,
                         "A disabled scene actor must not expose " + actionName + ".");
                 }
-                var staleChevron = GameObject.Find("PLACEHOLDER ORK current rescuer")
+                var staleChevron = GameObject.Find("Soundwell ORK current rescuer")
                     ?.GetComponent<SpriteRenderer>();
                 Assert.That(staleChevron, Is.Not.Null);
                 Assert.That(staleChevron.enabled, Is.False,
@@ -1009,10 +1009,10 @@ namespace Rpg.Tests.Editor
             Assert.That(hoodedBaseline, Is.Not.Null);
             Assert.That(hoodedBaseline, Is.Not.SameAs(baseline),
                 "Rescuer 3 must not be a recolored copy of rescuer 2.");
-            Assert.That(baseline.texture.GetPixels32().SequenceEqual(
-                hoodedBaseline.texture.GetPixels32()), Is.False,
-                "Hooded rescuer 3 must have authored 16x16 outline differences.");
-            Assert.That(hoodedBaseline.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            var art = RpgPixelArtManifest.LoadDefault();
+            Assert.That(baseline, Is.SameAs(art.RescueRiggerIdle));
+            Assert.That(hoodedBaseline, Is.SameAs(art.FerryGuideSideIdle));
+            Assert.That(hoodedBaseline.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(hoodedBaseline.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(hoodedBaseline.texture.filterMode, Is.EqualTo(FilterMode.Point));
 
@@ -1044,7 +1044,7 @@ namespace Rpg.Tests.Editor
                 "One accepted attack must not turn an inactive companion.");
             Assert.That(second.sprite, Is.Not.SameAs(baseline),
                 "Rescuer 2 needs a visible attack silhouette, not a frozen idle frame.");
-            Assert.That(second.sprite.rect.size, Is.EqualTo(new Vector2(16f, 16f)));
+            Assert.That(second.sprite.rect.size, Is.EqualTo(new Vector2(16f, 24f)));
             Assert.That(second.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(second.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(third.sprite, Is.SameAs(hoodedBaseline),
@@ -1167,23 +1167,27 @@ namespace Rpg.Tests.Editor
                 {
                     var actor = index == 1 ? second : third;
                     var visual = actor.GetComponent<SpriteRenderer>();
+                    var art = RpgPixelArtManifest.LoadDefault();
+                    Sprite attack = index == 1 ? art.RescueRiggerSideIdle : art.S00PlayerSlash;
+                    Sprite guard = index == 1 ? art.RescueRiggerSideBrace : art.S00PlayerHold;
+                    Sprite walking = index == 1 ? art.RescueRiggerWalk1 : art.FerryGuideSideWalk1;
                     formation.ShowAttackPose(index, null);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("attack"));
+                    Assert.That(visual.sprite, Is.SameAs(attack));
 
                     formation.ShowGuardPose(index, null, true);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("guard"),
+                    Assert.That(visual.sprite, Is.SameAs(guard),
                         "Fresh ORK Guard must not be overwritten by a prior Attack window.");
 
                     formation.ShowStepPose(index, Vector2.left);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("walking"),
+                    Assert.That(visual.sprite, Is.SameAs(walking),
                         "Fresh ORK Step must not replay the old timed Guard.");
 
                     formation.ShowAttackPose(index, null);
                     formation.RenderFollowers(true, false, false);
-                    Assert.That(visual.sprite.name, Does.Contain("attack"),
+                    Assert.That(visual.sprite, Is.SameAs(attack),
                         "Fresh ORK Attack must replace Step without moving the scene actor.");
 
                     foreach (bool threatOnRight in new[] { true, false })
@@ -1195,8 +1199,8 @@ namespace Rpg.Tests.Editor
                         Assert.That(visual.flipX, Is.EqualTo(!threatOnRight),
                             "Attack pose must face the Rigidbody2D target even before its Transform catches up.");
                         formation.ShowGuardPose(index, physicalThreat.transform, true);
-                        Assert.That(visual.flipX, Is.EqualTo(threatOnRight),
-                            "The left-hand guard shield must flip toward the actual physical threat.");
+                        Assert.That(visual.flipX, Is.EqualTo(!threatOnRight),
+                            "The authored guard pose must face the actual physical threat.");
                     }
                 }
 

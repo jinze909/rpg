@@ -302,15 +302,15 @@ namespace Rpg.Tests.Editor
             // Both named source positions must be visually distinguishable
             // authored pixel objects, not smooth-scaled rectangles. The
             // visuals do not move the bell or add any alternate sound target.
-            var entranceStand = GameObject.Find("PLACEHOLDER entrance bell stand")
+            var entranceStand = GameObject.Find("Soundwell entrance bell stand")
                 ?.GetComponent<SpriteRenderer>();
-            var sideStand = GameObject.Find("PLACEHOLDER side bell stand")
+            var sideStand = GameObject.Find("Soundwell side bell stand")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(entranceStand, Is.Not.Null);
             Assert.That(sideStand, Is.Not.Null);
             Assert.That(entranceStand.sprite, Is.SameAs(sideStand.sprite));
-            Assert.That(entranceStand.sprite.texture.width, Is.EqualTo(16));
-            Assert.That(entranceStand.sprite.texture.height, Is.EqualTo(16));
+            Assert.That(entranceStand.sprite.rect.width, Is.EqualTo(16));
+            Assert.That(entranceStand.sprite.rect.height, Is.EqualTo(16));
             Assert.That(entranceStand.sprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(entranceStand.sprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(entranceStand.transform.localScale, Is.EqualTo(Vector3.one));
@@ -335,14 +335,14 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.ClawsObserved, Is.False);
             // The optional clue is a world-space breadcrumb earned by a real
             // inspection, not a permanent solution spoiler in the scene.
-            var clawSite = GameObject.Find("PLACEHOLDER claw marks")
+            var clawSite = GameObject.Find("Soundwell claw marks")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(clawSite, Is.Not.Null);
             Color originalClawTint = clawSite.color;
             var clawTrail = new SpriteRenderer[3];
             for (int i = 0; i < clawTrail.Length; i++)
             {
-                clawTrail[i] = GameObject.Find("PLACEHOLDER revealed claw trail " +
+                clawTrail[i] = GameObject.Find("Soundwell revealed claw trail " +
                     (i + 1))?.GetComponent<SpriteRenderer>();
                 Assert.That(clawTrail[i], Is.Not.Null);
                 Assert.That(clawTrail[i].enabled, Is.False,
@@ -355,7 +355,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(clawTrail[i].GetComponent<Collider2D>(), Is.Null,
                     "Claw breadcrumbs are presentation only, never physical blockers.");
             }
-            var beastContactRing = GameObject.Find("PLACEHOLDER beast contact radius")
+            var beastContactRing = GameObject.Find("Soundwell beast contact radius")
                 ?.GetComponent<LineRenderer>();
             Assert.That(beastContactRing, Is.Not.Null);
             Assert.That(beastContactRing.enabled, Is.False,
@@ -364,7 +364,7 @@ namespace Rpg.Tests.Editor
             // still closed. This is not an actionable escape threat until
             // the player actually opens that gate. Test the real actor and
             // UI status, then restore its world position before the lure.
-            var beastSprite = GameObject.Find("PLACEHOLDER beast")
+            var beastSprite = GameObject.Find("Soundwell beast")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(beastSprite, Is.Not.Null);
             Transform liveBeast = beastSprite.transform.parent;
@@ -378,7 +378,7 @@ namespace Rpg.Tests.Editor
             var view = hitViewField.GetValue(trial) as SoundwellView;
             Assert.That(view, Is.Not.Null);
             Color originalBeastTint = beastSprite.color;
-            var leaderVisual = GameObject.Find("PLACEHOLDER animated player")
+            var leaderVisual = GameObject.Find("Soundwell animated player")
                 ?.GetComponent<SoundwellPlayerVisualAnimation>();
             Assert.That(leaderVisual, Is.Not.Null);
             view.SetBattleMode(true);
@@ -534,7 +534,7 @@ namespace Rpg.Tests.Editor
             // A strict 16px leader must face its actual travel direction;
             // moving west may not look like backpedalling. This changes only
             // SpriteRenderer.flipX, never the ORK actor/physics direction.
-            var playerSprite = GameObject.Find("PLACEHOLDER player silhouette")
+            var playerSprite = GameObject.Find("Soundwell player silhouette")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(playerSprite, Is.Not.Null);
             trial.ApplyInput(Vector2.right, false, false, false);
@@ -605,9 +605,9 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.IsCarrying, Is.False);
             Assert.That(trial.BellPosition, Is.EqualTo(SoundwellTrial.SideBellStand));
 
-            var intent = GameObject.Find("PLACEHOLDER beast intent marker")
+            var intent = GameObject.Find("Soundwell beast intent marker")
                 ?.GetComponent<SpriteRenderer>();
-            var countdown = GameObject.Find("PLACEHOLDER beast search timer fill")
+            var countdown = GameObject.Find("Soundwell beast search timer fill")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(intent, Is.Not.Null);
             Assert.That(countdown, Is.Not.Null);
@@ -720,7 +720,7 @@ namespace Rpg.Tests.Editor
             // only a green UI hint. Keep the player at the saved west-side
             // panel and wait for the actual beast to clear the escape lane.
             // Both the decision and the collider belong to the live scene.
-            var gateBlocker = GameObject.Find("PLACEHOLDER soundwell gate")
+            var gateBlocker = GameObject.Find("Soundwell soundwell gate")
                 ?.GetComponent<BoxCollider2D>();
             Assert.That(gateBlocker, Is.Not.Null,
                 "The saved soundwell gate must still own the physical blocker.");
@@ -968,7 +968,7 @@ namespace Rpg.Tests.Editor
             var battleGateButton = GameObject.Find("Soundwell Battle Gate button")?.GetComponent<Button>();
             Assert.That(battleGuardButton, Is.Not.Null);
             Assert.That(battleGateButton, Is.Not.Null);
-            var activeMarker = GameObject.Find("PLACEHOLDER ORK current rescuer")
+            var activeMarker = GameObject.Find("Soundwell ORK current rescuer")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(activeMarker, Is.Not.Null);
             setBattleChoices.Invoke(trialView, new object[]
