@@ -130,6 +130,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
@@ -261,7 +263,12 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed()) return;
+            if (disposed) return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             if (session.Stage == M06ReunionStage.VesselBriefing && index >= 0 && index <= 2)
             {
@@ -298,7 +305,12 @@ namespace Rpg.Soundwell
 
         private void HandleAdvanceClick()
         {
-            if (disposed || CanvasDestroyed()) return;
+            if (disposed) return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             switch (session.Stage)
             {
