@@ -26,7 +26,8 @@ namespace Rpg.Soundwell
         private ST01TheaterChoiceView activeView;
         private bool disposed;
 
-        public ST01TheaterChoiceView ActiveView => activeView;
+        public ST01TheaterChoiceView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
 
         public ST01TheaterChoiceHost(
@@ -97,7 +98,12 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !PrerequisitesVerified() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+            }
+            if (disposed || parent == null || activeView != null || !PrerequisitesVerified() ||
                 getInt(ST01RegionalStoryFacts.TheaterConfirmedKey) != 0)
                 return false;
 
@@ -131,7 +137,7 @@ namespace Rpg.Soundwell
 
         private void HandleChoice(ST01TheaterChoice choice)
         {
-            if (disposed || activeView == null || !CanCommit(choice))
+            if (disposed || activeView == null || activeView.IsDisposed || !CanCommit(choice))
                 return;
 
             if (!ST01RegionalStoryFacts.TryRecordTheater(
@@ -147,8 +153,17 @@ namespace Rpg.Soundwell
 
         public void RefreshView()
         {
-            if (!disposed)
-                activeView?.Refresh();
+            if (disposed || activeView == null)
+                return;
+            if (activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                return;
+            }
+            activeView.Refresh();
+            if (activeView.IsDisposed)
+                activeView = null;
         }
 
         public void Dispose()
