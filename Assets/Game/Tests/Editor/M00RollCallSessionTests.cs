@@ -135,9 +135,13 @@ namespace Rpg.Tests.Editor
             session.LayoutForViewportAspect(16f / 9f);
             Assert.That(authored.localScale.x, Is.GreaterThan(portraitScale.x));
 
-            session.View.Dispose();
+            M00RollCallView staleView = session.View;
+            Assert.That(staleView, Is.Not.Null);
+            staleView.Dispose();
+            Assert.That(session.View, Is.Null,
+                "A disposed view must no longer be exposed by the owning session.");
             Assert.DoesNotThrow(() => session.LayoutForViewportAspect(9f / 16f));
-            Assert.DoesNotThrow(() => session.View.LayoutForViewportAspect(32f / 9f),
+            Assert.DoesNotThrow(() => staleView.LayoutForViewportAspect(32f / 9f),
                 "A stale direct resize callback after scene handoff must also be inert.");
         }    
     }
