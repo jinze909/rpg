@@ -14,8 +14,8 @@ namespace Rpg.Soundwell
         private ReturnStoryLedgerView view;
         private bool disposed;
 
-        public ReturnStoryLedgerView ActiveView => view;
-        public bool IsOpen => view != null;
+        public ReturnStoryLedgerView ActiveView => (view != null && !view.IsDisposed) ? view : null;
+        public bool IsOpen => ActiveView != null;
 
         public ReturnStoryLedgerHost(Transform uiParent, Func<string, int> customGetInt = null)
         {
@@ -25,8 +25,15 @@ namespace Rpg.Soundwell
 
         public bool TryOpenOrRefresh(Action onClosed = null)
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
+
+            if (view != null && view.IsDisposed)
+            {
+                var stale = view;
+                view = null;
+                stale.Dispose();
+            }
 
             bool ok = customGetInt != null
                 ? ReturnStoryLedger.TryBuildSnapshot(customGetInt, out ReturnStoryProgressSnapshot snap)

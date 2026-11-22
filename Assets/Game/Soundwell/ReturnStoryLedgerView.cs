@@ -41,6 +41,7 @@ namespace Rpg.Soundwell
         public Button RosterTabButton => tabButtons[1];
         public Button RegionalTabButton => tabButtons[2];
         public Button CloseButton => closeButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public ReturnStoryLedgerView(
             Transform parent,
