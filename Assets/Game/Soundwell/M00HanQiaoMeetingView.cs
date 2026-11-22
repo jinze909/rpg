@@ -38,6 +38,7 @@ namespace Rpg.Soundwell
         public Text HeadingText => heading;
         public Image StageIcon => stageIcon;
         public Button ContinueButton => continueButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M00HanQiaoMeetingView(Transform parent,
             M00HanQiaoMeetingSequence sequence,
@@ -104,7 +105,7 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -161,11 +162,13 @@ namespace Rpg.Soundwell
                 return;
             // Scene unload can destroy this canvas before the host disposes
             // its meeting view. Unsubscribe locale updates on that path.
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -187,7 +190,14 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            if (disposed || delivered || CurrentBeat == null ||
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (CurrentBeat == null ||
                 index < 0 || index >= CurrentBeat.Choices.Length)
                 return;
             switch (sequence.Stage)
@@ -212,7 +222,14 @@ namespace Rpg.Soundwell
 
         private void Continue()
         {
-            if (disposed || delivered || CurrentBeat == null || !CurrentBeat.CanContinue)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (CurrentBeat == null || !CurrentBeat.CanContinue)
                 return;
             if (sequence.Stage != M00HanQiaoMeetingStage.Closing)
             {
@@ -238,10 +255,26 @@ namespace Rpg.Soundwell
             }
             catch
             {
-                delivered = false;
-                Refresh();
+                if (!disposed)
+                {
+                    delivered = false;
+                    Refresh();
+                }
                 throw;
             }
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || heading == null ||
+                dialogue == null || continueButton == null || continueLabel == null)
+                return true;
+            for (int i = 0; i < choices.Length; i++)
+            {
+                if (choices[i] == null || choiceLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
     }
 }
