@@ -29,6 +29,7 @@ namespace Rpg.Soundwell
         public Text CaseList => caseList;
         public Button AcknowledgeButton => acknowledgeButton;
         public bool IsDelivered => delivered;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M08FirstWorldNoticeView(Transform parent, Func<bool> acknowledge)
         {

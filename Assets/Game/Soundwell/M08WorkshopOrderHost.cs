@@ -21,7 +21,8 @@ namespace Rpg.Soundwell
         private int? openedArrivalSequence;
         private bool disposed;
 
-        public M08FirstWinchOrderView ActiveView => activeView;
+        public M08FirstWinchOrderView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M08WorkshopDepositFacts.TryRead(getInt, out bool completed) && completed;
@@ -38,7 +39,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || IsCompleted ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null || IsCompleted ||
                 getInt(M08WorkshopDepositFacts.CompletedKey) != 0 ||
                 M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
@@ -56,7 +64,8 @@ namespace Rpg.Soundwell
             openedArrivalSequence = arrivalSequence;
             activeView = new M08FirstWinchOrderView(parent, session, completedSession =>
             {
-                if (disposed || !openedArrivalSequence.HasValue ||
+                if (disposed || activeView == null || activeView.IsDisposed ||
+                    !openedArrivalSequence.HasValue ||
                     getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                     !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? liveExtraction) ||
                     !liveExtraction.HasValue)
@@ -75,6 +84,7 @@ namespace Rpg.Soundwell
 
                 activeView?.Dispose();
                 activeView = null;
+                openedArrivalSequence = null;
             });
             return true;
         }
