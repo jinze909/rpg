@@ -169,6 +169,11 @@ namespace Rpg.Soundwell
                     return getInt(ST03BathhouseFacts.ConfirmedKey) != 0 ||
                         getInt(ST03BathhouseFacts.PendingChoiceKey) != 0 ||
                         !ST03BathhouseFacts.TryRead(getInt, out _);
+                case ReturnRegionalStoryId.ST05TwoDoors:
+                    // The ST-05 host refuses to reopen once the household record exists.
+                    // Hide both torn facts and a valid-but-incomplete home commit from the hub.
+                    return !ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsOutcome? st05) ||
+                        st05.HasValue;
                 case ReturnRegionalStoryId.ST06TaoJiHomecoming:
                     return getInt(ST06TaoJiHomecomingFacts.ConfirmedKey) != 0 ||
                         getInt(ST06TaoJiHomecomingFacts.ChairResolutionKey) != 0 ||
