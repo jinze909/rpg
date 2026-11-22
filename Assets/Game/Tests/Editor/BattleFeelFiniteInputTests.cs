@@ -16,27 +16,22 @@ namespace Rpg.Tests.Editor
             {
                 var director = root.AddComponent<BattleFeelAndTelegraphDirector>();
                 const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+
+                // Awake does not execute on AddComponent in EditMode tests; initialize overlay and font explicitly.
                 MethodInfo buildOverlay = typeof(BattleFeelAndTelegraphDirector).GetMethod("BuildOverlay", flags);
-                FieldInfo overlayRootField = typeof(BattleFeelAndTelegraphDirector).GetField("overlayRoot", flags);
                 FieldInfo latinFontField = typeof(BattleFeelAndTelegraphDirector).GetField("latinFont", flags);
                 MethodInfo spawnPopup = typeof(BattleFeelAndTelegraphDirector).GetMethod("SpawnPopup", flags);
                 MethodInfo updatePopups = typeof(BattleFeelAndTelegraphDirector).GetMethod("UpdatePopups", flags);
                 FieldInfo popupsField = typeof(BattleFeelAndTelegraphDirector).GetField("popups", flags);
 
                 Assert.That(buildOverlay, Is.Not.Null);
-                Assert.That(overlayRootField, Is.Not.Null);
                 Assert.That(latinFontField, Is.Not.Null);
                 Assert.That(spawnPopup, Is.Not.Null);
                 Assert.That(updatePopups, Is.Not.Null);
                 Assert.That(popupsField, Is.Not.Null);
 
-                // Awake is not invoked for a newly-added MonoBehaviour in EditMode tests.
-                // Initialize the same overlay root and English font used by the runtime path.
-                if (latinFontField.GetValue(director) == null)
-                    latinFontField.SetValue(director,
-                        Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
-                if (overlayRootField.GetValue(director) == null)
-                    buildOverlay.Invoke(director, null);
+                latinFontField.SetValue(director, Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+                buildOverlay.Invoke(director, null);
 
                 // Non-finite spawn coordinates are rejected before creating a popup.
                 spawnPopup.Invoke(director, new object[] { "-5", new Vector2(float.NaN, 10f), Color.red });
@@ -64,6 +59,11 @@ namespace Rpg.Tests.Editor
         [Test]
         public void CameraShakeRejectsNonFiniteInputsAndRestoresCameraPositionCleanly()
         {
+            Camera previousMain = Camera.main;
+            bool previousEnabled = previousMain != null && previousMain.enabled;
+            if (previousMain != null)
+                previousMain.enabled = false;
+
             var root = new GameObject("BattleFeelFiniteShakeRoot");
             var camObj = new GameObject("BattleFeelFiniteTestCamera", typeof(Camera));
             camObj.tag = "MainCamera";
@@ -104,6 +104,8 @@ namespace Rpg.Tests.Editor
             {
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(camObj);
+                if (previousMain != null)
+                    previousMain.enabled = previousEnabled;
             }
         }
     }
