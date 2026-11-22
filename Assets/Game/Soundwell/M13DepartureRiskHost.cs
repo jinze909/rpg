@@ -25,7 +25,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M13DepartureRiskSession Session => session;
-        public M13DepartureRiskView ActiveView => activeView;
+        public M13DepartureRiskView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsDeparted =>
             M13DepartureRiskFacts.TryReadDeparture(getInt, out M13DepartureRecord? saved) &&
@@ -52,7 +53,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !fleetBriefingReady() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || activeView != null || !fleetBriefingReady() ||
                 HasAnyPersistedFacts() ||
                 M13DepartureRiskFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
@@ -79,6 +87,13 @@ namespace Rpg.Soundwell
 
         public bool TryDeliverQiQueWarning()
         {
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+
             if (disposed || session == null || activeView == null ||
                 session.IsDeparted || session.QiQueWarningGiven ||
                 !openedArrivalSequence.HasValue ||
@@ -92,7 +107,8 @@ namespace Rpg.Soundwell
 
         private void HandleDepartureRequested(M13ApproachRoute route)
         {
-            if (disposed || session == null || !fleetBriefingReady() || !canDepartNow() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !fleetBriefingReady() || !canDepartNow() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 initialSafetyPrepComplete() != openedSafetyPrepComplete)
