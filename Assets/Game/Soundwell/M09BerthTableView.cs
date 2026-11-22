@@ -49,6 +49,7 @@ namespace Rpg.Soundwell
         public Button QiQueButton => qiQueButton;
         public Button ReconcileButton => reconcileButton;
         public Button SettleButton => settleButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M09BerthTableView(
             Transform parent,
