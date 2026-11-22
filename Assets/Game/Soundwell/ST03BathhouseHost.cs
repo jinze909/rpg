@@ -24,7 +24,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public ST03BathhouseSession Session => session;
-        public ST03BathhouseView ActiveView => activeView;
+        public ST03BathhouseView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             ST03BathhouseFacts.TryRead(getInt, out ST03BathhouseRecord? saved) &&
@@ -57,7 +58,12 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atZhonglingBathhouse())
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+            }
+            if (disposed || parent == null || activeView != null || !atZhonglingBathhouse())
                 return false;
 
             if (!ST03BathhouseSession.TryCreate(getInt, out ST03BathhouseSession created))
@@ -79,7 +85,8 @@ namespace Rpg.Soundwell
         {
             // A panel may remain open after a replay or scene evidence reset.
             // Recheck every live proof before writing permanent regional facts.
-            if (disposed || session == null || !atZhonglingBathhouse() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atZhonglingBathhouse() ||
                 !careHomeInterviewReady() || !safeRouteReady() ||
                 !trialNightReady() || !transportBudgetReady())
                 return;
@@ -87,7 +94,7 @@ namespace Rpg.Soundwell
             if (!session.TryCommit(getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
         }
 
