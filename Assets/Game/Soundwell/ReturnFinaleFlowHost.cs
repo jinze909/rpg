@@ -107,17 +107,29 @@ namespace Rpg.Soundwell
             if (!M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? m09) || !m09.HasValue)
                 return ReturnFinaleStage.None;
             if (!M10AssemblyFacts.TryRead(getInt, out M10AssemblyRecord? m10) || !m10.HasValue)
-                return ReturnFinaleStage.M10Assembly;
+                return M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnFinaleStage.None
+                    : ReturnFinaleStage.M10Assembly;
             if (!M11ReverseRescueFacts.TryRead(getInt, out M11ReverseRescueRecord? m11) || !m11.HasValue)
-                return ReturnFinaleStage.M11ReverseRescue;
+                return M11ReverseRescueFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnFinaleStage.None
+                    : ReturnFinaleStage.M11ReverseRescue;
             if (!M12BridgeTruthFacts.TryRead(getInt, out M12BridgeTruthRecord? m12) || !m12.HasValue)
-                return ReturnFinaleStage.M12BridgeTruth;
+                return M12BridgeTruthFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnFinaleStage.None
+                    : ReturnFinaleStage.M12BridgeTruth;
             if (!M13DepartureRiskFacts.TryReadDeparture(getInt, out M13DepartureRecord? m13) || !m13.HasValue)
-                return ReturnFinaleStage.M13DepartureRisk;
+                return M13DepartureRiskFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnFinaleStage.None
+                    : ReturnFinaleStage.M13DepartureRisk;
             if (!M14FinalPassageFacts.TryRead(getInt, out M14FinalPassageRecord? m14) || !m14.HasValue)
-                return ReturnFinaleStage.M14FinalPassage;
+                return M14FinalPassageFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnFinaleStage.None
+                    : ReturnFinaleStage.M14FinalPassage;
             if (!M15FinalRollCallFacts.TryRead(getInt, out M15FinalRollCallRecord? m15) || !m15.HasValue)
-                return ReturnFinaleStage.M15FinalRollCall;
+                return M15FinalRollCallFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnFinaleStage.None
+                    : ReturnFinaleStage.M15FinalRollCall;
             if (!M16EpilogueFacts.TryRead(getInt, out M16EpilogueRecord? m16) || !m16.HasValue)
                 return ReturnFinaleStage.M16Epilogue;
             return ReturnFinaleStage.Completed;
