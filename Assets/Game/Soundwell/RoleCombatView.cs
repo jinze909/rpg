@@ -19,14 +19,22 @@ namespace Rpg.Soundwell
         private readonly Canvas canvas;
         private int focusedActor = -2;
         private float lastAspect;
+        private bool disposed;
 
         public Canvas Canvas => canvas;
         public UnityEngine.UI.Button PrimaryButton => commands[0];
         public UnityEngine.UI.Button SecondaryButton => commands[1];
+        public UnityEngine.UI.Button RetreatButton => commands[2];
         public UnityEngine.UI.Text ThreatLabel => threat;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RoleCombatView(Transform parent, OrkRoleEncounter encounter)
         {
+            if (parent == null)
+                throw new ArgumentNullException(nameof(parent));
+            if (encounter == null)
+                throw new ArgumentNullException(nameof(encounter));
+
             this.encounter = encounter;
             canvasObject = new GameObject("Rescue battle HUD", typeof(RectTransform), typeof(Canvas));
             canvasObject.transform.SetParent(parent, false);
@@ -58,19 +66,67 @@ namespace Rpg.Soundwell
                 int index = i;
                 commands[i] = SoundwellUiTheme.CreateButton(bottom, "Rescue command " + i,
                     Vector2.zero, new Vector2(250, 36), 17, out captions[i]);
-                commands[i].onClick.AddListener(() =>
-                {
-                    if (index == 2) encounter.Leave();
-                    else if (encounter.Party.Beast.Status.IsDead) encounter.Leave();
-                    else encounter.Choose(index);
-                });
+                commands[i].onClick.AddListener(() => HandleCommandClick(index));
                 commands[i].gameObject.AddComponent<SoundwellActionMenuCancelHandler>()
-                    .Initialize(encounter.Leave);
+                    .Initialize(HandleCancel);
             }
             SoundwellInputAdapter.SetUiContext();
             foreach (Transform child in canvasObject.GetComponentsInChildren<Transform>(true))
                 child.gameObject.layer = 5;
             Layout();
+        }
+
+        private bool CanvasDestroyed() => canvasObject == null || canvas == null;
+
+        private bool IsDestroyedExternally()
+        {
+            if (CanvasDestroyed() || top == null || bottom == null || threat == null || exchange == null)
+                return true;
+            for (int i = 0; i < cards.Length; i++)
+            {
+                if (cards[i] == null || healthBars[i] == null)
+                    return true;
+            }
+            for (int i = 0; i < commands.Length; i++)
+            {
+                if (commands[i] == null || captions[i] == null)
+                    return true;
+            }
+            return false;
+        }
+
+        private void HandleCommandClick(int index)
+        {
+            if (disposed || IsDestroyedExternally())
+            {
+                Dispose();
+                return;
+            }
+            if (encounter == null)
+                return;
+            if (index == 2)
+            {
+                encounter.Leave();
+                return;
+            }
+            if (encounter.Party == null || encounter.Party.Beast == null || encounter.Party.Beast.Status == null)
+                return;
+            if (encounter.Party.Beast.Status.IsDead)
+                encounter.Leave();
+            else
+                encounter.Choose(index);
+        }
+
+        private void HandleCancel()
+        {
+            if (disposed || IsDestroyedExternally())
+            {
+                Dispose();
+                return;
+            }
+            if (encounter == null)
+                return;
+            encounter.Leave();
         }
 
         private RectTransform Panel(string name, Vector2 anchor)
@@ -90,8 +146,14 @@ namespace Rpg.Soundwell
 
         private void Layout()
         {
+            if (disposed || IsDestroyedExternally())
+                return;
             Canvas.ForceUpdateCanvases();
-            float width = Mathf.Max(300f, ((RectTransform)canvas.transform).rect.width - 20f);
+            var canvasRect = canvas.transform as RectTransform;
+            float rawWidth = canvasRect != null ? canvasRect.rect.width - 20f : 940f;
+            if (float.IsNaN(rawWidth) || float.IsInfinity(rawWidth))
+                rawWidth = 940f;
+            float width = Mathf.Max(300f, rawWidth);
             top.sizeDelta = new Vector2(width, 86f);
             bottom.sizeDelta = new Vector2(width, 140f);
             top.anchoredPosition = new Vector2(0, -10);
@@ -110,8 +172,12 @@ namespace Rpg.Soundwell
                 cards[i].rectTransform.anchoredPosition = new Vector2(x, 83);
                 cards[i].rectTransform.sizeDelta = new Vector2(width / 3f - 12, 25);
                 healthBars[i].rectTransform.anchoredPosition = new Vector2(x, 67);
-                commands[i].GetComponent<RectTransform>().anchoredPosition = new Vector2(x, 25);
-                commands[i].GetComponent<RectTransform>().sizeDelta = new Vector2(width / 3f - 12, 38);
+                var buttonRect = commands[i].GetComponent<RectTransform>();
+                if (buttonRect != null)
+                {
+                    buttonRect.anchoredPosition = new Vector2(x, 25);
+                    buttonRect.sizeDelta = new Vector2(width / 3f - 12, 38);
+                }
             }
             exchange.rectTransform.anchoredPosition = new Vector2(0, 119);
             exchange.rectTransform.sizeDelta = new Vector2(width - 18, 33);
@@ -125,6 +191,8 @@ namespace Rpg.Soundwell
             if (camera != null)
             {
                 float scale = canvas.scaleFactor;
+                if (float.IsNaN(scale) || float.IsInfinity(scale) || scale <= 0f)
+                    scale = 1f;
                 float lower = 160f * scale / Mathf.Max(1, Screen.height);
                 float upper = 106f * scale / Mathf.Max(1, Screen.height);
                 camera.rect = new Rect(0, lower, 1, Mathf.Max(0.25f, 1f - lower - upper));
@@ -133,9 +201,27 @@ namespace Rpg.Soundwell
 
         public void Refresh(string lastExchange, bool ending)
         {
-            if (canvasObject == null || encounter.Party == null) return;
+            if (disposed || IsDestroyedExternally())
+            {
+                Dispose();
+                return;
+            }
+            if (encounter == null || encounter.Party == null || encounter.Party.Beast == null ||
+                encounter.Party.Members == null || encounter.Party.Members.Count < 3)
+            {
+                return;
+            }
             float aspect = (float)Screen.width / Mathf.Max(1, Screen.height);
-            if (aspect != lastAspect) { lastAspect = aspect; Layout(); }
+            if (!float.IsNaN(aspect) && !float.IsInfinity(aspect) && !Mathf.Approximately(aspect, lastAspect))
+            {
+                lastAspect = aspect;
+                Layout();
+                if (disposed || IsDestroyedExternally())
+                {
+                    Dispose();
+                    return;
+                }
+            }
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             int active = encounter.Party.ChoosingRescuerIndex;
             Font font = SoundwellUiLocalization.PresentationFont(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
@@ -145,11 +231,13 @@ namespace Rpg.Soundwell
                 encounter.PendingThreat == OrkRoleEncounter.Threat.Howl
                     ? (zh ? "回声嚎叫 → 全队 · 湿布可以封住声口" : "ECHO HOWL → Whole party · Muffle the echo")
                     : (zh ? "蓄力猛扑 → " : "CHARGED LUNGE → ") + RoleName(encounter.TargetIndex, zh);
-            exchange.text = lastExchange;
+            exchange.text = lastExchange ?? string.Empty;
             float width = bottom.sizeDelta.x;
             for (int i = 0; i < cards.Length; i++)
             {
                 var actor = i == 3 ? encounter.Party.Beast : encounter.Party.Members[i];
+                if (actor == null || actor.Status == null)
+                    continue;
                 int hp = actor.Status[1].GetValue();
                 int max = Mathf.Max(1, actor.Status[1].GetMaxValue());
                 cards[i].font = font;
@@ -159,8 +247,9 @@ namespace Rpg.Soundwell
                     (i == 3 ? width * 0.55f : width / 3f - 24f) * Mathf.Clamp01((float)hp / max), 5);
             }
             string[] pair = Commands(active, zh);
+            bool beastDead = encounter.Party.Beast.Status != null && encounter.Party.Beast.Status.IsDead;
             captions[0].text = ending
-                ? encounter.Party.Beast.Status.IsDead
+                ? beastDead
                     ? (zh ? "救出测路人" : "Rescue surveyor")
                     : (zh ? "回港整队" : "Regroup")
                 : pair[0];
@@ -190,6 +279,17 @@ namespace Rpg.Soundwell
             return zh ? new[] { "等待交锋", "等待交锋" } : new[] { "Resolving…", "Resolving…" };
         }
 
-        public void Dispose() => SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        public void Dispose()
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            for (int i = 0; i < commands.Length; i++)
+            {
+                if (commands[i] != null)
+                    commands[i].onClick.RemoveAllListeners();
+            }
+            SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
     }
 }
