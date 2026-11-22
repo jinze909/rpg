@@ -188,11 +188,11 @@ namespace Rpg.Soundwell
             Panel(stageDialoguePanel.rectTransform, "M00 stage dialogue backing",
                 Vector2.zero, new Vector2(338f, 64f), SoundwellUiTheme.DefaultBackdropColor);
             stageDialoguePanel.gameObject.SetActive(false);
-            childLine = Label(authoredView, "", 16, Ink,
+            childLine = Label(authoredView, "", 16, SoundwellUiTheme.DefaultPaperColor,
                 new Vector2(-280f, 92f), new Vector2(320f, 24f));
             childLine.gameObject.name = "M00 Xiaodou stage line";
             childLine.gameObject.SetActive(false);
-            crowdLine = Label(authoredView, "", 13, Ink,
+            crowdLine = Label(authoredView, "", 13, SoundwellUiTheme.DefaultPaperColor,
                 new Vector2(-280f, 62f), new Vector2(320f, 20f));
             crowdLine.gameObject.name = "M00 crowd reaction";
             crowdLine.gameObject.SetActive(false);

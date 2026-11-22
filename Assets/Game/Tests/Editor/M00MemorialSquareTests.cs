@@ -347,6 +347,12 @@ namespace Rpg.Tests.Editor
                 "The stage line must remain inside its dark backing.");
             Assert.That(stagePanelBounds.Intersects(narrationBounds), Is.False,
                 "The stage dialogue panel must remain below the narration.");
+            Assert.That(childLine.color.grayscale - stageBacking.color.grayscale,
+                Is.GreaterThan(0.5f),
+                "Xiaodou's dialogue must be high contrast against its dark backing.");
+            Assert.That(crowdLine.color.grayscale - stageBacking.color.grayscale,
+                Is.GreaterThan(0.5f),
+                "The crowd reaction must be high contrast against its dark backing.");
             Assert.That(childLine.gameObject.activeSelf, Is.True);
             Assert.That(childBounds.Intersects(narrationBounds), Is.False,
                 "The stage line must have its own readable lane below scene narration.");
