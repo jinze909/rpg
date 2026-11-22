@@ -170,19 +170,18 @@ namespace Rpg.Tests.Editor
             Assert.That(replayed.HasValue, Is.True);
             Assert.That(M05HarborVisitFacts.TryRead(read, out int staleMask), Is.True);
             Assert.That(staleMask, Is.Zero);
+            int secondArrival = read(M05LandingFacts.ArrivalSequenceKey);
             Assert.That(M05HarborVisitFacts.TryRecord(
-                M05HarborBeat.MarketAccusation, read, write), Is.False);
-            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+                M05HarborBeat.MarketAccusation, read, write), Is.True,
+                "The first real new-voyage observation safely clears and rebinds stale visits.");
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(4));
             Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
-                Is.EqualTo(firstArrival + 1));
-
-            Assert.That(M05HarborVisitFacts.TryResetForNewVoyage(write), Is.True);
+                Is.EqualTo(secondArrival + 1));
             Assert.That(M05HarborVisitFacts.TryRecord(
-                M05HarborBeat.MarketAccusation, read, write), Is.True);
+                M05HarborBeat.MarketAccusation, read, write), Is.True,
+                "Repeating the same observed beat remains idempotent.");
             Assert.That(M05HarborVisitFacts.TryRead(read, out int currentMask), Is.True);
             Assert.That(currentMask, Is.EqualTo(4));
-            Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
-                Is.EqualTo(firstArrival + 2));
 
             values[M05HarborVisitFacts.VisitedArrivalIdentityKey] = -1;
             Assert.That(M05HarborVisitFacts.TryRead(read, out int corrupt), Is.False);
@@ -192,21 +191,24 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void EarlierUnsignedHarborObservationsRemainReadableWhenArrivalIsVerified()
+        public void EarlierUnsignedHarborObservationsAreHiddenUntilReobserved()
         {
             var values = new Dictionary<string, int>();
             SeedVerifiedLanding(values, new M05LandingReport(3, 10, true, true));
             Func<string, int> read = Reader(values);
             Action<string, int> write = (key, value) => values[key] = value;
 
-            // Persisted observations from pre-identity releases are not
-            // erased merely by loading the new build.
+            // An unsigned legacy mask cannot prove which arrival witnessed
+            // those conversations. It remains saved but is not current evidence.
             values[M05HarborVisitFacts.VisitedMaskKey] = 1;
             Assert.That(M05HarborVisitFacts.TryRead(read, out int olderMask), Is.True);
-            Assert.That(olderMask, Is.EqualTo(1));
+            Assert.That(olderMask, Is.Zero);
             Assert.That(M05HarborVisitFacts.TryRecord(
                 M05HarborBeat.FisherRumor, read, write), Is.True);
-            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey), Is.EqualTo(3));
+            Assert.That(read(M05HarborVisitFacts.VisitedMaskKey),
+                Is.EqualTo(1 << (int)M05HarborBeat.FisherRumor));
+            Assert.That(M05HarborVisitFacts.TryRead(read, out int witnessed), Is.True);
+            Assert.That(witnessed, Is.EqualTo(1 << (int)M05HarborBeat.FisherRumor));
             Assert.That(read(M05HarborVisitFacts.VisitedArrivalIdentityKey),
                 Is.EqualTo(read(M05LandingFacts.ArrivalSequenceKey) + 1));
         }
