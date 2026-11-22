@@ -35,6 +35,27 @@ namespace Rpg.Tests.Editor
             };
         }
 
+        private sealed class HubEchoValleyWorldEvidence : IST04EchoValleyWorldEvidence
+        {
+            public bool AtValley => true;
+            public bool SangJingAndMengHuiPresent => true;
+            public bool HasInspected(ST04RoadClue clue) => false;
+            public bool HasEnteredVia(ST04ValleyEntry approach) => false;
+            public int SurveyorsActuallyRescued => 0;
+            public bool ClearContinuousEchoAttractsBeasts => false;
+            public bool LowVoicesDoNotAttractBeasts => false;
+            public bool WetBellLosesBeastTarget => false;
+            public bool AncientRainAmplifierIdentified => false;
+            public bool QuarryWaterDiversionConfirmed => false;
+            public bool HasEnteredChamberVia(ST04ChamberEntry approach) => false;
+            public bool CompanionsMarkedBeforeDrain => false;
+            public bool DrainActuallyOpened => false;
+            public bool HasResolvedBeastsAs(ST04BeastHandling outcome) => false;
+            public bool RoadOutcomeActuallyEstablished(ST04RoadResolution outcome) => false;
+            public bool LongRoadActuallyFunded => false;
+            public bool AlternativeWorksiteActuallyArranged => false;
+        }
+
         private static void SeedM07TaoJi(Dictionary<string, int> values, bool taoJiRescued)
         {
             Func<string, int> read = Reader(values);
@@ -90,6 +111,7 @@ namespace Rpg.Tests.Editor
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST01JingwanTheater), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST03Bathhouse), Is.False);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST04EchoValley), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
 
                     // Even a rescued companion does not teleport to the woodshop.
@@ -152,6 +174,59 @@ namespace Rpg.Tests.Editor
                     Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST06TaoJiHomecoming), Is.True);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST06TaoJiHomecoming), Is.True);
                     Assert.That(hub.ActiveST06Host, Is.Not.Null);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void EchoValleyDispatchRequiresLiveWorldEvidenceAndPermanentSettlementPreventsReopen()
+        {
+            var root = new GameObject("RegionalHub ST04 Echo Valley");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            var world = new HubEchoValleyWorldEvidence();
+            var context = new ReturnRegionalStoriesHubContext
+            {
+                ST04EchoValleyWorld = () => world
+            };
+
+            try
+            {
+                using (var hub = new ReturnRegionalStoriesHubHost(
+                    root.transform, context, read, write))
+                {
+                    Assert.That(ReturnRegionalStoriesHubHost.IsPermanentRegionalStory(
+                        ReturnRegionalStoryId.ST04EchoValley), Is.True);
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST04EchoValley), Is.True);
+                    context.ST04EchoValleyWorld = () => null;
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST04EchoValley), Is.False,
+                        "A registered provider that has no live world must still fail closed.");
+                    Assert.That(root.transform.childCount, Is.Zero);
+
+                    context.ST04EchoValleyWorld = () => world;
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST04EchoValley), Is.True);
+                    Assert.That(hub.ActiveStory, Is.EqualTo(ReturnRegionalStoryId.ST04EchoValley));
+                    Assert.That(hub.ActiveST04Host, Is.Not.Null);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.False,
+                        "An unsettled regional story keeps the hub's single-active-story lock.");
+                    hub.CloseActiveStory();
+
+                    var record = new ST04EchoValleyRecord(
+                        ST04ValleyEntry.EnterQuietly,
+                        ST04ChamberEntry.ClearGuardBeast,
+                        ST04BeastHandling.Slain,
+                        ST04RoadResolution.KillAdultsAndCloseWell,
+                        2, true, true, true, false, false);
+                    Assert.That(ST04EchoValleyFacts.TryRecord(record, read, write), Is.True);
+                    Assert.That(hub.IsStorySettled(ReturnRegionalStoryId.ST04EchoValley), Is.True);
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST04EchoValley), Is.False);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST04EchoValley), Is.False);
+                    Assert.That(hub.CountSettledStories(), Is.EqualTo(1));
                 }
             }
             finally
