@@ -121,6 +121,10 @@ namespace Rpg.Soundwell
                 !IsValidRecord(record, getInt))
                 return false;
 
+            if (record.LetterDelivery == M06LetterDeliveryOutcome.DeliveredWithPending &&
+                !HasCompleteLetterHandoff(getInt))
+                return false;
+
             int pending = getInt(PendingSignatureKey);
             if (pending == 0)
             {
@@ -212,8 +216,14 @@ namespace Rpg.Soundwell
             // Legacy confirmed records have no signature and stay readable.
             // Newly written records must match the original plan and voyage.
             int pending = getInt(PendingSignatureKey);
-            if (IsValidRecord(saved, getInt) &&
-                (pending == 0 || pending == Signature(saved, getInt)))
+            bool valid = IsValidRecord(saved, getInt) &&
+                (pending == 0 || pending == Signature(saved, getInt));
+            // Old unsigned saves remain readable. Every newly signed record
+            // must carry the individual handoff proof, not just a summary bit.
+            if (valid && pending != 0 &&
+                saved.LetterDelivery == M06LetterDeliveryOutcome.DeliveredWithPending)
+                valid = HasCompleteLetterHandoff(getInt);
+            if (valid)
                 record = saved;
             return true;
         }
@@ -261,11 +271,19 @@ namespace Rpg.Soundwell
             if (!M05LettersFacts.TryRead(getInt, out M05LetterDecision? decision) ||
                 (!decision.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
                 return false;
-            if (record.LetterDelivery == M06LetterDeliveryOutcome.DeliveredWithPending &&
-                decision != M05LetterDecision.TakePacket)
+            bool carriedPacket = decision == M05LetterDecision.TakePacket;
+            if (carriedPacket !=
+                (record.LetterDelivery == M06LetterDeliveryOutcome.DeliveredWithPending))
                 return false;
 
             return true;
+        }
+
+        private static bool HasCompleteLetterHandoff(Func<string, int> getInt)
+        {
+            return M06FamilyLetterDeliveryFacts.TryRead(
+                    getInt, out M06FamilyLetterDeliverySnapshot snapshot) &&
+                snapshot.AllKnownRecipientsHandled && snapshot.HasPendingReturn;
         }
     }
 }

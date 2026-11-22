@@ -49,6 +49,9 @@ namespace Rpg.Soundwell
         public Button ShenAskButton => choiceButtons[0];
         public Button ShenHelpButton => choiceButtons[1];
         public Button ShenWaitButton => choiceButtons[2];
+        public Button TaoJiLetterButton => choiceButtons[0];
+        public Button LedgerLetterButton => choiceButtons[1];
+        public Button ReturnedLetterButton => choiceButtons[2];
 
         public M06PumpRoomReunionView(
             Transform parent,
@@ -179,9 +182,23 @@ namespace Rpg.Soundwell
                 case M06ReunionStage.LetterHandoff:
                     heading.text = zh ? "矿营班组 · 亲手送信" : "MINE CAMP · FAMILY LETTERS";
                     body.text = zh
-                        ? "按名交付外港带来的八封家书：女木匠陶霁当场拆读「我把门槛修好了」两遍；一名矿工把整页账目揣进怀里未拆；另一名矿工看了一眼信皮把信退还，暂记「待投」。"
-                        : "Delivering the eight carried letters by name: carpenter Tao Ji reads \"I fixed the threshold\" twice; one miner pockets a ledger page unread; another returns his unopened letter as pending.";
-                    ShowAdvance(zh ? "记下投递情况" : "Note delivery status");
+                        ? $"按封交付目前能找到的三位收件人。已处理 {session.LettersHandledCount}/3；其余五封仍在信包里，不视为已送达。"
+                        : $"Hand the three located letters to their recipients. Handled {session.LettersHandledCount}/3; the other five remain in the packet and are not marked delivered.";
+                    PositionLetterHandoffControls();
+                    ShowChoice(0, FormatLetterChoice(M06FamilyLetterRecipient.TaoJi, zh),
+                        !session.IsLetterHandled(M06FamilyLetterRecipient.TaoJi));
+                    ShowChoice(1, FormatLetterChoice(M06FamilyLetterRecipient.LedgerMiner, zh),
+                        !session.IsLetterHandled(M06FamilyLetterRecipient.LedgerMiner));
+                    ShowChoice(2, FormatLetterChoice(M06FamilyLetterRecipient.PendingMiner, zh),
+                        !session.IsLetterHandled(M06FamilyLetterRecipient.PendingMiner));
+                    if (session.LettersHandled)
+                        ShowAdvance(zh ? "去换班廊道找欧林" : "Continue to Oulin in the shift corridor");
+                    else if (!session.IsLetterHandled(M06FamilyLetterRecipient.TaoJi))
+                        SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, choiceButtons[0]);
+                    else if (!session.IsLetterHandled(M06FamilyLetterRecipient.LedgerMiner))
+                        SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, choiceButtons[1]);
+                    else
+                        SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, choiceButtons[2]);
                     break;
 
                 case M06ReunionStage.OulinRetaliationTruth:
@@ -226,6 +243,39 @@ namespace Rpg.Soundwell
             }
         }
 
+        private string FormatLetterChoice(M06FamilyLetterRecipient recipient, bool zh)
+        {
+            M06FamilyLetterStatus status = session.LetterDelivery.StatusFor(recipient);
+            switch (recipient)
+            {
+                case M06FamilyLetterRecipient.TaoJi:
+                    if (status == M06FamilyLetterStatus.DeliveredAndReadTwice)
+                        return zh ? "陶霁 · 已交付，她读了两遍" : "Tao Ji · delivered and read twice";
+                    return zh ? "把「我把门槛修好了」交给女木匠陶霁"
+                        : "Give the doorstep-repair letter to carpenter Tao Ji";
+                case M06FamilyLetterRecipient.LedgerMiner:
+                    if (status == M06FamilyLetterStatus.DeliveredUnread)
+                        return zh ? "账目家书 · 已收下，尚未拆读" : "Ledger letter · accepted, still unopened";
+                    return zh ? "把整页账目的家书交给矿工"
+                        : "Hand the household-ledger letter to the miner";
+                case M06FamilyLetterRecipient.PendingMiner:
+                    if (status == M06FamilyLetterStatus.ReturnedPending)
+                        return zh ? "第三封 · 已退回，暂记「待投」" : "Third letter · returned, marked pending";
+                    return zh ? "把第三封信递给那位矿工"
+                        : "Offer the third letter to the miner";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(recipient));
+            }
+        }
+
+        private void PositionLetterHandoffControls()
+        {
+            ((RectTransform)choiceButtons[2].transform).anchoredPosition =
+                new Vector2(-216f, -92f);
+            ((RectTransform)advanceButton.transform).anchoredPosition =
+                new Vector2(216f, -92f);
+        }
+
         private string FormatShenReply(bool zh)
         {
             switch (session.SelectedShenResponse)
@@ -262,6 +312,15 @@ namespace Rpg.Soundwell
         private void HandleChoiceClick(int index)
         {
             if (disposed || CanvasDestroyed()) return;
+
+            if (session.Stage == M06ReunionStage.LetterHandoff && index >= 0 && index <= 2)
+            {
+                if (!session.TryDeliverCarriedLetter((M06FamilyLetterRecipient)index))
+                    throw new InvalidOperationException(
+                        "Unable to record the current M06 family-letter handoff.");
+                Refresh();
+                return;
+            }
 
             if (session.Stage == M06ReunionStage.VesselBriefing && index >= 0 && index <= 2)
             {
@@ -307,8 +366,8 @@ namespace Rpg.Soundwell
                     Refresh();
                     break;
                 case M06ReunionStage.LetterHandoff:
-                    session.DeliverCarriedLetters();
-                    Refresh();
+                    if (session.ContinueAfterLetterHandoff())
+                        Refresh();
                     break;
                 case M06ReunionStage.OulinRetaliationTruth:
                     session.HearOulinRetaliationTruth();
