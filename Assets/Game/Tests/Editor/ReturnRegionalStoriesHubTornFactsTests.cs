@@ -134,5 +134,43 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void RegionalHubHidesST05WhenFactsAreTornOrTheConfirmedHomeCannotBeReopened()
+        {
+            var root = new GameObject("RegionalHubST05AvailabilityRoot");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+
+            try
+            {
+                using (var hub = new ReturnRegionalStoriesHubHost(
+                    root.transform, ObservedLocations(), read, write))
+                {
+                    // An interrupted home write must not appear available in the regional hub.
+                    values[ST05TwoDoorsFacts.HomeIntentKey] = 1210;
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
+
+                    // A clean save is available; once the permanent home record is confirmed,
+                    // the existing ST-05 host intentionally refuses to reopen it before assignment.
+                    Assert.That(ST05TwoDoorsFacts.TryResetForNewGame(write), Is.True);
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST05TwoDoors), Is.True);
+
+                    var home = new ST05HouseholdRecord(
+                        ST05BedResolution.ConvertBedToCourtyardBenches,
+                        ST05HomeArrangement.KeepTwoDoorsAndCourtyardTable,
+                        mutualTrialConsent: false);
+                    Assert.That(ST05TwoDoorsFacts.TryRecordHome(home, read, write), Is.True);
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
