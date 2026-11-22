@@ -44,6 +44,7 @@ namespace Rpg.Soundwell
         public Image StageIcon => stageIcon;
         public Text SpeakerText => speaker;
         public Text GuidanceText => guidance;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M00RollCallView(Transform parent, M00RollCallSequence sequence,
             Action<M00RollCallOutcome> onContinue)
@@ -122,6 +123,11 @@ namespace Rpg.Soundwell
         public bool AdvanceAfterUnansweredCall()
         {
             ThrowIfDisposed();
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return false;
+            }
             if (!IsWaitingForNextCall)
                 throw new InvalidOperationException("The roll call is not waiting between unanswered calls.");
 
@@ -136,7 +142,7 @@ namespace Rpg.Soundwell
             // A Unity GameObject may be destroyed outside this view's Dispose
             // method (notably by a scene unload or an EditMode test fixture).
             // Detach the global locale listener before touching dead UGUI Text.
-            if (canvasObject == null || title == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -211,7 +217,7 @@ namespace Rpg.Soundwell
             // Layout is presentation-only; stale callbacks must be harmless.
             if (disposed)
                 return;
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -240,8 +246,14 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            ThrowIfDisposed();
-            if (delivered || CurrentBeat == null || !CurrentBeat.CanRespond ||
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (CurrentBeat == null || !CurrentBeat.CanRespond ||
                 index < 0 || index >= CurrentBeat.Choices.Length)
                 return;
 
@@ -257,8 +269,14 @@ namespace Rpg.Soundwell
 
         private void Continue()
         {
-            ThrowIfDisposed();
-            if (delivered || !sequence.IsComplete)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (!sequence.IsComplete)
                 return;
 
             delivered = true;
@@ -270,11 +288,27 @@ namespace Rpg.Soundwell
             }
             catch
             {
-                delivered = false;
                 if (!disposed)
+                {
+                    delivered = false;
                     Refresh();
+                }
                 throw;
             }
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || title == null ||
+                speaker == null || guidance == null ||
+                continueButton == null || continueLabel == null)
+                return true;
+            for (int i = 0; i < choiceButtons.Length; i++)
+            {
+                if (choiceButtons[i] == null || choiceLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
 
         private void ThrowIfDisposed()
