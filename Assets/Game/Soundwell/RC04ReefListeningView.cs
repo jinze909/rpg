@@ -37,6 +37,7 @@ namespace Rpg.Soundwell
         public Button FastEchoButton => fastEchoButton;
         public Button ApproachButton => approachButton;
         public bool ApproachDelivered => delivered;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC04ReefListeningView(Transform parent,
             RC04DingYueReefSession session,
