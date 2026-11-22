@@ -39,6 +39,7 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public RectTransform Panel => panel;
         public Image StageIcon => stageIcon;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M04DockPreflightView(Transform parent,
             M03VoyageChoice route, Action onFinished)
@@ -106,19 +107,20 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || panel == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || panel == null || heading == null ||
-                dialogue == null || advance == null || advanceLabel == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -139,6 +141,12 @@ namespace Rpg.Soundwell
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, advance);
         }
 
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || panel == null || heading == null ||
+                dialogue == null || advance == null || advanceLabel == null;
+        }
+
         private Sprite ResolveStageSprite(M04DockPreflightStage currentStage)
         {
             switch (currentStage)
@@ -156,9 +164,13 @@ namespace Rpg.Soundwell
 
         private void Advance()
         {
-            if (disposed || delivering || canvasObject == null ||
-                Stage == M04DockPreflightStage.Finished)
+            if (disposed || delivering || Stage == M04DockPreflightStage.Finished)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             if (Stage != M04DockPreflightStage.VerifyPhysicalReadiness)
             {
                 Stage++;
