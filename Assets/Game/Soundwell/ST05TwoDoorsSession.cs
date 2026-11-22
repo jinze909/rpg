@@ -92,11 +92,16 @@ namespace Rpg.Soundwell
             bool eachConsentedToSharedTrial)
         {
             if (Phase != ST05TwoDoorsPhase.AgreeHomeAndKeys ||
-                arrangement.HasValue ||
                 !Enum.IsDefined(typeof(ST05HomeArrangement), decidedByBoth) ||
                 eachConsentedToSharedTrial !=
                     (decidedByBoth == ST05HomeArrangement.MutuallyAgreedTrialSharedHomeAndStudio))
                 return false;
+            // Re-acknowledging the same witnessed decision is safe after a
+            // torn persistence write; a different decision cannot replace it.
+            if (arrangement.HasValue)
+                return arrangement.Value == decidedByBoth &&
+                    mutualTrialConsent == eachConsentedToSharedTrial;
+
             arrangement = decidedByBoth;
             mutualTrialConsent = eachConsentedToSharedTrial;
             return true;
@@ -135,11 +140,15 @@ namespace Rpg.Soundwell
             bool shopCoverArranged, bool keysChecked, bool returnDateTalkedThrough)
         {
             if (Phase != ST05TwoDoorsPhase.AwaitChengOwnJobDecision ||
-                assignment.HasValue ||
                 !Enum.IsDefined(typeof(ST05ChengAssignment), hisOwnChoice) ||
                 !chengPersonallyAcceptedOrDeclined || !shopCoverArranged ||
                 !keysChecked || !returnDateTalkedThrough)
                 return false;
+            // The same personal decision can be retried after an interrupted
+            // commit, but the session never accepts a replacement choice.
+            if (assignment.HasValue)
+                return assignment.Value == hisOwnChoice;
+
             assignment = hisOwnChoice;
             return true;
         }
