@@ -1045,37 +1045,27 @@ namespace Rpg.Tests.Editor
                 trial.CartObserved || trial.CartKitReclaimed ||
                 trial.ClawsObserved, Is.False);
 
-            // The visible weak plank is not itself proof that the player has
-            // learned how to secure it. Keep the instruction investigative
-            // until the survivor's firsthand clue has actually been heard.
-            MoveTestLeader(playerBody, SoundwellTrial.UpperBoardPosition);
-            Assert.That(trial.HasSurveyorClue, Is.False);
-            Assert.That(trial.CanSecurePlank, Is.False);
-            var preClueHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
-            Assert.That(preClueHint, Is.Not.Null);
-            Assert.That(preClueHint.text,
-                Is.EqualTo(SoundwellUiLocalization.Get("hint.plank_ask_first")),
-                "Before hearing the survivor, the upper-plank prompt should ask for the missing clue instead of revealing the brace action.");
-            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
-            yield return null;
-            Assert.That(preClueHint.text,
-                Is.EqualTo(SoundwellUiLocalization.Get("hint.plank_ask_first")));
-            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
-            yield return null;
-            Assert.That(preClueHint.text,
-                Is.EqualTo(SoundwellUiLocalization.Get("hint.plank_ask_first")));
-
+            // The first interaction is with the survivor, not the plank:
+            // before hearing his firsthand clue, the live prompt must ask for
+            // that clue and must not expose the later bracing action.
             MoveTestLeader(playerBody, SoundwellTrial.SurveyorPosition);
             Assert.That(trial.AtSurveyor, Is.True);
+            Assert.That(trial.HasSurveyorClue, Is.False);
+            Assert.That(trial.CanSecurePlank, Is.False);
             var contextualHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
             Assert.That(contextualHint, Is.Not.Null);
-            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(contextualHint.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("hint.surveyor_ask")),
+                "Before hearing the surveyor's firsthand clue, the prompt must ask for it instead of revealing the brace action.");
+            SoundwellUiLocalization.SetLanguage(Chinese);
             yield return null;
             Assert.That(contextualHint.text,
                 Is.EqualTo(SoundwellUiLocalization.Get("hint.surveyor_ask")),
                 "The live unasked surveyor prompt must switch into Chinese.");
-            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            SoundwellUiLocalization.SetLanguage(English);
             yield return null;
+            Assert.That(contextualHint.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("hint.surveyor_ask")));
             var worldPose = trial.PlayerActor.GetComponentInChildren<SoundwellPlayerVisualAnimation>();
             Assert.That(worldPose, Is.Not.Null);
             float worldPoseDeadline = Time.realtimeSinceStartup + 3f;
