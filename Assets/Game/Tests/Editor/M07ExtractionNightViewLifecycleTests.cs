@@ -37,6 +37,14 @@ namespace Rpg.Tests.Editor
                 new M05LandingReport(3, 10, true, true), read, write), Is.True);
             Assert.That(M05LettersFacts.TryRecord(
                 M05LetterDecision.TakePacket, read, write), Is.True);
+            foreach (M06FamilyLetterRecipient recipient in new[]
+            {
+                M06FamilyLetterRecipient.TaoJi,
+                M06FamilyLetterRecipient.LedgerMiner,
+                M06FamilyLetterRecipient.PendingMiner
+            })
+                Assert.That(M06FamilyLetterDeliveryFacts.TryRecord(
+                    recipient, read, write), Is.True);
             Assert.That(M06RescuePlanFacts.TryRecord(
                 new M06ReunionRecord(plan, true, M06LetterDeliveryOutcome.DeliveredWithPending, true),
                 read, write), Is.True);

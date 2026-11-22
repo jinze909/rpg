@@ -71,7 +71,9 @@ namespace Rpg.Tests.Editor
 
                 view.AdvanceButton.onClick.Invoke();
                 Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.LetterHandoff));
-                Assert.That(view.Body.text, Does.Contain("陶霁"));
+                Assert.That(view.Body.text, Does.Contain("已处理 0/3"));
+                Assert.That(view.TaoJiLetterButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Does.Contain("陶霁"));
                 Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.False);
 
                 view.TaoJiLetterButton.onClick.Invoke();
