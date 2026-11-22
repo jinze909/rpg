@@ -69,6 +69,9 @@ namespace Rpg.Soundwell
         public AcousticIntentTelegraph(int startingNoise = 20,
             EnemyIntentKind initialIntent = EnemyIntentKind.ListeningAlert)
         {
+            if (!Enum.IsDefined(typeof(EnemyIntentKind), initialIntent))
+                throw new ArgumentOutOfRangeException(nameof(initialIntent));
+
             NoiseLevel = Mathf.Clamp(startingNoise, 0, 100);
             CurrentIntent = initialIntent;
             BellCooldownTurns = 0;
@@ -78,6 +81,8 @@ namespace Rpg.Soundwell
 
         public bool CanTriggerAcousticAction(AcousticActionKind action)
         {
+            if (!Enum.IsDefined(typeof(AcousticActionKind), action))
+                return false;
             if (action == AcousticActionKind.DecoyBell)
                 return BellCooldownTurns == 0;
             return true;
@@ -90,6 +95,14 @@ namespace Rpg.Soundwell
         /// </summary>
         public AcousticPresentationFeedback RecordPlayerAction(AcousticActionKind action)
         {
+            if (!Enum.IsDefined(typeof(AcousticActionKind), action))
+            {
+                return new AcousticPresentationFeedback(
+                    accepted: false, false, EnemyIntentExposed,
+                    CanOfferNonViolentDisengage, 0f, 0f, NoiseLevel,
+                    "Action unavailable.",
+                    "该动作当前不可用。");
+            }
             if (!CanTriggerAcousticAction(action))
             {
                 return new AcousticPresentationFeedback(
