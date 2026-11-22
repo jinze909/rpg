@@ -28,6 +28,15 @@ namespace Rpg.Soundwell
         public Text Summary => summary;
         public Button ConfirmButton => confirmButton;
         public RectTransform Panel => panel;
+        public bool IsDisposed
+        {
+            get
+            {
+                if (!disposed && CanvasDestroyed())
+                    Dispose();
+                return disposed;
+            }
+        }
 
         public M06MineCampReconView(
             Transform parent,
