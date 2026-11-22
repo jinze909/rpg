@@ -208,14 +208,59 @@ namespace Rpg.Tests.Editor
                 Button finishFog = FindButton(owner, "Fog continue");
                 Assert.That(finishFog.interactable, Is.True);
                 finishFog.onClick.Invoke();
-                finishFog.onClick.Invoke();
-                Assert.That(deliveries, Is.EqualTo(1));
+                M04ToM05SeaCrossingHost activeCrossing = continuation.ActiveSeaCrossing;
+                Assert.That(activeCrossing, Is.Not.Null);
+                Assert.That(activeCrossing.Stage,
+                    Is.EqualTo(M04ToM05SeaCrossingStage.LandingObservation));
+                Assert.That(deliveries, Is.Zero,
+                    "A successful fog passage must continue to observed arrival and M05.");
                 Assert.That(FogListeningFacts.TryRead(read, out FogListeningRecord? safe), Is.True);
                 Assert.That(safe.HasValue && safe.Value.Succeeded, Is.True);
                 Assert.That(safe.Value.AvoidedHazards, Is.EqualTo(2));
                 Assert.That(safe.Value.MatchedSignals, Is.EqualTo(1));
                 Assert.That(vars.GetInt(M05LandingFacts.ConfirmedKey), Is.Zero,
-                    "Passing the reef does not record a harbor arrival.");
+                    "Passing the reef alone does not record a harbor arrival.");
+
+                M05LandingObservationView landing = activeCrossing.LandingObservationView;
+                Assert.That(landing, Is.Not.Null);
+                Assert.That(landing.CrewArrived, Is.Zero,
+                    "The departure manifest is not copied into actual arrival crew.");
+                Assert.That(landing.ReadyRescueBerths, Is.Zero);
+                landing.CrewPlusButton.onClick.Invoke();
+                landing.CrewPlusButton.onClick.Invoke();
+                landing.TenderButton.onClick.Invoke();
+                landing.ReceiverButton.onClick.Invoke();
+                landing.BerthPlusButton.onClick.Invoke();
+                landing.BerthPlusButton.onClick.Invoke();
+                landing.BerthPlusButton.onClick.Invoke();
+                Assert.That(landing.CanConfirm, Is.True);
+                landing.ConfirmButton.onClick.Invoke();
+
+                Assert.That(activeCrossing.Stage,
+                    Is.EqualTo(M04ToM05SeaCrossingStage.OuterHarbor));
+                Assert.That(activeCrossing.LandingObservationView, Is.Null);
+                Assert.That(activeCrossing.OuterHarborHost.Stage,
+                    Is.EqualTo(M05OuterHarborFlowStage.ArrivalSession));
+                Assert.That(M05LandingFacts.TryRead(read,
+                    out M05LandingReport? savedLanding), Is.True);
+                Assert.That(savedLanding.HasValue, Is.True);
+                Assert.That(savedLanding.Value.CrewArrived, Is.EqualTo(2));
+                Assert.That(savedLanding.Value.ReadyRescueBerths, Is.EqualTo(3));
+                Assert.That(savedLanding.Value.TenderArrived, Is.True);
+                Assert.That(savedLanding.Value.ReceiverMet, Is.True);
+
+                var harbor = activeCrossing.OuterHarborHost;
+                harbor.ArrivalSession.SeranView.TakeButton.onClick.Invoke();
+                harbor.ArrivalSession.SeranView.ContinueButton.onClick.Invoke();
+                var harborWalk = harbor.ArrivalSession.HarborWalkView;
+                harborWalk.AdvanceButton.onClick.Invoke();
+                harborWalk.AdvanceButton.onClick.Invoke();
+                Assert.That(harborWalk.Beat, Is.EqualTo(M05HarborBeat.MarketAccusation));
+                harborWalk.AdvanceButton.onClick.Invoke();
+                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(continuation.ActiveSeaCrossing, Is.Null,
+                    "The owning opening releases the crossing after M05 accepts its outcome.");
+                Assert.That(vars.GetInt(M05LandingFacts.ConfirmedKey), Is.EqualTo(1));
 
                 Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
                 SeedVerifiedDeparture(write, M03VoyageChoice.QiQueMerchant);
