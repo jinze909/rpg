@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         private readonly Font latinFont;
         private Func<RC04DingYueReefSession, bool> onApproachRequested;
         private bool lastPickedMimic;
+        private bool requesting;
         private bool delivered;
         private bool disposed;
 
@@ -103,15 +104,14 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = body.font = slowEchoLabel.font =
@@ -144,9 +144,10 @@ namespace Rpg.Soundwell
                 approachLabel.text = zh ? "申请实际靠礁（核验船与返航潮窗）"
                                         : "Request real approach (check boat and safe return)";
                 approachButton.gameObject.SetActive(true);
-                approachButton.interactable = true;
-                SoundwellInputAdapter.KeepDialogFocus(
-                    canvasObject.transform, approachButton);
+                approachButton.interactable = !requesting;
+                if (!requesting)
+                    SoundwellInputAdapter.KeepDialogFocus(
+                        canvasObject.transform, approachButton);
                 return;
             }
 
@@ -189,7 +190,7 @@ namespace Rpg.Soundwell
 
         private void Choose(RC04EchoChoice choice)
         {
-            if (disposed || delivered || CanvasDestroyed() ||
+            if (disposed || IsDestroyedExternally() || delivered || requesting ||
                 session.IsResolved || session.TidalWindowLocated ||
                 !slowEchoButton.interactable || !fastEchoButton.interactable)
                 return;
@@ -200,17 +201,33 @@ namespace Rpg.Soundwell
 
         private void RequestApproach()
         {
-            if (disposed || delivered || CanvasDestroyed() ||
+            if (disposed || IsDestroyedExternally() || delivered || requesting ||
                 session.IsResolved || !session.TidalWindowLocated ||
                 !approachButton.interactable)
                 return;
-            // A declined or interrupted scene callback keeps the approach
-            // button available for a later genuine short tide window.
-            if (!onApproachRequested(session))
-                return;
-            delivered = true;
-            onApproachRequested = null;
-            Refresh();
+            requesting = true;
+            approachButton.interactable = false;
+            try
+            {
+                // A declined or interrupted scene callback keeps the approach
+                // button available for a later genuine short tide window.
+                if (!onApproachRequested(session))
+                    return;
+                delivered = true;
+                onApproachRequested = null;
+            }
+            finally
+            {
+                requesting = false;
+                if (!disposed) Refresh();
+            }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()
