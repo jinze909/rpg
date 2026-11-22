@@ -19,6 +19,9 @@ namespace Rpg.Soundwell
     public sealed class SoundwellSmokeHost : MonoBehaviour
     {
         private const string SceneName = "SoundwellTrial";
+        private const string TrialProps = "Assets/Game/Art/Soundwell/soundwell_trial_props.png";
+        private const string TrialCrossings =
+            "Assets/Game/Art/Soundwell/soundwell_trial_crossings.png";
         private string runtimeError;
         private readonly List<float> frameTimeMs = new List<float>(512);
         private int startGc0;
@@ -305,6 +308,8 @@ namespace Rpg.Soundwell
                 "Landscape viewports must restore the original top-right HUD stack.");
             AssertHudHit(trial, "Back");
             Capture(trial, "00-m8-widescreen-pixel-perfect", 960, 540);
+            RequireAuthoredSoundwellArt(trial);
+            Capture(trial, "00-authored-soundwell-art", 960, 540);
             Require(ShowsPrompt(trial, "Walk to the copper bell"), "The initial view must show where to go.");
             Require(ShowsPrompt(trial, "[Esc / Pad B] Back to entry"), "The exit control must be visible at the entrance.");
             Require(!TrialActionButton(trial, "Ring").interactable &&
@@ -318,10 +323,10 @@ namespace Rpg.Soundwell
             Require(bellAudio != null, "The copper bell must expose its audio source.");
             var searchTrack = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name ==
-                    "PLACEHOLDER beast search timer track");
+                    "Soundwell beast search timer track");
             var searchFill = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(item => item.gameObject.name ==
-                    "PLACEHOLDER beast search timer fill");
+                    "Soundwell beast search timer fill");
             Require(searchTrack != null && searchFill != null &&
                 !searchTrack.enabled && !searchFill.enabled &&
                 !trial.IsSearching && trial.SearchRemainingFraction == 0f,
@@ -331,7 +336,7 @@ namespace Rpg.Soundwell
             // FindRootComponent does, while keeping the exact marker name.
             var beastContactRing = SceneManager.GetActiveScene().GetRootGameObjects()
                 .SelectMany(root => root.GetComponentsInChildren<LineRenderer>(true))
-                .SingleOrDefault(line => line.gameObject.name == "PLACEHOLDER beast contact radius");
+                .SingleOrDefault(line => line.gameObject.name == "Soundwell beast contact radius");
             Require(beastContactRing != null && !beastContactRing.enabled &&
                 beastContactRing.loop && !beastContactRing.useWorldSpace &&
                 beastContactRing.positionCount == 40,
@@ -344,14 +349,14 @@ namespace Rpg.Soundwell
                 trial.BeastPosition) < 0.005f,
                 "The danger ring must belong to the moving beast, not a simulated position.");
             var falseTrailMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell false trail marker");
             Require(falseTrailMarker != null && falseTrailMarker.enabled &&
                 !trial.FalseMarkerCleared,
                 "The wrong-way sign must visibly exist until the surveyor removes it.");
             var ropeEvidence = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER severed bell rope");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell severed bell rope");
             var clawEvidence = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER claw marks");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell claw marks");
             Require(ropeEvidence != null && clawEvidence != null &&
                 Vector2.Distance(ropeEvidence.transform.position,
                     SoundwellTrial.RopeEvidencePosition) < 0.01f &&
@@ -362,7 +367,7 @@ namespace Rpg.Soundwell
             Color ropeUnobservedColor = ropeEvidence.color;
             Color clawsUnobservedColor = clawEvidence.color;
             var revealedClawTrail = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .Where(item => item.gameObject.name.StartsWith("PLACEHOLDER revealed claw trail "))
+                .Where(item => item.gameObject.name.StartsWith("Soundwell revealed claw trail "))
                 .OrderBy(item => item.gameObject.name).ToArray();
             Require(revealedClawTrail.Length == 3 && revealedClawTrail.All(marker => !marker.enabled),
                 "Unexamined claw tracks must not expose a world-space route.");
@@ -375,26 +380,26 @@ namespace Rpg.Soundwell
                     "Revealed claw trail must physically connect the observed marks to the side stand.");
             }
             var cartEvidence = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER abandoned mule cart");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell abandoned mule cart");
             Require(cartEvidence != null && !trial.CartObserved &&
                 Vector2.Distance((Vector2)cartEvidence.transform.position,
                     SoundwellTrial.CartEvidencePosition) < 0.01f,
                 "The abandoned cart must exist as an inspectable world clue, not just a caption.");
             Color cartUnobservedColor = cartEvidence.color;
             var cartMapKit = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER cart map kit");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell cart map kit");
             var safeTrailMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER verified return route marker");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell verified return route marker");
             Require(cartMapKit != null && cartMapKit.enabled && !trial.CartKitReclaimed &&
                 safeTrailMarker != null && !safeTrailMarker.enabled && !trial.SafeRouteMarked,
                 "Initial scene must hold the map kit but no corrected safe-route sign.");
             var escapeWarning = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER escape-lane risk");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell escape-lane risk");
             Require(escapeWarning != null && !escapeWarning.enabled &&
                 !trial.BeastBlocksEscape && ShowsPrompt(trial, "ESCAPE LANE  /  CLEAR"),
                 "Escape risk must start clear and have a real world-space warning marker.");
             var gateCollider = trial.GetComponentsInChildren<BoxCollider2D>(true)
-                .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
+                .SingleOrDefault(body => body.gameObject.name == "Soundwell soundwell gate");
             Require(gateCollider != null && gateCollider.enabled && !trial.GateOpen,
                 "The inner gate must physically block passage before any bell experiment.");
             Require(!TrialActionButton(trial, "Gate").interactable,
@@ -405,18 +410,18 @@ namespace Rpg.Soundwell
                 !trial.BeastContacted && trial.BeastContacts == 0,
                 "No rescue or beast-contact penalty can be claimed from the entry zone.");
             var sideStand = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER side bell stand");
+                .SingleOrDefault(renderer => renderer.gameObject.name == "Soundwell side bell stand");
             Require(sideStand != null &&
                 Vector2.Distance((Vector2)sideStand.transform.position, SoundwellTrial.SideBellStand) < 0.05f,
                 "The side bell stand must visibly mark the authoritative second sound source.");
             var upperBoard = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name ==
-                    "PLACEHOLDER upper load-bearing plank");
+                    "Soundwell upper load-bearing plank");
             var lowerBoard = trial.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name ==
-                    "PLACEHOLDER unsafe lower plank");
+                    "Soundwell unsafe lower plank");
             var surveyor = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER trapped surveyor");
+                .SingleOrDefault(renderer => renderer.gameObject.name == "Soundwell trapped surveyor");
             Require(upperBoard != null && lowerBoard != null &&
                 !trial.LowerPlankBroken && surveyor != null &&
                 Vector2.Distance((Vector2)lowerBoard.transform.position,
@@ -427,7 +432,7 @@ namespace Rpg.Soundwell
             Color initialBoard = upperBoard.color;
             Color initialLowerBoard = lowerBoard.color;
             var intentMarker = trial.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
+                .SingleOrDefault(renderer => renderer.gameObject.name == "Soundwell beast intent marker");
             Require(intentMarker != null && !intentMarker.enabled,
                 "The beast intent marker must exist but remain hidden before any sound.");
             Vector2 home = trial.BeastPosition;
@@ -647,6 +652,8 @@ namespace Rpg.Soundwell
             Require(Vector2.Distance((Vector2)intentMarker.transform.position,
                 new Vector2(1.15f, 0f)) < 1.45f,
                 "Searching marker must follow the actual last-heard destination, not the player.");
+            RequireAuthoredSprite(FindSprite(SceneSprites(trial), "Soundwell copper bell"), TrialProps,
+                "soundwell_wrapped_bell");
             var muffled = Capture(trial, "02-wrapped-searching");
             Require(!muffled.SequenceEqual(clear), "The two signal phases must render differently.");
             for (var wait = Until(() => Vector2.Distance(trial.BeastPosition, pursued) > 0.35f,
@@ -969,6 +976,7 @@ namespace Rpg.Soundwell
                 !trial.HasSurveyorClue && lowerBoard.color != initialLowerBoard &&
                 ShowsPrompt(trial, "lower plank snapped"),
                 "Stepping on the weak lower plank must collapse it and recover the player.");
+            RequireAuthoredSprite(lowerBoard, TrialCrossings, "soundwell_weak_plank_broken");
             Capture(trial, "07-lower-plank-collapses");
             // The weakened route must remain unsafe on another attempt.
             Press(trial, Vector2.down);
@@ -1055,7 +1063,7 @@ namespace Rpg.Soundwell
                 ShowsPrompt(trial, "LEAD SURVEYOR"),
                 "Fastening the guide line cannot silently start or complete rescue.");
             var guideLine = trial.GetComponentsInChildren<LineRenderer>(true)
-                .SingleOrDefault(line => line.gameObject.name == "PLACEHOLDER surveyor guide rope");
+                .SingleOrDefault(line => line.gameObject.name == "Soundwell surveyor guide rope");
             Require(guideLine != null && !guideLine.enabled,
                 "The guide line should appear only once the actual escort starts.");
             Capture(trial, "08-guide-line-fastened");
@@ -1354,6 +1362,7 @@ namespace Rpg.Soundwell
                 "Reload must retain the selected local HUD language.");
             // Capture the actual Chinese locale in the native GameView renderer,
             // not only English screenshots and string equality assertions.
+            RequireAuthoredSoundwellArt(fresh);
             Capture(fresh, "14-localized-zh-Hans");
             SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
             Require(ShowsPrompt(fresh, "SOUNDWELL  /  SIGNAL TRIAL"),
@@ -1363,21 +1372,21 @@ namespace Rpg.Soundwell
             Require(!fresh.IsCarrying && fresh.BellPosition == bellStart && !fresh.CanPlaceBell,
                 "Scene reload must restore the initial named bell stand and carrying state.");
             var freshGate = fresh.GetComponentsInChildren<BoxCollider2D>(true)
-                .SingleOrDefault(body => body.gameObject.name == "PLACEHOLDER soundwell gate");
+                .SingleOrDefault(body => body.gameObject.name == "Soundwell soundwell gate");
             var freshFalseMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(item => item.gameObject.name == "PLACEHOLDER false trail marker");
+                .SingleOrDefault(item => item.gameObject.name == "Soundwell false trail marker");
             Require(fresh.GetComponentsInChildren<SpriteRenderer>(true)
-                .Where(item => item.gameObject.name.StartsWith("PLACEHOLDER revealed claw trail "))
+                .Where(item => item.gameObject.name.StartsWith("Soundwell revealed claw trail "))
                 .Count(item => !item.enabled) == 3,
                 "Scene reload must hide all revealed claw evidence until reinspection.");
             Require(!fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .Any(item => item.gameObject.name.StartsWith(
-                    "PLACEHOLDER beast search timer ") && item.enabled) &&
+                    "Soundwell beast search timer ") && item.enabled) &&
                 fresh.SearchRemainingFraction == 0f,
                 "Scene reload cannot inherit the prior search countdown.");
             Require(!SceneManager.GetActiveScene().GetRootGameObjects()
                 .SelectMany(root => root.GetComponentsInChildren<LineRenderer>(true))
-                .Any(line => line.gameObject.name == "PLACEHOLDER beast contact radius" &&
+                .Any(line => line.gameObject.name == "Soundwell beast contact radius" &&
                     line.enabled),
                 "A new scene must not retain an open-gate beast warning from the previous run.");
             Require(!fresh.GateOpen && !fresh.SurveyorEscorting && !fresh.RescueComplete &&
@@ -1391,11 +1400,11 @@ namespace Rpg.Soundwell
                 "Reload must restore the gate, wrong-way sign and survivor objective.");
             var freshBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)
                 .SingleOrDefault(renderer => renderer.gameObject.name ==
-                    "PLACEHOLDER upper load-bearing plank");
+                    "Soundwell upper load-bearing plank");
             var freshSurveyor = fresh.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER trapped surveyor");
+                .SingleOrDefault(renderer => renderer.gameObject.name == "Soundwell trapped surveyor");
             var freshLowerBoard = fresh.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER unsafe lower plank");
+                .SingleOrDefault(renderer => renderer.gameObject.name == "Soundwell unsafe lower plank");
             Require(!fresh.HasSurveyorClue && !fresh.PlankSecured && !fresh.LowerPlankBroken &&
                 freshLowerBoard != null && freshLowerBoard.color == initialLowerBoard &&
                 freshBoard != null && freshBoard.color == initialBoard && freshSurveyor != null &&
@@ -1405,7 +1414,7 @@ namespace Rpg.Soundwell
             Require(fresh.PlayerPosition == retreat, "Reload must restore the entrance position.");
             yield return null;
             var freshMarker = fresh.GetComponentsInChildren<SpriteRenderer>(true)
-                .SingleOrDefault(renderer => renderer.gameObject.name == "PLACEHOLDER beast intent marker");
+                .SingleOrDefault(renderer => renderer.gameObject.name == "Soundwell beast intent marker");
             Require(freshMarker != null && !freshMarker.enabled,
                 "Reload must clear the visible beast target from the previous experiment.");
             // ORK can rename actors to their combatant asset name ("Default").
@@ -1721,6 +1730,124 @@ namespace Rpg.Soundwell
                         glyphs++;
                 }
             return glyphs;
+        }
+
+        private static void RequireAuthoredSoundwellArt(SoundwellTrial trial)
+        {
+            const string artRoot = "Assets/Game/Art/";
+            const string characters = artRoot + "Characters/return_characters_sheet.png";
+            const string tiles = artRoot + "Soundwell/soundwell_tileset.png";
+            const string rescue = artRoot + "Soundwell/soundwell_rescue_action_frames.png";
+            SpriteRenderer[] sprites = SceneSprites(trial).ToArray();
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell player silhouette"), characters,
+                "ferry_guide_idle");
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell beast"), characters,
+                "sound_borrowing_beast_idle");
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell trapped surveyor"), rescue,
+                "surveyor_trapped");
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell entrance bell stand"), tiles, "bell_frame");
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell side bell stand"), tiles, "bell_frame");
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell stone floor 0,0"), tiles, "stone_floor");
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell copper bell"), TrialProps,
+                "soundwell_copper_bell");
+            RequireAuthoredSprite(FindSprite(sprites, "Soundwell unsafe lower plank"), TrialCrossings,
+                "soundwell_weak_plank_intact");
+        }
+
+        private static IEnumerable<SpriteRenderer> SceneSprites(SoundwellTrial trial) =>
+            trial.gameObject.scene.GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<SpriteRenderer>(true));
+
+        private static SpriteRenderer FindSprite(IEnumerable<SpriteRenderer> sprites, string objectName) =>
+            sprites.SingleOrDefault(renderer => renderer.gameObject.name == objectName);
+
+        private static void RequireAuthoredSprite(SpriteRenderer renderer, string assetPath,
+            string spriteName)
+        {
+            Sprite sprite = renderer != null ? renderer.sprite : null;
+            Require(renderer != null && renderer.enabled && renderer.gameObject.activeInHierarchy &&
+                sprite != null && sprite.name == spriteName &&
+                UnityEditor.AssetDatabase.GetAssetPath(sprite) == assetPath &&
+                sprite.pixelsPerUnit == 16f && sprite.texture != null &&
+                sprite.texture.filterMode == FilterMode.Point,
+                $"The live {renderer?.name ?? "(missing renderer)"} must render " +
+                $"the authored {spriteName} sprite from {assetPath}.");
+        }
+
+        public static void CaptureWhitewater(WhitewaterPrelude prelude, string stage)
+        {
+            var canvas = prelude.GetComponentsInChildren<Canvas>(true).SingleOrDefault(
+                candidate => candidate.gameObject.name == "S00 Whitewater playable canvas");
+            CaptureStoryCanvas(canvas, stage);
+        }
+
+        public static void CaptureStoryCanvas(Canvas canvas, string stage)
+        {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                return;
+
+            Require(canvas != null && canvas.isActiveAndEnabled &&
+                canvas.renderMode == RenderMode.ScreenSpaceOverlay,
+                $"GameView evidence must come from the live story canvas: {stage}");
+
+            // Use the real runtime UGUI canvas. Temporarily present it on an
+            // evidence camera because an overlay is omitted by Camera.Render().
+            const int width = 960;
+            const int height = 540;
+            var cameraObject = new GameObject("Story UI evidence camera", typeof(Camera));
+            var camera = cameraObject.GetComponent<Camera>();
+            camera.enabled = false;
+            var target = RenderTexture.GetTemporary(width, height, 24);
+            var previousActive = RenderTexture.active;
+            var previousMode = canvas.renderMode;
+            var previousCamera = canvas.worldCamera;
+            float previousPlane = canvas.planeDistance;
+            var frame = new Texture2D(width, height, TextureFormat.RGB24, false);
+
+            try
+            {
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = Color.black;
+                camera.cullingMask = 1 << canvas.gameObject.layer;
+                camera.orthographic = true;
+                camera.transform.position = new Vector3(0f, 0f, -10f);
+                camera.targetTexture = target;
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = camera;
+                canvas.planeDistance = 1f;
+                Canvas.ForceUpdateCanvases();
+                camera.Render();
+
+                RenderTexture.active = target;
+                frame.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                frame.Apply();
+                var colors = frame.GetPixels32().Where((_, index) => index % 173 == 0).Distinct();
+                Require(colors.Take(7).Count() == 7,
+                    $"The GameView capture was blank or incomplete: {stage}");
+                const string directory = "artifacts/p0/story";
+                Directory.CreateDirectory(directory);
+                File.WriteAllBytes(Path.Combine(directory, stage + ".png"), frame.EncodeToPNG());
+            }
+            finally
+            {
+                canvas.renderMode = previousMode;
+                canvas.worldCamera = previousCamera;
+                canvas.planeDistance = previousPlane;
+                camera.targetTexture = null;
+                RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
+                if (Application.isPlaying)
+                {
+                    Destroy(frame);
+                    Destroy(cameraObject);
+                }
+                else
+                {
+                    DestroyImmediate(frame);
+                    DestroyImmediate(cameraObject);
+                }
+                Canvas.ForceUpdateCanvases();
+            }
         }
 
         public static byte[] Capture(SoundwellTrial trial, string stage,

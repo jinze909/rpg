@@ -12,7 +12,7 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Builds the actual three-member ORK party for the Soundwell scene.
     /// The leader remains the exploration controller; the two visible
-    /// placeholders follow in formation and all three belong to one ORK group.
+    /// companions follow in formation and all three belong to one ORK group.
     /// </summary>
     // Explicit ORK readiness drives movement and formation; no update-order hack.
     public class OrkPartyBridge : MonoBehaviour
@@ -178,13 +178,13 @@ namespace Rpg.Soundwell
             ConfigureCombatant(leader.gameObject, playerFaction);
             actors.Add(leader.gameObject);
 
-            GameObject second = formation.CreateFollower(1, "PLACEHOLDER Rescuer 2",
-                config.SecondFollowerOffset, new Color(0.95f, 0.72f, 0.34f));
+            GameObject second = formation.CreateFollower(1, "Soundwell Rescuer 2",
+                config.SecondFollowerOffset, Color.white);
             AddCombatant secondOrk = second.AddComponent<AddCombatant>();
             second.SetActive(true);
             ConfigureCombatant(secondOrk, playerFaction);
-            GameObject third = formation.CreateFollower(2, "PLACEHOLDER Rescuer 3",
-                config.ThirdFollowerOffset, new Color(0.43f, 0.72f, 0.96f));
+            GameObject third = formation.CreateFollower(2, "Soundwell Rescuer 3",
+                config.ThirdFollowerOffset, Color.white);
             AddCombatant thirdOrk = third.AddComponent<AddCombatant>();
             third.SetActive(true);
             ConfigureCombatant(thirdOrk, playerFaction);

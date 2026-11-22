@@ -13,144 +13,6 @@ namespace Rpg.Soundwell
         // Only the pose clock is unscaled; actual ORK turns stay in ORK.
         private static float FormationClock => Time.time;
         private static float CombatVisualClock => Time.unscaledTime;
-        private static readonly string[] IdlePixels =
-        {
-            "................",
-            ".....######.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            "......####......",
-            "...##########...",
-            "..#+#######+#...",
-            "..#+#######+#...",
-            ".....######.....",
-            ".....######.....",
-            ".....##..##.....",
-            ".....##..##.....",
-            "....###..###....",
-            "....###..###....",
-            "................",
-        };
-
-        private static readonly string[] WalkPixels =
-        {
-            "................",
-            ".....######.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            "......####......",
-            "...##########...",
-            "..###+######....",
-            "..###+######....",
-            ".....######.....",
-            ".....######.....",
-            "....###..##.....",
-            "...###...##.....",
-            "..###.....##....",
-            "..##.......##...",
-            "................",
-        };
-        // Distinct 16-pixel attack silhouette: a forward-reaching arm, not
-        // a stretched rectangle or a gameplay-position change.
-        private static readonly string[] AttackPixels =
-        {
-            "................",
-            ".....######.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            ".....#++++#.....",
-            "......####......",
-            "...############.",
-            "..#+######++++#.",
-            "..#+######++++#.",
-            ".....######.....",
-            ".....######.....",
-            ".....##..##.....",
-            ".....##..##.....",
-            "....###..###....",
-            "....###..###....",
-            "................",
-        };
-        // Rescuer 3's hood and asymmetric kit remain visible even with
-        // identical team colors. Three authored strict 16x16 poses match the
-        // existing idle/walk/attack cadence without changing ORK abilities.
-        private static readonly string[] HoodIdlePixels =
-        {
-            "................",
-            "....########....",
-            "....##++++##....",
-            "....##++++##....",
-            "....###++###....",
-            ".....######.....",
-            "...##########...",
-            "..##+#####+##...",
-            "..##+#####+##...",
-            "...##########...",
-            "....#######.....",
-            ".....###.##.....",
-            ".....###.##.....",
-            "....####.###....",
-            "....###...###...",
-            "................",
-        };
-        private static readonly string[] HoodWalkPixels =
-        {
-            "................",
-            "....########....",
-            "....##++++##....",
-            "....##++++##....",
-            "....###++###....",
-            ".....######.....",
-            "...##########...",
-            "..###+####+##...",
-            "..###+####+##...",
-            "...##########...",
-            "....#######.....",
-            "....###..##.....",
-            "...###...###....",
-            "..###.....###...",
-            "..##.......##...",
-            "................",
-        };
-        private static readonly string[] HoodAttackPixels =
-        {
-            "................",
-            "....########....",
-            "....##++++##....",
-            "....##++++##....",
-            "....###++###....",
-            ".....######.....",
-            "...############.",
-            "..##+#####++++#.",
-            "..##+#####++++#.",
-            "...##########...",
-            "....#######.....",
-            ".....###.##.....",
-            ".....###.##.....",
-            "....####.###....",
-            "....###...###...",
-            "................",
-        };
-        // Retain the distinct hood and torso of each rescuer while raising a
-        // pixel-size shield. Only ORK's live Battle.Defending selects this pose.
-        // No separate combat state or additional controller is introduced.
-        private static string[] WithGuardShield(string[] idleRows)
-        {
-            var guarded = (string[])idleRows.Clone();
-            for (int y = 6; y <= 10; y++)
-            {
-                char[] pixels = guarded[y].ToCharArray();
-                pixels[0] = y == 6 || y == 10 ? '.' : '#';
-                pixels[1] = '#';
-                pixels[2] = y >= 7 && y <= 9 ? '+' : '#';
-                pixels[3] = '#';
-                guarded[y] = new string(pixels);
-            }
-            return guarded;
-        }
-
         private const float CompanionAttackPoseSeconds = 0.30f;
         private const float CompanionGuardPoseSeconds = 0.80f;
         private const float CompanionStepPoseSeconds = 0.38f;
@@ -195,22 +57,14 @@ namespace Rpg.Soundwell
         }
         private bool checkpointRegroupPending;
         private Vector3 checkpointAnchor;
-        private Sprite placeholderSprite;
-        private Texture2D placeholderTexture;
+        private Sprite riggerIdleSprite;
         private Sprite walkingSprite;
-        private Texture2D walkingTexture;
         private Sprite attackSprite;
-        private Texture2D attackTexture;
         private Sprite guardSprite;
-        private Texture2D guardTexture;
         private Sprite hoodIdleSprite;
-        private Texture2D hoodIdleTexture;
         private Sprite hoodWalkingSprite;
-        private Texture2D hoodWalkingTexture;
         private Sprite hoodAttackSprite;
-        private Texture2D hoodAttackTexture;
         private Sprite hoodGuardSprite;
-        private Texture2D hoodGuardTexture;
 
         private Transform leader;
         // Rigidbody2D.position is the gameplay position during an immediate
@@ -235,23 +89,17 @@ namespace Rpg.Soundwell
             for (int i = 0; i < followerRenderers.Length; i++)
                 followerRenderers[i] = null;
             RecordLeader();
-            placeholderSprite = CreatePixelRescuerSprite(
-                IdlePixels, "PLACEHOLDER 16px Soundwell rescuer idle", out placeholderTexture);
-            walkingSprite = CreatePixelRescuerSprite(
-                WalkPixels, "PLACEHOLDER 16px Soundwell rescuer walking", out walkingTexture);
-            attackSprite = CreatePixelRescuerSprite(
-                AttackPixels, "PLACEHOLDER 16px Soundwell rescuer attack", out attackTexture);
-            guardSprite = CreatePixelRescuerSprite(
-                WithGuardShield(IdlePixels), "PLACEHOLDER 16px rescuer guard shield", out guardTexture);
-            hoodIdleSprite = CreatePixelRescuerSprite(
-                HoodIdlePixels, "PLACEHOLDER 16px hooded rescuer idle", out hoodIdleTexture);
-            hoodWalkingSprite = CreatePixelRescuerSprite(
-                HoodWalkPixels, "PLACEHOLDER 16px hooded rescuer walking", out hoodWalkingTexture);
-            hoodAttackSprite = CreatePixelRescuerSprite(
-                HoodAttackPixels, "PLACEHOLDER 16px hooded rescuer attack", out hoodAttackTexture);
-            hoodGuardSprite = CreatePixelRescuerSprite(
-                WithGuardShield(HoodIdlePixels), "PLACEHOLDER 16px hooded rescuer guard shield",
-                out hoodGuardTexture);
+            var art = RpgPixelArtManifest.LoadDefault();
+            if (art == null)
+                throw new System.InvalidOperationException("The authored Soundwell companion art manifest is missing.");
+            riggerIdleSprite = art.RescueRiggerIdle;
+            walkingSprite = art.RescueRiggerWalk1;
+            attackSprite = art.RescueRiggerSideIdle;
+            guardSprite = art.RescueRiggerSideBrace;
+            hoodIdleSprite = art.FerryGuideSideIdle;
+            hoodWalkingSprite = art.FerryGuideSideWalk1;
+            hoodAttackSprite = art.S00PlayerSlash;
+            hoodGuardSprite = art.S00PlayerHold;
         }
 
         public GameObject CreateFollower(int index, string name, Vector2 offset, Color tint)
@@ -262,7 +110,7 @@ namespace Rpg.Soundwell
             actor.transform.position = LeaderPosition + WorldFormationOffset(offset);
             actor.transform.localScale = Vector3.one;
             var renderer = actor.AddComponent<SpriteRenderer>();
-            renderer.sprite = index == 2 ? hoodIdleSprite : placeholderSprite;
+            renderer.sprite = index == 2 ? hoodIdleSprite : riggerIdleSprite;
             renderer.color = tint;
             companionTints[index] = tint;
             renderer.sortingOrder = 3;
@@ -310,7 +158,7 @@ namespace Rpg.Soundwell
                     i == 2 ? config.ThirdFollowerOffset : config.SecondFollowerOffset);
                 var renderer = followerRenderers[i];
                 if (renderer != null)
-                    renderer.sprite = i == 2 ? hoodIdleSprite : placeholderSprite;
+                    renderer.sprite = i == 2 ? hoodIdleSprite : riggerIdleSprite;
             }
         }
 
@@ -382,7 +230,7 @@ namespace Rpg.Soundwell
                 if (actor == null) continue;
                 SpriteRenderer renderer = followerRenderers[i];
                 if (renderer == null) continue;
-                Sprite idle = i == 2 ? hoodIdleSprite : placeholderSprite;
+                Sprite idle = i == 2 ? hoodIdleSprite : riggerIdleSprite;
                 Sprite walking = i == 2 ? hoodWalkingSprite : walkingSprite;
                 // Reuse the real ORK actor's existing sprite; a flash never
                 // duplicates the combatant or modifies its authoritative HP.
@@ -452,7 +300,7 @@ namespace Rpg.Soundwell
             // Transform catches up. Face the actual encounter target, not
             // the stale sprite location after a scene-owned instant move.
             float dx = ThreatPhysicsX(threat) - actors[index].transform.position.x;
-            if (Mathf.Abs(dx) > 0.01f) renderer.flipX = dx > 0f;
+            if (Mathf.Abs(dx) > 0.01f) renderer.flipX = dx < 0f;
         }
 
         public void ShowAttackPose(int index, Transform threat)
@@ -508,51 +356,6 @@ namespace Rpg.Soundwell
                 if (visual != null)
                     visual.color = companionTints[i];
             }
-        }
-
-        // A real 16-PPU, point-filtered pixel silhouette, not a stretched
-        // white 1x1 texture. Tint is applied by the SpriteRenderer, so both
-        // rescue followers share one owned sprite and texture per scene.
-        private static Sprite CreatePixelRescuerSprite(
-            string[] rows, string name, out Texture2D texture)
-        {
-            return SoundwellPixelSpriteBuilder.Create16(rows, name, out texture);
-        }
-
-        private void OnDestroy()
-        {
-            if (placeholderSprite != null)
-                Destroy(placeholderSprite);
-            if (placeholderTexture != null)
-                Destroy(placeholderTexture);
-            if (walkingSprite != null)
-                Destroy(walkingSprite);
-            if (walkingTexture != null)
-                Destroy(walkingTexture);
-            if (attackSprite != null)
-                Destroy(attackSprite);
-            if (attackTexture != null)
-                Destroy(attackTexture);
-            if (guardSprite != null)
-                Destroy(guardSprite);
-            if (guardTexture != null)
-                Destroy(guardTexture);
-            if (hoodIdleSprite != null)
-                Destroy(hoodIdleSprite);
-            if (hoodIdleTexture != null)
-                Destroy(hoodIdleTexture);
-            if (hoodWalkingSprite != null)
-                Destroy(hoodWalkingSprite);
-            if (hoodWalkingTexture != null)
-                Destroy(hoodWalkingTexture);
-            if (hoodAttackSprite != null)
-                Destroy(hoodAttackSprite);
-            if (hoodAttackTexture != null)
-                Destroy(hoodAttackTexture);
-            if (hoodGuardSprite != null)
-                Destroy(hoodGuardSprite);
-            if (hoodGuardTexture != null)
-                Destroy(hoodGuardTexture);
         }
     }
 }

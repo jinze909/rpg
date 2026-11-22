@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Rpg.Soundwell
 {
     /// <summary>
-    /// Presentation only: one Animator drives the whole placeholder silhouette
+    /// Presentation only: one Animator drives the whole authored silhouette
     /// and face, never the Rigidbody2D, ORK combatant, or gameplay state.
     /// Exploration and encounter events select its authored Unity clips.
     /// </summary>
@@ -22,7 +22,7 @@ namespace Rpg.Soundwell
         public void Initialize()
         {
             if (animator != null || GetComponent<Animator>() != null)
-                throw new InvalidOperationException("The player placeholder must have exactly one Animator.");
+                throw new InvalidOperationException("The Soundwell player presentation must have exactly one Animator.");
 
             var controller = Resources.Load<RuntimeAnimatorController>("Soundwell/PlaceholderPlayer");
             if (controller == null)
@@ -32,7 +32,7 @@ namespace Rpg.Soundwell
             animator.runtimeAnimatorController = controller;
             animator.applyRootMotion = false;
             // ORK may suspend Time.timeScale while a turn resolves. The
-            // placeholder's short action/hit clips are feedback, not combat
+            // short action/hit clips are feedback, not combat
             // timing, so keep them playing during a paused battle clock.
             animator.updateMode = AnimatorUpdateMode.UnscaledTime;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;

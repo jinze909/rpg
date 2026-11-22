@@ -1,10 +1,16 @@
 fileFormatVersion: 2
-guid: 4df6d74a03c47fdd596736c18e79d8dc
+guid: 2ac9a640eed55d9eba752e310bff83ff
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -6115630448265522991
-    second: GratingBase_0
+      213: -1708577594988343451
+    second: soundwell_upper_load_bearing_plank
+  - first:
+      213: 7037778818758741069
+    second: soundwell_weak_plank_intact
+  - first:
+      213: -7956289423496824352
+    second: soundwell_weak_plank_broken
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -48,12 +54,12 @@ TextureImporter:
   compressionQuality: 50
   spriteMode: 2
   spriteExtrude: 1
-  spriteMeshType: 1
+  spriteMeshType: 0
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 16
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
-  spriteGenerateFallbackPhysicsShape: 1
+  spriteGenerateFallbackPhysicsShape: 0
   alphaUsage: 1
   alphaIsTransparency: 1
   spriteTessellationMethod: 0
@@ -90,7 +96,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -102,44 +108,90 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: GratingBase_0
+      name: soundwell_upper_load_bearing_plank
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 16
-        height: 16
+        width: 26
+        height: 6
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
+      customData:
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 1d01291628ae02ba0800000000000000
-      internalID: -6115630448265522991
+      spriteID: 56f4783dab9e948e0800000000000000
+      internalID: -1708577594988343451
       vertices: []
-      indices: 
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: soundwell_weak_plank_intact
+      rect:
+        serializedVersion: 2
+        x: 26
+        y: 0
+        width: 26
+        height: 6
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d4c02e34c863ba160800000000000000
+      internalID: 7037778818758741069
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: soundwell_weak_plank_broken
+      rect:
+        serializedVersion: 2
+        x: 52
+        y: 0
+        width: 26
+        height: 6
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e9364e6ce4959190800000000000000
+      internalID: -7956289423496824352
+      vertices: []
+      indices:
       edges: []
       weights: []
     outline: []
-    customData: 
+    customData:
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID:
     internalID: 0
     vertices: []
-    indices: 
+    indices:
     edges: []
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      GratingBase_0: -6115630448265522991
-  mipmapLimitGroupName: 
+      soundwell_upper_load_bearing_plank: -1708577594988343451
+      soundwell_weak_plank_intact: 7037778818758741069
+      soundwell_weak_plank_broken: -7956289423496824352
+  mipmapLimitGroupName:
   pSDRemoveMatte: 0
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
+  userData:
+  assetBundleName:
+  assetBundleVariant:

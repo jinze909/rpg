@@ -12,7 +12,7 @@ namespace Rpg.Editor
 {
     /// <summary>
     /// M5: Author the Soundwell's real solid walls as a SAVED scene Tilemap.
-    /// Unity Editor creates the RuleTile, texture/sprite imports, collider,
+    /// Unity Editor creates the RuleTile, collider,
     /// and Scene YAML; clean verification reads all of them without repairs.
     /// The central gate remains the only runtime-controlled BoxCollider2D.
     /// </summary>
@@ -21,6 +21,7 @@ namespace Rpg.Editor
         private const string ScenePath = "Assets/Game/Scenes/SoundwellTrial.unity";
         private const string Root = "Assets/Game/Resources/Soundwell/Tiles";
         private const string RulePath = Root + "/GratingWall.asset";
+        internal const string WallSpritePath = "Assets/Game/Art/Soundwell/soundwell_tileset.png";
         private const string GridName = "Soundwell solid Tilemap";
         private const float Cell = 0.2f;
 
@@ -51,16 +52,11 @@ namespace Rpg.Editor
             // Otherwise one unsaved editor scene can strand half-created M5
             // resources and make the next Prepare refuse to run.
             RefuseDirtyOpenScenes();
-            if (AssetDatabase.IsValidFolder(Root) ||
-                File.Exists(Root + "/GratingBase.png") ||
-                File.Exists(Root + "/GratingJoined.png"))
-                throw new InvalidOperationException("Partial M5 wall assets found; refusing to overwrite.");
-
-            if (!AssetDatabase.IsValidFolder("Assets/Game/Resources/Soundwell"))
-                throw new InvalidOperationException("M4 game-owned Resources path is missing.");
-            AssetDatabase.CreateFolder("Assets/Game/Resources/Soundwell", "Tiles");
-            Sprite baseSprite = CreateSprite("GratingBase", false);
-            Sprite joinedSprite = CreateSprite("GratingJoined", true);
+            if (File.Exists(RulePath))
+                throw new InvalidOperationException("The saved Soundwell RuleTile exists but could not be loaded.");
+            var (baseSprite, joinedSprite) = LoadWallSprites();
+            if (!AssetDatabase.IsValidFolder(Root))
+                AssetDatabase.CreateFolder("Assets/Game/Resources/Soundwell", "Tiles");
             var rule = ScriptableObject.CreateInstance<RuleTile>();
             rule.name = "Soundwell Grating Rule Tile";
             rule.m_DefaultSprite = baseSprite;
@@ -151,9 +147,9 @@ namespace Rpg.Editor
                 rule.m_TilingRules[0].m_Sprites.Length != 1 ||
                 rule.m_TilingRules[0].m_Sprites[0] == null)
                 throw new InvalidOperationException("M5 must have a persisted, configured solid Rule Tile.");
-            if (AssetDatabase.GetAssetPath(rule.m_DefaultSprite) != Root + "/GratingBase.png" ||
-                AssetDatabase.GetAssetPath(rule.m_TilingRules[0].m_Sprites[0]) != Root + "/GratingJoined.png")
-                throw new InvalidOperationException("Rule Tile references an unsaved or foreign sprite.");
+            var (baseSprite, joinedSprite) = LoadWallSprites();
+            if (rule.m_DefaultSprite != baseSprite || rule.m_TilingRules[0].m_Sprites[0] != joinedSprite)
+                throw new InvalidOperationException("The wall RuleTile must use the authored vent and wall top slices.");
 
             // A saved wall can contain every correct cell yet become
             // non-solid or blurry when its joined rule/sprite import drifts.
@@ -164,8 +160,6 @@ namespace Rpg.Editor
                 joinedRule.m_Output != RuleTile.TilingRuleOutput.OutputSprite.Single)
                 throw new InvalidOperationException(
                     "M5 joined wall rule must remain one solid sprite.");
-            VerifyPixelWallSprite(rule.m_DefaultSprite, Root + "/GratingBase.png");
-            VerifyPixelWallSprite(joinedRule.m_Sprites[0], Root + "/GratingJoined.png");
 
             // Validate the saved scene without closing an editor scene
             // that a level designer already has open. Dirty loaded scenes
@@ -277,37 +271,14 @@ namespace Rpg.Editor
                 map.SetTile(cell, tile);
         }
 
-        private static Sprite CreateSprite(string name, bool joined)
+        internal static (Sprite Base, Sprite Joined) LoadWallSprites()
         {
-            const int side = 16;
-            var texture = new Texture2D(side, side, TextureFormat.RGBA32, false);
-            for (int y = 0; y < side; y++)
-            {
-                for (int x = 0; x < side; x++)
-                {
-                    bool metal = x == 0 || y == 0 || y == side - 1 ||
-                        (joined ? y == 7 || y == 8 : x == 7 || x == 8);
-                    texture.SetPixel(x, y, metal ?
-                        new Color(0.38f, 0.53f, 0.57f) :
-                        new Color(0.23f, 0.34f, 0.40f));
-                }
-            }
-            texture.Apply();
-            string path = Root + "/" + name + ".png";
-            File.WriteAllBytes(path, texture.EncodeToPNG());
-            UnityEngine.Object.DestroyImmediate(texture);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
-            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
-            importer.textureType = TextureImporterType.Sprite;
-            importer.spritePixelsPerUnit = side;
-            importer.filterMode = FilterMode.Point;
-            importer.textureCompression = TextureImporterCompression.Uncompressed;
-            importer.mipmapEnabled = false;
-            importer.SaveAndReimport();
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
-            if (sprite == null)
-                throw new InvalidOperationException("Failed to import game-owned M5 wall sprite: " + path);
-            return sprite;
+            var slices = AssetDatabase.LoadAllAssetsAtPath(WallSpritePath).OfType<Sprite>().ToArray();
+            var baseSprite = slices.SingleOrDefault(sprite => sprite.name == "wall_vent");
+            var joinedSprite = slices.SingleOrDefault(sprite => sprite.name == "wall_top");
+            VerifyPixelWallSprite(baseSprite, WallSpritePath);
+            VerifyPixelWallSprite(joinedSprite, WallSpritePath);
+            return (baseSprite, joinedSprite);
         }
     }
 }

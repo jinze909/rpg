@@ -782,7 +782,7 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.DirectCombatStarted, Is.True);
 
             var attack = GameObject.Find("Soundwell Attack button")?.GetComponent<Button>();
-            var visual = GameObject.Find("PLACEHOLDER animated player")
+            var visual = GameObject.Find("Soundwell animated player")
                 ?.GetComponent<SoundwellPlayerVisualAnimation>();
             Assert.That(attack, Is.Not.Null);
             Assert.That(visual, Is.Not.Null);
@@ -970,16 +970,17 @@ namespace Rpg.Tests.Editor
             // saved M4 Hit animation and pushes the leader to the existing
             // lower-board recovery tile. It must not grant rescue/ORK victory
             // or silently close the already earned gate.
-            var plankHitVisual = GameObject.Find("PLACEHOLDER animated player")
+            var plankHitVisual = GameObject.Find("Soundwell animated player")
                 ?.GetComponent<SoundwellPlayerVisualAnimation>();
             Assert.That(plankHitVisual, Is.Not.Null);
-            var weakPlank = GameObject.Find("PLACEHOLDER unsafe lower plank")
+            var weakPlank = GameObject.Find("Soundwell unsafe lower plank")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(weakPlank, Is.Not.Null);
             var intactPlankSprite = weakPlank.sprite;
-            Assert.That(intactPlankSprite, Is.Not.Null);
-            Assert.That(intactPlankSprite.texture.width, Is.EqualTo(26));
-            Assert.That(intactPlankSprite.texture.height, Is.EqualTo(6));
+            Assert.That(intactPlankSprite, Is.SameAs(RpgPixelArtManifest.LoadDefault().SoundwellWeakPlank));
+            Assert.That(intactPlankSprite.name, Is.EqualTo("soundwell_weak_plank_intact"));
+            Assert.That(intactPlankSprite.rect.width, Is.EqualTo(26));
+            Assert.That(intactPlankSprite.rect.height, Is.EqualTo(6));
             Assert.That(intactPlankSprite.texture.filterMode, Is.EqualTo(FilterMode.Point));
             Assert.That(intactPlankSprite.pixelsPerUnit, Is.EqualTo(16f));
             Assert.That(weakPlank.transform.localScale, Is.EqualTo(Vector3.one),
@@ -1240,7 +1241,7 @@ namespace Rpg.Tests.Editor
             // The real escort hysteresis must be readable on the actual
             // 16px surveyor, not only in a HUD message. Keep the NPC's route
             // and state under the scene's own movement/refresh logic.
-            var surveyorSprite = GameObject.Find("PLACEHOLDER trapped surveyor")
+            var surveyorSprite = GameObject.Find("Soundwell trapped surveyor")
                 ?.GetComponent<SpriteRenderer>();
             Assert.That(surveyorSprite, Is.Not.Null);
             yield return null;
