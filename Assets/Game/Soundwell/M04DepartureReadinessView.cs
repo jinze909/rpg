@@ -34,6 +34,7 @@ namespace Rpg.Soundwell
         public Text Details => details;
         public Button ConfirmButton => confirm;
         public Button BackButton => back;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M04DepartureReadinessView(Transform parent, M04DepartureManifest initial,
             Action<M04DepartureManifest> onConfirmed, Action onBack)
@@ -76,6 +77,8 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (!HasLiveUi()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
@@ -124,7 +127,7 @@ namespace Rpg.Soundwell
             Refresh();
             try
             {
-                if (!manifest.ConfirmDeparture(onConfirmed))
+                if (!manifest.ConfirmDeparture(onConfirmed) && !disposed)
                     delivered = false;
                 // On successful host acknowledgment the manifest is now
                 // confirmed. Show that state, not the stale "may confirm"
@@ -136,9 +139,11 @@ namespace Rpg.Soundwell
             {
                 // Interrupted Makinom writes are not a successful departure.
                 // The manifest transaction has rolled its in-memory flag back.
-                delivered = false;
                 if (!disposed)
+                {
+                    delivered = false;
                     Refresh();
+                }
                 throw;
             }
         }
@@ -159,8 +164,11 @@ namespace Rpg.Soundwell
             {
                 // If the host could not leave preparations, let the player
                 // retry without creating a second voyage confirmation.
-                navigatingBack = false;
-                Refresh();
+                if (!disposed)
+                {
+                    navigatingBack = false;
+                    Refresh();
+                }
                 throw;
             }
         }
@@ -172,13 +180,18 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return false;
-            if (canvasObject != null && authored != null && heading != null &&
-                details != null && confirmLabel != null && confirm != null &&
-                back != null && backLabel != null)
+            if (!CanvasDestroyed())
                 return true;
 
             Dispose();
             return false;
+        }
+
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || authored == null || heading == null ||
+                details == null || confirmLabel == null || confirm == null ||
+                back == null || backLabel == null;
         }
 
         public void Dispose()
