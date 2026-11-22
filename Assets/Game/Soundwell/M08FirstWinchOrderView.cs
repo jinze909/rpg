@@ -32,6 +32,7 @@ namespace Rpg.Soundwell
         public Button SecondaryButton => choices[1];
         public Button ThirdButton => choices[2];
         public Button FinishButton => finishButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M08FirstWinchOrderView(
             Transform parent,
