@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private readonly Text acknowledgeLabel;
         private readonly Font latinFont;
         private Func<bool> acknowledge;
+        private bool acknowledging;
         private bool delivered;
         private bool disposed;
 
@@ -84,15 +85,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -109,26 +110,46 @@ namespace Rpg.Soundwell
                 : "Five unresolved roster lines are now available:\nRC-01 Chen Yan (cook)   RC-02 Zheng Yuan (scout)\nRC-03 Baiji Mine (27 people)   RC-04 Ding Yue (pilot)\nRC-05 Third Squad (Hao Lie and eleven others)\nChoose any investigation order; available does not mean rescued, boarded or resolved.";
             acknowledgeLabel.text = zh ? "读完告示 · 开放调查"
                                        : "Read notice · Allow investigation";
+            bool canAcknowledge = !delivered && !acknowledging;
             acknowledgeButton.gameObject.SetActive(!delivered);
-            acknowledgeButton.interactable = !delivered;
-            if (!delivered)
+            acknowledgeButton.interactable = canAcknowledge;
+            if (canAcknowledge)
                 SoundwellInputAdapter.KeepDialogFocus(
                     canvasObject.transform, acknowledgeButton);
         }
 
         private void TryAcknowledge()
         {
-            if (disposed || delivered || CanvasDestroyed() ||
+            if (disposed || delivered || acknowledging || IsDestroyedExternally() ||
                 !acknowledgeButton.interactable)
                 return;
 
-            // A declined or interrupted authoritative write leaves the
-            // button available. A write-then-throw can be acknowledged on retry.
-            if (!acknowledge())
-                return;
-            delivered = true;
-            acknowledge = null;
+            // Guard against reentrant submits while keeping declined or
+            // interrupted authoritative writes retryable.
+            acknowledging = true;
             Refresh();
+            var callback = acknowledge;
+            try
+            {
+                if (callback != null && callback())
+                {
+                    delivered = true;
+                    acknowledge = null;
+                }
+            }
+            finally
+            {
+                acknowledging = false;
+                if (!disposed) Refresh();
+            }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed())
+                return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()
