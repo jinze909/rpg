@@ -257,6 +257,8 @@ namespace Rpg.Soundwell
         {
             if (settled)
                 return ReturnRosterCaseState.Settled;
+            if (HasAnyPersistedRosterCaseFacts(caseNumber, getInt))
+                return ReturnRosterCaseState.Locked;
             if (caseNumber == RC02ZhengYuanFacts.RosterCaseNumber &&
                 RC02ZhengYuanFacts.HasOrphanedDownstreamFacts(getInt))
                 return ReturnRosterCaseState.Locked;
@@ -267,6 +269,55 @@ namespace Rpg.Soundwell
                 available)
                 return ReturnRosterCaseState.Available;
             return ReturnRosterCaseState.Locked;
+        }
+
+        private static bool HasAnyPersistedRosterCaseFacts(int caseNumber, Func<string, int> getInt)
+        {
+            switch (caseNumber)
+            {
+                case 1:
+                    return getInt(RC01ChenYanFacts.ConfirmedKey) != 0 ||
+                        getInt(RC01ChenYanFacts.PendingSignatureKey) != 0 ||
+                        getInt(RC01ChenYanFacts.CluesMaskKey) != 0 ||
+                        getInt(RC01ChenYanFacts.TalkOrderKey) != 0 ||
+                        getInt(RC01ChenYanFacts.OutcomeKey) != 0 ||
+                        getInt(RC01ChenYanFacts.LinSuNoteKey) != 0;
+                case 2:
+                    return getInt(RC02ZhengYuanFacts.ConfirmedKey) != 0 ||
+                        getInt(RC02ZhengYuanFacts.PendingSignatureKey) != 0 ||
+                        getInt(RC02ZhengYuanFacts.ChecksMaskKey) != 0 ||
+                        getInt(RC02ZhengYuanFacts.RoofConfessionKey) != 0 ||
+                        getInt(RC02ZhengYuanFacts.ResolutionKey) != 0 ||
+                        getInt(RC02ZhengYuanFacts.MotherCalledKey) != 0 ||
+                        getInt(RC02ZhengYuanFacts.ShiLengConsentedKey) != 0 ||
+                        getInt(RC02ZhengYuanFacts.RealZhengYuanFoundKey) != 0;
+                case 3:
+                    return getInt(RC03BaijiMineFacts.ConfirmedKey) != 0 ||
+                        getInt(RC03BaijiMineFacts.PendingSignatureKey) != 0 ||
+                        getInt(RC03BaijiMineFacts.VisitsMaskKey) != 0 ||
+                        getInt(RC03BaijiMineFacts.ResolutionKey) != 0 ||
+                        getInt(RC03BaijiMineFacts.PumpDiagramKey) != 0 ||
+                        getInt(RC03BaijiMineFacts.SuccessorTrainingKey) != 0 ||
+                        getInt(RC03BaijiMineFacts.LanRuoStayConsentKey) != 0 ||
+                        getInt(RC03BaijiMineFacts.ChairmanLuoNoteKey) != 0;
+                case 4:
+                    return getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
+                        getInt(RC04DingYueReefFacts.PendingSignatureKey) != 0 ||
+                        getInt(RC04DingYueReefFacts.RoundsCompletedKey) != 0 ||
+                        getInt(RC04DingYueReefFacts.AyuanSongUsedKey) != 0 ||
+                        getInt(RC04DingYueReefFacts.ResolutionKey) != 0 ||
+                        getInt(RC04DingYueReefFacts.DecoyPreparedKey) != 0;
+                case 5:
+                    return getInt(RC05ThirdSquadFacts.ConfirmedKey) != 0 ||
+                        getInt(RC05ThirdSquadFacts.PendingSignatureKey) != 0 ||
+                        getInt(RC05ThirdSquadFacts.TrialDeliveryKey) != 0 ||
+                        getInt(RC05ThirdSquadFacts.ResolutionKey) != 0 ||
+                        getInt(RC05ThirdSquadFacts.SkirmishKey) != 0 ||
+                        getInt(RC05ThirdSquadFacts.RealZhengYuanVerifiedKey) != 0 ||
+                        getInt(RC05ThirdSquadFacts.OldWomanStoneMentionedKey) != 0;
+                default:
+                    return false;
+            }
         }
     }
 }
