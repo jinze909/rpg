@@ -75,11 +75,17 @@ namespace Rpg.Soundwell
             if (!M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? m07) || !m07.HasValue)
                 return ReturnMidgameStage.None;
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool depositPaid) || !depositPaid)
-                return ReturnMidgameStage.M08WorkshopOrder;
+                return M08WorkshopDepositFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnMidgameStage.None
+                    : ReturnMidgameStage.M08WorkshopOrder;
             if (!M08FirstWorldNoticeFacts.TryRead(getInt, out bool noticeRead) || !noticeRead)
-                return ReturnMidgameStage.M08FirstWorldNotice;
+                return M08FirstWorldNoticeFacts.HasOrphanedRosterCaseFacts(getInt)
+                    ? ReturnMidgameStage.None
+                    : ReturnMidgameStage.M08FirstWorldNotice;
             if (!M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? m09) || !m09.HasValue)
-                return ReturnMidgameStage.M09BerthTable;
+                return M09BerthTableFacts.HasOrphanedDownstreamFacts(getInt)
+                    ? ReturnMidgameStage.None
+                    : ReturnMidgameStage.M09BerthTable;
             return ReturnMidgameStage.ReadyForActThree;
         }
 
@@ -90,7 +96,8 @@ namespace Rpg.Soundwell
                 return false;
             if (!M08WorkshopDepositFacts.TryRead(getInt, out bool depositPaid) || !depositPaid)
                 return false;
-            return getInt(M08DockTruthFacts.ConfirmedKey) == 0;
+            return getInt(M08DockTruthFacts.ConfirmedKey) == 0 &&
+                getInt(M08DockTruthFacts.ShenRelationResponseKey) == 0;
         }
 
         public bool TryOpenOptionalDockTruth()
