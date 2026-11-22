@@ -24,7 +24,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public RC03BaijiMineSession Session => session;
-        public RC03BaijiMineView ActiveView => activeView;
+        public RC03BaijiMineView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsResolved =>
             RC03BaijiMineFacts.TryRead(getInt, out RC03BaijiMineRecord? saved) &&
@@ -54,7 +55,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !onBaijiIsland() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null || !onBaijiIsland() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -88,7 +95,8 @@ namespace Rpg.Soundwell
 
         private void HandleResolutionSubmitted(RC03Resolution resolution)
         {
-            if (disposed || session == null || !onBaijiIsland() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !onBaijiIsland() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
                 return;
@@ -104,7 +112,7 @@ namespace Rpg.Soundwell
             if (!session.TrySettleResolution(resolution, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
             openedArrivalSequence = null;
         }
