@@ -28,7 +28,7 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Fail-closed runtime snapshot of the player's verified main-story chapter
     /// (M07-M16), all five roster cases (RC-01..RC-05), permanent regional tales
-    /// (ST-02, ST-03, ST-05), voyage-bound ST-06 homecoming, and eligible M16
+    /// (ST-01, ST-02, ST-03, ST-05), voyage-bound ST-06 homecoming, and eligible M16
     /// epilogue letters derived strictly from verified Makinom facts.
     /// </summary>
     public readonly struct ReturnStoryProgressSnapshot
@@ -49,7 +49,8 @@ namespace Rpg.Soundwell
             ST03BathhouseRecord? st03Record,
             ST05TwoDoorsOutcome? st05Outcome,
             ST06HomecomingRecord? st06Record,
-            M16DeliveredLettersFlags eligibleEpilogueLetters)
+            M16DeliveredLettersFlags eligibleEpilogueLetters,
+            ST01RegionalOutcome? st01Outcome = null)
         {
             ActiveChapter = activeChapter;
             RC01State = rc01State;
@@ -62,6 +63,7 @@ namespace Rpg.Soundwell
             RC04Record = rc04Record;
             RC05State = rc05State;
             RC05Record = rc05Record;
+            ST01Outcome = st01Outcome;
             ST02Record = st02Record;
             ST03Record = st03Record;
             ST05Outcome = st05Outcome;
@@ -80,6 +82,7 @@ namespace Rpg.Soundwell
         public RC04ReefRecord? RC04Record { get; }
         public ReturnRosterCaseState RC05State { get; }
         public RC05ThirdSquadRecord? RC05Record { get; }
+        public ST01RegionalOutcome? ST01Outcome { get; }
         public ST02RiverLanternsRecord? ST02Record { get; }
         public ST03BathhouseRecord? ST03Record { get; }
         public ST05TwoDoorsOutcome? ST05Outcome { get; }
@@ -94,6 +97,7 @@ namespace Rpg.Soundwell
             (RC05State == ReturnRosterCaseState.Settled ? 1 : 0);
 
         public int SettledRegionalStoryCount =>
+            (ST01Outcome.HasValue && ST01Outcome.Value.Theater.HasValue ? 1 : 0) +
             (ST02Record.HasValue ? 1 : 0) +
             (ST03Record.HasValue ? 1 : 0) +
             (ST05Outcome.HasValue ? 1 : 0) +
@@ -104,7 +108,7 @@ namespace Rpg.Soundwell
     /// Unified story-progress reader and full downstream voyage-reset coordinator
     /// for Return ("归来"). Reads verified Makinom facts without trusting raw flags
     /// and resets all voyage-bound chapters (M06-M16, RC-01..RC-05, ST-06) in
-    /// marker-first order while preserving permanent regional stories (ST-02, ST-03, ST-05).
+    /// marker-first order while preserving permanent regional stories (ST-01, ST-02, ST-03, ST-05).
     /// </summary>
     public static class ReturnStoryLedger
     {
@@ -142,6 +146,11 @@ namespace Rpg.Soundwell
                 RC05ThirdSquadFacts.RosterCaseNumber, getInt,
                 RC05ThirdSquadFacts.TryRead(getInt, out RC05ThirdSquadRecord? rc05) && rc05.HasValue);
 
+            ST01RegionalOutcome? st01 =
+                ST01RegionalStoryFacts.TryRead(getInt, out ST01RegionalOutcome st01Outcome) &&
+                (st01Outcome.Departure.HasValue || st01Outcome.Theater.HasValue)
+                    ? (ST01RegionalOutcome?)st01Outcome
+                    : null;
             ST02RiverLanternsFacts.TryRead(getInt, out ST02RiverLanternsRecord? st02);
             ST03BathhouseFacts.TryRead(getInt, out ST03BathhouseRecord? st03);
             ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsOutcome? st05);
@@ -158,7 +167,8 @@ namespace Rpg.Soundwell
                 rc04State, rc04,
                 rc05State, rc05,
                 st02, st03, st05, st06,
-                eligibleLetters);
+                eligibleLetters,
+                st01);
             return true;
         }
 
@@ -173,7 +183,7 @@ namespace Rpg.Soundwell
         /// Invalidates every voyage-bound public confirmation marker across
         /// M06-M16, RC-01..RC-05, and ST-06 BEFORE clearing individual fields,
         /// so even a torn write mid-reset cannot leave stale downstream chapters
-        /// readable. Permanent regional tales (ST-02, ST-03, ST-05) are preserved.
+        /// readable. Permanent regional tales (ST-01, ST-02, ST-03, ST-05) are preserved.
         /// </summary>
         public static bool TryResetAllDownstreamVoyageFacts(Action<string, int> setInt)
         {

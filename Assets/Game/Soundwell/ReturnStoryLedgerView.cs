@@ -14,7 +14,7 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Bottom-anchored safe-region UGUI Story Ledger panel for Return ("归来").
     /// Displays the live verified main-story objective (M07-M16), all five roster
-    /// cases (RC-01..RC-05), and regional tales (ST-02, ST-03, ST-05, ST-06) with
+    /// cases (RC-01..RC-05), and regional tales (ST-01, ST-02, ST-03, ST-05, ST-06) with
     /// tab switching, ZH/EN localization, and viewport aspect scaling.
     /// </summary>
     public sealed class ReturnStoryLedgerView : IDisposable
@@ -160,8 +160,8 @@ namespace Rpg.Soundwell
                 ? $"名册五案 ({snapshot.SettledRosterCaseCount}/5)"
                 : $"Roster Cases ({snapshot.SettledRosterCaseCount}/5)";
             tabLabels[2].text = zh
-                ? $"地方故事 ({snapshot.SettledRegionalStoryCount}/4)"
-                : $"Regional Tales ({snapshot.SettledRegionalStoryCount}/4)";
+                ? $"地方故事 ({snapshot.SettledRegionalStoryCount}/5)"
+                : $"Regional Tales ({snapshot.SettledRegionalStoryCount}/5)";
 
             for (int i = 0; i < tabButtons.Length; i++)
                 tabButtons[i].interactable = (int)activeTab != i;
@@ -189,8 +189,8 @@ namespace Rpg.Soundwell
         {
             string stage = FormatChapterName(snapshot.ActiveChapter, zh);
             return zh
-                ? $"当前主线阶段：{stage}\n已结名册案件：{snapshot.SettledRosterCaseCount}/5 ｜ 已结地方故事：{snapshot.SettledRegionalStoryCount}/4"
-                : $"Current Main Chapter: {stage}\nSettled Roster Cases: {snapshot.SettledRosterCaseCount}/5 | Settled Regional Tales: {snapshot.SettledRegionalStoryCount}/4";
+                ? $"当前主线阶段：{stage}\n已结名册案件：{snapshot.SettledRosterCaseCount}/5 ｜ 已结地方故事：{snapshot.SettledRegionalStoryCount}/5"
+                : $"Current Main Chapter: {stage}\nSettled Roster Cases: {snapshot.SettledRosterCaseCount}/5 | Settled Regional Tales: {snapshot.SettledRegionalStoryCount}/5";
         }
 
         private string FormatRosterCasesBody(bool zh)
@@ -206,10 +206,11 @@ namespace Rpg.Soundwell
         {
             string done = zh ? "已落盘" : "Settled";
             string open = zh ? "未完成" : "Pending";
+            bool st01Done = snapshot.ST01Outcome.HasValue && snapshot.ST01Outcome.Value.Theater.HasValue;
             return zh
-                ? $"ST-02 两盏河灯：{(snapshot.ST02Record.HasValue ? done : open)} ｜ ST-03 第三声钟澡堂：{(snapshot.ST03Record.HasValue ? done : open)}\n" +
+                ? $"ST-01 镜湾戏院：{(st01Done ? done : open)} ｜ ST-02 两盏河灯：{(snapshot.ST02Record.HasValue ? done : open)} ｜ ST-03 第三声钟澡堂：{(snapshot.ST03Record.HasValue ? done : open)}\n" +
                   $"ST-05 两扇门乔迁宴：{(snapshot.ST05Outcome.HasValue ? done : open)} ｜ ST-06 陶霁返乡：{(snapshot.ST06Record.HasValue ? done : open)}"
-                : $"ST-02 River Lanterns: {(snapshot.ST02Record.HasValue ? done : open)} | ST-03 Bathhouse: {(snapshot.ST03Record.HasValue ? done : open)}\n" +
+                : $"ST-01 Jingwan Theater: {(st01Done ? done : open)} | ST-02 River Lanterns: {(snapshot.ST02Record.HasValue ? done : open)} | ST-03 Bathhouse: {(snapshot.ST03Record.HasValue ? done : open)}\n" +
                   $"ST-05 Two Doors: {(snapshot.ST05Outcome.HasValue ? done : open)} | ST-06 Tao Ji: {(snapshot.ST06Record.HasValue ? done : open)}";
         }
 
