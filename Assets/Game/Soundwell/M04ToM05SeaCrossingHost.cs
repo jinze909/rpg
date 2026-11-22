@@ -8,6 +8,7 @@ namespace Rpg.Soundwell
     {
         CastOff,
         FogPassage,
+        LandingObservation,
         OuterHarbor,
         FogFailed,
         Completed
@@ -30,11 +31,15 @@ namespace Rpg.Soundwell
         // Read actual dock observations when the voyage reaches shore, not
         // at pre-departure setup. The owning scene remains the authority.
         private readonly Func<M05LandingReport?> observeLandingAtArrival;
+        private readonly M04DepartureRecord departure;
+        private int openedSailingSequence;
+        private readonly bool useInteractiveLandingObservation;
         private Action<M05OuterHarborOutcome> onOuterHarborCompleted;
         private Action<FogListeningRecord> onFogFailed;
         private M04CastOffView castOffView;
         private M04SailedFogLegHost fogHost;
         private M05OuterHarborFlowHost outerHarborHost;
+        private M05LandingObservationView landingObservationView;
         private M04ToM05SeaCrossingStage stage;
         private float? lastAspect;
         private bool finishedDelivered;
@@ -45,6 +50,7 @@ namespace Rpg.Soundwell
         public M04CastOffView CastOffView => castOffView;
         public M04SailedFogLegHost FogHost => fogHost;
         public M05OuterHarborFlowHost OuterHarborHost => outerHarborHost;
+        public M05LandingObservationView LandingObservationView => landingObservationView;
         public bool IsDisposed => disposed;
 
         public static bool TryOpen(
@@ -102,6 +108,60 @@ namespace Rpg.Soundwell
             Action<FogListeningRecord> onFogFailed,
             out M04ToM05SeaCrossingHost host)
         {
+            return TryOpenWithLandingObservationCore(parent, createFogLeg,
+                observeLandingAtArrival, getInt, setInt, onOuterHarborCompleted,
+                onFogFailed, useInteractiveLandingObservation: false, out host);
+        }
+
+        /// <summary>
+        /// Real-play path for a scene that has no separate world observer yet:
+        /// after a successful fog crossing, ask the player to inspect and enter
+        /// the actual dock state. Nothing is copied from the departure manifest.
+        /// </summary>
+        public static bool TryOpenWithInteractiveLandingObservation(
+            Transform parent,
+            Func<FogListeningSession> createFogLeg,
+            Action<M05OuterHarborOutcome> onOuterHarborCompleted,
+            Action<FogListeningRecord> onFogFailed,
+            out M04ToM05SeaCrossingHost host)
+        {
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+            {
+                host = null;
+                return false;
+            }
+            return TryOpenWithInteractiveLandingObservation(parent, createFogLeg,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value),
+                onOuterHarborCompleted, onFogFailed, out host);
+        }
+
+        public static bool TryOpenWithInteractiveLandingObservation(
+            Transform parent,
+            Func<FogListeningSession> createFogLeg,
+            Func<string, int> getInt,
+            Action<string, int> setInt,
+            Action<M05OuterHarborOutcome> onOuterHarborCompleted,
+            Action<FogListeningRecord> onFogFailed,
+            out M04ToM05SeaCrossingHost host)
+        {
+            return TryOpenWithLandingObservationCore(parent, createFogLeg,
+                () => null, getInt, setInt, onOuterHarborCompleted, onFogFailed,
+                useInteractiveLandingObservation: true, out host);
+        }
+
+        private static bool TryOpenWithLandingObservationCore(
+            Transform parent,
+            Func<FogListeningSession> createFogLeg,
+            Func<M05LandingReport?> observeLandingAtArrival,
+            Func<string, int> getInt,
+            Action<string, int> setInt,
+            Action<M05OuterHarborOutcome> onOuterHarborCompleted,
+            Action<FogListeningRecord> onFogFailed,
+            bool useInteractiveLandingObservation,
+            out M04ToM05SeaCrossingHost host)
+        {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             if (createFogLeg == null) throw new ArgumentNullException(nameof(createFogLeg));
             if (observeLandingAtArrival == null)
@@ -134,6 +194,7 @@ namespace Rpg.Soundwell
                     return false;
                 host = new M04ToM05SeaCrossingHost(
                     parent, getInt, setInt, createFogLeg, observeLandingAtArrival,
+                    departure.Value, useInteractiveLandingObservation,
                     onOuterHarborCompleted, onFogFailed);
                 host.OpenCastOff();
                 return true;
@@ -149,6 +210,7 @@ namespace Rpg.Soundwell
                     return false;
                 var candidate = new M04ToM05SeaCrossingHost(
                     parent, getInt, setInt, createFogLeg, observeLandingAtArrival,
+                    departure.Value, useInteractiveLandingObservation,
                     onOuterHarborCompleted, onFogFailed);
                 if (!candidate.TryOpenFogPassage())
                 {
@@ -165,6 +227,7 @@ namespace Rpg.Soundwell
 
             var resumeCandidate = new M04ToM05SeaCrossingHost(
                 parent, getInt, setInt, createFogLeg, observeLandingAtArrival,
+                departure.Value, useInteractiveLandingObservation,
                 onOuterHarborCompleted, onFogFailed);
             if (!resumeCandidate.TryOpenOuterHarbor())
             {
@@ -181,6 +244,8 @@ namespace Rpg.Soundwell
             Action<string, int> setInt,
             Func<FogListeningSession> createFogLeg,
             Func<M05LandingReport?> observeLandingAtArrival,
+            M04DepartureRecord departure,
+            bool useInteractiveLandingObservation,
             Action<M05OuterHarborOutcome> onOuterHarborCompleted,
             Action<FogListeningRecord> onFogFailed)
         {
@@ -189,6 +254,9 @@ namespace Rpg.Soundwell
             this.setInt = setInt;
             this.createFogLeg = createFogLeg;
             this.observeLandingAtArrival = observeLandingAtArrival;
+            this.departure = departure;
+            openedSailingSequence = getInt(M04DepartureFacts.SailingSequenceKey);
+            this.useInteractiveLandingObservation = useInteractiveLandingObservation;
             this.onOuterHarborCompleted = onOuterHarborCompleted;
             this.onFogFailed = onFogFailed;
         }
@@ -204,6 +272,7 @@ namespace Rpg.Soundwell
             lastAspect = aspect;
             castOffView?.LayoutForViewportAspect(aspect);
             fogHost?.LayoutForViewportAspect(aspect);
+            landingObservationView?.LayoutForViewportAspect(aspect);
             outerHarborHost?.LayoutForViewportAspect(aspect);
         }
 
@@ -227,6 +296,9 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException(
                     "Unable to open sailed M04 fog passage after cast-off.");
 
+            // Cast-off increments the monotonic sailing identity. Capture the
+            // actual new trip, not the pre-departure sequence from host creation.
+            openedSailingSequence = getInt(M04DepartureFacts.SailingSequenceKey);
             castOffView?.Dispose();
             castOffView = null;
         }
@@ -292,23 +364,93 @@ namespace Rpg.Soundwell
 
         private bool TryOpenOuterHarbor()
         {
-            // A persisted landing needs no new world report; otherwise sample
-            // the live observation only at the actual harbor handoff. Missing
-            // observations keep the already-saved fog Continue retryable.
+            // A persisted landing needs no new observation. Otherwise sample
+            // an owning scene provider after the fog crossing; if none exists,
+            // the interactive observer records what the player actually sees.
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding))
                 return false;
-            M05LandingReport? observation = savedLanding.HasValue
-                ? null : observeLandingAtArrival();
+            if (savedLanding.HasValue)
+                return TryOpenOuterHarborFlow(null);
+
+            M05LandingReport? observation = observeLandingAtArrival();
+            if (observation.HasValue)
+                return TryOpenOuterHarborFlow(observation);
+
+            if (!useInteractiveLandingObservation)
+                return false;
+
+            landingObservationView = new M05LandingObservationView(
+                parent, departure, getInt, OnLandingObserved);
+            stage = M04ToM05SeaCrossingStage.LandingObservation;
+            if (lastAspect.HasValue)
+                landingObservationView.LayoutForViewportAspect(lastAspect.Value);
+            return true;
+        }
+
+        private void OnLandingObserved(M05LandingReport report)
+        {
+            if (disposed || parent == null ||
+                stage != M04ToM05SeaCrossingStage.LandingObservation)
+                return;
+
+            // A dock panel can remain open while another voyage is started.
+            // Never let its observation attach to a later cast-off.
+            if (getInt(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence)
+                throw new InvalidOperationException(
+                    "The M05 observation belongs to a previous sailing.");
+
+            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding))
+                throw new InvalidOperationException(
+                    "Unable to read the current M05 landing state.");
+            if (savedLanding.HasValue)
+            {
+                if (!SameLanding(savedLanding.Value, report))
+                    throw new InvalidOperationException(
+                        "The saved M05 landing differs from the current dock observation.");
+            }
+            else if (getInt(M05LandingFacts.ConfirmedKey) != 0 ||
+                !M05LandingFacts.TryRecord(report, getInt, setInt))
+            {
+                throw new InvalidOperationException(
+                    "Unable to persist the observed M05 arrival.");
+            }
+
+            if (!TryOpenOuterHarborFlow(null))
+                throw new InvalidOperationException(
+                    "Unable to open M05 outer-harbor flow after the observed arrival.");
+        }
+
+        private bool TryOpenOuterHarborFlow(M05LandingReport? observation)
+        {
             if (!M05OuterHarborFlowHost.TryOpen(
                 parent, observation, getInt, setInt,
                 OnOuterHarborFlowCompleted, out M05OuterHarborFlowHost nextHarbor))
                 return false;
 
+            try
+            {
+                if (lastAspect.HasValue)
+                    nextHarbor.LayoutForViewportAspect(lastAspect.Value);
+            }
+            catch
+            {
+                nextHarbor.Dispose();
+                throw;
+            }
+
             outerHarborHost = nextHarbor;
             stage = M04ToM05SeaCrossingStage.OuterHarbor;
-            if (lastAspect.HasValue)
-                outerHarborHost.LayoutForViewportAspect(lastAspect.Value);
+            landingObservationView?.Dispose();
+            landingObservationView = null;
             return true;
+        }
+
+        private static bool SameLanding(M05LandingReport a, M05LandingReport b)
+        {
+            return a.CrewArrived == b.CrewArrived &&
+                a.ReadyRescueBerths == b.ReadyRescueBerths &&
+                a.TenderArrived == b.TenderArrived &&
+                a.ReceiverMet == b.ReceiverMet;
         }
 
         private void OnOuterHarborFlowCompleted(M05OuterHarborOutcome outcome)
@@ -352,6 +494,8 @@ namespace Rpg.Soundwell
             castOffView = null;
             fogHost?.Dispose();
             fogHost = null;
+            landingObservationView?.Dispose();
+            landingObservationView = null;
             outerHarborHost?.Dispose();
             outerHarborHost = null;
         }

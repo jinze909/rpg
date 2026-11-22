@@ -22,8 +22,8 @@ namespace Rpg.Soundwell
         private bool cupPending;
         private M04DockPreflightView dockPreflight;
         private bool dockPreflightPending;
-        private M04CastOffView castOff;
-        private M04SailedFogLegHost sailedFog;
+        private M04ToM05SeaCrossingHost seaCrossing;
+        public M04ToM05SeaCrossingHost ActiveSeaCrossing => seaCrossing;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -416,39 +416,34 @@ namespace Rpg.Soundwell
                 return;
             }
 
-            // A real host has already confirmed and saved all required
-            // resources. Offer one deliberate cast-off action and persist
-            // that action only on the player's click.
+            // Keep the complete crossing under one owner: the real cast-off,
+            // sailed fog leg, player-recorded arrival, and M05 harbor story.
+            // The landing view starts only after the fog passage succeeds;
+            // it never copies departure crew or berth counts into arrival facts.
             Action<string, int> write = (key, value) => variables.Set(key, value);
-            var next = new M04CastOffView(transform, read, write,
-                () => OpenSailedFog(read, write));
+            if (!M04ToM05SeaCrossingHost.TryOpenWithInteractiveLandingObservation(
+                transform, CreateSailedFogLeg, read, write,
+                _ => CloseOpening(), _ => CloseOpening(),
+                out M04ToM05SeaCrossingHost next))
+                throw new InvalidOperationException(
+                    "Unable to open the current voyage's M04-to-M05 crossing.");
+
+            seaCrossing = next;
             dockPreflight?.Dispose();
             dockPreflight = null;
-            castOff = next;
         }
 
-        private void OpenSailedFog(Func<string, int> read, Action<string, int> write)
+        private FogListeningSession CreateSailedFogLeg()
         {
-            if (!TryReadCurrentDeparture(read, sailed: true, out _))
-                throw new InvalidOperationException(
-                    "The current voyage has not recorded a matching cast-off.");
-
             // The first shared stretch of reef water is on the way to Red Salt.
             // This passage does not determine who or what reaches the harbor.
-            var leg = new FogListeningSession(new[]
+            return new FogListeningSession(new[]
             {
                 new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 45),
                 new FogListeningCue(FogBearing.Port, FogCueKind.FalseEcho, 40),
                 new FogListeningCue(FogBearing.Starboard, FogCueKind.ReefSurf, 55),
                 new FogListeningCue(FogBearing.Ahead, FogCueKind.FogBell, 75)
             }, maxListenFocus: 2, maxHullIntegrity: 2);
-            if (!M04SailedFogLegHost.TryOpen(transform, leg, read, write,
-                _ => CloseOpening(), out M04SailedFogLegHost next))
-                throw new InvalidOperationException("Unable to open the current voyage's fog leg.");
-
-            castOff?.Dispose();
-            castOff = null;
-            sailedFog = next;
         }
 
         private void CloseOpening()
@@ -464,10 +459,8 @@ namespace Rpg.Soundwell
             dockPreflight?.Dispose();
             dockPreflight = null;
             dockPreflightPending = false;
-            castOff?.Dispose();
-            castOff = null;
-            sailedFog?.Dispose();
-            sailedFog = null;
+            seaCrossing?.Dispose();
+            seaCrossing = null;
             Action completed = onFinished;
             onFinished = null;
             completed?.Invoke();
@@ -511,8 +504,7 @@ namespace Rpg.Soundwell
                 xiaodouFarewell?.LayoutForViewportAspect(aspect);
                 qiQueCup?.LayoutForViewportAspect(aspect);
                 dockPreflight?.LayoutForViewportAspect(aspect);
-                castOff?.LayoutForViewportAspect(aspect);
-                sailedFog?.LayoutForViewportAspect(aspect);
+                seaCrossing?.LayoutForViewportAspect(aspect);
             }
         }
 
@@ -527,8 +519,8 @@ namespace Rpg.Soundwell
             xiaodouFarewell?.Dispose();
             qiQueCup?.Dispose();
             dockPreflight?.Dispose();
-            castOff?.Dispose();
-            sailedFog?.Dispose();
+            seaCrossing?.Dispose();
+            seaCrossing = null;
             onFinished = null;
         }
     }
