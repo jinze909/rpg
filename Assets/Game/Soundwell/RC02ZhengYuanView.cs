@@ -39,6 +39,7 @@ namespace Rpg.Soundwell
         public Button WaitQuietlyButton => choiceButtons[0];
         public Button SpeakForHerButton => choiceButtons[1];
         public Button ConfirmAdoptionButton => choiceButtons[0];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC02ZhengYuanView(
             Transform parent,
