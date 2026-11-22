@@ -50,6 +50,7 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public FogListeningSession Session => session;
+        public bool IsDisposed => disposed || CanvasDestroyed();
         public Text StatusText => statusText;
         public Text CueText => cueText;
         public Image CueIcon => cueIcon;
@@ -123,22 +124,14 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || authored == null)
-            {
-                Dispose();
-                return;
-            }
+            if (IsDestroyedExternally()) return;
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || heading == null)
-            {
-                Dispose();
-                return;
-            }
+            if (IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = statusText.font = cueText.font = font;
@@ -210,10 +203,21 @@ namespace Rpg.Soundwell
 
         private bool IsDestroyedExternally()
         {
-            if (canvasObject != null && heading != null)
+            if (!CanvasDestroyed())
                 return false;
             Dispose();
             return true;
+        }
+
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || authored == null || heading == null ||
+                statusText == null || cueText == null || cueIcon == null ||
+                focusButton == null || focusLabel == null || holdButton == null ||
+                holdLabel == null || slowButton == null || slowLabel == null ||
+                portButton == null || portLabel == null || starboardButton == null ||
+                starboardLabel == null || signalButton == null || signalLabel == null ||
+                continueButton == null || continueLabel == null;
         }
 
         private void FocusListen()
