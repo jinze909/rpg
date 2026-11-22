@@ -60,8 +60,12 @@ namespace Rpg.Soundwell
 
             waypoints = layout.BeastPatrolWaypoints;
             this.acousticTracker = acousticTracker ?? throw new ArgumentNullException(nameof(acousticTracker));
-            PatrolSpeedTilesPerSecond = Mathf.Max(0.5f, patrolSpeedTilesPerSecond);
-            ChaseSpeedTilesPerSecond = Mathf.Max(PatrolSpeedTilesPerSecond, chaseSpeedTilesPerSecond);
+            PatrolSpeedTilesPerSecond = IsFinite(patrolSpeedTilesPerSecond)
+                ? Mathf.Max(0.5f, patrolSpeedTilesPerSecond)
+                : 3.2f;
+            ChaseSpeedTilesPerSecond = IsFinite(chaseSpeedTilesPerSecond)
+                ? Mathf.Max(PatrolSpeedTilesPerSecond, chaseSpeedTilesPerSecond)
+                : Mathf.Max(PatrolSpeedTilesPerSecond, 4.6f);
 
             waypointIndex = 0;
             Position = TileCenter(waypoints[0]);
@@ -69,17 +73,24 @@ namespace Rpg.Soundwell
                 waypointIndex = 1;
         }
 
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
+        }
+
         public void NotifyBronzeBellRung(Vector2Int bellTile, float investigateSeconds = 4.5f)
         {
             decoyTarget = TileCenter(bellTile);
-            decoyHoldRemaining = Mathf.Max(0.5f, investigateSeconds);
+            decoyHoldRemaining = IsFinite(investigateSeconds)
+                ? Mathf.Max(0.5f, investigateSeconds)
+                : 4.5f;
             if (!acousticTracker.IsBeastBroken)
                 SetState(SoundwellBeastAlertState.InvestigatingBell);
         }
 
         public void Step(float deltaTime, Vector2 playerPosition, bool playerMoved)
         {
-            if (deltaTime <= 0f)
+            if (!IsFinite(deltaTime) || deltaTime <= 0f)
                 return;
 
             if (acousticTracker.IsBeastBroken)
@@ -92,8 +103,11 @@ namespace Rpg.Soundwell
             if (State == SoundwellBeastAlertState.StaggeredBroken)
                 SetState(SoundwellBeastAlertState.Patrolling);
 
-            float distToPlayer = Vector2.Distance(Position, playerPosition);
-            if (distToPlayer <= ContactRadiusTiles)
+            bool hasFinitePlayer = IsFinite(playerPosition.x) && IsFinite(playerPosition.y);
+            float distToPlayer = hasFinitePlayer
+                ? Vector2.Distance(Position, playerPosition)
+                : float.PositiveInfinity;
+            if (hasFinitePlayer && distToPlayer <= ContactRadiusTiles)
             {
                 SetState(SoundwellBeastAlertState.Alerted);
                 if (!encounterRaisedForCurrentContact)
@@ -122,7 +136,7 @@ namespace Rpg.Soundwell
                 return;
             }
 
-            if (playerMoved && distToPlayer <= ActiveHearingRadiusTiles)
+            if (hasFinitePlayer && playerMoved && distToPlayer <= ActiveHearingRadiusTiles)
             {
                 lastHeardPlayerPos = playerPosition;
                 SetState(SoundwellBeastAlertState.Alerted);
