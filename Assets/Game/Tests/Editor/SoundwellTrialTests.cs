@@ -1044,6 +1044,27 @@ namespace Rpg.Tests.Editor
             Assert.That(trial.RopeObserved || trial.RopeRecovered ||
                 trial.CartObserved || trial.CartKitReclaimed ||
                 trial.ClawsObserved, Is.False);
+
+            // The visible weak plank is not itself proof that the player has
+            // learned how to secure it. Keep the instruction investigative
+            // until the survivor's firsthand clue has actually been heard.
+            MoveTestLeader(playerBody, SoundwellTrial.UpperBoardPosition);
+            Assert.That(trial.HasSurveyorClue, Is.False);
+            Assert.That(trial.CanSecurePlank, Is.False);
+            var preClueHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
+            Assert.That(preClueHint, Is.Not.Null);
+            Assert.That(preClueHint.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("hint.plank_ask_first")),
+                "Before hearing the survivor, the upper-plank prompt should ask for the missing clue instead of revealing the brace action.");
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            yield return null;
+            Assert.That(preClueHint.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("hint.plank_ask_first")));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            yield return null;
+            Assert.That(preClueHint.text,
+                Is.EqualTo(SoundwellUiLocalization.Get("hint.plank_ask_first")));
+
             MoveTestLeader(playerBody, SoundwellTrial.SurveyorPosition);
             Assert.That(trial.AtSurveyor, Is.True);
             var contextualHint = GameObject.Find("Soundwell trial hint")?.GetComponent<Text>();
