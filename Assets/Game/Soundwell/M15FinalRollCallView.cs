@@ -50,6 +50,7 @@ namespace Rpg.Soundwell
         public Button AddReturnedAliveSteleButton => choiceButtons[1];
         public Button CarveNamesSteleButton => choiceButtons[2];
         public Button LeaveBlankSteleButton => choiceButtons[3];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M15FinalRollCallView(
             Transform parent,
