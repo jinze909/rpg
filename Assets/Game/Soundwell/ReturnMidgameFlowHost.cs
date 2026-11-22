@@ -55,7 +55,7 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public ReturnMidgameStage CurrentStage => currentStage;
-        public bool HasActiveHost => activeHost != null;
+        public bool HasActiveHost => IsActiveHostOpen();
         public bool IsDisposed => disposed;
 
         public M08WorkshopOrderHost ActiveWorkshopHost => activeHost as M08WorkshopOrderHost;
@@ -97,6 +97,21 @@ namespace Rpg.Soundwell
             return ReturnMidgameStage.ReadyForActThree;
         }
 
+        private bool IsActiveHostOpen()
+        {
+            if (activeHost == null)
+                return false;
+            if (activeHost is M08WorkshopOrderHost workshop)
+                return !workshop.IsDisposed && workshop.ActiveView != null;
+            if (activeHost is M08DockTruthHost dockTruth)
+                return !dockTruth.IsDisposed && dockTruth.ActiveView != null;
+            if (activeHost is M08FirstWorldNoticeHost notice)
+                return !notice.IsDisposed && notice.ActiveView != null;
+            if (activeHost is M09BerthTableHost berth)
+                return !berth.IsDisposed && berth.ActiveView != null;
+            return false;
+        }
+
         public bool CanOpenOptionalDockTruth()
         {
             if (disposed || context.ShenLiPresentAtDock == null ||
@@ -110,9 +125,9 @@ namespace Rpg.Soundwell
 
         public bool TryOpenOptionalDockTruth()
         {
-            if (disposed || !CanOpenOptionalDockTruth())
+            if (disposed || uiParent == null || !CanOpenOptionalDockTruth())
                 return false;
-            if (activeHost != null && currentStage == ReturnMidgameStage.M08OptionalDockTruth)
+            if (IsActiveHostOpen() && currentStage == ReturnMidgameStage.M08OptionalDockTruth)
                 return false;
 
             CloseActiveHost();
@@ -143,7 +158,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpenNextRequiredStage()
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
 
             ReturnMidgameStage next = EvaluateNextRequiredStage();
@@ -154,7 +169,7 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            if (activeHost != null && currentStage == next)
+            if (IsActiveHostOpen() && currentStage == next)
                 return false;
             if (!HasSceneInputs(next))
                 return false;
