@@ -30,7 +30,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M12BridgeTruthSession Session => session;
-        public M12BridgeTruthView ActiveView => activeView;
+        public M12BridgeTruthView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M12BridgeTruthFacts.TryRead(getInt, out M12BridgeTruthRecord? saved) &&
@@ -63,7 +64,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atBellTowerCamp() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null || !atBellTowerCamp() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -109,7 +116,8 @@ namespace Rpg.Soundwell
 
         private void HandleDisclosureSubmitted(M12TruthDisclosure disclosure)
         {
-            if (disposed || session == null || !atBellTowerCamp() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atBellTowerCamp() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 m03PriorConfession() != openedPriorConfession ||
@@ -121,7 +129,7 @@ namespace Rpg.Soundwell
             if (!session.TryDecideTruthAndCommit(disclosure, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
+            activeView.Dispose();
             activeView = null;
             openedArrivalSequence = null;
         }
