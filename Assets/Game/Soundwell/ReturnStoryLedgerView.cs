@@ -116,14 +116,16 @@ namespace Rpg.Soundwell
 
         public void UpdateSnapshot(ReturnStoryProgressSnapshot nextSnapshot)
         {
-            if (disposed) return;
+            if (disposed || IsDestroyedExternally()) return;
             snapshot = nextSnapshot;
             Refresh();
         }
 
         public void SelectTab(ReturnStoryLedgerTab tab)
         {
-            if (disposed || CanvasDestroyed())
+            if (disposed || IsDestroyedExternally())
+                return;
+            if (!Enum.IsDefined(typeof(ReturnStoryLedgerTab), tab))
                 return;
             activeTab = tab;
             Refresh();
@@ -131,23 +133,14 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -245,11 +238,18 @@ namespace Rpg.Soundwell
 
         private void HandleCloseClick()
         {
-            if (disposed || CanvasDestroyed())
+            if (disposed || IsDestroyedExternally())
                 return;
             var callback = onClosed;
             Dispose();
             callback?.Invoke();
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()
