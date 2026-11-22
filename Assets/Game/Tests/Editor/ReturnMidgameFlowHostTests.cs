@@ -166,6 +166,81 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PaidShipwrightProofFlowsThroughMidgameContextAndIsRecheckedAtSettlement()
+        {
+            var root = new GameObject("MidgameFlow paid shipwright proof");
+            var values = new Dictionary<string, int>();
+            SeedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            bool feeVerified = false;
+
+            try
+            {
+                var context = new ReturnMidgameFlowContext
+                {
+                    RealDaybreakObserved = () => true,
+                    AtSecondBatchTable = () => true,
+                    ShenLiPresentAtTable = () => false,
+                    QiDebtAlreadyKnown = () => true,
+                    BaseBerths = () => 18,
+                    PendingNames = () => 23,
+                    RuiyaOutcome = () => M09RuiyaOutcome.Deferred,
+                    ShipwrightFeePaidInWorld = () => feeVerified
+                };
+
+                using (var flow = new ReturnMidgameFlowHost(
+                    root.transform, context, read, write))
+                {
+                    var winch = new M08FirstWinchOrderSession();
+                    Assert.That(winch.TryAcquirePart(M08WinchPart.ScrapGear), Is.True);
+                    Assert.That(winch.TryAcquirePart(M08WinchPart.DockCable), Is.True);
+                    Assert.That(winch.TryAssemble(), Is.True);
+                    Assert.That(winch.TryTightenCable(), Is.True);
+                    Assert.That(winch.TryTestLift(), Is.True);
+                    Assert.That(M08WorkshopDepositFacts.TryConfirm(winch, read, write), Is.True);
+                    Assert.That(M08FirstWorldNoticeFacts.TryRecord(true, read, write), Is.True);
+
+                    // The M08 workshop deposit is not proof of the separate M09 shipyard fee.
+                    Assert.That(flow.TryOpenNextRequiredStage(), Is.True);
+                    var host = flow.ActiveBerthTableHost;
+                    Assert.That(host, Is.Not.Null);
+                    Assert.That(host.ActiveView.ShipwrightButton.gameObject.activeSelf, Is.False);
+                    host.ActiveView.ShipwrightButton.onClick.Invoke();
+                    Assert.That(host.Session.ShipwrightFeePaid, Is.False);
+
+                    feeVerified = true;
+                    host.ActiveView.Refresh();
+                    Assert.That(host.ActiveView.ShipwrightButton.gameObject.activeSelf, Is.True);
+                    feeVerified = false;
+                    host.ActiveView.ShipwrightButton.onClick.Invoke();
+                    Assert.That(host.Session.ShipwrightFeePaid, Is.False);
+
+                    feeVerified = true;
+                    host.ActiveView.ShipwrightButton.onClick.Invoke();
+                    Assert.That(host.Session.ShipwrightFeePaid, Is.True);
+                    feeVerified = false;
+                    host.ActiveView.SettleButton.onClick.Invoke();
+                    Assert.That(read(M09BerthTableFacts.ConfirmedKey), Is.Zero);
+                    Assert.That(host.ActiveView, Is.Not.Null);
+
+                    feeVerified = true;
+                    host.ActiveView.SettleButton.onClick.Invoke();
+                    Assert.That(M09BerthTableFacts.TryRead(
+                        read, out M09BerthTableRecord? saved), Is.True);
+                    Assert.That(saved.HasValue, Is.True);
+                    Assert.That(saved.Value.ShipwrightFeePaid, Is.True);
+                    Assert.That(saved.Value.ShenReconciled, Is.False);
+                    Assert.That(saved.Value.TotalBerths, Is.EqualTo(20));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void OptionalDockTruthOpensAfterWorkshopDepositWhenShenLiPresentAndDisposesCleanly()
         {
             var root = new GameObject("MidgameFlowDockRoot");
