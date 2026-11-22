@@ -28,7 +28,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M09BerthTableSession Session => session;
-        public M09BerthTableView ActiveView => view;
+        public M09BerthTableView ActiveView =>
+            view != null && !view.IsDisposed ? view : null;
         public bool IsDisposed => disposed;
         public bool HasRecordedTable =>
             M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? record) &&
@@ -64,7 +65,14 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || view != null || !atSecondBatchTable() ||
+            if (view != null && view.IsDisposed)
+            {
+                view.Dispose();
+                view = null;
+                openedArrivalSequence = null;
+            }
+
+            if (disposed || parent == null || view != null || !atSecondBatchTable() ||
                 // A corrupt or already-confirmed M09 record must not be rewritten.
                 getInt(M09BerthTableFacts.ConfirmedKey) != 0 ||
                 HasUnconfirmedBerthPayload() ||
@@ -117,7 +125,7 @@ namespace Rpg.Soundwell
 
         private void ConfirmTable(M09BerthTableSession proposed)
         {
-            if (view == null || proposed != session || !LiveSceneStillMatches() ||
+            if (view == null || view.IsDisposed || proposed != session || !LiveSceneStillMatches() ||
                 // Never persist invented paid berths after scene evidence
                 // has been withdrawn or the payment was rolled back.
                 (proposed.ShipwrightFeePaid && !shipwrightFeePaidInWorld()))
