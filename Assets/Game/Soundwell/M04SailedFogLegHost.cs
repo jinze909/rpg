@@ -13,19 +13,28 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class M04SailedFogLegHost : IDisposable
     {
+        private readonly Transform parent;
         private readonly Func<string, int> read;
         private readonly Action<string, int> write;
         private readonly FogListeningSession leg;
         private readonly M04DepartureRecord departure;
         private readonly int openedSailingSequence;
         private Action<FogListeningRecord> onCompleted;
-        private readonly FogListeningView view;
+        private FogListeningView view;
         private bool delivered;
         private bool disposed;
 
-        public FogListeningView View => view;
+        public FogListeningView View
+        {
+            get
+            {
+                EnsureLiveView();
+                return HasLiveView ? view : null;
+            }
+        }
         public FogListeningSession Leg => leg;
         public M04DepartureRecord Departure => departure;
+        public bool HasLiveView => !disposed && view != null && !view.IsDisposed;
         public bool IsDisposed => disposed;
 
         public static bool TryOpen(Transform parent, FogListeningSession leg,
@@ -92,6 +101,7 @@ namespace Rpg.Soundwell
             Action<string, int> write, M04DepartureRecord departure,
             int sailingSequence, Action<FogListeningRecord> onCompleted)
         {
+            this.parent = parent;
             this.leg = leg;
             this.read = read;
             this.write = write;
@@ -103,8 +113,26 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
+            if (disposed || delivered) return;
+            if (parent == null)
+            {
+                Dispose();
+                return;
+            }
+            if (!EnsureLiveView()) return;
             view.LayoutForViewportAspect(aspect);
+        }
+
+        private bool EnsureLiveView()
+        {
+            if (disposed || delivered || parent == null)
+                return false;
+            if (view != null && !view.IsDisposed)
+                return true;
+
+            view?.Dispose();
+            view = new FogListeningView(parent, leg, OnFogFinished);
+            return true;
         }
 
         private void OnFogFinished(FogListeningSession completedLeg)
@@ -151,7 +179,8 @@ namespace Rpg.Soundwell
             onCompleted?.Invoke(saved.Value);
             delivered = true;
             onCompleted = null;
-            view.Dispose();
+            view?.Dispose();
+            view = null;
         }
 
         private static bool SameDeparture(
@@ -180,7 +209,8 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             onCompleted = null;
-            view.Dispose();
+            view?.Dispose();
+            view = null;
         }
     }
 }
