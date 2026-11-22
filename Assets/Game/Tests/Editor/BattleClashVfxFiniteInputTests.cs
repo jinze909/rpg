@@ -51,8 +51,8 @@ namespace Rpg.Tests.Editor
                 var director = directorRoot.AddComponent<BattleClashVfxDirector>();
                 const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
 
+                // Awake does not execute on AddComponent in EditMode tests; initialize the overlay explicitly.
                 MethodInfo buildOverlay = typeof(BattleClashVfxDirector).GetMethod("BuildOverlay", flags);
-                FieldInfo fxRootField = typeof(BattleClashVfxDirector).GetField("fxRoot", flags);
                 MethodInfo spawnSlash = typeof(BattleClashVfxDirector).GetMethod("SpawnSlashArc", flags);
                 MethodInfo triggerRecoil = typeof(BattleClashVfxDirector).GetMethod("TriggerNamedCardRecoil", flags);
                 MethodInfo updateEffects = typeof(BattleClashVfxDirector).GetMethod("UpdateEffects", flags);
@@ -61,16 +61,12 @@ namespace Rpg.Tests.Editor
                 FieldInfo recoilsField = typeof(BattleClashVfxDirector).GetField("recoils", flags);
 
                 Assert.That(buildOverlay, Is.Not.Null);
-                Assert.That(fxRootField, Is.Not.Null);
                 Assert.That(spawnSlash, Is.Not.Null);
                 Assert.That(triggerRecoil, Is.Not.Null);
                 Assert.That(updateEffects, Is.Not.Null);
                 Assert.That(updateRecoils, Is.Not.Null);
 
-                // Awake is not invoked for a newly-added MonoBehaviour in EditMode tests.
-                // Build the same visual-only root that the runtime Awake path creates.
-                if (fxRootField.GetValue(director) == null)
-                    buildOverlay.Invoke(director, null);
+                buildOverlay.Invoke(director, null);
 
                 // Non-finite spawn inputs are rejected before creating VFX or recoil entries.
                 spawnSlash.Invoke(director, new object[] { new Vector2(float.NaN, 0f), 0f, Color.white });
