@@ -49,6 +49,7 @@ namespace Rpg.Soundwell
         public Button PierButton => choiceButtons[0];
         public Button SteleButton => choiceButtons[1];
         public Button WorkshopDoorButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M16EpilogueView(
             Transform parent,
