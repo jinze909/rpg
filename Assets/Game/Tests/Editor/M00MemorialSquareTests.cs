@@ -146,12 +146,14 @@ namespace Rpg.Tests.Editor
                     "M00's English roster must match the authored third squad of twelve in RC-05, never a platoon.");
                 Assert.That(memorial.CurrentNarration, Does.Not.Contain("3rd Platoon"));
                 Assert.That(memorial.Phase, Is.EqualTo(3));
+                AssertStageDialogueDoesNotOverlapNarration(memorial);
 
                 float forgottenDeadline = Time.realtimeSinceStartup + 3f;
                 while (!memorial.ChildLineText.Contains("...the bridge") &&
                        Time.realtimeSinceStartup < forgottenDeadline)
                     yield return null;
                 Assert.That(memorial.ChildLineText, Does.Contain("...the bridge"));
+                AssertStageDialogueDoesNotOverlapNarration(memorial);
 
                 input.Press(keys.aKey);
                 float stageDeadline = Time.realtimeSinceStartup + 5f;
@@ -167,6 +169,7 @@ namespace Rpg.Tests.Editor
                 input.Release(keys.eKey);
                 yield return null;
                 Assert.That(memorial.Phase, Is.EqualTo(4));
+                AssertStageDialogueDoesNotOverlapNarration(memorial);
                 AssertChoicePanelDoesNotCoverPlayableWorld(memorial);
                 SoundwellSmokeHost.CaptureStoryCanvas(squareCanvas, "m00-memorial-square-choices");
 
@@ -177,6 +180,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(memorial.XiaodouPrompted, Is.True);
                 AssertAuthoredImage(memorial, "M00 Xiaodou in oversized uniform", "xiaodou_prompted");
                 Assert.That(memorial.Phase, Is.EqualTo(5));
+                AssertStageDialogueDoesNotOverlapNarration(memorial);
                 AssertChoicePanelDoesNotCoverPlayableWorld(memorial);
                 Assert.That(memorial.CurrentNarration, Does.Contain("Who has spare rope?"),
                     "M00 must echo the exact P0 rope call instead of using an altered English paraphrase.");
@@ -320,6 +324,54 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        private static void AssertStageDialogueDoesNotOverlapNarration(M00MemorialSquare memorial)
+        {
+            RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
+                .Single(rect => rect.gameObject.name == "M00 responsive authored view");
+            Text narration = authored.Find("M00 scene narration").GetComponent<Text>();
+            Text childLine = authored.Find("M00 Xiaodou stage line").GetComponent<Text>();
+            Text crowdLine = authored.Find("M00 crowd reaction").GetComponent<Text>();
+            Bounds narrationBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                authored, narration.rectTransform);
+            Bounds childBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                authored, childLine.rectTransform);
+            Assert.That(childLine.gameObject.activeSelf, Is.True);
+            Assert.That(childBounds.Intersects(narrationBounds), Is.False,
+                "The stage line must have its own readable lane below scene narration.");
+            Assert.That(childBounds.max.y, Is.LessThan(narrationBounds.min.y),
+                "The stage line must remain fully below the narration box.");
+
+            RectTransform stage = authored.Find("M00 small stage") as RectTransform;
+            RectTransform child = authored.Find("M00 Xiaodou in oversized uniform") as RectTransform;
+            RectTransform leftWatcher = authored.Find("M00 blue-cuffed watcher left") as RectTransform;
+            RectTransform rightWatcher = authored.Find("M00 blue-cuffed watcher right") as RectTransform;
+            foreach (RectTransform actor in new[] { stage, child, leftWatcher, rightWatcher })
+            {
+                Bounds actorBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                    authored, actor);
+                Assert.That(childBounds.Intersects(actorBounds), Is.False,
+                    "The stage line must not cover " + actor.name + ".");
+            }
+
+            if (!crowdLine.gameObject.activeSelf)
+                return;
+            Bounds crowdBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                authored, crowdLine.rectTransform);
+            Assert.That(crowdBounds.Intersects(narrationBounds), Is.False,
+                "The crowd reaction must not overlap scene narration.");
+            Assert.That(crowdBounds.Intersects(childBounds), Is.False,
+                "The crowd reaction must occupy a separate line below Xiaodou's dialogue.");
+            Assert.That(crowdBounds.max.y, Is.LessThan(childBounds.min.y),
+                "The crowd reaction must remain below the child's line.");
+            foreach (RectTransform actor in new[] { stage, child, leftWatcher, rightWatcher })
+            {
+                Bounds actorBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                    authored, actor);
+                Assert.That(crowdBounds.Intersects(actorBounds), Is.False,
+                    "The crowd reaction must not cover " + actor.name + ".");
+            }
+        }
+
         private static void AssertMemorialFitsViewport(M00MemorialSquare memorial)
         {
             RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
@@ -336,6 +388,8 @@ namespace Rpg.Tests.Editor
                 .Single(button => button.gameObject.name == "M00 begin roll call")
                 .GetComponent<RectTransform>();
             RectTransform choicePanelRect = authored.Find("M00 choice panel") as RectTransform;
+            RectTransform stageLineRect = authored.Find("M00 Xiaodou stage line") as RectTransform;
+            RectTransform crowdLineRect = authored.Find("M00 crowd reaction") as RectTransform;
             RectTransform[] choiceRects = memorial.GetComponentsInChildren<Button>(true)
                 .Where(button => button.gameObject.name.StartsWith("M00 choice "))
                 .Select(button => button.GetComponent<RectTransform>()).ToArray();
@@ -359,7 +413,8 @@ namespace Rpg.Tests.Editor
             Assert.That(choicePanelBounds.min.y, Is.GreaterThan(pavingBounds.max.y),
                 "The choice panel must not cover the playable paving.");
             var visibleRects = new[] { playerRect, titleRect, footer.rectTransform,
-                rollCallRect, choicePanelRect }.Concat(choiceRects).ToArray();
+                rollCallRect, choicePanelRect, stageLineRect, crowdLineRect }
+                .Concat(choiceRects).ToArray();
             foreach (float aspect in new[] { 9f / 16f, 32f / 9f, 5f, 16f / 9f })
             {
                 memorial.LayoutForViewportAspect(aspect);

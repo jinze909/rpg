@@ -147,6 +147,7 @@ namespace Rpg.Soundwell
                 Copy("Daytime. Linchao Harbor. The sea wind carries a vendor’s call for “hero sugar figures.” Children line up to touch the memorial; one patch of stone has been polished bright.",
                     "白天。临潮港。海风里有人叫卖“英雄糖人”。孩子们排着队，摸石碑上刻的字，那一块已经摸得发亮。"),
                 16, Ink, new Vector2(-105f, 151f), new Vector2(630f, 66f));
+            narration.gameObject.name = "M00 scene narration";
             narration.alignment = TextAnchor.MiddleCenter;
 
             // The polished memorial stone and the statue remain visible from
@@ -177,11 +178,16 @@ namespace Rpg.Soundwell
             childImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView,
                 "M00 Xiaodou in oversized uniform", new Vector2(StageX, 62f),
                 actorSize, artManifest?.M00Xiaodou);
+            // Keep the stage performance and crowd reaction in a dedicated
+            // left-side dialogue lane below the narration. The lane ends before
+            // the stage sprite begins, so the text never covers actors or art.
             childLine = Label(authoredView, "", 16, Ink,
-                new Vector2(StageX, 132f), new Vector2(360f, 30f));
+                new Vector2(-270f, 92f), new Vector2(340f, 24f));
+            childLine.gameObject.name = "M00 Xiaodou stage line";
             childLine.gameObject.SetActive(false);
             crowdLine = Label(authoredView, "", 13, Ink,
-                new Vector2(StageX, 108f), new Vector2(360f, 24f));
+                new Vector2(-270f, 64f), new Vector2(340f, 20f));
+            crowdLine.gameObject.name = "M00 crowd reaction";
             crowdLine.gameObject.SetActive(false);
 
             playerImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 player",
