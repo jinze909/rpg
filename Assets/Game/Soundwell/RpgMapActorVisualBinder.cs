@@ -35,7 +35,7 @@ namespace Rpg.Soundwell
         public GameObject ActorObject => actorObject;
         public SpriteRenderer SpriteRenderer => spriteRenderer;
         public RpgActorVisualState CurrentState { get; private set; } = RpgActorVisualState.Idle;
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || IsDestroyedExternally();
 
         public RpgMapActorVisualBinder(Transform parent, string name,
             Sprite idleSprite,
@@ -59,16 +59,34 @@ namespace Rpg.Soundwell
             spriteRenderer.sortingOrder = baseSortingOrder;
         }
 
+        private bool IsDestroyedExternally()
+        {
+            return actorObject == null || spriteRenderer == null;
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
+        }
+
         public void Sync(Vector2 tilePosition, Vector2Int facing,
             RpgActorVisualState state, float deltaTime = 0f)
         {
-            if (disposed || actorObject == null || spriteRenderer == null)
+            if (disposed)
                 return;
+            if (IsDestroyedExternally())
+            {
+                Dispose();
+                return;
+            }
 
-            actorObject.transform.localPosition = new Vector3(tilePosition.x, tilePosition.y, 0f);
-            // Lower Y renders in front for classic 2D top-down RPG depth sorting.
-            spriteRenderer.sortingOrder = baseSortingOrder +
-                Mathf.Clamp(200 - Mathf.FloorToInt(tilePosition.y), 0, 200);
+            if (IsFinite(tilePosition.x) && IsFinite(tilePosition.y))
+            {
+                actorObject.transform.localPosition = new Vector3(tilePosition.x, tilePosition.y, 0f);
+                // Lower Y renders in front for classic 2D top-down RPG depth sorting.
+                spriteRenderer.sortingOrder = baseSortingOrder +
+                    Mathf.Clamp(200 - Mathf.FloorToInt(tilePosition.y), 0, 200);
+            }
 
             if (facing.x < 0)
                 spriteRenderer.flipX = true;
@@ -85,8 +103,7 @@ namespace Rpg.Soundwell
                     break;
 
                 case RpgActorVisualState.Moving:
-                    if (deltaTime > 0f && !float.IsNaN(deltaTime) &&
-                        !float.IsInfinity(deltaTime))
+                    if (deltaTime > 0f && IsFinite(deltaTime))
                     {
                         // A frame can span more than one animation beat.
                         // Preserve cycle parity and the fractional remainder
@@ -108,7 +125,15 @@ namespace Rpg.Soundwell
 
         public void SetTint(Color color)
         {
-            if (disposed || spriteRenderer == null) return;
+            if (disposed)
+                return;
+            if (IsDestroyedExternally())
+            {
+                Dispose();
+                return;
+            }
+            if (!IsFinite(color.r) || !IsFinite(color.g) || !IsFinite(color.b) || !IsFinite(color.a))
+                return;
             spriteRenderer.color = color;
         }
 
