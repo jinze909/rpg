@@ -19,11 +19,6 @@ namespace Rpg.Editor
         private const string Root = "Assets/Game/Resources/Soundwell/Tiles";
         private const string AtlasPath = Root + "/SoundwellWalls.spriteatlasv2";
         private const string RulePath = Root + "/GratingWall.asset";
-        private static readonly string[] TexturePaths =
-        {
-            Root + "/GratingBase.png",
-            Root + "/GratingJoined.png"
-        };
 
         // CI and the explicit P0 validation entrypoint invoke Validate().
         // A project-wide build interceptor would block unrelated
@@ -38,11 +33,11 @@ namespace Rpg.Editor
 
             if (!File.Exists(AtlasPath))
             {
-                var sprites = LoadSources();
+                var (baseSprite, joinedSprite) = SoundwellTilemapSetup.LoadWallSprites();
                 if (!AssetDatabase.IsValidFolder(Root))
                     throw new InvalidOperationException("The saved M5 wall textures folder is missing.");
                 var authoring = new SpriteAtlasAsset();
-                authoring.Add(sprites.Cast<UnityEngine.Object>().ToArray());
+                authoring.Add(new UnityEngine.Object[] { baseSprite, joinedSprite });
                 SpriteAtlasAsset.Save(authoring, AtlasPath);
                 AssetDatabase.ImportAsset(AtlasPath, ImportAssetOptions.ForceSynchronousImport);
 
@@ -59,6 +54,7 @@ namespace Rpg.Editor
                 var texture = importer.textureSettings;
                 texture.filterMode = FilterMode.Point;
                 texture.generateMipMaps = false;
+                texture.readable = true;
                 texture.sRGB = true;
                 importer.textureSettings = texture;
                 importer.SaveAndReimport();
@@ -80,50 +76,20 @@ namespace Rpg.Editor
             var packing = importer.packingSettings;
             var texture = importer.textureSettings;
             if (packing.enableRotation || packing.enableTightPacking || packing.padding != 2 ||
-                texture.filterMode != FilterMode.Point || texture.generateMipMaps)
+                texture.filterMode != FilterMode.Point || texture.generateMipMaps || !texture.readable)
                 throw new InvalidOperationException("Atlas settings would distort the saved 16-pixel wall sprites.");
 
-            var sprites = LoadSources();
+            var (baseSprite, joinedSprite) = SoundwellTilemapSetup.LoadWallSprites();
             var dependencies = AssetDatabase.GetDependencies(AtlasPath, true);
-            foreach (string path in TexturePaths)
-            {
-                if (!dependencies.Contains(path))
-                    throw new InvalidOperationException("The V2 atlas lost its source sprite: " + path);
-            }
-            if (dependencies.Count(path => TexturePaths.Contains(path)) != 2)
-                throw new InvalidOperationException("Atlas source selection is not the two real M5 tiles.");
+            if (!dependencies.Contains(SoundwellTilemapSetup.WallSpritePath))
+                throw new InvalidOperationException("The wall atlas must pack the authored Soundwell wall sprites.");
 
             var rule = AssetDatabase.LoadAssetAtPath<RuleTile>(RulePath);
-            if (rule == null || rule.m_DefaultSprite != sprites[0] ||
+            if (rule == null || rule.m_DefaultSprite != baseSprite ||
                 rule.m_TilingRules.Count != 1 || rule.m_TilingRules[0].m_Sprites.Length != 1 ||
-                rule.m_TilingRules[0].m_Sprites[0] != sprites[1])
-                throw new InvalidOperationException("The M5 RuleTile must still reference both original sprite GUIDs.");
-            Debug.Log("RPG_SOUNDWELL_SPRITE_ATLAS_VALIDATED: two original 16x16 sprites, one saved wall RuleTile, V2 included in build.");
-        }
-
-        private static Sprite[] LoadSources()
-        {
-            var sprites = TexturePaths.Select(path => AssetDatabase.LoadAssetAtPath<Sprite>(path)).ToArray();
-            for (int i = 0; i < TexturePaths.Length; i++)
-            {
-                string path = TexturePaths[i];
-                var sprite = sprites[i];
-                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                // The V2 atlas filter alone cannot repair a source imported at
-                // the wrong PPU, with lossy compression, or with mipmaps.
-                // Reject these changes before the trial builds an unreadable
-                // or incorrectly scaled pixel-art wall.
-                if (sprite == null || sprite.rect.width != 16 || sprite.rect.height != 16 ||
-                    Mathf.Abs(sprite.pixelsPerUnit - 16f) > 0.001f ||
-                    importer == null || importer.textureType != TextureImporterType.Sprite ||
-                    Mathf.Abs(importer.spritePixelsPerUnit - 16f) > 0.001f ||
-                    importer.filterMode != FilterMode.Point ||
-                    importer.textureCompression != TextureImporterCompression.Uncompressed ||
-                    importer.mipmapEnabled)
-                    throw new InvalidOperationException(
-                        "M7 source sprite must remain 16x16, 16 PPU, point-filtered, uncompressed and mip-free: " + path);
-            }
-            return sprites;
+                rule.m_TilingRules[0].m_Sprites[0] != joinedSprite)
+                throw new InvalidOperationException("The wall RuleTile and atlas must use the two authored wall sprites.");
+            Debug.Log("RPG_SOUNDWELL_SPRITE_ATLAS_VALIDATED: authored 16x16 walls, one saved wall RuleTile, readable V2 atlas.");
         }
     }
 }

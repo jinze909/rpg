@@ -17,6 +17,9 @@ namespace Rpg.Soundwell
         private readonly Font latinFont;
         private readonly Text heading;
         private readonly Text body;
+        private readonly RpgPixelArtManifest artManifest;
+        private readonly Image primaryIcon;
+        private readonly Image secondaryIcon;
         private readonly Button[] choiceButtons = new Button[4];
         private readonly Text[] choiceLabels = new Text[4];
         private readonly Button advanceButton;
@@ -93,13 +96,22 @@ namespace Rpg.Soundwell
             Color ink = new Color(0.93f, 0.89f, 0.81f, 1f);
 
             heading = SoundwellUiTheme.CreateLabel(panel, 19,
-                new Vector2(0f, 98f), new Vector2(842f, 28f), ink);
+                new Vector2(-40f, 98f), new Vector2(762f, 28f), ink);
             heading.alignment = TextAnchor.MiddleLeft;
 
             body = SoundwellUiTheme.CreateLabel(panel, 15,
-                new Vector2(0f, 36f), new Vector2(842f, 88f), ink);
+                new Vector2(-40f, 36f), new Vector2(762f, 88f), ink);
             body.alignment = TextAnchor.UpperLeft;
             body.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            // Keep both sprite slots inside the existing bottom panel in the
+            // column reserved beside the heading and body.
+            artManifest = RpgPixelArtManifest.LoadDefault();
+            var iconSize = new Vector2(64f, 64f);
+            primaryIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                panel, "M07 route art", new Vector2(388f, 82f), iconSize, null);
+            secondaryIcon = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                panel, "M07 route detail art", new Vector2(388f, 16f), iconSize, null);
 
             var positions = new[]
             {
@@ -161,6 +173,8 @@ namespace Rpg.Soundwell
             }
             advanceButton.gameObject.SetActive(false);
             advanceButton.interactable = false;
+
+            UpdateStageArt();
 
             switch (session.Stage)
             {
@@ -233,6 +247,44 @@ namespace Rpg.Soundwell
                         : $"First batch boarded off-island: {session.BoardedFirstBatchCount}; lower-level moved to upper gallery: {session.LowerLevelEvacuatedCount}.";
                     break;
             }
+        }
+
+        private void UpdateStageArt()
+        {
+            Sprite primary = null;
+            Sprite secondary = null;
+            if (artManifest != null)
+            {
+                switch (session.Stage)
+                {
+                    case M07ExtractionStage.RouteExecution:
+                        primary = session.M06Record.Plan switch
+                        {
+                            M06RescuePlan.MinerShutdown => artManifest.M07BackupHandPumpIdle,
+                            M06RescuePlan.OfficialHandover => artManifest.M07InspectionPendingPass,
+                            M06RescuePlan.CargoCover => artManifest.M07CargoCoverCrateClosed,
+                            M06RescuePlan.ForceBreakout => artManifest.M07InspectionBarrierClosed,
+                            _ => null
+                        };
+                        secondary = artManifest.M07OulinHiddenLockClosed;
+                        break;
+                    case M07ExtractionStage.OulinLockAndYidaGate:
+                        primary = artManifest.M07SluiceReleasedOpen;
+                        secondary = session.OldZhangFarewellSpoken
+                            ? artManifest.M07BackupHandPumpWorking : artManifest.M07OulinHiddenLockOpen;
+                        break;
+                    case M07ExtractionStage.DockRollCall:
+                        primary = artManifest.M07BoardingGangwayLowered;
+                        secondary = artManifest.M07BerthTagAvailable;
+                        break;
+                    case M07ExtractionStage.Completed:
+                        primary = artManifest.M07BoardingGangwayRaised;
+                        secondary = artManifest.M07BerthTagBoarded;
+                        break;
+                }
+            }
+            RpgStoryArtResolver.ApplyPixelSprite(primaryIcon, primary);
+            RpgStoryArtResolver.ApplyPixelSprite(secondaryIcon, secondary);
         }
 
         private void ShowChoice(int index, string text, bool interactable = true)

@@ -71,21 +71,16 @@ namespace Rpg.Soundwell
         private string[] openChoicesEnglish;
         private string[] openChoicesChinese;
         private string shownChoiceLanguage;
+        private RpgPixelArtManifest art;
         private RectTransform marker;
+        private Image playerFigure;
+        private RectTransform sinkingFarSpan;
         private RectTransform stretcher;
         private RectTransform hanQiao;
         private RectTransform rescuePoint;
         private RectTransform shenLiRescueLine;
         private RectTransform soldierRescueHelper;
-        private Sprite soldierReadySprite;
-        private Sprite soldierHaulingSprite;
-        private Sprite youngSoldierShieldSprite;
-        private Texture2D soldierReadyTexture;
-        private Texture2D soldierHaulingTexture;
-        private Texture2D youngSoldierShieldTexture;
-        private Texture2D shenLiRescueRopeTexture;
         private RectTransform lastBoat;
-        private Texture2D lastBoatPixelTexture;
         private RectTransform evacuee;
         private Text evacueeEscortStatus;
         private RectTransform evacueeSafeLine;
@@ -99,25 +94,7 @@ namespace Rpg.Soundwell
         private AudioClip firstBellClip;
         private AudioClip secondBellClip;
         private AudioClip thirdBellClip;
-        private Sprite playerPixelSprite;
-        private Sprite shenLiPixelSprite;
-        private Sprite shenLiBracingSprite;
-        private Texture2D playerPixelTexture;
-        private Texture2D shenLiPixelTexture;
-        private Texture2D shenLiBracingTexture;
         private Image shenLiFigure;
-        private Sprite hanQiaoPixelSprite;
-        private Sprite evacueePixelSprite;
-        private Sprite farBankGuardSprite;
-        private Sprite encirclingTorchSprite;
-        private Sprite farBankGuardWalkSprite;
-        private Sprite spareRopePixelSprite;
-        private Texture2D hanQiaoPixelTexture;
-        private Texture2D evacueePixelTexture;
-        private Texture2D farBankGuardTexture;
-        private Texture2D encirclingTorchTexture;
-        private Texture2D farBankGuardWalkTexture;
-        private Texture2D spareRopePixelTexture;
         private Image cable;
         private RectTransform bridgeWalkway;
         private RectTransform bridgeCable;
@@ -375,230 +352,98 @@ namespace Rpg.Soundwell
                 new Vector2(0f, 209f), new Vector2(740f, 48f), Brass);
             stageSubtitle = Label(canvas.transform, Copy("Night roll call · the last bridge",
                 "夜点名 · 最后的浮桥"), 17, new Vector2(0f, 168f), new Vector2(750f, 34f), Ink);
-            Panel(canvas.transform, "PLACEHOLDER 16px ferry water",
+            art = RpgPixelArtManifest.LoadDefault();
+            AddTiledArt(canvas.transform, "S00 ferry water",
                 new Vector2(0f, 34f), new Vector2(790f, 180f),
-                new Color(0.11f, 0.21f, 0.26f));
-            bridgeWalkway = Panel(canvas.transform, "PLACEHOLDER bridge walkway",
-                new Vector2(0f, 12f), new Vector2(720f, 58f),
-                new Color(0.34f, 0.29f, 0.23f)).rectTransform;
-            bridgeCable = Panel(canvas.transform, "PLACEHOLDER cable line",
-                new Vector2(0f, 67f), new Vector2(690f, 7f),
-                new Color(0.56f, 0.55f, 0.50f)).rectTransform;
-            cable = Panel(canvas.transform, "Loose cable clamp",
-                new Vector2(ClampX, 12f), new Vector2(28f, 36f),
-                new Color(0.69f, 0.30f, 0.27f));
-            shenLiFigure = Panel(canvas.transform, "PLACEHOLDER Shen Li",
-                new Vector2(ClampX + 58f, 18f), new Vector2(32f, 32f),
-                Color.white);
-            shenLiPixelSprite = MakeActorSprite("PLACEHOLDER 16px Shen Li",
-                ShenLiPixels, new Color32(190, 133, 62, 255),
-                out shenLiPixelTexture);
-            shenLiBracingSprite = MakeActorSprite("S00 16px Shen Li bracing the cable",
-                ShenLiBracingPixels, new Color32(190, 133, 62, 255),
-                out shenLiBracingTexture);
-            shenLiFigure.sprite = shenLiPixelSprite;
-            stretcher = Panel(canvas.transform, "PLACEHOLDER stretcher wagon",
-                new Vector2(-320f, 23f), new Vector2(52f, 27f),
-                new Color(0.82f, 0.78f, 0.63f)).rectTransform;
-            // S00-03: the officer is visibly in the river, not simply a
-            // dialogue flag. He only appears after the workshop conversation.
-            // The last ferry is a real point-filtered pixel silhouette.
-            // Its 48x12 source renders at an integer 2x scale, matching
-            // the existing 16px actors without a soft stretched UGUI bar.
-            const int boatWidth = 48;
-            const int boatHeight = 12;
-            lastBoatPixelTexture = new Texture2D(boatWidth, boatHeight,
-                TextureFormat.RGBA32, false)
-            {
-                name = "S00 48x12 last ferry",
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-                anisoLevel = 0
-            };
-            var boatPixels = new Color32[boatWidth * boatHeight];
-            for (int y = 0; y < boatHeight; y++)
-            {
-                for (int x = 0; x < boatWidth; x++)
-                {
-                    int inset = y <= 4 ? 8 - y : 3;
-                    bool hull = y >= 2 && y <= 8 &&
-                        x >= inset && x < boatWidth - inset;
-                    bool gunwale = y == 9 && x >= 5 && x < boatWidth - 5;
-                    bool seat = y == 10 && x >= 14 && x < boatWidth - 14;
-                    boatPixels[y * boatWidth + x] = gunwale
-                        ? new Color32(220, 177, 112, 255)
-                        : seat ? new Color32(154, 111, 69, 255)
-                        : hull ? y <= 3 ? new Color32(79, 53, 42, 255)
-                            : x % 9 == 0 ? new Color32(112, 76, 52, 255)
-                            : new Color32(146, 102, 67, 255)
-                        : new Color32(0, 0, 0, 0);
-                }
-            }
-            lastBoatPixelTexture.SetPixels32(boatPixels);
-            lastBoatPixelTexture.Apply(false, false);
-            var boatObject = new GameObject("S00 last boat",
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
-            boatObject.transform.SetParent(canvas.transform, false);
-            lastBoat = (RectTransform)boatObject.transform;
-            lastBoat.anchorMin = lastBoat.anchorMax = new Vector2(0.5f, 0.5f);
-            lastBoat.anchoredPosition = new Vector2(295f, 91f);
-            lastBoat.sizeDelta = new Vector2(boatWidth * 2f, boatHeight * 2f);
-            var boatImage = boatObject.GetComponent<RawImage>();
-            boatImage.texture = lastBoatPixelTexture;
-            boatImage.raycastTarget = false;
-            var hanQiaoFigure = Panel(canvas.transform, "S00 Han Qiao in water",
-                new Vector2(-70f, 92f), new Vector2(32f, 32f), Color.white);
-            hanQiaoPixelSprite = MakeActorSprite("PLACEHOLDER 16px wounded Han Qiao",
-                HanQiaoPixels, new Color32(100, 127, 155, 255),
-                out hanQiaoPixelTexture);
-            hanQiaoFigure.sprite = hanQiaoPixelSprite;
-            hanQiao = hanQiaoFigure.rectTransform;
-            rescuePoint = Panel(canvas.transform, "S00 rescue station",
-                new Vector2(ClampX, 12f), new Vector2(30f, 12f), Brass).rectTransform;
-            // The soldiers option is a real, visible helper at the rail,
-            // not just a narration variant. It is non-interactive scenery:
-            // only the player's earned station press completes the rescue.
-            var soldierFigure = Panel(canvas.transform, "S00 soldier rescue helper",
-                new Vector2(RescueStationX(2) - 38f, 12f),
-                new Vector2(32f, 32f), Color.white);
-            soldierReadySprite = MakeActorSprite("S00 16px soldier ready at the rail",
-                SoldierReadyPixels, new Color32(89, 115, 131, 255),
-                out soldierReadyTexture);
-            soldierHaulingSprite = MakeActorSprite("S00 16px soldier hauling the line",
-                SoldierHaulingPixels, new Color32(89, 115, 131, 255),
-                out soldierHaulingTexture);
-            youngSoldierShieldSprite = MakeActorSprite("S00 16px slipping young soldier with shield",
-                YoungSoldierShieldPixels, new Color32(111, 128, 143, 255),
-                out youngSoldierShieldTexture);
-            soldierFigure.sprite = soldierReadySprite;
-            soldierRescueHelper = soldierFigure.rectTransform;
+                HarborSprite(HarborTileKind.WaterCalm));
+            AddTiledArt(canvas.transform, "S00 shallow water",
+                new Vector2(-267f, 83f), new Vector2(224f, 32f),
+                HarborSprite(HarborTileKind.WaterShallow));
+            AddTiledArt(canvas.transform, "S00 bridge wash",
+                new Vector2(0f, -19f), new Vector2(720f, 32f),
+                HarborSprite(HarborTileKind.WaterFoam));
+            bridgeWalkway = AddTiledArt(canvas.transform, "S00 bridge walkway",
+                new Vector2(0f, 12f), new Vector2(720f, 32f),
+                HarborSprite(HarborTileKind.BridgePlank)).rectTransform;
+            sinkingFarSpan = AddTiledArt(canvas.transform, "S00 sinking far span",
+                new Vector2(-180f, 12f), new Vector2(360f, 32f),
+                art?.SinkingFarBridge).rectTransform;
+            sinkingFarSpan.gameObject.SetActive(false);
+            bridgeCable = AddTiledArt(canvas.transform, "S00 main cable",
+                new Vector2(0f, 34f), new Vector2(690f, 4f),
+                art?.WhitewaterBraidedLine, 1f).rectTransform;
+            cable = AddArt(canvas.transform, "Loose cable clamp",
+                new Vector2(ClampX, 12f), art?.ClampCableLoose);
+            shenLiFigure = AddArt(canvas.transform, "S00 Shen Li",
+                new Vector2(ClampX + 58f, 18f), art?.ShenLiBridgeIdle);
+            stretcher = AddArt(canvas.transform, "S00 rescue stretcher",
+                new Vector2(-320f, 23f), art?.RescueStretcher).rectTransform;
+
+            // The last boat and Han Qiao stay hidden until the rescue opens.
+            lastBoat = AddArt(canvas.transform, "S00 last boat",
+                new Vector2(295f, 91f), art?.WhitewaterFerryDeck).rectTransform;
+            hanQiao = AddArt(canvas.transform, "S00 Han Qiao in water",
+                new Vector2(-70f, 92f), art?.HanQiaoInWater).rectTransform;
+            rescuePoint = AddArt(canvas.transform, "S00 rescue station",
+                new Vector2(ClampX, 12f), HarborSprite(HarborTileKind.MooringPost))
+                .rectTransform;
+            rescuePoint.GetComponent<Image>().color = Brass;
+            soldierRescueHelper = AddArt(canvas.transform, "S00 soldier rescue helper",
+                new Vector2(RescueStationX(2) - 38f, 12f), art?.WhitewaterRescuerReady)
+                .rectTransform;
             soldierRescueHelper.gameObject.SetActive(false);
-            // Shen Li's authored rope alternative has a real, non-clickable
-            // line across the water, not merely text claiming she threw it.
-            // It appears only while that rescue plan is active and retracts
-            // on cancellation or the player's earned rescue interaction.
-            // The player's Shen Li rescue choice reveals a real repeating
-            // nearest-neighbour 16x4 rope pattern, not a stretched UGUI bar.
-            // Tiling it at one canvas unit per authored pixel preserves the
-            // strict pixel scale along the full line toward Han Qiao.
-            const int thrownRopePixelsWide = 16;
-            const int thrownRopePixelsHigh = 4;
-            shenLiRescueRopeTexture = new Texture2D(thrownRopePixelsWide,
-                thrownRopePixelsHigh, TextureFormat.RGBA32, false)
-            {
-                name = "S00 pixel rescue rope",
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Repeat,
-                anisoLevel = 0
-            };
-            var ropePixels = new Color32[thrownRopePixelsWide * thrownRopePixelsHigh];
-            for (int y = 0; y < thrownRopePixelsHigh; y++)
-            {
-                for (int x = 0; x < thrownRopePixelsWide; x++)
-                {
-                    // Two opposing diagonal strand rows give the player a
-                    // readable braided rope rather than a solid line.
-                    bool lightStrand = (x + (y == 2 ? 2 : 0)) % 4 < 2;
-                    ropePixels[y * thrownRopePixelsWide + x] =
-                        y == 0 || y == 3 ? new Color32(54, 42, 33, 255) :
-                        lightStrand ? new Color32(224, 183, 112, 255) :
-                            new Color32(151, 105, 56, 255);
-                }
-            }
-            shenLiRescueRopeTexture.SetPixels32(ropePixels);
-            shenLiRescueRopeTexture.Apply(false, false);
-            var thrownLine = new GameObject("S00 Shen Li thrown rescue line",
-                typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
-            thrownLine.transform.SetParent(canvas.transform, false);
-            shenLiRescueLine = (RectTransform)thrownLine.transform;
-            shenLiRescueLine.anchorMin = shenLiRescueLine.anchorMax =
-                new Vector2(0.5f, 0.5f);
-            shenLiRescueLine.sizeDelta = new Vector2(315f, 4f);
-            shenLiRescueLine.anchoredPosition = new Vector2(83f, 55f);
-            var ropeGraphic = thrownLine.GetComponent<RawImage>();
-            ropeGraphic.texture = shenLiRescueRopeTexture;
-            ropeGraphic.uvRect = new Rect(0f, 0f,
-                shenLiRescueLine.sizeDelta.x / thrownRopePixelsWide, 1f);
-            ropeGraphic.raycastTarget = false;
+            shenLiRescueLine = AddTiledArt(canvas.transform, "S00 Shen Li thrown rescue line",
+                new Vector2(83f, 55f), new Vector2(315f, 4f),
+                art?.WhitewaterBraidedLine, 1f).rectTransform;
             shenLiRescueLine.localRotation = Quaternion.Euler(0f, 0f, -13.6f);
             shenLiRescueLine.gameObject.SetActive(false);
             lastBoat.gameObject.SetActive(false);
             hanQiao.gameObject.SetActive(false);
             rescuePoint.gameObject.SetActive(false);
-            // S00-04 opens only after the officer has actually boarded.
-            // Both figures are scene-space UGUI markers, with a visible
-            // destination; no automatic quest or battle is awarded.
+
+            // Keep the safety line and follower status legible independently
+            // of the character art and colour-dependent guidance.
             evacueeSafeLine = Panel(canvas.transform, "S00 evacuation safe line",
                 new Vector2(EvacueeSafeX, 12f), new Vector2(14f, 62f),
                 new Color(0.66f, 0.84f, 0.59f)).rectTransform;
-            var evacueeFigure = Panel(canvas.transform, "S00 last evacuee",
-                new Vector2(EvacueeStartX, 12f), new Vector2(32f, 32f), Color.white);
-            evacueePixelSprite = MakeActorSprite("S00 16px pot-carrying cook",
-                EvacueePixels, new Color32(161, 126, 88, 255),
-                out evacueePixelTexture);
-            evacueeFigure.sprite = evacueePixelSprite;
-            evacuee = evacueeFigure.rectTransform;
-            // The wounded follower's status must remain readable without
-            // distinguishing the green and amber sprite tints.
+            evacuee = AddArt(canvas.transform, "S00 last evacuee",
+                new Vector2(EvacueeStartX, 12f), art?.WhitewaterRetreatCook).rectTransform;
             evacueeEscortStatus = Label(evacuee, "", 12,
-                new Vector2(0f, 25f), new Vector2(82f, 20f), Ink);
+                new Vector2(0f, 32f), new Vector2(82f, 20f), Ink);
             evacueeEscortStatus.gameObject.name = "S00 evacuee escort status";
             evacueeEscortStatus.raycastTarget = false;
             evacueeEscortStatus.gameObject.SetActive(false);
             evacueeSafeLine.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(false);
-            // Visible only after the player finishes the escort and calls out.
-            // Use a genuinely coiled 16px nearest-neighbour item, not a solid
-            // rectangle. The original rope travel and Makinom signal remain.
-            var spareRopeFigure = Panel(canvas.transform, "PLACEHOLDER S00 spare rope at clamp",
-                new Vector2(ClampX + 30f, 51f), new Vector2(32f, 32f), Color.white);
-            spareRopePixelSprite = MakeActorSprite("S00 16px spare rope coil",
-                SpareRopePixels, new Color32(164, 119, 71, 255),
-                out spareRopePixelTexture);
-            spareRopeFigure.sprite = spareRopePixelSprite;
-            spareRopeFigure.raycastTarget = false;
-            spareRope = spareRopeFigure.rectTransform;
+
+            spareRope = AddArt(canvas.transform, "S00 spare rope at clamp",
+                SpareRopeDock, art?.SpareRescueRope).rectTransform;
             spareRope.gameObject.SetActive(false);
-            bridgePost = Panel(canvas.transform, "S00 bridge defence post",
-                new Vector2(BridgePostX, 12f), new Vector2(35f, 40f),
-                new Color(0.87f, 0.67f, 0.29f)).rectTransform;
+            bridgePost = AddArt(canvas.transform, "S00 bridge defence post",
+                new Vector2(BridgePostX, 12f), HarborSprite(HarborTileKind.MooringPost))
+                .rectTransform;
+            bridgePost.GetComponent<Image>().color = Brass;
             bridgePost.gameObject.SetActive(false);
-            // Opposite-bank lamps visibly withdraw at the scripted second bell.
-            // They are scenery, not another combat or mission authority.
-            farBankLanternLeft = Panel(canvas.transform, "S00 far bank lantern left",
-                new Vector2(-293f, 90f), new Vector2(14f, 15f), Brass).rectTransform;
-            farBankLanternRight = Panel(canvas.transform, "S00 far bank lantern right",
-                new Vector2(-256f, 90f), new Vector2(14f, 15f), Brass).rectTransform;
+            farBankLanternLeft = AddArt(canvas.transform, "S00 far bank lantern left",
+                new Vector2(-293f, 90f), HarborSprite(HarborTileKind.LanternPost))
+                .rectTransform;
+            farBankLanternRight = AddArt(canvas.transform, "S00 far bank lantern right",
+                new Vector2(-256f, 90f), HarborSprite(HarborTileKind.LanternPost))
+                .rectTransform;
             farBankLanternLeft.gameObject.SetActive(false);
             farBankLanternRight.gameObject.SetActive(false);
-            farBankLookout = Panel(canvas.transform, "S00 forward lookout",
-                new Vector2(FarBankLookoutX, 12f), new Vector2(26f, 40f), Brass)
+            farBankLookout = AddArt(canvas.transform, "S00 forward lookout",
+                new Vector2(FarBankLookoutX, 12f), HarborSprite(HarborTileKind.LanternPost))
                 .rectTransform;
+            farBankLookout.GetComponent<Image>().color = Brass;
             farBankLookout.gameObject.SetActive(false);
-            var playerFigure = Panel(canvas.transform, "PLACEHOLDER player",
-                new Vector2(walker.x, 12f), new Vector2(32f, 32f),
-                Color.white);
-            playerPixelSprite = MakeActorSprite("PLACEHOLDER 16px player",
-                PlayerPixels, new Color32(72, 151, 183, 255),
-                out playerPixelTexture);
-            playerFigure.sprite = playerPixelSprite;
+            playerFigure = AddArt(canvas.transform, "S00 player",
+                new Vector2(walker.x, 12f), art?.FerryGuideIdle);
             marker = playerFigure.rectTransform;
-            // Distant spear-bearing enemies get a distinct 16px silhouette
-            // rather than three recoloured player sprites. They remain
-            // non-interactive scenery until a real ORK encounter is authored.
-            farBankGuardSprite = MakeActorSprite("S00 16px far-bank spear guard",
-                FarBankGuardPixels, new Color32(166, 73, 65, 255),
-                out farBankGuardTexture);
-            farBankGuardWalkSprite = MakeActorSprite("S00 16px far-bank spear guard walking",
-                FarBankGuardWalkPixels, new Color32(166, 73, 65, 255),
-                out farBankGuardWalkTexture);
             for (int i = 0; i < farBankThreats.Length; i++)
             {
-                farBankThreats[i] = Panel(canvas.transform,
-                    "S00 far-bank approaching figure " + i,
-                    new Vector2(-283f + i * 34f, 22f), new Vector2(32f, 32f),
-                    Color.white);
-                farBankThreats[i].sprite = farBankGuardSprite;
+                farBankThreats[i] = AddArt(canvas.transform, "S00 far-bank approaching figure " + i,
+                    new Vector2(-283f + i * 34f, 22f), art?.BridgeGuardIdle);
                 farBankThreats[i].gameObject.SetActive(false);
             }
 
@@ -860,7 +705,9 @@ namespace Rpg.Soundwell
                     Maki.Game.Variables.Set(RepairKey, choice + 1);
                 phase = 3;
                 HideChoices();
-                cable.color = new Color(0.58f, 0.80f, 0.59f);
+                cable.color = new Color(0.82f, 0.97f, 0.80f);
+                RpgStoryArtResolver.ApplyPixelSprite(cable, art?.ClampCableTaut);
+                RpgStoryArtResolver.ApplyPixelSprite(shenLiFigure, art?.ShenLiTurnClamp);
                 SoundwellInputAdapter.SetUiContext();
                 narration.text = Copy(
                     choice == 2 ? "Shen Li demonstrates one turn. You brace the plate together. The stretcher rolls across."
@@ -918,7 +765,7 @@ namespace Rpg.Soundwell
                 shenLiRescueLine.gameObject.SetActive(choice == 1);
                 soldierRescueHelper.gameObject.SetActive(choice == 2);
                 if (choice == 2)
-                    soldierRescueHelper.GetComponent<Image>().sprite = soldierReadySprite;
+                    soldierRescueHelper.GetComponent<Image>().sprite = art?.WhitewaterRescuerReady;
                 narration.text = Copy(
                     choice == 0 ? "Grab the wet line and haul Han Qiao yourself."
                     : choice == 1 ? "Shen Li throws the rope. Help her draw Han Qiao out."
@@ -951,6 +798,7 @@ namespace Rpg.Soundwell
                 return;
             phase = 6;
             next.gameObject.SetActive(false);
+            RpgStoryArtResolver.ApplyPixelSprite(hanQiao.GetComponent<Image>(), art?.HanQiaoInWater);
             hanQiao.gameObject.SetActive(true);
             lastBoat.gameObject.SetActive(true);
             ShowRescueChoices();
@@ -1017,10 +865,12 @@ namespace Rpg.Soundwell
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(HanQiaoRescueKey, rescueMethod + 1);
             phase = 8;
+            RpgStoryArtResolver.ApplyPixelSprite(hanQiao.GetComponent<Image>(),
+                art?.HanQiaoBeingHauled);
             rescuePoint.gameObject.SetActive(false);
             shenLiRescueLine.gameObject.SetActive(false);
             if (rescueMethod == 2)
-                soldierRescueHelper.GetComponent<Image>().sprite = soldierHaulingSprite;
+                soldierRescueHelper.GetComponent<Image>().sprite = art?.WhitewaterRescuerHauling;
             else
                 soldierRescueHelper.gameObject.SetActive(false);
             SoundwellInputAdapter.SetUiContext();
@@ -1062,6 +912,7 @@ namespace Rpg.Soundwell
             }
             if (phase == 8 && next != null)
             {
+                RpgStoryArtResolver.ApplyPixelSprite(hanQiao.GetComponent<Image>(), art?.HanQiaoOnShore);
                 instructions.text = Copy(
                     "Han Qiao is aboard. A cook with a pot on his back is stranded by the bridge railing.",
                     "韩峤已经上船。桥栏边还有一个背着锅、走不动的炊事兵。");
@@ -1090,7 +941,7 @@ namespace Rpg.Soundwell
             // of leaving Han Qiao visible on a stationary boat.
             StartCoroutine(LastBoatDeparts());
             evacuee.anchoredPosition = new Vector2(EvacueeStartX, 12f);
-            evacuee.GetComponent<Image>().sprite = evacueePixelSprite;
+            evacuee.GetComponent<Image>().sprite = art?.WhitewaterRetreatCook;
             evacuee.GetComponent<Image>().color = Color.white;
             evacueeEscortStatus.gameObject.SetActive(false);
             evacuee.gameObject.SetActive(true);
@@ -1347,7 +1198,7 @@ namespace Rpg.Soundwell
             Image actor = evacuee.GetComponent<Image>();
             actor.color = Color.white;
             actor.sprite = evacueesRescued == 1
-                ? soldierReadySprite : youngSoldierShieldSprite;
+                ? art?.WhitewaterRescuerReady : art?.WhitewaterYoungShieldBearer;
             evacuee.anchoredPosition = evacueesRescued == 1
                 ? new Vector2(-72f, 12f) : new Vector2(-15f, 12f);
             evacueeEscortStatus.gameObject.SetActive(false);
@@ -1556,7 +1407,7 @@ namespace Rpg.Soundwell
                     bool visibleMarch = Mathf.Round(x) < Mathf.Round(destinations[i]);
                     farBankThreats[i].sprite = visibleMarch &&
                         Mathf.FloorToInt(Time.unscaledTime / 0.16f) % 2 == 1
-                            ? farBankGuardWalkSprite : farBankGuardSprite;
+                            ? art?.BridgeGuardAdvance : art?.BridgeGuardIdle;
                     approaching |= movingMotor;
                 }
                 if (!approaching && advancedAfterHold)
@@ -1666,6 +1517,9 @@ namespace Rpg.Soundwell
             yield return new WaitForSecondsRealtime(0.4f);
             if (phase != 17)
                 yield break;
+            RpgStoryArtResolver.ApplyPixelSprite(cable, art?.ClampCableSnapped);
+            sinkingFarSpan.gameObject.SetActive(true);
+            Image fallingArt = sinkingFarSpan.GetComponent<Image>();
             // Only the far (left) section sinks. The near clamp and the
             // original rescue interactions remain in the same scene graph.
             float elapsed = 0f;
@@ -1677,44 +1531,38 @@ namespace Rpg.Soundwell
                 if (bridgeWalkway != null)
                 {
                     bridgeWalkway.sizeDelta = new Vector2(
-                        Mathf.Round(Mathf.Lerp(720f, 360f, t)), 58f);
+                        Mathf.Round(Mathf.Lerp(720f, 360f, t)), 32f);
                     bridgeWalkway.anchoredPosition = new Vector2(
-                        Mathf.Round(180f * t), Mathf.Round(12f - 52f * t));
+                        Mathf.Round(180f * t), 12f);
                 }
                 if (bridgeCable != null)
                 {
                     bridgeCable.sizeDelta = new Vector2(
-                        Mathf.Round(Mathf.Lerp(690f, 330f, t)), 7f);
+                        Mathf.Round(Mathf.Lerp(690f, 330f, t)), 4f);
                     bridgeCable.anchoredPosition = new Vector2(
-                        Mathf.Round(180f * t), Mathf.Round(67f - 36f * t));
+                        Mathf.Round(180f * t), 34f);
                 }
+                sinkingFarSpan.anchoredPosition = new Vector2(-180f, Mathf.Round(12f - 52f * t));
+                fallingArt.color = new Color(1f, 1f, 1f, 1f - t);
                 yield return null;
             }
             if (phase != 17)
                 yield break;
+            sinkingFarSpan.gameObject.SetActive(false);
 
             narration.text = Copy(
                 "The far span disappears under the water. Shen Li catches your hand: 'Don't look at the water. Look at me.' Torches close in; the crowd tears you apart.",
                 "远端桥身沉入水下。沈砾抓住你的手：“别看水，看我。”四面火把亮起，人潮把你们冲开。");
             instructions.text = string.Empty;
-            // Torches are existing noninteractive scenery, never an ORK squad.
-            // Use one shared point-filtered 16px sprite for all four lights,
-            // not four stretching solid rectangles or duplicate textures.
             Transform canvasRoot = title.transform.parent;
-            encirclingTorchSprite = MakeActorSprite("S00 16px encircling torch",
-                EncirclingTorchPixels, new Color32(255, 115, 42, 255),
-                out encirclingTorchTexture);
             var torchPositions = new[]
             {
                 new Vector2(-307f, 108f), new Vector2(304f, 105f),
                 new Vector2(-293f, -25f), new Vector2(301f, -27f)
             };
             foreach (Vector2 torchPosition in torchPositions)
-            {
-                var torch = Panel(canvasRoot, "PLACEHOLDER S00 encircling torch light",
-                    torchPosition, new Vector2(32f, 32f), Color.white);
-                torch.sprite = encirclingTorchSprite;
-            }
+                AddArt(canvasRoot, "S00 encircling torch light",
+                    torchPosition, HarborSprite(HarborTileKind.Brazier));
             yield return new WaitForSecondsRealtime(0.8f);
             if (phase != 17)
                 yield break;
@@ -1827,7 +1675,8 @@ namespace Rpg.Soundwell
                 new Color(0.42f, 0.82f, 0.66f);
             // A visible attempt, not a way to rewrite the established third
             // bell or silently award a battle victory.
-            cable.color = new Color(0.96f, 0.73f, 0.32f);
+            cable.color = new Color(0.96f, 0.86f, 0.62f);
+            RpgStoryArtResolver.ApplyPixelSprite(cable, art?.ClampCableTaut);
             // Spend the coil the player visibly called for: move that SAME
             // scene object onto the clamp, not an invented second rope or
             // an automatically completed ORK defence action.
@@ -1836,8 +1685,7 @@ namespace Rpg.Soundwell
             // A real held-cable interaction changes Shen Li's arm and
             // wrench silhouette at the existing 2x pixel scale. Do not
             // borrow the ORK combat animator or auto-advance the history.
-            if (shenLiFigure != null)
-                shenLiFigure.sprite = shenLiBracingSprite;
+            RpgStoryArtResolver.ApplyPixelSprite(shenLiFigure, art?.ShenLiBraceCable);
             SoundwellInputAdapter.SetUiContext();
             narration.text = Copy(
                 "You brace the strained cable beside Shen Li, hauling the spare coil onto the clamp. For a moment it holds. There is still movement across the river.",
@@ -1925,274 +1773,6 @@ namespace Rpg.Soundwell
             return clip;
         }
 
-        // Scene-local 16x16 nearest-neighbour sprites. S00 is an existing UGUI
-        // overlay, so its character Images use pixel-perfect texture input
-        // without adding a second world renderer, Animator or combat owner.
-        private static readonly string[] PlayerPixels =
-        {
-            "................",
-            ".....kkkkkk.....",
-            "....khhhhkkk....",
-            "....khffffhk....",
-            "....khffffhk....",
-            ".....kffffk.....",
-            "......kkkk......",
-            ".....kcccck.....",
-            "...ggkcccckgg...",
-            "...ggkcccckgg...",
-            ".....kbbbbk.....",
-            ".....kcccck.....",
-            ".....kk..kk.....",
-            ".....kk..kk.....",
-            "....kkk..kkk....",
-            "................",
-        };
-
-        // The ponytail and wrench distinguish Shen Li from the player at 2x.
-        private static readonly string[] ShenLiPixels =
-        {
-            "................",
-            "....kkkkkkkh....",
-            "....khhhhkkh....",
-            "....khffffkh....",
-            "....khffffkh....",
-            ".....kffffkh....",
-            "......kkkk.h....",
-            ".....kcccck.....",
-            "...ggkcccckgw...",
-            "...ggkcccckgw...",
-            ".....kbbbbk.w...",
-            ".....kcccck.w...",
-            ".....kk..kk.w...",
-            ".....kk..kk.w...",
-            "....kkk..kkk....",
-            "................",
-        };
-
-        // An extended left arm and wrench face the stressed post after the
-        // player physically confirms the cable hold. No added Animator owner.
-        private static readonly string[] ShenLiBracingPixels =
-        {
-            "................",
-            "....kkkkkkkh....",
-            "....khhhhkkh....",
-            "....khffffkh....",
-            "....khffffkh....",
-            ".....kffffkh....",
-            "......kkkk.h....",
-            ".....kcccck.....",
-            "wggggkcccckg....",
-            "wwwggkcccckg....",
-            ".w...kbbbbk.....",
-            ".w...kcccck.....",
-            ".....kk..kk.....",
-            ".....kk..kk.....",
-            "....kkk..kkk....",
-            "................",
-        };
-
-        // Water foam around Han Qiao and the cook's dark back-mounted pot
-        // distinguish the two story figures at 2x scale. This is only the
-        // first evacuation beat of v1.2; the later two remain to implement.
-        private static readonly string[] HanQiaoPixels =
-        {
-            "................",
-            "......www.......",
-            ".....kkkk.......",
-            "....kkfffkk.....",
-            "....kwfffwk.....",
-            ".....kfffk......",
-            "....wwkkww......",
-            "...wwkcckkw.....",
-            "..wwccc...ww....",
-            "..wccccccw......",
-            "...kkcckk.......",
-            "....kcck........",
-            "....kbbk........",
-            "....wbbw........",
-            "...ww..ww.......",
-            "................",
-        };
-
-        private static readonly string[] EvacueePixels =
-        {
-            "................",
-            ".....kkkk.......",
-            "....kkffkk......",
-            "....kkffkk......",
-            ".....kffk...kk..",
-            "......kk...kkkk.",
-            ".....kcck..kggk.",
-            "....kcccckkggkk.",
-            "...gkcccckgkk...",
-            "...gkcccckg.....",
-            "....kbbbbk......",
-            "....kcccck......",
-            "....kk..kk......",
-            "...kbb..bbk.....",
-            "...kk....kk.....",
-            "................",
-        };
-
-        // The third v1.2 rescue holds a distinct shield at the bridge edge.
-        // An unchanged cook sprite would conceal the authored danger.
-        private static readonly string[] YoungSoldierShieldPixels =
-        {
-            "................",
-            ".....kkkk.......",
-            "....kkffkk......",
-            "....kkffkk......",
-            ".....kffk.......",
-            "......kk........",
-            ".....kcck...bbbb",
-            "....kcccck..bbbb",
-            "...gkcccckg.bggb",
-            "...gkcccckg.bggb",
-            "....kbbbbk..bggb",
-            "....kcccck...bbb",
-            "....kk..kk......",
-            "...kbb..bbk.....",
-            "...kk....kk.....",
-            "................",
-        };
-
-        // Helmet, shoulder armour and an upright spear remain recognizable
-        // at native 16px and exact 2x UI scale, unlike the blue player sprite.
-        // The silhouette is local presentation, not a new combat participant.
-        private static readonly string[] FarBankGuardPixels =
-        {
-            ".............g..",
-            "............gg..",
-            ".............g..",
-            ".....kkkkk...g..",
-            "....kkkkkkk..g..",
-            "....kkfffkk..g..",
-            "....kkfffkk..g..",
-            ".....kfffk...g..",
-            "......kkkk...g..",
-            "....kkcccckk.g..",
-            "...kkkcccckkkg..",
-            "...kkkcccckkkg..",
-            "......kbbk...g..",
-            "......kbbk...g..",
-            ".....kk..kk..g..",
-            ".....kk..kk.....",
-        };
-
-        // An alternate 16px footfall keeps the helmet and spear fixed while
-        // visibly separating the legs. The original sprite remains the rest
-        // pose once the same approach motor reaches its existing destination.
-        private static readonly string[] FarBankGuardWalkPixels =
-        {
-            ".............g..",
-            "............gg..",
-            ".............g..",
-            ".....kkkkk...g..",
-            "....kkkkkkk..g..",
-            "....kkfffkk..g..",
-            "....kkfffkk..g..",
-            ".....kfffk...g..",
-            "......kkkk...g..",
-            "....kkcccckk.g..",
-            "...kkkcccckkkg..",
-            "...kkkcccckkkg..",
-            "......kbbk...g..",
-            "......kbbk...g..",
-            "....kk....kk.g..",
-            "...kk......kk...",
-        };
-
-        // A nearby bridge soldier is a distinct, armored 16px figure.
-        // Raising the arm is visible only after the actual station rescue.
-        private static readonly string[] SoldierReadyPixels =
-        {
-            "................",
-            ".....kkkkkk.....",
-            "....kkggggkk....",
-            "....kffffffk....",
-            ".....kffffk.....",
-            "......kkkk......",
-            "...kkcccccckk...",
-            "...kcccccccck...",
-            "....kcccccck....",
-            ".....kkkkkk.....",
-            "....kkbbbbkk....",
-            "....kk....kk....",
-            "...kk......kk...",
-            "...kk......kk...",
-            "...kk......kk...",
-            "................",
-        };
-
-        private static readonly string[] SoldierHaulingPixels =
-        {
-            "................",
-            ".....kkkkkk.....",
-            "....kkggggkk....",
-            "....kffffffk....",
-            ".....kffffk.....",
-            "......kkkk......",
-            "..kkkkcccccckkkk",
-            "..kkcccccccckk..",
-            "....kcccccck....",
-            ".....kkkkkk.....",
-            "....kkbbbbkk....",
-            "....kk....kk....",
-            "...kk......kk...",
-            "...kk......kk...",
-            "...kk......kk...",
-            "................",
-        };
-
-        // Two nested loops and an open centre read as a separate wound coil
-        // at native 16px. All source pixels use the same scene-local palette.
-        private static readonly string[] SpareRopePixels =
-        {
-            "................",
-            "....kkkkkkkk....",
-            "...kkccggcckk...",
-            "..kkcckkkkcckk..",
-            "..kcck....kcck..",
-            ".kcck......kcck.",
-            ".kcck.kkkk.kcck.",
-            ".kcck.kcck.kcck.",
-            ".kcck.kcck.kcck.",
-            ".kcck.kkkk.kcck.",
-            ".kcck......kcck.",
-            "..kcck....kcck..",
-            "..kkcckkkkcckk..",
-            "...kkccggcckk...",
-            "....kkkkkkkk....",
-            "................",
-        };
-
-        // Fixed S00 encirclement already had four torches. Draw their
-        // flame and grip at the same 16px/2x scale as the bridge actors.
-        // f/g = hot flame, c = orange fire, h/k = wooden handle and rim.
-        private static readonly string[] EncirclingTorchPixels =
-        {
-            "................",
-            ".......g........",
-            "......gfg.......",
-            "......fcf.......",
-            ".....fcccf......",
-            "......ccc.......",
-            "......hch.......",
-            ".......h........",
-            "......khk.......",
-            "......khk.......",
-            "......khk.......",
-            "......khk.......",
-            "......khk.......",
-            "......khk.......",
-            "......kkk.......",
-            "................",
-        };
-
-        private static Sprite MakeActorSprite(string name, string[] art,
-            Color32 coat, out Texture2D texture) =>
-            SoundwellPixelSpriteBuilder.Create16Colored(art, name, coat, out texture);
-
         private void OnDestroy()
         {
             defenseEncounter?.Stop();
@@ -2204,58 +1784,6 @@ namespace Rpg.Soundwell
                 Destroy(secondBellClip);
             if (thirdBellClip != null)
                 Destroy(thirdBellClip);
-            if (playerPixelSprite != null)
-                Destroy(playerPixelSprite);
-            if (shenLiPixelSprite != null)
-                Destroy(shenLiPixelSprite);
-            if (shenLiBracingSprite != null)
-                Destroy(shenLiBracingSprite);
-            if (playerPixelTexture != null)
-                Destroy(playerPixelTexture);
-            if (shenLiPixelTexture != null)
-                Destroy(shenLiPixelTexture);
-            if (shenLiBracingTexture != null)
-                Destroy(shenLiBracingTexture);
-            if (hanQiaoPixelSprite != null)
-                Destroy(hanQiaoPixelSprite);
-            if (soldierReadySprite != null)
-                Destroy(soldierReadySprite);
-            if (soldierHaulingSprite != null)
-                Destroy(soldierHaulingSprite);
-            if (youngSoldierShieldSprite != null)
-                Destroy(youngSoldierShieldSprite);
-            if (evacueePixelSprite != null)
-                Destroy(evacueePixelSprite);
-            if (farBankGuardSprite != null)
-                Destroy(farBankGuardSprite);
-            if (encirclingTorchSprite != null)
-                Destroy(encirclingTorchSprite);
-            if (farBankGuardWalkSprite != null)
-                Destroy(farBankGuardWalkSprite);
-            if (spareRopePixelSprite != null)
-                Destroy(spareRopePixelSprite);
-            if (hanQiaoPixelTexture != null)
-                Destroy(hanQiaoPixelTexture);
-            if (soldierReadyTexture != null)
-                Destroy(soldierReadyTexture);
-            if (soldierHaulingTexture != null)
-                Destroy(soldierHaulingTexture);
-            if (youngSoldierShieldTexture != null)
-                Destroy(youngSoldierShieldTexture);
-            if (evacueePixelTexture != null)
-                Destroy(evacueePixelTexture);
-            if (farBankGuardTexture != null)
-                Destroy(farBankGuardTexture);
-            if (encirclingTorchTexture != null)
-                Destroy(encirclingTorchTexture);
-            if (farBankGuardWalkTexture != null)
-                Destroy(farBankGuardWalkTexture);
-            if (spareRopePixelTexture != null)
-                Destroy(spareRopePixelTexture);
-            if (shenLiRescueRopeTexture != null)
-                Destroy(shenLiRescueRopeTexture);
-            if (lastBoatPixelTexture != null)
-                Destroy(lastBoatPixelTexture);
         }
 
         private void ShowWorkshopPromise()
@@ -2430,6 +1958,15 @@ namespace Rpg.Soundwell
             walker = new Vector2(Mathf.Clamp(walker.x + delta.x, -325f, 275f),
                 Mathf.Clamp(walker.y + delta.y, -43f, 43f));
             marker.anchoredPosition = PixelSnappedWalkerPosition(walker);
+            bool moving = delta.sqrMagnitude > 0f;
+            if (delta.x != 0f)
+                marker.localScale = new Vector3(Mathf.Sign(delta.x), 1f, 1f);
+            Sprite pose = moving
+                ? (((int)(Time.unscaledTime * 6f) & 1) == 0
+                    ? art?.FerryGuideWalk1 : art?.FerryGuideWalk2)
+                : art?.FerryGuideIdle;
+            if (playerFigure.sprite != pose)
+                RpgStoryArtResolver.ApplyPixelSprite(playerFigure, pose);
             RefreshBridgeStationReachCue();
             if (phase == 15)
             {
@@ -2517,6 +2054,8 @@ namespace Rpg.Soundwell
                 // Neither the first knock nor moving into tool reach may
                 // credit a repair. Each E / Pad A is an actual gameplay action.
                 clampKnocks++;
+                RpgStoryArtResolver.ApplyPixelSprite(shenLiFigure,
+                    clampKnocks == 1 ? art?.ShenLiBridgeWrench : art?.ShenLiTurnClamp);
                 if (clampKnocks == 1)
                 {
                     narration.text = Copy(
@@ -2582,6 +2121,34 @@ namespace Rpg.Soundwell
             onExit = null;
             callback?.Invoke();
             Destroy(gameObject);
+        }
+
+        private Sprite HarborSprite(HarborTileKind kind)
+        {
+            Sprite[] tiles = art?.HarborTiles;
+            int index = (int)kind;
+            return tiles != null && index < tiles.Length ? tiles[index] : null;
+        }
+
+        private static Image AddArt(Transform parent, string name, Vector2 position, Sprite sprite)
+        {
+            Vector2 size = sprite != null ? sprite.rect.size * 2f : new Vector2(32f, 48f);
+            Image image = Panel(parent, name, position, size, Color.white);
+            RpgStoryArtResolver.ApplyPixelSprite(image, sprite);
+            return image;
+        }
+
+        private static Image AddTiledArt(Transform parent, string name, Vector2 position,
+            Vector2 size, Sprite sprite, float pixelScale = 2f)
+        {
+            Image image = Panel(parent, name, position, size, Color.white);
+            RpgStoryArtResolver.ApplyPixelSprite(image, sprite);
+            if (sprite != null)
+            {
+                image.type = Image.Type.Tiled;
+                image.pixelsPerUnitMultiplier = 1f / (image.pixelsPerUnit * pixelScale);
+            }
+            return image;
         }
 
         private static Image Panel(Transform parent, string name, Vector2 pos,

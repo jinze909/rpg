@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -50,6 +51,37 @@ namespace Rpg.Tests.Editor
                 new M06ReunionRecord(plan, true, letterOutcome, true), read, write), Is.True);
         }
 
+        private static void AssertStageArt(M07ExtractionNightView view, string primary, string detail)
+        {
+            AssertIcon("M07 route art", primary);
+            AssertIcon("M07 route detail art", detail);
+
+            void AssertIcon(string name, string expectedSpriteName)
+            {
+                Image image = view.Panel.Find(name).GetComponent<Image>();
+                Assert.That(image.raycastTarget, Is.False, name);
+                Assert.That(image.isActiveAndEnabled, Is.EqualTo(expectedSpriteName != null), name);
+                RectTransform rect = image.rectTransform;
+                float left = rect.anchoredPosition.x - rect.rect.width / 2f;
+                float right = rect.anchoredPosition.x + rect.rect.width / 2f;
+                float top = rect.anchoredPosition.y + rect.rect.height / 2f;
+                float textRight = view.Body.rectTransform.anchoredPosition.x +
+                    view.Body.rectTransform.rect.width / 2f;
+                Assert.That(left, Is.GreaterThan(textRight), name);
+                Assert.That(right, Is.LessThan(view.Panel.rect.width / 2f), name);
+                Assert.That(top, Is.LessThan(view.Panel.rect.height / 2f), name);
+                if (expectedSpriteName == null)
+                {
+                    Assert.That(image.sprite, Is.Null, name);
+                    return;
+                }
+                Assert.That(image.sprite, Is.Not.Null, name);
+                Assert.That(image.sprite.name, Is.EqualTo(expectedSpriteName), name);
+                Assert.That(UnityEditor.AssetDatabase.GetAssetPath(image.sprite),
+                    Does.StartWith("Assets/Game/Art/RedSalt/"), name);
+            }
+        }
+
         [Test]
         public void MinerShutdownFlowShowsOldZhangFarewellReturnLettersAndPersistsRollCall()
         {
@@ -71,9 +103,13 @@ namespace Rpg.Tests.Editor
                     Assert.That(session.TryCompleteDockRollCall(liang, yida, true, read, write), Is.True);
                 });
 
+                AssertStageArt(view, "m07_backup_hand_pump_idle", "m07_oulin_hidden_lock_closed");
+
                 view.ExecutePlanButton.onClick.Invoke();
                 Assert.That(view.Body.text, Does.Contain("对不住了，老张"));
+                AssertStageArt(view, "m07_sluice_released_open", "m07_backup_hand_pump_working");
                 view.AdvanceButton.onClick.Invoke();
+                AssertStageArt(view, null, null);
 
                 view.RusFledButton.onClick.Invoke();
                 Assert.That(view.Body.text, Does.Contain("写了一整页"));
@@ -81,10 +117,12 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(view.Body.text, Does.Contain("伊蕾监察副本"));
                 Assert.That(view.Body.text, Does.Contain("七十二"));
+                AssertStageArt(view, "m07_boarding_gangway_lowered", "m07_berth_tag_available");
                 view.LiangStayButton.onClick.Invoke();
                 view.LiangStayButton.onClick.Invoke();
 
                 Assert.That(saves, Is.EqualTo(1));
+                AssertStageArt(view, "m07_boarding_gangway_raised", "m07_berth_tag_boarded");
                 Assert.That(session.Stage, Is.EqualTo(M07ExtractionStage.Completed));
                 Assert.That(M07ExtractionFacts.TryRead(read, out M07ExtractionRecord? saved), Is.True);
                 Assert.That(saved.HasValue, Is.True);
@@ -118,7 +156,10 @@ namespace Rpg.Tests.Editor
                     Assert.That(session.TryCompleteDockRollCall(liang, yida, true, read, write), Is.True);
                 });
 
+                AssertStageArt(view, "m07_inspection_barrier_closed", "m07_oulin_hidden_lock_closed");
+
                 view.PivotFallbackButton.onClick.Invoke();
+                AssertStageArt(view, "m07_sluice_released_open", "m07_oulin_hidden_lock_open");
                 Assert.That(view.Body.text, Does.Not.Contain("对不住了，老张"));
                 Assert.That(view.Body.text, Does.Contain("主泵由留守工匠维持运转"));
                 view.AdvanceButton.onClick.Invoke();

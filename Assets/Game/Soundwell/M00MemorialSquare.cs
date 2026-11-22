@@ -26,8 +26,6 @@ namespace Rpg.Soundwell
         private const float ChildForgetsAfter = 1.8f;
 
         private static readonly Color Ink = new Color(0.12f, 0.17f, 0.20f);
-        private static readonly Color Gold = new Color(0.62f, 0.39f, 0.16f);
-        private static readonly Color Stone = new Color(0.54f, 0.56f, 0.53f);
         private static readonly string[] StatueReactionEnglish =
         {
             "The nose is too straight.",
@@ -55,106 +53,11 @@ namespace Rpg.Soundwell
             "留在原地"
         };
 
-        private static readonly string[] PlayerPixels =
-        {
-            "................",
-            "......kkkk......",
-            ".....khhhhk.....",
-            ".....khffhk.....",
-            ".....khffhk.....",
-            "......kffk......",
-            ".....kcccck.....",
-            "....kcccccck....",
-            "....kccggcck....",
-            "....kcccccck....",
-            "......kbbk......",
-            "......kbbk......",
-            ".....kk..kk.....",
-            ".....kk..kk.....",
-            "....kk....kk....",
-            "................"
-        };
-        private static readonly string[] OldWomanPixels =
-        {
-            "................",
-            ".....kkkkkk.....",
-            "....khhhhkk.....",
-            "....khffhhk.....",
-            "....khffhhk.....",
-            ".....kffk.......",
-            "....kccccck.....",
-            "...kccccccck....",
-            "...kccggccck....",
-            "...kccccccck....",
-            "....kcc..cck....",
-            "....kbb..bbk....",
-            "...kk......kk...",
-            "................",
-            "................",
-            "................"
-        };
-        private static readonly string[] ChildPixels =
-        {
-            "................",
-            "......kkkk......",
-            ".....khhhhk.....",
-            ".....khffhk.....",
-            ".....khffhk.....",
-            "......kffk......",
-            ".....kcccck.....",
-            "....kcccccck....",
-            "....kccggcck....",
-            "....kcccccck....",
-            "....kcccccck....",
-            "....kcccccck....",
-            "....kbb..bbk....",
-            "....kbb..bbk....",
-            "...kk......kk...",
-            "................"
-        };
-        private static readonly string[] WatcherPixels =
-        {
-            "................",
-            "......kkkk......",
-            ".....khhhhk.....",
-            ".....khffhk.....",
-            ".....khffhk.....",
-            "......kffk......",
-            ".....kcccck.....",
-            "....kcccccck....",
-            "....kccwwcck....",
-            "....kcccccck....",
-            "....kcccccck....",
-            "......kbbk......",
-            "......kbbk......",
-            ".....kk..kk.....",
-            "....kk....kk....",
-            "................"
-        };
-        private static readonly string[] StatuePixels =
-        {
-            "................",
-            "......kkkk......",
-            ".....kggggk.....",
-            ".....kggggk.....",
-            "......kggk......",
-            ".....kggggk.....",
-            "....kggggggk....",
-            "....kggggggk....",
-            ".....kggggk.....",
-            ".....kggggk.....",
-            "......kggk......",
-            ".....kggggk.....",
-            "....kggggggk....",
-            "....kggggggk....",
-            ".....kkkkkk.....",
-            "................"
-        };
-
         private Canvas canvas;
         private RectTransform authoredView;
         private float lastViewAspect = -1f;
-        private RectTransform player;
+        private Image playerImage;
+        private RpgPixelArtManifest artManifest;
         private Image oldWomanImage;
         private Image childImage;
         private Text narration;
@@ -164,16 +67,6 @@ namespace Rpg.Soundwell
         private Text crowdLine;
         private Button[] choices = new Button[4];
         private Button rollCallButton;
-        private Sprite playerSprite;
-        private Sprite oldWomanSprite;
-        private Sprite childSprite;
-        private Sprite watcherSprite;
-        private Sprite statueSprite;
-        private Texture2D playerTexture;
-        private Texture2D oldWomanTexture;
-        private Texture2D childTexture;
-        private Texture2D watcherTexture;
-        private Texture2D statueTexture;
         private Action onExit;
         private Vector2 walker = new Vector2(-360f, 0f);
         private float stageStartedAt;
@@ -212,7 +105,7 @@ namespace Rpg.Soundwell
 
         private void BuildScene()
         {
-            CreateSprites();
+            artManifest = RpgPixelArtManifest.LoadDefault();
             var canvasObject = new GameObject("M00 memorial square canvas",
                 typeof(RectTransform), typeof(Canvas));
             canvasObject.transform.SetParent(transform, false);
@@ -238,15 +131,10 @@ namespace Rpg.Soundwell
             Panel(authoredView, "M00 daylight harbor sky",
                 Vector2.zero, new Vector2(960f, 540f),
                 new Color(0.69f, 0.78f, 0.77f));
-            Panel(authoredView, "M00 distant harbor water",
-                new Vector2(0f, 34f), new Vector2(960f, 115f),
-                new Color(0.35f, 0.57f, 0.61f));
-            Panel(authoredView, "M00 memorial square paving",
-                new Vector2(0f, -112f), new Vector2(960f, 220f),
-                new Color(0.61f, 0.62f, 0.57f));
-            Panel(authoredView, "M00 crowd line",
-                new Vector2(0f, -4f), new Vector2(900f, 22f),
-                new Color(0.48f, 0.52f, 0.49f));
+            TiledArt("M00 distant harbor water", new Vector2(0f, 34f),
+                new Vector2(960f, 115f), artManifest?.M00DayWater);
+            TiledArt("M00 memorial square paving", new Vector2(0f, -112f),
+                new Vector2(960f, 220f), artManifest?.M00SquarePaving);
 
             Label(authoredView,
                 Copy("Your Name Carved in Stone", "你的名字刻在石头上"),
@@ -262,33 +150,32 @@ namespace Rpg.Soundwell
 
             // The polished memorial stone and the statue remain visible from
             // the start. The epitaph is revealed only after a real approach.
-            Panel(authoredView, "M00 memorial stone",
-                new Vector2(StatueX, 29f), new Vector2(118f, 112f), Stone);
-            var statueObject = Panel(authoredView, "M00 memorial statue",
-                new Vector2(StatueX, 112f), new Vector2(40f, 40f),
-                Color.white, statueSprite);
-            statueObject.rectTransform.sizeDelta = new Vector2(40f, 40f);
-            inscription = Label(authoredView, "", 12, Ink,
-                new Vector2(StatueX, 25f), new Vector2(190f, 102f));
+            RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 memorial stone",
+                new Vector2(StatueX, 29f), new Vector2(96f, 96f), artManifest?.M00MemorialStele);
+            RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 memorial statue",
+                new Vector2(StatueX, 87f), new Vector2(64f, 64f), artManifest?.M00MemorialStatue);
+            inscription = Label(authoredView, "", 16, Ink,
+                new Vector2(0f, 151f), new Vector2(870f, 66f));
+            inscription.alignment = TextAnchor.MiddleCenter;
             inscription.gameObject.SetActive(false);
 
-            oldWomanImage = Panel(authoredView, "M00 old woman wiping Hao Lie’s name",
-                new Vector2(OldWomanX, LaneY), new Vector2(32f, 32f),
-                Color.white, oldWomanSprite);
+            var actorSize = new Vector2(32f, 48f);
+            oldWomanImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView,
+                "M00 old woman wiping Hao Lie’s name", new Vector2(OldWomanX, LaneY),
+                actorSize, artManifest?.M00MemorialWoman);
             // The blue-cuffed former soldiers watch from the crowd edge.
-            Panel(authoredView, "M00 blue-cuffed watcher left",
-                new Vector2(-275f, LaneY), new Vector2(32f, 32f),
-                Color.white, watcherSprite);
-            Panel(authoredView, "M00 blue-cuffed watcher right",
-                new Vector2(-230f, LaneY), new Vector2(32f, 32f),
-                new Color(0.88f, 0.93f, 0.95f), watcherSprite);
+            RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 blue-cuffed watcher left",
+                new Vector2(-275f, LaneY), actorSize, artManifest?.M00Veteran);
+            Image rightWatcher = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView,
+                "M00 blue-cuffed watcher right", new Vector2(-230f, LaneY),
+                actorSize, artManifest?.M00Veteran);
+            rightWatcher.color = new Color(0.88f, 0.93f, 0.95f);
 
-            Panel(authoredView, "M00 small stage",
-                new Vector2(StageX, 28f), new Vector2(176f, 18f),
-                new Color(0.37f, 0.25f, 0.18f));
-            childImage = Panel(authoredView, "M00 Xiaodou in oversized uniform",
-                new Vector2(StageX, 72f), new Vector2(32f, 32f),
-                Color.white, childSprite);
+            RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 small stage",
+                new Vector2(StageX, 23f), new Vector2(96f, 96f), artManifest?.M00SmallStage);
+            childImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView,
+                "M00 Xiaodou in oversized uniform", new Vector2(StageX, 62f),
+                actorSize, artManifest?.M00Xiaodou);
             childLine = Label(authoredView, "", 16, Ink,
                 new Vector2(StageX, 132f), new Vector2(360f, 30f));
             childLine.gameObject.SetActive(false);
@@ -296,16 +183,8 @@ namespace Rpg.Soundwell
                 new Vector2(StageX, 108f), new Vector2(360f, 24f));
             crowdLine.gameObject.SetActive(false);
 
-            var playerImage = Panel(authoredView, "M00 player",
-                new Vector2(walker.x, LaneY), new Vector2(32f, 32f),
-                Color.white, playerSprite);
-            player = playerImage.rectTransform;
-            playerImage.raycastTarget = false;
-            playerImage.preserveAspect = true;
-            playerImage.sprite = playerSprite;
-            playerImage.rectTransform.sizeDelta = new Vector2(32f, 32f);
-            playerImage.gameObject.name = "M00 player";
-            playerImage.raycastTarget = false;
+            playerImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 player",
+                new Vector2(walker.x, LaneY), actorSize, artManifest?.FerryGuideIdle);
 
             instructions = Label(authoredView, "", 15, Ink,
                 new Vector2(0f, -224f), new Vector2(880f, 34f));
@@ -319,41 +198,29 @@ namespace Rpg.Soundwell
             RefreshViewLayout();
         }
 
-        private void CreateSprites()
+        private void TiledArt(string name, Vector2 position, Vector2 size, Sprite tile)
         {
-            playerSprite = SoundwellPixelSpriteBuilder.Create16Colored(
-                PlayerPixels, "M00 16px returning survivor",
-                new Color32(82, 119, 143, 255), out playerTexture);
-            oldWomanSprite = SoundwellPixelSpriteBuilder.Create16Colored(
-                OldWomanPixels, "M00 16px old woman wiping the stone",
-                new Color32(128, 132, 128, 255), out oldWomanTexture);
-            childSprite = SoundwellPixelSpriteBuilder.Create16Colored(
-                ChildPixels, "M00 16px Xiaodou in oversized uniform",
-                new Color32(151, 117, 79, 255), out childTexture);
-            watcherSprite = SoundwellPixelSpriteBuilder.Create16Colored(
-                WatcherPixels, "M00 16px blue-cuffed former soldier",
-                new Color32(74, 95, 112, 255), out watcherTexture);
-            statueSprite = SoundwellPixelSpriteBuilder.Create16Colored(
-                StatuePixels, "M00 16px memorial statue",
-                new Color32(180, 181, 169, 255), out statueTexture);
+            Image image = RpgStoryArtResolver.CreateOrUpdatePixelIcon(
+                authoredView, name, position, size, tile);
+            image.preserveAspect = false;
+            image.type = Image.Type.Tiled;
+            // A 16-pixel, 16-PPU tile occupies 64 authored canvas pixels.
+            image.pixelsPerUnitMultiplier = canvas.referencePixelsPerUnit / 64f;
         }
 
-        private static Image Panel(Transform parent, string name,
-            Vector2 position, Vector2 size, Color color, Sprite sprite = null)
+        private static void Panel(Transform parent, string name,
+            Vector2 position, Vector2 size, Color color)
         {
             var obj = new GameObject(name,
                 typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             obj.transform.SetParent(parent, false);
             var image = obj.GetComponent<Image>();
             image.color = color;
-            image.sprite = sprite;
             image.raycastTarget = false;
-            image.preserveAspect = sprite != null;
             var rect = image.rectTransform;
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
-            return image;
         }
 
         private static Text Label(Transform parent, string value, int fontSize,
@@ -468,8 +335,16 @@ namespace Rpg.Soundwell
             walker = new Vector2(
                 Mathf.Clamp(walker.x + delta.x, -430f, 430f),
                 Mathf.Clamp(walker.y + delta.y, -42f, 42f));
-            player.anchoredPosition = new Vector2(
+            playerImage.rectTransform.anchoredPosition = new Vector2(
                 Mathf.Round(walker.x), Mathf.Round(LaneY + walker.y));
+            if (artManifest != null)
+            {
+                Sprite sprite = artManifest.FerryGuideIdle;
+                if (delta.sqrMagnitude > 0f)
+                    sprite = (Mathf.FloorToInt(Time.unscaledTime * 7f) & 1) == 0
+                        ? artManifest.FerryGuideWalk1 : artManifest.FerryGuideWalk2;
+                RpgStoryArtResolver.ApplyPixelSprite(playerImage, sprite ?? artManifest.FerryGuideIdle);
+            }
             RefreshObjective();
 
             if (!frame.Ring)
@@ -542,6 +417,7 @@ namespace Rpg.Soundwell
             inscription.text = Copy(
                 "Your name is carved beneath the memorial’s claim:\n“The enemy burned the pontoon bridge. The Third Brigade held the bridgehead; all perished.”",
                 "你的名字刻在这段碑文之下：\n“敌军火攻浮桥，第三旅死守桥头，全员殉国。”");
+            narration.gameObject.SetActive(false);
             inscription.gameObject.SetActive(true);
             narration.text = Copy(
                 "The statue stands above the polished stone. The epitaph says the entire Third Brigade died defending the bridge.",
@@ -601,6 +477,8 @@ namespace Rpg.Soundwell
             if (phase == 1 && index >= 0 && index < StatueReactionEnglish.Length)
             {
                 statueReaction = index;
+                inscription.gameObject.SetActive(false);
+                narration.gameObject.SetActive(true);
                 phase = 2;
                 HideChoices();
                 SoundwellInputAdapter.SetGameplayContext();
@@ -612,6 +490,12 @@ namespace Rpg.Soundwell
             if (phase != 4 || index < 0 || index >= XiaodouChoiceEnglish.Length)
                 return;
             xiaodouPrompted = index == 0;
+            if (xiaodouPrompted)
+            {
+                RpgStoryArtResolver.ApplyPixelSprite(childImage,
+                    artManifest?.M00XiaodouPrompted ?? artManifest?.M00Xiaodou);
+                childImage.color = Color.white;
+            }
             if (Maki.Initialized && Maki.Game?.Variables != null)
                 Maki.Game.Variables.Set(XiaodouPromptedKey, xiaodouPrompted ? 1 : 0);
             phase = 5;
@@ -665,20 +549,6 @@ namespace Rpg.Soundwell
             onExit = null;
             callback?.Invoke();
             Destroy(gameObject);
-        }
-
-        private void OnDestroy()
-        {
-            if (playerSprite != null) Destroy(playerSprite);
-            if (oldWomanSprite != null) Destroy(oldWomanSprite);
-            if (childSprite != null) Destroy(childSprite);
-            if (watcherSprite != null) Destroy(watcherSprite);
-            if (statueSprite != null) Destroy(statueSprite);
-            if (playerTexture != null) Destroy(playerTexture);
-            if (oldWomanTexture != null) Destroy(oldWomanTexture);
-            if (childTexture != null) Destroy(childTexture);
-            if (watcherTexture != null) Destroy(watcherTexture);
-            if (statueTexture != null) Destroy(statueTexture);
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Rpg.Editor
         private static readonly (string key, string en, string zh)[] Entries =
         {
             ("hud.title", "SOUNDWELL  /  SIGNAL TRIAL", "声井 / 信号试炼"),
-            ("hud.entrance", "PLACEHOLDER   /   Entrance and observation lane", "占位场景 / 入口与观察通道"),
+            ("hud.entrance", "Entrance and observation lane", "入口与观察通道"),
             ("hud.retreat", "RETREAT", "撤退点"),
             ("hud.copper_bell", "COPPER BELL", "铜铃"),
             ("hud.side_stand", "SIDE BELL STAND", "侧边铃架"),
@@ -35,7 +35,7 @@ namespace Rpg.Editor
             ("action.lift", "LIFT  [F / LB]", "拿起 [F / LB]"),
             ("action.drop", "DROP  [F / LB]", "放下 [F / LB]"),
             ("action.language", "中文 / EN", "EN / 中文"),
-            ("battle.heading", "ORK TURN-BASED ENCOUNTER  /  PLACEHOLDER", "ORK 回合战 / 占位"),
+            ("battle.heading", "Soundwell encounter", "声井回合战"),
             ("battle.rescuer", "Rescuer", "救援队员"),
             ("battle.beast", "Beast", "野兽"),
             ("battle.hp", "HP", "生命"),
