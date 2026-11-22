@@ -42,6 +42,7 @@ namespace Rpg.Soundwell
         public Button PublishTruthButton => choiceButtons[0];
         public Button WillingKnowersButton => choiceButtons[1];
         public Button SealTruthButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M12BridgeTruthView(
             Transform parent,
