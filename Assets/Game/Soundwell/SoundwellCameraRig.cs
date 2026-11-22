@@ -30,13 +30,30 @@ namespace Rpg.Soundwell
         private CinemachineCamera virtualCamera;
         private PixelPerfectCamera createdPixelCamera;
         private CinemachineBrain createdBrain;
+        private bool worldMapFraming;
+        private bool disposed;
 
         public CinemachineCamera VirtualCamera => virtualCamera;
         public Transform FramingTarget => framingTarget;
 
+        public void InitializeForWorldMap(Camera camera, Transform leader,
+            Transform mapFrame, Vector2 halfExtents)
+        {
+            if (halfExtents.x <= 0f || halfExtents.y <= 0f ||
+                float.IsNaN(halfExtents.x) || float.IsNaN(halfExtents.y) ||
+                float.IsInfinity(halfExtents.x) || float.IsInfinity(halfExtents.y))
+                throw new ArgumentOutOfRangeException(nameof(halfExtents));
+
+            trialHalfExtents = halfExtents;
+            followFactors = Vector2.one;
+            maxFollowOffsets = halfExtents;
+            worldMapFraming = true;
+            Initialize(camera, leader, mapFrame);
+        }
+
         public void Initialize(Camera camera, Transform leader, Transform sceneRoot)
         {
-            if (sceneCamera != null || camera == null || leader == null || sceneRoot == null)
+            if (disposed || sceneCamera != null || camera == null || leader == null || sceneRoot == null)
                 throw new InvalidOperationException("Soundwell camera rig must be initialized exactly once.");
             if (!camera.orthographic || camera.GetComponent<CinemachineBrain>() != null)
                 throw new InvalidOperationException("Soundwell requires one orthographic Camera without a competing Brain.");
@@ -112,13 +129,17 @@ namespace Rpg.Soundwell
             // slack enlarged that square view to 9.07 and regressed the
             // live ORK battle's camera contract.
             // Horizontal and vertical padding include the 0.12 edge margin.
-            float desiredSize = Mathf.Max(ReferenceHeight / (2f * PixelsPerUnit),
-                worldHalfHeight + edgeMargin + 0.5f,
-                (worldHalfWidth + edgeMargin + 0.28f) / aspect);
-            float availablePanX = Mathf.Max(0f,
-                desiredSize * aspect - worldHalfWidth - edgeMargin);
-            float availablePanY = Mathf.Max(0f,
-                desiredSize - worldHalfHeight - edgeMargin);
+            float desiredSize = worldMapFraming
+                ? ReferenceHeight / (2f * PixelsPerUnit)
+                : Mathf.Max(ReferenceHeight / (2f * PixelsPerUnit),
+                    worldHalfHeight + edgeMargin + 0.5f,
+                    (worldHalfWidth + edgeMargin + 0.28f) / aspect);
+            float availablePanX = worldMapFraming
+                ? Mathf.Max(0f, worldHalfWidth - desiredSize * aspect - edgeMargin)
+                : Mathf.Max(0f, desiredSize * aspect - worldHalfWidth - edgeMargin);
+            float availablePanY = worldMapFraming
+                ? Mathf.Max(0f, worldHalfHeight - desiredSize - edgeMargin)
+                : Mathf.Max(0f, desiredSize - worldHalfHeight - edgeMargin);
             Vector2 sourceWorld = playerBody != null ? playerBody.position :
                 (Vector2)player.position;
             Vector3 sourceLocal = trialRoot.InverseTransformPoint(sourceWorld);
@@ -185,25 +206,45 @@ namespace Rpg.Soundwell
             RefreshFraming();
         }
 
-        private void OnDestroy()
+        public void Dispose()
         {
+            if (disposed) return;
+            disposed = true;
+            if (virtualCamera != null)
+            {
+                virtualCamera.Priority = 0;
+                virtualCamera.enabled = false;
+                DestroyOwned(virtualCamera.gameObject);
+            }
             if (createdBrain != null)
             {
-                if (Application.isPlaying)
-                    Destroy(createdBrain);
-                else
-                    DestroyImmediate(createdBrain);
+                createdBrain.enabled = false;
+                DestroyOwned(createdBrain);
                 createdBrain = null;
             }
             if (createdPixelCamera != null)
             {
-                if (Application.isPlaying)
-                    Destroy(createdPixelCamera);
-                else
-                    DestroyImmediate(createdPixelCamera);
+                createdPixelCamera.enabled = false;
+                DestroyOwned(createdPixelCamera);
                 createdPixelCamera = null;
             }
             sceneCamera = null;
+            player = null;
+            playerBody = null;
+            trialRoot = null;
+            framingTarget = null;
+            virtualCamera = null;
         }
+
+        private static void DestroyOwned(UnityEngine.Object value)
+        {
+            if (value == null) return;
+            if (Application.isPlaying)
+                UnityEngine.Object.Destroy(value);
+            else
+                UnityEngine.Object.DestroyImmediate(value);
+        }
+
+        private void OnDestroy() { Dispose(); }
     }
 }

@@ -257,10 +257,45 @@ namespace Rpg.Tests.Editor
                 harborWalk.AdvanceButton.onClick.Invoke();
                 Assert.That(harborWalk.Beat, Is.EqualTo(M05HarborBeat.MarketAccusation));
                 harborWalk.AdvanceButton.onClick.Invoke();
-                Assert.That(deliveries, Is.EqualTo(1));
-                Assert.That(continuation.ActiveSeaCrossing, Is.Null,
-                    "The owning opening releases the crossing after M05 accepts its outcome.");
+                Assert.That(deliveries, Is.Zero,
+                    "M05 must hand its verified outcome into the playable M06 mine camp, not end the opening.");
+                Assert.That(continuation.ActiveSeaCrossing, Is.Null);
                 Assert.That(vars.GetInt(M05LandingFacts.ConfirmedKey), Is.EqualTo(1));
+
+                M06MineCampSceneHost activeMineCamp = continuation.ActiveMineCamp;
+                Assert.That(activeMineCamp, Is.Not.Null);
+                Assert.That(activeMineCamp.CameraRig, Is.Not.Null);
+                Assert.That(activeMineCamp.CameraRig.VirtualCamera.Lens.OrthographicSize,
+                    Is.EqualTo(5.625f).Within(0.001f));
+
+                M06MineCampExplorationHost mineCamp = activeMineCamp.Exploration;
+                Vector2 spawn = mineCamp.PlayerPosition;
+                Assert.That(mineCamp.StepMovement(Vector2.right, 0.2f), Is.True);
+                Assert.That(mineCamp.PlayerPosition.x, Is.GreaterThan(spawn.x));
+                Assert.That(mineCamp.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
+                Assert.That(mineCamp.FindNearbyInteractableTriggerId(), Is.EqualTo("m06.pump-reunion"));
+                Assert.That(mineCamp.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(mineCamp.ActiveReunionView, Is.Not.Null);
+
+                mineCamp.ActiveReunionView.GreetingBringBackButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                Assert.That(mineCamp.ActiveReunionView.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                mineCamp.ActiveReunionView.ShenWaitButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.OfficialHandoverButton.onClick.Invoke();
+
+                Assert.That(mineCamp.RescuePlanSettled, Is.True);
+                Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? savedPlan), Is.True);
+                Assert.That(savedPlan.HasValue, Is.True);
+                Assert.That(savedPlan.Value.Plan, Is.EqualTo(M06RescuePlan.OfficialHandover));
+                Assert.That(savedPlan.Value.LetterDelivery,
+                    Is.EqualTo(M06LetterDeliveryOutcome.DeliveredWithPending));
+                Assert.That(deliveries, Is.Zero);
+
+                activeMineCamp.Exit();
+                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(continuation.ActiveMineCamp, Is.Null);
 
                 Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
                 SeedVerifiedDeparture(write, M03VoyageChoice.QiQueMerchant);
