@@ -199,6 +199,76 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InteractiveArrivalObservationOpensOnlyAfterFogAndRecordsPlayerSelectedDockFacts()
+        {
+            var root = new GameObject("M04 to M05 interactive arrival observation");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = Writer(values);
+            M04ToM05SeaCrossingHost host = null;
+            int completions = 0;
+            int fogFailures = 0;
+            try
+            {
+                Assert.That(M04ToM05SeaCrossingHost.TryOpenWithInteractiveLandingObservation(
+                    root.transform, ClearFogLeg, read, write,
+                    _ => completions++, _ => fogFailures++, out host), Is.True);
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.CastOff));
+                Assert.That(host.LandingObservationView, Is.Null);
+                Assert.That(values.ContainsKey(M05LandingFacts.ConfirmedKey), Is.False);
+
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+                Assert.That(host.LandingObservationView, Is.Null);
+                host.FogHost.View.HoldButton.onClick.Invoke();
+                Assert.That(host.LandingObservationView, Is.Null);
+
+                host.FogHost.View.ContinueButton.onClick.Invoke();
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.LandingObservation));
+                Assert.That(host.LandingObservationView, Is.Not.Null);
+                Assert.That(host.FogHost, Is.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+                Assert.That(values.ContainsKey(M05LandingFacts.ConfirmedKey), Is.False);
+
+                M05LandingObservationView observation = host.LandingObservationView;
+                Assert.That(observation.CrewArrived, Is.Zero,
+                    "The departure manifest must not pre-fill the number who actually arrived.");
+                Assert.That(observation.ReadyRescueBerths, Is.Zero);
+                observation.CrewPlusButton.onClick.Invoke();
+                observation.CrewPlusButton.onClick.Invoke();
+                observation.TenderButton.onClick.Invoke();
+                observation.ReceiverButton.onClick.Invoke();
+                observation.BerthPlusButton.onClick.Invoke();
+                observation.BerthPlusButton.onClick.Invoke();
+                observation.BerthPlusButton.onClick.Invoke();
+                Assert.That(observation.CanConfirm, Is.True);
+
+                observation.ConfirmButton.onClick.Invoke();
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.OuterHarbor));
+                Assert.That(host.LandingObservationView, Is.Null);
+                Assert.That(host.OuterHarborHost, Is.Not.Null);
+                Assert.That(host.OuterHarborHost.Stage,
+                    Is.EqualTo(M05OuterHarborFlowStage.ArrivalSession));
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+                Assert.That(M05LandingFacts.TryRead(read,
+                    out M05LandingReport? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.CrewArrived, Is.EqualTo(2));
+                Assert.That(saved.Value.ReadyRescueBerths, Is.EqualTo(3));
+                Assert.That(saved.Value.TenderArrived, Is.True);
+                Assert.That(saved.Value.ReceiverMet, Is.True);
+                Assert.That(completions, Is.Zero);
+                Assert.That(fogFailures, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DelayedTenderAndLeftLettersPassThroughVerbatimWithoutInflatingCapacity()
         {
             var root = new GameObject("M04 to M05 delayed tender");
