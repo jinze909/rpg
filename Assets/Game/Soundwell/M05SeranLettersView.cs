@@ -39,6 +39,7 @@ namespace Rpg.Soundwell
         public Button ReadPacketButton => readPacketButton;
         public Button ContinueButton => continueButton;
         public Image SpeakerPortrait => speakerPortrait;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M05SeranLettersView(
             Transform parent, Action<M05LetterDecision> onFinished)
@@ -88,11 +89,13 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || authored == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
@@ -149,8 +152,13 @@ namespace Rpg.Soundwell
 
         private void Choose(M05LetterDecision choice)
         {
-            if (disposed || delivered || CanvasDestroyed() || selected.HasValue)
+            if (disposed || delivered || selected.HasValue)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             if (choice != M05LetterDecision.TakePacket &&
                 choice != M05LetterDecision.LeaveForNextBoat)
                 return;
@@ -160,9 +168,14 @@ namespace Rpg.Soundwell
 
         private void ReadPacket()
         {
-            if (disposed || delivered || CanvasDestroyed() || packetOpened ||
+            if (disposed || delivered || packetOpened ||
                 selected != M05LetterDecision.TakePacket)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             packetOpened = true;
             Refresh();
@@ -170,8 +183,13 @@ namespace Rpg.Soundwell
 
         private void Complete()
         {
-            if (disposed || delivered || CanvasDestroyed() || !selected.HasValue)
+            if (disposed || delivered || !selected.HasValue)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             // Disable all UGUI callbacks before the single Makinom host write.
             // An interrupted write preserves this exact choice for retry.
@@ -185,7 +203,7 @@ namespace Rpg.Soundwell
             catch
             {
                 delivered = false;
-                Refresh();
+                if (!disposed) Refresh();
                 throw;
             }
         }
