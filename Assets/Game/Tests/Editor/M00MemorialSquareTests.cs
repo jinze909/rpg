@@ -167,6 +167,8 @@ namespace Rpg.Tests.Editor
                 input.Release(keys.eKey);
                 yield return null;
                 Assert.That(memorial.Phase, Is.EqualTo(4));
+                AssertChoicePanelDoesNotCoverPlayableWorld(memorial);
+                SoundwellSmokeHost.CaptureStoryCanvas(squareCanvas, "m00-memorial-square-choices");
 
                 memorial.GetComponentsInChildren<Button>(true)
                     .Single(button => button.gameObject.name == "M00 choice 0")
@@ -175,6 +177,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(memorial.XiaodouPrompted, Is.True);
                 AssertAuthoredImage(memorial, "M00 Xiaodou in oversized uniform", "xiaodou_prompted");
                 Assert.That(memorial.Phase, Is.EqualTo(5));
+                AssertChoicePanelDoesNotCoverPlayableWorld(memorial);
                 Assert.That(memorial.CurrentNarration, Does.Contain("Who has spare rope?"),
                     "M00 must echo the exact P0 rope call instead of using an altered English paraphrase.");
                 Assert.That(memorial.CurrentNarration, Does.Not.Contain("Who brought the spare rope?"));
@@ -186,6 +189,9 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(EventSystem.current.currentSelectedGameObject.name,
                     Is.EqualTo("M00 begin roll call"));
+                Assert.That(memorial.CurrentInstructions, Does.Contain("the last page of names"));
+                AssertMemorialFitsViewport(memorial);
+                SoundwellSmokeHost.CaptureStoryCanvas(squareCanvas, "m00-memorial-square-roll-call");
                 input.Press(gamepad.buttonSouth);
                 yield return null;
                 input.Release(gamepad.buttonSouth);
@@ -267,6 +273,53 @@ namespace Rpg.Tests.Editor
                 Does.StartWith("Assets/Game/Art/"));
         }
 
+        private static void AssertChoicePanelDoesNotCoverPlayableWorld(M00MemorialSquare memorial)
+        {
+            RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
+                .Single(rect => rect.gameObject.name == "M00 responsive authored view");
+            RectTransform panel = authored.Find("M00 choice panel") as RectTransform;
+            RectTransform paving = authored.Find("M00 memorial square paving") as RectTransform;
+            Bounds panelBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(authored, panel);
+            Bounds pavingBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(authored, paving);
+            Assert.That(panelBounds.min.y, Is.GreaterThan(pavingBounds.max.y),
+                "M00 choice controls must stay above the playable paving in the non-walkable water band.");
+            Assert.That(panel.GetComponent<Image>().raycastTarget, Is.False);
+            Assert.That(panel.Find("M00 choice panel backing").GetComponent<Image>().raycastTarget, Is.False);
+
+            foreach (string actorName in new[]
+            {
+                "M00 player",
+                "M00 memorial statue",
+                "M00 old woman wiping Hao Lie’s name",
+                "M00 Xiaodou in oversized uniform"
+            })
+            {
+                RectTransform actor = memorial.GetComponentsInChildren<RectTransform>(true)
+                    .Single(rect => rect.gameObject.name == actorName);
+                Bounds actorBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(authored, actor);
+                Assert.That(panelBounds.Intersects(actorBounds), Is.False,
+                    "M00 choice panel must not cover " + actorName + ".");
+            }
+
+            Text narration = memorial.GetComponentsInChildren<Text>(true)
+                .Single(label => label.text == memorial.CurrentNarration);
+            Bounds narrationBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                authored, narration.rectTransform);
+            Assert.That(panelBounds.Intersects(narrationBounds), Is.False,
+                "M00 choice panel must not cover the scene narration.");
+
+            foreach (Button button in memorial.GetComponentsInChildren<Button>(true)
+                .Where(button => button.gameObject.name.StartsWith("M00 choice ") ||
+                    button.gameObject.name == "M00 begin roll call"))
+            {
+                Bounds buttonBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                    authored, button.GetComponent<RectTransform>());
+                Assert.That(panelBounds.Contains(buttonBounds.min) &&
+                    panelBounds.Contains(buttonBounds.max), Is.True,
+                    button.gameObject.name + " must remain inside its reserved panel.");
+            }
+        }
+
         private static void AssertMemorialFitsViewport(M00MemorialSquare memorial)
         {
             RectTransform authored = memorial.GetComponentsInChildren<RectTransform>(true)
@@ -275,16 +328,38 @@ namespace Rpg.Tests.Editor
                 .Single(rect => rect.gameObject.name == "M00 player");
             RectTransform titleRect = memorial.GetComponentsInChildren<Text>(true)
                 .Single(label => label.text == "Your Name Carved in Stone").rectTransform;
-            RectTransform instructionsRect = memorial.GetComponentsInChildren<Text>(true)
-                .Single(label => label.text == memorial.CurrentInstructions).rectTransform;
+            Image footer = authored.Find("M00 objective footer").GetComponent<Image>();
+            Image footerBacking = footer.transform.Find("M00 objective footer backing").GetComponent<Image>();
+            Text instructions = footerBacking.GetComponentInChildren<Text>();
+            RectTransform paving = (RectTransform)authored.Find("M00 memorial square paving");
             RectTransform rollCallRect = memorial.GetComponentsInChildren<Button>(true)
                 .Single(button => button.gameObject.name == "M00 begin roll call")
                 .GetComponent<RectTransform>();
-            RectTransform choiceRect = memorial.GetComponentsInChildren<Button>(true)
-                .Single(button => button.gameObject.name == "M00 choice 3")
-                .GetComponent<RectTransform>();
-            var visibleRects = new[] { playerRect, titleRect, instructionsRect,
-                rollCallRect, choiceRect };
+            RectTransform choicePanelRect = authored.Find("M00 choice panel") as RectTransform;
+            RectTransform[] choiceRects = memorial.GetComponentsInChildren<Button>(true)
+                .Where(button => button.gameObject.name.StartsWith("M00 choice "))
+                .Select(button => button.GetComponent<RectTransform>()).ToArray();
+            Assert.That(instructions.text, Is.EqualTo(memorial.CurrentInstructions));
+            Assert.That(instructions.isActiveAndEnabled, Is.True);
+            Assert.That(instructions.raycastTarget || footer.raycastTarget || footerBacking.raycastTarget,
+                Is.False, "The footer cannot intercept navigation or Submit.");
+            Assert.That(instructions.color.grayscale - footerBacking.color.grayscale, Is.GreaterThan(0.5f));
+
+            Bounds footerBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                authored, footer.rectTransform);
+            Assert.That(footerBounds.max.y, Is.LessThan(
+                RectTransformUtility.CalculateRelativeRectTransformBounds(authored, paving).min.y),
+                "The objective strip must sit below the playable paving.");
+            Assert.That(footerBounds.max.y, Is.LessThan(
+                RectTransformUtility.CalculateRelativeRectTransformBounds(authored, rollCallRect).min.y),
+                "The objective strip must leave the roll-call button unobstructed.");
+            Bounds choicePanelBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                authored, choicePanelRect);
+            Bounds pavingBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(authored, paving);
+            Assert.That(choicePanelBounds.min.y, Is.GreaterThan(pavingBounds.max.y),
+                "The choice panel must not cover the playable paving.");
+            var visibleRects = new[] { playerRect, titleRect, footer.rectTransform,
+                rollCallRect, choicePanelRect }.Concat(choiceRects).ToArray();
             foreach (float aspect in new[] { 9f / 16f, 32f / 9f, 5f, 16f / 9f })
             {
                 memorial.LayoutForViewportAspect(aspect);
