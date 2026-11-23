@@ -38,7 +38,8 @@ namespace Rpg.Soundwell
         {
             if (!Enum.IsDefined(typeof(M05LetterDecision), decision))
                 throw new ArgumentOutOfRangeException(nameof(decision));
-            if (getInt == null || setInt == null)
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             // A packet choice is meaningful only after the actual landing
