@@ -20,7 +20,8 @@ namespace Rpg.Soundwell
 
         /// <summary>
         /// Records a settled roll call. Returns false only when Makinom's global
-        /// variable store is not available yet; incomplete sequences are rejected.
+        /// variable store is not available yet or orphaned downstream voyage facts
+        /// exist; incomplete sequences are rejected.
         /// </summary>
         public static bool TryRecord(M00RollCallSequence sequence)
         {
@@ -29,10 +30,28 @@ namespace Rpg.Soundwell
             if (!sequence.IsComplete || sequence.Outcome == M00RollCallOutcome.Pending)
                 throw new InvalidOperationException("Only a completed M00 roll call can be persisted.");
 
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
 
-            Maki.Game.Variables.Set(IdentityRevealKey, Encode(sequence.Outcome));
+            return TryRecord(sequence,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecord(M00RollCallSequence sequence,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (sequence == null)
+                throw new ArgumentNullException(nameof(sequence));
+            if (!sequence.IsComplete || sequence.Outcome == M00RollCallOutcome.Pending)
+                throw new InvalidOperationException("Only a completed M00 roll call can be persisted.");
+
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+
+            setInt(IdentityRevealKey, Encode(sequence.Outcome));
             return true;
         }
 
@@ -43,10 +62,20 @@ namespace Rpg.Soundwell
         public static bool TryRead(out M00RollCallOutcome outcome)
         {
             outcome = M00RollCallOutcome.Silent;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
 
-            outcome = Decode(Maki.Game.Variables.GetInt(IdentityRevealKey));
+            return TryRead(key => variables.GetInt(key), out outcome);
+        }
+
+        public static bool TryRead(Func<string, int> getInt, out M00RollCallOutcome outcome)
+        {
+            outcome = M00RollCallOutcome.Silent;
+            if (getInt == null)
+                return false;
+
+            outcome = Decode(getInt(IdentityRevealKey));
             return true;
         }
 
