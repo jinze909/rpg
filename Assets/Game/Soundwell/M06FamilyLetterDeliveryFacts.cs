@@ -88,8 +88,7 @@ namespace Rpg.Soundwell
 
             int savedMask = getInt(StatusMaskKey);
             int savedIdentity = getInt(ArrivalIdentityKey);
-            if (savedMask < 0 || (savedMask & ~AllStatusesMask) != 0 ||
-                savedIdentity < 0)
+            if (!IsValidStatusMask(savedMask) || savedIdentity < 0)
                 return false;
 
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
@@ -132,8 +131,7 @@ namespace Rpg.Soundwell
             int savedMask = getInt(StatusMaskKey);
             int savedIdentity = getInt(ArrivalIdentityKey);
             if (sequence < 0 || sequence == int.MaxValue ||
-                savedMask < 0 || (savedMask & ~AllStatusesMask) != 0 ||
-                savedIdentity < 0)
+                !IsValidStatusMask(savedMask) || savedIdentity < 0)
                 return false;
 
             int currentIdentity = sequence + 1;
@@ -163,6 +161,22 @@ namespace Rpg.Soundwell
                 return false;
             setInt(StatusMaskKey, 0);
             setInt(ArrivalIdentityKey, 0);
+            return true;
+        }
+
+        private static bool IsValidStatusMask(int mask)
+        {
+            if (mask < 0 || (mask & ~AllStatusesMask) != 0)
+                return false;
+
+            for (int i = 0; i < 3; i++)
+            {
+                var recipient = (M06FamilyLetterRecipient)i;
+                int raw = (mask >> (i * 2)) & 3;
+                if (raw != (int)M06FamilyLetterStatus.Unhandled &&
+                    raw != (int)ExpectedStatus(recipient))
+                    return false;
+            }
             return true;
         }
 
