@@ -28,6 +28,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OptionalMinerInformantRevealsAlternateLandingWithoutSkippingThreeNames()
+        {
+            view = new M03LuJunView(root.transform, M02BridgeEvidence.None,
+                false, _ => Assert.Fail("The contact must not book a voyage."));
+            Assert.That(view.InformantButton.gameObject.activeSelf, Is.True);
+            Assert.That(view.InformantVisited, Is.False);
+            view.InformantButton.onClick.Invoke();
+            Assert.That(view.InformantVisited, Is.True);
+            Assert.That(view.InformantButton.gameObject.activeSelf, Is.False);
+            Assert.That(view.Dialogue.text, Does.Contain("alternate landing lead"));
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.VisitingVeterans));
+            Assert.That(view.RollCallBeat, Is.Zero);
+            Assert.That(view.AdvanceButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("Return to the roll call"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            Assert.That(view.Dialogue.text, Does.Contain("备用登陆情报"));
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.RollCallBeat, Is.Zero,
+                "Returning from the contact cannot silently skip the first missing name.");
+            Assert.That(view.Dialogue.text, Does.Contain("thirty names"));
+            for (int beat = 1; beat <= 3; beat++)
+            {
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(view.RollCallBeat, Is.EqualTo(beat));
+                Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.VisitingVeterans));
+            }
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.Encounter.Stage, Is.EqualTo(M03LuJunStage.ChoosingOpening));
+            Assert.That(view.InformantButton.gameObject.activeSelf, Is.False);
+            Assert.That(view.Encounter.Voyage, Is.Null);
+        }
+
+        [Test]
         public void AskingForShipNeverPromptsSecrecyAndOffersCivilianAlternative()
         {
             int callbacks = 0;
