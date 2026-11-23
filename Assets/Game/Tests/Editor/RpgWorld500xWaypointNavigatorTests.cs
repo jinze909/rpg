@@ -23,6 +23,21 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BuildGuidance_RoundsUpFractionalRemainingTilesInsteadOfUnderstatingDistance()
+        {
+            RpgWorld500xWaypointGuidance guidance = RpgWorld500xWaypointNavigator.BuildGuidance(
+                RpgWorldMapId.Soundwell,
+                new Vector2(280.1f, 780.5f),
+                RpgWorld500xWaypointCategory.UnlootedCache,
+                "sw_c03", "补给箱", new Vector2Int(290, 780));
+
+            Assert.AreEqual(10.4f, guidance.DistanceTiles, 0.01f);
+            Assert.IsFalse(guidance.IsArrived);
+            Assert.IsTrue(guidance.HudReadoutZh.StartsWith("正东 11 格"),
+                "Waypoint HUD must not show a shorter remaining distance.");
+        }
+
+        [Test]
         public void TryFindNearestTarget_SkipsLootedCachesAndRanksTopNearbyPois()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
