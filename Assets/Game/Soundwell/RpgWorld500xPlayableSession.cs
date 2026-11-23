@@ -61,8 +61,17 @@ namespace Rpg.Soundwell
 
         public bool SwitchMap(RpgWorldMapId targetMapId)
         {
-            if (disposed || parent == null)
+            // Reject unsupported IDs before tearing down the active map.
+            // Callers may pass serialized/stale IDs that are not valid enum members.
+            if (IsDisposed || parent == null ||
+                !Enum.IsDefined(typeof(RpgWorldMapId), targetMapId))
                 return false;
+
+            // Re-selecting the current map must preserve the player, streamed
+            // chunks, journal state and active ORK bridge instead of resetting them.
+            if (targetMapId == CurrentMapId)
+                return true;
+
             TearDownActiveMap();
             MountMap(targetMapId);
             return true;
