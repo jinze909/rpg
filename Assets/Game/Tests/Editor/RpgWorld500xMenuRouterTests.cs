@@ -1,0 +1,84 @@
+using System;
+using System.Collections.Generic;
+using NUnit.Framework;
+using Rpg.Soundwell;
+using UnityEngine;
+
+namespace Rpg.Tests.Editor
+{
+    public sealed class RpgWorld500xMenuRouterTests
+    {
+        [Test]
+        public void MenuRouter_EnforcesMutualExclusionBlocksInputWhenOpenAndDisposesWithZeroLeak()
+        {
+            var root = new GameObject("World500xMenuRouterTestRoot");
+            try
+            {
+                // Warm up one-time UGUI/font caches before steady-state leak baseline.
+                using (var warmupBoot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                {
+                    var warmupHaven = new RpgWorld500xCampHavenService();
+                    using (var warmupRouter = new RpgWorld500xMenuRouter(root.transform, warmupBoot, warmupHaven))
+                    {
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.WorldAtlas);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.CampMerchant);
+                        warmupRouter.CloseAll();
+                    }
+                }
+
+                int texBefore = Resources.FindObjectsOfTypeAll<Texture2D>().Length;
+                int spriteBefore = Resources.FindObjectsOfTypeAll<Sprite>().Length;
+
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                var haven = new RpgWorld500xCampHavenService(
+                    k => store.TryGetValue(k, out int v) ? v : 0,
+                    (k, v) => store[k] = v);
+
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var router = new RpgWorld500xMenuRouter(root.transform, boot, haven))
+                {
+                    Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
+                    Assert.IsFalse(router.HasAnyModalOpen);
+
+                    // Opening QuestJournal sets ActiveModal to QuestJournal.
+                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.QuestJournal));
+                    Assert.AreEqual(RpgWorld500xModalKind.QuestJournal, router.ActiveModal);
+                    Assert.IsTrue(boot.Driver.Facade.Session.JournalPanel.IsVisible);
+
+                    // Opening WorldAtlas automatically closes QuestJournal (mutual exclusion).
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.WorldAtlas));
+                    Assert.AreEqual(RpgWorld500xModalKind.WorldAtlas, router.ActiveModal);
+                    Assert.IsFalse(boot.Driver.Facade.Session.JournalPanel.IsVisible);
+                    Assert.IsTrue(router.AtlasPanel.IsVisible);
+
+                    // Movement is blocked while WorldAtlas modal is open.
+                    Vector2 posBefore = boot.Driver.Facade.Session.Host.PlayerPosition;
+                    router.StepFrameWithModalGuard(Vector2.right, 0.5f, sprinting: true, interactPressed: true);
+                    Assert.AreEqual(posBefore, boot.Driver.Facade.Session.Host.PlayerPosition);
+
+                    // Switching to CampMerchant closes WorldAtlas; toggling CampMerchant again closes all.
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CampMerchant));
+                    Assert.AreEqual(RpgWorld500xModalKind.CampMerchant, router.ActiveModal);
+                    Assert.IsFalse(router.AtlasPanel.IsVisible);
+                    Assert.IsTrue(router.MerchantPanel.IsVisible);
+
+                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.CampMerchant));
+                    Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
+                    Assert.IsFalse(router.HasAnyModalOpen);
+                }
+
+                Assert.AreEqual(0, root.transform.childCount);
+                Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Texture2D>().Length, texBefore);
+                Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Sprite>().Length, spriteBefore);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+    }
+}
