@@ -104,18 +104,39 @@ namespace Rpg.Soundwell
 
         public static bool TryRecordDiscovered()
         {
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
-            Maki.Game.Variables.Set(DebtKnownKey, 1);
+            return TryRecordDiscovered(
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecordDiscovered(
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+            setInt(DebtKnownKey, 1);
             return true;
         }
 
         public static bool TryRead(out bool debtKnown)
         {
             debtKnown = false;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
-            debtKnown = Maki.Game.Variables.GetInt(DebtKnownKey) == 1;
+            return TryRead(key => variables.GetInt(key), out debtKnown);
+        }
+
+        public static bool TryRead(Func<string, int> getInt, out bool debtKnown)
+        {
+            debtKnown = false;
+            if (getInt == null)
+                return false;
+            debtKnown = getInt(DebtKnownKey) == 1;
             return true;
         }
     }
