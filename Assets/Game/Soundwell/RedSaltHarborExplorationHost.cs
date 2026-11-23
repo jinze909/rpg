@@ -50,11 +50,14 @@ namespace Rpg.Soundwell
         public RpgMapActorVisualBinder FisherVisual => fisherVisual;
         public RpgMapActorVisualBinder SaltVendorVisual => saltVendorVisual;
         public Vector2 PlayerPosition => explorer.Position;
+        public M05LandingCheckView ActiveLandingView =>
+            activeLandingView != null && !activeLandingView.IsDisposed ? activeLandingView : null;
+        public M05SeranLettersView ActiveSeranView =>
+            activeSeranView != null && !activeSeranView.IsDisposed ? activeSeranView : null;
+        public M05HarborWalkView ActiveHarborWalkView =>
+            activeHarborWalkView != null && !activeHarborWalkView.IsDisposed ? activeHarborWalkView : null;
         public bool IsDialogueOpen =>
-            activeLandingView != null || activeSeranView != null || activeHarborWalkView != null;
-        public M05LandingCheckView ActiveLandingView => activeLandingView;
-        public M05SeranLettersView ActiveSeranView => activeSeranView;
-        public M05HarborWalkView ActiveHarborWalkView => activeHarborWalkView;
+            ActiveLandingView != null || ActiveSeranView != null || ActiveHarborWalkView != null;
         public bool HarborWalkCompleted => HasVerifiedLanding() &&
             M05HarborVisitFacts.TryRead(getInt, out int mask) &&
             mask == M05HarborVisitFacts.AllBeatsMask;
@@ -178,9 +181,39 @@ namespace Rpg.Soundwell
             return binder;
         }
 
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
+        }
+
+        private void PruneDisposedDialogueViews()
+        {
+            if (activeLandingView != null && activeLandingView.IsDisposed)
+            {
+                activeLandingView.Dispose();
+                activeLandingView = null;
+            }
+            if (activeSeranView != null && activeSeranView.IsDisposed)
+            {
+                activeSeranView.Dispose();
+                activeSeranView = null;
+            }
+            if (activeHarborWalkView != null && activeHarborWalkView.IsDisposed)
+            {
+                activeHarborWalkView.Dispose();
+                activeHarborWalkView = null;
+            }
+        }
+
         public bool StepExploration(Vector2 moveInput, float deltaTime)
         {
-            if (disposed || IsDialogueOpen)
+            if (disposed || parent == null)
+                return false;
+            PruneDisposedDialogueViews();
+            if (IsDialogueOpen)
+                return false;
+            if (!IsFinite(deltaTime) || deltaTime < 0f ||
+                !IsFinite(moveInput.x) || !IsFinite(moveInput.y))
                 return false;
 
             bool moved = explorer.StepMovement(moveInput, deltaTime);
@@ -213,13 +246,21 @@ namespace Rpg.Soundwell
 
         public Vector3 StepCamera(Vector3 currentCameraPos, float deltaTime)
         {
-            if (disposed) return currentCameraPos;
+            if (disposed || parent == null ||
+                !IsFinite(deltaTime) || deltaTime < 0f ||
+                !IsFinite(currentCameraPos.x) ||
+                !IsFinite(currentCameraPos.y) ||
+                !IsFinite(currentCameraPos.z))
+                return currentCameraPos;
             return explorer.ComputeClampedCameraPosition(currentCameraPos, deltaTime);
         }
 
         public bool TryInteractAtCurrentPosition()
         {
-            if (disposed || IsDialogueOpen)
+            if (disposed || parent == null)
+                return false;
+            PruneDisposedDialogueViews();
+            if (IsDialogueOpen)
                 return false;
             if (!explorer.TryFindNearestTrigger(out RpgMapTriggerAnchor trigger))
                 return false;
@@ -249,12 +290,16 @@ namespace Rpg.Soundwell
 
         private bool TryOpenLandingCheck()
         {
-            if (!CanConfirmObservedLanding())
+            if (parent == null || !CanConfirmObservedLanding())
                 return false;
 
-            activeLandingView = new M05LandingCheckView(
+            M05LandingCheckView openedView = null;
+            openedView = new M05LandingCheckView(
                 parent, observedLanding.Value, report =>
                 {
+                    if (disposed || activeLandingView != openedView)
+                        return;
+
                     // A confirmed write may succeed before its acknowledgement
                     // throws. Re-read the authoritative Makinom record on
                     // retry; accept only this exact observed landing, never
@@ -287,12 +332,15 @@ namespace Rpg.Soundwell
                     activeLandingView = null;
                     RefreshHud();
                 });
+            activeLandingView = openedView;
             RefreshHud();
             return true;
         }
 
         private bool TryOpenSeranLetters()
         {
+            if (parent == null)
+                return false;
             // Requires a verified arrival and rejects corrupt nonzero letter codes.
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding) ||
                 !savedLanding.HasValue)
@@ -305,8 +353,12 @@ namespace Rpg.Soundwell
             // resets these Makinom facts, so recheck before writing a choice.
             M05LandingReport openedLanding = savedLanding.Value;
             int openedSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
-            activeSeranView = new M05SeranLettersView(parent, decision =>
+            M05SeranLettersView openedView = null;
+            openedView = new M05SeranLettersView(parent, decision =>
             {
+                if (disposed || activeSeranView != openedView)
+                    return;
+
                 if (!HasSameCurrentLanding(openedLanding, openedSequence))
                     throw new InvalidOperationException(
                         "Seran's open dialogue no longer matches the verified M05 landing.");
@@ -330,6 +382,7 @@ namespace Rpg.Soundwell
                 activeSeranView = null;
                 RefreshHud();
             });
+            activeSeranView = openedView;
             RefreshHud();
             return true;
         }
@@ -372,15 +425,19 @@ namespace Rpg.Soundwell
 
         private bool TryOpenHarborWalk(M05HarborBeat beat)
         {
-            if (!CanOfferHarborBeat(beat) ||
+            if (parent == null || !CanOfferHarborBeat(beat) ||
                 !M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding) ||
                 !savedLanding.HasValue)
                 return false;
 
             M05LandingReport openedLanding = savedLanding.Value;
             int openedSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
-            activeHarborWalkView = new M05HarborWalkView(parent, () =>
+            M05HarborWalkView openedView = null;
+            openedView = new M05HarborWalkView(parent, () =>
             {
+                if (disposed || activeHarborWalkView != openedView)
+                    return;
+
                 // A new voyage may have replaced the physical arrival while
                 // this location's dialogue remained open. Never credit an
                 // old repair, rumor, or accusation to the new ship's visit.
@@ -397,6 +454,7 @@ namespace Rpg.Soundwell
                 activeHarborWalkView = null;
                 RefreshHud();
             }, beat);
+            activeHarborWalkView = openedView;
             RefreshHud();
             return true;
         }
@@ -423,7 +481,10 @@ namespace Rpg.Soundwell
 
         public void RefreshHud()
         {
-            if (disposed || hudCanvas == null) return;
+            if (disposed || parent == null || hudCanvas == null ||
+                districtLabel == null || promptBox == null || promptLabel == null)
+                return;
+            PruneDisposedDialogueViews();
 
             // Beacon colors are presentation only. Authoritative Makinom
             // landing/letter decisions and this map's actually witnessed
