@@ -842,5 +842,43 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void LandingCrewAtMaximumOffersAnEnabledGamepadFocusFallback()
+        {
+            var root = new GameObject("M05 full crew controller focus recovery");
+            var values = new Dictionary<string, int>();
+            M05LandingObservationView view = null;
+            try
+            {
+                SeedVerifiedReadyManifest(values);
+                Assert.That(M04DepartureFacts.TryRead(Reader(values),
+                    out M04DepartureRecord? departure), Is.True);
+                Assert.That(departure.HasValue, Is.True);
+                view = new M05LandingObservationView(root.transform, departure.Value,
+                    Reader(values), _ => { });
+
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.CrewPlusButton));
+                for (int i = 0; i < departure.Value.AssignedCrew; i++)
+                    view.CrewPlusButton.onClick.Invoke();
+
+                Assert.That(view.CrewArrived, Is.EqualTo(departure.Value.AssignedCrew));
+                Assert.That(view.CrewPlusButton.interactable, Is.False);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.TenderButton),
+                    "A gamepad must not be directed back to disabled crew increase.");
+                Assert.That(view.PreferredFocusButton.IsInteractable(), Is.True);
+
+                view.TenderButton.onClick.Invoke();
+                view.ReceiverButton.onClick.Invoke();
+                Assert.That(view.BerthPlusButton.interactable, Is.True);
+                Assert.That(view.PreferredFocusButton, Is.Not.Null);
+                Assert.That(view.PreferredFocusButton.IsInteractable(), Is.True);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }
