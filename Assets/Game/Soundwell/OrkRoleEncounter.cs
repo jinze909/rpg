@@ -72,6 +72,11 @@ namespace Rpg.Soundwell
         private Material lineMaterial;
         private AudioSource audioSource;
         private AudioClip hitSound;
+        private AdventureArt art;
+        private SpriteRenderer beastRenderer;
+        private Sprite performingBeastPose;
+        private int lastVisualBeastHp;
+        private float beastRecoilUntil;
 
         // The trial camera may be retained by another scene/test. Never leak
         // role-combat framing or disabled follow components into exploration.
@@ -118,6 +123,7 @@ namespace Rpg.Soundwell
             foreach (Combatant member in party.Members)
                 InitializeHealth(member, 16);
             InitializeHealth(party.Beast, 36);
+            lastVisualBeastHp = party.Beast.Status[OrkPartyBridge.HealthStatusIndex].GetValue();
             party.Beast.Variables.Set("rpg.role.exposed", 0);
             pendingThreat = Threat.Gather;
             targetIndex = 0;
@@ -194,6 +200,7 @@ namespace Rpg.Soundwell
                     party.Beast.Status.IsDead
                     ? "The beast falls. The passage is safe." : "The party fell. Regroup and try again.");
             }
+            RefreshBeastPose();
             view.Refresh(lastExchange, ending);
             RefreshThreatLines();
         }
@@ -238,7 +245,7 @@ namespace Rpg.Soundwell
             }
 
             StartCoroutine(Present(party.Beast, party.Members[resolvedTarget],
-                true, resolved == Threat.Gather, wasInterrupted));
+                resolved, resolved == Threat.Gather, wasInterrupted));
 
             pendingThreat = resolved == Threat.Lunge ? Threat.Howl : Threat.Lunge;
             targetIndex = resolved == Threat.Gather
@@ -262,9 +269,11 @@ namespace Rpg.Soundwell
             foreach (TextMesh legacy in GetComponentsInChildren<TextMesh>(true))
                 legacy.gameObject.SetActive(false);
 
-            AdventureArt art = Resources.Load<AdventureArt>("AdventureArt");
-            if (art == null || art.Actors.Length < 4)
-                throw new InvalidOperationException("The player encounter requires AdventureArt with its four actor sprites.");
+            art = Resources.Load<AdventureArt>("AdventureArt");
+            if (art == null || art.Actors == null || art.Actors.Length < 4 ||
+                art.Actors[3] == null || art.BeastWindup == null ||
+                art.BeastLunge == null || art.BeastRecoil == null || art.BeastStagger == null)
+                throw new InvalidOperationException("The player encounter requires the authored actors and beast poses in AdventureArt.");
             var layout = SoundwellLargeMapLayout.Build();
             mapRenderer = RpgLargeMapChunkRenderer.BuildForSoundwell(transform, layout, art.SoundwellTiles);
             Vector2[] positions = { new Vector2(39, 28), new Vector2(37, 29), new Vector2(37, 26), new Vector2(45, 28) };
@@ -279,6 +288,8 @@ namespace Rpg.Soundwell
                 visual.sprite = art.Actors[i];
                 visual.sortingOrder = 30;
                 visual.flipX = i == 3;
+                if (i == 3)
+                    beastRenderer = visual;
             }
             Camera camera = Camera.main;
             if (camera != null)
@@ -330,6 +341,36 @@ namespace Rpg.Soundwell
                 samples[i] = Mathf.Sin(i * 0.19f) * Mathf.Exp(-i / 520f) * 0.25f;
             hitSound.SetData(samples, 0);
             Physics2D.SyncTransforms();
+        }
+
+        private void RefreshBeastPose()
+        {
+            if (beastRenderer == null || party.Beast == null || party.Beast.Status.IsDead)
+                return;
+
+            // Observe the same living ORK actor used by the health bar.
+            // The pose never deals damage or keeps a defeated actor alive.
+            int hp = party.Beast.Status[OrkPartyBridge.HealthStatusIndex].GetValue();
+            float now = Time.unscaledTime;
+            if (hp > 0 && hp < lastVisualBeastHp)
+                beastRecoilUntil = now + 0.32f;
+            lastVisualBeastHp = hp;
+
+            Sprite pose = art.Actors[3];
+            if (!ending)
+            {
+                if (now < beastRecoilUntil)
+                    pose = art.BeastRecoil;
+                else if (performingBeastPose != null)
+                    pose = performingBeastPose;
+                else if (interrupted)
+                    pose = art.BeastStagger;
+                else if (pendingThreat != Threat.Gather)
+                    pose = art.BeastWindup;
+            }
+
+            if (beastRenderer.sprite != pose)
+                beastRenderer.sprite = pose;
         }
 
         private void RefreshThreatLines()
@@ -389,7 +430,7 @@ namespace Rpg.Soundwell
                         false, false, false, true, false, null);
                 if (consumeExposed)
                     party.Beast.Variables.Set("rpg.role.exposed", 0);
-                StartCoroutine(Present(actor, party.Beast, false, false, false));
+                StartCoroutine(Present(actor, party.Beast, null, false, false));
                 return true;
             }
 
@@ -457,7 +498,7 @@ namespace Rpg.Soundwell
                 }
             }
 
-            StartCoroutine(Present(actor, actor, false, true, false));
+            StartCoroutine(Present(actor, actor, null, true, false));
             return true;
         }
 
@@ -473,10 +514,18 @@ namespace Rpg.Soundwell
         private void SetExchange(string zh, string en) =>
             lastExchange = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese ? zh : en;
 
-        private IEnumerator Present(Combatant actor, Combatant target, bool enemy, bool utility,
-            bool interruptedAction)
+        private IEnumerator Present(Combatant actor, Combatant target, Threat? enemyThreat,
+            bool utility, bool interruptedAction)
         {
+            bool enemy = enemyThreat.HasValue;
             presentationCount++;
+            if (enemy)
+            {
+                // The queued threat advances as soon as this action resolves.
+                // Hold the pose for the outgoing action during its presentation.
+                performingBeastPose = interruptedAction ? art.BeastStagger
+                    : enemyThreat == Threat.Lunge ? art.BeastLunge : art.BeastWindup;
+            }
             try
             {
                 Transform visual = FindVisual(actor);
@@ -510,7 +559,9 @@ namespace Rpg.Soundwell
             }
             finally
             {
-                if (!enemy && actor != null)
+                if (enemy)
+                    performingBeastPose = null;
+                else if (actor != null)
                     submittedActions.Remove(actor);
                 presentationCount = Mathf.Max(0, presentationCount - 1);
             }
