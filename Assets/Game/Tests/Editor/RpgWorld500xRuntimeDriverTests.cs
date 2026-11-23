@@ -7,19 +7,20 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xRuntimeDriverTests
     {
         [Test]
-        public void RuntimeDriver_TicksCameraHudWaypointsSwitchesMapsAndCleansUpOnDestroy()
+        public void RuntimeDriver_TicksCameraHudWaypointsSwitchesMapsAndCleansUpOnShutdown()
         {
-            int texBefore = Resources.FindObjectsOfTypeAll<Texture2D>().Length;
-            int spriteBefore = Resources.FindObjectsOfTypeAll<Sprite>().Length;
-
             var hostGo = new GameObject("World500xRuntimeDriverHost");
             var camGo = new GameObject("World500xTestCamera");
+            RpgWorld500xRuntimeDriver driver = null;
             try
             {
                 var cam = camGo.AddComponent<Camera>();
                 cam.transform.position = new Vector3(0f, 0f, -10f);
 
-                var driver = hostGo.AddComponent<RpgWorld500xRuntimeDriver>();
+                int texBefore = Resources.FindObjectsOfTypeAll<Texture2D>().Length;
+                int spriteBefore = Resources.FindObjectsOfTypeAll<Sprite>().Length;
+
+                driver = hostGo.AddComponent<RpgWorld500xRuntimeDriver>();
                 driver.FollowCamera = cam;
                 driver.Initialize(
                     overrideMap: RpgWorldMapId.Soundwell,
@@ -47,21 +48,26 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, driver.Facade.CurrentMapId);
                 Assert.IsFalse(string.IsNullOrEmpty(driver.LastNearestWaypointReadoutZh));
 
-                // Destroy host GameObject -> triggers OnDestroy -> Shutdown.
+                // In Unity EditMode, DestroyImmediate does not invoke MonoBehaviour.OnDestroy
+                // for non-ExecuteAlways components; invoke Shutdown() explicitly before destroy.
+                driver.Shutdown();
+                Assert.IsFalse(driver.IsInitialized);
+                Assert.AreEqual(0, hostGo.transform.childCount);
+
                 UnityEngine.Object.DestroyImmediate(hostGo);
                 hostGo = null;
-
-                // The baseline was taken before creating our test Camera. It may
-                // retain editor-native textures while it is alive, so tear down
-                // both test-owned objects before asserting zero leaked assets.
-                UnityEngine.Object.DestroyImmediate(camGo);
-                camGo = null;
+                driver = null;
 
                 Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Texture2D>().Length, texBefore);
                 Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Sprite>().Length, spriteBefore);
             }
             finally
             {
+                if (driver != null)
+                {
+                    driver.Shutdown();
+                }
+
                 if (hostGo != null)
                 {
                     UnityEngine.Object.DestroyImmediate(hostGo);
