@@ -86,6 +86,13 @@ namespace Rpg.Soundwell
         public const string TheaterChoiceKey = "rpg.return.st01.theater-choice";
         public const string TicketStatusKey = "rpg.return.st01.ticket-status";
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> read)
+        {
+            return read == null ||
+                M15FinalRollCallFacts.HasAnyPersistedFacts(read) ||
+                M16EpilogueFacts.HasAnyPersistedFacts(read);
+        }
+
         public static bool TryRead(out ST01RegionalOutcome outcome)
         {
             outcome = default;
@@ -140,7 +147,8 @@ namespace Rpg.Soundwell
             Func<string, int> read, Action<string, int> write)
         {
             if (read == null || write == null ||
-                !Enum.IsDefined(typeof(ST01DepartureChoice), choice))
+                !Enum.IsDefined(typeof(ST01DepartureChoice), choice) ||
+                HasOrphanedDownstreamFacts(read))
                 return false;
 
             int confirmed = read(DepartureConfirmedKey);
@@ -163,7 +171,8 @@ namespace Rpg.Soundwell
             Func<string, int> read, Action<string, int> write)
         {
             if (read == null || write == null ||
-                !Enum.IsDefined(typeof(ST01TheaterChoice), choice))
+                !Enum.IsDefined(typeof(ST01TheaterChoice), choice) ||
+                HasOrphanedDownstreamFacts(read))
                 return false;
             int confirmed = read(TheaterConfirmedKey);
             int existing = read(TheaterChoiceKey);
@@ -197,6 +206,7 @@ namespace Rpg.Soundwell
         public static bool TryMarkTicketSent(Func<string, int> read, Action<string, int> write)
         {
             if (read == null || write == null ||
+                HasOrphanedDownstreamFacts(read) ||
                 !TryRead(read, out ST01RegionalOutcome outcome) ||
                 !outcome.Theater.HasValue ||
                 outcome.Theater.Value == ST01TheaterChoice.PublicBoycott)
@@ -210,6 +220,7 @@ namespace Rpg.Soundwell
         public static bool TryMarkTicketDelivered(Func<string, int> read, Action<string, int> write)
         {
             if (read == null || write == null ||
+                HasOrphanedDownstreamFacts(read) ||
                 !TryRead(read, out ST01RegionalOutcome outcome) ||
                 !outcome.Theater.HasValue ||
                 outcome.Theater.Value == ST01TheaterChoice.PublicBoycott ||
