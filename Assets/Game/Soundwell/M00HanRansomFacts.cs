@@ -1,3 +1,4 @@
+using System;
 using GamingIsLove.Makinom;
 
 namespace Rpg.Soundwell
@@ -15,22 +16,45 @@ namespace Rpg.Soundwell
 
         public static bool TryRecordConfirmedCount()
         {
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
 
-            Maki.Game.Variables.Set(CountKey, ConfirmedCount);
+            return TryRecordConfirmedCount(
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecordConfirmedCount(
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+
+            setInt(CountKey, ConfirmedCount);
             return true;
         }
 
         public static bool TryRead(out int confirmedCount)
         {
             confirmedCount = ConfirmedCount;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+
+            return TryRead(key => variables.GetInt(key), out confirmedCount);
+        }
+
+        public static bool TryRead(Func<string, int> getInt, out int confirmedCount)
+        {
+            confirmedCount = ConfirmedCount;
+            if (getInt == null)
                 return false;
 
             // The narrative register explicitly defines no missing branch:
             // a legacy 0 or stale value must not rewrite the authored count.
-            int stored = Maki.Game.Variables.GetInt(CountKey);
+            int stored = getInt(CountKey);
             confirmedCount = stored == ConfirmedCount ? stored : ConfirmedCount;
             return true;
         }
