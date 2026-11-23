@@ -97,11 +97,27 @@ namespace Rpg.Soundwell
             return actual == 0 || actual == expected;
         }
 
+        // An interrupted new-voyage reset must not let a fresh landing
+        // overwrite M06 or later story facts from the previous voyage.
+        // This is read-only; the existing reset path owns clearing them.
+        private static bool HasUnresetSuccessorFacts(Func<string, int> getInt)
+        {
+            return M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt) ||
+                getInt(M06RescuePlanFacts.ConfirmedKey) != 0 ||
+                getInt(M06RescuePlanFacts.PendingSignatureKey) != 0 ||
+                getInt(M06RescuePlanFacts.PlanKey) != 0 ||
+                getInt(M06RescuePlanFacts.UsableCapacityKey) != 0 ||
+                getInt(M06RescuePlanFacts.LetterDeliveryKey) != 0 ||
+                getInt(M06RescuePlanFacts.RetaliationHeardKey) != 0 ||
+                getInt(M06RescuePlanFacts.ShenResponseKey) != 0;
+        }
+
         // Shared, read-only eligibility check. The playable map should never
         // offer a landing confirmation that this same save authority will reject.
         public static bool CanRecord(M05LandingReport report, Func<string, int> getInt)
         {
             if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                HasUnresetSuccessorFacts(getInt) ||
                 !TryReadCompletedCrossing(getInt, out M04DepartureRecord departure) ||
                 !IsValidReport(report, departure))
                 return false;
