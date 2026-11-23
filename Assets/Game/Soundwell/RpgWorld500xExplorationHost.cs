@@ -14,6 +14,9 @@ namespace Rpg.Soundwell
     public sealed class RpgWorld500xExplorationHost : IDisposable
     {
         public const float DefaultBaseMoveSpeed = 9.0f;
+        // Prevent frame hitches or injected deltaTime from crossing solid map tiles.
+        private const float MaxMovementDistancePerStep = 32f;
+        private const float MaxCollisionSubstepTiles = 0.45f;
 
         private readonly RpgWorld500xMapLayout layout;
         private readonly RpgWorldOrkExplorationBridge bridge;
@@ -96,7 +99,7 @@ namespace Rpg.Soundwell
 
             float speed = RpgWorldOrkExplorationBridge.ComputeEffectiveMoveSpeed(
                 BaseMoveSpeed, sprinting, bridge.IsInDangerEncounter);
-            if (speed <= 0f)
+            if (!IsFinite(speed) || speed <= 0f)
             {
                 SyncHero(moving: false, deltaSeconds: 0f);
                 return false;
@@ -104,28 +107,42 @@ namespace Rpg.Soundwell
 
             Vector2 dir = input.normalized;
             facing = dir;
-            Vector2 delta = dir * (speed * deltaSeconds);
-            Vector2 candidate = playerPosition;
-            bool moved = false;
-
-            // Axis-separated collision-safe movement with wall sliding.
-            if (Mathf.Abs(delta.x) > 0.0001f)
+            float travel = Mathf.Min(speed * deltaSeconds, MaxMovementDistancePerStep);
+            if (!IsFinite(travel) || travel <= 0f)
             {
-                Vector2 tryX = new Vector2(candidate.x + delta.x, candidate.y);
-                if (IsPositionWalkable(tryX))
-                {
-                    candidate = tryX;
-                    moved = true;
-                }
+                SyncHero(moving: false, deltaSeconds: 0f);
+                return false;
             }
 
-            if (Mathf.Abs(delta.y) > 0.0001f)
+            Vector2 delta = dir * travel;
+            // A single endpoint check can tunnel through the four-tile iron gate
+            // when sprinting or under a frame hitch. Sample every traversed tile
+            // with bounded, axis-separated steps while preserving wall sliding.
+            int substeps = Mathf.Max(1, Mathf.CeilToInt(
+                Mathf.Max(Mathf.Abs(delta.x), Mathf.Abs(delta.y)) / MaxCollisionSubstepTiles));
+            Vector2 perStep = delta / substeps;
+            Vector2 candidate = playerPosition;
+            bool moved = false;
+            for (int i = 0; i < substeps; i++)
             {
-                Vector2 tryY = new Vector2(candidate.x, candidate.y + delta.y);
-                if (IsPositionWalkable(tryY))
+                if (Mathf.Abs(perStep.x) > 0.0001f)
                 {
-                    candidate = tryY;
-                    moved = true;
+                    Vector2 tryX = new Vector2(candidate.x + perStep.x, candidate.y);
+                    if (IsPositionWalkable(tryX))
+                    {
+                        candidate = tryX;
+                        moved = true;
+                    }
+                }
+
+                if (Mathf.Abs(perStep.y) > 0.0001f)
+                {
+                    Vector2 tryY = new Vector2(candidate.x, candidate.y + perStep.y);
+                    if (IsPositionWalkable(tryY))
+                    {
+                        candidate = tryY;
+                        moved = true;
+                    }
                 }
             }
 
