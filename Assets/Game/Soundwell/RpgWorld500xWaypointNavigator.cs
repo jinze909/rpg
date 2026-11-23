@@ -110,7 +110,8 @@ namespace Rpg.Soundwell
             }
             else
             {
-                int distInt = Mathf.Max(1, Mathf.RoundToInt(distance));
+                // Never understate the remaining grid distance in the compass HUD.
+                int distInt = Mathf.Max(1, Mathf.CeilToInt(distance));
                 readout = string.IsNullOrEmpty(districtName)
                     ? compass + " " + distInt + " 格 · " + safeLabel
                     : compass + " " + distInt + " 格 · " + safeLabel + "（" + districtName + "）";
