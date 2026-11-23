@@ -55,7 +55,8 @@ namespace Rpg.Tests.Editor
             try
             {
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
-                Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+                Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(
+                    read, write, out var session), Is.True);
                 int saves = 0;
                 view = new M06PumpRoomReunionView(root.transform, session, plan =>
                 {
@@ -70,8 +71,20 @@ namespace Rpg.Tests.Editor
 
                 view.AdvanceButton.onClick.Invoke();
                 Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.LetterHandoff));
-                Assert.That(view.Body.text, Does.Contain("陶霁"));
+                Assert.That(view.Body.text, Does.Contain("已处理 0/3"));
+                Assert.That(view.TaoJiLetterButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Does.Contain("陶霁"));
+                Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.False);
 
+                view.TaoJiLetterButton.onClick.Invoke();
+                Assert.That(view.TaoJiLetterButton.interactable, Is.False);
+                Assert.That(view.Body.text, Does.Contain("已处理 1/3"));
+                Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.False);
+                view.LedgerLetterButton.onClick.Invoke();
+                Assert.That(view.LedgerLetterButton.interactable, Is.False);
+                view.ReturnedLetterButton.onClick.Invoke();
+                Assert.That(view.ReturnedLetterButton.interactable, Is.False);
+                Assert.That(view.AdvanceButton.gameObject.activeSelf, Is.True);
                 view.AdvanceButton.onClick.Invoke();
                 Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.OulinRetaliationTruth));
                 Assert.That(view.Body.text, Does.Contain("老张"));

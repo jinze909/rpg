@@ -314,6 +314,9 @@ namespace Rpg.Tests.Editor
 
                 mineCamp.ActiveReunionView.GreetingBringBackButton.onClick.Invoke();
                 mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.TaoJiLetterButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.LedgerLetterButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.ReturnedLetterButton.onClick.Invoke();
                 mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
                 mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
                 Assert.That(mineCamp.ActiveReunionView.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
