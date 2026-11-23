@@ -74,6 +74,56 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CastOffRejectsEveryStaleFogFieldWithoutAdvancingSailingSequence()
+        {
+            var store = new Dictionary<string, int>();
+            Func<string, int> read = key =>
+                store.TryGetValue(key, out int value) ? value : 0;
+            Action<string, int> write = (key, value) => store[key] = value;
+            Assert.That(M04DepartureFacts.TryRecord(
+                ReadyManifest(M03VoyageChoice.QiQueMerchant,
+                    officialStamp: false, escortFlag: false), write), Is.True);
+
+            int sailingWrites = 0;
+            Action<string, int> observedWrite = (key, value) =>
+            {
+                sailingWrites++;
+                write(key, value);
+            };
+
+            string[] staleKeys =
+            {
+                FogListeningFacts.CompletedKey,
+                FogListeningFacts.PendingSignatureKey,
+                FogListeningFacts.SucceededKey,
+                FogListeningFacts.HullIntegrityKey,
+                FogListeningFacts.AvoidedHazardsKey,
+                FogListeningFacts.MatchedSignalsKey,
+                FogListeningFacts.RemainingFocusKey
+            };
+
+            foreach (string staleKey in staleKeys)
+            {
+                store[staleKey] = 1;
+                Assert.That(M04DepartureFacts.CanBeginFreshFogLeg(read),
+                    Is.False, staleKey);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, observedWrite),
+                    Is.False, staleKey);
+                Assert.That(sailingWrites, Is.Zero, staleKey);
+                Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero, staleKey);
+                Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.Zero,
+                    staleKey);
+                store[staleKey] = 0;
+            }
+
+            Assert.That(M04DepartureFacts.CanBeginFreshFogLeg(read), Is.True);
+            Assert.That(M04DepartureFacts.TryMarkSailed(read, observedWrite),
+                Is.True);
+            Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.EqualTo(1));
+            Assert.That(read(M04DepartureFacts.SailedKey), Is.EqualTo(1));
+        }
+
+        [Test]
         public void CastOffSequenceSurvivesResetAndChangesOnIdenticalReplayedVoyage()
         {
             var store = new Dictionary<string, int>();

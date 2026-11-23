@@ -204,9 +204,14 @@ namespace Rpg.Soundwell
             if (getInt == null || setInt == null)
                 return false;
             if (!TryRead(getInt, out M04DepartureRecord? readiness) ||
-                !readiness.HasValue || getInt(SailedKey) != 0)
+                !readiness.HasValue || getInt(SailedKey) != 0 ||
+                !CanBeginFreshFogLeg(getInt))
                 return false;
 
+            // Fail closed at the durable cast-off boundary, even if a caller
+            // bypassed the UI readiness gate. Stale fog facts from an
+            // interrupted voyage reset cannot launch another fog leg.
+            // A clean leg still uses the existing unique sailing identity.
             // A newer M03 itinerary must not sail an older confirmed hull.
             // Retain compatibility with saves that predate the M03 route key,
             // but fail closed for a present, malformed, or mismatched choice.
