@@ -73,7 +73,18 @@ namespace Rpg.Soundwell
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;
             if (variables == null)
                 return false;
-            return TryRecord(ledger, (key, value) => variables.Set(key, value));
+            return TryRecord(ledger, key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecord(M04RosterLedger ledger,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            ValidateReconciled(ledger);
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+            return TryRecord(ledger, setInt);
         }
 
         public static bool TryRecord(M04RosterLedger ledger, Action<string, int> setInt)
