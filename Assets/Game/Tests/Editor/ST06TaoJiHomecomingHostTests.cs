@@ -180,6 +180,61 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ExternalSameChairButDifferentConsequencesNeverAcknowledgesThisSession()
+        {
+            var root = new GameObject("ST06 conflicting acknowledgement");
+            var values = new Dictionary<string, int>();
+            SeedM07(values, taoJiRescued: true);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            ST06TaoJiHomecomingHost host = null;
+            try
+            {
+                host = new ST06TaoJiHomecomingHost(
+                    root.transform, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.CoverUpButton.onClick.Invoke();
+                view.RemediateCoverUpButton.onClick.Invoke();
+                view.HoldWelcomeDinnerButton.onClick.Invoke();
+                host.Session.SetPostReturnLetterProgress(
+                    taoJiTraveledFar: true,
+                    letterStatus: ST06LetterStatus.Delivered,
+                    marketTicketEnclosed: true);
+
+                // A different writer finishes a record sharing only the chair
+                // choice. The open view must not acknowledge those other facts
+                // as this session's decisions or close as if they were saved.
+                var other = new ST06HomecomingRecord(
+                    ST06ChairResolution.CoverUp,
+                    coverUpRemediated: false,
+                    welcomeDinnerHeld: false,
+                    taoJiTraveledFar: false,
+                    letterStatus: ST06LetterStatus.NotSent,
+                    marketTicketEnclosed: false);
+                Assert.That(ST06TaoJiHomecomingFacts.TryRecord(other, read, write),
+                    Is.True);
+
+                view.SettleButton.onClick.Invoke();
+                Assert.That(host.ActiveView, Is.SameAs(view));
+                Assert.That(host.Session.IsSettled, Is.False);
+                Assert.That(host.IsSettled, Is.True);
+                Assert.That(ST06TaoJiHomecomingFacts.TryRead(
+                    read, out ST06HomecomingRecord? persisted), Is.True);
+                Assert.That(persisted.HasValue, Is.True);
+                Assert.That(persisted.Value.CoverUpRemediated, Is.False);
+                Assert.That(persisted.Value.WelcomeDinnerHeld, Is.False);
+                Assert.That(persisted.Value.LetterStatus,
+                    Is.EqualTo(ST06LetterStatus.NotSent));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PresenceWithdrawalAtCommitTimeBlocksWriteUntilTaoJiReturns()
         {
             var root = new GameObject("ST06 host presence");

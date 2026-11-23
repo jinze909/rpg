@@ -147,18 +147,43 @@ namespace Rpg.Soundwell
                 throw new ArgumentNullException(nameof(outcome));
             if (!outcome.Approved)
                 throw new InvalidOperationException("Only a stamped approval may be recorded.");
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
-            Maki.Game.Variables.Set(ApprovalKey, 1);
+            return TryRecordApproved(outcome,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecordApproved(M02MissingReturnOutcome outcome,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (outcome == null)
+                throw new ArgumentNullException(nameof(outcome));
+            if (!outcome.Approved)
+                throw new InvalidOperationException("Only a stamped approval may be recorded.");
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+            setInt(ApprovalKey, 1);
             return true;
         }
 
         public static bool TryReadApproved(out bool approved)
         {
             approved = false;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
-            approved = Maki.Game.Variables.GetInt(ApprovalKey) == 1;
+            return TryReadApproved(key => variables.GetInt(key), out approved);
+        }
+
+        public static bool TryReadApproved(Func<string, int> getInt, out bool approved)
+        {
+            approved = false;
+            if (getInt == null)
+                return false;
+            approved = getInt(ApprovalKey) == 1;
             return true;
         }
     }
