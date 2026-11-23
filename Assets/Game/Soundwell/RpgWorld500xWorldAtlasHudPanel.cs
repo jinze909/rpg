@@ -171,8 +171,9 @@ namespace Rpg.Soundwell
             {
                 RpgWorld500xRegionAtlasEntry entry = entries[i];
                 bool isCurrent = entry.MapId == currentMap;
+                RpgWorld500xRegionRouteDef route = default;
                 bool hasDirectRoute = !isCurrent && RpgWorld500xWorldAtlasPortalService.TryFindDirectRoute(
-                    currentMap, entry.MapId, out RpgWorld500xRegionRouteDef route);
+                    currentMap, entry.MapId, out route);
 
                 string rowLabel = entry.DisplayNameZh + "｜" + entry.Reputation.FactionNameZh +
                                   "（" + entry.Reputation.RankNameZh + "）｜悬赏 " +
