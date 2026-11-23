@@ -202,7 +202,12 @@ namespace Rpg.Soundwell
         {
             if (getInt == null || setInt == null ||
                 !Enum.IsDefined(typeof(M14AyuanOutcome), outcome) ||
-                getInt(AyuanOutcomeKey) != 0)
+                getInt(AyuanOutcomeKey) != 0 ||
+                // A Yuan's fate must be chosen before the M14 passage is
+                // persisted. Otherwise a torn or corrupt downstream record
+                // could be retroactively supplied with a different ending.
+                M14FinalPassageFacts.HasAnyPersistedFacts(getInt) ||
+                M14FinalPassageFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             if (!TryReadDeparture(getInt, out M13DepartureRecord? departure) ||
