@@ -100,6 +100,39 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LargeMovementStepCannotTunnelThroughClosedIronGateButCanCrossWhenOpened()
+        {
+            host = new RpgWorld500xExplorationHost(
+                root.transform,
+                RpgWorldMapId.Soundwell,
+                streamingRadiusChunks: 1,
+                tileSlices: new Sprite[] { null });
+
+            // The four-tile-wide iron gate covers x=1200..1203, y=228..251.
+            // Both endpoints of a 7.2-tile move are walkable; endpoint-only
+            // collision checks would teleport directly through the locked gate.
+            Assert.That(host.Layout.IsWalkable(1198, 240, false), Is.True);
+            Assert.That(host.Layout.IsWalkable(1202, 240, false), Is.False);
+            Assert.That(host.Layout.IsWalkable(1205, 240, false), Is.True);
+            Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(1198, 240)), Is.True);
+            Assert.That(host.StepMovement(Vector2.right, 0.8f), Is.True);
+            Assert.That(host.PlayerPosition.x, Is.LessThan(1200f),
+                "A large step must stop before the closed iron gate.");
+
+            host.SetIronGateOpen(true);
+            Assert.That(host.Layout.IsWalkable(1202, 240, true), Is.True);
+            Assert.That(host.StepMovement(Vector2.right, 0.8f), Is.True);
+            Assert.That(host.PlayerPosition.x, Is.GreaterThan(1204f),
+                "Opening the iron gate must allow the same movement to pass.");
+
+            // Non-finite movement and extreme frame deltas never teleport across
+            // the entire map or loop a number of times proportional to the delta.
+            Vector2 before = host.PlayerPosition;
+            Assert.That(host.StepMovement(Vector2.right, float.PositiveInfinity), Is.False);
+            Assert.That(host.PlayerPosition, Is.EqualTo(before));
+        }
+
+        [Test]
         public void AllFour500xMapsBootStreamAndDisposeCleanlyThroughUnifiedHost()
         {
             foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)

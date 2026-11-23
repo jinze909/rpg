@@ -63,6 +63,23 @@ namespace Rpg.Tests.Editor
             // Interact at nearby landmark quest.
             Assert.That(session.InteractNearby(), Is.EqualTo(RpgWorldInteractOutcome.AdvancedLandmarkQuest));
 
+            // Re-selecting this map or receiving a stale serialized map ID
+            // must not destroy live quest, journal or streaming state.
+            var liveHost = session.Host;
+            var liveJournal = session.JournalPanel;
+            Vector2Int retainedTile = liveHost.CurrentTile;
+            int retainedChildren = root.transform.childCount;
+            Assert.That(session.SwitchMap((RpgWorldMapId)999), Is.False);
+            Assert.That(session.Host, Is.SameAs(liveHost));
+            Assert.That(session.JournalPanel, Is.SameAs(liveJournal));
+            Assert.That(root.transform.childCount, Is.EqualTo(retainedChildren));
+            Assert.That(session.SwitchMap(RpgWorldMapId.RedSaltHarbor), Is.True);
+            Assert.That(session.Host, Is.SameAs(liveHost));
+            Assert.That(session.Host.CurrentTile, Is.EqualTo(retainedTile));
+            Assert.That(session.Host.Tracker.IsMarkerDiscovered("rsh.salt-market"), Is.True);
+            Assert.That(session.JournalPanel, Is.SameAs(liveJournal));
+            Assert.That(root.transform.childCount, Is.EqualTo(retainedChildren));
+
             // Seamless switch across all remaining 500x maps with zero child leaks.
             Assert.That(session.SwitchMap(RpgWorldMapId.Soundwell), Is.True);
             Assert.That(session.CurrentMapId, Is.EqualTo(RpgWorldMapId.Soundwell));
