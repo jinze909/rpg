@@ -92,7 +92,7 @@ namespace Rpg.Soundwell
             // without issuing duplicate writes.
             if (existing.HasValue)
             {
-                if (existing.Value.ChairResolution != session.ChairResolution.Value)
+                if (!MatchesSession(existing.Value, session))
                     return;
             }
             else if (!session.TrySettle(getInt, setInt))
@@ -103,12 +103,24 @@ namespace Rpg.Soundwell
             if (!ST06TaoJiHomecomingFacts.TryRead(
                     getInt, out ST06HomecomingRecord? persisted) ||
                 !persisted.HasValue ||
-                persisted.Value.ChairResolution != session.ChairResolution.Value)
+                !MatchesSession(persisted.Value, session))
                 return;
 
             activeView.Dispose();
             activeView = null;
             openedArrivalSequence = null;
+        }
+
+        private static bool MatchesSession(ST06HomecomingRecord saved,
+            ST06TaoJiHomecomingSession current)
+        {
+            return current != null && current.ChairResolution.HasValue &&
+                saved.ChairResolution == current.ChairResolution.Value &&
+                saved.CoverUpRemediated == current.CoverUpRemediated &&
+                saved.WelcomeDinnerHeld == current.WelcomeDinnerHeld &&
+                saved.TaoJiTraveledFar == current.TaoJiTraveledFar &&
+                saved.LetterStatus == current.LetterStatus &&
+                saved.MarketTicketEnclosed == current.MarketTicketEnclosed;
         }
 
         public void Dispose()
