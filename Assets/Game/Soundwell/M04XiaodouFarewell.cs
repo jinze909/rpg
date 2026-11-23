@@ -93,8 +93,15 @@ namespace Rpg.Soundwell
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;
             if (variables == null)
                 return false;
+            return TryResetForNewVisit((key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryResetForNewVisit(Action<string, int> setInt)
+        {
+            if (setInt == null)
+                return false;
             // A replay cannot inherit last voyage's taught/untaught answer.
-            variables.Set(RealLineKey, 0);
+            setInt(RealLineKey, 0);
             return true;
         }
 
@@ -103,10 +110,25 @@ namespace Rpg.Soundwell
             if (farewell == null) throw new ArgumentNullException(nameof(farewell));
             if (farewell.Stage != M04FarewellStage.Complete || !farewell.Answer.HasValue)
                 throw new InvalidOperationException("Do not record unfinished M04 dialogue.");
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+            return TryRecord(farewell,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecord(M04XiaodouFarewell farewell,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (farewell == null) throw new ArgumentNullException(nameof(farewell));
+            if (farewell.Stage != M04FarewellStage.Complete || !farewell.Answer.HasValue)
+                throw new InvalidOperationException("Do not record unfinished M04 dialogue.");
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             // 1 = actually taught; 2 = explicitly kept the stage line.
-            Maki.Game.Variables.Set(RealLineKey, farewell.TaughtRealLine ? 1 : 2);
+            setInt(RealLineKey, farewell.TaughtRealLine ? 1 : 2);
             return true;
         }
 
