@@ -13,7 +13,7 @@ namespace Rpg.Tests.Editor
             return key => values.TryGetValue(key, out int value) ? value : 0;
         }
 
-        private static void SeedThroughM09BerthTable(Dictionary<string, int> values)
+        internal static void SeedThroughM09BerthTable(Dictionary<string, int> values)
         {
             Func<string, int> read = Reader(values);
             Action<string, int> write = (key, value) => values[key] = value;
