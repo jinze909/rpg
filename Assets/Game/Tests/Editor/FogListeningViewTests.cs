@@ -152,12 +152,21 @@ namespace Rpg.Tests.Editor
 
                 view = new FogListeningView(root.transform, session, _ => { });
                 Assert.That(view.FocusButton.interactable, Is.True);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.FocusButton));
                 Assert.That(view.CueText.text, Does.Contain("Sound is faint in the fog"));
 
                 view.FocusButton.onClick.Invoke();
                 Assert.That(session.RemainingFocus, Is.Zero);
                 Assert.That(view.FocusButton.interactable, Is.False);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.SlowButton),
+                    "After focus is exhausted, gamepad focus must return to an enabled helm action.");
+                Assert.That(view.PreferredFocusButton.IsInteractable(), Is.True);
                 Assert.That(view.CueText.text, Does.Contain("Low reef surf"));
+
+                view.SlowButton.onClick.Invoke();
+                Assert.That(session.IsComplete, Is.True);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.ContinueButton),
+                    "After the last helm action, focus must advance to the enabled result button.");
             }
             finally
             {
