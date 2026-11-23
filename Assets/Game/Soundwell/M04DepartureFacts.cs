@@ -202,13 +202,16 @@ namespace Rpg.Soundwell
 
         public static bool TryMarkSailed(Func<string, int> getInt, Action<string, int> setInt)
         {
-            if (getInt == null || setInt == null ||
-                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+            if (getInt == null || setInt == null)
                 return false;
             if (!TryRead(getInt, out M04DepartureRecord? readiness) ||
-                !readiness.HasValue || getInt(SailedKey) != 0)
+                !readiness.HasValue || getInt(SailedKey) != 0 ||
+                !CanBeginFreshFogLeg(getInt))
                 return false;
 
+            // A new departure cannot reuse a stale/partial fog outcome.
+            // CanBeginFreshFogLeg also enforces the previously merged guard
+            // against orphaned M07..M16 downstream facts.
             // A newer M03 itinerary must not sail an older confirmed hull.
             // Retain compatibility with saves that predate the M03 route key,
             // but fail closed for a present, malformed, or mismatched choice.
