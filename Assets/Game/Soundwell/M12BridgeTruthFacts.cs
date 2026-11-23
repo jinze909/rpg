@@ -100,6 +100,23 @@ namespace Rpg.Soundwell
                 m10.Value.ExposedHanQiaoPublicly;
         }
 
+        // RC-01 is optional, but an unreadable confirmed or interrupted case
+        // must not be mistaken for an unplayed case at the M12 truth hearing.
+        public static bool TryEvaluateRC01Completed(Func<string, int> getInt,
+            out bool completed)
+        {
+            completed = false;
+            if (getInt == null ||
+                !RC01ChenYanFacts.TryRead(getInt, out RC01ChenYanRecord? rc01))
+                return false;
+
+            if (!rc01.HasValue)
+                return getInt(RC01ChenYanFacts.ConfirmedKey) == 0;
+
+            completed = true;
+            return true;
+        }
+
         public static bool IsValidRecord(M12BridgeTruthRecord record, Func<string, int> getInt)
         {
             if (getInt == null ||
@@ -123,7 +140,9 @@ namespace Rpg.Soundwell
                 return false;
 
             if (!M11ReverseRescueFacts.TryRead(getInt, out M11ReverseRescueRecord? m11) ||
-                !m11.HasValue)
+                !m11.HasValue ||
+                !TryEvaluateRC01Completed(getInt, out bool rc01Completed) ||
+                (record.LinSuEchoHeard && !rc01Completed))
                 return false;
 
             bool expectedHanExposed = EvaluateM10HanExposedPublicly(getInt);

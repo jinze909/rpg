@@ -223,5 +223,66 @@ namespace Rpg.Tests.Editor
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 Assert.That(M12BridgeTruthFacts.TryRead(out _), Is.False);
         }
+
+        [Test]
+        public void TornRC01CannotBeTreatedAsUnplayedOrGrantLinSuEcho()
+        {
+            var values = new Dictionary<string, int>();
+            SeedThroughM11(values);
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M12BridgeTruthFacts.ConfirmedKey)
+                    writes++;
+            };
+
+            // An optional RC-01 case that has genuinely never been played is safe.
+            Assert.That(M12BridgeTruthSession.TryCreateFromSavedFacts(
+                read, false, false, false, false, out var clean), Is.True);
+            Assert.That(clean.LinSuEligible, Is.False);
+
+            var ordinary = new M12BridgeTruthRecord(
+                false, false, M12LuConfrontationReply.SomeWantNoMoreWar,
+                false, M12StatementFlags.RequiredBase, false,
+                m10HanExposedPublicly: false, M12TruthDisclosure.SealTruth);
+            var fabricatedEcho = new M12BridgeTruthRecord(
+                false, false, M12LuConfrontationReply.SomeWantNoMoreWar,
+                false, M12StatementFlags.RequiredBase, true,
+                m10HanExposedPublicly: false, M12TruthDisclosure.SealTruth);
+            Assert.That(M12BridgeTruthFacts.TryRecord(fabricatedEcho, read, write),
+                Is.False);
+
+            // RC-01 claims completion, but the saved choice is corrupt.
+            // M12 may not erase its outcome by assuming the case was skipped.
+            values[RC01ChenYanFacts.ConfirmedKey] = 1;
+            values[RC01ChenYanFacts.OutcomeKey] = 99;
+            Assert.That(RC01ChenYanFacts.TryRead(read, out _), Is.True);
+            Assert.That(M12BridgeTruthSession.TryCreateFromSavedFacts(
+                read, false, false, false, false, out _), Is.False);
+            Assert.That(M12BridgeTruthFacts.TryRecord(ordinary, read, write),
+                Is.False);
+
+            // A mid-write intent without confirmation is not a clean absence.
+            values[RC01ChenYanFacts.ConfirmedKey] = 0;
+            values[RC01ChenYanFacts.OutcomeKey] = 0;
+            values[RC01ChenYanFacts.PendingSignatureKey] = 1011;
+            Assert.That(RC01ChenYanFacts.TryRead(read, out _), Is.False);
+            Assert.That(M12BridgeTruthSession.TryCreateFromSavedFacts(
+                read, false, false, false, false, out _), Is.False);
+            Assert.That(M12BridgeTruthFacts.TryRecord(ordinary, read, write),
+                Is.False);
+            Assert.That(writes, Is.Zero);
+
+            // Only the clean repaired RC-01 state can resume M12 and persist
+            // the ordinary truth choice without claiming Lin Su's echo.
+            values[RC01ChenYanFacts.PendingSignatureKey] = 0;
+            Assert.That(M12BridgeTruthSession.TryCreateFromSavedFacts(
+                read, false, false, false, false, out _), Is.True);
+            Assert.That(M12BridgeTruthFacts.TryRecord(ordinary, read, write),
+                Is.True);
+            Assert.That(writes, Is.EqualTo(1));
+        }
     }
 }
