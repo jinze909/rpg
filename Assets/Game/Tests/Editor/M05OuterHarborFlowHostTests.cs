@@ -321,11 +321,17 @@ namespace Rpg.Tests.Editor
                 Assert.That(M05OuterHarborFlowHost.TryOpen(
                     root.transform, validLanding, read, write, _ => { }, out _), Is.False);
 
-                SeedCompletedCrossing(values, sailed: false, crossedFog: true);
+                SeedCompletedCrossing(values, sailed: false, crossedFog: false);
                 Assert.That(M05OuterHarborFlowHost.TryOpen(
                     root.transform, validLanding, read, write, _ => { }, out _), Is.False);
 
                 Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                var fog = new FogListeningSession(
+                    new[] { new FogListeningCue(FogBearing.Ahead,
+                        FogCueKind.ClearWater, 80) },
+                    maxListenFocus: 1, maxHullIntegrity: 2);
+                fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+                Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
                 Assert.That(M05OuterHarborFlowHost.TryOpen(
                     root.transform, observedLanding: null, read, write, _ => { }, out _), Is.False);
                 Assert.That(M05OuterHarborFlowHost.TryOpen(

@@ -729,7 +729,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
                 Assert.That(root.transform.childCount, Is.Zero);
 
-                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.False,
+                    "A torn fog save must block the durable cast-off, not only the UI.");
+                Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
                 Assert.That(M04ToM05SeaCrossingHost.TryOpen(
                     root.transform, ClearFogLeg, new M05LandingReport(3, 8, true, true),
                     read, write, _ => { }, _ => { }, out var afterCastOff), Is.False);
@@ -738,6 +740,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(root.transform.childCount, Is.Zero);
 
                 Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
                 Assert.That(M04ToM05SeaCrossingHost.TryOpen(
                     root.transform, ClearFogLeg, new M05LandingReport(3, 8, true, true),
                     read, write, _ => { }, _ => { }, out resumed), Is.True);
