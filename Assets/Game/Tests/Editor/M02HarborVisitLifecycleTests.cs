@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -46,6 +47,44 @@ namespace Rpg.Tests.Editor
             Assert.That(visit.IsDisposed, Is.True);
             Assert.DoesNotThrow(() => visit.Tick(16f / 9f));
             Assert.That(finished, Is.Zero);
+        }
+
+        [Test]
+        public void FailedFinalHandoffKeepsReviewPendingUntilSuccessfulRetry()
+        {
+            int attempts = 0;
+            visit = new M02HarborVisit(root.transform,
+                M01PensionChoice.LeaveWithoutDecision, () =>
+                {
+                    attempts++;
+                    if (attempts == 1)
+                        throw new InvalidOperationException("Simulated scene handoff failure");
+                });
+
+            var review = new M02MissingReturnReview(
+                M01PensionChoice.LeaveWithoutDecision, M02BridgeEvidence.None, false);
+            review.Begin();
+            M02MissingReturnOutcome outcome = review.Leave();
+
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            FieldInfo pending = typeof(M02HarborVisit).GetField("reviewOutcome", flags);
+            MethodInfo complete = typeof(M02HarborVisit).GetMethod("CompleteReview", flags);
+            Assert.That(pending, Is.Not.Null);
+            Assert.That(complete, Is.Not.Null);
+            pending.SetValue(visit, outcome);
+
+            TargetInvocationException error =
+                Assert.Throws<TargetInvocationException>(() => complete.Invoke(visit, null));
+            Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
+            Assert.That(pending.GetValue(visit), Is.SameAs(outcome));
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(visit.IsDisposed, Is.False);
+
+            Assert.DoesNotThrow(() => complete.Invoke(visit, null));
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(pending.GetValue(visit), Is.Null);
+            Assert.DoesNotThrow(() => complete.Invoke(visit, null));
+            Assert.That(attempts, Is.EqualTo(2), "A completed visit must not deliver twice.");
         }
 
         [Test]
