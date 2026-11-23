@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
 using Rpg.Soundwell;
 using UnityEngine;
 
@@ -58,8 +60,8 @@ namespace Rpg.Tests.Editor
                 hostGo = null;
                 driver = null;
 
-                Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Texture2D>().Length, texBefore);
-                Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Sprite>().Length, spriteBefore);
+                AssertNoNewTransientObjects<Texture2D>(texturesBefore);
+                AssertNoNewTransientObjects<Sprite>(spritesBefore);
             }
             finally
             {
@@ -76,6 +78,32 @@ namespace Rpg.Tests.Editor
                 if (camGo != null)
                 {
                     UnityEngine.Object.DestroyImmediate(camGo);
+                }
+            }
+        }
+
+        private static HashSet<int> CaptureTransientInstanceIds<T>() where T : UnityEngine.Object
+        {
+            var ids = new HashSet<int>();
+            foreach (T obj in Resources.FindObjectsOfTypeAll<T>())
+            {
+                if (obj != null && !EditorUtility.IsPersistent(obj))
+                {
+                    ids.Add(obj.GetInstanceID());
+                }
+            }
+
+            return ids;
+        }
+
+        private static void AssertNoNewTransientObjects<T>(HashSet<int> before) where T : UnityEngine.Object
+        {
+            foreach (T obj in Resources.FindObjectsOfTypeAll<T>())
+            {
+                if (obj != null && !EditorUtility.IsPersistent(obj) &&
+                    !before.Contains(obj.GetInstanceID()))
+                {
+                    Assert.Fail("Undisposed runtime " + typeof(T).Name + ": " + obj.name);
                 }
             }
         }
