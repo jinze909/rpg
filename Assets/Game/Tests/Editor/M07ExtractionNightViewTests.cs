@@ -44,7 +44,17 @@ namespace Rpg.Tests.Editor
             {
                 Assert.That(M05LettersFacts.TryRecord(letterDecision.Value, read, write), Is.True);
                 if (letterDecision.Value == M05LetterDecision.TakePacket)
+                {
                     letterOutcome = M06LetterDeliveryOutcome.DeliveredWithPending;
+            foreach (M06FamilyLetterRecipient recipient in new[]
+            {
+                M06FamilyLetterRecipient.TaoJi,
+                M06FamilyLetterRecipient.LedgerMiner,
+                M06FamilyLetterRecipient.PendingMiner
+            })
+                Assert.That(M06FamilyLetterDeliveryFacts.TryRecord(
+                    recipient, read, write), Is.True);
+                }
             }
 
             Assert.That(M06RescuePlanFacts.TryRecord(

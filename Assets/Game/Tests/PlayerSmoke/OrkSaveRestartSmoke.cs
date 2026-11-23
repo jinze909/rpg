@@ -91,6 +91,11 @@ namespace Rpg.Soundwell
                     Fail("Could not save from the Bootstrap checkpoint.");
                     yield break;
                 }
+                // Persist the actual M03 route, M04 departure/roster, completed
+                // fog passage, M05 landing observation, and the player's
+                // arrival-specific letter choice into the same ORK save slot.
+                if (!RecordVoyageFacts())
+                    yield break;
                 yield return WaitFor(() => CheckpointButton("Save")?.IsInteractable() == true);
                 var saveButton = CheckpointButton("Save");
                 if (saveButton == null || !saveButton.IsInteractable())
@@ -140,9 +145,10 @@ namespace Rpg.Soundwell
             else
             {
                 if (OrkPartyBridge.RescueSettled ||
-                    (M02QiQueDebtFacts.TryRead(out bool known) && known))
+                    (M02QiQueDebtFacts.TryRead(out bool known) && known) ||
+                    !HasFreshVoyageFacts())
                 {
-                    Fail("The read process must start with fresh gameplay state.");
+                    Fail("The read process must start with fresh gameplay and voyage state.");
                     yield break;
                 }
                 yield return WaitFor(() => CheckpointButton("Load")?.IsInteractable() == true);
@@ -166,9 +172,10 @@ namespace Rpg.Soundwell
                 saves.GameLoaded -= OnGameLoaded;
                 if (!loaded || SceneManager.GetActiveScene().name != SoundwellEntrance.BootstrapSceneName ||
                     !OrkPartyBridge.RescueSettled || !HasRescueExperience(ORK.Game.ActiveGroup.GetGroup()) ||
-                    !M02QiQueDebtFacts.TryRead(out bool debtKnown) || !debtKnown)
+                    !M02QiQueDebtFacts.TryRead(out bool debtKnown) || !debtKnown ||
+                    !VerifyVoyageFacts("after checkpoint load"))
                 {
-                    Fail("The saved scene, quest, experience or chapter fact did not restore.");
+                    Fail("The saved scene, quest, experience, chapter, or voyage facts did not restore.");
                     yield break;
                 }
 
@@ -190,9 +197,150 @@ namespace Rpg.Soundwell
                         DescribeExperience(party.Members));
                     yield break;
                 }
+                if (!VerifyVoyageFacts("after trial re-entry"))
+                    yield break;
                 Debug.Log("RPG_ORK_SAVE_RESTART_READ");
             }
             Application.Quit(0);
+        }
+
+        private static bool RecordVoyageFacts()
+        {
+            var encounter = new M03LuJunEncounter(M02BridgeEvidence.None, true);
+            encounter.Begin();
+            encounter.ObserveRollCall();
+            encounter.Ask(M03LuJunOpening.NeedAShip);
+            encounter.ChooseVoyage(M03VoyageChoice.QiQueMerchant);
+            if (!M03LuJunFacts.TryRecord(encounter))
+            {
+                Fail("The real M03 voyage choice could not be saved.");
+                return false;
+            }
+
+            var manifest = new M04DepartureManifest(
+                M03VoyageChoice.QiQueMerchant,
+                "Verified civilian hull", "A Yuan", 4, "Shallow tender",
+                true, 16, 8, "Named Red Salt receiver", false, false);
+            if (!manifest.ConfirmDeparture() ||
+                !M04DepartureFacts.TryRecord(manifest) ||
+                !M04DepartureFacts.TryMarkSailed())
+            {
+                Fail("The M04 departure manifest or actual cast-off could not be saved.");
+                return false;
+            }
+
+            var roster = new M04RosterLedger();
+            roster.AddEntry("roll-01", "Listed person", M04RosterStatus.ListedDead);
+            roster.MarkConfirmedAtDock("roll-01");
+            roster.ResolveRollCorrection("roll-01");
+            roster.AddEntry("dock-01", "Confirmed 1", M04RosterStatus.ConfirmedAtDock);
+            roster.AddEntry("dock-02", "Confirmed 2", M04RosterStatus.ConfirmedAtDock);
+            roster.AddEntry("unconfirmed-01", "Unconfirmed 1", M04RosterStatus.RansomedUnconfirmed);
+            if (!roster.TryBookForVoyage("roll-01", 16))
+            {
+                Fail("The reconciled M04 roster could not book a verified berth.");
+                return false;
+            }
+            roster.MarkDeclinedVoyage("dock-02");
+            if (!M04RosterFacts.TryRecord(roster))
+            {
+                Fail("The reconciled M04 returnee roster could not be saved.");
+                return false;
+            }
+
+            var fog = new FogListeningSession(new[]
+            {
+                new FogListeningCue(FogBearing.Ahead, FogCueKind.ClearWater, 80)
+            }, maxListenFocus: 1, maxHullIntegrity: 2);
+            fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+            if (!fog.IsComplete || !fog.Succeeded || !FogListeningFacts.TryRecord(fog))
+            {
+                Fail("The completed M04 fog passage could not be saved.");
+                return false;
+            }
+
+            if (!M05LandingFacts.TryRecord(new M05LandingReport(3, 10, true, true)))
+            {
+                Fail("The actual M05 crew, tender, receiver, and usable-berth observation could not be saved.");
+                return false;
+            }
+            if (!M05LettersFacts.TryRecord(M05LetterDecision.TakePacket))
+            {
+                Fail("The M05 eight-letter packet choice could not be saved.");
+                return false;
+            }
+
+            return VerifyVoyageFacts("before checkpoint save");
+        }
+
+        private static bool HasFreshVoyageFacts()
+        {
+            return M03LuJunFacts.TryRead(out _, out _, out M03VoyageChoice? route) &&
+                !route.HasValue &&
+                M04DepartureFacts.TryRead(out M04DepartureRecord? departure) &&
+                !departure.HasValue &&
+                M04RosterFacts.TryRead(out M04RosterSummaryRecord? roster) &&
+                !roster.HasValue &&
+                FogListeningFacts.TryRead(out FogListeningRecord? fog) &&
+                !fog.HasValue &&
+                M05LandingFacts.TryRead(out M05LandingReport? landing) &&
+                !landing.HasValue &&
+                M05LettersFacts.TryRead(out M05LetterDecision? letters) &&
+                !letters.HasValue;
+        }
+
+        private static bool VerifyVoyageFacts(string phase)
+        {
+            if (!M03LuJunFacts.TryRead(out _, out _, out M03VoyageChoice? route) ||
+                route != M03VoyageChoice.QiQueMerchant)
+            {
+                Fail("M03 route fact did not survive " + phase + ".");
+                return false;
+            }
+            if (!M04DepartureFacts.TryRead(out M04DepartureRecord? departure) ||
+                !departure.HasValue ||
+                departure.Value.Route != M03VoyageChoice.QiQueMerchant ||
+                departure.Value.AssignedCrew != 4 ||
+                departure.Value.AvailableBerths != 16 ||
+                departure.Value.ReturneesToBook != 8 ||
+                !M04DepartureFacts.TryReadSailed(out bool sailed) || !sailed)
+            {
+                Fail("M04 route, crew, reserved berths, or cast-off fact did not survive " + phase + ".");
+                return false;
+            }
+            if (!M04RosterFacts.TryRead(out M04RosterSummaryRecord? roster) ||
+                !roster.HasValue ||
+                roster.Value.TotalEntries != 4 ||
+                roster.Value.ConfirmedAtDockCount != 1 ||
+                roster.Value.BookedCount != 1 ||
+                roster.Value.DeclinedCount != 1)
+            {
+                Fail("The reconciled M04 roster did not survive " + phase + ".");
+                return false;
+            }
+            if (!FogListeningFacts.TryRead(out FogListeningRecord? fog) ||
+                !fog.HasValue || !fog.Value.Succeeded || fog.Value.HullIntegrity != 2)
+            {
+                Fail("The completed M04 fog outcome did not survive " + phase + ".");
+                return false;
+            }
+            if (!M05LandingFacts.TryRead(out M05LandingReport? landing) ||
+                !landing.HasValue ||
+                landing.Value.CrewArrived != 3 ||
+                landing.Value.ReadyRescueBerths != 10 ||
+                !landing.Value.TenderArrived ||
+                !landing.Value.ReceiverMet)
+            {
+                Fail("The actual M05 crew/tender/receiver/berth observation did not survive " + phase + ".");
+                return false;
+            }
+            if (!M05LettersFacts.TryRead(out M05LetterDecision? letters) ||
+                letters != M05LetterDecision.TakePacket)
+            {
+                Fail("The M05 arrival-specific letter choice did not survive " + phase + ".");
+                return false;
+            }
+            return true;
         }
 
         private void OnGameLoaded() => loaded = true;

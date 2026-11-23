@@ -42,6 +42,7 @@ namespace Rpg.Editor
             public long build_report_bytes;
             public bool data_directory_present;
             public bool save_restart_passed;
+            public bool voyage_facts_passed;
             public bool portrait_hud_passed;
             public string environment =
                 "Unity 6000.6.8f1 Linux Editor CI; actual Linux Player build; not a user device";
@@ -215,6 +216,7 @@ namespace Rpg.Editor
                 build_report_bytes = (long)report.summary.totalSize,
                 data_directory_present = dataFound,
                 save_restart_passed = ranSaveRegression,
+                voyage_facts_passed = ranSaveRegression,
                 portrait_hud_passed = ranSaveRegression,
             };
             Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
