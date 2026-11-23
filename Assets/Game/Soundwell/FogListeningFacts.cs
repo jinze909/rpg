@@ -141,7 +141,8 @@ namespace Rpg.Soundwell
         {
             ValidateCompleted(session);
             if (getInt == null || setInt == null ||
-                getInt(CompletedKey) != 0)
+                getInt(CompletedKey) != 0 ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             int sequence = getInt(M04DepartureFacts.SailingSequenceKey);
