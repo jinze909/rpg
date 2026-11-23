@@ -115,7 +115,14 @@ namespace Rpg.Soundwell
             var variables = Maki.Initialized ? Maki.Game?.Variables : null;
             if (variables == null)
                 return false;
-            variables.Set(CupCarriedKey, 0);
+            return TryResetForNewVisit((key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryResetForNewVisit(Action<string, int> setInt)
+        {
+            if (setInt == null)
+                return false;
+            setInt(CupCarriedKey, 0);
             return true;
         }
 
@@ -126,20 +133,44 @@ namespace Rpg.Soundwell
             if (cup == null) throw new ArgumentNullException(nameof(cup));
             if (cup.Stage != M04QiQueCupStage.Complete)
                 throw new InvalidOperationException("Incomplete M04 farewells cannot be recorded.");
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
-            Maki.Game.Variables.Set(CupCarriedKey, cup.CupTaken ? 1 : 2);
+            return TryRecord(cup,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecord(M04QiQueCupEncounter cup,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (cup == null) throw new ArgumentNullException(nameof(cup));
+            if (cup.Stage != M04QiQueCupStage.Complete)
+                throw new InvalidOperationException("Incomplete M04 farewells cannot be recorded.");
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+            setInt(CupCarriedKey, cup.CupTaken ? 1 : 2);
             return true;
         }
 
         public static bool TryRead(out bool carrying)
         {
             carrying = false;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+            return TryRead(key => variables.GetInt(key), out carrying);
+        }
+
+        public static bool TryRead(Func<string, int> getInt, out bool carrying)
+        {
+            carrying = false;
+            if (getInt == null)
                 return false;
             // 0/unknown means the encounter has not happened; 2 explicitly
             // means no physical cup. Only a completed farewell writes either.
-            int recorded = Maki.Game.Variables.GetInt(CupCarriedKey);
+            int recorded = getInt(CupCarriedKey);
             if (recorded != 1 && recorded != 2)
                 return false;
             carrying = recorded == 1;
