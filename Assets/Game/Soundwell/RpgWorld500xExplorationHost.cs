@@ -281,6 +281,9 @@ namespace Rpg.Soundwell
             result = default;
             if (IsDisposed || bridge.IsInDangerEncounter ||
                 !FindNearbyMarker(out RpgMapLandmarkMarker marker) ||
+                // Danger-zone linked quests are awarded only by the encounter victory path.
+                // Generic interaction must never bypass the danger or grant its reward.
+                marker.Category == RpgMapMarkerCategory.DangerZone ||
                 string.IsNullOrEmpty(marker.LinkedQuestId))
                 return false;
             return bridge.TryAdvanceLandmarkQuest(marker.LinkedQuestId, steps, out result);

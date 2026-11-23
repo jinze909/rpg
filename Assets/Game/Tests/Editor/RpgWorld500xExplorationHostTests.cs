@@ -100,6 +100,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DangerZoneQuestRequiresEncounterVictoryInsteadOfGenericInteraction()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            int rewards = 0;
+            host = new RpgWorld500xExplorationHost(
+                root.transform,
+                RpgWorldMapId.Soundwell,
+                getInt: key => store.TryGetValue(key, out int v) ? v : 0,
+                setInt: (key, value) => store[key] = value,
+                onRewardGranted: (_, __) => rewards++,
+                streamingRadiusChunks: 1,
+                tileSlices: new Sprite[] { null });
+
+            const string dangerId = "sw.sunken-drain";
+            const string questId = "q.sw.clear-drain-grate";
+            Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(680, 640)), Is.True);
+            Assert.That(host.FindNearbyMarker(out RpgMapLandmarkMarker marker), Is.True);
+            Assert.That(marker.Id, Is.EqualTo(dangerId));
+            Assert.That(marker.LinkedQuestId, Is.EqualTo(questId));
+
+            // Previously this call advanced and rewarded a danger quest before combat.
+            Assert.That(host.TryInteractNearbyLandmarkQuest(2, out _), Is.False);
+            Assert.That(host.Tracker.GetQuestState(questId),
+                Is.Not.EqualTo(RpgLandmarkQuestState.Completed));
+            Assert.That(store.ContainsKey(RpgWorldOrkExplorationBridge.QuestRewardedKey(questId)), Is.False);
+            Assert.That(rewards, Is.Zero);
+
+            // The authoritative danger-victory path still completes and rewards once.
+            Assert.That(host.TryTriggerNearbyDangerEncounter(out string triggeredId), Is.True);
+            Assert.That(triggeredId, Is.EqualTo(dangerId));
+            Assert.That(host.TryResolveActiveDangerVictory(lockBreakAchieved: true,
+                out RpgDangerZoneEncounterResult victory), Is.True);
+            Assert.That(victory.CompletedQuestId, Is.EqualTo(questId));
+            Assert.That(host.Tracker.GetQuestState(questId),
+                Is.EqualTo(RpgLandmarkQuestState.Completed));
+            Assert.That(rewards, Is.EqualTo(1));
+            Assert.That(host.TryTriggerNearbyDangerEncounter(out _), Is.False);
+            Assert.That(rewards, Is.EqualTo(1));
+        }
+
+        [Test]
         public void LargeMovementStepCannotTunnelThroughClosedIronGateButCanCrossWhenOpened()
         {
             host = new RpgWorld500xExplorationHost(
