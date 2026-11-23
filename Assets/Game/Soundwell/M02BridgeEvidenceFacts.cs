@@ -42,21 +42,44 @@ namespace Rpg.Soundwell
         public static bool TryRecordObserved(M02BridgeEvidence newlyInspected)
         {
             M02BridgeInquiry.ValidateSingleClue(newlyInspected);
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
 
-            var existing = Decode(Maki.Game.Variables.GetInt(EvidenceKey));
+            return TryRecordObserved(newlyInspected,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecordObserved(M02BridgeEvidence newlyInspected,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            M02BridgeInquiry.ValidateSingleClue(newlyInspected);
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+
+            var existing = Decode(getInt(EvidenceKey));
             var merged = MergeObserved(existing, newlyInspected);
-            Maki.Game.Variables.Set(EvidenceKey, Encode(merged));
+            setInt(EvidenceKey, Encode(merged));
             return true;
         }
 
         public static bool TryRead(out M02BridgeEvidence observed)
         {
             observed = M02BridgeEvidence.None;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
-            observed = Decode(Maki.Game.Variables.GetInt(EvidenceKey));
+            return TryRead(key => variables.GetInt(key), out observed);
+        }
+
+        public static bool TryRead(Func<string, int> getInt, out M02BridgeEvidence observed)
+        {
+            observed = M02BridgeEvidence.None;
+            if (getInt == null)
+                return false;
+            observed = Decode(getInt(EvidenceKey));
             return true;
         }
     }
