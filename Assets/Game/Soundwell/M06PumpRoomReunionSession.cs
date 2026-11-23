@@ -45,6 +45,9 @@ namespace Rpg.Soundwell
         // not just its crew/berth numbers. Directly constructed preview
         // sessions retain the existing public constructor contract.
         private readonly int? openedArrivalSequence;
+        private readonly Func<string, int> read;
+        private readonly Action<string, int> write;
+        private M06FamilyLetterDeliverySnapshot letterDelivery;
         public M04DepartureRecord Departure { get; }
         public M05LandingReport Landing { get; }
         public M05LetterDecision? LetterDecision { get; }
@@ -54,8 +57,13 @@ namespace Rpg.Soundwell
         public bool HasCarriedLetters => LetterDecision == M05LetterDecision.TakePacket;
         public int LettersCarriedCount => M05LettersFacts.LettersCarried(LetterDecision);
         public bool PumpRoomWitnessed { get; private set; }
-        public bool LettersHandled { get; private set; }
-        public bool PendingReturnLetterNoted { get; private set; }
+        public bool LettersHandled => HasCarriedLetters &&
+            letterDelivery.AllKnownRecipientsHandled;
+        public bool PendingReturnLetterNoted => letterDelivery.HasPendingReturn;
+        public int LettersHandledCount => letterDelivery.HandledCount;
+        public M06FamilyLetterDeliverySnapshot LetterDelivery => letterDelivery;
+        public bool IsLetterHandled(M06FamilyLetterRecipient recipient) =>
+            letterDelivery.IsHandled(recipient);
         public bool RetaliationHistoryHeard { get; private set; }
         public M06RescuePlan? ConfirmedPlan { get; private set; }
         public M06ShenResponse? SelectedShenResponse { get; private set; }
@@ -64,7 +72,7 @@ namespace Rpg.Soundwell
             M04DepartureRecord departure,
             M05LandingReport landing,
             M05LetterDecision? letterDecision)
-            : this(departure, landing, letterDecision, null)
+            : this(departure, landing, letterDecision, null, null, null, default)
         {
         }
 
@@ -72,7 +80,10 @@ namespace Rpg.Soundwell
             M04DepartureRecord departure,
             M05LandingReport landing,
             M05LetterDecision? letterDecision,
-            int? arrivalSequence)
+            int? arrivalSequence,
+            Func<string, int> read,
+            Action<string, int> write,
+            M06FamilyLetterDeliverySnapshot letterDelivery)
         {
             if (landing.CrewArrived <= 0 || landing.CrewArrived > departure.AssignedCrew)
                 throw new ArgumentOutOfRangeException(nameof(landing),
@@ -89,11 +100,22 @@ namespace Rpg.Soundwell
             Landing = landing;
             LetterDecision = letterDecision;
             openedArrivalSequence = arrivalSequence;
+            this.read = read;
+            this.write = write;
+            this.letterDelivery = letterDelivery;
             Stage = M06ReunionStage.VesselBriefing;
         }
 
         public static bool TryCreateFromSavedFacts(
             Func<string, int> getInt,
+            out M06PumpRoomReunionSession session)
+        {
+            return TryCreateFromSavedFacts(getInt, null, out session);
+        }
+
+        public static bool TryCreateFromSavedFacts(
+            Func<string, int> getInt,
+            Action<string, int> setInt,
             out M06PumpRoomReunionSession session)
         {
             session = null;
@@ -112,9 +134,14 @@ namespace Rpg.Soundwell
                 (!letters.HasValue && getInt(M05LettersFacts.DecisionKey) != 0))
                 return false;
 
+            if (!M06FamilyLetterDeliveryFacts.TryRead(
+                getInt, out M06FamilyLetterDeliverySnapshot letterDelivery))
+                return false;
+
             session = new M06PumpRoomReunionSession(
                 departure.Value, landing.Value, letters,
-                getInt(M05LandingFacts.ArrivalSequenceKey));
+                getInt(M05LandingFacts.ArrivalSequenceKey),
+                getInt, setInt, letterDelivery);
             return true;
         }
 
@@ -162,18 +189,32 @@ namespace Rpg.Soundwell
             EnsureStage(M06ReunionStage.PumpRoomWitnesses);
             PumpRoomWitnessed = true;
             // Validation N76: skip letter handoff completely if M05 did not carry the packet.
-            Stage = HasCarriedLetters
+            Stage = HasCarriedLetters && !LettersHandled
                 ? M06ReunionStage.LetterHandoff
                 : M06ReunionStage.OulinRetaliationTruth;
         }
 
-        public void DeliverCarriedLetters()
+        public bool TryDeliverCarriedLetter(M06FamilyLetterRecipient recipient)
         {
             EnsureStage(M06ReunionStage.LetterHandoff);
-            LettersHandled = true;
-            // One miner returns his unopened letter to think over his reply ("待投").
-            PendingReturnLetterNoted = true;
+            if (!HasCarriedLetters || read == null || write == null ||
+                !HasSameSavedArrival(read) ||
+                !M06FamilyLetterDeliveryFacts.TryRecord(recipient, read, write) ||
+                !M06FamilyLetterDeliveryFacts.TryRead(
+                    read, out M06FamilyLetterDeliverySnapshot saved))
+                return false;
+
+            letterDelivery = saved;
+            return true;
+        }
+
+        public bool ContinueAfterLetterHandoff()
+        {
+            EnsureStage(M06ReunionStage.LetterHandoff);
+            if (!LettersHandled || !PendingReturnLetterNoted)
+                return false;
             Stage = M06ReunionStage.OulinRetaliationTruth;
+            return true;
         }
 
         public void HearOulinRetaliationTruth()

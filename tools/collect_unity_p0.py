@@ -73,6 +73,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "LinchaoThirdOmenCapturesChineseAndEnglishGameViewEvidence":
             "Rpg.Tests.Editor.M10WorldNoticeGameViewEvidenceTests.LinchaoThirdOmenCapturesChineseAndEnglishGameViewEvidence",
     },
+    "Assets/Game/Tests/Editor/M06FamilyLetterDeliveryGameViewEvidenceTests.cs": {
+        "FamilyLetterHandoffCapturesChineseAndEnglishGameViewEvidence":
+            "Rpg.Tests.Editor.M06FamilyLetterDeliveryGameViewEvidenceTests.FamilyLetterHandoffCapturesChineseAndEnglishGameViewEvidence",
+    },
     "Assets/Game/Tests/Editor/PlayableRoleBattleTests.cs": {
         "VisibleEntryPlaysRealInterruptAndPunishExchange":
             "Rpg.Tests.Editor.PlayableRoleBattleTests.VisibleEntryPlaysRealInterruptAndPunishExchange",

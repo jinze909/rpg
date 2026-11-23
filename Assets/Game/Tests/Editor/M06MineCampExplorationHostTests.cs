@@ -206,11 +206,16 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
                 Assert.That(host.ActiveReunionView, Is.Not.Null);
 
-                host.ActiveReunionView.GreetingBringBackButton.onClick.Invoke();
-                host.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                host.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                host.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                Assert.That(host.ActiveReunionView.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                var reunion = host.ActiveReunionView;
+                reunion.GreetingBringBackButton.onClick.Invoke();
+                reunion.AdvanceButton.onClick.Invoke();
+                Assert.That(reunion.Session.Stage, Is.EqualTo(M06ReunionStage.LetterHandoff));
+                reunion.TaoJiLetterButton.onClick.Invoke();
+                reunion.LedgerLetterButton.onClick.Invoke();
+                reunion.ReturnedLetterButton.onClick.Invoke();
+                reunion.AdvanceButton.onClick.Invoke();
+                reunion.AdvanceButton.onClick.Invoke();
+                Assert.That(reunion.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
                 host.ActiveReunionView.ShenWaitButton.onClick.Invoke();
                 host.ActiveReunionView.OfficialHandoverButton.onClick.Invoke();
 

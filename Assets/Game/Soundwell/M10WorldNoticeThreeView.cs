@@ -62,16 +62,19 @@ namespace Rpg.Soundwell
                 new Vector2(900f, 226f), new Color(0.06f, 0.09f, 0.11f, 0.97f));
             var ink = new Color(0.93f, 0.89f, 0.81f, 1f);
 
-            heading = SoundwellUiTheme.CreateLabel(panel, 19,
-                new Vector2(0f, 83f), new Vector2(838f, 28f), ink);
+            heading = SoundwellUiTheme.CreateLabel(panel, 20,
+                new Vector2(0f, 84f), new Vector2(838f, 28f), ink);
             heading.alignment = TextAnchor.MiddleLeft;
-            notice = SoundwellUiTheme.CreateLabel(panel, 16,
-                new Vector2(0f, 25f), new Vector2(838f, 92f), ink);
+            notice = SoundwellUiTheme.CreateLabel(panel, 18,
+                new Vector2(0f, 6f), new Vector2(838f, 118f), ink);
             notice.alignment = TextAnchor.UpperLeft;
             notice.horizontalOverflow = HorizontalWrapMode.Wrap;
+            // Keep the notice legible rather than shrinking a dense paragraph
+            // into one tiny line in the actual 960x540 story GameView.
+            notice.resizeTextForBestFit = false;
             acknowledgeButton = SoundwellUiTheme.CreateButton(panel,
                 "M10 read third omen", new Vector2(0f, -82f),
-                new Vector2(474f, 38f), 14, out acknowledgeLabel);
+                new Vector2(474f, 42f), 16, out acknowledgeLabel);
             acknowledgeButton.onClick.AddListener(TryAcknowledge);
 
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
@@ -101,11 +104,11 @@ namespace Rpg.Soundwell
                 ? "M10 · 第三则预兆／临潮渡口"
                 : "M10 · THIRD OMEN / LINCHAO FERRY";
             notice.text = zh
-                ? "临潮渡口贴出第三则预兆告示。纸上只有一句：“桥在我在。”落款：陆钧。有人念了一遍，又把纸角压平。十二年前，你在这座桥上喊的是借绳子。"
-                : "A third omen is posted at Linchao Ferry. The notice carries one line: “I am the bridge; I am here.” Signed Lu Jun. Someone reads it aloud and presses the paper flat. Twelve years ago, what you called across this bridge was a request for rope.";
+                ? "临潮渡口贴出第三则预兆告示。\\n纸上只有一句：“桥在我在。”落款：陆钧。\\n有人念了一遍，又把纸角压平。\\n十二年前，你在这座桥上喊的是借绳子。"
+                : "A third omen is posted at Linchao Ferry.\\nThe notice carries one line: “I am the bridge; I am here.” Signed Lu Jun.\\nSomeone reads it aloud and presses the paper flat.\\nTwelve years ago, what you called across this bridge was a request for rope.";
             acknowledgeLabel.text = zh
-                ? "记下告示 · 继续前往镜湾"
-                : "Record the notice · Continue to Mirror Bay";
+                ? "记下告示 · 前往镜湾"
+                : "Record notice · Continue to Mirror Bay";
             acknowledgeButton.gameObject.SetActive(!delivered);
             acknowledgeButton.interactable = !delivered && !acknowledging;
             if (!delivered && !acknowledging)
