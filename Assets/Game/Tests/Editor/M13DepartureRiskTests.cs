@@ -123,5 +123,55 @@ namespace Rpg.Tests.Editor
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 Assert.That(M13DepartureRiskFacts.TryReadDeparture(out _), Is.False);
         }
+        [Test]
+        public void AyuanOutcomeCannotBeBackfilledAfterM14OrLaterStoryFactsExist()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int ayuanWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M13DepartureRiskFacts.AyuanOutcomeKey)
+                    ayuanWrites++;
+                values[key] = value;
+            };
+
+            // Route A's clean settlement is always Safe.
+            Assert.That(M13DepartureRiskFacts.TryRecordDeparture(
+                new M13DepartureRecord(
+                    M13ApproachRoute.RouteASupervisedCivilian,
+                    safetyPreparationComplete: true,
+                    qiQueWarningGiven: false,
+                    explicitHighRiskConsent: false,
+                    threeBellReverseSignalAgreed: false),
+                read, write), Is.True);
+
+            // Even an interrupted M14 payload must not be interpreted as a
+            // blank passage that can have its crew's outcome written later.
+            values[M14FinalPassageFacts.PassageOutcomeKey] =
+                (int)M14PassageOutcome.RouteASupervisedCivilianEstablished;
+            Assert.That(M13DepartureRiskFacts.TryRecordAyuanOutcome(
+                M14AyuanOutcome.Safe, read, write), Is.False);
+            Assert.That(ayuanWrites, Is.Zero);
+
+            values[M14FinalPassageFacts.PassageOutcomeKey] = 0;
+            values[M14FinalPassageFacts.ConfirmedKey] = 1;
+            Assert.That(M13DepartureRiskFacts.TryRecordAyuanOutcome(
+                M14AyuanOutcome.Safe, read, write), Is.False);
+            values[M14FinalPassageFacts.ConfirmedKey] = 0;
+
+            // Later rolls must never be allowed to exist before A Yuan's
+            // outcome is first written, even if M14 keys were reset.
+            values[M15FinalRollCallFacts.ConfirmedKey] = 1;
+            Assert.That(M13DepartureRiskFacts.TryRecordAyuanOutcome(
+                M14AyuanOutcome.Safe, read, write), Is.False);
+            values[M15FinalRollCallFacts.ConfirmedKey] = 0;
+
+            // Clearing the orphaned facts restores the normal M14 write path.
+            Assert.That(M13DepartureRiskFacts.TryRecordAyuanOutcome(
+                M14AyuanOutcome.Safe, read, write), Is.True);
+            Assert.That(ayuanWrites, Is.EqualTo(1));
+        }
+
     }
 }
