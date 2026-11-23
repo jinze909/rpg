@@ -142,6 +142,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(M06MineCampReconFacts.TryResetForNewVoyage(write), Is.True);
                 Assert.That(M05LettersFacts.TryResetForNewVoyage(write), Is.True);
                 Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
                 SeedVerifiedM05Arrival(values);
                 Assert.That(values[M05LandingFacts.ArrivalSequenceKey], Is.GreaterThan(firstArrival));
 
