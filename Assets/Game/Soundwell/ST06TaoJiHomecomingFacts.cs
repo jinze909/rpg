@@ -69,6 +69,13 @@ namespace Rpg.Soundwell
         public const string LetterStatusKey = "rpg.return.st06.letter-status";
         public const string MarketTicketKey = "rpg.return.st06.market-ticket-enclosed";
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M15FinalRollCallFacts.HasAnyPersistedFacts(getInt) ||
+                M16EpilogueFacts.HasAnyPersistedFacts(getInt);
+        }
+
         private static bool CompatiblePending(Func<string, int> getInt, string key, int expected)
         {
             int raw = getInt(key);
@@ -77,7 +84,8 @@ namespace Rpg.Soundwell
 
         public static bool CanRecord(ST06HomecomingRecord record, Func<string, int> getInt)
         {
-            if (getInt == null || getInt(ConfirmedKey) != 0)
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                HasOrphanedDownstreamFacts(getInt))
                 return false;
             return IsValidRecord(record, getInt) &&
                 CompatiblePending(getInt, ChairResolutionKey, (int)record.ChairResolution) &&
