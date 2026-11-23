@@ -97,7 +97,8 @@ namespace Rpg.Soundwell
             Func<string, int> getInt,
             Action<string, int> setInt)
         {
-            if (!IsValidLead(lead) || getInt == null || setInt == null)
+            if (!IsValidLead(lead) || getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
