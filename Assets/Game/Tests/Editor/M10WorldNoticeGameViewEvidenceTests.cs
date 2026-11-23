@@ -51,7 +51,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(notice.Notice.text, Does.Contain("桥在我在"));
                 Assert.That(notice.Notice.fontSize, Is.GreaterThanOrEqualTo(18));
                 Assert.That(notice.Notice.resizeTextForBestFit, Is.False);
-                Assert.That(notice.Notice.text.Split('\\n').Length, Is.GreaterThanOrEqualTo(4),
+                Assert.That(notice.Notice.text.Split('\n').Length, Is.GreaterThanOrEqualTo(4),
                     "The Chinese notice should show separate readable story beats.");
                 Assert.That(notice.Notice.rectTransform.sizeDelta.y, Is.GreaterThanOrEqualTo(110f));
                 Canvas canvas = root.GetComponentsInChildren<Canvas>(true)
@@ -61,7 +61,7 @@ namespace Rpg.Tests.Editor
                 SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
                 yield return null;
                 Assert.That(notice.Notice.text, Does.Contain("I am the bridge; I am here."));
-                Assert.That(notice.Notice.text.Split('\\n').Length, Is.GreaterThanOrEqualTo(4),
+                Assert.That(notice.Notice.text.Split('\n').Length, Is.GreaterThanOrEqualTo(4),
                     "The English notice should preserve deliberate line breaks.");
                 SoundwellSmokeHost.CaptureStoryCanvas(canvas, "m10-linchao-third-omen-en");
 

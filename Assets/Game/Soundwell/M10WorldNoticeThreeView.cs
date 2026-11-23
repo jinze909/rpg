@@ -104,8 +104,8 @@ namespace Rpg.Soundwell
                 ? "M10 · 第三则预兆／临潮渡口"
                 : "M10 · THIRD OMEN / LINCHAO FERRY";
             notice.text = zh
-                ? "临潮渡口贴出第三则预兆告示。\\n纸上只有一句：“桥在我在。”落款：陆钧。\\n有人念了一遍，又把纸角压平。\\n十二年前，你在这座桥上喊的是借绳子。"
-                : "A third omen is posted at Linchao Ferry.\\nThe notice carries one line: “I am the bridge; I am here.” Signed Lu Jun.\\nSomeone reads it aloud and presses the paper flat.\\nTwelve years ago, what you called across this bridge was a request for rope.";
+                ? "临潮渡口贴出第三则预兆告示。\n纸上只有一句：“桥在我在。”落款：陆钧。\n有人念了一遍，又把纸角压平。\n十二年前，你在这座桥上喊的是借绳子。"
+                : "A third omen is posted at Linchao Ferry.\nThe notice carries one line: “I am the bridge; I am here.” Signed Lu Jun.\nSomeone reads it aloud and presses the paper flat.\nTwelve years ago, what you called across this bridge was a request for rope.";
             acknowledgeLabel.text = zh
                 ? "记下告示 · 前往镜湾"
                 : "Record notice · Continue to Mirror Bay";
