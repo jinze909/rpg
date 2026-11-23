@@ -47,9 +47,15 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, driver.Facade.CurrentMapId);
                 Assert.IsFalse(string.IsNullOrEmpty(driver.LastNearestWaypointReadoutZh));
 
-                // Destroy host GameObject -> triggers OnDestroy -> Shutdown -> zero leaks
+                // Destroy host GameObject -> triggers OnDestroy -> Shutdown.
                 UnityEngine.Object.DestroyImmediate(hostGo);
                 hostGo = null;
+
+                // The baseline was taken before creating our test Camera. It may
+                // retain editor-native textures while it is alive, so tear down
+                // both test-owned objects before asserting zero leaked assets.
+                UnityEngine.Object.DestroyImmediate(camGo);
+                camGo = null;
 
                 Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Texture2D>().Length, texBefore);
                 Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Sprite>().Length, spriteBefore);
