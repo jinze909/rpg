@@ -17,7 +17,7 @@ namespace Rpg.Tests.Editor
             return (key, value) => values[key] = value;
         }
 
-        private static void SeedArrival(
+        internal static void SeedArrival(
             Dictionary<string, int> values,
             M05LetterDecision decision = M05LetterDecision.TakePacket)
         {
