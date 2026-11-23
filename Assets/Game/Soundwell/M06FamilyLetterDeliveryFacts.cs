@@ -118,7 +118,8 @@ namespace Rpg.Soundwell
             Action<string, int> setInt)
         {
             if (!Enum.IsDefined(typeof(M06FamilyLetterRecipient), recipient) ||
-                getInt == null || setInt == null)
+                getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
