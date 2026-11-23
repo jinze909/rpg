@@ -19,8 +19,10 @@ namespace Rpg.Tests.Editor
                 var cam = camGo.AddComponent<Camera>();
                 cam.transform.position = new Vector3(0f, 0f, -10f);
 
-                int texBefore = Resources.FindObjectsOfTypeAll<Texture2D>().Length;
-                int spriteBefore = Resources.FindObjectsOfTypeAll<Sprite>().Length;
+                // Imported project art can load on first use; only track newly
+                // allocated transient Unity native objects for leak detection.
+                HashSet<int> texturesBefore = CaptureTransientInstanceIds<Texture2D>();
+                HashSet<int> spritesBefore = CaptureTransientInstanceIds<Sprite>();
 
                 driver = hostGo.AddComponent<RpgWorld500xRuntimeDriver>();
                 driver.FollowCamera = cam;
