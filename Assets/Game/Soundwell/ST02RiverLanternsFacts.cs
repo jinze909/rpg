@@ -91,6 +91,13 @@ namespace Rpg.Soundwell
         public const string BidModeKey = "rpg.return.st02.bid-mode";
         public const string LockRescueKey = "rpg.return.st02.lock-rescue";
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M15FinalRollCallFacts.HasAnyPersistedFacts(getInt) ||
+                M16EpilogueFacts.HasAnyPersistedFacts(getInt);
+        }
+
         public static bool IsValidRecord(ST02RiverLanternsRecord record)
         {
             return record.Inspections == ST02InspectionFlags.All &&
@@ -118,7 +125,8 @@ namespace Rpg.Soundwell
 
         public static bool CanRecord(ST02RiverLanternsRecord record, Func<string, int> getInt)
         {
-            if (getInt == null || getInt(ConfirmedKey) != 0 || !IsValidRecord(record))
+            if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                !IsValidRecord(record) || HasOrphanedDownstreamFacts(getInt))
                 return false;
             int intent = getInt(PendingSignatureKey);
             if (intent == 0)
