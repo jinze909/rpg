@@ -63,6 +63,20 @@ namespace Rpg.Tests.Editor
                 Assert.That(M05LettersFacts.TryRecord(letterDecision.Value, read, write), Is.True);
         }
 
+        private static void SeedCompletedLetterHandoff(Dictionary<string, int> values)
+        {
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            foreach (M06FamilyLetterRecipient recipient in new[]
+            {
+                M06FamilyLetterRecipient.TaoJi,
+                M06FamilyLetterRecipient.LedgerMiner,
+                M06FamilyLetterRecipient.PendingMiner
+            })
+                Assert.That(M06FamilyLetterDeliveryFacts.TryRecord(
+                    recipient, read, write), Is.True);
+        }
+
         [Test]
         public void ReunionCannotStartOrPersistWithoutVerifiedM05Landing()
         {
@@ -167,7 +181,8 @@ namespace Rpg.Tests.Editor
                 session.WitnessPumpRoomAndInspection();
                 Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.OulinRetaliationTruth),
                     "Validation N76: M06 must skip letter delivery if M05 did not take the packet.");
-                Assert.Throws<InvalidOperationException>(() => session.DeliverCarriedLetters());
+                Assert.Throws<InvalidOperationException>(() =>
+                    session.TryDeliverCarriedLetter(M06FamilyLetterRecipient.TaoJi));
 
                 Assert.That(M06RescuePlanFacts.TryRecord(
                     new M06ReunionRecord(
@@ -249,7 +264,8 @@ namespace Rpg.Tests.Editor
             Func<string, int> read = Reader(values);
             Action<string, int> write = (key, value) => values[key] = value;
 
-            Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+            Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(
+                read, write, out var session), Is.True);
             Assert.That(session.HasCarriedLetters, Is.True);
             Assert.That(session.LettersCarriedCount, Is.EqualTo(M05LettersFacts.PacketLetterCount));
 
@@ -257,10 +273,21 @@ namespace Rpg.Tests.Editor
             session.WitnessPumpRoomAndInspection();
             Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.LetterHandoff));
             Assert.Throws<InvalidOperationException>(() => session.HearOulinRetaliationTruth());
+            Assert.That(session.ContinueAfterLetterHandoff(), Is.False);
 
-            session.DeliverCarriedLetters();
+            Assert.That(session.TryDeliverCarriedLetter(M06FamilyLetterRecipient.TaoJi), Is.True);
+            Assert.That(session.IsLetterHandled(M06FamilyLetterRecipient.TaoJi), Is.True);
+            Assert.That(session.LetterDelivery.StatusFor(M06FamilyLetterRecipient.TaoJi),
+                Is.EqualTo(M06FamilyLetterStatus.DeliveredAndReadTwice));
+            Assert.That(session.LettersHandled, Is.False);
+
+            Assert.That(session.TryDeliverCarriedLetter(M06FamilyLetterRecipient.LedgerMiner), Is.True);
+            Assert.That(session.LetterDelivery.StatusFor(M06FamilyLetterRecipient.LedgerMiner),
+                Is.EqualTo(M06FamilyLetterStatus.DeliveredUnread));
+            Assert.That(session.TryDeliverCarriedLetter(M06FamilyLetterRecipient.PendingMiner), Is.True);
             Assert.That(session.LettersHandled, Is.True);
             Assert.That(session.PendingReturnLetterNoted, Is.True);
+            Assert.That(session.ContinueAfterLetterHandoff(), Is.True);
             Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.OulinRetaliationTruth));
 
             session.HearOulinRetaliationTruth();
@@ -325,6 +352,7 @@ namespace Rpg.Tests.Editor
         {
             var values = new Dictionary<string, int>();
             SeedVerifiedM05Arrival(values, letterDecision: M05LetterDecision.TakePacket);
+            SeedCompletedLetterHandoff(values);
             Func<string, int> read = Reader(values);
             Action<string, int> write = (key, value) => values[key] = value;
             var first = new M06ReunionRecord(

@@ -99,6 +99,18 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        private static void AdvanceReunionToRescuePlanDecision(M06PumpRoomReunionView view)
+        {
+            view.GreetingBringBackButton.onClick.Invoke();
+            view.AdvanceButton.onClick.Invoke();
+            view.TaoJiLetterButton.onClick.Invoke();
+            view.LedgerLetterButton.onClick.Invoke();
+            view.ReturnedLetterButton.onClick.Invoke();
+            view.AdvanceButton.onClick.Invoke();
+            view.AdvanceButton.onClick.Invoke();
+            view.ShenWaitButton.onClick.Invoke();
+        }
+
         [Test]
         public void OpenReconAndReunionViewsRejectCommitAfterIdenticalVoyageReplay()
         {
@@ -123,11 +135,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(staleReunionHost.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
                 Assert.That(staleReunionHost.TryInteractAtCurrentPosition(), Is.True);
                 var staleReunionView = staleReunionHost.ActiveReunionView;
-                staleReunionView.GreetingBringBackButton.onClick.Invoke();
-                staleReunionView.AdvanceButton.onClick.Invoke();
-                staleReunionView.AdvanceButton.onClick.Invoke();
-                staleReunionView.AdvanceButton.onClick.Invoke();
-                staleReunionView.ShenWaitButton.onClick.Invoke();
+                AdvanceReunionToRescuePlanDecision(staleReunionView);
 
                 // Replay to a new voyage with identical M05 landing; ArrivalSequenceKey increments.
                 Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
@@ -155,11 +163,7 @@ namespace Rpg.Tests.Editor
 
                 Assert.That(currentHost.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
                 Assert.That(currentHost.TryInteractAtCurrentPosition(), Is.True);
-                currentHost.ActiveReunionView.GreetingBringBackButton.onClick.Invoke();
-                currentHost.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                currentHost.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                currentHost.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                currentHost.ActiveReunionView.ShenWaitButton.onClick.Invoke();
+                AdvanceReunionToRescuePlanDecision(currentHost.ActiveReunionView);
                 currentHost.ActiveReunionView.OfficialHandoverButton.onClick.Invoke();
                 Assert.That(currentHost.RescuePlanSettled, Is.True);
             }

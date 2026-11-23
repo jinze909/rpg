@@ -450,7 +450,7 @@ namespace Rpg.Soundwell
                 HasAnyPersistedRescuePlanFacts() ||
                 M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt) ||
                 !M06PumpRoomReunionSession.TryCreateFromSavedFacts(
-                    getInt, out M06PumpRoomReunionSession session))
+                    getInt, setInt, out M06PumpRoomReunionSession session))
                 return false;
 
             activeReunionView = new M06PumpRoomReunionView(parent, session, plan =>
