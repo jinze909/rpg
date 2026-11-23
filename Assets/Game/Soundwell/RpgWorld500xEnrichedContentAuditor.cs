@@ -134,7 +134,7 @@ namespace Rpg.Soundwell
 
             for (int i = 0; i < map.Markers.Count; i++)
             {
-                RpgWorldMarkerDef marker = map.Markers[i];
+                RpgMapLandmarkMarker marker = map.Markers[i];
                 RegisterTile(occupiedTiles, marker.Tile, "Landmark:" + marker.Id, spec.DisplayNameEn, report);
             }
 
