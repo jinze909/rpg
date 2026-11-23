@@ -163,14 +163,22 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            TearDownPerMapSubsystems();
-            bool switched = _session.SwitchMap(targetMapId);
-            if (switched)
+            // The session validates map IDs and preserves the current map on
+            // a rejected switch. Do not tear down our per-map services first:
+            // an invalid ID would otherwise leave all of them null.
+            if (targetMapId == CurrentMapId)
             {
-                MountPerMapSubsystems();
+                return true;
             }
 
-            return switched;
+            if (!_session.SwitchMap(targetMapId))
+            {
+                return false;
+            }
+
+            TearDownPerMapSubsystems();
+            MountPerMapSubsystems();
+            return true;
         }
 
         public RpgWorld500xMapCompletionSummary GetCompletionSummary()

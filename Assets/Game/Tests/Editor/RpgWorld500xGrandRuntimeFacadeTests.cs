@@ -80,5 +80,47 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void RejectedOrSameMapSwitchKeepsLiveSubsystemsAndExplorationPlayable()
+        {
+            var root = new GameObject("World500x map-switch guard test");
+            RpgWorld500xGrandRuntimeFacade facade = null;
+            try
+            {
+                facade = new RpgWorld500xGrandRuntimeFacade(
+                    root.transform,
+                    RpgWorldMapId.Soundwell,
+                    streamingRadiusChunks: 1,
+                    overrideTileSlices: new Sprite[] { null });
+
+                var originalHost = facade.Session.Host;
+                var originalActivity = facade.ActivityDirector;
+                var originalProps = facade.PropSpawner;
+                var originalDistrict = facade.DistrictTracker;
+                Vector2 originalPosition = facade.Session.Host.PlayerPosition;
+
+                Assert.IsFalse(facade.SwitchMap((RpgWorldMapId)9999),
+                    "An invalid serialized map ID must be rejected without unmounting the world.");
+                Assert.IsTrue(facade.SwitchMap(RpgWorldMapId.Soundwell),
+                    "Re-selecting the active map is a successful no-op.");
+                Assert.AreSame(originalHost, facade.Session.Host);
+                Assert.AreSame(originalActivity, facade.ActivityDirector);
+                Assert.AreSame(originalProps, facade.PropSpawner);
+                Assert.AreSame(originalDistrict, facade.DistrictTracker);
+                Assert.AreEqual(originalPosition, facade.Session.Host.PlayerPosition);
+                Assert.IsFalse(facade.IsDisposed);
+
+                Assert.DoesNotThrow(() => facade.StepFrame(Vector2.zero, 0.25f),
+                    "Exploration must remain usable after a rejected map switch.");
+                Assert.DoesNotThrow(() => facade.GetCompletionSummary(),
+                    "The district tracker must still be mounted after rejection.");
+            }
+            finally
+            {
+                facade?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
