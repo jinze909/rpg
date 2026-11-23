@@ -79,12 +79,7 @@ namespace Rpg.Soundwell
                 {
                     if (reviewOutcome.Approved && !M02MissingReturnFacts.TryRecordApproved(reviewOutcome))
                         return;
-                    reviewOutcome = null;
-                    review?.Dispose();
-                    review = null;
-                    Action completed = onFinished;
-                    onFinished = null;
-                    completed?.Invoke();
+                    CompleteReview();
                     return;
                 }
             }
@@ -96,6 +91,24 @@ namespace Rpg.Soundwell
                 inquiry?.LayoutForViewportAspect(aspect);
                 review?.LayoutForViewportAspect(aspect);
             }
+        }
+
+        // The host may fail to transition after Makinom has recorded an
+        // approval. Keep the observed outcome and completion delegate until
+        // the handoff actually succeeds, so a subsequent Tick can retry.
+        // Clearing them before invoking the callback permanently strands the
+        // completed review on transient host failures.
+        private void CompleteReview()
+        {
+            if (reviewOutcome == null || onFinished == null)
+                return;
+
+            Action completed = onFinished;
+            completed();
+            onFinished = null;
+            reviewOutcome = null;
+            review?.Dispose();
+            review = null;
         }
 
         private void LeaveDesk(M02HarborDeskOutcome outcome)
