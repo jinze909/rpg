@@ -62,6 +62,43 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MinerInformantLiveCanvasCapturesBilingualReportAndReturnsToRollCall()
+        {
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+            view = new M03LuJunView(root.transform, M02BridgeEvidence.None,
+                false, _ => Assert.Fail("The optional informant cannot book passage."));
+            Canvas canvas = root.GetComponentInChildren<Canvas>(true);
+            Assert.That(canvas, Is.Not.Null);
+            Assert.That(canvas.gameObject.name, Is.EqualTo("M03 Lu Jun camp canvas"));
+            Assert.That(view.InformantButton.gameObject.activeInHierarchy, Is.True);
+            Assert.That(view.InformantButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("询问矿区线人"));
+            // Capture the real 960x540 runtime UGUI canvas, not a synthetic
+            // text-only mock. The report and action row must remain legible.
+            SoundwellSmokeHost.CaptureStoryCanvas(canvas, "m03-miner-informant-rollcall-zh");
+
+            view.InformantButton.onClick.Invoke();
+            Assert.That(view.InformantVisited, Is.True);
+            Assert.That(view.RollCallBeat, Is.Zero);
+            Assert.That(view.Dialogue.text, Does.Contain("备用登陆情报"));
+            Assert.That(view.AdvanceButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("回到点名"));
+            SoundwellSmokeHost.CaptureStoryCanvas(canvas, "m03-miner-informant-report-zh");
+
+            SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+            Assert.That(view.Dialogue.text, Does.Contain("alternate landing lead"));
+            Assert.That(view.AdvanceButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                Does.Contain("Return to the roll call"));
+            SoundwellSmokeHost.CaptureStoryCanvas(canvas, "m03-miner-informant-report-en");
+
+            view.AdvanceButton.onClick.Invoke();
+            Assert.That(view.RollCallBeat, Is.Zero);
+            Assert.That(view.Encounter.Voyage, Is.Null);
+            Assert.That(view.Dialogue.text, Does.Contain("thirty names"));
+            SoundwellSmokeHost.CaptureStoryCanvas(canvas, "m03-miner-informant-return-en");
+        }
+
+        [Test]
         public void AskingForShipNeverPromptsSecrecyAndOffersCivilianAlternative()
         {
             int callbacks = 0;
