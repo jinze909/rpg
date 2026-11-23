@@ -59,7 +59,10 @@ namespace Rpg.Soundwell
                 !m10.HasValue)
                 return false;
 
-            bool rc05InPass = M11ReverseRescueFacts.EvaluateRC05EnlistedUnderLuJun(getInt);
+            if (!M11ReverseRescueFacts.TryEvaluateRC05EnlistedUnderLuJun(
+                    getInt, out bool rc05InPass))
+                return false;
+
             session = new M11ReverseRescueSession(
                 shenLiAccompanying,
                 oulinParticipating,

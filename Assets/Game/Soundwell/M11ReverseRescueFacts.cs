@@ -97,12 +97,27 @@ namespace Rpg.Soundwell
         public const string OulinJoinedKey = "rpg.return.m11.oulin-joined-extraction";
         public const string DivisionPactKey = "rpg.return.m11.shen-division-pact";
 
+        // A torn or corrupt RC-05 outcome is not the same as an unplayed case.
+        // Otherwise M11 can incorrectly omit Hao Lie's squad from the pass.
+        public static bool TryEvaluateRC05EnlistedUnderLuJun(
+            Func<string, int> getInt, out bool enlisted)
+        {
+            enlisted = false;
+            if (getInt == null ||
+                !RC05ThirdSquadFacts.TryRead(getInt, out RC05ThirdSquadRecord? rc05))
+                return false;
+
+            if (!rc05.HasValue)
+                return getInt(RC05ThirdSquadFacts.ConfirmedKey) == 0;
+
+            enlisted = rc05.Value.EnlistedUnderLuJun;
+            return true;
+        }
+
         public static bool EvaluateRC05EnlistedUnderLuJun(Func<string, int> getInt)
         {
-            return getInt != null &&
-                RC05ThirdSquadFacts.TryRead(getInt, out RC05ThirdSquadRecord? rc05) &&
-                rc05.HasValue &&
-                rc05.Value.EnlistedUnderLuJun;
+            return TryEvaluateRC05EnlistedUnderLuJun(getInt, out bool enlisted) &&
+                enlisted;
         }
 
         public static bool IsValidRecord(M11ReverseRescueRecord record, Func<string, int> getInt)
@@ -120,7 +135,9 @@ namespace Rpg.Soundwell
                 !m10.HasValue)
                 return false;
 
-            bool rc05InPass = EvaluateRC05EnlistedUnderLuJun(getInt);
+            if (!TryEvaluateRC05EnlistedUnderLuJun(getInt, out bool rc05InPass))
+                return false;
+
             if (rc05InPass)
             {
                 if (record.ThirdSquadStance == M11ThirdSquadConscriptionStance.NotInPass)
