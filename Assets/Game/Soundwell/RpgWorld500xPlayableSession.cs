@@ -179,7 +179,7 @@ namespace Rpg.Soundwell
         {
             if (IsDisposed)
                 return;
-            if (host.TryFastTravelToBeacon(markerId, out _))
+            if (host.TryFastTravelToBeacon(markerId, out RpgFastTravelResult travelResult))
             {
                 journalPanel?.Hide();
                 SyncHud();
