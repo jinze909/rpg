@@ -201,6 +201,7 @@ namespace Rpg.Soundwell
 
             // Step 1: Invalidate all public confirmation markers first.
             setInt(M06MineCampReconFacts.ObservedMaskKey, 0);
+            setInt(M06FamilyLetterDeliveryFacts.StatusMaskKey, 0);
             setInt(M06RescuePlanFacts.ConfirmedKey, 0);
             setInt(M07ExtractionFacts.ConfirmedKey, 0);
             setInt(M08DockTruthFacts.ConfirmedKey, 0);
@@ -223,6 +224,7 @@ namespace Rpg.Soundwell
 
             // Step 2: Clear all voyage-bound fields through each Facts owner.
             return M06MineCampReconFacts.TryResetForNewVoyage(setInt) &&
+                M06FamilyLetterDeliveryFacts.TryResetForNewVoyage(setInt) &&
                 M06RescuePlanFacts.TryResetForNewVoyage(setInt) &&
                 M07ExtractionFacts.TryResetForNewVoyage(setInt) &&
                 M08DockTruthFacts.TryResetForNewVoyage(setInt) &&
