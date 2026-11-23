@@ -257,9 +257,9 @@ namespace Rpg.Soundwell
 
         private void BuildRegionTabs()
         {
-            RpgExpandedMapSpec[] specs = RpgExpandedWorldScale.AllSpecs;
-            float width = specs.Length > 0 ? 1f / specs.Length : 1f;
-            for (int i = 0; i < specs.Length; i++)
+            IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
+            float width = specs.Count > 0 ? 1f / specs.Count : 1f;
+            for (int i = 0; i < specs.Count; i++)
             {
                 RpgExpandedMapSpec spec = specs[i];
                 RpgWorldMapId capturedId = spec.MapId;
