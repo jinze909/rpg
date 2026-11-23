@@ -82,6 +82,13 @@ namespace Rpg.Soundwell
         public const string TrialNightKey = "rpg.return.st03.trial-night-completed";
         public const string TransportCostKey = "rpg.return.st03.transport-cost-balanced";
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> read)
+        {
+            return read == null ||
+                M15FinalRollCallFacts.HasAnyPersistedFacts(read) ||
+                M16EpilogueFacts.HasAnyPersistedFacts(read);
+        }
+
         private static bool Valid(ST03BathhouseRecord record)
         {
             return Enum.IsDefined(typeof(ST03BathhouseChoice), record.Choice) &&
@@ -98,7 +105,8 @@ namespace Rpg.Soundwell
 
         public static bool CanRecord(ST03BathhouseRecord record, Func<string, int> read)
         {
-            if (read == null || !Valid(record) || read(ConfirmedKey) != 0)
+            if (read == null || !Valid(record) || read(ConfirmedKey) != 0 ||
+                HasOrphanedDownstreamFacts(read))
                 return false;
             // A saved intent survives a torn write even if the outcome payload
             // is not yet present. Legacy unsigned partial records still use
