@@ -58,6 +58,7 @@ namespace Rpg.Soundwell
             Func<string, int> getInt, Action<string, int> setInt)
         {
             if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt) ||
                 !IsWalkable(layout, tile) ||
                 !M05LandingFacts.TryRead(getInt, out M05LandingReport? savedLanding) ||
                 !savedLanding.HasValue)
