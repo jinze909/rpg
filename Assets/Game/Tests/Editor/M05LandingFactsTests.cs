@@ -171,9 +171,15 @@ namespace Rpg.Tests.Editor
             var landing = new M05LandingReport(3, 10, true, true);
 
             Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.False);
-            SeedCompletedCrossing(values, sailed: false);
+            SeedCompletedCrossing(values, sailed: false, crossedFog: false);
             Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.False);
             Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+            var fog = new FogListeningSession(
+                new[] { new FogListeningCue(FogBearing.Ahead,
+                    FogCueKind.ClearWater, 80) },
+                maxListenFocus: 1, maxHullIntegrity: 2);
+            fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+            Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
             Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? before), Is.True);
             Assert.That(before, Is.Null, "Crossing the fog is not a port arrival.");
             Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);
