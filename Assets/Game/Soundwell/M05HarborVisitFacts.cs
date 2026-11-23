@@ -61,6 +61,7 @@ namespace Rpg.Soundwell
             if (beat < M05HarborBeat.RepairStall ||
                 beat >= M05HarborBeat.Finished ||
                 getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt) ||
                 !M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
                 !landing.HasValue || !TryRead(getInt, out int mask))
                 return false;
