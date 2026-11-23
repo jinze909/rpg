@@ -241,5 +241,67 @@ namespace Rpg.Tests.Editor
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 Assert.That(M10AssemblyFacts.TryRead(out _), Is.False);
         }
+
+        [Test]
+        public void M10RefusesCorruptOrInterruptedRC02AndRC05InsteadOfErasingConsequences()
+        {
+            var values = new Dictionary<string, int>();
+            SeedThroughM09BerthTable(values);
+            Func<string, int> read = Reader(values);
+            int committed = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                if (key == M10AssemblyFacts.ConfirmedKey && value == 1)
+                    committed++;
+                values[key] = value;
+            };
+
+            var noCases = new M10AssemblyRecord(
+                worldNoticeThreeObserved: true,
+                M10RosterAccuracy.VerifiedFirstPass,
+                M10BattleReportSource.CarriedFromM02,
+                M10HanLedgerUse.KeepConfidential,
+                M10SupplyContractStatus.SignedFullCoverage,
+                leverageWeakenedByRC02: false,
+                coversRC05MountainFamilies: false,
+                bellTowerSeizureHeard: true);
+
+            // A clean never-played case is not an error.
+            Assert.That(M10AssemblyFacts.IsValidRecord(noCases, read), Is.True);
+
+            // RC-02 is marked confirmed, but the saved decision is corrupt.
+            values[RC02ZhengYuanFacts.ConfirmedKey] = 1;
+            values[RC02ZhengYuanFacts.ResolutionKey] = 99;
+            Assert.That(RC02ZhengYuanFacts.TryRead(read, out _), Is.True);
+            Assert.That(M10AssemblyFacts.IsValidRecord(noCases, read), Is.False);
+            Assert.That(M10AssemblyFacts.TryRecord(noCases, read, write), Is.False);
+
+            // An interrupted RC-02 intent is likewise not an unplayed case.
+            values[RC02ZhengYuanFacts.ConfirmedKey] = 0;
+            values[RC02ZhengYuanFacts.ResolutionKey] = 0;
+            values[RC02ZhengYuanFacts.PendingSignatureKey] = 1200;
+            Assert.That(RC02ZhengYuanFacts.TryRead(read, out _), Is.False);
+            Assert.That(M10AssemblyFacts.TryRecord(noCases, read, write), Is.False);
+            values[RC02ZhengYuanFacts.PendingSignatureKey] = 0;
+
+            // RC-05 corruption could otherwise silently drop a mountain-family
+            // supply contract obligation from the M10 assembly record.
+            values[RC05ThirdSquadFacts.ConfirmedKey] = 1;
+            values[RC05ThirdSquadFacts.ResolutionKey] = 99;
+            Assert.That(RC05ThirdSquadFacts.TryRead(read, out _), Is.True);
+            Assert.That(M10AssemblyFacts.TryRecord(noCases, read, write), Is.False);
+            values[RC05ThirdSquadFacts.ConfirmedKey] = 0;
+            values[RC05ThirdSquadFacts.ResolutionKey] = 0;
+            values[RC05ThirdSquadFacts.PendingSignatureKey] = 1200;
+            Assert.That(RC05ThirdSquadFacts.TryRead(read, out _), Is.False);
+            Assert.That(M10AssemblyFacts.TryRecord(noCases, read, write), Is.False);
+            Assert.That(committed, Is.Zero);
+
+            // Restoring the clean upstream snapshot allows the real choice.
+            values[RC05ThirdSquadFacts.PendingSignatureKey] = 0;
+            Assert.That(M10AssemblyFacts.IsValidRecord(noCases, read), Is.True);
+            Assert.That(M10AssemblyFacts.TryRecord(noCases, read, write), Is.True);
+            Assert.That(committed, Is.EqualTo(1));
+        }
     }
 }

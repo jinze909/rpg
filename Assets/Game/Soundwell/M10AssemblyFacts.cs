@@ -96,20 +96,46 @@ namespace Rpg.Soundwell
         public const string CoversRC05FamiliesKey = "rpg.return.m10.covers-rc05-families";
         public const string BellTowerSeizureKey = "rpg.return.m10.bell-tower-seizure-heard";
 
+        // An unplayed roster case is valid; a torn or invalid confirmed case is
+        // not an absence of leverage/supply needs. Do not let M10 write a
+        // misleading assembly outcome when the relevant case cannot be read.
+        public static bool TryEvaluateRC02LeveragePenalty(
+            Func<string, int> getInt, out bool weakened)
+        {
+            weakened = false;
+            if (getInt == null ||
+                !RC02ZhengYuanFacts.TryRead(getInt, out RC02ZhengYuanRecord? rc02))
+                return false;
+            if (!rc02.HasValue)
+                return getInt(RC02ZhengYuanFacts.ConfirmedKey) == 0;
+
+            weakened = rc02.Value.WeakensNegotiationCard;
+            return true;
+        }
+
+        public static bool TryEvaluateRC05SupplyNeed(
+            Func<string, int> getInt, out bool needed)
+        {
+            needed = false;
+            if (getInt == null ||
+                !RC05ThirdSquadFacts.TryRead(getInt, out RC05ThirdSquadRecord? rc05))
+                return false;
+            if (!rc05.HasValue)
+                return getInt(RC05ThirdSquadFacts.ConfirmedKey) == 0;
+
+            needed = rc05.Value.NeedsM10SupplyContract;
+            return true;
+        }
+
         public static bool EvaluateRC02LeveragePenalty(Func<string, int> getInt)
         {
-            return getInt != null &&
-                RC02ZhengYuanFacts.TryRead(getInt, out RC02ZhengYuanRecord? rc02) &&
-                rc02.HasValue &&
-                rc02.Value.WeakensNegotiationCard;
+            return TryEvaluateRC02LeveragePenalty(getInt, out bool weakened) &&
+                weakened;
         }
 
         public static bool EvaluateRC05SupplyNeed(Func<string, int> getInt)
         {
-            return getInt != null &&
-                RC05ThirdSquadFacts.TryRead(getInt, out RC05ThirdSquadRecord? rc05) &&
-                rc05.HasValue &&
-                rc05.Value.NeedsM10SupplyContract;
+            return TryEvaluateRC05SupplyNeed(getInt, out bool needed) && needed;
         }
 
         public static bool IsValidRecord(M10AssemblyRecord record, Func<string, int> getInt)
@@ -127,11 +153,13 @@ namespace Rpg.Soundwell
                 !m09.HasValue)
                 return false;
 
-            bool expectedWeakened = EvaluateRC02LeveragePenalty(getInt);
-            if (record.LeverageWeakenedByRC02 != expectedWeakened)
+            if (!TryEvaluateRC02LeveragePenalty(getInt, out bool expectedWeakened) ||
+                record.LeverageWeakenedByRC02 != expectedWeakened)
                 return false;
 
-            bool expectedCoversRC05 = EvaluateRC05SupplyNeed(getInt) &&
+            if (!TryEvaluateRC05SupplyNeed(getInt, out bool supplyNeeded))
+                return false;
+            bool expectedCoversRC05 = supplyNeeded &&
                 record.SupplyContract == M10SupplyContractStatus.SignedFullCoverage;
             if (record.CoversRC05MountainFamilies != expectedCoversRC05)
                 return false;
