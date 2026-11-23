@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -65,6 +66,16 @@ namespace Rpg.Soundwell
         public Button BerthMinusButton => berthMinus;
         public Button BerthPlusButton => berthPlus;
         public Button ConfirmButton => confirmButton;
+        // Never recommend a disabled control as the fallback navigation target.
+        // This matters when the observed crew reaches the manifest maximum.
+        public Button PreferredFocusButton =>
+            confirmButton.IsActive() && confirmButton.IsInteractable() ? confirmButton :
+            crewPlus.IsActive() && crewPlus.IsInteractable() ? crewPlus :
+            tenderButton.IsActive() && tenderButton.IsInteractable() ? tenderButton :
+            receiverButton.IsActive() && receiverButton.IsInteractable() ? receiverButton :
+            berthPlus.IsActive() && berthPlus.IsInteractable() ? berthPlus :
+            crewMinus.IsActive() && crewMinus.IsInteractable() ? crewMinus :
+            berthMinus.IsActive() && berthMinus.IsInteractable() ? berthMinus : null;
         public RectTransform AuthoredPanel => authored;
         public bool IsDisposed => disposed || IsCanvasDestroyed();
 
@@ -229,8 +240,23 @@ namespace Rpg.Soundwell
                 crewArrived, readyRescueBerths, tenderArrived, receiverMet, zh);
 
             if (active)
-                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
-                    confirmButton.interactable ? confirmButton : crewPlus);
+                KeepArrivalFocus();
+        }
+
+        private void KeepArrivalFocus()
+        {
+            EventSystem events = EventSystem.current;
+            if (Application.isPlaying && events != null && !events.alreadySelecting)
+            {
+                GameObject selected = events.currentSelectedGameObject;
+                if (selected != null && selected.transform.IsChildOf(canvasObject.transform))
+                {
+                    Selectable control = selected.GetComponent<Selectable>();
+                    if (control == null || !control.IsActive() || !control.IsInteractable())
+                        events.SetSelectedGameObject(null);
+                }
+            }
+            SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusButton);
         }
 
         private void DecreaseCrew()
