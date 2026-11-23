@@ -14,18 +14,32 @@ namespace Rpg.Soundwell
     {
         private readonly Transform parent;
         private readonly Func<bool> atJingwanAssembly;
+        private readonly Func<bool> atLinchaoFerry;
         private readonly Func<bool> threeRecordsMatched;
         private readonly Func<bool> carriesM02BattleReport;
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
         private M10AssemblySession session;
         private M10AssemblyView activeView;
+        private M10WorldNoticeThreeView activeWorldNoticeView;
         private int? openedArrivalSequence;
         private bool disposed;
 
         public M10AssemblySession Session => session;
         public M10AssemblyView ActiveView =>
             (activeView != null && !activeView.IsDisposed) ? activeView : null;
+        public M10WorldNoticeThreeView ActiveWorldNoticeView
+        {
+            get
+            {
+                if (activeWorldNoticeView != null && activeWorldNoticeView.IsDisposed)
+                {
+                    activeWorldNoticeView.Dispose();
+                    activeWorldNoticeView = null;
+                }
+                return activeWorldNoticeView;
+            }
+        }
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M10AssemblyFacts.TryRead(getInt, out M10AssemblyRecord? saved) &&
@@ -37,11 +51,13 @@ namespace Rpg.Soundwell
             Func<bool> threeRecordsMatched,
             Func<bool> carriesM02BattleReport,
             Func<string, int> getInt,
-            Action<string, int> setInt)
+            Action<string, int> setInt,
+            Func<bool> atLinchaoFerry = null)
         {
             this.parent = parent ?? throw new ArgumentNullException(nameof(parent));
             this.atJingwanAssembly = atJingwanAssembly ??
                 throw new ArgumentNullException(nameof(atJingwanAssembly));
+            this.atLinchaoFerry = atLinchaoFerry ?? (() => false);
             this.threeRecordsMatched = threeRecordsMatched ??
                 throw new ArgumentNullException(nameof(threeRecordsMatched));
             this.carriesM02BattleReport = carriesM02BattleReport ??
@@ -58,11 +74,39 @@ namespace Rpg.Soundwell
                 activeView = null;
                 openedArrivalSequence = null;
             }
-            if (disposed || parent == null || activeView != null || !atJingwanAssembly() ||
-                HasAnyPersistedFacts())
+            if (activeWorldNoticeView != null && activeWorldNoticeView.IsDisposed)
+            {
+                activeWorldNoticeView.Dispose();
+                activeWorldNoticeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null ||
+                activeWorldNoticeView != null || HasAnyPersistedFacts())
                 return false;
 
-            if (!M10AssemblySession.TryCreateFromSavedFacts(getInt, out M10AssemblySession created))
+            if (atLinchaoFerry())
+            {
+                if (M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt) ||
+                    !M05LandingFacts.TryRead(getInt, out M05LandingReport? landing) ||
+                    !landing.HasValue ||
+                    !M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? berth) ||
+                    !berth.HasValue ||
+                    !M10WorldNoticeThreeFacts.TryReadForCurrentArrival(getInt, out bool noticeObserved) ||
+                    noticeObserved)
+                    return false;
+
+                int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+                if (arrivalSequence < 0)
+                    return false;
+
+                openedArrivalSequence = arrivalSequence;
+                activeWorldNoticeView = new M10WorldNoticeThreeView(
+                    parent, HandleNoticeAcknowledge);
+                return true;
+            }
+
+            if (!atJingwanAssembly() ||
+                !M10AssemblySession.TryCreateFromSavedFacts(getInt, out M10AssemblySession created))
                 return false;
 
             session = created;
@@ -76,6 +120,17 @@ namespace Rpg.Soundwell
                 () => M10AssemblyFacts.EvaluateRC05SupplyNeed(getInt),
                 HandleCommitRequested);
             return true;
+        }
+
+        private bool HandleNoticeAcknowledge()
+        {
+            if (disposed || activeWorldNoticeView == null ||
+                activeWorldNoticeView.IsDisposed || !atLinchaoFerry() ||
+                !openedArrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                return false;
+
+            return M10WorldNoticeThreeFacts.TryRecord(getInt, setInt);
         }
 
         private bool HasAnyPersistedFacts()
@@ -117,6 +172,8 @@ namespace Rpg.Soundwell
             disposed = true;
             activeView?.Dispose();
             activeView = null;
+            activeWorldNoticeView?.Dispose();
+            activeWorldNoticeView = null;
             openedArrivalSequence = null;
         }
     }
