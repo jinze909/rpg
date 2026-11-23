@@ -8,25 +8,28 @@ namespace Rpg.Soundwell
         None = 0,
         QuestJournal = 1,
         WorldAtlas = 2,
-        CampMerchant = 3
+        CampMerchant = 3,
+        Bestiary = 4
     }
 
     /// <summary>
-    /// Mutually-exclusive modal UI router uniting QuestJournal, WorldAtlas, and
-    /// CampMerchant panels on top of RpgWorld500xSceneBootstrapper. Guarantees at
-    /// most one modal is visible at a time and suppresses movement/world interaction
-    /// while any modal is open.
+    /// Mutually-exclusive modal UI router uniting QuestJournal, WorldAtlas,
+    /// CampMerchant, and Bestiary panels on top of RpgWorld500xSceneBootstrapper.
+    /// Guarantees at most one modal is visible at a time and suppresses
+    /// movement/world interaction while any modal is open.
     /// </summary>
     public sealed class RpgWorld500xMenuRouter : IDisposable
     {
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly RpgWorld500xWorldAtlasHudPanel _atlasPanel;
         private readonly RpgWorld500xCampMerchantHudPanel _merchantPanel;
+        private readonly RpgWorld500xBestiaryHudPanel _bestiaryPanel;
         private bool _disposed;
 
         public RpgWorld500xSceneBootstrapper Bootstrapper => _bootstrapper;
         public RpgWorld500xWorldAtlasHudPanel AtlasPanel => _atlasPanel;
         public RpgWorld500xCampMerchantHudPanel MerchantPanel => _merchantPanel;
+        public RpgWorld500xBestiaryHudPanel BestiaryPanel => _bestiaryPanel;
         public bool IsDisposed => _disposed || _bootstrapper.IsDisposed;
 
         public RpgWorld500xModalKind ActiveModal
@@ -54,6 +57,11 @@ namespace Rpg.Soundwell
                     return RpgWorld500xModalKind.CampMerchant;
                 }
 
+                if (_bestiaryPanel != null && _bestiaryPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.Bestiary;
+                }
+
                 return RpgWorld500xModalKind.None;
             }
         }
@@ -73,6 +81,7 @@ namespace Rpg.Soundwell
 
             _atlasPanel = new RpgWorld500xWorldAtlasHudPanel(uiParent, _bootstrapper, campHaven);
             _merchantPanel = new RpgWorld500xCampMerchantHudPanel(uiParent, _bootstrapper, campHaven);
+            _bestiaryPanel = new RpgWorld500xBestiaryHudPanel(uiParent, _bootstrapper);
         }
 
         public bool OpenModal(RpgWorld500xModalKind kind)
@@ -92,6 +101,8 @@ namespace Rpg.Soundwell
                     return _atlasPanel.Show();
                 case RpgWorld500xModalKind.CampMerchant:
                     return _merchantPanel.Show();
+                case RpgWorld500xModalKind.Bestiary:
+                    return _bestiaryPanel.Show();
                 case RpgWorld500xModalKind.None:
                 default:
                     return true;
@@ -136,6 +147,11 @@ namespace Rpg.Soundwell
             {
                 _merchantPanel.Hide();
             }
+
+            if (_bestiaryPanel != null && _bestiaryPanel.IsVisible)
+            {
+                _bestiaryPanel.Hide();
+            }
         }
 
         public RpgWorld500xEffectiveExplorationModifiers StepFrameWithModalGuard(
@@ -167,6 +183,7 @@ namespace Rpg.Soundwell
             _disposed = true;
             _atlasPanel?.Dispose();
             _merchantPanel?.Dispose();
+            _bestiaryPanel?.Dispose();
         }
     }
 }

@@ -24,6 +24,7 @@ namespace Rpg.Tests.Editor
                     {
                         warmupRouter.OpenModal(RpgWorld500xModalKind.WorldAtlas);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.CampMerchant);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.Bestiary);
                         warmupRouter.CloseAll();
                     }
                 }
@@ -60,13 +61,19 @@ namespace Rpg.Tests.Editor
                     router.StepFrameWithModalGuard(Vector2.right, 0.5f, sprinting: true, interactPressed: true);
                     Assert.AreEqual(posBefore, boot.Driver.Facade.Session.Host.PlayerPosition);
 
-                    // Switching to CampMerchant closes WorldAtlas; toggling CampMerchant again closes all.
+                    // Switching to CampMerchant closes WorldAtlas; switching to Bestiary closes CampMerchant.
                     Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CampMerchant));
                     Assert.AreEqual(RpgWorld500xModalKind.CampMerchant, router.ActiveModal);
                     Assert.IsFalse(router.AtlasPanel.IsVisible);
                     Assert.IsTrue(router.MerchantPanel.IsVisible);
 
-                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.CampMerchant));
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.Bestiary));
+                    Assert.AreEqual(RpgWorld500xModalKind.Bestiary, router.ActiveModal);
+                    Assert.IsFalse(router.MerchantPanel.IsVisible);
+                    Assert.IsTrue(router.BestiaryPanel.IsVisible);
+
+                    // Toggling Bestiary again closes all modals.
+                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.Bestiary));
                     Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
                     Assert.IsFalse(router.HasAnyModalOpen);
                 }
