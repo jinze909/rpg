@@ -55,7 +55,7 @@ namespace Rpg.Soundwell
         public SpriteRenderer EnemySpriteRenderer => enemySpriteRenderer;
         public SpriteRenderer CombatVfxSpriteRenderer => combatVfxSpriteRenderer;
         public float ShakeRemaining => shakeRemaining;
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || CanvasDestroyed();
         public Text StageTitleLabel => stageTitleLabel;
         public Text StageStatusLabel => stageStatusLabel;
 
@@ -252,6 +252,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return false;
             }
+            if (CableTracker.ReadyForThirdBellCollapse)
+                return false;
 
             int previousBells = CableTracker.BellsCompleted;
             S00BridgeThreatKind threatBefore = CableTracker.CurrentThreat;
@@ -262,8 +264,11 @@ namespace Rpg.Soundwell
                 TriggerClashShake(0.24f, 0.14f);
                 if (CableTracker.ReadyForThirdBellCollapse)
                 {
-                    MinimapHud.SetBeaconCompleted("s00.cable-anchor", true);
-                    MinimapHud.SetBeaconCompleted("s00.bridgehead", true);
+                    if (!MinimapHud.IsDisposed)
+                    {
+                        MinimapHud.SetBeaconCompleted("s00.cable-anchor", true);
+                        MinimapHud.SetBeaconCompleted("s00.bridgehead", true);
+                    }
                     lastStatusZh = "第三声钟响！沈砾斩断主缆，浮桥即将倾覆！";
                     lastStatusEn = "Third bell tolls! Shen Li severs the main cable — bridge collapse ready!";
                 }
@@ -310,6 +315,7 @@ namespace Rpg.Soundwell
 
         public void TriggerClashShake(float intensity, float durationSeconds)
         {
+            if (disposed || CanvasDestroyed()) return;
             if (!IsFinite(intensity) || !IsFinite(durationSeconds) ||
                 intensity <= 0f || durationSeconds <= 0f)
                 return;
@@ -373,9 +379,13 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (!IsFinite(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(stagePanel, aspect);
-            LockBreakHud.LayoutForViewportAspect(aspect);
-            MinimapHud.LayoutForViewportAspect(aspect);
+            if (!LockBreakHud.IsDisposed)
+                LockBreakHud.LayoutForViewportAspect(aspect);
+            if (!MinimapHud.IsDisposed)
+                MinimapHud.LayoutForViewportAspect(aspect);
         }
 
         public void RefreshHud()
@@ -395,8 +405,10 @@ namespace Rpg.Soundwell
                 ? "S00 白水渡浮桥 · 西桥头独守"
                 : "S00 Whitewater Crossing · West Bridgehead Hold";
             stageStatusLabel.text = zh ? lastStatusZh : lastStatusEn;
-            LockBreakHud.Refresh();
-            MinimapHud.Refresh();
+            if (!LockBreakHud.IsDisposed)
+                LockBreakHud.Refresh();
+            if (!MinimapHud.IsDisposed)
+                MinimapHud.Refresh();
         }
 
         private bool CanvasDestroyed()
@@ -417,6 +429,12 @@ namespace Rpg.Soundwell
             if (disposed) return;
             disposed = true;
             SoundwellUiLocalization.Changed -= RefreshHud;
+            BellAdvanced = null;
+            ThirdBellCollapseReady = null;
+            activeVfxFrames = null;
+            vfxElapsed = 0f;
+            shakeRemaining = 0f;
+            shakeIntensity = 0f;
             MinimapHud.Dispose();
             LockBreakHud.Dispose();
             MapRenderer.Dispose();
