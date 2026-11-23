@@ -64,6 +64,7 @@ namespace Rpg.Soundwell
         public static bool CanBeginFreshFogLeg(Func<string, int> getInt)
         {
             return getInt != null &&
+                !M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt) &&
                 getInt(FogListeningFacts.CompletedKey) == 0 &&
                 getInt(FogListeningFacts.PendingSignatureKey) == 0 &&
                 getInt(FogListeningFacts.SucceededKey) == 0 &&
@@ -201,7 +202,8 @@ namespace Rpg.Soundwell
 
         public static bool TryMarkSailed(Func<string, int> getInt, Action<string, int> setInt)
         {
-            if (getInt == null || setInt == null)
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!TryRead(getInt, out M04DepartureRecord? readiness) ||
                 !readiness.HasValue || getInt(SailedKey) != 0)
