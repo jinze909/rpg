@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -23,6 +24,50 @@ namespace Rpg.Tests.Editor
             panel = null;
             if (root != null)
                 UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void JournalHasScrollableSizedRowsAndClickableInWorldTabControls()
+        {
+            var tracker = new RpgMapExplorationTracker(RpgWorldMapId.MineCamp);
+            panel = new RpgWorld500xQuestJournalPanel(root.transform, tracker);
+
+            Assert.That(panel.Show(), Is.True);
+            var scroll = panel.RootObject.GetComponentInChildren<ScrollRect>(true);
+            Assert.That(scroll, Is.Not.Null);
+            Assert.That(scroll.vertical, Is.True);
+            Assert.That(scroll.horizontal, Is.False);
+            Assert.That(scroll.content.GetComponent<VerticalLayoutGroup>(), Is.Not.Null);
+            Assert.That(scroll.content.GetComponent<ContentSizeFitter>(), Is.Not.Null);
+            Assert.That(scroll.content.childCount, Is.EqualTo(tracker.TotalQuestCount));
+
+            var firstRow = scroll.content.GetChild(0).GetComponent<RectTransform>();
+            Assert.That(firstRow.GetComponent<LayoutElement>().preferredHeight, Is.GreaterThanOrEqualTo(40f));
+            var actionRect = firstRow.Find("ActionButton").GetComponent<RectTransform>();
+            Assert.That(actionRect.anchorMax.x - actionRect.anchorMin.x, Is.GreaterThan(0.1f));
+            Assert.That(actionRect.anchorMax.y - actionRect.anchorMin.y, Is.GreaterThan(0.5f));
+
+            // The tabs must be actual UGUI buttons available to players, not
+            // hidden API-only navigation used by automation tests.
+            var fastTravelTab = panel.RootObject.transform.Find("JournalPanel/TabBar/Tab_FastTravelBeacons");
+            Assert.That(fastTravelTab, Is.Not.Null);
+            var tabRect = fastTravelTab.GetComponent<RectTransform>();
+            Assert.That(tabRect.anchorMax.x - tabRect.anchorMin.x, Is.GreaterThan(0.3f));
+            fastTravelTab.GetComponent<Button>().onClick.Invoke();
+            Assert.That(panel.CurrentTab, Is.EqualTo(RpgQuestJournalTab.FastTravelBeacons));
+            Assert.That(panel.DisplayedRowCount, Is.EqualTo(5));
+            Assert.That(scroll.content.childCount, Is.EqualTo(5));
+
+            var completedTab = panel.RootObject.transform.Find("JournalPanel/TabBar/Tab_CompletedQuests");
+            completedTab.GetComponent<Button>().onClick.Invoke();
+            Assert.That(panel.CurrentTab, Is.EqualTo(RpgQuestJournalTab.CompletedQuests));
+            Assert.That(panel.DisplayedRowCount, Is.Zero);
+            Assert.That(scroll.content.childCount, Is.Zero);
+
+            var activeTab = panel.RootObject.transform.Find("JournalPanel/TabBar/Tab_ActiveQuests");
+            activeTab.GetComponent<Button>().onClick.Invoke();
+            Assert.That(panel.CurrentTab, Is.EqualTo(RpgQuestJournalTab.ActiveQuests));
+            Assert.That(panel.DisplayedRowCount, Is.EqualTo(tracker.TotalQuestCount));
         }
 
         [Test]
