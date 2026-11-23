@@ -132,6 +132,13 @@ namespace Rpg.Soundwell
         public const string StoneOrderEvidenceKey = "rpg.return.st04.stone-order-acknowledged";
         public const string StoneDeliveryEvidenceKey = "rpg.return.st04.stone-delivery-acknowledged";
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> read)
+        {
+            return read == null ||
+                M15FinalRollCallFacts.HasAnyPersistedFacts(read) ||
+                M16EpilogueFacts.HasAnyPersistedFacts(read);
+        }
+
         private static int Signature(ST04EchoValleyRecord record)
         {
             return 100000 + (int)record.Entry * 10000 +
@@ -188,7 +195,8 @@ namespace Rpg.Soundwell
 
         public static bool CanRecord(ST04EchoValleyRecord record, Func<string, int> read)
         {
-            if (read == null || read(ConfirmedKey) != 0 || !IsValidRecord(record))
+            if (read == null || read(ConfirmedKey) != 0 ||
+                !IsValidRecord(record) || HasOrphanedDownstreamFacts(read))
                 return false;
             int intent = read(IntentKey);
             if (intent == 0)
@@ -311,7 +319,7 @@ namespace Rpg.Soundwell
         public static bool TryVerifyAdditionalStoneTransport(
             Func<string, int> read, Action<string, int> write)
         {
-            if (write == null ||
+            if (write == null || HasOrphanedDownstreamFacts(read) ||
                 !TryRead(read, out ST04EchoValleyOutcome? saved) ||
                 !saved.HasValue ||
                 saved.Value.Story.Resolution != ST04RoadResolution.PreserveRainWallAndCloseRoad)
@@ -339,7 +347,7 @@ namespace Rpg.Soundwell
         public static bool TryMarkStoneOrderAccepted(
             Func<string, int> read, Action<string, int> write)
         {
-            if (read == null || write == null)
+            if (read == null || write == null || HasOrphanedDownstreamFacts(read))
                 return false;
             if (TryRead(read, out ST04EchoValleyOutcome? saved) &&
                 saved.HasValue && saved.Value.HasProvenZhonglingStoneRoute)
@@ -369,7 +377,7 @@ namespace Rpg.Soundwell
         public static bool TryMarkStoneDelivered(
             Func<string, int> read, Action<string, int> write)
         {
-            if (read == null || write == null)
+            if (read == null || write == null || HasOrphanedDownstreamFacts(read))
                 return false;
             if (TryRead(read, out ST04EchoValleyOutcome? saved) &&
                 saved.HasValue && saved.Value.HasProvenZhonglingStoneRoute)
