@@ -111,7 +111,10 @@ namespace Rpg.Soundwell
                 return default;
             }
 
-            if (frame.CloseModalPressed && _menuRouter.HasAnyModalOpen)
+            // Do not let world movement or interaction leak through in the same
+            // input frame that dismisses a modal (Escape or its toggle hotkey).
+            bool wasModalOpen = _menuRouter.HasAnyModalOpen;
+            if (frame.CloseModalPressed && wasModalOpen)
             {
                 _menuRouter.CloseAll();
             }
@@ -132,16 +135,16 @@ namespace Rpg.Soundwell
                 }
             }
 
-            if (frame.ToggleOverviewMapPressed && !_menuRouter.HasAnyModalOpen)
+            if (frame.ToggleOverviewMapPressed && !wasModalOpen && !_menuRouter.HasAnyModalOpen)
             {
                 _bootstrapper.Driver.Facade.Session.ToggleOverviewMap();
             }
 
             return _menuRouter.StepFrameWithModalGuard(
-                frame.Move,
-                deltaSeconds,
-                frame.Sprint,
-                frame.InteractPressed);
+                wasModalOpen ? Vector2.zero : frame.Move,
+                wasModalOpen ? 0f : deltaSeconds,
+                !wasModalOpen && frame.Sprint,
+                !wasModalOpen && frame.InteractPressed);
         }
 
         public void Shutdown()
