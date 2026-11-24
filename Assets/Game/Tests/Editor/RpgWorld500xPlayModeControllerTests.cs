@@ -8,6 +8,48 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xPlayModeControllerTests
     {
         [Test]
+        public void PlayModeController_WiresModalRaycastersAndReusesSceneEventSystem()
+        {
+            var hostGo = new GameObject("World500xPointerInputTestHost");
+            var sceneInput = new GameObject("Existing scene input", typeof(UnityEngine.EventSystems.EventSystem));
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var uiRoot = hostGo.transform.Find("World500xPlayModeUiRoot");
+                Assert.IsNotNull(uiRoot);
+                Assert.IsNull(uiRoot.GetComponent<UnityEngine.EventSystems.EventSystem>(),
+                    "Do not create a duplicate scene EventSystem.");
+                var canvases = uiRoot.GetComponentsInChildren<Canvas>(true);
+                Assert.AreEqual(8, canvases.Length);
+                foreach (Canvas canvas in canvases)
+                    Assert.IsNotNull(canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>(), canvas.name);
+
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.CampMerchant));
+                var merchant = uiRoot.Find("World500xCampMerchantHudPanel");
+                Assert.IsTrue(merchant.GetComponent<UnityEngine.UI.GraphicRaycaster>().isActiveAndEnabled);
+                ctrl.MenuRouter.CloseAll();
+                Assert.IsFalse(merchant.GetComponent<UnityEngine.UI.GraphicRaycaster>().isActiveAndEnabled);
+
+                // Journal is remounted per map outside the controller's UI root.
+                var session = ctrl.Bootstrapper.Driver.Facade.Session;
+                Assert.IsNotNull(session.JournalPanel.RootObject.GetComponent<UnityEngine.UI.GraphicRaycaster>());
+                Assert.IsTrue(ctrl.Bootstrapper.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.QuestJournal));
+                Assert.IsTrue(session.JournalPanel.RootObject.GetComponent<UnityEngine.UI.GraphicRaycaster>().isActiveAndEnabled);
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(sceneInput);
+                UnityEngine.Object.DestroyImmediate(hostGo);
+            }
+        }
+
+        [Test]
         public void PlayModeController_CampMerchantSharesWalletStockAndReputationWithSave()
         {
             var hostGo = new GameObject("World500xSharedCampStoreTestHost");

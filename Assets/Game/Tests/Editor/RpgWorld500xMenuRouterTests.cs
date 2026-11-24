@@ -8,9 +8,19 @@ namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xMenuRouterTests
     {
-        [TestCase(true)]
-        [TestCase(false)]
-        public void MenuRouter_CampRestWritesLoadableAutoSaveInSharedSlots(bool injectManager)
+        [Test]
+        public void MenuRouter_CampRestWritesLoadableAutoSaveWithInjectedManager()
+        {
+            MenuRouter_CampRestWritesLoadableAutoSaveInSharedSlots(true);
+        }
+
+        [Test]
+        public void MenuRouter_CampRestWritesLoadableAutoSaveWithDefaultManager()
+        {
+            MenuRouter_CampRestWritesLoadableAutoSaveInSharedSlots(false);
+        }
+
+        private void MenuRouter_CampRestWritesLoadableAutoSaveInSharedSlots(bool injectManager)
         {
             var root = new GameObject("World500xCampRestAutoSaveTestRoot");
             var manager = injectManager ? new RpgWorld500xSaveSlotManager(
