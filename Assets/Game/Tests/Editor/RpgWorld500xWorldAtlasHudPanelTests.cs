@@ -7,6 +7,117 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xWorldAtlasHudPanelTests
     {
         [Test]
+        public void WorldAtlasHudPanel_CapturesEncounterBlockedAndRecoveredFrames()
+        {
+            var root = new GameObject("WorldAtlasVisualEvidenceRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xWorldAtlasHudPanel(root.transform, boot))
+                {
+                    Assert.IsTrue(panel.Show());
+                    var host = boot.Driver.Facade.Session.Host;
+                    RpgMapLandmarkMarker danger = default;
+                    bool found = false;
+                    foreach (RpgMapLandmarkMarker marker in host.Layout.Markers)
+                    {
+                        if (marker.Category == RpgMapMarkerCategory.DangerZone)
+                        {
+                            danger = marker;
+                            found = true;
+                            break;
+                        }
+                    }
+                    Assert.IsTrue(found);
+                    Assert.IsTrue(host.Bridge.TryTriggerDangerZoneEncounter(
+                        danger.Id, new Vector2(danger.Tile.x + 0.5f, danger.Tile.y + 0.5f)));
+                    panel.Refresh();
+                    var canvas = root.GetComponentInChildren<Canvas>();
+                    Assert.IsNotNull(canvas);
+                    Assert.IsTrue(panel.StatusBannerText.Contains("遭遇战进行中"));
+                    CaptureAtlasFrame(canvas, "world500x-atlas-encounter-blocked");
+
+                    Assert.IsTrue(host.Bridge.TryResolveDangerZoneVictory(danger.Id, true, out _));
+                    panel.Refresh();
+                    Assert.IsFalse(panel.StatusBannerText.Contains("遭遇战进行中"));
+                    CaptureAtlasFrame(canvas, "world500x-atlas-encounter-recovered");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void CaptureAtlasFrame(Canvas canvas, string name)
+        {
+            // Use the same actual UGUI camera render approach as M04 readiness evidence.
+            const int width = 960;
+            const int height = 540;
+            var cameraObject = new GameObject("Atlas UI evidence camera", typeof(Camera));
+            Camera camera = cameraObject.GetComponent<Camera>();
+            RenderTexture target = RenderTexture.GetTemporary(width, height, 24);
+            RenderTexture previousActive = RenderTexture.active;
+            RenderMode previousMode = canvas.renderMode;
+            Camera previousCamera = canvas.worldCamera;
+            float previousPlane = canvas.planeDistance;
+            var frame = new Texture2D(width, height, TextureFormat.RGB24, false);
+            try
+            {
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = Color.black;
+                camera.cullingMask = 1 << canvas.gameObject.layer;
+                camera.orthographic = true;
+                camera.orthographicSize = 5f;
+                camera.transform.position = new Vector3(0f, 0f, -10f);
+                camera.targetTexture = target;
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = camera;
+                canvas.planeDistance = 1f;
+                Canvas.ForceUpdateCanvases();
+                camera.Render();
+
+                RenderTexture.active = target;
+                frame.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+                frame.Apply();
+                int visiblePixels = 0;
+                foreach (Color32 pixel in frame.GetPixels32())
+                    if (pixel.r > 24 || pixel.g > 24 || pixel.b > 24)
+                        visiblePixels++;
+                Assert.That(visiblePixels, Is.GreaterThan(16000), "Atlas capture cannot be blank.");
+
+                const string folder = "artifacts/p0/story";
+                System.IO.Directory.CreateDirectory(folder);
+                byte[] png = frame.EncodeToPNG();
+                Assert.That(png.Length, Is.GreaterThan(2000));
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(folder, name + ".png"), png);
+                // The GitHub-only reviewer can reconstruct the exact archived PNG from
+                // bounded, indexed log lines without requiring a local Unity checkout.
+                string encoded = System.Convert.ToBase64String(png);
+                const int chunkSize = 3000;
+                for (int offset = 0; offset < encoded.Length; offset += chunkSize)
+                {
+                    int count = System.Math.Min(chunkSize, encoded.Length - offset);
+                    TestContext.Out.WriteLine("ATLAS_PNG " + name + " " + offset + "/" + encoded.Length +
+                        " " + encoded.Substring(offset, count));
+                }
+            }
+            finally
+            {
+                canvas.renderMode = previousMode;
+                canvas.worldCamera = previousCamera;
+                canvas.planeDistance = previousPlane;
+                camera.targetTexture = null;
+                RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
+                UnityEngine.Object.DestroyImmediate(frame);
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+            }
+        }
+
+        [Test]
         public void WorldAtlasHudPanel_BlocksTravelAndCampRestDuringEncounterThenRecovers()
         {
             var root = new GameObject("WorldAtlasEncounterActionTestRoot");
