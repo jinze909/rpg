@@ -43,6 +43,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TryTravelToConnectedRegion_RejectsActiveDangerWithoutChangingMapOrClock()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var facade = boot.Driver.Facade;
+                var host = facade.Session.Host;
+                RpgMapLandmarkMarker danger = default;
+                bool found = false;
+                foreach (RpgMapLandmarkMarker marker in host.Layout.Markers)
+                {
+                    if (marker.Category == RpgMapMarkerCategory.DangerZone)
+                    {
+                        danger = marker;
+                        found = true;
+                        break;
+                    }
+                }
+
+                Assert.IsTrue(found);
+                Assert.IsTrue(host.Bridge.TryTriggerDangerZoneEncounter(
+                    danger.Id, new Vector2(danger.Tile.x + 0.5f, danger.Tile.y + 0.5f)));
+                float minutes = facade.Atmosphere.TimeOfDayMinutes;
+                int day = facade.Atmosphere.DayCount;
+                Vector2 position = host.PlayerPosition;
+
+                Assert.IsFalse(RpgWorld500xWorldAtlasPortalService.TryTravelToConnectedRegion(
+                    boot, RpgWorldMapId.RedSaltHarbor, out RpgWorld500xRegionTravelResult blocked));
+                Assert.IsFalse(blocked.Succeeded);
+                Assert.AreEqual(RpgWorldMapId.Soundwell, facade.CurrentMapId);
+                Assert.AreSame(host, facade.Session.Host);
+                Assert.AreEqual(position, host.PlayerPosition);
+                Assert.AreEqual(danger.Id, host.Bridge.ActiveEncounterMarkerId);
+                Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                Assert.AreEqual(day, facade.Atmosphere.DayCount);
+            }
+        }
+
+        [Test]
         public void TryTravelToConnectedRegion_AdvancesClockSwitchesMapAndRejectsNonAdjacentHop()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(

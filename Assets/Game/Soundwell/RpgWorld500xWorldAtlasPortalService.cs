@@ -155,21 +155,25 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            RpgWorldMapId currentMap = bootstrapper.Driver.Facade.CurrentMapId;
-            if (!TryFindDirectRoute(currentMap, targetMap, out RpgWorld500xRegionRouteDef route))
+            RpgWorld500xGrandRuntimeFacade facade = bootstrapper.Driver.Facade;
+            RpgWorldMapId currentMap = facade.CurrentMapId;
+            // Region travel must respect the same active encounter lock as local fast travel.
+            if (facade.Session.Host.Bridge.IsInDangerEncounter ||
+                !TryFindDirectRoute(currentMap, targetMap, out RpgWorld500xRegionRouteDef route))
             {
                 return false;
             }
 
+            if (!bootstrapper.SwitchMap(targetMap))
+            {
+                return false;
+            }
+
+            // Charge travel time only after a successful map transition.
             float realSecondsEquivalent = route.TravelMinutesInGame /
                                           RpgWorld500xWeatherAndTimeOfDayService.DefaultGameMinutesPerRealSecond;
             bootstrapper.Driver.Facade.Atmosphere.AdvanceRealSeconds(realSecondsEquivalent, targetMap);
-
-            bool switched = bootstrapper.SwitchMap(targetMap);
-            if (!switched)
-            {
-                return false;
-            }
+            bootstrapper.StatusHud.SyncFromDriver(bootstrapper.Driver);
 
             RpgWorld500xAtmosphereSnapshot arrivalAtmo = bootstrapper.Driver.Facade.Atmosphere.GetSnapshot(targetMap);
             string banner = "已沿【" + route.RouteNameZh + "】抵达 · 第 " + arrivalAtmo.DayCount + " 日 " +
