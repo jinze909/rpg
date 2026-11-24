@@ -25,6 +25,7 @@ namespace Rpg.Tests.Editor
                         warmupRouter.OpenModal(RpgWorld500xModalKind.WorldAtlas);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.CampMerchant);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.Bestiary);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.FastTravelBeacons);
                         warmupRouter.CloseAll();
                     }
                 }
@@ -61,7 +62,7 @@ namespace Rpg.Tests.Editor
                     router.StepFrameWithModalGuard(Vector2.right, 0.5f, sprinting: true, interactPressed: true);
                     Assert.AreEqual(posBefore, boot.Driver.Facade.Session.Host.PlayerPosition);
 
-                    // Switching to CampMerchant closes WorldAtlas; switching to Bestiary closes CampMerchant.
+                    // Switching across CampMerchant -> Bestiary -> FastTravelBeacons enforces mutual exclusion.
                     Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CampMerchant));
                     Assert.AreEqual(RpgWorld500xModalKind.CampMerchant, router.ActiveModal);
                     Assert.IsFalse(router.AtlasPanel.IsVisible);
@@ -72,8 +73,13 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(router.MerchantPanel.IsVisible);
                     Assert.IsTrue(router.BestiaryPanel.IsVisible);
 
-                    // Toggling Bestiary again closes all modals.
-                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.Bestiary));
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.FastTravelBeacons));
+                    Assert.AreEqual(RpgWorld500xModalKind.FastTravelBeacons, router.ActiveModal);
+                    Assert.IsFalse(router.BestiaryPanel.IsVisible);
+                    Assert.IsTrue(router.BeaconWarpPanel.IsVisible);
+
+                    // Toggling FastTravelBeacons again closes all modals.
+                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.FastTravelBeacons));
                     Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
                     Assert.IsFalse(router.HasAnyModalOpen);
                 }
