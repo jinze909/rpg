@@ -177,6 +177,8 @@ namespace Rpg.Tests.Editor
                 var reopened = new RpgWorld500xSaveSlotManager(storage, () => clock);
                 Assert.IsTrue(reopened.TryFindMostRecentValidSlot(out var recent));
                 Assert.AreEqual(RpgWorld500xSaveSlotId.Slot1, recent.SlotId);
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(90);
+                Assert.AreEqual(120, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
                 Assert.IsTrue(reopened.TryLoadSlot(boot, recent.SlotId, out _, out error), error);
                 Assert.AreEqual(30, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
 

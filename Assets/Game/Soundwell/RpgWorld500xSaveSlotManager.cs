@@ -416,6 +416,15 @@ namespace Rpg.Soundwell
             return found;
         }
 
+        // Sub-second precision is persistence metadata, not a wider HUD label.
+        internal static string FormatSavedAtUtcForDisplay(string timestamp)
+        {
+            const DateTimeStyles styles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+            return DateTime.TryParseExact(timestamp, PreciseTimestampFormat, CultureInfo.InvariantCulture, styles, out DateTime precise)
+                ? precise.ToString(LegacyTimestampFormat, CultureInfo.InvariantCulture)
+                : timestamp ?? string.Empty;
+        }
+
         private static DateTime ParseSavedAtUtc(string timestamp)
         {
             const DateTimeStyles styles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
