@@ -66,6 +66,69 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AllRegionalRumorsCountOnceWhenLandmarkDiscoveredFirst()
+        {
+            AllRegionalRumorsCountOnceInEitherDiscoveryOrderAndAdvanceNavigation(true);
+        }
+
+        [Test]
+        public void AllRegionalRumorsCountOnceWhenConversationFirst()
+        {
+            AllRegionalRumorsCountOnceInEitherDiscoveryOrderAndAdvanceNavigation(false);
+        }
+
+        private void AllRegionalRumorsCountOnceInEitherDiscoveryOrderAndAdvanceNavigation(bool discoverFirst)
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            int writes = 0;
+            Func<string, int> read = key => store.TryGetValue(key, out int value) ? value : 0;
+            Action<string, int> write = (key, value) => { store[key] = value; writes++; };
+
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var layout = RpgWorld500xMapLayout.Build(spec.MapId);
+                var tracker = new RpgMapExplorationTracker(spec.MapId);
+                var service = new RpgWorld500xLivingWorldService(spec.MapId, tracker, read, write);
+                foreach (RpgFieldNpcDef npc in RpgWorld500xLivingWorldCatalog.GetFieldNpcs(spec.MapId))
+                {
+                    Vector2 pos = new Vector2(npc.Tile.x + 0.5f, npc.Tile.y + 0.5f);
+                    Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                        layout, pos, RpgWorld500xWaypointCategory.FieldNpc,
+                        out RpgWorld500xWaypointGuidance before, tracker, getInt: read));
+                    Assert.AreEqual(npc.Id, before.EntityId);
+                    if (discoverFirst)
+                        tracker.TryDiscoverMarker(npc.RumorTargetMarkerId);
+                    string trackedBefore = tracker.TrackedMarkerId;
+                    int previousWrites = writes;
+                    Assert.IsTrue(service.TryTalkToNearbyNpc(pos, 6f, out _, out string hint, out string revealed));
+                    Assert.AreEqual(npc.RumorHintZh, hint);
+                    Assert.AreEqual(1, read(npc.RumorMakinomKey));
+                    Assert.AreEqual(previousWrites + 1, writes);
+                    Assert.AreEqual(discoverFirst ? string.Empty : npc.RumorTargetMarkerId, revealed);
+                    Assert.AreEqual(discoverFirst ? trackedBefore : npc.RumorTargetMarkerId, tracker.TrackedMarkerId);
+
+                    // Repeat conversations remain available, but never count twice.
+                    tracker.TryDiscoverMarker(npc.RumorTargetMarkerId);
+                    Assert.IsTrue(service.TryTalkToNearbyNpc(pos, 6f, out _, out string ambient, out string repeated));
+                    Assert.AreEqual(npc.AmbientLineZh, ambient);
+                    Assert.IsEmpty(repeated);
+                    Assert.AreEqual(previousWrites + 1, writes);
+                    var nearby = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                        layout, pos, 100, tracker, getInt: read);
+                    Assert.IsFalse(nearby.Exists(p => p.Category == RpgWorld500xWaypointCategory.FieldNpc &&
+                        p.EntityId == npc.Id));
+                }
+
+                Assert.IsFalse(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                    layout, Vector2.zero, RpgWorld500xWaypointCategory.FieldNpc, out _, tracker, getInt: read));
+            }
+
+            Assert.AreEqual(24, writes);
+            var milestones = new RpgWorld500xExpeditionMilestoneService(read);
+            Assert.AreEqual(24, milestones.ComputeCrossMapProgress().HeardRumors);
+        }
+
+        [Test]
         public void RumorBrokerTracksUndiscoveredLandmarkStorySpotsPersistAndAmbientCycleActivatesDeterministically()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);

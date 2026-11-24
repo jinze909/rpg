@@ -279,6 +279,10 @@ namespace Rpg.Soundwell
                     for (int i = 0; i < npcs.Count; i++)
                     {
                         RpgFieldNpcDef npc = npcs[i];
+                        // Completed rumor conversations should not permanently
+                        // occupy the nearest unfinished exploration objective.
+                        if (read(npc.RumorMakinomKey) == 1)
+                            continue;
                         output.Add(BuildGuidance(mapId, playerTile, category, npc.Id, npc.DisplayNameZh, npc.Tile, arrivalThresholdTiles));
                     }
                     break;
