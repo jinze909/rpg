@@ -8,6 +8,81 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xBestiaryHudPanelTests
     {
         [Test]
+        public void BestiaryHudPanel_RejectsHiddenDisabledRetiredAndDisposedStudyActions()
+        {
+            var root = new GameObject("BestiaryStudyLifetimeRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                {
+                    var facade = boot.Driver.Facade;
+                    var dossiers = facade.ThreatCodex.BuildMapDossiers(facade.Session.Host.Layout);
+                    Assert.Greater(dossiers.Count, 0);
+                    string markerId = dossiers[0].MarkerId;
+                    int bonus = dossiers[0].Profile.CodexStudySilverBonus;
+                    int initialSilver = facade.BountyAndSupply.SaltSilverBalance;
+                    UnityEngine.UI.Button StudyButton() => root.transform
+                        .Find("World500xBestiaryHudPanel/BestiaryModalBox/DossierRows/DossierRow_" +
+                              markerId + "/StudyButton").GetComponent<UnityEngine.UI.Button>();
+                    void AssertNotStudied()
+                    {
+                        Assert.AreEqual(initialSilver, facade.BountyAndSupply.SaltSilverBalance);
+                        Assert.IsFalse(facade.ThreatCodex.BuildMapDossiers(facade.Session.Host.Layout)[0].IsStudied);
+                    }
+
+                    using (var panel = new RpgWorld500xBestiaryHudPanel(root.transform, boot))
+                    {
+                        StudyButton().onClick.Invoke();
+                        Assert.IsFalse(panel.TryClickStudyDossier(markerId));
+                        AssertNotStudied();
+
+                        Assert.IsTrue(panel.Show());
+                        var retired = StudyButton().onClick;
+                        Assert.IsTrue(panel.Hide());
+                        retired.Invoke();
+                        Assert.IsFalse(panel.TryClickStudyDossier(markerId));
+                        AssertNotStudied();
+
+                        Assert.IsTrue(panel.Show());
+                        retired.Invoke();
+                        var current = StudyButton();
+                        current.interactable = false;
+                        current.onClick.Invoke();
+                        Assert.IsFalse(panel.TryClickStudyDossier(markerId));
+                        AssertNotStudied();
+
+                        current.interactable = true;
+                        panel.Refresh();
+                        current.onClick.Invoke();
+                        AssertNotStudied();
+
+                        var disposed = StudyButton().onClick;
+                        panel.Dispose();
+                        disposed.Invoke();
+                        Assert.IsFalse(panel.TryClickStudyDossier(markerId));
+                        AssertNotStudied();
+                    }
+
+                    using (var reopened = new RpgWorld500xBestiaryHudPanel(root.transform, boot))
+                    {
+                        Assert.IsTrue(reopened.Show());
+                        Assert.IsTrue(reopened.TryClickStudyDossier(markerId));
+                        Assert.IsTrue(facade.ThreatCodex.BuildMapDossiers(facade.Session.Host.Layout)[0].IsStudied);
+                        Assert.AreEqual(initialSilver + bonus, facade.BountyAndSupply.SaltSilverBalance);
+                        Assert.IsFalse(reopened.TryClickStudyDossier(markerId));
+                        Assert.AreEqual(initialSilver + bonus, facade.BountyAndSupply.SaltSilverBalance);
+                    }
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BestiaryHudPanel_StudiesDangerZoneDossiersCreditsSilverAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xBestiaryHudPanelTestRoot");

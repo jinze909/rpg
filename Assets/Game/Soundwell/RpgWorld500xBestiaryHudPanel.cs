@@ -120,9 +120,9 @@ namespace Rpg.Soundwell
 
         public bool TryClickStudyDossier(string markerId)
         {
-            if (IsDisposed || string.IsNullOrEmpty(markerId) ||
+            if (string.IsNullOrEmpty(markerId) ||
                 !_studyButtons.TryGetValue(markerId, out Button btn) ||
-                btn == null || !btn.interactable)
+                !CanInvoke(btn))
             {
                 return false;
             }
@@ -259,6 +259,12 @@ namespace Rpg.Soundwell
             return btn;
         }
 
+        private bool CanInvoke(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
+        }
+
         private void ClearRows()
         {
             _studyButtons.Clear();
@@ -336,7 +342,7 @@ namespace Rpg.Soundwell
             return text;
         }
 
-        private static Button CreateActionButton(
+        private Button CreateActionButton(
             Transform parent,
             string name,
             Vector2 anchorMin,
@@ -361,7 +367,12 @@ namespace Rpg.Soundwell
             btn.interactable = interactable;
             if (onClick != null)
             {
-                btn.onClick.AddListener(() => onClick());
+                btn.onClick.AddListener(() =>
+                {
+                    // A retired or hidden dossier row must not grant a study reward.
+                    if (CanInvoke(btn))
+                        onClick();
+                });
             }
 
             Text txt = CreateText(
