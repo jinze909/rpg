@@ -9,6 +9,40 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xMenuRouterTests
     {
         [Test]
+        public void UndefinedModalId_DoesNotCloseActivePanelOrReportSuccess()
+        {
+            var root = new GameObject("World500xInvalidModalGuardTestRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var router = new RpgWorld500xMenuRouter(
+                    root.transform, boot, new RpgWorld500xCampHavenService()))
+                {
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.QuestJournal));
+                    Assert.IsTrue(boot.Driver.Facade.Session.JournalPanel.IsVisible);
+                    Assert.IsFalse(router.OpenModal((RpgWorld500xModalKind)255),
+                        "Unknown serialized panel IDs must be rejected.");
+                    Assert.IsFalse(router.ToggleModal((RpgWorld500xModalKind)255));
+                    Assert.AreEqual(RpgWorld500xModalKind.QuestJournal, router.ActiveModal);
+                    Assert.IsTrue(boot.Driver.Facade.Session.JournalPanel.IsVisible,
+                        "Invalid panel requests must not dismiss the active journal.");
+
+                    // Explicit None still means close all via OpenModal.
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.None));
+                    Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
+                }
+
+                Assert.AreEqual(0, root.transform.childCount);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void MenuRouter_EnforcesMutualExclusionBlocksInputWhenOpenAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xMenuRouterTestRoot");
