@@ -105,6 +105,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeMidnight()
+        {
+            AssertClockRoundTripBeforeBoundary(1439.999f);
+        }
+
+        [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeDay()
+        {
+            AssertClockRoundTripBeforeBoundary(479.999f);
+        }
+
+        [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeDusk()
+        {
+            AssertClockRoundTripBeforeBoundary(1019.999f);
+        }
+
+        [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeNight()
+        {
+            AssertClockRoundTripBeforeBoundary(1199.999f);
+        }
+
+        private static void AssertClockRoundTripBeforeBoundary(float minutes)
+        {
+            var source = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: minutes, initialDay: 5);
+            var restored = new RpgWorld500xWeatherAndTimeOfDayService();
+            restored.ImportPersistenceState(source.ExportPersistenceState());
+
+            Assert.AreEqual(source.DayCount, restored.DayCount);
+            Assert.AreEqual(source.TimeOfDayMinutes, restored.TimeOfDayMinutes);
+            Assert.AreEqual(source.CurrentPhase, restored.CurrentPhase);
+            Assert.AreEqual(RpgWorld500xWeatherAndTimeOfDayService.FormatClock(minutes),
+                restored.GetSnapshot(RpgWorldMapId.Soundwell).FormattedClock);
+
+            // Reloading must not change the next midnight/phase transition.
+            var expected = source.AdvanceRealSeconds(0.01f, RpgWorldMapId.Soundwell);
+            var actual = restored.AdvanceRealSeconds(0.01f, RpgWorldMapId.Soundwell);
+            Assert.AreEqual(expected.DayCount, actual.DayCount);
+            Assert.AreEqual(expected.TimeOfDayMinutes, actual.TimeOfDayMinutes);
+            Assert.AreEqual(expected.Phase, actual.Phase);
+            Assert.AreEqual(expected.Weather, actual.Weather);
+        }
+
+        [Test]
         public void PersistenceRoundTrip_UsesWorldNamespaceKeysAndRestoresExactState()
         {
             var source = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 1125f, initialDay: 5);

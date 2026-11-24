@@ -279,7 +279,9 @@ namespace Rpg.Soundwell
         {
             var data = new Dictionary<string, string>
             {
-                [TimeMinutesKey] = _timeOfDayMinutes.ToString("F2", CultureInfo.InvariantCulture),
+                // Preserve the actual float, especially immediately before midnight
+                // and phase boundaries: rounding to two decimals can wrap the day.
+                [TimeMinutesKey] = _timeOfDayMinutes.ToString("R", CultureInfo.InvariantCulture),
                 [DayCountKey] = _dayCount.ToString(CultureInfo.InvariantCulture)
             };
 
