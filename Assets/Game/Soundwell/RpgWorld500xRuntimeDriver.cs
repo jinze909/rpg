@@ -25,6 +25,8 @@ namespace Rpg.Soundwell
 
         public RpgWorld500xGrandRuntimeFacade Facade => _facade;
         public bool IsInitialized => _facade != null && !_facade.IsDisposed;
+        // A menu router owns the frame loop when present; standalone drivers still poll input.
+        public bool AutomaticFrameUpdates { get; set; } = true;
         public IReadOnlyList<string> RecentToasts => _recentToasts;
         public string LastEnvironmentCaptionZh { get; private set; } = string.Empty;
         public string LastNearestWaypointReadoutZh { get; private set; } = string.Empty;
@@ -74,7 +76,7 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
-            if (!IsInitialized)
+            if (!AutomaticFrameUpdates || !IsInitialized)
             {
                 return;
             }

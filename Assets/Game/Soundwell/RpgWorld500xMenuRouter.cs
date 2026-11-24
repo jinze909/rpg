@@ -35,6 +35,7 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xSaveSlotHudPanel _saveSlotPanel;
         private readonly RpgWorld500xFieldRumorAndLoreHudPanel _rumorLorePanel;
         private readonly RpgWorld500xExpeditionMilestonesHudPanel _milestonesPanel;
+        private readonly bool _previousAutomaticFrameUpdates;
         private bool _disposed;
 
         public RpgWorld500xSceneBootstrapper Bootstrapper => _bootstrapper;
@@ -129,6 +130,11 @@ namespace Rpg.Soundwell
             _saveSlotPanel = new RpgWorld500xSaveSlotHudPanel(uiParent, _bootstrapper, saveSlotManager);
             _rumorLorePanel = new RpgWorld500xFieldRumorAndLoreHudPanel(uiParent, _bootstrapper);
             _milestonesPanel = new RpgWorld500xExpeditionMilestonesHudPanel(uiParent, _bootstrapper);
+
+            // The routed frame is the only frame allowed to advance the world while
+            // menus exist; otherwise RuntimeDriver.Update bypasses the modal guard.
+            _previousAutomaticFrameUpdates = _bootstrapper.Driver.AutomaticFrameUpdates;
+            _bootstrapper.Driver.AutomaticFrameUpdates = false;
         }
 
         public bool OpenModal(RpgWorld500xModalKind kind)
@@ -273,6 +279,10 @@ namespace Rpg.Soundwell
             _saveSlotPanel?.Dispose();
             _rumorLorePanel?.Dispose();
             _milestonesPanel?.Dispose();
+            if (_bootstrapper.Driver != null)
+            {
+                _bootstrapper.Driver.AutomaticFrameUpdates = _previousAutomaticFrameUpdates;
+            }
         }
     }
 }

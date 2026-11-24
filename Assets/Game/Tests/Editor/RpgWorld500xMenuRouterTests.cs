@@ -9,6 +9,55 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xMenuRouterTests
     {
         [Test]
+        public void MenuRouter_OwnsFrameLoopAndSuppressesAutomaticDriverUpdate()
+        {
+            var root = new GameObject("World500xFrameOwnershipTestRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                {
+                    var driver = boot.Driver;
+                    Assert.IsTrue(driver.AutomaticFrameUpdates);
+                    Assert.IsEmpty(driver.LastEnvironmentCaptionZh);
+                    using (var router = new RpgWorld500xMenuRouter(
+                        root.transform, boot, new RpgWorld500xCampHavenService()))
+                    {
+                        Assert.IsFalse(driver.AutomaticFrameUpdates);
+                        Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.WorldAtlas));
+                        float clock = driver.Facade.Atmosphere.TimeOfDayMinutes;
+                        Vector2 position = driver.Facade.Session.Host.PlayerPosition;
+
+                        // Invoke the real Unity message, not just the routed API.
+                        // The automatic path would publish an environment caption
+                        // even with zero EditMode delta time.
+                        driver.SendMessage("Update", SendMessageOptions.RequireReceiver);
+                        Assert.IsEmpty(driver.LastEnvironmentCaptionZh);
+                        Assert.AreEqual(clock, driver.Facade.Atmosphere.TimeOfDayMinutes);
+                        Assert.AreEqual(position, driver.Facade.Session.Host.PlayerPosition);
+
+                        router.StepFrameWithModalGuard(Vector2.right, 1f, true, true);
+                        Assert.IsNotEmpty(driver.LastEnvironmentCaptionZh);
+                        Assert.AreEqual(clock, driver.Facade.Atmosphere.TimeOfDayMinutes);
+                        Assert.AreEqual(position, driver.Facade.Session.Host.PlayerPosition);
+
+                        router.CloseAll();
+                        router.StepFrameWithModalGuard(Vector2.zero, 1f);
+                        Assert.Greater(driver.Facade.Atmosphere.TimeOfDayMinutes, clock);
+                    }
+
+                    Assert.IsTrue(driver.AutomaticFrameUpdates,
+                        "Disposing the router restores standalone driver behavior.");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void UndefinedModalId_DoesNotCloseActivePanelOrReportSuccess()
         {
             var root = new GameObject("World500xInvalidModalGuardTestRoot");
