@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 
@@ -5,6 +6,33 @@ namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xMaintenanceReportTests
     {
+        [Test]
+        public void DirectedRegionGraph_RejectsOneWayPathsEvenWhenSoundwellReachesEveryMap()
+        {
+            RpgWorldMapId[] maps =
+            {
+                RpgWorldMapId.Soundwell,
+                RpgWorldMapId.RedSaltHarbor,
+                RpgWorldMapId.MineCamp
+            };
+            var routes = new List<RpgWorld500xRegionRouteDef>
+            {
+                new RpgWorld500xRegionRouteDef("sw_to_harbor",
+                    RpgWorldMapId.Soundwell, RpgWorldMapId.RedSaltHarbor, "去港口", 30, ""),
+                new RpgWorld500xRegionRouteDef("harbor_to_mine",
+                    RpgWorldMapId.RedSaltHarbor, RpgWorldMapId.MineCamp, "去矿区", 30, "")
+            };
+
+            Assert.IsFalse(RpgWorld500xMaintenanceReport.AreRegionRoutesStronglyConnected(maps, routes),
+                "Soundwell can reach all regions but neither destination can return; this is not strong connectivity.");
+
+            routes.Add(new RpgWorld500xRegionRouteDef("mine_to_harbor",
+                RpgWorldMapId.MineCamp, RpgWorldMapId.RedSaltHarbor, "回港口", 30, ""));
+            routes.Add(new RpgWorld500xRegionRouteDef("harbor_to_sw",
+                RpgWorldMapId.RedSaltHarbor, RpgWorldMapId.Soundwell, "回声井", 30, ""));
+            Assert.IsTrue(RpgWorld500xMaintenanceReport.AreRegionRoutesStronglyConnected(maps, routes));
+        }
+
         [Test]
         public void Generate_ProducesHealthyFullWorldStudioReportWithExpectedCounts()
         {

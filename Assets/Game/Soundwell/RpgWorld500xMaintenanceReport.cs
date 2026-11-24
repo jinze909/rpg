@@ -54,11 +54,14 @@ namespace Rpg.Soundwell
             int totalBounties = 0;
             int totalThreatProfiles = 0;
             int totalRegionRoutes = 0;
+            var allRegionRoutes = new List<RpgWorld500xRegionRouteDef>();
+            var allRegionMaps = new List<RpgWorldMapId>();
 
             IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
             for (int i = 0; i < specs.Count; i++)
             {
                 RpgExpandedMapSpec spec = specs[i];
+                allRegionMaps.Add(spec.MapId);
                 totalTiles += (long)spec.ExpandedWidth * spec.ExpandedHeight;
                 totalChunks += (spec.ExpandedWidth / RpgLargeMapChunkRenderer.ChunkSizeTiles) *
                                (spec.ExpandedHeight / RpgLargeMapChunkRenderer.ChunkSizeTiles);
@@ -70,6 +73,7 @@ namespace Rpg.Soundwell
                 totalRegionRoutes += routes.Count;
                 for (int r = 0; r < routes.Count; r++)
                 {
+                    allRegionRoutes.Add(routes[r]);
                     if (routes[r].TravelMinutesInGame <= 0 || string.IsNullOrWhiteSpace(routes[r].RouteNameZh))
                     {
                         metaErrors.Add("Invalid WorldAtlas route: " + routes[r].RouteId);
@@ -89,27 +93,13 @@ namespace Rpg.Soundwell
                 }
             }
 
-            // Verify 4-region WorldAtlas portal graph strong connectivity via BFS.
-            var visitedMaps = new HashSet<RpgWorldMapId> { RpgWorldMapId.Soundwell };
-            var queue = new Queue<RpgWorldMapId>();
-            queue.Enqueue(RpgWorldMapId.Soundwell);
-            while (queue.Count > 0)
+            // This is a directed route graph. Every region must be able to
+            // reach every other region; a BFS from Soundwell alone would miss
+            // missing return routes and incorrectly report strong connectivity.
+            if (!AreRegionRoutesStronglyConnected(allRegionMaps, allRegionRoutes))
             {
-                RpgWorldMapId cur = queue.Dequeue();
-                List<RpgWorld500xRegionRouteDef> edges = RpgWorld500xWorldAtlasPortalService.GetConnectedRegions(cur);
-                for (int i = 0; i < edges.Count; i++)
-                {
-                    if (visitedMaps.Add(edges[i].ToMap))
-                    {
-                        queue.Enqueue(edges[i].ToMap);
-                    }
-                }
-            }
-
-            if (visitedMaps.Count != specs.Count)
-            {
-                metaErrors.Add("WorldAtlas portal graph is not strongly connected (" +
-                               visitedMaps.Count + "/" + specs.Count + " reachable).");
+                metaErrors.Add("WorldAtlas directed portal graph is not strongly connected across " +
+                               specs.Count + " regions.");
             }
 
             // Verify multi-slot save keys.
@@ -211,6 +201,54 @@ namespace Rpg.Soundwell
 
             snapshot.FormattedReport = sb.ToString();
             return snapshot;
+        }
+
+        /// <summary>
+        /// Checks the directed portal graph from every region, not just the
+        /// starting area. Missing reverse connections must fail the audit.
+        /// </summary>
+        public static bool AreRegionRoutesStronglyConnected(
+            IReadOnlyList<RpgWorldMapId> mapIds,
+            IReadOnlyList<RpgWorld500xRegionRouteDef> routes)
+        {
+            if (mapIds == null || routes == null || mapIds.Count == 0)
+            {
+                return false;
+            }
+
+            var expected = new HashSet<RpgWorldMapId>(mapIds);
+            if (expected.Count != mapIds.Count)
+            {
+                return false;
+            }
+
+            for (int start = 0; start < mapIds.Count; start++)
+            {
+                var reached = new HashSet<RpgWorldMapId> { mapIds[start] };
+                var queue = new Queue<RpgWorldMapId>();
+                queue.Enqueue(mapIds[start]);
+                while (queue.Count > 0)
+                {
+                    RpgWorldMapId current = queue.Dequeue();
+                    for (int r = 0; r < routes.Count; r++)
+                    {
+                        RpgWorld500xRegionRouteDef route = routes[r];
+                        if (route.FromMap == current &&
+                            expected.Contains(route.ToMap) &&
+                            reached.Add(route.ToMap))
+                        {
+                            queue.Enqueue(route.ToMap);
+                        }
+                    }
+                }
+
+                if (reached.Count != expected.Count)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
 #if UNITY_EDITOR
