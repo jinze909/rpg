@@ -29,10 +29,13 @@ namespace Rpg.Tests.Editor
                         float clock = driver.Facade.Atmosphere.TimeOfDayMinutes;
                         Vector2 position = driver.Facade.Session.Host.PlayerPosition;
 
-                        // Invoke the real Unity message, not just the routed API.
-                        // The automatic path would publish an environment caption
-                        // even with zero EditMode delta time.
-                        driver.SendMessage("Update", SendMessageOptions.RequireReceiver);
+                        // Invoke the actual Update method directly: Unity SendMessage
+                        // rejects non-ExecuteAlways behaviours in EditMode before
+                        // the method runs (ShouldRunBehaviour assertion).
+                        var update = typeof(RpgWorld500xRuntimeDriver).GetMethod("Update",
+                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                        Assert.IsNotNull(update);
+                        update.Invoke(driver, null);
                         Assert.IsEmpty(driver.LastEnvironmentCaptionZh);
                         Assert.AreEqual(clock, driver.Facade.Atmosphere.TimeOfDayMinutes);
                         Assert.AreEqual(position, driver.Facade.Session.Host.PlayerPosition);

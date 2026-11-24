@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Rpg.Soundwell
@@ -27,8 +26,6 @@ namespace Rpg.Soundwell
         [SerializeField] private RpgWorldMapId initialMapId = RpgWorldMapId.Soundwell;
         [SerializeField] private bool autoInitializeOnStart = true;
 
-        private readonly Dictionary<string, int> _metaStore =
-            new Dictionary<string, int>(StringComparer.Ordinal);
         private GameObject _uiRoot;
         private RpgWorld500xSceneBootstrapper _bootstrapper;
         private RpgWorld500xCampHavenService _campHaven;
@@ -87,9 +84,7 @@ namespace Rpg.Soundwell
                 followCamera: followCamera,
                 overrideTileSlices: overrideTileSlices);
 
-            _campHaven = new RpgWorld500xCampHavenService(
-                getInt: k => _metaStore.TryGetValue(k, out int v) ? v : 0,
-                setInt: (k, v) => _metaStore[k] = v);
+            _campHaven = _bootstrapper.CreateCampHavenService();
 
             IRpgWorld500xSaveSlotStorage resolvedStorage = saveStorage ??
                 (Application.isPlaying
