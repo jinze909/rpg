@@ -111,6 +111,59 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FastTravelBeaconHudPanel_RejectsHiddenDisabledRetiredAndDisposedActions()
+        {
+            var root = new GameObject("BeaconStaleActionTestRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    var host = boot.Driver.Facade.Session.Host;
+                    Vector2 start = host.PlayerPosition;
+                    const string marker = "rsh.salt-market";
+                    const string path = "World500xFastTravelBeaconHudPanel/BeaconWarpModalBox/BeaconRows/BeaconRow_rsh.salt-market/WarpButton";
+                    Assert.IsTrue(host.Tracker.TryDiscoverMarker(marker));
+                    Assert.IsTrue(panel.Show());
+                    var button = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    var retiredClick = button.onClick;
+
+                    Assert.IsTrue(panel.Hide());
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    retiredClick.Invoke();
+                    Assert.AreEqual(start, host.PlayerPosition);
+
+                    Assert.IsTrue(panel.Show());
+                    retiredClick.Invoke();
+                    Assert.AreEqual(start, host.PlayerPosition);
+
+                    button = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    button.interactable = false;
+                    button.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(start, host.PlayerPosition);
+
+                    panel.Refresh();
+                    button = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    var disposedClick = button.onClick;
+                    Assert.IsTrue(panel.TryClickWarp(marker));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), host.CurrentTile);
+                    Vector2 arrived = host.PlayerPosition;
+                    panel.Dispose();
+                    disposedClick.Invoke();
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(arrived, host.PlayerPosition);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_WarpsToDiscoveredBeaconRejectsLockedAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xFastTravelBeaconHudPanelTestRoot");
