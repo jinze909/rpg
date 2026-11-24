@@ -146,6 +146,13 @@ namespace Rpg.Soundwell
                 return false;
             }
 
+            // A same-map load retains its existing bridge. Reload its cached
+            // discoveries, quest progress and completed encounters from the restored store.
+            if (sameMap)
+            {
+                currentHost.Bridge.LoadState();
+            }
+
             if (!_driver.TryRestorePlayerPosition(savedPosition))
             {
                 error = "Unable to restore the saved player position.";
