@@ -412,10 +412,14 @@ namespace Rpg.Soundwell
 
         private static Font ResolveUiFont()
         {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
+            // Atlas copy is currently authored in Chinese regardless of the
+            // story locale. Use the existing pinned OFL CJK font, not the
+            // Latin-only built-in font that produced blank labels in CI.
+            Font font = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+            if (font == null || !font.HasCharacter('图') || !font.HasCharacter('战') ||
+                !font.HasCharacter('营'))
             {
-                font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                throw new InvalidOperationException("The pinned atlas Chinese font is missing or lacks required glyphs.");
             }
 
             return font;

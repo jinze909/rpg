@@ -9,6 +9,73 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xCampMerchantHudPanelTests
     {
         [Test]
+        public void CampMerchantPanel_RejectsHiddenRetiredAndDisposedButtonEvents()
+        {
+            var root = new GameObject("World500xMerchantEventLifetimeRoot");
+            try
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                var haven = new RpgWorld500xCampHavenService(
+                    k => store.TryGetValue(k, out int v) ? v : 0,
+                    (k, v) => store[k] = v);
+                string wallet = RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey;
+                const string owned = "rpg.return.world.supply.item.flare";
+                store[wallet] = 100;
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xCampMerchantHudPanel(root.transform, boot, haven))
+                {
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(100);
+                    const string path = "World500xCampMerchantHudPanel/MerchantModalBox/MerchantRows/SupplyRow_flare/ActionButton";
+                    Assert.IsFalse(panel.TryClickBuySupply("flare"));
+                    Assert.IsTrue(panel.Show(RpgCampMerchantTab.Supplies));
+                    var first = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    var firstEvent = first.onClick;
+
+                    panel.Hide();
+                    firstEvent.Invoke();
+                    Assert.IsFalse(panel.TryClickBuySupply("flare"));
+                    Assert.AreEqual(100, store[wallet]);
+                    Assert.IsFalse(store.ContainsKey(owned));
+
+                    panel.Show(RpgCampMerchantTab.Supplies);
+                    var current = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    var currentEvent = current.onClick;
+                    firstEvent.Invoke();
+                    Assert.AreEqual(100, store[wallet]);
+                    current.interactable = false;
+                    currentEvent.Invoke();
+                    Assert.AreEqual(100, store[wallet]);
+                    current.interactable = true;
+                    Assert.IsTrue(panel.TryClickBuySupply("flare"));
+                    Assert.AreEqual(70, store[wallet]);
+                    Assert.AreEqual(1, store[owned]);
+
+                    // Successful purchase rebuilds rows; old click cannot charge twice.
+                    currentEvent.Invoke();
+                    Assert.AreEqual(70, store[wallet]);
+                    var lastEvent = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>().onClick;
+                    panel.SetTab(RpgCampMerchantTab.Bounties);
+                    lastEvent.Invoke();
+                    Assert.AreEqual(70, store[wallet]);
+                    Assert.AreEqual(1, store[owned]);
+
+                    panel.SetTab(RpgCampMerchantTab.Supplies);
+                    var disposedEvent = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>().onClick;
+                    panel.Dispose();
+                    disposedEvent.Invoke();
+                    Assert.AreEqual(70, store[wallet]);
+                    Assert.AreEqual(1, store[owned]);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CampMerchantPanel_BuysDiscountedSuppliesSwitchesTabsAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xCampMerchantHudPanelTestRoot");

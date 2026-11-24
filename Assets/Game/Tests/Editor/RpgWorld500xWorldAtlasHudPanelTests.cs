@@ -53,6 +53,20 @@ namespace Rpg.Tests.Editor
 
         private static void CaptureAtlasFrame(Canvas canvas, string name)
         {
+            // Nonblank panels alone are insufficient: the old Latin font drew
+            // the backgrounds and digits but omitted all Chinese labels.
+            Font expectedFont = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+            Assert.IsNotNull(expectedFont);
+            foreach (UnityEngine.UI.Text label in canvas.GetComponentsInChildren<UnityEngine.UI.Text>())
+            {
+                Assert.AreSame(expectedFont, label.font, label.name);
+                foreach (char glyph in label.text)
+                {
+                    if (glyph >= '\u4e00' && glyph <= '\u9fff')
+                        Assert.IsTrue(label.font.HasCharacter(glyph), "Missing atlas glyph: " + glyph);
+                }
+            }
+
             // Use the same actual UGUI camera render approach as M04 readiness evidence.
             const int width = 960;
             const int height = 540;
