@@ -122,12 +122,13 @@ namespace Rpg.Soundwell
                 throw new ArgumentNullException(nameof(campHaven));
             }
 
-            _atlasPanel = new RpgWorld500xWorldAtlasHudPanel(uiParent, _bootstrapper, campHaven);
+            var resolvedSaveSlots = saveSlotManager ?? new RpgWorld500xSaveSlotManager();
+            _atlasPanel = new RpgWorld500xWorldAtlasHudPanel(uiParent, _bootstrapper, campHaven, resolvedSaveSlots);
             _merchantPanel = new RpgWorld500xCampMerchantHudPanel(uiParent, _bootstrapper, campHaven);
             _bestiaryPanel = new RpgWorld500xBestiaryHudPanel(uiParent, _bootstrapper);
             _beaconWarpPanel = new RpgWorld500xFastTravelBeaconHudPanel(uiParent, _bootstrapper);
             _cartographyPanel = new RpgWorld500xCartographyReputationHudPanel(uiParent, _bootstrapper);
-            _saveSlotPanel = new RpgWorld500xSaveSlotHudPanel(uiParent, _bootstrapper, saveSlotManager);
+            _saveSlotPanel = new RpgWorld500xSaveSlotHudPanel(uiParent, _bootstrapper, resolvedSaveSlots);
             _rumorLorePanel = new RpgWorld500xFieldRumorAndLoreHudPanel(uiParent, _bootstrapper);
             _milestonesPanel = new RpgWorld500xExpeditionMilestonesHudPanel(uiParent, _bootstrapper);
 

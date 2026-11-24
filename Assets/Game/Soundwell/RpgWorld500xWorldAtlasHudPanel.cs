@@ -15,6 +15,7 @@ namespace Rpg.Soundwell
         private const string EncounterBlockedStatus = "遭遇战进行中，结束后可旅行或休整";
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly RpgWorld500xCampHavenService _campHaven;
+        private readonly RpgWorld500xSaveSlotManager _saveSlotManager;
         private readonly GameObject _rootObject;
         private readonly Transform _rowContainer;
         private readonly Text _headerText;
@@ -36,10 +37,12 @@ namespace Rpg.Soundwell
         public RpgWorld500xWorldAtlasHudPanel(
             Transform parent,
             RpgWorld500xSceneBootstrapper bootstrapper,
-            RpgWorld500xCampHavenService campHaven = null)
+            RpgWorld500xCampHavenService campHaven = null,
+            RpgWorld500xSaveSlotManager saveSlotManager = null)
         {
             _bootstrapper = bootstrapper ?? throw new ArgumentNullException(nameof(bootstrapper));
             _campHaven = campHaven ?? _bootstrapper.CreateCampHavenService();
+            _saveSlotManager = saveSlotManager ?? new RpgWorld500xSaveSlotManager();
             _font = ResolveUiFont();
 
             _rootObject = new GameObject("World500xAtlasHudPanel", typeof(RectTransform), typeof(Canvas));
@@ -250,7 +253,12 @@ namespace Rpg.Soundwell
 
             RpgWorld500xCampHavenSummary summary = _campHaven.RestAndSyncCampHaven(_bootstrapper);
             LastCampSaveJson = summary.SaveSnapshotJson;
-            _statusBannerText.text = summary.SummaryZh;
+            // Commit the rested world through the same slot manager as the save menu.
+            // An exported JSON snapshot alone is not a loadable checkpoint.
+            if (_saveSlotManager.TryAutoSave(_bootstrapper, out _, out string error))
+                _statusBannerText.text = summary.SummaryZh + "｜已存档";
+            else
+                _statusBannerText.text = "休整完成，自动存档失败：" + error;
             Refresh();
         }
 
