@@ -12,6 +12,7 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class RpgWorld500xWorldAtlasHudPanel : IDisposable
     {
+        private const string EncounterBlockedStatus = "遭遇战进行中，结束后可旅行或休整";
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly RpgWorld500xCampHavenService _campHaven;
         private readonly GameObject _rootObject;
@@ -126,7 +127,12 @@ namespace Rpg.Soundwell
 
         public bool TryClickTravelTo(RpgWorldMapId targetMap)
         {
-            if (IsDisposed || !_travelButtons.TryGetValue(targetMap, out Button btn) ||
+            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction())
+            {
+                return false;
+            }
+
+            if (!_travelButtons.TryGetValue(targetMap, out Button btn) ||
                 btn == null || !btn.interactable)
             {
                 return false;
@@ -138,7 +144,8 @@ namespace Rpg.Soundwell
 
         public bool TryClickCampRest()
         {
-            if (IsDisposed || _campRestButton == null || !_campRestButton.interactable)
+            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction() ||
+                _campRestButton == null || !_campRestButton.interactable)
             {
                 return false;
             }
@@ -155,6 +162,18 @@ namespace Rpg.Soundwell
             }
 
             ClearRows();
+
+            bool encounterActive = _bootstrapper.Driver.Facade.Session.Host.Bridge.IsInDangerEncounter;
+            _campRestButton.interactable = !encounterActive;
+            _campRestButton.GetComponentInChildren<Text>().text = encounterActive ? "战斗中" : "营地休整并存档";
+            if (encounterActive)
+            {
+                _statusBannerText.text = EncounterBlockedStatus;
+            }
+            else if (_statusBannerText.text == EncounterBlockedStatus)
+            {
+                _statusBannerText.text = string.Empty;
+            }
 
             RpgWorldMapId currentMap = _bootstrapper.Driver.Facade.CurrentMapId;
             RpgWorld500xAtmosphereSnapshot atmo = _bootstrapper.Driver.Facade.Atmosphere.GetSnapshot(currentMap);
@@ -179,7 +198,7 @@ namespace Rpg.Soundwell
 
                 string btnLabel = isCurrent
                     ? "当前所在"
-                    : (hasDirectRoute ? "启程（" + route.TravelMinutesInGame + "分）" : "未直连");
+                    : (hasDirectRoute ? (encounterActive ? "战斗中" : "启程（" + route.TravelMinutesInGame + "分）") : "未直连");
 
                 RpgWorldMapId capturedTarget = entry.MapId;
                 Button travelBtn = SpawnRegionRow(
@@ -189,15 +208,31 @@ namespace Rpg.Soundwell
                     rowSpacing,
                     rowLabel,
                     btnLabel,
-                    hasDirectRoute,
+                    hasDirectRoute && !encounterActive,
                     () => HandleTravelClicked(capturedTarget));
 
                 _travelButtons[entry.MapId] = travelBtn;
             }
         }
 
+        private bool RejectEncounterAction()
+        {
+            if (!_bootstrapper.Driver.Facade.Session.Host.Bridge.IsInDangerEncounter)
+            {
+                return false;
+            }
+
+            Refresh();
+            return true;
+        }
+
         private void HandleTravelClicked(RpgWorldMapId targetMap)
         {
+            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction())
+            {
+                return;
+            }
+
             if (RpgWorld500xWorldAtlasPortalService.TryTravelToConnectedRegion(
                 _bootstrapper, targetMap, out RpgWorld500xRegionTravelResult travel))
             {
@@ -208,6 +243,11 @@ namespace Rpg.Soundwell
 
         private void HandleCampRestClicked()
         {
+            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction())
+            {
+                return;
+            }
+
             RpgWorld500xCampHavenSummary summary = _campHaven.RestAndSyncCampHaven(_bootstrapper);
             LastCampSaveJson = summary.SaveSnapshotJson;
             _statusBannerText.text = summary.SummaryZh;
@@ -372,10 +412,14 @@ namespace Rpg.Soundwell
 
         private static Font ResolveUiFont()
         {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
+            // Atlas copy is currently authored in Chinese regardless of the
+            // story locale. Use the existing pinned OFL CJK font, not the
+            // Latin-only built-in font that produced blank labels in CI.
+            Font font = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+            if (font == null || !font.HasCharacter('图') || !font.HasCharacter('战') ||
+                !font.HasCharacter('营'))
             {
-                font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                throw new InvalidOperationException("The pinned atlas Chinese font is missing or lacks required glyphs.");
             }
 
             return font;

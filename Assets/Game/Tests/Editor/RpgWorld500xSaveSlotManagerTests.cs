@@ -9,6 +9,63 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xSaveSlotManagerTests
     {
         [Test]
+        public void SaveSlots_RejectEncounterSnapshotsWithoutOverwritingCheckpoints()
+        {
+            var storage = new RpgWorld500xInMemorySaveSlotStorage();
+            var manager = new RpgWorld500xSaveSlotManager(storage);
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                const RpgWorld500xSaveSlotId manual = RpgWorld500xSaveSlotId.Slot1;
+                const RpgWorld500xSaveSlotId empty = RpgWorld500xSaveSlotId.Slot2;
+                string autoKey = RpgWorld500xSaveSlotManager.GetStorageKey(RpgWorld500xSaveSlotId.AutoSave);
+                string manualKey = RpgWorld500xSaveSlotManager.GetStorageKey(manual);
+                var facade = boot.Driver.Facade;
+                var host = facade.Session.Host;
+                facade.BountyAndSupply.AddSaltSilver(30);
+                Assert.IsTrue(manager.TryAutoSave(boot, out _, out string error), error);
+                Assert.IsTrue(manager.TrySaveSlot(boot, manual, out _, out error), error);
+                Assert.IsTrue(storage.TryRead(autoKey, out string originalAuto));
+                Assert.IsTrue(storage.TryRead(manualKey, out string originalManual));
+
+                RpgMapLandmarkMarker danger = default;
+                bool found = false;
+                foreach (RpgMapLandmarkMarker marker in host.Layout.Markers)
+                {
+                    if (marker.Category == RpgMapMarkerCategory.DangerZone)
+                    {
+                        danger = marker;
+                        found = true;
+                        break;
+                    }
+                }
+                Assert.IsTrue(found);
+                Assert.IsTrue(host.Bridge.TryTriggerDangerZoneEncounter(
+                    danger.Id, new Vector2(danger.Tile.x + 0.5f, danger.Tile.y + 0.5f)));
+                facade.BountyAndSupply.AddSaltSilver(10);
+                Assert.IsFalse(manager.TryAutoSave(boot, out _, out error));
+                Assert.That(error, Does.Contain("遭遇战进行中"));
+                Assert.IsFalse(manager.TrySaveSlot(boot, manual, out _, out error));
+                Assert.IsFalse(manager.TrySaveSlot(boot, empty, out _, out error));
+                Assert.IsTrue(storage.TryRead(autoKey, out string unchangedAuto));
+                Assert.IsTrue(storage.TryRead(manualKey, out string unchangedManual));
+                Assert.AreEqual(originalAuto, unchangedAuto);
+                Assert.AreEqual(originalManual, unchangedManual);
+                Assert.IsFalse(manager.InspectSlot(empty).IsOccupied);
+                Assert.IsTrue(host.Bridge.IsInDangerEncounter);
+                Assert.AreEqual(40, facade.BountyAndSupply.SaltSilverBalance);
+
+                Assert.IsTrue(host.Bridge.TryResolveDangerZoneVictory(danger.Id, true, out _));
+                Assert.IsTrue(manager.TryAutoSave(boot, out var saved, out error), error);
+                Assert.AreEqual(facade.BountyAndSupply.SaltSilverBalance, saved.SaltSilverBalance);
+                Assert.IsTrue(manager.TrySaveSlot(boot, manual, out _, out error), error);
+                Assert.IsTrue(storage.TryRead(autoKey, out string updatedAuto));
+                Assert.AreNotEqual(originalAuto, updatedAuto);
+            }
+        }
+
+        [Test]
         public void AllSaveSlots_UseSafeWorldKeysAndChineseLabels()
         {
             Assert.AreEqual(4, RpgWorld500xSaveSlotManager.AllSlots.Count);
