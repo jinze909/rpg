@@ -185,6 +185,10 @@ namespace Rpg.Soundwell
 
         public static IReadOnlyList<RpgWorld500xSaveSlotId> AllSlots => OrderedSlots;
 
+        private static bool IsKnownSlot(RpgWorld500xSaveSlotId slotId) =>
+            slotId == RpgWorld500xSaveSlotId.AutoSave || slotId == RpgWorld500xSaveSlotId.Slot1 ||
+            slotId == RpgWorld500xSaveSlotId.Slot2 || slotId == RpgWorld500xSaveSlotId.Slot3;
+
         public static string GetStorageKey(RpgWorld500xSaveSlotId slotId)
         {
             switch (slotId)
@@ -192,8 +196,8 @@ namespace Rpg.Soundwell
                 case RpgWorld500xSaveSlotId.Slot1: return StorageKeyPrefix + "slot_1";
                 case RpgWorld500xSaveSlotId.Slot2: return StorageKeyPrefix + "slot_2";
                 case RpgWorld500xSaveSlotId.Slot3: return StorageKeyPrefix + "slot_3";
-                case RpgWorld500xSaveSlotId.AutoSave:
-                default: return StorageKeyPrefix + "autosave";
+                case RpgWorld500xSaveSlotId.AutoSave: return StorageKeyPrefix + "autosave";
+                default: throw new ArgumentOutOfRangeException(nameof(slotId), slotId, "Unknown save slot.");
             }
         }
 
@@ -204,8 +208,8 @@ namespace Rpg.Soundwell
                 case RpgWorld500xSaveSlotId.Slot1: return "远征存档一";
                 case RpgWorld500xSaveSlotId.Slot2: return "远征存档二";
                 case RpgWorld500xSaveSlotId.Slot3: return "远征存档三";
-                case RpgWorld500xSaveSlotId.AutoSave:
-                default: return "自动存档";
+                case RpgWorld500xSaveSlotId.AutoSave: return "自动存档";
+                default: return "无效档位";
             }
         }
 
@@ -218,6 +222,12 @@ namespace Rpg.Soundwell
         {
             summary = BuildEmptySummary(slotId);
             error = string.Empty;
+
+            if (!IsKnownSlot(slotId))
+            {
+                error = "Unknown save slot.";
+                return false;
+            }
 
             if (bootstrapper == null || bootstrapper.IsDisposed)
             {
@@ -267,6 +277,12 @@ namespace Rpg.Soundwell
             summary = BuildEmptySummary(slotId);
             error = string.Empty;
 
+            if (!IsKnownSlot(slotId))
+            {
+                error = "Unknown save slot.";
+                return false;
+            }
+
             if (bootstrapper == null || bootstrapper.IsDisposed)
             {
                 error = "Bootstrapper is null or disposed.";
@@ -296,6 +312,12 @@ namespace Rpg.Soundwell
             out string error)
         {
             error = string.Empty;
+            if (!IsKnownSlot(sourceSlotId) || !IsKnownSlot(targetSlotId))
+            {
+                error = "Unknown save slot.";
+                return false;
+            }
+
             if (sourceSlotId == targetSlotId)
             {
                 error = "Source and target save slots must differ.";
@@ -314,6 +336,11 @@ namespace Rpg.Soundwell
 
         public bool DeleteSlot(RpgWorld500xSaveSlotId slotId)
         {
+            if (!IsKnownSlot(slotId))
+            {
+                return false;
+            }
+
             string key = GetStorageKey(slotId);
             if (!_storage.TryRead(key, out _))
             {
@@ -382,6 +409,12 @@ namespace Rpg.Soundwell
             snapshot = null;
             occupied = false;
             error = string.Empty;
+
+            if (!IsKnownSlot(slotId))
+            {
+                error = "Unknown save slot.";
+                return false;
+            }
 
             if (!_storage.TryRead(GetStorageKey(slotId), out string rawPayload) ||
                 string.IsNullOrWhiteSpace(rawPayload))

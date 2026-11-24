@@ -96,6 +96,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InvalidSlotId_CannotReadOverwriteCopyOrDeleteAutoSave()
+        {
+            var storage = new RpgWorld500xInMemorySaveSlotStorage();
+            var manager = new RpgWorld500xSaveSlotManager(storage);
+            var invalid = (RpgWorld500xSaveSlotId)255;
+            string autoKey = RpgWorld500xSaveSlotManager.GetStorageKey(RpgWorld500xSaveSlotId.AutoSave);
+
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(95);
+                Assert.IsTrue(manager.TryAutoSave(boot, out _, out string err), err);
+                Assert.IsTrue(storage.TryRead(autoKey, out string original));
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(50);
+                Assert.IsTrue(manager.TrySaveSlot(boot, RpgWorld500xSaveSlotId.Slot1, out _, out err), err);
+
+                Assert.Throws<ArgumentOutOfRangeException>(() => RpgWorld500xSaveSlotManager.GetStorageKey(invalid));
+                Assert.IsFalse(manager.TrySaveSlot(boot, invalid, out _, out _));
+                Assert.IsFalse(manager.TryLoadSlot(boot, invalid, out _, out _));
+                Assert.AreEqual(145, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.IsFalse(manager.TryCopySlot(invalid, RpgWorld500xSaveSlotId.Slot2, out _));
+                Assert.IsFalse(manager.TryCopySlot(RpgWorld500xSaveSlotId.Slot1, invalid, out _));
+                Assert.IsFalse(manager.DeleteSlot(invalid));
+                Assert.IsFalse(manager.InspectSlot(invalid).IsOccupied);
+                Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot2).IsOccupied);
+                Assert.IsTrue(storage.TryRead(autoKey, out string after));
+                Assert.AreEqual(original, after);
+                Assert.IsTrue(manager.TryLoadSlot(boot, RpgWorld500xSaveSlotId.AutoSave, out _, out err), err);
+                Assert.AreEqual(95, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+            }
+        }
+
+        [Test]
         public void CorruptedOrTamperedSlot_IsIsolatedWithoutBreakingOtherSlots()
         {
             var storage = new RpgWorld500xInMemorySaveSlotStorage();
