@@ -122,7 +122,12 @@ namespace Rpg.Soundwell
             activityResult = RpgWorld500xInteractionResult.None;
             sessionOutcome = RpgWorldInteractOutcome.None;
 
-            if (IsDisposed)
+            // The quest journal is modal: neither nearby loot, shortcuts,
+            // story discoveries nor NPC actions may fire behind its UI.
+            // RpgWorld500xPlayableSession already blocks movement and its own
+            // interactions while the journal is visible; guard this higher-
+            // priority activity path as well.
+            if (IsDisposed || (_session.JournalPanel != null && _session.JournalPanel.IsVisible))
             {
                 return false;
             }

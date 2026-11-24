@@ -82,6 +82,59 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OpenJournalBlocksUnifiedWorldInteractionsUntilClosed()
+        {
+            var root = new GameObject("World500x journal-modal interaction test");
+            RpgWorld500xGrandRuntimeFacade facade = null;
+            try
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                var toasts = new List<string>();
+                facade = new RpgWorld500xGrandRuntimeFacade(
+                    root.transform,
+                    RpgWorldMapId.Soundwell,
+                    getInt: key => store.TryGetValue(key, out int value) ? value : 0,
+                    setInt: (key, value) => store[key] = value,
+                    onToast: (title, body) => toasts.Add(title + ":" + body),
+                    streamingRadiusChunks: 1,
+                    overrideTileSlices: new Sprite[] { null });
+
+                int storedFacts = store.Count;
+                int toastCount = toasts.Count;
+                int balanceBefore = facade.BountyAndSupply.SaltSilverBalance;
+                int interactionsBefore = facade.ActivityDirector.InteractionCount;
+
+                Assert.IsTrue(facade.Session.ToggleJournal());
+                Assert.IsTrue(facade.Session.JournalPanel.IsVisible);
+                Assert.IsFalse(facade.TryInteractUnified(100000f,
+                    out RpgWorld500xInteractionResult blockedActivity,
+                    out RpgWorldInteractOutcome blockedSession),
+                    "World interactions must not fire through an open journal.");
+                Assert.AreEqual(RpgWorld500xInteractionKind.None, blockedActivity.Kind);
+                Assert.AreEqual(RpgWorldInteractOutcome.None, blockedSession);
+                Assert.AreEqual(interactionsBefore, facade.ActivityDirector.InteractionCount);
+                Assert.AreEqual(balanceBefore, facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(storedFacts, store.Count);
+                Assert.AreEqual(toastCount, toasts.Count);
+
+                Assert.IsTrue(facade.Session.ToggleJournal());
+                Assert.IsFalse(facade.Session.JournalPanel.IsVisible);
+                Assert.IsTrue(facade.TryInteractUnified(100000f,
+                    out RpgWorld500xInteractionResult resumedActivity,
+                    out RpgWorldInteractOutcome resumedSession),
+                    "Closing the journal must restore nearby world interactions.");
+                Assert.IsTrue(resumedActivity.Succeeded);
+                Assert.AreEqual(RpgWorldInteractOutcome.None, resumedSession);
+                Assert.AreEqual(interactionsBefore + 1, facade.ActivityDirector.InteractionCount);
+            }
+            finally
+            {
+                facade?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RejectedOrSameMapSwitchKeepsLiveSubsystemsAndExplorationPlayable()
         {
             var root = new GameObject("World500x map-switch guard test");
