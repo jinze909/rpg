@@ -25,6 +25,28 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ClockAdvanceHandlesMultiDayStepsAndExtremeElapsedTimeWithoutOverflow()
+        {
+            var service = new RpgWorld500xWeatherAndTimeOfDayService(
+                initialMinutes: 1400f, initialDay: 3, gameMinutesPerRealSecond: 10f);
+            var multiDay = service.AdvanceRealSeconds(300f, RpgWorldMapId.Soundwell);
+            Assert.AreEqual(6, multiDay.DayCount);
+            Assert.AreEqual(80f, multiDay.TimeOfDayMinutes, 0.001f);
+
+            var extreme = service.AdvanceRealSeconds(float.MaxValue, RpgWorldMapId.Soundwell);
+            Assert.AreEqual(int.MaxValue, extreme.DayCount);
+            Assert.GreaterOrEqual(extreme.TimeOfDayMinutes, 0f);
+            Assert.Less(extreme.TimeOfDayMinutes, 1440f);
+            Assert.IsTrue(Enum.IsDefined(typeof(RpgWorld500xWeatherKind), extreme.Weather));
+            Assert.AreEqual(int.MaxValue, service.RestAtCampfire(RpgWorldMapId.Soundwell).DayCount);
+            Assert.AreEqual(int.MaxValue, service.AdvanceRealSeconds(1440f, RpgWorldMapId.Soundwell).DayCount);
+
+            var invalidRate = new RpgWorld500xWeatherAndTimeOfDayService(
+                initialMinutes: 480f, gameMinutesPerRealSecond: float.PositiveInfinity);
+            Assert.AreEqual(482f, invalidRate.AdvanceRealSeconds(1f, RpgWorldMapId.Soundwell).TimeOfDayMinutes);
+        }
+
+        [Test]
         public void AllFourMaps_ProduceRegionSpecificWeatherFlavorAndValidModifiers()
         {
             var service = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f, initialDay: 1);
