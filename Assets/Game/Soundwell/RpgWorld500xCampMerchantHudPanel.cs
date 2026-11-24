@@ -162,9 +162,8 @@ namespace Rpg.Soundwell
 
         public bool TryClickBuySupply(string itemId)
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || string.IsNullOrEmpty(itemId) ||
-                !_buyButtons.TryGetValue(itemId, out Button btn) ||
-                btn == null || !btn.interactable)
+            if (string.IsNullOrEmpty(itemId) ||
+                !_buyButtons.TryGetValue(itemId, out Button btn) || !CanInvoke(btn))
             {
                 return false;
             }
@@ -175,13 +174,19 @@ namespace Rpg.Soundwell
 
         public bool TryClickClaimBounties()
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || _claimBountiesButton == null || !_claimBountiesButton.interactable)
+            if (!CanInvoke(_claimBountiesButton))
             {
                 return false;
             }
 
             _claimBountiesButton.onClick.Invoke();
             return true;
+        }
+
+        private bool CanInvoke(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
         }
 
         public void Refresh()
@@ -476,8 +481,7 @@ namespace Rpg.Soundwell
                 {
                     // Unity destruction is deferred in Play Mode; a retained event
                     // must not act on a hidden panel or a retired/disabled row.
-                    if (IsVisible && !_bootstrapper.IsDisposed && btn != null &&
-                        btn.isActiveAndEnabled && btn.IsInteractable())
+                    if (CanInvoke(btn))
                     {
                         onClick();
                     }

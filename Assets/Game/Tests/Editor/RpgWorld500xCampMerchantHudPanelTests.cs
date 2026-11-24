@@ -46,8 +46,23 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(100, store[wallet]);
                     current.interactable = false;
                     currentEvent.Invoke();
+                    Assert.IsFalse(panel.TryClickBuySupply("flare"));
                     Assert.AreEqual(100, store[wallet]);
                     current.interactable = true;
+
+                    current.enabled = false;
+                    currentEvent.Invoke();
+                    Assert.IsFalse(panel.TryClickBuySupply("flare"));
+                    Assert.AreEqual(100, store[wallet]);
+                    current.enabled = true;
+
+                    root.SetActive(false);
+                    currentEvent.Invoke();
+                    Assert.IsFalse(panel.TryClickBuySupply("flare"));
+                    Assert.AreEqual(100, store[wallet]);
+                    Assert.IsFalse(store.ContainsKey(owned));
+                    root.SetActive(true);
+
                     Assert.IsTrue(panel.TryClickBuySupply("flare"));
                     Assert.AreEqual(70, store[wallet]);
                     Assert.AreEqual(1, store[owned]);
@@ -127,6 +142,18 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.SetTab(RpgCampMerchantTab.Bounties));
                     Assert.AreEqual(4, panel.DisplayedRowCount);
                     Assert.IsFalse(panel.TryClickClaimBounties());
+                    var claimButton = root.transform.Find(
+                        "World500xCampMerchantHudPanel/MerchantModalBox/MerchantRows/ClaimAllBountiesRow/ActionButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    // A disabled or inactive control is not an accepted action,
+                    // even if its interactable flag is stale.
+                    claimButton.interactable = true;
+                    claimButton.enabled = false;
+                    Assert.IsFalse(panel.TryClickClaimBounties());
+                    claimButton.enabled = true;
+                    root.SetActive(false);
+                    Assert.IsFalse(panel.TryClickClaimBounties());
+                    root.SetActive(true);
 
                     Assert.IsTrue(panel.Hide());
                     Assert.IsFalse(panel.IsVisible);
