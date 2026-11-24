@@ -13,6 +13,7 @@ namespace Rpg.Tests.Editor
             Assert.IsTrue(report.IsHealthy, report.FormattedReport);
             Assert.AreEqual(0, report.SpatialIssueCount);
             Assert.AreEqual(0, report.ContentAuditErrorCount);
+            Assert.AreEqual(0, report.MetaSystemAuditErrorCount);
             Assert.AreEqual(13667328L, report.TotalTiles);
             Assert.AreEqual(13347, report.TotalChunks);
             Assert.AreEqual(72, report.TotalLandmarks);
@@ -25,7 +26,11 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(12, report.TotalBounties);
             Assert.AreEqual(6, report.TotalCampSupplies);
             Assert.AreEqual(12, report.TotalThreatProfiles);
+            Assert.AreEqual(8, report.TotalRegionRoutes);
+            Assert.AreEqual(4, report.TotalSaveSlots);
+            Assert.AreEqual(8, report.TotalExpeditionMilestones);
             Assert.IsTrue(report.FormattedReport.Contains("Status: HEALTHY"));
+            Assert.IsTrue(report.FormattedReport.Contains("meta=0"));
         }
     }
 }
