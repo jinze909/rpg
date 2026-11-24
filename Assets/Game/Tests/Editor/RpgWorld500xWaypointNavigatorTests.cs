@@ -38,6 +38,32 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LandmarkGuidanceUsesPlayerFacingTitlesAndPreservesEntityIds()
+        {
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                RpgWorld500xMapLayout layout = RpgWorld500xMapLayout.Build(spec.MapId);
+                Assert.Greater(layout.Markers.Count, 0);
+                RpgMapLandmarkMarker target = layout.Markers[0];
+                Vector2 player = new Vector2(target.Tile.x + 0.5f, target.Tile.y + 0.5f);
+                var tracker = new RpgMapExplorationTracker(spec.MapId);
+
+                Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                    layout, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                    out RpgWorld500xWaypointGuidance nearest, tracker));
+                Assert.AreEqual(target.Id, nearest.EntityId);
+                Assert.AreEqual(target.TitleZh, nearest.TargetLabelZh);
+                Assert.IsTrue(nearest.HudReadoutZh.Contains(target.TitleZh));
+
+                var nearby = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                    layout, player, 10, tracker);
+                Assert.IsTrue(nearby.Exists(p => p.Category == RpgWorld500xWaypointCategory.UndiscoveredLandmark &&
+                    p.EntityId == target.Id && p.TargetLabelZh == target.TitleZh &&
+                    p.HudReadoutZh.Contains(target.TitleZh)));
+            }
+        }
+
+        [Test]
         public void TryFindNearestTarget_SkipsLootedCachesAndRanksTopNearbyPois()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);

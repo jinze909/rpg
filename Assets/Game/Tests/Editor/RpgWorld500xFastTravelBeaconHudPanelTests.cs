@@ -7,6 +7,67 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xFastTravelBeaconHudPanelTests
     {
         [Test]
+        public void FastTravelBeaconHudPanel_ExplainsEncounterLockAndRestoresWarpAfterVictory()
+        {
+            var root = new GameObject("BeaconEncounterFeedbackTestRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    var host = boot.Driver.Facade.Session.Host;
+                    Assert.IsTrue(host.Tracker.TryDiscoverMarker("rsh.salt-market"));
+                    Assert.IsTrue(panel.Show());
+                    const string buttonPath = "World500xFastTravelBeaconHudPanel/BeaconWarpModalBox/BeaconRows/BeaconRow_rsh.salt-market/WarpButton";
+                    var staleButton = root.transform.Find(buttonPath).GetComponent<UnityEngine.UI.Button>();
+                    Assert.IsTrue(staleButton.interactable);
+
+                    RpgMapLandmarkMarker danger = default;
+                    bool found = false;
+                    foreach (RpgMapLandmarkMarker marker in host.Layout.Markers)
+                    {
+                        if (marker.Category == RpgMapMarkerCategory.DangerZone)
+                        {
+                            danger = marker;
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    Assert.IsTrue(found);
+                    Assert.IsTrue(host.Bridge.TryTriggerDangerZoneEncounter(
+                        danger.Id, new Vector2(danger.Tile.x + 0.5f, danger.Tile.y + 0.5f)));
+                    Vector2 position = host.PlayerPosition;
+
+                    // Exercise the actual click callback before the panel has refreshed.
+                    staleButton.onClick.Invoke();
+                    Assert.AreEqual(position, host.PlayerPosition);
+                    Assert.IsTrue(host.Bridge.IsInDangerEncounter);
+                    Assert.IsTrue(panel.StatusText.Contains("遭遇战进行中"));
+                    var blockedButton = root.transform.Find(buttonPath).GetComponent<UnityEngine.UI.Button>();
+                    Assert.IsFalse(blockedButton.interactable);
+                    Assert.AreEqual("战斗中", blockedButton.GetComponentInChildren<UnityEngine.UI.Text>().text);
+                    Assert.IsFalse(panel.TryClickWarp("rsh.salt-market"));
+                    Assert.GreaterOrEqual(panel.UnlockedBeaconCount, 1);
+
+                    Assert.IsTrue(host.Bridge.TryResolveDangerZoneVictory(danger.Id, true, out _));
+                    panel.Refresh();
+                    Assert.IsFalse(panel.StatusText.Contains("遭遇战进行中"));
+                    Assert.IsTrue(root.transform.Find(buttonPath).GetComponent<UnityEngine.UI.Button>().interactable);
+                    Assert.IsTrue(panel.TryClickWarp("rsh.salt-market"));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), host.CurrentTile);
+                    Assert.IsTrue(panel.StatusText.Contains("已传送至"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_WarpsToDiscoveredBeaconRejectsLockedAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xFastTravelBeaconHudPanelTestRoot");

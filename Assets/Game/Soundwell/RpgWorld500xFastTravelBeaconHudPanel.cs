@@ -13,6 +13,7 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class RpgWorld500xFastTravelBeaconHudPanel : IDisposable
     {
+        private const string EncounterBlockedStatus = "遭遇战进行中，结束后可传送";
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly GameObject _rootObject;
         private readonly Transform _rowContainer;
@@ -116,8 +117,18 @@ namespace Rpg.Soundwell
 
         public bool TryClickWarp(string markerId)
         {
-            if (IsDisposed || string.IsNullOrEmpty(markerId) ||
-                !_warpButtons.TryGetValue(markerId, out Button btn) ||
+            if (IsDisposed || _bootstrapper.IsDisposed || string.IsNullOrEmpty(markerId))
+            {
+                return false;
+            }
+
+            if (_bootstrapper.Driver.Facade.Session.Host.Bridge.IsInDangerEncounter)
+            {
+                Refresh();
+                return false;
+            }
+
+            if (!_warpButtons.TryGetValue(markerId, out Button btn) ||
                 btn == null || !btn.interactable)
             {
                 return false;
@@ -142,6 +153,15 @@ namespace Rpg.Soundwell
             RpgWorldMapId mapId = facade.CurrentMapId;
             Vector2 playerPos = host.PlayerPosition;
             RpgMapExplorationTracker tracker = host.Tracker;
+            bool encounterActive = host.Bridge.IsInDangerEncounter;
+            if (encounterActive)
+            {
+                _statusText.text = EncounterBlockedStatus;
+            }
+            else if (_statusText.text == EncounterBlockedStatus)
+            {
+                _statusText.text = string.Empty;
+            }
 
             IReadOnlyList<RpgMapLandmarkMarker> markers = RpgWorldLandmarkCatalog.GetMarkers(mapId);
             var beacons = new List<RpgMapLandmarkMarker>();
@@ -178,7 +198,7 @@ namespace Rpg.Soundwell
                 string stateTag = unlocked ? "[已点亮] " : "[未探索] ";
                 string label = stateTag + beacon.TitleZh + "（坐标 " + beacon.Tile.x + "," + beacon.Tile.y +
                                "｜直线 " + distTiles + " 格" + dangerNote + "）";
-                string btnLabel = unlocked ? "立即传送" : "未解锁";
+                string btnLabel = !unlocked ? "未解锁" : (encounterActive ? "战斗中" : "立即传送");
 
                 string capturedId = beacon.Id;
                 string capturedTitle = beacon.TitleZh;
@@ -189,7 +209,7 @@ namespace Rpg.Soundwell
                     spacing,
                     label,
                     btnLabel,
-                    unlocked,
+                    unlocked && !encounterActive,
                     () => HandleWarpClicked(capturedId, capturedTitle));
 
                 _warpButtons[beacon.Id] = btn;
@@ -205,6 +225,13 @@ namespace Rpg.Soundwell
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
             RpgWorld500xExplorationHost host = facade.Session.Host;
+
+            // A previously rendered button may still receive a click before the next refresh.
+            if (host.Bridge.IsInDangerEncounter)
+            {
+                Refresh();
+                return;
+            }
 
             if (host.TryFastTravelToBeacon(markerId, out RpgFastTravelResult _))
             {
