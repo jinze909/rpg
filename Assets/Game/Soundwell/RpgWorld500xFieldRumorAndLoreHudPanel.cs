@@ -149,13 +149,13 @@ namespace Rpg.Soundwell
 
         public bool TrySelectTab(RpgWorld500xRumorLoreTab tab)
         {
-            if (IsDisposed)
+            if (!Enum.IsDefined(typeof(RpgWorld500xRumorLoreTab), tab))
             {
                 return false;
             }
 
             Button btn = tab == RpgWorld500xRumorLoreTab.FieldRumors ? _rumorsTabButton : _loreTabButton;
-            if (btn == null)
+            if (!CanInvoke(btn))
             {
                 return false;
             }
@@ -166,9 +166,9 @@ namespace Rpg.Soundwell
 
         public bool TryClickTrackRumorTarget(string npcId)
         {
-            if (IsDisposed || string.IsNullOrEmpty(npcId) ||
+            if (string.IsNullOrEmpty(npcId) ||
                 !_trackButtons.TryGetValue(npcId, out Button btn) ||
-                btn == null || !btn.interactable)
+                !CanInvoke(btn))
             {
                 return false;
             }
@@ -405,6 +405,12 @@ namespace Rpg.Soundwell
             _spawnedRows.Add(rowGo);
         }
 
+        private bool CanInvoke(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
+        }
+
         private void ClearRows()
         {
             _trackButtons.Clear();
@@ -469,7 +475,7 @@ namespace Rpg.Soundwell
             return text;
         }
 
-        private static Button CreateActionButton(
+        private Button CreateActionButton(
             Transform parent,
             string name,
             Vector2 anchorMin,
@@ -494,7 +500,12 @@ namespace Rpg.Soundwell
             btn.interactable = interactable;
             if (onClick != null)
             {
-                btn.onClick.AddListener(() => onClick());
+                btn.onClick.AddListener(() =>
+                {
+                    // Ignore input from hidden tabs, unheard rumors and retired rows.
+                    if (CanInvoke(btn))
+                        onClick();
+                });
             }
 
             Text txt = CreateText(
