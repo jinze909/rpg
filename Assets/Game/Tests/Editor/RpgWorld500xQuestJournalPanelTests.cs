@@ -71,6 +71,68 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void JournalRejectsHiddenDisabledRetiredAndDisposedButtonEvents()
+        {
+            var tracker = new RpgMapExplorationTracker(RpgWorldMapId.MineCamp);
+            int tracked = 0;
+            int travelled = 0;
+            panel = new RpgWorld500xQuestJournalPanel(root.transform, tracker,
+                onFastTravelRequested: (id, tile) => travelled++,
+                onTrackedQuestChanged: id => tracked++);
+
+            const string questId = "q.mc.inspect-main-pump";
+            const string markerId = "mc.main-pump-hall";
+            Button RowButton(string name) => panel.RootObject.transform
+                .Find("JournalPanel/Rows/Content/" + name + "/ActionButton").GetComponent<Button>();
+
+            Assert.IsFalse(panel.TryClickTrackQuest(questId));
+            Assert.IsTrue(panel.Show());
+            var retiredTrack = RowButton("QuestRow_" + questId).onClick;
+            var tabEvent = panel.RootObject.transform.Find("JournalPanel/TabBar/Tab_FastTravelBeacons")
+                .GetComponent<Button>().onClick;
+            panel.Hide();
+            retiredTrack.Invoke();
+            tabEvent.Invoke();
+            Assert.IsFalse(panel.TryClickTrackQuest(questId));
+            Assert.AreEqual(RpgQuestJournalTab.ActiveQuests, panel.CurrentTab);
+            Assert.AreEqual(0, tracked);
+
+            panel.Show();
+            retiredTrack.Invoke();
+            var currentTrack = RowButton("QuestRow_" + questId);
+            currentTrack.interactable = false;
+            currentTrack.onClick.Invoke();
+            Assert.IsFalse(panel.TryClickTrackQuest(questId));
+            Assert.AreEqual(0, tracked);
+            currentTrack.interactable = true;
+            Assert.IsTrue(panel.TryClickTrackQuest(questId));
+            Assert.AreEqual(1, tracked);
+            Assert.AreEqual(questId, tracker.TrackedQuestId);
+
+            Assert.IsTrue(tracker.TryAdvanceQuest(questId, 2));
+            Assert.IsTrue(panel.SetTab(RpgQuestJournalTab.FastTravelBeacons));
+            var retiredTravel = RowButton("BeaconRow_" + markerId).onClick;
+            panel.Refresh();
+            retiredTravel.Invoke();
+            Assert.AreEqual(0, travelled);
+            Assert.IsTrue(panel.TryClickFastTravel(markerId));
+            Assert.AreEqual(1, travelled);
+
+            var hiddenTravel = RowButton("BeaconRow_" + markerId).onClick;
+            panel.Hide();
+            hiddenTravel.Invoke();
+            Assert.IsFalse(panel.TryClickFastTravel(markerId));
+            Assert.AreEqual(1, travelled);
+
+            panel.Show();
+            var disposedTravel = RowButton("BeaconRow_" + markerId).onClick;
+            panel.Dispose();
+            disposedTravel.Invoke();
+            tabEvent.Invoke();
+            Assert.AreEqual(1, travelled);
+        }
+
+        [Test]
         public void JournalFiltersActiveCompletedQuestsTracksObjectivesAndGatesFastTravelButtons()
         {
             var tracker = new RpgMapExplorationTracker(RpgWorldMapId.MineCamp);

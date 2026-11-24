@@ -176,7 +176,7 @@ namespace Rpg.Soundwell
                     line = "[" + s.SlotDisplayNameZh + "] " + s.MapDisplayNameZh +
                            "｜第 " + s.DayCount + " 日 " + s.FormattedClock +
                            "｜盐银 " + s.SaltSilverBalance + custom +
-                           "\n记录时间：" + s.SavedAtUtcIso + "（世界标记 " + s.WorldFlagCount + " 项）";
+                           "\n记录时间：" + RpgWorld500xSaveSlotManager.FormatSavedAtUtcForDisplay(s.SavedAtUtcIso) + "（世界标记 " + s.WorldFlagCount + " 项）";
                 }
 
                 RpgWorld500xSaveSlotId capturedId = s.SlotId;

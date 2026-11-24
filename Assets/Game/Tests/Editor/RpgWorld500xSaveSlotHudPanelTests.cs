@@ -87,6 +87,35 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SaveSlotHudPanel_KeepsLegacyWidthForPreciseCheckpointTimestamp()
+        {
+            var root = new GameObject("SaveSlotTimestampRoot");
+            try
+            {
+                DateTime clock = new DateTime(2026, 11, 24, 8, 0, 0, DateTimeKind.Utc).AddMilliseconds(100);
+                var manager = new RpgWorld500xSaveSlotManager(new RpgWorld500xInMemorySaveSlotStorage(), () => clock);
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xSaveSlotHudPanel(root.transform, boot, manager))
+                {
+                    Assert.IsTrue(panel.Show());
+                    Assert.IsTrue(panel.TryClickSave(RpgWorld500xSaveSlotId.Slot1));
+                    var saved = manager.InspectSlot(RpgWorld500xSaveSlotId.Slot1);
+                    Assert.AreEqual("2026-11-24T08:00:00.1000000Z", saved.SavedAtUtcIso);
+                    const string path = "World500xSaveSlotHudPanel/SaveSlotModalBox/SaveSlotRows/SaveSlotRow_Slot1/Label";
+                    string label = root.transform.Find(path).GetComponent<UnityEngine.UI.Text>().text;
+                    Assert.That(label, Does.Contain("记录时间：2026-11-24T08:00:00Z（世界标记 "));
+                    Assert.That(label, Does.Not.Contain(".1000000"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void SaveSlotHudPanel_SavesLoadsDeletesIsolatesCorruptAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xSaveSlotHudPanelTestRoot");
