@@ -7,6 +7,51 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xSceneBootstrapperTests
     {
         [Test]
+        public void SameMapLoadRollsBackDiscoveryAndEncounterState()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var host = boot.Driver.Facade.Session.Host;
+                RpgMapLandmarkMarker danger = default;
+                bool found = false;
+                foreach (RpgMapLandmarkMarker marker in host.Layout.Markers)
+                {
+                    if (marker.Category == RpgMapMarkerCategory.DangerZone &&
+                        !host.Tracker.IsMarkerDiscovered(marker.Id) &&
+                        Vector2.Distance(host.PlayerPosition, marker.Tile) >
+                            Mathf.Max(4f, marker.DiscoveryRadiusTiles) + 2f)
+                    {
+                        danger = marker;
+                        found = true;
+                        break;
+                    }
+                }
+
+                Assert.IsTrue(found);
+                string saved = boot.ExportSaveJson();
+                Vector2 encounterPosition = new Vector2(danger.Tile.x + 0.5f, danger.Tile.y + 0.5f);
+                Assert.IsTrue(host.Bridge.TryTriggerDangerZoneEncounter(danger.Id, encounterPosition));
+                Assert.IsTrue(host.Bridge.TryResolveDangerZoneVictory(danger.Id, true, out _));
+                Assert.IsTrue(host.Tracker.IsMarkerDiscovered(danger.Id));
+                Assert.AreEqual(1, host.Bridge.ClearedDangerZoneCount);
+
+                Assert.IsTrue(boot.TryImportSaveJson(saved, out string err), err);
+                Assert.AreSame(host, boot.Driver.Facade.Session.Host);
+                Assert.IsFalse(host.Tracker.IsMarkerDiscovered(danger.Id));
+                Assert.AreEqual(0, host.Bridge.ClearedDangerZoneCount);
+                Assert.IsTrue(host.Bridge.TryTriggerDangerZoneEncounter(danger.Id, encounterPosition));
+
+                // Loading while a fight is in flight must not retain its transient lock.
+                Assert.IsTrue(boot.TryImportSaveJson(saved, out err), err);
+                Assert.IsFalse(host.Bridge.IsInDangerEncounter);
+                Assert.IsFalse(host.Tracker.IsMarkerDiscovered(danger.Id));
+                Assert.IsTrue(host.Bridge.TryTriggerDangerZoneEncounter(danger.Id, encounterPosition));
+            }
+        }
+
+        [Test]
         public void LoadRestoresExactPlayerPositionAcrossMapsAndWithinCurrentMap()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(
