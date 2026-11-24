@@ -275,6 +275,8 @@ namespace Rpg.Soundwell
 
         public void LoadState()
         {
+            // An in-flight encounter is transient, not part of the saved world flags.
+            activeEncounterMarkerId = string.Empty;
             tracker.TryLoad(getInt);
             clearedDangerZones.Clear();
             rewardedQuests.Clear();
