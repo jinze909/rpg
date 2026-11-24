@@ -455,12 +455,20 @@ namespace Rpg.Soundwell
                 npc = n;
                 bool hasTarget = !string.IsNullOrEmpty(n.RumorTargetMarkerId);
                 bool alreadyKnown = hasTarget && tracker.IsMarkerDiscovered(n.RumorTargetMarkerId);
-                if (hasTarget && !alreadyKnown)
+                bool heard = getInt(n.RumorMakinomKey) == 1;
+                // Hearing a rumor and visiting its landmark are independent
+                // completion goals. First conversation must count in either order.
+                if (hasTarget && (!heard || !alreadyKnown))
                 {
                     dialogueLineZh = n.RumorHintZh;
-                    revealedMarkerId = n.RumorTargetMarkerId;
-                    setInt(n.RumorMakinomKey, 1);
-                    tracker.TrySetTrackedMarker(n.RumorTargetMarkerId);
+                    if (!heard)
+                        setInt(n.RumorMakinomKey, 1);
+                    // Do not replace the player's waypoint with an already visited landmark.
+                    if (!alreadyKnown)
+                    {
+                        revealedMarkerId = n.RumorTargetMarkerId;
+                        tracker.TrySetTrackedMarker(n.RumorTargetMarkerId);
+                    }
                 }
                 else
                 {
