@@ -21,7 +21,7 @@ namespace Rpg.Tests.Editor
                     initialMapId: RpgWorldMapId.Soundwell,
                     overrideTileSlices: new Sprite[] { null }))
                 using (var router = new RpgWorld500xMenuRouter(
-                    root.transform, boot, boot.CreateCampHavenService(), manager))
+                    root.transform, boot, new RpgWorld500xCampHavenService(), manager))
                 {
                     boot.Driver.Facade.BountyAndSupply.AddSaltSilver(30);
                     Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.WorldAtlas));
