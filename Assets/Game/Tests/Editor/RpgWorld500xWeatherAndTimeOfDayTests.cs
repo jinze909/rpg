@@ -104,11 +104,31 @@ namespace Rpg.Tests.Editor
             Assert.Greater(foggyNight.EncounterTensionMultiplier, clearDay.EncounterTensionMultiplier);
         }
 
-        [TestCase(1439.999f)]
-        [TestCase(479.999f)]
-        [TestCase(1019.999f)]
-        [TestCase(1199.999f)]
-        public void PersistenceRoundTrip_PreservesClockAndPhaseImmediatelyBeforeBoundaries(float minutes)
+        [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeMidnight()
+        {
+            AssertClockRoundTripBeforeBoundary(1439.999f);
+        }
+
+        [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeDay()
+        {
+            AssertClockRoundTripBeforeBoundary(479.999f);
+        }
+
+        [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeDusk()
+        {
+            AssertClockRoundTripBeforeBoundary(1019.999f);
+        }
+
+        [Test]
+        public void PersistenceRoundTrip_PreservesClockImmediatelyBeforeNight()
+        {
+            AssertClockRoundTripBeforeBoundary(1199.999f);
+        }
+
+        private static void AssertClockRoundTripBeforeBoundary(float minutes)
         {
             var source = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: minutes, initialDay: 5);
             var restored = new RpgWorld500xWeatherAndTimeOfDayService();
