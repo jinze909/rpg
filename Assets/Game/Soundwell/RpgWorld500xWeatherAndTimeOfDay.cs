@@ -99,7 +99,8 @@ namespace Rpg.Soundwell
         {
             _dayCount = Math.Max(1, initialDay);
             _timeOfDayMinutes = NormalizeMinutes(initialMinutes);
-            _gameMinutesPerRealSecond = gameMinutesPerRealSecond > 0f
+            _gameMinutesPerRealSecond = gameMinutesPerRealSecond > 0f &&
+                !float.IsInfinity(gameMinutesPerRealSecond)
                 ? gameMinutesPerRealSecond
                 : DefaultGameMinutesPerRealSecond;
 
@@ -189,15 +190,19 @@ namespace Rpg.Soundwell
         {
             if (deltaSeconds > 0f && !float.IsNaN(deltaSeconds) && !float.IsInfinity(deltaSeconds))
             {
-                float addedMinutes = deltaSeconds * _gameMinutesPerRealSecond;
-                float totalMinutes = _timeOfDayMinutes + addedMinutes;
-                while (totalMinutes >= MinutesPerDay)
+                // Calculate elapsed days directly: large finite time steps must
+                // not hang in a per-day loop or overflow the persisted day count.
+                double totalMinutes = _timeOfDayMinutes + (double)deltaSeconds * _gameMinutesPerRealSecond;
+                double elapsedDays = Math.Floor(totalMinutes / MinutesPerDay);
+                _dayCount += (int)Math.Min(elapsedDays, int.MaxValue - _dayCount);
+                _timeOfDayMinutes = (float)(totalMinutes % MinutesPerDay);
+                // Rounding the remainder back to float may land exactly at midnight.
+                if (_timeOfDayMinutes >= MinutesPerDay)
                 {
-                    totalMinutes -= MinutesPerDay;
-                    _dayCount++;
+                    _timeOfDayMinutes = 0f;
+                    if (_dayCount < int.MaxValue)
+                        _dayCount++;
                 }
-
-                _timeOfDayMinutes = totalMinutes;
             }
 
             int slot = ComputeWeatherSlot(_dayCount, _timeOfDayMinutes);
@@ -212,7 +217,7 @@ namespace Rpg.Soundwell
 
         public RpgWorld500xAtmosphereSnapshot RestAtCampfire(RpgWorldMapId activeMap)
         {
-            if (_timeOfDayMinutes >= DefaultDawnMinutes)
+            if (_timeOfDayMinutes >= DefaultDawnMinutes && _dayCount < int.MaxValue)
             {
                 _dayCount++;
             }
@@ -513,7 +518,7 @@ namespace Rpg.Soundwell
         private static int ComputeWeatherSlot(int dayCount, float minutes)
         {
             int slotInDay = Mathf.FloorToInt(NormalizeMinutes(minutes) / WeatherSlotMinutes);
-            return (dayCount * 8) + slotInDay;
+            return unchecked((dayCount * 8) + slotInDay);
         }
 
         private static RpgWorld500xWeatherKind PickDeterministicWeather(RpgWorldMapId mapId, int dayCount, int slot)
@@ -522,7 +527,7 @@ namespace Rpg.Soundwell
             unchecked
             {
                 int hash = ((int)mapId + 1) * 73856093 ^ (dayCount * 19349663) ^ (slot * 83492791);
-                int index = Math.Abs(hash) % allowed.Length;
+                int index = (int)(Math.Abs((long)hash) % allowed.Length);
                 return allowed[index];
             }
         }
