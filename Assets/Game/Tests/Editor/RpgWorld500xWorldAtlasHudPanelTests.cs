@@ -203,6 +203,68 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void WorldAtlasHudPanel_RejectsHiddenDisabledRetiredAndDisposedActions()
+        {
+            var root = new GameObject("WorldAtlasActionLifetimeRoot");
+            try
+            {
+                var manager = new RpgWorld500xSaveSlotManager(new RpgWorld500xInMemorySaveSlotStorage());
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xWorldAtlasHudPanel(root.transform, boot, saveSlotManager: manager))
+                {
+                    const string travelPath = "World500xAtlasHudPanel/AtlasModalBox/RegionRows/RegionRow_RedSaltHarbor/TravelButton";
+                    const string restPath = "World500xAtlasHudPanel/AtlasModalBox/CampRestButton";
+                    UnityEngine.UI.Button ButtonAt(string path) => root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    var facade = boot.Driver.Facade;
+                    float time = facade.Atmosphere.TimeOfDayMinutes;
+                    int day = facade.Atmosphere.DayCount;
+
+                    Assert.IsFalse(panel.TryClickCampRest());
+                    Assert.IsFalse(panel.TryClickTravelTo(RpgWorldMapId.RedSaltHarbor));
+                    panel.Show();
+                    var retiredTravel = ButtonAt(travelPath).onClick;
+                    var rest = ButtonAt(restPath);
+                    panel.Hide();
+                    retiredTravel.Invoke();
+                    rest.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickCampRest());
+                    Assert.IsFalse(panel.TryClickTravelTo(RpgWorldMapId.RedSaltHarbor));
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, facade.CurrentMapId);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                    Assert.AreEqual(time, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied);
+
+                    panel.Show();
+                    retiredTravel.Invoke();
+                    var travel = ButtonAt(travelPath);
+                    travel.interactable = false;
+                    travel.onClick.Invoke();
+                    rest.interactable = false;
+                    rest.onClick.Invoke();
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, facade.CurrentMapId);
+                    Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied);
+
+                    panel.Refresh();
+                    Assert.IsTrue(panel.TryClickCampRest());
+                    Assert.IsTrue(manager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied);
+                    Assert.IsTrue(panel.TryClickTravelTo(RpgWorldMapId.RedSaltHarbor));
+                    Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, facade.CurrentMapId);
+                    var disposedRest = rest.onClick;
+                    string saved = panel.LastCampSaveJson;
+                    panel.Dispose();
+                    disposedRest.Invoke();
+                    Assert.AreEqual(saved, panel.LastCampSaveJson);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WorldAtlasHudPanel_TravelsConnectedRegionsRestsAtCampAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xAtlasHudPanelTestRoot");
