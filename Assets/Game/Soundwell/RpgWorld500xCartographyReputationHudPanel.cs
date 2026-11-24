@@ -136,7 +136,7 @@ namespace Rpg.Soundwell
 
         public bool TrySelectRegion(RpgWorldMapId mapId)
         {
-            if (IsDisposed || !_regionTabButtons.TryGetValue(mapId, out Button btn) || btn == null)
+            if (!_regionTabButtons.TryGetValue(mapId, out Button btn) || !CanSelectRegion(btn))
             {
                 return false;
             }
@@ -255,6 +255,12 @@ namespace Rpg.Soundwell
             DestroySafe(_rootObject);
         }
 
+        private bool CanSelectRegion(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
+        }
+
         private void BuildRegionTabs()
         {
             IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
@@ -277,6 +283,9 @@ namespace Rpg.Soundwell
                 var btn = go.GetComponent<Button>();
                 btn.onClick.AddListener(() =>
                 {
+                    if (!CanSelectRegion(btn))
+                        return;
+
                     _selectedMapId = capturedId;
                     Refresh();
                 });
