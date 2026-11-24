@@ -235,6 +235,15 @@ namespace Rpg.Soundwell
                 return false;
             }
 
+            // In-flight encounters are deliberately transient and are not
+            // serialized. Never overwrite a usable checkpoint with an
+            // incomplete encounter state, including via the quick-save key.
+            if (bootstrapper.Driver.Facade.Session.Host.Bridge.IsInDangerEncounter)
+            {
+                error = "遭遇战进行中，结束后可存档";
+                return false;
+            }
+
             string snapshotJson = bootstrapper.ExportSaveJson();
             if (!RpgWorld500xSaveSnapshotSerializer.TryDeserialize(
                 snapshotJson, out RpgWorld500xSaveSnapshot verifiedSnapshot, out error))
