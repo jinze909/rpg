@@ -133,7 +133,9 @@ namespace Rpg.Soundwell
 
         public bool OpenModal(RpgWorld500xModalKind kind)
         {
-            if (IsDisposed)
+            // Reject stale or corrupted serialized modal IDs before closing
+            // the current panel; opening an unknown kind must be a no-op.
+            if (IsDisposed || !Enum.IsDefined(typeof(RpgWorld500xModalKind), kind))
             {
                 return false;
             }
