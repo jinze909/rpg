@@ -117,6 +117,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MenuRouter_DisposeClosesSceneOwnedJournalBeforeRestoringWorldInput()
+        {
+            var root = new GameObject("World500xJournalRouterDisposeRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                {
+                    var driver = boot.Driver;
+                    var journal = driver.Facade.Session.JournalPanel;
+                    using (var router = new RpgWorld500xMenuRouter(
+                        root.transform, boot, new RpgWorld500xCampHavenService()))
+                    {
+                        Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.QuestJournal));
+                        Assert.IsTrue(journal.IsVisible);
+                        Assert.IsFalse(driver.AutomaticFrameUpdates);
+                        router.Dispose();
+                        Assert.IsFalse(journal.IsVisible);
+                        Assert.IsFalse(journal.IsDisposed, "The scene still owns its journal.");
+                        Assert.IsTrue(driver.AutomaticFrameUpdates);
+                        Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
+                    }
+
+                    // A fresh router can reopen the same scene-owned journal.
+                    using (var next = new RpgWorld500xMenuRouter(
+                        root.transform, boot, new RpgWorld500xCampHavenService()))
+                    {
+                        Assert.IsTrue(next.OpenModal(RpgWorld500xModalKind.QuestJournal));
+                        Assert.IsTrue(journal.IsVisible);
+                    }
+                    Assert.IsFalse(journal.IsVisible);
+                    Assert.IsTrue(driver.AutomaticFrameUpdates);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void UndefinedModalId_DoesNotCloseActivePanelOrReportSuccess()
         {
             var root = new GameObject("World500xInvalidModalGuardTestRoot");

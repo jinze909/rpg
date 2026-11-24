@@ -271,6 +271,9 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            // The scene owns the quest journal; unlike the other panels it
+            // survives router disposal. Hide it before restoring world input.
+            CloseAll();
             _disposed = true;
             _atlasPanel?.Dispose();
             _merchantPanel?.Dispose();
