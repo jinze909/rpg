@@ -65,9 +65,19 @@ namespace Rpg.Tests.Editor
             Assert.That(totalZones, Is.EqualTo(12));
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void AllRegionalRumorsCountOnceInEitherDiscoveryOrderAndAdvanceNavigation(bool discoverFirst)
+        [Test]
+        public void AllRegionalRumorsCountOnceWhenLandmarkDiscoveredFirst()
+        {
+            AllRegionalRumorsCountOnceInEitherDiscoveryOrderAndAdvanceNavigation(true);
+        }
+
+        [Test]
+        public void AllRegionalRumorsCountOnceWhenConversationFirst()
+        {
+            AllRegionalRumorsCountOnceInEitherDiscoveryOrderAndAdvanceNavigation(false);
+        }
+
+        private void AllRegionalRumorsCountOnceInEitherDiscoveryOrderAndAdvanceNavigation(bool discoverFirst)
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
             int writes = 0;
