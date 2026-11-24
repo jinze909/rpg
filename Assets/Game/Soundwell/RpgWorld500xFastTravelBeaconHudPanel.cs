@@ -117,7 +117,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickWarp(string markerId)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed || string.IsNullOrEmpty(markerId))
+            if (!IsVisible || _bootstrapper.IsDisposed || string.IsNullOrEmpty(markerId))
             {
                 return false;
             }
@@ -129,7 +129,7 @@ namespace Rpg.Soundwell
             }
 
             if (!_warpButtons.TryGetValue(markerId, out Button btn) ||
-                btn == null || !btn.interactable)
+                !CanInvoke(btn))
             {
                 return false;
             }
@@ -216,9 +216,15 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool CanInvoke(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                   button.isActiveAndEnabled && button.interactable;
+        }
+
         private void HandleWarpClicked(string markerId, string markerTitleZh)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed)
+            if (!IsVisible || _bootstrapper.IsDisposed)
             {
                 return;
             }
@@ -366,7 +372,7 @@ namespace Rpg.Soundwell
             return text;
         }
 
-        private static Button CreateActionButton(
+        private Button CreateActionButton(
             Transform parent,
             string name,
             Vector2 anchorMin,
@@ -391,7 +397,13 @@ namespace Rpg.Soundwell
             btn.interactable = interactable;
             if (onClick != null)
             {
-                btn.onClick.AddListener(() => onClick());
+                btn.onClick.AddListener(() =>
+                {
+                    if (CanInvoke(btn))
+                    {
+                        onClick();
+                    }
+                });
             }
 
             Text txt = CreateText(
