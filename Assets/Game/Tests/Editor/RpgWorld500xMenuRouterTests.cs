@@ -29,6 +29,7 @@ namespace Rpg.Tests.Editor
                         warmupRouter.OpenModal(RpgWorld500xModalKind.CartographyReputation);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.SaveSlots);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.FieldRumorAndLore);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.ExpeditionMilestones);
                         warmupRouter.CloseAll();
                     }
                 }
@@ -65,7 +66,7 @@ namespace Rpg.Tests.Editor
                     router.StepFrameWithModalGuard(Vector2.right, 0.5f, sprinting: true, interactPressed: true);
                     Assert.AreEqual(posBefore, boot.Driver.Facade.Session.Host.PlayerPosition);
 
-                    // Switching across all remaining 6 panels enforces strict mutual exclusion.
+                    // Switching across all remaining 7 panels enforces strict mutual exclusion.
                     Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CampMerchant));
                     Assert.AreEqual(RpgWorld500xModalKind.CampMerchant, router.ActiveModal);
                     Assert.IsFalse(router.AtlasPanel.IsVisible);
@@ -96,8 +97,13 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(router.SaveSlotPanel.IsVisible);
                     Assert.IsTrue(router.RumorLorePanel.IsVisible);
 
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.ExpeditionMilestones));
+                    Assert.AreEqual(RpgWorld500xModalKind.ExpeditionMilestones, router.ActiveModal);
+                    Assert.IsFalse(router.RumorLorePanel.IsVisible);
+                    Assert.IsTrue(router.MilestonesPanel.IsVisible);
+
                     // Toggling active panel again closes all modals.
-                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.FieldRumorAndLore));
+                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.ExpeditionMilestones));
                     Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
                     Assert.IsFalse(router.HasAnyModalOpen);
                 }

@@ -13,15 +13,16 @@ namespace Rpg.Soundwell
         FastTravelBeacons = 5,
         CartographyReputation = 6,
         SaveSlots = 7,
-        FieldRumorAndLore = 8
+        FieldRumorAndLore = 8,
+        ExpeditionMilestones = 9
     }
 
     /// <summary>
-    /// Mutually-exclusive modal UI router uniting QuestJournal, WorldAtlas,
-    /// CampMerchant, Bestiary, FastTravelBeacons, CartographyReputation,
-    /// SaveSlots, and FieldRumorAndLore panels on top of RpgWorld500xSceneBootstrapper.
-    /// Guarantees at most one modal is visible at a time and suppresses
-    /// movement/world interaction while any modal is open.
+    /// Mutually-exclusive 9-panel modal UI router uniting QuestJournal, WorldAtlas,
+    /// CampMerchant, Bestiary, FastTravelBeacons, CartographyReputation, SaveSlots,
+    /// FieldRumorAndLore, and ExpeditionMilestones panels on top of
+    /// RpgWorld500xSceneBootstrapper. Guarantees at most one modal is visible at a
+    /// time and suppresses movement/world interaction while any modal is open.
     /// </summary>
     public sealed class RpgWorld500xMenuRouter : IDisposable
     {
@@ -33,6 +34,7 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xCartographyReputationHudPanel _cartographyPanel;
         private readonly RpgWorld500xSaveSlotHudPanel _saveSlotPanel;
         private readonly RpgWorld500xFieldRumorAndLoreHudPanel _rumorLorePanel;
+        private readonly RpgWorld500xExpeditionMilestonesHudPanel _milestonesPanel;
         private bool _disposed;
 
         public RpgWorld500xSceneBootstrapper Bootstrapper => _bootstrapper;
@@ -43,6 +45,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xCartographyReputationHudPanel CartographyPanel => _cartographyPanel;
         public RpgWorld500xSaveSlotHudPanel SaveSlotPanel => _saveSlotPanel;
         public RpgWorld500xFieldRumorAndLoreHudPanel RumorLorePanel => _rumorLorePanel;
+        public RpgWorld500xExpeditionMilestonesHudPanel MilestonesPanel => _milestonesPanel;
         public bool IsDisposed => _disposed || _bootstrapper.IsDisposed;
 
         public RpgWorld500xModalKind ActiveModal
@@ -95,6 +98,11 @@ namespace Rpg.Soundwell
                     return RpgWorld500xModalKind.FieldRumorAndLore;
                 }
 
+                if (_milestonesPanel != null && _milestonesPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.ExpeditionMilestones;
+                }
+
                 return RpgWorld500xModalKind.None;
             }
         }
@@ -120,6 +128,7 @@ namespace Rpg.Soundwell
             _cartographyPanel = new RpgWorld500xCartographyReputationHudPanel(uiParent, _bootstrapper);
             _saveSlotPanel = new RpgWorld500xSaveSlotHudPanel(uiParent, _bootstrapper, saveSlotManager);
             _rumorLorePanel = new RpgWorld500xFieldRumorAndLoreHudPanel(uiParent, _bootstrapper);
+            _milestonesPanel = new RpgWorld500xExpeditionMilestonesHudPanel(uiParent, _bootstrapper);
         }
 
         public bool OpenModal(RpgWorld500xModalKind kind)
@@ -149,6 +158,8 @@ namespace Rpg.Soundwell
                     return _saveSlotPanel.Show();
                 case RpgWorld500xModalKind.FieldRumorAndLore:
                     return _rumorLorePanel.Show();
+                case RpgWorld500xModalKind.ExpeditionMilestones:
+                    return _milestonesPanel.Show();
                 case RpgWorld500xModalKind.None:
                 default:
                     return true;
@@ -218,6 +229,11 @@ namespace Rpg.Soundwell
             {
                 _rumorLorePanel.Hide();
             }
+
+            if (_milestonesPanel != null && _milestonesPanel.IsVisible)
+            {
+                _milestonesPanel.Hide();
+            }
         }
 
         public RpgWorld500xEffectiveExplorationModifiers StepFrameWithModalGuard(
@@ -254,6 +270,7 @@ namespace Rpg.Soundwell
             _cartographyPanel?.Dispose();
             _saveSlotPanel?.Dispose();
             _rumorLorePanel?.Dispose();
+            _milestonesPanel?.Dispose();
         }
     }
 }
