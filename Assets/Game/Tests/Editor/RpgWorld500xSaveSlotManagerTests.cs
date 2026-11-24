@@ -153,6 +153,45 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void MostRecentSlot_OrdersSubsecondAndLegacyTimestampsAndRestoresLatestProgress()
+        {
+            DateTime clock = new DateTime(2026, 11, 24, 8, 0, 0, DateTimeKind.Utc);
+            var storage = new RpgWorld500xInMemorySaveSlotStorage();
+            var manager = new RpgWorld500xSaveSlotManager(storage, () => clock);
+
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(10);
+                Assert.IsTrue(manager.TryAutoSave(boot, out var auto, out string error), error);
+                Assert.AreEqual("2026-11-24T08:00:00Z", auto.SavedAtUtcIso);
+
+                clock = clock.AddMilliseconds(100);
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(20);
+                Assert.IsTrue(manager.TrySaveSlot(boot, RpgWorld500xSaveSlotId.Slot1, out var manual, out error), error);
+                Assert.AreEqual("2026-11-24T08:00:00.1000000Z", manual.SavedAtUtcIso);
+
+                // A fresh manager must find the most recent persisted checkpoint,
+                // not merely remember which save method was last invoked.
+                var reopened = new RpgWorld500xSaveSlotManager(storage, () => clock);
+                Assert.IsTrue(reopened.TryFindMostRecentValidSlot(out var recent));
+                Assert.AreEqual(RpgWorld500xSaveSlotId.Slot1, recent.SlotId);
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(90);
+                Assert.AreEqual(120, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.IsTrue(reopened.TryLoadSlot(boot, recent.SlotId, out _, out error), error);
+                Assert.AreEqual(30, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+
+                clock = clock.AddMilliseconds(900);
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(40);
+                Assert.IsTrue(manager.TrySaveSlot(boot, RpgWorld500xSaveSlotId.Slot2, out _, out error), error);
+                Assert.IsTrue(reopened.TryFindMostRecentValidSlot(out recent));
+                Assert.AreEqual(RpgWorld500xSaveSlotId.Slot2, recent.SlotId);
+                Assert.AreEqual(70, recent.SaltSilverBalance);
+            }
+        }
+
+        [Test]
         public void InvalidSlotId_CannotReadOverwriteCopyOrDeleteAutoSave()
         {
             var storage = new RpgWorld500xInMemorySaveSlotStorage();

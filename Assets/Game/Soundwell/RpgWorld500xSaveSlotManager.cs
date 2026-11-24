@@ -154,6 +154,8 @@ namespace Rpg.Soundwell
         public const string StorageKeyPrefix = "rpg.return.world.save_slot.";
         private const string SaltSilverKey = "rpg.return.world.supply.salt_silver_balance";
         private const int CurrentEnvelopeVersion = 1;
+        private const string LegacyTimestampFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'";
+        private const string PreciseTimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'";
 
         private static readonly RpgWorld500xSaveSlotId[] OrderedSlots =
         {
@@ -251,8 +253,12 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            string utcIso = _utcNowProvider().ToUniversalTime()
-                .ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+            DateTime utcNow = _utcNowProvider().ToUniversalTime();
+            // Preserve legacy whole-second strings, but retain sub-second ordering
+            // when a manual checkpoint follows an autosave within the same second.
+            string utcIso = utcNow.ToString(
+                utcNow.Ticks % TimeSpan.TicksPerSecond == 0 ? LegacyTimestampFormat : PreciseTimestampFormat,
+                CultureInfo.InvariantCulture);
             var envelope = new SaveSlotEnvelope
             {
                 envelopeVersion = CurrentEnvelopeVersion,
@@ -386,7 +392,7 @@ namespace Rpg.Soundwell
         {
             summary = default;
             bool found = false;
-            string bestTimestamp = string.Empty;
+            DateTime bestTimestamp = DateTime.MinValue;
 
             for (int i = 0; i < OrderedSlots.Length; i++)
             {
@@ -396,15 +402,41 @@ namespace Rpg.Soundwell
                     continue;
                 }
 
-                if (!found || string.Compare(candidate.SavedAtUtcIso, bestTimestamp, StringComparison.Ordinal) > 0)
+                // Compare actual UTC instants, not strings: a legacy timestamp
+                // ending in Z sorts after a fractional timestamp in the same second.
+                DateTime timestamp = ParseSavedAtUtc(candidate.SavedAtUtcIso);
+                if (!found || timestamp > bestTimestamp)
                 {
                     found = true;
-                    bestTimestamp = candidate.SavedAtUtcIso;
+                    bestTimestamp = timestamp;
                     summary = candidate;
                 }
             }
 
             return found;
+        }
+
+        // Sub-second precision is persistence metadata, not a wider HUD label.
+        internal static string FormatSavedAtUtcForDisplay(string timestamp)
+        {
+            const DateTimeStyles styles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+            return DateTime.TryParseExact(timestamp, PreciseTimestampFormat, CultureInfo.InvariantCulture, styles, out DateTime precise)
+                ? precise.ToString(LegacyTimestampFormat, CultureInfo.InvariantCulture)
+                : timestamp ?? string.Empty;
+        }
+
+        private static DateTime ParseSavedAtUtc(string timestamp)
+        {
+            const DateTimeStyles styles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+            if (DateTime.TryParseExact(timestamp, PreciseTimestampFormat, CultureInfo.InvariantCulture, styles, out DateTime precise) ||
+                DateTime.TryParseExact(timestamp, LegacyTimestampFormat, CultureInfo.InvariantCulture, styles, out precise))
+            {
+                return precise;
+            }
+
+            // A valid snapshot with damaged or missing date metadata stays loadable,
+            // but cannot outrank a checkpoint with a known creation time.
+            return DateTime.MinValue;
         }
 
         private bool TryReadAndVerifyEnvelope(
