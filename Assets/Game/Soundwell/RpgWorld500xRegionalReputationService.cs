@@ -155,7 +155,9 @@ namespace Rpg.Soundwell
             if (delta > 0)
             {
                 int current = GetPoints(mapId);
-                int updated = Mathf.Clamp(current + delta, 0, MaxReputationPoints);
+                // Sum before clamping in a wider type: a large reputation grant
+                // must saturate at the cap, never overflow back to zero.
+                int updated = (int)Math.Min(MaxReputationPoints, (long)current + delta);
                 _setInt(ReputationKey(mapId), updated);
             }
 

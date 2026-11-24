@@ -22,6 +22,30 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LargePositiveReputationGrant_SaturatesWithoutIntegerOverflow()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var service = new RpgWorld500xRegionalReputationService(
+                k => store.TryGetValue(k, out int value) ? value : 0,
+                (k, v) => store[k] = v);
+
+            const RpgWorldMapId mapId = RpgWorldMapId.WhitewaterCrossing;
+            Assert.AreEqual(400, service.AddPoints(mapId, 400).Points);
+
+            // Previously 400 + int.MaxValue overflowed a signed int, so
+            // Mathf.Clamp would reset the player's earned rank to zero.
+            RpgRegionalReputationSnapshot capped = service.AddPoints(mapId, int.MaxValue);
+            Assert.AreEqual(RpgWorld500xRegionalReputationService.MaxReputationPoints, capped.Points);
+            Assert.AreEqual(RpgRegionalReputationRank.Sworn, capped.Rank);
+            Assert.AreEqual(30, capped.CampSupplyDiscountPercent);
+            Assert.AreEqual(1000, store[RpgWorld500xRegionalReputationService.ReputationKey(mapId)]);
+
+            Assert.AreEqual(1000, service.AddPoints(mapId, int.MaxValue).Points);
+            Assert.AreEqual(1000, service.AddPoints(mapId, -10).Points,
+                "Invalid negative gains must not lower earned reputation.");
+        }
+
+        [Test]
         public void ReputationRanksDiscountsAndCompletionSync_WorkMonotonicallyWithinBounds()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
