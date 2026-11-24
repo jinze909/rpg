@@ -1,5 +1,10 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem.UI;
+#endif
 
 namespace Rpg.Soundwell
 {
@@ -93,6 +98,24 @@ namespace Rpg.Soundwell
 
             _saveSlotManager = new RpgWorld500xSaveSlotManager(resolvedStorage, utcNowProvider);
             _menuRouter = new RpgWorld500xMenuRouter(_uiRoot.transform, _bootstrapper, _campHaven, _saveSlotManager);
+            // The standalone world owns only its own input setup; never add a
+            // second EventSystem when a containing scene already provides one.
+            foreach (Canvas canvas in _uiRoot.GetComponentsInChildren<Canvas>(true))
+            {
+                if (canvas.GetComponent<GraphicRaycaster>() == null)
+                    canvas.gameObject.AddComponent<GraphicRaycaster>();
+            }
+            if (EventSystem.current == null &&
+                UnityEngine.Object.FindFirstObjectByType<EventSystem>() == null)
+            {
+                _uiRoot.AddComponent<EventSystem>();
+#if ENABLE_INPUT_SYSTEM
+                _uiRoot.AddComponent<InputSystemUIInputModule>();
+#elif ENABLE_LEGACY_INPUT_MANAGER
+                _uiRoot.AddComponent<StandaloneInputModule>();
+#endif
+            }
+
             _lastAutoSaveStatusZh = string.Empty;
             _initialized = true;
         }
@@ -154,6 +177,8 @@ namespace Rpg.Soundwell
 
             if (_uiRoot != null)
             {
+                // Disable owned input immediately; Destroy is deferred in Play Mode.
+                _uiRoot.SetActive(false);
                 if (Application.isPlaying)
                 {
                     UnityEngine.Object.Destroy(_uiRoot);

@@ -62,7 +62,7 @@ namespace Rpg.Soundwell
             defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
             rootObject = new GameObject("RpgWorld500xQuestJournal_" + spec.MapId,
-                typeof(RectTransform), typeof(Canvas));
+                typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
             rootObject.transform.SetParent(parent, false);
             try
             {
