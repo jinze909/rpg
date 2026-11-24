@@ -120,23 +120,39 @@ namespace Rpg.Soundwell
                 return false;
             }
 
+            // Validate the saved location before mutating the live wallet or map.
+            RpgWorldMapId targetMap = (RpgWorldMapId)snapshot.activeMapId;
+            Vector2 savedPosition = new Vector2(snapshot.playerTileX, snapshot.playerTileY);
+            RpgWorld500xExplorationHost currentHost = _driver.Facade.Session.Host;
+            bool sameMap = _driver.Facade.CurrentMapId == targetMap;
+            RpgWorld500xMapLayout targetLayout = sameMap
+                ? currentHost.Layout : RpgWorld500xMapLayout.Build(targetMap);
+            if (!RpgWorld500xExplorationHost.CanPlaceAtPosition(
+                    targetLayout, savedPosition, sameMap && currentHost.IronGateOpen))
+            {
+                error = "Saved player position is outside the walkable map.";
+                return false;
+            }
+
             _intStore.Clear();
             RpgWorld500xSaveSnapshotSerializer.ApplyToStore(
                 snapshot,
                 (k, v) => _intStore[k] = v,
                 _driver.Facade.Atmosphere);
 
-            RpgWorldMapId targetMap = (RpgWorldMapId)snapshot.activeMapId;
-            if (_driver.Facade.CurrentMapId != targetMap)
+            if (!sameMap && !_driver.SwitchMap(targetMap))
             {
-                _driver.SwitchMap(targetMap);
-            }
-            else
-            {
-                _driver.Facade.PropSpawner.RefreshActiveSprites();
-                _driver.Facade.Session.SyncHud();
+                error = "Unable to switch to the saved map.";
+                return false;
             }
 
+            if (!_driver.TryRestorePlayerPosition(savedPosition))
+            {
+                error = "Unable to restore the saved player position.";
+                return false;
+            }
+
+            _driver.Facade.PropSpawner.RefreshActiveSprites();
             _statusHud.SyncFromDriver(_driver);
             return true;
         }

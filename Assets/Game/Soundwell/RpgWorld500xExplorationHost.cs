@@ -183,9 +183,21 @@ namespace Rpg.Soundwell
 
         public bool TryPlaceAtWalkableTile(Vector2Int tile)
         {
-            if (IsDisposed || !layout.IsWalkable(tile.x, tile.y, ironGateOpen))
+            return TryPlaceAtWalkablePosition(new Vector2(tile.x + 0.5f, tile.y + 0.5f));
+        }
+
+        internal static bool CanPlaceAtPosition(RpgWorld500xMapLayout targetLayout, Vector2 position, bool gateOpen)
+        {
+            return IsFinite(position) && position.x >= 0f && position.x < targetLayout.Width &&
+                position.y >= 0f && position.y < targetLayout.Height &&
+                targetLayout.IsWalkable(Mathf.FloorToInt(position.x), Mathf.FloorToInt(position.y), gateOpen);
+        }
+
+        public bool TryPlaceAtWalkablePosition(Vector2 position)
+        {
+            if (IsDisposed || !CanPlaceAtPosition(layout, position, ironGateOpen))
                 return false;
-            playerPosition = new Vector2(tile.x + 0.5f, tile.y + 0.5f);
+            playerPosition = position;
             SyncHero(moving: false, deltaSeconds: 0f);
             chunkRenderer.UpdateStreamingFocus(playerPosition);
             bridge.UpdatePlayerPosition(playerPosition);

@@ -7,6 +7,41 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xSceneBootstrapperTests
     {
         [Test]
+        public void LoadRestoresExactPlayerPositionAcrossMapsAndWithinCurrentMap()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.RedSaltHarbor,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var host = boot.Driver.Facade.Session.Host;
+                Vector2 original = host.PlayerPosition;
+                Vector2 savedPosition = original + new Vector2(0.125f, 0.25f);
+                Assert.IsTrue(host.TryPlaceAtWalkablePosition(savedPosition));
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(80);
+                string saved = boot.ExportSaveJson();
+
+                Assert.IsTrue(host.TryPlaceAtWalkablePosition(original));
+                Assert.IsTrue(boot.TryImportSaveJson(saved, out string err), err);
+                Assert.AreEqual(savedPosition, boot.Driver.Facade.Session.Host.PlayerPosition);
+
+                Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.Soundwell));
+                Assert.IsTrue(boot.TryImportSaveJson(saved, out err), err);
+                Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, boot.Driver.Facade.CurrentMapId);
+                Assert.AreEqual(savedPosition, boot.Driver.Facade.Session.Host.PlayerPosition);
+                Assert.AreEqual(80, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+
+                Assert.IsTrue(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(
+                    saved, out RpgWorld500xSaveSnapshot invalid, out err), err);
+                invalid.playerTileX = -1f;
+                string invalidJson = RpgWorld500xSaveSnapshotSerializer.Serialize(invalid);
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(10);
+                Assert.IsFalse(boot.TryImportSaveJson(invalidJson, out err));
+                Assert.AreEqual(savedPosition, boot.Driver.Facade.Session.Host.PlayerPosition);
+                Assert.AreEqual(90, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+            }
+        }
+
+        [Test]
         public void SceneBootstrapper_RunsFullLoopSaveLoadRoundTripAndDisposesWithZeroLeak()
         {
             // Warm up one-time Unity UGUI/font caches before steady-state leak baseline.

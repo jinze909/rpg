@@ -149,6 +149,17 @@ namespace Rpg.Soundwell
             return ok;
         }
 
+        internal bool TryRestorePlayerPosition(Vector2 position)
+        {
+            if (!IsInitialized || !_facade.Session.Host.TryPlaceAtWalkablePosition(position))
+                return false;
+
+            _facade.Session.SyncHud();
+            SyncCameraToPlayer();
+            RefreshWaypointReadout();
+            return true;
+        }
+
         public void Shutdown()
         {
             if (_facade != null)
