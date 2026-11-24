@@ -130,13 +130,13 @@ namespace Rpg.Soundwell
 
         public bool TryClickTravelTo(RpgWorldMapId targetMap)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction())
+            if (!IsVisible || _bootstrapper.IsDisposed || RejectEncounterAction())
             {
                 return false;
             }
 
             if (!_travelButtons.TryGetValue(targetMap, out Button btn) ||
-                btn == null || !btn.interactable)
+                !CanInvoke(btn))
             {
                 return false;
             }
@@ -147,8 +147,8 @@ namespace Rpg.Soundwell
 
         public bool TryClickCampRest()
         {
-            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction() ||
-                _campRestButton == null || !_campRestButton.interactable)
+            if (!IsVisible || _bootstrapper.IsDisposed || RejectEncounterAction() ||
+                !CanInvoke(_campRestButton))
             {
                 return false;
             }
@@ -303,6 +303,12 @@ namespace Rpg.Soundwell
             return btn;
         }
 
+        private bool CanInvoke(Button btn)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && btn != null &&
+                btn.isActiveAndEnabled && btn.gameObject.activeInHierarchy && btn.IsInteractable();
+        }
+
         private void ClearRows()
         {
             _travelButtons.Clear();
@@ -380,7 +386,7 @@ namespace Rpg.Soundwell
             return text;
         }
 
-        private static Button CreateActionButton(
+        private Button CreateActionButton(
             Transform parent,
             string name,
             Vector2 anchorMin,
@@ -405,7 +411,11 @@ namespace Rpg.Soundwell
             btn.interactable = interactable;
             if (onClick != null)
             {
-                btn.onClick.AddListener(() => onClick());
+                btn.onClick.AddListener(() =>
+                {
+                    if (CanInvoke(btn))
+                        onClick();
+                });
             }
 
             Text txt = CreateText(
