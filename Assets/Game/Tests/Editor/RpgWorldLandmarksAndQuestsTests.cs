@@ -78,6 +78,57 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CompletedTrackedQuestReleasesCompassAcrossAllFourRegions()
+        {
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var tracker = new RpgMapExplorationTracker(spec.MapId);
+                var quest = RpgWorldLandmarkCatalog.GetQuests(spec.MapId)[0];
+                Vector2 atQuest = new Vector2(quest.TargetTile.x, quest.TargetTile.y);
+
+                Assert.IsTrue(tracker.TrySetTrackedQuest(quest.QuestId));
+                Assert.IsTrue(tracker.TryGetWayfindingReading(atQuest, out var before));
+                Assert.AreEqual(quest.QuestId, before.TargetId);
+                Assert.IsTrue(tracker.TryAdvanceQuest(quest.QuestId, quest.RequiredSteps));
+                Assert.IsEmpty(tracker.TrackedQuestId);
+                Assert.IsEmpty(tracker.TrackedMarkerId);
+                Assert.IsFalse(tracker.TrySetTrackedQuest(quest.QuestId));
+                Assert.IsTrue(tracker.TryGetWayfindingReading(atQuest, out var after));
+                Assert.AreNotEqual(quest.MarkerId, after.TargetId);
+                Assert.IsFalse(tracker.IsMarkerDiscovered(after.TargetId));
+
+                // An intentional revisit to the old marker is still allowed.
+                Assert.IsTrue(tracker.TrySetTrackedMarker(quest.MarkerId));
+                Assert.IsEmpty(tracker.TrackedQuestId);
+                Assert.IsTrue(tracker.TryGetWayfindingReading(atQuest, out var revisit));
+                Assert.AreEqual(quest.MarkerId, revisit.TargetId);
+            }
+        }
+
+        [Test]
+        public void LoadingCompletedTrackedQuestReleasesOnlyFinishedObjective()
+        {
+            var tracker = new RpgMapExplorationTracker(RpgWorldMapId.RedSaltHarbor);
+            var quests = RpgWorldLandmarkCatalog.GetQuests(tracker.MapId);
+            var completed = quests[0];
+            var unfinished = quests[1];
+            var store = new Dictionary<string, int>
+            {
+                [RpgMapExplorationTracker.QuestProgressKey(completed.QuestId)] = completed.RequiredSteps
+            };
+            Func<string, int> read = key => store.TryGetValue(key, out int value) ? value : 0;
+
+            Assert.IsTrue(tracker.TrySetTrackedQuest(completed.QuestId));
+            Assert.IsTrue(tracker.TryLoad(read));
+            Assert.IsEmpty(tracker.TrackedQuestId);
+            Assert.IsEmpty(tracker.TrackedMarkerId);
+            Assert.IsTrue(tracker.TrySetTrackedQuest(unfinished.QuestId));
+            Assert.IsTrue(tracker.TryLoad(read));
+            Assert.AreEqual(unfinished.QuestId, tracker.TrackedQuestId);
+            Assert.AreEqual(unfinished.MarkerId, tracker.TrackedMarkerId);
+        }
+
+        [Test]
         public void ExplorationTrackerDiscoversLandmarksProgressesQuestsGatesFastTravelAndPersists()
         {
             var tracker = new RpgMapExplorationTracker(RpgWorldMapId.RedSaltHarbor);
