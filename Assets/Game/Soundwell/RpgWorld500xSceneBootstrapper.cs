@@ -23,6 +23,14 @@ namespace Rpg.Soundwell
         public IReadOnlyDictionary<string, int> Store => _intStore;
         public bool IsDisposed => _disposed || _driver == null || !_driver.IsInitialized;
 
+        // Camp purchases and reputation must share the world wallet and save snapshot.
+        internal RpgWorld500xCampHavenService CreateCampHavenService()
+        {
+            return new RpgWorld500xCampHavenService(
+                k => _intStore.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => _intStore[k] = v);
+        }
+
         public RpgWorld500xSceneBootstrapper(
             GameObject hostObject = null,
             RpgWorldMapId initialMapId = RpgWorldMapId.Soundwell,

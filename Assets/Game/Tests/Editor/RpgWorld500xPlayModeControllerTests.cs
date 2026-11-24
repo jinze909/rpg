@@ -8,6 +8,56 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xPlayModeControllerTests
     {
         [Test]
+        public void PlayModeController_CampMerchantSharesWalletStockAndReputationWithSave()
+        {
+            var hostGo = new GameObject("World500xSharedCampStoreTestHost");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.RedSaltHarbor,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var boot = ctrl.Bootstrapper;
+                var supply = boot.Driver.Facade.BountyAndSupply;
+                supply.AddSaltSilver(100);
+                ctrl.CampHaven.Reputation.AddPoints(RpgWorldMapId.RedSaltHarbor, 800);
+                string before = boot.ExportSaveJson();
+
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.CampMerchant));
+                Assert.IsTrue(ctrl.MenuRouter.MerchantPanel.TryClickBuySupply("flare"));
+                Assert.AreEqual(79, supply.SaltSilverBalance);
+                Assert.AreEqual(1, supply.GetOwnedSupplyCount("flare"));
+                Assert.IsTrue(ctrl.MenuRouter.MerchantPanel.FeedbackText.Contains("消耗盐银 21"));
+                Assert.IsTrue(ctrl.MenuRouter.MerchantPanel.HeaderText.Contains("盐银余额 79"));
+
+                string after = boot.ExportSaveJson();
+                Assert.IsTrue(boot.TryImportSaveJson(before, out string restoreError), restoreError);
+                Assert.AreEqual(100, supply.SaltSilverBalance);
+                Assert.AreEqual(0, supply.GetOwnedSupplyCount("flare"));
+                Assert.AreEqual(800, ctrl.CampHaven.Reputation.GetPoints(RpgWorldMapId.RedSaltHarbor));
+
+                Assert.IsTrue(boot.TryImportSaveJson(after, out string purchaseError), purchaseError);
+                Assert.AreEqual(79, supply.SaltSilverBalance);
+                Assert.AreEqual(1, supply.GetOwnedSupplyCount("flare"));
+                Assert.AreEqual(800, ctrl.CampHaven.Reputation.GetPoints(RpgWorldMapId.RedSaltHarbor));
+
+                ctrl.Shutdown();
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.RedSaltHarbor,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                Assert.AreEqual(0, ctrl.CampHaven.Reputation.GetPoints(RpgWorldMapId.RedSaltHarbor));
+                Assert.AreEqual(0, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(hostGo);
+            }
+        }
+
+        [Test]
         public void PlayModeController_DrivesAll9ModalsOverviewQuickAutoSaveAndDisposesWithZeroLeak()
         {
             var hostGo = new GameObject("World500xPlayModeControllerTestHost");

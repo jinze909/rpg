@@ -38,9 +38,7 @@ namespace Rpg.Soundwell
             RpgWorld500xCampHavenService campHaven = null)
         {
             _bootstrapper = bootstrapper ?? throw new ArgumentNullException(nameof(bootstrapper));
-            _campHaven = campHaven ?? new RpgWorld500xCampHavenService(
-                k => _bootstrapper.Store.TryGetValue(k, out int v) ? v : 0,
-                null);
+            _campHaven = campHaven ?? _bootstrapper.CreateCampHavenService();
             _font = ResolveUiFont();
 
             _rootObject = new GameObject("World500xAtlasHudPanel", typeof(RectTransform), typeof(Canvas));
