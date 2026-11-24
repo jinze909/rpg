@@ -173,7 +173,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickClaimAllEligible()
         {
-            if (IsDisposed || _claimAllButton == null || !_claimAllButton.interactable)
+            if (!CanClaimFromButton())
             {
                 return false;
             }
@@ -253,9 +253,17 @@ namespace Rpg.Soundwell
             DestroySafe(_rootObject);
         }
 
+        private bool CanClaimFromButton()
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && _claimAllButton != null &&
+                _claimAllButton.isActiveAndEnabled && _claimAllButton.gameObject.activeInHierarchy &&
+                _claimAllButton.IsInteractable();
+        }
+
         private void HandleClaimAllClicked()
         {
-            if (IsDisposed || _bootstrapper.IsDisposed)
+            // UnityEvent.Invoke bypasses Selectable's normal input guards.
+            if (!CanClaimFromButton())
             {
                 return;
             }
