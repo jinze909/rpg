@@ -228,7 +228,7 @@ namespace Rpg.Soundwell
                             continue;
                         }
 
-                        output.Add(BuildGuidance(mapId, playerTile, category, m.Id, m.Id, m.Tile, arrivalThresholdTiles));
+                        output.Add(BuildGuidance(mapId, playerTile, category, m.Id, m.TitleZh, m.Tile, arrivalThresholdTiles));
                     }
                     break;
 
