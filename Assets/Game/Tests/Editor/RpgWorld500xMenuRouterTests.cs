@@ -9,6 +9,62 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xMenuRouterTests
     {
         [Test]
+        public void MenuRouter_CampRestWritesLoadableAutoSaveWithInjectedManager()
+        {
+            MenuRouter_CampRestWritesLoadableAutoSaveInSharedSlots(true);
+        }
+
+        [Test]
+        public void MenuRouter_CampRestWritesLoadableAutoSaveWithDefaultManager()
+        {
+            MenuRouter_CampRestWritesLoadableAutoSaveInSharedSlots(false);
+        }
+
+        private void MenuRouter_CampRestWritesLoadableAutoSaveInSharedSlots(bool injectManager)
+        {
+            var root = new GameObject("World500xCampRestAutoSaveTestRoot");
+            var manager = injectManager ? new RpgWorld500xSaveSlotManager(
+                new RpgWorld500xInMemorySaveSlotStorage()) : null;
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var router = new RpgWorld500xMenuRouter(
+                    root.transform, boot, new RpgWorld500xCampHavenService(), manager))
+                {
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(30);
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.WorldAtlas));
+                    Assert.IsTrue(router.AtlasPanel.TryClickCampRest());
+                    Assert.That(router.AtlasPanel.StatusBannerText, Does.Contain("已存档"));
+                    int restedDay = boot.Driver.Facade.Atmosphere.DayCount;
+                    float restedTime = boot.Driver.Facade.Atmosphere.TimeOfDayMinutes;
+                    int restedBalance = boot.Driver.Facade.BountyAndSupply.SaltSilverBalance;
+                    if (manager != null)
+                    {
+                        var saved = manager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave);
+                        Assert.IsTrue(saved.IsOccupied);
+                        Assert.IsFalse(saved.IsCorrupted);
+                        Assert.AreEqual(restedDay, saved.DayCount);
+                        Assert.AreEqual(restedBalance, saved.SaltSilverBalance);
+                    }
+
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(20);
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.SaveSlots));
+                    Assert.IsTrue(router.SaveSlotPanel.TryClickLoad(RpgWorld500xSaveSlotId.AutoSave));
+                    Assert.That(router.SaveSlotPanel.StatusText, Does.Contain("已读取"));
+                    Assert.AreEqual(restedDay, boot.Driver.Facade.Atmosphere.DayCount);
+                    Assert.AreEqual(restedTime, boot.Driver.Facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(restedBalance, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void MenuRouter_OwnsFrameLoopAndSuppressesAutomaticDriverUpdate()
         {
             var root = new GameObject("World500xFrameOwnershipTestRoot");
