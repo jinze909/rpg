@@ -156,10 +156,20 @@ namespace Rpg.Soundwell
             if (!IsInitialized || !_facade.Session.Host.TryPlaceAtWalkablePosition(position))
                 return false;
 
+            SyncAfterExternalPositionChange();
+            return true;
+        }
+
+        // Position changes from menu actions must refresh immediately even
+        // while the modal router suppresses normal world-frame progression.
+        internal void SyncAfterExternalPositionChange()
+        {
+            if (!IsInitialized)
+                return;
+
             _facade.Session.SyncHud();
             SyncCameraToPlayer();
             RefreshWaypointReadout();
-            return true;
         }
 
         public void Shutdown()
