@@ -59,6 +59,27 @@ namespace Rpg.Tests.Editor
                 }, 0.4f);
                 Assert.AreEqual(posWhileOpen, ctrl.Bootstrapper.Driver.Facade.Session.Host.PlayerPosition);
 
+                // Esc dismisses the modal, but the same input frame must not
+                // move the party, interact with the world or toggle overview.
+                int interactionCount = ctrl.Bootstrapper.Driver.Facade.ActivityDirector.InteractionCount;
+                bool overviewBeforeClose = ctrl.Bootstrapper.Driver.Facade.Session.MinimapHud.IsOverviewMode;
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    CloseModalPressed = true,
+                    Move = Vector2.right,
+                    Sprint = true,
+                    InteractPressed = true,
+                    ToggleOverviewMapPressed = true
+                }, 0.5f);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(posWhileOpen, ctrl.Bootstrapper.Driver.Facade.Session.Host.PlayerPosition,
+                    "Closing a modal must not move the party until the next input frame.");
+                Assert.AreEqual(interactionCount, ctrl.Bootstrapper.Driver.Facade.ActivityDirector.InteractionCount,
+                    "Closing a modal must not activate a world object in the same input frame.");
+                Assert.AreEqual(overviewBeforeClose,
+                    ctrl.Bootstrapper.Driver.Facade.Session.MinimapHud.IsOverviewMode,
+                    "The overview shortcut must not leak through an exiting modal.");
+
                 // Quick auto-save writes AutoSave slot cleanly.
                 ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(75);
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
