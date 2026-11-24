@@ -297,13 +297,19 @@ namespace Rpg.Soundwell
 
         private bool TryInvokeButton(Dictionary<RpgWorld500xSaveSlotId, Button> map, RpgWorld500xSaveSlotId slotId)
         {
-            if (IsDisposed || !map.TryGetValue(slotId, out Button btn) || btn == null || !btn.interactable)
+            if (!map.TryGetValue(slotId, out Button btn) || !CanInvoke(btn))
             {
                 return false;
             }
 
             btn.onClick.Invoke();
             return true;
+        }
+
+        private bool CanInvoke(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                   button.isActiveAndEnabled && button.IsInteractable();
         }
 
         private void ClearRows()
@@ -372,7 +378,7 @@ namespace Rpg.Soundwell
             return text;
         }
 
-        private static Button CreateActionButton(
+        private Button CreateActionButton(
             Transform parent,
             string name,
             Vector2 anchorMin,
@@ -397,7 +403,13 @@ namespace Rpg.Soundwell
             btn.interactable = interactable;
             if (onClick != null)
             {
-                btn.onClick.AddListener(() => onClick());
+                btn.onClick.AddListener(() =>
+                {
+                    // A queued click from a retired row must never overwrite,
+                    // restore or delete a different revision of a save slot.
+                    if (CanInvoke(btn))
+                        onClick();
+                });
             }
 
             Text txt = CreateText(
