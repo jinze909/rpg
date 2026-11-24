@@ -26,6 +26,9 @@ namespace Rpg.Tests.Editor
                         warmupRouter.OpenModal(RpgWorld500xModalKind.CampMerchant);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.Bestiary);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.FastTravelBeacons);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.CartographyReputation);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.SaveSlots);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.FieldRumorAndLore);
                         warmupRouter.CloseAll();
                     }
                 }
@@ -62,7 +65,7 @@ namespace Rpg.Tests.Editor
                     router.StepFrameWithModalGuard(Vector2.right, 0.5f, sprinting: true, interactPressed: true);
                     Assert.AreEqual(posBefore, boot.Driver.Facade.Session.Host.PlayerPosition);
 
-                    // Switching across CampMerchant -> Bestiary -> FastTravelBeacons enforces mutual exclusion.
+                    // Switching across all remaining 6 panels enforces strict mutual exclusion.
                     Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CampMerchant));
                     Assert.AreEqual(RpgWorld500xModalKind.CampMerchant, router.ActiveModal);
                     Assert.IsFalse(router.AtlasPanel.IsVisible);
@@ -78,8 +81,23 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(router.BestiaryPanel.IsVisible);
                     Assert.IsTrue(router.BeaconWarpPanel.IsVisible);
 
-                    // Toggling FastTravelBeacons again closes all modals.
-                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.FastTravelBeacons));
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CartographyReputation));
+                    Assert.AreEqual(RpgWorld500xModalKind.CartographyReputation, router.ActiveModal);
+                    Assert.IsFalse(router.BeaconWarpPanel.IsVisible);
+                    Assert.IsTrue(router.CartographyPanel.IsVisible);
+
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.SaveSlots));
+                    Assert.AreEqual(RpgWorld500xModalKind.SaveSlots, router.ActiveModal);
+                    Assert.IsFalse(router.CartographyPanel.IsVisible);
+                    Assert.IsTrue(router.SaveSlotPanel.IsVisible);
+
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.FieldRumorAndLore));
+                    Assert.AreEqual(RpgWorld500xModalKind.FieldRumorAndLore, router.ActiveModal);
+                    Assert.IsFalse(router.SaveSlotPanel.IsVisible);
+                    Assert.IsTrue(router.RumorLorePanel.IsVisible);
+
+                    // Toggling active panel again closes all modals.
+                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.FieldRumorAndLore));
                     Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
                     Assert.IsFalse(router.HasAnyModalOpen);
                 }
