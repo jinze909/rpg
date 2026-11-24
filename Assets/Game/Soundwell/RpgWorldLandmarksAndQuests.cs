@@ -849,12 +849,14 @@ namespace Rpg.Soundwell
                 next = quest.RequiredSteps;
             questProgress[questId] = next;
             discoveredMarkers.Add(quest.MarkerId);
+            ReleaseCompletedQuestTracking();
             return true;
         }
 
         public bool TrySetTrackedQuest(string questId)
         {
-            if (!RpgWorldLandmarkCatalog.TryGetQuest(MapId, questId, out RpgLandmarkQuestDefinition quest))
+            if (!RpgWorldLandmarkCatalog.TryGetQuest(MapId, questId, out RpgLandmarkQuestDefinition quest) ||
+                GetQuestState(questId) == RpgLandmarkQuestState.Completed)
                 return false;
             trackedQuestId = quest.QuestId;
             trackedMarkerId = quest.MarkerId;
@@ -866,7 +868,9 @@ namespace Rpg.Soundwell
             if (!RpgWorldLandmarkCatalog.TryGetMarker(MapId, markerId, out RpgMapLandmarkMarker marker))
                 return false;
             trackedMarkerId = marker.Id;
-            trackedQuestId = marker.LinkedQuestId;
+            // An explicit marker selection remains useful for revisiting a finished site.
+            trackedQuestId = GetQuestState(marker.LinkedQuestId) == RpgLandmarkQuestState.Completed
+                ? string.Empty : marker.LinkedQuestId;
             return true;
         }
 
@@ -974,7 +978,19 @@ namespace Rpg.Soundwell
                     discoveredMarkers.Add(quest.MarkerId);
                 }
             }
+            ReleaseCompletedQuestTracking();
             return true;
+        }
+
+        private void ReleaseCompletedQuestTracking()
+        {
+            if (string.IsNullOrEmpty(trackedQuestId) ||
+                GetQuestState(trackedQuestId) != RpgLandmarkQuestState.Completed)
+                return;
+
+            // A completed quest must not fall back to its own already visited marker.
+            trackedQuestId = string.Empty;
+            trackedMarkerId = string.Empty;
         }
 
         public static string MarkerDiscoveryKey(string markerId)
