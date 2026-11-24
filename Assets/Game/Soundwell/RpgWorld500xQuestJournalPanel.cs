@@ -193,9 +193,9 @@ namespace Rpg.Soundwell
 
         public bool TryClickTrackQuest(string questId)
         {
-            if (IsDisposed || string.IsNullOrEmpty(questId) ||
+            if (string.IsNullOrEmpty(questId) ||
                 !questTrackButtons.TryGetValue(questId, out Button btn) ||
-                btn == null || !btn.interactable)
+                !CanInvoke(btn))
                 return false;
             btn.onClick.Invoke();
             return true;
@@ -203,9 +203,9 @@ namespace Rpg.Soundwell
 
         public bool TryClickFastTravel(string markerId)
         {
-            if (IsDisposed || string.IsNullOrEmpty(markerId) ||
+            if (string.IsNullOrEmpty(markerId) ||
                 !fastTravelButtons.TryGetValue(markerId, out Button btn) ||
-                btn == null || !btn.interactable)
+                !CanInvoke(btn))
                 return false;
             btn.onClick.Invoke();
             return true;
@@ -300,7 +300,12 @@ namespace Rpg.Soundwell
             rect.offsetMax = Vector2.zero;
             var background = tabObj.GetComponent<Image>();
             tabBackgrounds[tab] = background;
-            tabObj.GetComponent<Button>().onClick.AddListener(() => { SetTab(tab); });
+            var tabButton = tabObj.GetComponent<Button>();
+            tabButton.onClick.AddListener(() =>
+            {
+                if (CanInvoke(tabButton))
+                    SetTab(tab);
+            });
 
             var textObj = new GameObject("Label", typeof(RectTransform), typeof(Text));
             textObj.transform.SetParent(tabObj.transform, false);
@@ -367,7 +372,13 @@ namespace Rpg.Soundwell
             var btn = btnObj.GetComponent<Button>();
             btn.interactable = interactable;
             if (onClick != null)
-                btn.onClick.AddListener(() => onClick());
+                btn.onClick.AddListener(() =>
+                {
+                    // A queued submit from a hidden or retired row must not
+                    // change the active objective or trigger fast travel.
+                    if (CanInvoke(btn))
+                        onClick();
+                });
 
             var btnTextObj = new GameObject("ButtonText", typeof(RectTransform), typeof(Text));
             btnTextObj.transform.SetParent(btnObj.transform, false);
@@ -386,6 +397,12 @@ namespace Rpg.Soundwell
 
             spawnedRows.Add(rowObj);
             return btn;
+        }
+
+        private bool CanInvoke(Button btn)
+        {
+            return IsVisible && btn != null && btn.isActiveAndEnabled &&
+                btn.gameObject.activeInHierarchy && btn.IsInteractable();
         }
 
         private void ClearRows()
