@@ -238,7 +238,7 @@ namespace Rpg.Soundwell
                 Vector2 newPos = host.PlayerPosition;
                 facade.PropSpawner.UpdateFocus(newPos, RpgExpandedWorldScale.DefaultStreamingRadiusChunks);
                 facade.DistrictTracker.RecordPlayerTile(newPos, RpgExpandedWorldScale.DefaultStreamingRadiusChunks, out _);
-                facade.Session.SyncHud();
+                _bootstrapper.Driver.SyncAfterExternalPositionChange();
                 _bootstrapper.StatusHud.SyncFromDriver(_bootstrapper.Driver);
                 _statusText.text = "已传送至【" + markerTitleZh + "】（坐标 " +
                                    host.CurrentTile.x + "," + host.CurrentTile.y + "）";

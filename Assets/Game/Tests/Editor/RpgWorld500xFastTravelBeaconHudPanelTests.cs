@@ -7,6 +7,49 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xFastTravelBeaconHudPanelTests
     {
         [Test]
+        public void FastTravelBeaconHudPanel_SyncsCameraAndWaypointWithoutAdvancingWorldFrame()
+        {
+            var root = new GameObject("BeaconImmediatePositionSyncRoot");
+            var cameraObject = new GameObject("BeaconFollowCamera", typeof(Camera));
+            try
+            {
+                Camera camera = cameraObject.GetComponent<Camera>();
+                camera.transform.position = new Vector3(0f, 0f, -10f);
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    followCamera: camera,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    var facade = boot.Driver.Facade;
+                    var host = facade.Session.Host;
+                    boot.Driver.AutomaticFrameUpdates = false;
+                    Vector2 start = host.PlayerPosition;
+                    Assert.IsTrue(host.Tracker.TryDiscoverMarker("rsh.salt-market"));
+                    Assert.IsTrue(panel.Show());
+                    float minutes = facade.Atmosphere.TimeOfDayMinutes;
+                    int day = facade.Atmosphere.DayCount;
+                    Assert.IsTrue(panel.TryClickWarp("rsh.salt-market"));
+                    Vector2 arrived = host.PlayerPosition;
+                    Assert.AreNotEqual(start, arrived);
+                    Assert.AreEqual(new Vector2Int(1700, 1260), host.CurrentTile);
+                    Assert.AreEqual(new Vector3(arrived.x, arrived.y, -10f), camera.transform.position);
+                    var nearest = facade.GetTopNearbyWaypoints(1);
+                    Assert.AreEqual(1, nearest.Count);
+                    Assert.AreEqual(nearest[0].HudReadoutZh, boot.Driver.LastNearestWaypointReadoutZh);
+                    Assert.IsTrue(boot.StatusHud.WaypointAndEconomyReadout.Contains(nearest[0].HudReadoutZh));
+                    Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_ExplainsEncounterLockAndRestoresWarpAfterVictory()
         {
             var root = new GameObject("BeaconEncounterFeedbackTestRoot");
