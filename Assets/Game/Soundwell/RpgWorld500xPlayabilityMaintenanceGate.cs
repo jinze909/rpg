@@ -36,7 +36,7 @@ namespace Rpg.Soundwell
     /// scoring, Campfire Journal Digest synthesis, 4x4 multi-hop Fast Travel
     /// Itinerary reachability, 16-panel MenuRouter + PlayMode hotkey coverage,
     /// QuickMenuDockHud 16-button launch, active-highlight &amp; ancestor lock guards,
-    /// and CampProvisioningService cross-region auto-provisioning).
+    /// and CampProvisioningService cross-region buff-aware auto-provisioning).
     /// </summary>
     public static class RpgWorld500xPlayabilityMaintenanceGate
     {
@@ -248,7 +248,7 @@ namespace Rpg.Soundwell
                 }
             }
 
-            // 7. Cross-Region CampProvisioningService Audit (Strict Budget Guard, Full Stocking & Idempotency)
+            // 7. Cross-Region CampProvisioningService Audit (Buff-Aware Discount, Strict Budget Guard, Full Stocking & Idempotency)
             using (var provBoot = new RpgWorld500xSceneBootstrapper(
                 initialMapId: RpgWorldMapId.Soundwell,
                 overrideTileSlices: slices))
@@ -262,6 +262,11 @@ namespace Rpg.Soundwell
                     provBoot, RpgWorldMapId.MineCamp, elapsedSeconds: 5f);
                 Check(plan.Itinerary.HopCount == 2 && plan.TotalRequiredSaltSilver > 0 && !plan.CanAffordFullPlan,
                     "CampProvisioningService failed to plan 2-hop hazardous Soundwell->MineCamp route.");
+
+                RpgWorld500xProvisioningPlan buffAwarePlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    provBoot, RpgWorldMapId.MineCamp, elapsedSeconds: 10f, supplyUseService: supplyUse);
+                Check(buffAwarePlan.TotalRequiredSaltSilver == plan.TotalRequiredSaltSilver - 22,
+                    "CampProvisioningService failed to discount active lamp_oil buff (-22 SaltSilver).");
 
                 RpgWorld500xProvisioningReceipt denied = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
                     provBoot, RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false, elapsedSeconds: 5f);
