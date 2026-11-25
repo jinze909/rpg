@@ -366,6 +366,14 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        // The HUD uses the exact stored envelope as its revision token, including
+        // corrupt payloads and same-timestamp replacements. No save format change.
+        internal string ReadSlotRevision(RpgWorld500xSaveSlotId slotId)
+        {
+            return IsKnownSlot(slotId) && _storage.TryRead(GetStorageKey(slotId), out string payload)
+                ? payload : null;
+        }
+
         public RpgWorld500xSaveSlotSummary InspectSlot(RpgWorld500xSaveSlotId slotId)
         {
             if (!TryReadAndVerifyEnvelope(

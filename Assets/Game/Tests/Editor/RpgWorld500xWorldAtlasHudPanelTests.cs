@@ -180,6 +180,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void WorldAtlasHudPanel_StaleRouteToCurrentRegionCannotChargeTravelTime()
+        {
+            var root = new GameObject("AtlasAlreadyArrivedRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.WhitewaterCrossing,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xWorldAtlasHudPanel(root.transform, boot))
+                {
+                    const string path = "World500xAtlasHudPanel/AtlasModalBox/RegionRows/RegionRow_MineCamp/TravelButton";
+                    UnityEngine.UI.Button ButtonAt() =>
+                        root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    Assert.IsTrue(panel.Show());
+                    var staleAction = ButtonAt().onClick;
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.MineCamp));
+                    var facade = boot.Driver.Facade;
+                    float minutes = facade.Atmosphere.TimeOfDayMinutes;
+                    int day = facade.Atmosphere.DayCount;
+                    Vector2 position = facade.Session.Host.PlayerPosition;
+
+                    staleAction.Invoke();
+                    Assert.That(panel.StatusBannerText, Does.Contain("重新确认启程"));
+                    Assert.IsFalse(ButtonAt().IsInteractable());
+                    Assert.That(ButtonAt().GetComponentInChildren<UnityEngine.UI.Text>().text,
+                        Does.Contain("当前所在"));
+                    Assert.IsFalse(panel.TryClickTravelTo(RpgWorldMapId.MineCamp));
+                    staleAction.Invoke();
+                    Assert.AreEqual(RpgWorldMapId.MineCamp, facade.CurrentMapId);
+                    Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                    Assert.AreEqual(position, facade.Session.Host.PlayerPosition);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WorldAtlasHudPanel_BlocksTravelAndCampRestDuringEncounterThenRecovers()
         {
             var root = new GameObject("WorldAtlasEncounterActionTestRoot");
