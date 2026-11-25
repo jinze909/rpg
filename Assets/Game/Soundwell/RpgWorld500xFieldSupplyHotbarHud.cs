@@ -26,8 +26,6 @@ namespace Rpg.Soundwell
             new Dictionary<string, Text>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _shortNameById =
             new Dictionary<string, string>(StringComparer.Ordinal);
-        private float _pendingActionTime;
-        private bool _hasPendingActionTime;
         private bool _disposed;
 
         public bool IsDisposed => _disposed || _rootObject == null;
@@ -96,16 +94,7 @@ namespace Rpg.Soundwell
             }
 
             Refresh(nowSeconds);
-            if (!_slotButtons.TryGetValue(itemId, out Button btn) ||
-                btn == null || !btn.interactable || !btn.IsInteractable())
-            {
-                return false;
-            }
-
-            _pendingActionTime = nowSeconds;
-            _hasPendingActionTime = true;
-            btn.onClick.Invoke();
-            return true;
+            return TryUseSupply(itemId, nowSeconds);
         }
 
         public void Refresh(float nowSeconds)
@@ -187,7 +176,7 @@ namespace Rpg.Soundwell
 
                 var btn = go.GetComponent<Button>();
                 string capturedId = item.Id;
-                btn.onClick.AddListener(() => HandleSlotClicked(capturedId));
+                btn.onClick.AddListener(() => TryUseSupply(capturedId, _clockSecondsProvider()));
 
                 Text lbl = CreateText(
                     go.transform,
@@ -201,15 +190,14 @@ namespace Rpg.Soundwell
             }
         }
 
-        private void HandleSlotClicked(string itemId)
+        private bool TryUseSupply(string itemId, float now)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed ||
+                !_slotButtons.TryGetValue(itemId, out Button btn) || btn == null ||
+                !btn.isActiveAndEnabled || !btn.gameObject.activeInHierarchy || !btn.IsInteractable())
             {
-                return;
+                return false;
             }
-
-            float now = _hasPendingActionTime ? _pendingActionTime : _clockSecondsProvider();
-            _hasPendingActionTime = false;
 
             RpgWorld500xFieldSupplyUseResult res = _supplyUseService.TryConsumeSupply(itemId, now);
             _feedbackText.text = res.FeedbackBannerZh;
@@ -219,6 +207,7 @@ namespace Rpg.Soundwell
             }
 
             Refresh(now);
+            return res.Succeeded;
         }
 
         private static string ResolveShortNameZh(string itemId, string fallback)
