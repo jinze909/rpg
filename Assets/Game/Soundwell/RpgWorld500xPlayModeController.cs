@@ -120,6 +120,13 @@ namespace Rpg.Soundwell
                 _bootstrapper,
                 _bootstrapper.CreateFieldSupplyUseService(),
                 () => _elapsedPlaySeconds);
+            // Reserve the bottom row for recon, weather and transient world toasts.
+            // Position the hotbar above that row when composing the live world HUD.
+            var supplyPanel = _uiRoot.transform.Find("World500xFieldSupplyHotbarHud/SupplyHotbarPanel") as RectTransform;
+            if (supplyPanel != null)
+            {
+                supplyPanel.anchoredPosition = new Vector2(0f, 142f);
+            }
             _elapsedPlaySeconds = 0f;
 
             // The standalone world owns only its own input setup; never add a

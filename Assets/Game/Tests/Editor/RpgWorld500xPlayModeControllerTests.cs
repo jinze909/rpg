@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Rpg.Tests.Editor
 {
@@ -138,6 +140,48 @@ namespace Rpg.Tests.Editor
                 ctrl.Shutdown();
                 UnityEngine.Object.DestroyImmediate(hostGo);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator PlayModeController_SupplyHotbarReservesSeparateHudRowAndCapturesEvidence()
+        {
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var hostGo = new GameObject("World500xSupplyHudLayoutEvidence");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var ui = hostGo.transform.Find("World500xPlayModeUiRoot");
+                var supply = ui.Find("World500xFieldSupplyHotbarHud/SupplyHotbarPanel") as RectTransform;
+                var recon = ui.Find("World500xReconPulseHudBar/ReconPulsePanel") as RectTransform;
+                var weather = ui.Find("World500xWeatherAdvisoryHudBadge/WeatherAdvisoryCard") as RectTransform;
+                Assert.IsNotNull(supply);
+                Assert.IsNotNull(recon);
+                Assert.IsNotNull(weather);
+                Assert.AreEqual(0f, supply.anchorMin.y);
+                Assert.AreEqual(0f, supply.pivot.y);
+                Assert.GreaterOrEqual(supply.anchoredPosition.y,
+                    Mathf.Max(recon.anchoredPosition.y + recon.sizeDelta.y,
+                        weather.anchoredPosition.y + weather.sizeDelta.y) + 8f);
+                var shop = ctrl.Bootstrapper.Driver.Facade.BountyAndSupply;
+                shop.AddSaltSilver(100);
+                Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 2));
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedSupplySlotIndex = 3 }, 0.1f);
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                SoundwellSmokeHost.CaptureStoryCanvas(supply.GetComponentInParent<Canvas>(),
+                    "world500x-live-supply-hotbar-active");
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.Destroy(hostGo);
+            }
+            yield return null;
+            yield return new ExitPlayMode();
         }
 
         [Test]
