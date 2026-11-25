@@ -115,6 +115,89 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockPreservesUnremediatedCoverUpWithoutDinner()
+        {
+            AssertEffectiveInputLockPreservesCoverUpAndDinnerFacts(false);
+        }
+
+        [Test]
+        public void EffectiveInputLockAllowsExplicitRemediationAndDinnerAfterUnlock()
+        {
+            AssertEffectiveInputLockPreservesCoverUpAndDinnerFacts(true);
+        }
+
+        private static void AssertEffectiveInputLockPreservesCoverUpAndDinnerFacts(bool remediate)
+        {
+            var root = new GameObject("ST06 effective input lock");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            ST06TaoJiHomecomingView view = null;
+            try
+            {
+                ST06TaoJiHomecomingSession session = CreateSession(values);
+                int saves = 0;
+                view = new ST06TaoJiHomecomingView(root.transform, session, s =>
+                {
+                    saves++;
+                    Assert.That(s.TrySettle(read, (k, v) => values[k] = v), Is.True);
+                });
+                var group = root.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(view.RefundRebuildButton.IsInteractable(), Is.False);
+                view.RefundRebuildButton.onClick.Invoke();
+                Assert.That(session.ChairResolution.HasValue, Is.False);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.TeachJointButton.onClick.Invoke();
+                Assert.That(view.Step, Is.EqualTo(ST06HomecomingViewStep.ResolveChair));
+                Assert.That(session.ChairResolution.HasValue, Is.False);
+
+                view.Panel.gameObject.SetActive(true);
+                view.CoverUpButton.onClick.Invoke();
+                Assert.That(view.Step, Is.EqualTo(ST06HomecomingViewStep.PostResolution));
+                Assert.That(session.HasUnremediatedCoverUpTrustLoss, Is.True);
+
+                group.interactable = false;
+                view.RemediateCoverUpButton.onClick.Invoke();
+                view.HoldWelcomeDinnerButton.onClick.Invoke();
+                view.SettleButton.onClick.Invoke();
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.RemediateCoverUpButton.onClick.Invoke();
+                view.HoldWelcomeDinnerButton.onClick.Invoke();
+                view.SettleButton.onClick.Invoke();
+                Assert.That(session.HasUnremediatedCoverUpTrustLoss, Is.True);
+                Assert.That(session.WelcomeDinnerHeld, Is.False);
+                Assert.That(session.IsSettled, Is.False);
+                Assert.That(saves, Is.Zero);
+                Assert.That(read(ST06TaoJiHomecomingFacts.ConfirmedKey), Is.Zero);
+
+                view.Panel.gameObject.SetActive(true);
+                if (remediate)
+                {
+                    view.RemediateCoverUpButton.onClick.Invoke();
+                    view.HoldWelcomeDinnerButton.onClick.Invoke();
+                }
+                view.SettleButton.onClick.Invoke();
+                view.SettleButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(view.Step, Is.EqualTo(ST06HomecomingViewStep.Completed));
+                Assert.That(ST06TaoJiHomecomingFacts.TryRead(read, out ST06HomecomingRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.ChairResolution, Is.EqualTo(ST06ChairResolution.CoverUp));
+                Assert.That(saved.Value.CoverUpRemediated, Is.EqualTo(remediate));
+                Assert.That(saved.Value.WelcomeDinnerHeld, Is.EqualTo(remediate));
+                Assert.That(saved.Value.HasUnremediatedCoverUpTrustLoss, Is.EqualTo(!remediate));
+                Assert.That(saved.Value.LetterStatus, Is.EqualTo(ST06LetterStatus.NotSent));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReentrantSettleClickIsIgnoredDuringSettlementCallback()
         {
             var root = new GameObject("ST06 view reentrant settle");
