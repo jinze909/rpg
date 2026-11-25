@@ -22,6 +22,106 @@ namespace Rpg.Tests.Editor
             view.JointBidButton.onClick.Invoke();
         }
 
+        private static void AssertLockedAndHiddenClicksIgnored(
+            ST02RiverLanternsView view, CanvasGroup group, Dictionary<string, int> values)
+        {
+            var session = view.Session;
+            var stage = session.Stage;
+            var inspections = session.Inspections;
+            bool relayed = session.OriginalWordsRelayed;
+            bool feedback = session.DockFeedbackGathered;
+            var disclosure = session.TrialDisclosure;
+            var bid = session.BidMode;
+            var rescue = session.LockRescue;
+            Action clickBoth = () =>
+            {
+                view.InspectXieZhiBoatButton.onClick.Invoke();
+                view.InspectWenShengBoatButton.onClick.Invoke();
+            };
+            Action assertUnchanged = () =>
+            {
+                Assert.That(session.Stage, Is.EqualTo(stage));
+                Assert.That(session.Inspections, Is.EqualTo(inspections));
+                Assert.That(session.OriginalWordsRelayed, Is.EqualTo(relayed));
+                Assert.That(session.DockFeedbackGathered, Is.EqualTo(feedback));
+                Assert.That(session.TrialDisclosure, Is.EqualTo(disclosure));
+                Assert.That(session.BidMode, Is.EqualTo(bid));
+                Assert.That(session.LockRescue, Is.EqualTo(rescue));
+                Assert.That(values, Is.Empty);
+            };
+            group.interactable = false;
+            clickBoth();
+            assertUnchanged();
+            group.interactable = true;
+            view.Panel.gameObject.SetActive(false);
+            clickBoth();
+            assertUnchanged();
+            view.Panel.gameObject.SetActive(true);
+        }
+
+        [Test]
+        public void EffectiveInputLockPreservesPrivateTrialIndependentBidAndExplicitRescue()
+        {
+            var root = new GameObject("ST02 effective input lock");
+            var values = new Dictionary<string, int>();
+            ST02RiverLanternsView view = null;
+            try
+            {
+                var session = new ST02RiverLanternsSession();
+                int submissions = 0;
+                view = new ST02RiverLanternsView(root.transform, session, method =>
+                {
+                    submissions++;
+                    Assert.That(session.TryResolveOldLockAndCommit(
+                        method, Reader(values), (k, v) => values[k] = v), Is.True);
+                });
+                var group = root.AddComponent<CanvasGroup>();
+
+                AssertLockedAndHiddenClicksIgnored(view, group, values);
+                view.InspectXieZhiBoatButton.onClick.Invoke();
+                AssertLockedAndHiddenClicksIgnored(view, group, values);
+                view.InspectWenShengBoatButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(ST02Stage.DockTrialAndFeedback));
+
+                AssertLockedAndHiddenClicksIgnored(view, group, values);
+                view.RelayOriginalWordsButton.onClick.Invoke();
+                AssertLockedAndHiddenClicksIgnored(view, group, values);
+                view.GatherDockFeedbackButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(ST02Stage.TrialDisclosureChoice));
+
+                AssertLockedAndHiddenClicksIgnored(view, group, values);
+                view.ReturnPrivatelyButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(ST02Stage.BiddingDecision));
+
+                AssertLockedAndHiddenClicksIgnored(view, group, values);
+                view.IndependentBidButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(ST02Stage.OldLockRescue));
+
+                AssertLockedAndHiddenClicksIgnored(view, group, values);
+                Assert.That(submissions, Is.Zero);
+                Assert.That(view.DismantleLanternButton.IsInteractable(), Is.True);
+                view.DismantleLanternButton.onClick.Invoke();
+                view.BraceHullStressButton.onClick.Invoke();
+
+                Assert.That(submissions, Is.EqualTo(1));
+                Assert.That(session.IsCompleted, Is.True);
+                Assert.That(ST02RiverLanternsFacts.TryRead(Reader(values),
+                    out ST02RiverLanternsRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.Inspections, Is.EqualTo(ST02InspectionFlags.All));
+                Assert.That(saved.Value.OriginalWordsRelayed, Is.True);
+                Assert.That(saved.Value.DockFeedbackGathered, Is.True);
+                Assert.That(saved.Value.TrialDisclosure, Is.EqualTo(ST02TrialDisclosure.ReturnPrivatelyToEach));
+                Assert.That(saved.Value.BidMode, Is.EqualTo(ST02BidMode.IndependentWithSubcontract));
+                Assert.That(saved.Value.LockRescue, Is.EqualTo(ST02LockRescueMethod.DismantleLanternFrame));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void PartialChildTeardownDisposesViewAndBlocksClickLayoutAndLocaleRefresh()
         {
