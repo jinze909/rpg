@@ -164,6 +164,142 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FastTravelBeaconHudPanel_RespectsParentInteractionLockAndInactiveHierarchy()
+        {
+            var root = new GameObject("BeaconParentInteractionLockRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    var host = boot.Driver.Facade.Session.Host;
+                    const string marker = "rsh.salt-market";
+                    const string path = "World500xFastTravelBeaconHudPanel/BeaconWarpModalBox/BeaconRows/BeaconRow_rsh.salt-market/WarpButton";
+                    Assert.IsTrue(host.Tracker.TryDiscoverMarker(marker));
+                    Assert.IsTrue(panel.Show());
+                    var button = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    Vector2 start = host.PlayerPosition;
+                    string status = panel.StatusText;
+                    var group = button.transform.parent.gameObject.AddComponent<CanvasGroup>();
+                    group.interactable = false;
+                    Assert.IsTrue(button.interactable);
+                    Assert.IsFalse(button.IsInteractable());
+                    button.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(start, host.PlayerPosition);
+                    Assert.AreEqual(status, panel.StatusText);
+
+                    group.interactable = true;
+                    Assert.IsTrue(button.IsInteractable());
+                    root.SetActive(false);
+                    button.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(start, host.PlayerPosition);
+                    Assert.AreEqual(status, panel.StatusText);
+
+                    root.SetActive(true);
+                    Assert.IsTrue(button.IsInteractable());
+                    Assert.IsTrue(panel.TryClickWarp(marker));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), host.CurrentTile);
+                    Assert.IsTrue(panel.StatusText.Contains("已传送至"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void FastTravelBeaconHudPanel_ReportsFailureForOutdatedRegionRowAndRecovers()
+        {
+            var root = new GameObject("BeaconOutdatedRegionRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    const string marker = "rsh.salt-market";
+                    var initialHost = boot.Driver.Facade.Session.Host;
+                    // Discover through the bridge so the normal persisted discovery survives remounting.
+                    initialHost.Bridge.UpdatePlayerPosition(new Vector2(1700.5f, 1260.5f));
+                    Assert.IsTrue(initialHost.Tracker.IsMarkerDiscovered(marker));
+                    Assert.IsTrue(panel.Show());
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.WhitewaterCrossing));
+                    var facade = boot.Driver.Facade;
+                    Vector2 start = facade.Session.Host.PlayerPosition;
+                    float minutes = facade.Atmosphere.TimeOfDayMinutes;
+                    int day = facade.Atmosphere.DayCount;
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, facade.CurrentMapId);
+                    Assert.AreEqual(start, facade.Session.Host.PlayerPosition);
+                    Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                    Assert.That(panel.StatusText, Does.Contain("当前不可用"));
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                    Assert.IsTrue(boot.Driver.Facade.Session.Host.Tracker.IsMarkerDiscovered(marker));
+                    panel.Refresh();
+                    Assert.IsTrue(panel.TryClickWarp(marker));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), facade.Session.Host.CurrentTile);
+                    Assert.That(panel.StatusText, Does.Contain("已传送至"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void FastTravelBeaconHudPanel_RespectsParentCanvasGroupInputLock()
+        {
+            var root = new GameObject("BeaconCanvasGroupLockRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    var host = boot.Driver.Facade.Session.Host;
+                    const string marker = "rsh.salt-market";
+                    Assert.IsTrue(host.Tracker.TryDiscoverMarker(marker));
+                    Assert.IsTrue(panel.Show());
+                    Transform modal = root.transform.Find("World500xFastTravelBeaconHudPanel/BeaconWarpModalBox");
+                    var group = modal.gameObject.AddComponent<CanvasGroup>();
+                    var button = modal.Find("BeaconRows/BeaconRow_rsh.salt-market/WarpButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    Vector2 start = host.PlayerPosition;
+                    string status = panel.StatusText;
+
+                    group.interactable = false;
+                    Assert.IsTrue(button.interactable, "The row itself remains enabled.");
+                    Assert.IsFalse(button.IsInteractable(), "The ancestor must block selection.");
+                    button.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(start, host.PlayerPosition);
+                    Assert.AreEqual(status, panel.StatusText);
+
+                    group.interactable = true;
+                    Assert.IsTrue(button.IsInteractable());
+                    Assert.IsTrue(panel.TryClickWarp(marker));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), host.CurrentTile);
+                    Assert.IsTrue(panel.StatusText.Contains("已传送至"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_WarpsToDiscoveredBeaconRejectsLockedAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xFastTravelBeaconHudPanelTestRoot");
