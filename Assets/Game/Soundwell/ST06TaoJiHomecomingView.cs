@@ -201,6 +201,8 @@ namespace Rpg.Soundwell
         private void HandleChoiceClick(int index)
         {
             if (disposed || IsDestroyedExternally()) return;
+            if (settling || index < 0 || index >= choiceButtons.Length ||
+                !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable()) return;
 
             if (step == ST06HomecomingViewStep.ResolveChair && index >= 0 && index <= 3)
             {
