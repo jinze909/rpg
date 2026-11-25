@@ -24,7 +24,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsNull(uiRoot.GetComponent<UnityEngine.EventSystems.EventSystem>(),
                     "Do not create a duplicate scene EventSystem.");
                 var canvases = uiRoot.GetComponentsInChildren<Canvas>(true);
-                Assert.AreEqual(8, canvases.Length);
+                Assert.AreEqual(9, canvases.Length);
                 foreach (Canvas canvas in canvases)
                     Assert.IsNotNull(canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>(), canvas.name);
 
@@ -100,7 +100,7 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void PlayModeController_DrivesAll9ModalsOverviewQuickAutoSaveAndDisposesWithZeroLeak()
+        public void PlayModeController_DrivesAll9ModalsOverviewReconPulseQuickAutoSaveAndDisposesWithZeroLeak()
         {
             var hostGo = new GameObject("World500xPlayModeControllerTestHost");
             RpgWorld500xPlayModeController ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
@@ -130,12 +130,13 @@ namespace Rpg.Tests.Editor
 
                 Assert.IsTrue(ctrl.IsInitialized);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+                Assert.IsNotNull(ctrl.ReconPulseHud);
 
                 // Toggle overview map when no modal is open.
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { ToggleOverviewMapPressed = true }, 0.05f);
                 Assert.IsTrue(ctrl.Bootstrapper.Driver.Facade.Session.MinimapHud.IsOverviewMode);
 
-                // Open ExpeditionMilestones modal -> movement is blocked.
+                // Open ExpeditionMilestones modal -> movement and recon pulse are blocked.
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
                 {
                     RequestedModalToggle = RpgWorld500xModalKind.ExpeditionMilestones
@@ -147,12 +148,14 @@ namespace Rpg.Tests.Editor
                 {
                     Move = Vector2.right,
                     Sprint = true,
-                    InteractPressed = true
+                    InteractPressed = true,
+                    ReconPulsePressed = true
                 }, 0.4f);
                 Assert.AreEqual(posWhileOpen, ctrl.Bootstrapper.Driver.Facade.Session.Host.PlayerPosition);
+                Assert.AreEqual(0, ctrl.ReconPulseHud.LastPingCount);
 
                 // Esc dismisses the modal, but the same input frame must not
-                // move the party, interact with the world or toggle overview.
+                // move the party, interact with the world, toggle overview, or pulse recon.
                 int interactionCount = ctrl.Bootstrapper.Driver.Facade.ActivityDirector.InteractionCount;
                 bool overviewBeforeClose = ctrl.Bootstrapper.Driver.Facade.Session.MinimapHud.IsOverviewMode;
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
@@ -161,7 +164,8 @@ namespace Rpg.Tests.Editor
                     Move = Vector2.right,
                     Sprint = true,
                     InteractPressed = true,
-                    ToggleOverviewMapPressed = true
+                    ToggleOverviewMapPressed = true,
+                    ReconPulsePressed = true
                 }, 0.5f);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
                 Assert.AreEqual(posWhileOpen, ctrl.Bootstrapper.Driver.Facade.Session.Host.PlayerPosition,
@@ -171,12 +175,18 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(overviewBeforeClose,
                     ctrl.Bootstrapper.Driver.Facade.Session.MinimapHud.IsOverviewMode,
                     "The overview shortcut must not leak through an exiting modal.");
+                Assert.AreEqual(0, ctrl.ReconPulseHud.LastPingCount,
+                    "The recon pulse shortcut must not leak through an exiting modal.");
+
+                // On the next open-world frame, ReconPulsePressed triggers the scan cleanly.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { ReconPulsePressed = true }, 0.1f);
+                Assert.Greater(ctrl.ReconPulseHud.LastPingCount, 0);
+                Assert.IsFalse(ctrl.ReconPulseHud.IsScanButtonInteractable);
 
                 // Quick auto-save writes AutoSave slot cleanly.
                 ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(75);
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
                 {
-                    CloseModalPressed = true,
                     QuickAutoSavePressed = true
                 }, 0.05f);
 
