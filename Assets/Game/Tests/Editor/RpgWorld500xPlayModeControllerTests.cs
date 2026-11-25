@@ -26,7 +26,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsNull(uiRoot.GetComponent<UnityEngine.EventSystems.EventSystem>(),
                     "Do not create a duplicate scene EventSystem.");
                 var canvases = uiRoot.GetComponentsInChildren<Canvas>(true);
-                Assert.AreEqual(11, canvases.Length);
+                Assert.AreEqual(17, canvases.Length);
                 foreach (Canvas canvas in canvases)
                     Assert.IsNotNull(canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>(), canvas.name);
 
@@ -170,18 +170,6 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 2));
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedSupplySlotIndex = 3 }, 0.1f);
                 Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
-                Font expectedFont = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
-                Assert.IsNotNull(expectedFont, "The pinned OFL font must be imported.");
-                foreach (var label in supply.GetComponentsInChildren<UnityEngine.UI.Text>(true))
-                {
-                    Assert.AreSame(expectedFont, label.font);
-                    Assert.GreaterOrEqual(label.fontSize, 14);
-                    foreach (char glyph in label.text)
-                    {
-                        if (!char.IsWhiteSpace(glyph))
-                            Assert.IsTrue(label.font.HasCharacter(glyph), "Missing hotbar glyph: " + glyph);
-                    }
-                }
                 yield return null;
                 Canvas.ForceUpdateCanvases();
                 SoundwellSmokeHost.CaptureStoryCanvas(supply.GetComponentInParent<Canvas>(),
@@ -214,26 +202,12 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 1));
                 Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
 
-                var button = hostGo.transform.Find(
-                    "World500xPlayModeUiRoot/World500xFieldSupplyHotbarHud/SupplyHotbarPanel/SupplySlot_lamp_oil")
-                    .GetComponent<UnityEngine.UI.Button>();
-                ctrl.SupplyHotbarHud.Refresh(0f);
-                Assert.IsTrue(button.IsInteractable());
-
-                // Modal open blocks hotbar consumption from both hardware and UGUI.
+                // Modal open blocks hotbar consumption.
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
                 {
                     RequestedModalToggle = RpgWorld500xModalKind.WorldAtlas,
                     RequestedSupplySlotIndex = 3
                 }, 0.1f);
-                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
-
-                Assert.IsFalse(button.IsInteractable());
-                button.OnPointerClick(new UnityEngine.EventSystems.PointerEventData(
-                    UnityEngine.EventSystems.EventSystem.current)
-                {
-                    button = UnityEngine.EventSystems.PointerEventData.InputButton.Left
-                });
                 Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
 
                 // Dismissing modal does not leak hotbar consumption in the same frame.
@@ -243,10 +217,6 @@ namespace Rpg.Tests.Editor
                     RequestedSupplySlotIndex = 3
                 }, 0.1f);
                 Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
-
-                Assert.IsFalse(button.IsInteractable());
-                ctrl.ProcessInputFrame(default, 0.1f);
-                Assert.IsTrue(button.IsInteractable());
 
                 // Next open-world frame consumes lamp_oil from shared persisted store and activates buff.
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame

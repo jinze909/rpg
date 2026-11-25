@@ -85,13 +85,10 @@ namespace Rpg.Tests.Editor
                         float clock = driver.Facade.Atmosphere.TimeOfDayMinutes;
                         Vector2 position = driver.Facade.Session.Host.PlayerPosition;
 
-                        // Invoke the actual Update method directly: Unity SendMessage
-                        // rejects non-ExecuteAlways behaviours in EditMode before
-                        // the method runs (ShouldRunBehaviour assertion).
-                        var update = typeof(RpgWorld500xRuntimeDriver).GetMethod("Update",
-                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                        Assert.IsNotNull(update);
-                        update.Invoke(driver, null);
+                        // Invoke the real Unity message, not just the routed API.
+                        // The automatic path would publish an environment caption
+                        // even with zero EditMode delta time.
+                        driver.SendMessage("Update", SendMessageOptions.RequireReceiver);
                         Assert.IsEmpty(driver.LastEnvironmentCaptionZh);
                         Assert.AreEqual(clock, driver.Facade.Atmosphere.TimeOfDayMinutes);
                         Assert.AreEqual(position, driver.Facade.Session.Host.PlayerPosition);
@@ -214,6 +211,12 @@ namespace Rpg.Tests.Editor
                         warmupRouter.OpenModal(RpgWorld500xModalKind.SaveSlots);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.FieldRumorAndLore);
                         warmupRouter.OpenModal(RpgWorld500xModalKind.ExpeditionMilestones);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.CacheAndShortcut);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.ExpeditionDigest);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.BountyBoard);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.ExpeditionReadiness);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.DangerTacticalBrief);
+                        warmupRouter.OpenModal(RpgWorld500xModalKind.WorldGazetteer);
                         warmupRouter.CloseAll();
                     }
                 }
@@ -250,7 +253,7 @@ namespace Rpg.Tests.Editor
                     router.StepFrameWithModalGuard(Vector2.right, 0.5f, sprinting: true, interactPressed: true);
                     Assert.AreEqual(posBefore, boot.Driver.Facade.Session.Host.PlayerPosition);
 
-                    // Switching across all remaining 7 panels enforces strict mutual exclusion.
+                    // Switching across all remaining 13 panels enforces strict mutual exclusion.
                     Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CampMerchant));
                     Assert.AreEqual(RpgWorld500xModalKind.CampMerchant, router.ActiveModal);
                     Assert.IsFalse(router.AtlasPanel.IsVisible);
@@ -286,8 +289,38 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(router.RumorLorePanel.IsVisible);
                     Assert.IsTrue(router.MilestonesPanel.IsVisible);
 
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.CacheAndShortcut));
+                    Assert.AreEqual(RpgWorld500xModalKind.CacheAndShortcut, router.ActiveModal);
+                    Assert.IsFalse(router.MilestonesPanel.IsVisible);
+                    Assert.IsTrue(router.CacheShortcutPanel.IsVisible);
+
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.ExpeditionDigest));
+                    Assert.AreEqual(RpgWorld500xModalKind.ExpeditionDigest, router.ActiveModal);
+                    Assert.IsFalse(router.CacheShortcutPanel.IsVisible);
+                    Assert.IsTrue(router.ExpeditionDigestPanel.IsVisible);
+
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.BountyBoard));
+                    Assert.AreEqual(RpgWorld500xModalKind.BountyBoard, router.ActiveModal);
+                    Assert.IsFalse(router.ExpeditionDigestPanel.IsVisible);
+                    Assert.IsTrue(router.BountyBoardPanel.IsVisible);
+
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.ExpeditionReadiness));
+                    Assert.AreEqual(RpgWorld500xModalKind.ExpeditionReadiness, router.ActiveModal);
+                    Assert.IsFalse(router.BountyBoardPanel.IsVisible);
+                    Assert.IsTrue(router.ReadinessPanel.IsVisible);
+
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.DangerTacticalBrief));
+                    Assert.AreEqual(RpgWorld500xModalKind.DangerTacticalBrief, router.ActiveModal);
+                    Assert.IsFalse(router.ReadinessPanel.IsVisible);
+                    Assert.IsTrue(router.DangerBriefPanel.IsVisible);
+
+                    Assert.IsTrue(router.OpenModal(RpgWorld500xModalKind.WorldGazetteer));
+                    Assert.AreEqual(RpgWorld500xModalKind.WorldGazetteer, router.ActiveModal);
+                    Assert.IsFalse(router.DangerBriefPanel.IsVisible);
+                    Assert.IsTrue(router.GazetteerPanel.IsVisible);
+
                     // Toggling active panel again closes all modals.
-                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.ExpeditionMilestones));
+                    Assert.IsTrue(router.ToggleModal(RpgWorld500xModalKind.WorldGazetteer));
                     Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
                     Assert.IsFalse(router.HasAnyModalOpen);
                 }
