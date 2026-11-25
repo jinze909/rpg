@@ -7,10 +7,12 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Interactive UGUI Multi-Hop Cross-Region Travel Itinerary modal panel bound to
-    /// RpgWorld500xSceneBootstrapper, RpgWorld500xFastTravelItineraryService, and
-    /// RpgWorld500xWorldAtlasPortalService. Lets players pick any of the 4 500x maps,
-    /// inspect the shortest-time multi-hop route and per-leg weather risks, and depart
-    /// along the first hop with parent CanvasGroup interactability guards and zero-leak cleanup.
+    /// RpgWorld500xSceneBootstrapper, RpgWorld500xFastTravelItineraryService,
+    /// RpgWorld500xCampProvisioningService, and RpgWorld500xWorldAtlasPortalService.
+    /// Lets players pick any of the 4 500x maps, inspect the shortest-time multi-hop
+    /// route and per-leg weather risks, auto-provision route supplies in one click,
+    /// and depart along the first hop with parent CanvasGroup interactability guards
+    /// and zero-leak cleanup.
     /// </summary>
     public sealed class RpgWorld500xTravelItineraryHudPanel : IDisposable
     {
@@ -23,12 +25,16 @@ namespace Rpg.Soundwell
         private readonly Text _feedbackText;
         private readonly Dictionary<RpgWorldMapId, Button> _destinationButtons =
             new Dictionary<RpgWorldMapId, Button>();
+        private readonly Button _autoProvisionButton;
+        private readonly Text _autoProvisionButtonLabel;
         private readonly Button _departFirstLegButton;
         private readonly Button _closeButton;
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorldMapId _selectedDestination;
         private RpgWorld500xTravelItinerary _lastItinerary;
+        private RpgWorld500xProvisioningPlan _lastProvisioningPlan;
+        private RpgWorld500xProvisioningReceipt _lastProvisioningReceipt;
         private bool _visible;
         private bool _disposed;
 
@@ -36,6 +42,8 @@ namespace Rpg.Soundwell
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorldMapId SelectedDestination => _selectedDestination;
         public RpgWorld500xTravelItinerary LastItinerary => _lastItinerary;
+        public RpgWorld500xProvisioningPlan LastProvisioningPlan => _lastProvisioningPlan;
+        public RpgWorld500xProvisioningReceipt LastProvisioningReceipt => _lastProvisioningReceipt;
         public int DisplayedLegRowCount => _spawnedRows.Count;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string SummaryBannerText => _summaryBannerText != null ? _summaryBannerText.text : string.Empty;
@@ -116,15 +124,22 @@ namespace Rpg.Soundwell
             rowsRect.offsetMax = Vector2.zero;
             _rowContainer = rowsGo.transform;
 
+            _autoProvisionButton = CreateActionButton(
+                modal.transform, "AutoProvisionItineraryButton",
+                new Vector2(0.04f, 0.05f), new Vector2(0.38f, 0.13f),
+                "按行程一键整备", _font,
+                HandleAutoProvisionClicked);
+            _autoProvisionButtonLabel = _autoProvisionButton.GetComponentInChildren<Text>();
+
             _departFirstLegButton = CreateActionButton(
                 modal.transform, "DepartFirstLegButton",
-                new Vector2(0.04f, 0.05f), new Vector2(0.58f, 0.13f),
+                new Vector2(0.40f, 0.05f), new Vector2(0.72f, 0.13f),
                 "沿首段路线启程", _font,
                 HandleDepartFirstLegClicked);
 
             _closeButton = CreateActionButton(
                 modal.transform, "CloseItineraryButton",
-                new Vector2(0.62f, 0.05f), new Vector2(0.96f, 0.13f),
+                new Vector2(0.74f, 0.05f), new Vector2(0.96f, 0.13f),
                 "关闭行程规划", _font,
                 () => Hide());
 
@@ -180,6 +195,18 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TryClickAutoProvision()
+        {
+            if (!IsVisible || _autoProvisionButton == null ||
+                !_autoProvisionButton.interactable || !_autoProvisionButton.IsInteractable())
+            {
+                return false;
+            }
+
+            _autoProvisionButton.onClick.Invoke();
+            return true;
+        }
+
         public bool TryClickDepartFirstLeg()
         {
             if (!IsVisible || _departFirstLegButton == null ||
@@ -219,12 +246,25 @@ namespace Rpg.Soundwell
                 origin,
                 _selectedDestination,
                 facade.Atmosphere);
+            _lastProvisioningPlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                _bootstrapper,
+                _selectedDestination);
 
             _headerText.text = "【四境多跳行程规划】当前位置：" + facade.Session.Host.Layout.Spec.DisplayNameZh;
             _summaryBannerImage.color = ResolveRiskColor(_lastItinerary.HighestRiskLevel);
             _summaryBannerText.text = _lastItinerary.SummaryZh;
 
             UpdateDestinationHighlights();
+
+            bool needsProvisioning = _lastProvisioningPlan.Lines.Count > 0;
+            _autoProvisionButton.interactable = needsProvisioning;
+            SetButtonColor(_autoProvisionButton, needsProvisioning);
+            if (_autoProvisionButtonLabel != null)
+            {
+                _autoProvisionButtonLabel.text = needsProvisioning
+                    ? "一键整备(" + _lastProvisioningPlan.TotalRequiredSaltSilver + "盐银)"
+                    : "行囊已齐备";
+            }
 
             bool canDepart = _lastItinerary.IsReachable && _lastItinerary.HopCount > 0;
             _departFirstLegButton.interactable = canDepart;
@@ -283,6 +323,28 @@ namespace Rpg.Soundwell
                     });
                 _destinationButtons[spec.MapId] = btn;
             }
+        }
+
+        private void HandleAutoProvisionClicked()
+        {
+            if (!IsVisible || _bootstrapper.IsDisposed || _autoProvisionButton == null ||
+                !_autoProvisionButton.interactable || !_autoProvisionButton.IsInteractable())
+            {
+                return;
+            }
+
+            _lastProvisioningReceipt = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                _bootstrapper,
+                _selectedDestination,
+                allowPartialIfUnderBudget: true);
+
+            _feedbackText.text = _lastProvisioningReceipt.SummaryZh;
+            if (_lastProvisioningReceipt.TotalSpentSaltSilver > 0)
+            {
+                _bootstrapper.StatusHud.SyncFromDriver(_bootstrapper.Driver);
+            }
+
+            Refresh();
         }
 
         private void HandleDepartFirstLegClicked()
