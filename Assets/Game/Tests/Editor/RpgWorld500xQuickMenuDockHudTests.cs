@@ -16,7 +16,7 @@ namespace Rpg.Tests.Editor
                 using (var warmupBoot = new RpgWorld500xSceneBootstrapper(
                     initialMapId: RpgWorldMapId.Soundwell,
                     overrideTileSlices: new Sprite[] { null }))
-                using (var warmupRouter = new RpgWorld500xMenuRouter(root.transform, warmupBoot, warmupBoot.CreateCampHavenService()))
+                using (var warmupRouter = new RpgWorld500xMenuRouter(root.transform, warmupBoot, new RpgWorld500xCampHavenService()))
                 using (var warmupDock = new RpgWorld500xQuickMenuDockHud(root.transform, warmupRouter))
                 {
                     warmupDock.TryClickModalButton(RpgWorld500xModalKind.WorldAtlas);
@@ -29,7 +29,7 @@ namespace Rpg.Tests.Editor
                 using (var boot = new RpgWorld500xSceneBootstrapper(
                     initialMapId: RpgWorldMapId.Soundwell,
                     overrideTileSlices: new Sprite[] { null }))
-                using (var router = new RpgWorld500xMenuRouter(root.transform, boot, boot.CreateCampHavenService()))
+                using (var router = new RpgWorld500xMenuRouter(root.transform, boot, new RpgWorld500xCampHavenService()))
                 using (var dock = new RpgWorld500xQuickMenuDockHud(root.transform, router))
                 {
                     Assert.AreEqual(16, dock.DisplayedButtonCount);
