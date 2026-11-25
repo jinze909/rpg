@@ -89,6 +89,11 @@ namespace Rpg.Soundwell
                 "本境悬赏（3）", _font,
                 () =>
                 {
+                    if (!CanClick(_activeMapTabButton))
+                    {
+                        return;
+                    }
+
                     _activeScope = RpgWorld500xBountyBoardScope.ActiveMap;
                     Refresh();
                 });
@@ -99,6 +104,11 @@ namespace Rpg.Soundwell
                 "四境总榜（12）", _font,
                 () =>
                 {
+                    if (!CanClick(_allRegionsTabButton))
+                    {
+                        return;
+                    }
+
                     _activeScope = RpgWorld500xBountyBoardScope.AllRegions;
                     Refresh();
                 });
@@ -130,7 +140,15 @@ namespace Rpg.Soundwell
                 modal.transform, "CloseBountyBoardButton",
                 new Vector2(0.62f, 0.05f), new Vector2(0.96f, 0.13f),
                 "关闭悬赏榜", _font,
-                () => Hide());
+                () =>
+                {
+                    if (!CanClick(_closeButton))
+                    {
+                        return;
+                    }
+
+                    Hide();
+                });
 
             _visible = false;
             _rootObject.SetActive(false);
@@ -169,15 +187,10 @@ namespace Rpg.Soundwell
 
         public bool TrySelectScope(RpgWorld500xBountyBoardScope scope)
         {
-            if (IsDisposed)
-            {
-                return false;
-            }
-
             Button btn = scope == RpgWorld500xBountyBoardScope.ActiveMap
                 ? _activeMapTabButton
                 : _allRegionsTabButton;
-            if (btn == null || !btn.interactable || !btn.IsInteractable())
+            if (!CanClick(btn))
             {
                 return false;
             }
@@ -188,7 +201,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickClaimEligible()
         {
-            if (IsDisposed || _claimButton == null || !_claimButton.interactable || !_claimButton.IsInteractable())
+            if (!CanClick(_claimButton))
             {
                 return false;
             }
@@ -199,7 +212,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickClose()
         {
-            if (IsDisposed || _closeButton == null || !_closeButton.interactable || !_closeButton.IsInteractable())
+            if (!CanClick(_closeButton))
             {
                 return false;
             }
@@ -348,9 +361,15 @@ namespace Rpg.Soundwell
             DestroySafe(_rootObject);
         }
 
+        private bool CanClick(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.IsInteractable();
+        }
+
         private void HandleClaimClicked()
         {
-            if (IsDisposed || _bootstrapper.IsDisposed)
+            if (!CanClick(_claimButton))
             {
                 return;
             }

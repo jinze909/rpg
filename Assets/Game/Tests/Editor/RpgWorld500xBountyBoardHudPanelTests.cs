@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -32,20 +33,7 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null }))
                 using (var panel = new RpgWorld500xBountyBoardHudPanel(root.transform, boot))
                 {
-                    Assert.IsTrue(panel.Show());
-                    Assert.AreEqual(RpgWorld500xBountyBoardScope.ActiveMap, panel.ActiveScope);
-                    Assert.AreEqual(3, panel.DisplayedRowCount);
-                    Assert.AreEqual(12, panel.TotalBountyCount);
-                    Assert.AreEqual(0, panel.ClaimedCount);
-                    Assert.AreEqual(0, panel.ClaimableCount);
-                    Assert.IsFalse(panel.TryClickClaimEligible());
-
-                    // Switch to AllRegions scope -> 12 regional bounties across all 4 maps.
-                    Assert.IsTrue(panel.TrySelectScope(RpgWorld500xBountyBoardScope.AllRegions));
-                    Assert.AreEqual(RpgWorld500xBountyBoardScope.AllRegions, panel.ActiveScope);
-                    Assert.AreEqual(12, panel.DisplayedRowCount);
-
-                    // Unlock 2 Soundwell shortcuts to satisfy sw_b03 (60 Salt-Silver).
+                    // Unlock 2 Soundwell shortcuts first while panel is still hidden.
                     IReadOnlyList<RpgWorldShortcutDef> shortcuts =
                         RpgWorld500xContentCatalog.GetShortcuts(RpgWorldMapId.Soundwell);
                     Assert.GreaterOrEqual(shortcuts.Count, 2);
@@ -59,13 +47,38 @@ namespace Rpg.Tests.Editor
                     panel.Refresh();
                     Assert.AreEqual(1, panel.ClaimableCount);
 
-                    // Parent CanvasGroup lock blocks scope switch, claim, and close cleanly.
+                    // Hidden panel must reject Try* calls AND direct stale button callbacks without claiming rewards.
+                    Assert.IsFalse(panel.TrySelectScope(RpgWorld500xBountyBoardScope.AllRegions));
+                    Assert.IsFalse(panel.TryClickClaimEligible());
+                    Assert.IsFalse(panel.TryClickClose());
+                    Button claimBtn = root.transform
+                        .Find("World500xBountyBoardHudPanel/BountyBoardModalBox/ClaimEligibleBountiesButton")
+                        .GetComponent<Button>();
+                    claimBtn.onClick.Invoke();
+                    Assert.AreEqual(0, panel.ClaimedCount);
+                    Assert.AreEqual(0, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+
+                    Assert.IsTrue(panel.Show());
+                    Assert.AreEqual(RpgWorld500xBountyBoardScope.ActiveMap, panel.ActiveScope);
+                    Assert.AreEqual(3, panel.DisplayedRowCount);
+                    Assert.AreEqual(12, panel.TotalBountyCount);
+                    Assert.AreEqual(0, panel.ClaimedCount);
+                    Assert.AreEqual(1, panel.ClaimableCount);
+
+                    // Switch to AllRegions scope -> 12 regional bounties across all 4 maps.
+                    Assert.IsTrue(panel.TrySelectScope(RpgWorld500xBountyBoardScope.AllRegions));
+                    Assert.AreEqual(RpgWorld500xBountyBoardScope.AllRegions, panel.ActiveScope);
+                    Assert.AreEqual(12, panel.DisplayedRowCount);
+
+                    // Parent CanvasGroup lock blocks scope switch, claim, close, AND direct stale claim clicks cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySelectScope(RpgWorld500xBountyBoardScope.ActiveMap));
                     Assert.IsFalse(panel.TryClickClaimEligible());
                     Assert.IsFalse(panel.TryClickClose());
+                    claimBtn.onClick.Invoke();
                     Assert.AreEqual(0, panel.ClaimedCount);
+                    Assert.AreEqual(0, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
                     group.interactable = true;
 
                     // Claim eligible bounty -> credits 60 Salt-Silver idempotently.
@@ -78,6 +91,7 @@ namespace Rpg.Tests.Editor
 
                     Assert.IsTrue(panel.TryClickClose());
                     Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TryClickClose());
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);
