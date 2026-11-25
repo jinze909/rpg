@@ -309,6 +309,10 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally()) return;
 
+            if (index < 0 || index >= choiceButtons.Length ||
+                !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
+                return;
+
             if (session.Stage == M07ExtractionStage.RouteExecution && (index == 0 || index == 1))
             {
                 bool blocked = index == 1;
@@ -350,6 +354,9 @@ namespace Rpg.Soundwell
         private void HandleAdvanceClick()
         {
             if (disposed || IsDestroyedExternally()) return;
+
+            if (!advanceButton.IsActive() || !advanceButton.IsInteractable())
+                return;
 
             if (session.Stage == M07ExtractionStage.OulinLockAndYidaGate)
             {

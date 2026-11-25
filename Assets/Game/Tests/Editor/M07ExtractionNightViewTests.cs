@@ -192,6 +192,72 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InputLockPreventsRouteWitnessAndRollCallUntilUnlocked()
+        {
+            var root = new GameObject("M07 extraction input lock");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.MinerShutdown);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M07ExtractionNightView view = null;
+            try
+            {
+                Assert.That(M07ExtractionNightSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+                int saves = 0;
+                view = new M07ExtractionNightView(root.transform, session, (liang, yida) =>
+                {
+                    saves++;
+                    Assert.That(session.TryCompleteDockRollCall(liang, yida, true, read, write), Is.True);
+                });
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(view.ExecutePlanButton.IsInteractable(), Is.False);
+                view.ExecutePlanButton.onClick.Invoke();
+                view.PivotFallbackButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M07ExtractionStage.RouteExecution));
+                group.interactable = true;
+                view.ExecutePlanButton.onClick.Invoke();
+
+                group.interactable = false;
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M07ExtractionStage.OulinLockAndYidaGate));
+                group.interactable = true;
+                view.AdvanceButton.onClick.Invoke();
+                group.interactable = false;
+                view.RusFledButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M07ExtractionStage.RusLedgerConfrontation));
+                group.interactable = true;
+                view.RusFledButton.onClick.Invoke();
+                group.interactable = false;
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M07ExtractionStage.ReturnLettersCheck));
+                group.interactable = true;
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M07ExtractionStage.DockRollCall));
+
+                group.interactable = false;
+                view.LiangStayButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.LiangStayButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.LiangStayButton.onClick.Invoke();
+                view.LiangStayButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(session.Stage, Is.EqualTo(M07ExtractionStage.Completed));
+                Assert.That(M07ExtractionFacts.TryRead(read, out M07ExtractionRecord? saved), Is.True);
+                Assert.That(saved.Value.LowerLevelEvacuatedCount, Is.EqualTo(500));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedRollCallSaveRetainsLiangButtonsForCleanRetry()
         {
             var root = new GameObject("M07 view retry");
