@@ -213,6 +213,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FastTravelBeaconHudPanel_ReportsFailureForOutdatedRegionRowAndRecovers()
+        {
+            var root = new GameObject("BeaconOutdatedRegionRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    const string marker = "rsh.salt-market";
+                    Assert.IsTrue(boot.Driver.Facade.Session.Host.Tracker.TryDiscoverMarker(marker));
+                    Assert.IsTrue(panel.Show());
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.WhitewaterCrossing));
+                    var facade = boot.Driver.Facade;
+                    Vector2 start = facade.Session.Host.PlayerPosition;
+                    float minutes = facade.Atmosphere.TimeOfDayMinutes;
+                    int day = facade.Atmosphere.DayCount;
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, facade.CurrentMapId);
+                    Assert.AreEqual(start, facade.Session.Host.PlayerPosition);
+                    Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                    Assert.That(panel.StatusText, Does.Contain("当前不可用"));
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                    Assert.IsTrue(boot.Driver.Facade.Session.Host.Tracker.IsMarkerDiscovered(marker));
+                    panel.Refresh();
+                    Assert.IsTrue(panel.TryClickWarp(marker));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), facade.Session.Host.CurrentTile);
+                    Assert.That(panel.StatusText, Does.Contain("已传送至"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_RespectsParentCanvasGroupInputLock()
         {
             var root = new GameObject("BeaconCanvasGroupLockRoot");

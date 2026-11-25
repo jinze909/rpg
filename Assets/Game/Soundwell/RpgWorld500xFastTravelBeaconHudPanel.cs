@@ -134,8 +134,7 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            btn.onClick.Invoke();
-            return true;
+            return HandleWarpClicked(markerId);
         }
 
         public void Refresh()
@@ -201,7 +200,6 @@ namespace Rpg.Soundwell
                 string btnLabel = !unlocked ? "未解锁" : (encounterActive ? "战斗中" : "立即传送");
 
                 string capturedId = beacon.Id;
-                string capturedTitle = beacon.TitleZh;
                 Button btn = SpawnRow(
                     "BeaconRow_" + beacon.Id,
                     i,
@@ -210,7 +208,7 @@ namespace Rpg.Soundwell
                     label,
                     btnLabel,
                     unlocked && !encounterActive,
-                    () => HandleWarpClicked(capturedId, capturedTitle));
+                    () => HandleWarpClicked(capturedId));
 
                 _warpButtons[beacon.Id] = btn;
             }
@@ -222,11 +220,11 @@ namespace Rpg.Soundwell
                    button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
         }
 
-        private void HandleWarpClicked(string markerId, string markerTitleZh)
+        private bool HandleWarpClicked(string markerId)
         {
             if (!IsVisible || _bootstrapper.IsDisposed)
             {
-                return;
+                return false;
             }
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
@@ -236,7 +234,7 @@ namespace Rpg.Soundwell
             if (host.Bridge.IsInDangerEncounter)
             {
                 Refresh();
-                return;
+                return false;
             }
 
             if (host.TryFastTravelToBeacon(markerId, out RpgFastTravelResult _))
@@ -246,10 +244,25 @@ namespace Rpg.Soundwell
                 facade.DistrictTracker.RecordPlayerTile(newPos, RpgExpandedWorldScale.DefaultStreamingRadiusChunks, out _);
                 _bootstrapper.Driver.SyncAfterExternalPositionChange();
                 _bootstrapper.StatusHud.SyncFromDriver(_bootstrapper.Driver);
+                string markerTitleZh = markerId;
+                foreach (RpgMapLandmarkMarker marker in host.Layout.Markers)
+                {
+                    if (string.Equals(marker.Id, markerId, StringComparison.Ordinal))
+                    {
+                        markerTitleZh = marker.TitleZh;
+                        break;
+                    }
+                }
+
                 _statusText.text = "已传送至【" + markerTitleZh + "】（坐标 " +
                                    host.CurrentTile.x + "," + host.CurrentTile.y + "）";
                 Refresh();
+                return true;
             }
+
+            _statusText.text = "信标当前不可用，请重新确认";
+            Refresh();
+            return false;
         }
 
         private Button SpawnRow(
