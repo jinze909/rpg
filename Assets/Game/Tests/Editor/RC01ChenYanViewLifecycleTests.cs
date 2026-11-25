@@ -132,6 +132,112 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        private static void AssertEffectiveInputLock(
+            RC01ChenYanView view, CanvasGroup group, Dictionary<string, int> values)
+        {
+            var session = view.Session;
+            var stage = session.Stage;
+            var clues = session.CluesFound;
+            var order = session.TalkOrder;
+            bool admitted = session.IdentityAdmitted;
+            bool linSu = session.LinSuTalked;
+            bool qiuniang = session.QiuniangTalked;
+            var before = new Dictionary<string, int>(values);
+            Action clickAll = () =>
+            {
+                view.WristScarButton.onClick.Invoke();
+                view.DoughTuneButton.onClick.Invoke();
+                view.ShrineTabletButton.onClick.Invoke();
+            };
+            Action assertUnchanged = () =>
+            {
+                Assert.That(session.Stage, Is.EqualTo(stage));
+                Assert.That(session.CluesFound, Is.EqualTo(clues));
+                Assert.That(session.TalkOrder, Is.EqualTo(order));
+                Assert.That(session.IdentityAdmitted, Is.EqualTo(admitted));
+                Assert.That(session.LinSuTalked, Is.EqualTo(linSu));
+                Assert.That(session.QiuniangTalked, Is.EqualTo(qiuniang));
+                CollectionAssert.AreEquivalent(before, values);
+            };
+
+            group.interactable = false;
+            clickAll();
+            assertUnchanged();
+            group.interactable = true;
+            view.Panel.gameObject.SetActive(false);
+            clickAll();
+            assertUnchanged();
+            view.Panel.gameObject.SetActive(true);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void EffectiveInputLockPreservesInterviewOrderAndExplicitRosterDecision(bool qiuniangFirst)
+        {
+            var root = new GameObject("RC01 effective input lock");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            RC01ChenYanView view = null;
+            try
+            {
+                RC01ChenYanSession session = CreateSession(values);
+                int submissions = 0;
+                view = new RC01ChenYanView(root.transform, session, outcome =>
+                {
+                    submissions++;
+                    Assert.That(session.TrySettleRosterEntry(outcome, read, write), Is.True);
+                });
+                var group = root.AddComponent<CanvasGroup>();
+
+                AssertEffectiveInputLock(view, group, values);
+                view.WristScarButton.onClick.Invoke();
+                AssertEffectiveInputLock(view, group, values);
+                view.DoughTuneButton.onClick.Invoke();
+                view.ShrineTabletButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC01InvestigationStage.IdentityConfrontation));
+                AssertEffectiveInputLock(view, group, values);
+                view.ConfrontButton.onClick.Invoke();
+
+                Assert.That(session.Stage, Is.EqualTo(RC01InvestigationStage.TwoHomesTalk));
+                AssertEffectiveInputLock(view, group, values);
+                if (qiuniangFirst)
+                    view.TalkQiuniangButton.onClick.Invoke();
+                else
+                    view.TalkLinSuButton.onClick.Invoke();
+                AssertEffectiveInputLock(view, group, values);
+                if (qiuniangFirst)
+                    view.TalkLinSuButton.onClick.Invoke();
+                else
+                    view.TalkQiuniangButton.onClick.Invoke();
+
+                Assert.That(session.Stage, Is.EqualTo(RC01InvestigationStage.RosterDecision));
+                AssertEffectiveInputLock(view, group, values);
+                Assert.That(submissions, Is.Zero);
+                Assert.That(read(RC01ChenYanFacts.ConfirmedKey), Is.Zero);
+                Assert.That(view.NewReturneeNameButton.IsInteractable(), Is.True);
+                view.NewReturneeNameButton.onClick.Invoke();
+                view.RestoreLivingButton.onClick.Invoke();
+
+                Assert.That(submissions, Is.EqualTo(1));
+                Assert.That(session.IsResolved, Is.True);
+                Assert.That(RC01ChenYanFacts.TryRead(read, out RC01ChenYanRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.CluesFound, Is.EqualTo(RC01FerryClues.All));
+                Assert.That(saved.Value.TalkOrder, Is.EqualTo(qiuniangFirst
+                    ? RC01TalkOrder.QiuniangFirst : RC01TalkOrder.LinSuFirst));
+                Assert.That(saved.Value.Atmosphere, Is.EqualTo(qiuniangFirst
+                    ? RC01TalkAtmosphere.CalmWithLinSu : RC01TalkAtmosphere.GuardedWithQiuniang));
+                Assert.That(saved.Value.Outcome, Is.EqualTo(RC01ChenYanOutcome.IssueNewReturneeName));
+                Assert.That(saved.Value.LinSuRegisterNoteRecorded, Is.True);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ReentrantOutcomeSubmitClickIsIgnoredDuringSubmissionCallback()
         {
