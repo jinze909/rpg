@@ -71,7 +71,8 @@ namespace Rpg.Soundwell
             RpgMapExplorationTracker tracker,
             float moveSpeedMultiplier = 1f,
             float fastTravelOverheadTiles = DefaultFastTravelOverheadTiles,
-            float dangerProximityTiles = DefaultDangerProximityTiles)
+            float dangerProximityTiles = DefaultDangerProximityTiles,
+            bool fastTravelLockedByEncounter = false)
         {
             Vector2 safePlayer = IsFinite(playerTile) ? playerTile : Vector2.zero;
             Vector2 destCenter = new Vector2(destinationTile.x + 0.5f, destinationTile.y + 0.5f);
@@ -95,7 +96,7 @@ namespace Rpg.Soundwell
             Vector2Int bestBeaconTile = default;
             float bestBeaconWalkDist = float.MaxValue;
 
-            if (tracker != null)
+            if (tracker != null && !fastTravelLockedByEncounter)
             {
                 for (int i = 0; i < markers.Count; i++)
                 {
@@ -139,6 +140,10 @@ namespace Rpg.Soundwell
             {
                 summary = "建议传送至【" + bestBeaconTitle + "】再步行 " + walkTilesCeil +
                           " 格（节省 " + savedTilesRound + " 格，约 " + walkSecCeil + " 秒）";
+            }
+            else if (fastTravelLockedByEncounter)
+            {
+                summary = "遭遇战进行中，传送暂不可用；脱战后步行约 " + walkTilesCeil + " 格（" + walkSecCeil + " 秒）";
             }
             else
             {
