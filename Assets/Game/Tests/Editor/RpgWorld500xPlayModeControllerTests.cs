@@ -44,6 +44,9 @@ namespace Rpg.Tests.Editor
                     saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
                     overrideTileSlices: new Sprite[] { null });
 
+                Assert.IsNotNull(ctrl.QuickMenuDockHud);
+                Assert.AreEqual(16, ctrl.QuickMenuDockHud.DisplayedButtonCount);
+
                 RpgWorld500xModalKind[] newModals =
                 {
                     RpgWorld500xModalKind.CacheAndShortcut,
@@ -62,10 +65,12 @@ namespace Rpg.Tests.Editor
                         RequestedModalToggle = newModals[i]
                     }, 0.05f);
                     Assert.AreEqual(newModals[i], ctrl.MenuRouter.ActiveModal);
+                    Assert.AreEqual(newModals[i], ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 }
 
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { CloseModalPressed = true }, 0.05f);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
             }
             finally
             {
@@ -91,7 +96,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsNull(uiRoot.GetComponent<UnityEngine.EventSystems.EventSystem>(),
                     "Do not create a duplicate scene EventSystem.");
                 var canvases = uiRoot.GetComponentsInChildren<Canvas>(true);
-                Assert.AreEqual(18, canvases.Length);
+                Assert.AreEqual(19, canvases.Length);
                 foreach (Canvas canvas in canvases)
                     Assert.IsNotNull(canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>(), canvas.name);
 
