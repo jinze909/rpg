@@ -132,6 +132,54 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void WorldAtlasHudPanel_RejectsStaleOriginBeforeChargingTravelTime()
+        {
+            var root = new GameObject("AtlasStaleOriginRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.WhitewaterCrossing,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xWorldAtlasHudPanel(root.transform, boot))
+                {
+                    const string path = "World500xAtlasHudPanel/AtlasModalBox/RegionRows/RegionRow_MineCamp/TravelButton";
+                    UnityEngine.UI.Button ButtonAt() => root.transform.Find(path).GetComponent<UnityEngine.UI.Button>();
+                    Assert.IsTrue(panel.Show());
+                    Assert.That(ButtonAt().GetComponentInChildren<UnityEngine.UI.Text>().text, Does.Contain("180"));
+                    var staleAction = ButtonAt().onClick;
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                    var facade = boot.Driver.Facade;
+                    float minutes = facade.Atmosphere.TimeOfDayMinutes;
+                    int day = facade.Atmosphere.DayCount;
+                    Vector2 position = facade.Session.Host.PlayerPosition;
+                    staleAction.Invoke();
+                    Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, facade.CurrentMapId);
+                    Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                    Assert.AreEqual(position, facade.Session.Host.PlayerPosition);
+                    Assert.That(panel.StatusBannerText, Does.Contain("重新确认启程"));
+                    Assert.That(ButtonAt().GetComponentInChildren<UnityEngine.UI.Text>().text, Does.Contain("150"));
+
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.WhitewaterCrossing));
+                    minutes = facade.Atmosphere.TimeOfDayMinutes;
+                    day = facade.Atmosphere.DayCount;
+                    Assert.IsFalse(panel.TryClickTravelTo(RpgWorldMapId.MineCamp));
+                    Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, facade.CurrentMapId);
+                    Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                    Assert.That(ButtonAt().GetComponentInChildren<UnityEngine.UI.Text>().text, Does.Contain("180"));
+                    Assert.IsTrue(panel.TryClickTravelTo(RpgWorldMapId.MineCamp));
+                    Assert.AreEqual(RpgWorldMapId.MineCamp, boot.Driver.Facade.CurrentMapId);
+                    Assert.That(panel.StatusBannerText, Does.Contain("已沿"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WorldAtlasHudPanel_BlocksTravelAndCampRestDuringEncounterThenRecovers()
         {
             var root = new GameObject("WorldAtlasEncounterActionTestRoot");
