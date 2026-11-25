@@ -74,13 +74,18 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgWorld500xModalKind.SaveSlots, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 Assert.IsTrue(ctrl.MenuRouter.SaveSlotPanel.TryClickSave(RpgWorld500xSaveSlotId.Slot1));
 
-                // 3. Plan multi-hop itinerary to MineCamp (Y hotkey) and depart first leg -> RedSaltHarbor.
+                // 3. Plan hazardous multi-hop itinerary to MineCamp (Y hotkey), replenish consumed lamp_oil via ItineraryPanel Auto-Provision, and depart first leg -> RedSaltHarbor.
+                ctrl.Bootstrapper.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
                 Assert.IsTrue(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.Y, out RpgWorld500xModalKind itineraryModal));
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = itineraryModal }, 0.1f);
                 Assert.AreEqual(RpgWorld500xModalKind.TravelItinerary, ctrl.MenuRouter.ActiveModal);
                 Assert.AreEqual(RpgWorld500xModalKind.TravelItinerary, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 Assert.IsTrue(ctrl.MenuRouter.ItineraryPanel.TrySelectDestination(RpgWorldMapId.MineCamp));
                 Assert.AreEqual(2, ctrl.MenuRouter.ItineraryPanel.LastItinerary.HopCount);
+                Assert.IsTrue(ctrl.MenuRouter.ItineraryPanel.TryClickAutoProvision());
+                Assert.IsTrue(ctrl.MenuRouter.ItineraryPanel.LastProvisioningReceipt.FullyProvisioned);
+                Assert.AreEqual(1, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"));
+                Assert.IsFalse(ctrl.MenuRouter.ItineraryPanel.TryClickAutoProvision());
                 Assert.IsTrue(ctrl.MenuRouter.ItineraryPanel.TryClickDepartFirstLeg());
                 Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, ctrl.Bootstrapper.Driver.Facade.CurrentMapId);
 
@@ -101,13 +106,14 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
 
-                // 5. Mutate wallet on RedSaltHarbor, then reload Slot1 -> rolls back cleanly to Soundwell, savedSilver & provisioned rations.
+                // 5. Mutate wallet on RedSaltHarbor, then reload Slot1 -> rolls back cleanly to Soundwell, savedSilver, provisioned rations & pre-topup lamp_oil.
                 ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(55);
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = saveModal }, 0.1f);
                 Assert.IsTrue(ctrl.MenuRouter.SaveSlotPanel.TryClickLoad(RpgWorld500xSaveSlotId.Slot1));
                 Assert.AreEqual(RpgWorldMapId.Soundwell, ctrl.Bootstrapper.Driver.Facade.CurrentMapId);
                 Assert.AreEqual(savedSilver, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.SaltSilverBalance);
                 Assert.AreEqual(2, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("rations"));
+                Assert.AreEqual(0, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"));
 
                 ctrl.Shutdown();
                 Assert.IsTrue(ctrl.QuickMenuDockHud == null || ctrl.QuickMenuDockHud.IsDisposed);
