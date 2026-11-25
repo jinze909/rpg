@@ -241,8 +241,8 @@ namespace Rpg.Soundwell
 
         private void HandleLinSuEchoClick()
         {
-            if (disposed || IsDestroyedExternally() || !linSuEchoButton.gameObject.activeSelf ||
-                !linSuEchoButton.interactable)
+            if (disposed || IsDestroyedExternally() || !linSuEchoButton.IsActive() ||
+                !linSuEchoButton.IsInteractable())
                 return;
             if (session.TryHearLinSuEcho()) Refresh();
         }
@@ -251,7 +251,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
                 return;
-            if (!choiceButtons[index].gameObject.activeSelf || !choiceButtons[index].interactable)
+            if (!choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
 
             switch (session.Phase)

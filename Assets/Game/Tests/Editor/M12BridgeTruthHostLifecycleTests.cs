@@ -144,6 +144,63 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DisposingHostDuringSuccessfulTruthSavePreservesDecisionWithoutThrowing()
+        {
+            var root = new GameObject("M12 dispose during truth save");
+            var values = new Dictionary<string, int>();
+            SeedThroughM11(values);
+            Func<string, int> read = Reader(values);
+            int confirmWrites = 0;
+            M12BridgeTruthHost host = null;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M12BridgeTruthFacts.ConfirmedKey && value == 1)
+                {
+                    confirmWrites++;
+                    host.Dispose();
+                }
+            };
+            try
+            {
+                host = new M12BridgeTruthHost(
+                    root.transform, () => true, () => false, () => false,
+                    () => false, () => false, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.SomeWantNoMoreWarButton.onClick.Invoke();
+                view.HearJiangShenButton.onClick.Invoke();
+                view.HearHanAndYiLeiButton.onClick.Invoke();
+                Assert.That(host.Session.Phase, Is.EqualTo(M12Phase.TruthDisclosureChoice));
+
+                var publish = view.PublishTruthButton;
+                var seal = view.SealTruthButton;
+                Assert.DoesNotThrow(() => publish.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.Session.IsCompleted, Is.True);
+                Assert.That(host.Session.Disclosure, Is.EqualTo(M12TruthDisclosure.PublishTruth));
+                Assert.That(confirmWrites, Is.EqualTo(1));
+                Assert.That(M12BridgeTruthFacts.TryRead(
+                    read, out M12BridgeTruthRecord? saved), Is.True);
+                Assert.That(saved.Value.Disclosure, Is.EqualTo(M12TruthDisclosure.PublishTruth));
+                Assert.That(saved.Value.FirstConfessionHeardHere, Is.True);
+                Assert.DoesNotThrow(() => seal.onClick.Invoke());
+                Assert.DoesNotThrow(() => publish.onClick.Invoke());
+                Assert.That(confirmWrites, Is.EqualTo(1));
+                Assert.That(M12BridgeTruthFacts.TryRead(read, out saved), Is.True);
+                Assert.That(saved.Value.Disclosure, Is.EqualTo(M12TruthDisclosure.PublishTruth));
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedParentFailsClosedWithoutThrowingOnTryOpen()
         {
             var root = new GameObject("M12 lifecycle destroyed parent");

@@ -90,6 +90,65 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockBlocksRouteCivilianVerificationAndAyuanSubmission()
+        {
+            var root = new GameObject("M14 final passage input lock");
+            M14FinalPassageView view = null;
+            try
+            {
+                var session = CreateVerifiedSession();
+                int submissions = 0;
+                view = CreateView(root.transform, session, outcome =>
+                {
+                    Assert.That(outcome, Is.EqualTo(M14AyuanOutcome.Safe));
+                    submissions++;
+                });
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+
+                group.interactable = false;
+                Assert.That(view.DetainLuJunButton.IsInteractable(), Is.False);
+                view.RelieveLuJunButton.onClick.Invoke();
+                view.DetainLuJunButton.onClick.Invoke();
+                view.WithdrawLuJunButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.RouteExecution));
+
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.DetainLuJunButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.RouteExecution));
+                view.Panel.gameObject.SetActive(true);
+                view.DetainLuJunButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+
+                group.interactable = false;
+                view.VerifyCivilianExitButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.VerifyCivilianExitButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+                view.Panel.gameObject.SetActive(true);
+                view.VerifyCivilianExitButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.AyuanPositionResolution));
+
+                group.interactable = false;
+                view.SettleAyuanSafeButton.onClick.Invoke();
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.SettleAyuanSafeButton.onClick.Invoke();
+                Assert.That(submissions, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.SettleAyuanSafeButton.onClick.Invoke();
+                Assert.That(submissions, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InvalidViewportAspectsAreIgnoredWithoutThrowing()
         {
             var root = new GameObject("M14 view aspect guard");
