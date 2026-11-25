@@ -73,6 +73,79 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockPreservesPrivateIdentityAndSteleChoices()
+        {
+            var root = new GameObject("M15 roll call effective input lock");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            M15FinalRollCallView view = null;
+            try
+            {
+                var session = new M15FinalRollCallSession(true, 0);
+                int saves = 0;
+                view = new M15FinalRollCallView(root.transform, session, (reader, identity, stele) =>
+                {
+                    saves++;
+                    Assert.That(session.TryCompleteRollCall(reader, identity, stele,
+                        read, (k, v) => values[k] = v), Is.True);
+                });
+                var group = root.AddComponent<CanvasGroup>();
+
+                group.interactable = false;
+                Assert.That(view.ProtagonistReaderButton.IsInteractable(), Is.False);
+                view.ProtagonistReaderButton.onClick.Invoke();
+                Assert.That(view.Step, Is.EqualTo(M15RollCallViewStep.SelectReader));
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.HanQiaoReaderButton.onClick.Invoke();
+                Assert.That(view.Step, Is.EqualTo(M15RollCallViewStep.SelectReader));
+                view.Panel.gameObject.SetActive(true);
+                view.AuntJiangReaderButton.onClick.Invoke();
+
+                Assert.That(view.Step, Is.EqualTo(M15RollCallViewStep.SelectIdentityResponse));
+                group.interactable = false;
+                view.PublicTrueNameButton.onClick.Invoke();
+                Assert.That(view.Step, Is.EqualTo(M15RollCallViewStep.SelectIdentityResponse));
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.PublicTrueNameButton.onClick.Invoke();
+                Assert.That(view.Step, Is.EqualTo(M15RollCallViewStep.SelectIdentityResponse));
+                view.Panel.gameObject.SetActive(true);
+                view.PrivateCustodianButton.onClick.Invoke();
+
+                Assert.That(view.Step, Is.EqualTo(M15RollCallViewStep.SelectSteleInscription));
+                group.interactable = false;
+                view.KeepOriginalSteleButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.AddReturnedAliveSteleButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                Assert.That(view.CarveNamesSteleButton.IsInteractable(), Is.False);
+                view.CarveNamesSteleButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                Assert.That(values.Count, Is.Zero);
+
+                view.LeaveBlankSteleButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(view.Step, Is.EqualTo(M15RollCallViewStep.Completed));
+                Assert.That(M15FinalRollCallFacts.TryRead(read, out M15FinalRollCallRecord? saved), Is.True);
+                Assert.That(saved.Value.Reader, Is.EqualTo(M15RollCallReader.AuntJiang));
+                Assert.That(saved.Value.IdentityResponse, Is.EqualTo(M15FinalIdentityResponse.PrivateCustodianResponse));
+                Assert.That(saved.Value.PensionClosure, Is.EqualTo(M15PensionClosure.UnchangedOrPrivate));
+                Assert.That(saved.Value.SteleInscription, Is.EqualTo(M15SteleInscription.LeaveBlank));
+                view.KeepOriginalSteleButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReentrantSteleSubmitClickIsIgnoredDuringSubmissionCallback()
         {
             var root = new GameObject("M15 view reentrant submit");

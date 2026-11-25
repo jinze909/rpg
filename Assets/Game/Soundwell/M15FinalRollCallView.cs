@@ -212,6 +212,8 @@ namespace Rpg.Soundwell
         private void HandleChoiceClick(int index)
         {
             if (disposed || IsDestroyedExternally()) return;
+            if (submitting || index < 0 || index >= choiceButtons.Length ||
+                !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable()) return;
 
             if (step == M15RollCallViewStep.SelectReader && index >= 0 && index <= 2)
             {
