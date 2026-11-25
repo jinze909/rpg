@@ -64,6 +64,39 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LandmarkGuidance_UsesSavedDiscoveryWhenLiveTrackerIsAbsent()
+        {
+            RpgWorld500xMapLayout layout = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            RpgMapLandmarkMarker target = layout.Markers[0];
+            Vector2 player = new Vector2(target.Tile.x + 0.5f, target.Tile.y + 0.5f);
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+
+            Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                layout, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                out RpgWorld500xWaypointGuidance first, getInt: read));
+            Assert.AreEqual(target.Id, first.EntityId);
+
+            store[RpgMapExplorationTracker.MarkerDiscoveryKey(target.Id)] = 1;
+            Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                layout, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                out RpgWorld500xWaypointGuidance next, getInt: read));
+            Assert.AreNotEqual(target.Id, next.EntityId);
+            var nearby = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                layout, player, 100, getInt: read);
+            Assert.IsFalse(nearby.Exists(p =>
+                p.Category == RpgWorld500xWaypointCategory.UndiscoveredLandmark &&
+                p.EntityId == target.Id));
+
+            // Restoring a save from before discovery makes the waypoint available again.
+            store.Clear();
+            Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                layout, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                out RpgWorld500xWaypointGuidance restored, getInt: read));
+            Assert.AreEqual(target.Id, restored.EntityId);
+        }
+
+        [Test]
         public void TryFindNearestTarget_SkipsLootedCachesAndRanksTopNearbyPois()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
