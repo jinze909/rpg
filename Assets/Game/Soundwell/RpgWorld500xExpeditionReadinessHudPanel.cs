@@ -11,8 +11,9 @@ namespace Rpg.Soundwell
     /// RpgWorld500xExpeditionReadinessService. Displays live 0-100 readiness score,
     /// color-coded readiness grade banner, four readiness checks, prioritized missing
     /// camp supplies, one-click auto-restock, and cross-region destination
-    /// auto-provisioning via RpgWorld500xCampProvisioningService with parent
-    /// CanvasGroup interactability guards and zero-leak IDisposable cleanup.
+    /// auto-provisioning (with optional Salt-Silver budget cap &amp; itemized breakdown)
+    /// via RpgWorld500xCampProvisioningService with parent CanvasGroup interactability
+    /// guards and zero-leak IDisposable cleanup.
     /// </summary>
     public sealed class RpgWorld500xExpeditionReadinessHudPanel : IDisposable
     {
@@ -126,13 +127,29 @@ namespace Rpg.Soundwell
                 modal.transform, "RefreshReadinessButton",
                 new Vector2(0.49f, 0.05f), new Vector2(0.72f, 0.13f),
                 "刷新评估", _font,
-                () => Refresh(_lastElapsedSeconds));
+                () =>
+                {
+                    if (!CanClick(_refreshButton))
+                    {
+                        return;
+                    }
+
+                    Refresh(_lastElapsedSeconds);
+                });
 
             _closeButton = CreateActionButton(
                 modal.transform, "CloseReadinessButton",
                 new Vector2(0.75f, 0.05f), new Vector2(0.96f, 0.13f),
                 "关闭整备单", _font,
-                () => Hide());
+                () =>
+                {
+                    if (!CanClick(_closeButton))
+                    {
+                        return;
+                    }
+
+                    Hide();
+                });
 
             _visible = false;
             _rootObject.SetActive(false);
@@ -217,9 +234,25 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public string FormatProvisioningBreakdownForDestination(RpgWorldMapId destinationMapId)
+        {
+            if (IsDisposed || _bootstrapper.IsDisposed)
+            {
+                return string.Empty;
+            }
+
+            RpgWorld500xProvisioningPlan plan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                _bootstrapper,
+                destinationMapId,
+                _lastElapsedSeconds,
+                _supplyUseService);
+            return RpgWorld500xCampProvisioningService.FormatPlanBreakdownZh(plan);
+        }
+
         public bool TryAutoProvisionForDestination(
             RpgWorldMapId destinationMapId,
-            bool allowPartialIfUnderBudget = true)
+            bool allowPartialIfUnderBudget = true,
+            int? maxBudgetSaltSilver = null)
         {
             if (!CanClick(_refreshButton))
             {
@@ -231,7 +264,8 @@ namespace Rpg.Soundwell
                 destinationMapId,
                 allowPartialIfUnderBudget,
                 _lastElapsedSeconds,
-                _supplyUseService);
+                _supplyUseService,
+                maxBudgetSaltSilver);
 
             _feedbackText.text = _lastProvisioningReceipt.SummaryZh;
             if (_lastProvisioningReceipt.TotalSpentSaltSilver > 0)
