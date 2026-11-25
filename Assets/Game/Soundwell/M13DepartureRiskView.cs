@@ -209,6 +209,7 @@ namespace Rpg.Soundwell
         private void HandleCompletePrep()
         {
             if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
+            if (!completePrepButton.IsActive() || !completePrepButton.IsInteractable()) return;
             session.CompleteSafetyPreparation();
             Refresh();
         }
@@ -216,6 +217,7 @@ namespace Rpg.Soundwell
         private void HandleAgreeThreeBells()
         {
             if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
+            if (!agreeThreeBellsButton.IsActive() || !agreeThreeBellsButton.IsInteractable()) return;
             session.AgreeThreeBellReverseSignal();
             Refresh();
         }
@@ -223,6 +225,7 @@ namespace Rpg.Soundwell
         private void HandleAcceptRiskConsent()
         {
             if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
+            if (!acceptRiskConsentButton.IsActive() || !acceptRiskConsentButton.IsInteractable()) return;
             if (session.TryAcceptHighRiskConsent())
                 Refresh();
         }
@@ -230,7 +233,16 @@ namespace Rpg.Soundwell
         private void HandleConfirmRoute(M13ApproachRoute route)
         {
             if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
-            if (!session.CanConfirmDeparture(route)) return;
+            Button routeButton;
+            switch (route)
+            {
+                case M13ApproachRoute.RouteASupervisedCivilian: routeButton = routeAButton; break;
+                case M13ApproachRoute.RouteBBellTowerAssault: routeButton = routeBButton; break;
+                case M13ApproachRoute.RouteCOldCanalNightRun: routeButton = routeCButton; break;
+                default: return;
+            }
+            if (!routeButton.IsActive() || !routeButton.IsInteractable() ||
+                !session.CanConfirmDeparture(route)) return;
 
             submitting = true;
             Refresh();
