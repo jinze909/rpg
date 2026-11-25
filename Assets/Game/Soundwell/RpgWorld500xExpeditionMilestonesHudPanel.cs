@@ -48,38 +48,52 @@ namespace Rpg.Soundwell
             _bootstrapper = bootstrapper ?? throw new ArgumentNullException(nameof(bootstrapper));
             _font = ResolveUiFont();
 
-            Func<string, int> reader = k =>
+            Action<RpgWorld500xExpeditionMilestoneDef> onUnlocked = def =>
             {
-                if (_localClaimOverlay.TryGetValue(k, out int localVal))
+                if (!_bootstrapper.IsDisposed)
                 {
-                    return localVal;
+                    _bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(def.SaltSilverReward);
                 }
-
-                if (getInt != null)
-                {
-                    return getInt(k);
-                }
-
-                IReadOnlyDictionary<string, int> store = _bootstrapper.Store;
-                return (store != null && store.TryGetValue(k, out int v)) ? v : 0;
             };
 
-            Action<string, int> writer = (k, v) =>
+            if (getInt == null && setInt == null)
             {
-                _localClaimOverlay[k] = v;
-                setInt?.Invoke(k, v);
-            };
-
-            _milestoneService = new RpgWorld500xExpeditionMilestoneService(
-                reader,
-                writer,
-                onMilestoneUnlocked: def =>
+                // Read and write live save state; never shadow a restored claim flag.
+                _milestoneService = _bootstrapper.CreateExpeditionMilestoneService(onUnlocked);
+            }
+            else if (getInt != null && setInt != null)
+            {
+                // A fully supplied external store is likewise authoritative.
+                _milestoneService = new RpgWorld500xExpeditionMilestoneService(getInt, setInt, onUnlocked);
+            }
+            else
+            {
+                // Preserve the standalone partial-delegate fallback for callers
+                // without a complete writable/readable store pair.
+                Func<string, int> reader = k =>
                 {
-                    if (!_bootstrapper.IsDisposed)
+                    if (_localClaimOverlay.TryGetValue(k, out int localVal))
                     {
-                        _bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(def.SaltSilverReward);
+                        return localVal;
                     }
-                });
+
+                    if (getInt != null)
+                    {
+                        return getInt(k);
+                    }
+
+                    IReadOnlyDictionary<string, int> store = _bootstrapper.Store;
+                    return (store != null && store.TryGetValue(k, out int v)) ? v : 0;
+                };
+
+                Action<string, int> writer = (k, v) =>
+                {
+                    _localClaimOverlay[k] = v;
+                    setInt?.Invoke(k, v);
+                };
+
+                _milestoneService = new RpgWorld500xExpeditionMilestoneService(reader, writer, onUnlocked);
+            }
 
             _rootObject = new GameObject("World500xExpeditionMilestonesHudPanel", typeof(RectTransform), typeof(Canvas));
             if (parent != null)
