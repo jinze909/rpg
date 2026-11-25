@@ -15,9 +15,9 @@ namespace Rpg.Soundwell
     /// Interactive UGUI Cross-Map World Gazetteer &amp; Keyword Search Directory modal panel
     /// bound to RpgWorld500xSceneBootstrapper and RpgWorld500xWorldGazetteerService.
     /// Displays all 4 500x region cards (Soundwell, RedSaltHarbor, WhitewaterCrossing,
-    /// MineCamp) with faction standing and live cache/shortcut/bounty completion, plus
-    /// cross-region or active-map keyword search with parent CanvasGroup interactability
-    /// guards and zero-leak IDisposable cleanup.
+    /// MineCamp) with faction standing, live cache/shortcut/bounty completion, live route
+    /// risk &amp; camp-provisioning status, plus cross-region or active-map keyword search
+    /// with parent CanvasGroup interactability guards and zero-leak IDisposable cleanup.
     /// </summary>
     public sealed class RpgWorld500xWorldGazetteerHudPanel : IDisposable
     {
@@ -35,6 +35,7 @@ namespace Rpg.Soundwell
         private readonly Button _closeButton;
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
+        private List<RpgWorld500xRegionGazetteerCard> _lastCards = new List<RpgWorld500xRegionGazetteerCard>();
         private RpgWorld500xGazetteerHudTab _activeTab = RpgWorld500xGazetteerHudTab.RegionOverview;
         private string _searchQuery = string.Empty;
         private bool _filterActiveMapOnly;
@@ -51,6 +52,7 @@ namespace Rpg.Soundwell
         public int DisplayedRowCount => _spawnedRows.Count;
         public int LastSearchHitCount => _lastSearchHitCount;
         public int AverageCompletionPercent => _averageCompletionPercent;
+        public IReadOnlyList<RpgWorld500xRegionGazetteerCard> LastCards => _lastCards;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string StatusText => _statusText != null ? _statusText.text : string.Empty;
 
@@ -293,7 +295,9 @@ namespace Rpg.Soundwell
             IReadOnlyDictionary<string, int> store = _bootstrapper.Store;
             Func<string, int> read = k => (store != null && store.TryGetValue(k, out int v)) ? v : 0;
 
-            List<RpgWorld500xRegionGazetteerCard> cards = RpgWorld500xWorldGazetteerService.BuildWorldCards(read);
+            List<RpgWorld500xRegionGazetteerCard> cards =
+                RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(_bootstrapper, read);
+            _lastCards = cards;
             int sumPct = 0;
             int totalCaches = 0;
             int totalShortcuts = 0;
