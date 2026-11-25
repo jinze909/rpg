@@ -219,7 +219,7 @@ namespace Rpg.Soundwell
         private bool CanInvoke(Button button)
         {
             return IsVisible && !_bootstrapper.IsDisposed && button != null &&
-                   button.isActiveAndEnabled && button.interactable;
+                   button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
         }
 
         private void HandleWarpClicked(string markerId, string markerTitleZh)
