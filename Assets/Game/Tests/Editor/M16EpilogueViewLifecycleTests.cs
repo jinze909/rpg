@@ -121,6 +121,93 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockBlocksWalkDeskAndFinalStandingUntilRestored()
+        {
+            var root = new GameObject("M16 epilogue effective input lock");
+            var values = new Dictionary<string, int>();
+            M16EpilogueView view = null;
+            try
+            {
+                M16EpilogueLettersViewTests.SeedM15WithCompletedRC01AndST02(values);
+                Func<string, int> read = Reader(values);
+                Assert.That(M16EpilogueSession.TryCreateFromSavedFacts(
+                    read, true, M16RespectAgencyTone.RespectedOthersChoices,
+                    out M16EpilogueSession session), Is.True);
+                int saves = 0;
+                view = new M16EpilogueView(root.transform, session, spot =>
+                {
+                    saves++;
+                    Assert.That(session.TryChooseStandingSpotAndCommit(
+                        spot, read, (k, v) => values[k] = v), Is.True);
+                });
+                var group = root.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(view.ProceedToDeskButton.IsInteractable(), Is.False);
+                view.VisitWorkshopButton.onClick.Invoke();
+                view.ProceedToDeskButton.onClick.Invoke();
+                Assert.That(session.StopsVisited, Is.EqualTo(M16WalkStops.None));
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.AfternoonWalk));
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.VisitQiQueButton.onClick.Invoke();
+                view.ProceedToDeskButton.onClick.Invoke();
+                Assert.That(session.StopsVisited, Is.EqualTo(M16WalkStops.None));
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.AfternoonWalk));
+                view.Panel.gameObject.SetActive(true);
+                view.VisitWorkshopButton.onClick.Invoke();
+                Assert.That(session.StopsVisited, Is.EqualTo(M16WalkStops.WorkshopStop));
+                view.ProceedToDeskButton.onClick.Invoke();
+
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.DeskLettersAndRegister));
+                Assert.That(view.ReadNextLetterButton.IsInteractable(), Is.True);
+                group.interactable = false;
+                view.ReadNextLetterButton.onClick.Invoke();
+                view.ReviewRegisterButton.onClick.Invoke();
+                view.StepOutsideButton.onClick.Invoke();
+                Assert.That(session.LettersRead, Is.EqualTo(M16DeliveredLettersFlags.None));
+                Assert.That(session.DeskRegisterReviewed, Is.False);
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.DeskLettersAndRegister));
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.ReadNextLetterButton.onClick.Invoke();
+                view.StepOutsideButton.onClick.Invoke();
+                Assert.That(session.LettersRead, Is.EqualTo(M16DeliveredLettersFlags.None));
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.DeskLettersAndRegister));
+                view.Panel.gameObject.SetActive(true);
+                view.ReadNextLetterButton.onClick.Invoke();
+                Assert.That(session.LettersRead, Is.EqualTo(M16DeliveredLettersFlags.RC01ChenYan));
+                view.ReviewRegisterButton.onClick.Invoke();
+                Assert.That(session.DeskRegisterReviewed, Is.True);
+                view.StepOutsideButton.onClick.Invoke();
+
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.FinalStandingAndFadeOut));
+                group.interactable = false;
+                view.PierButton.onClick.Invoke();
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.WorkshopDoorButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                Assert.That(read(M16EpilogueFacts.ConfirmedKey), Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.SteleButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(session.IsCompleted, Is.True);
+                Assert.That(M16EpilogueFacts.TryRead(read, out M16EpilogueRecord? saved), Is.True);
+                Assert.That(saved.Value.StopsVisited, Is.EqualTo(M16WalkStops.WorkshopStop));
+                Assert.That(saved.Value.LettersReadMask, Is.EqualTo(M16DeliveredLettersFlags.RC01ChenYan));
+                Assert.That(saved.Value.DeskRegisterReviewed, Is.True);
+                Assert.That(saved.Value.StandingSpot, Is.EqualTo((M16StandingSpot)2));
+                view.PierButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReentrantStandingSpotClickAndDisposeInsideThrowingCallbackAreGuarded()
         {
             var root = new GameObject("M16 view reentrant and dispose");
