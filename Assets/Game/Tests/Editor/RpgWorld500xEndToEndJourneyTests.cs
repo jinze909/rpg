@@ -63,6 +63,9 @@ namespace Rpg.Tests.Editor
 
                 RpgWorld500xExpeditionDigest digest = ctrl.BuildExpeditionDigest();
                 Assert.AreEqual(RpgWorldMapId.Soundwell, digest.MapId);
+                Assert.GreaterOrEqual(digest.ReadinessScore, 70);
+                Assert.IsTrue(digest.FormattedDigestZh.Contains("整备状态："));
+                Assert.IsTrue(digest.FormattedDigestZh.Contains("行囊已齐备"));
                 Assert.IsTrue(digest.FormattedDigestZh.Contains("灯油照明"));
 
                 int savedSilver = ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.SaltSilverBalance;
