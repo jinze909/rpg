@@ -125,5 +125,31 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual("行囊已齐备（无需补购）", RpgWorld500xCampProvisioningService.FormatPlanBreakdownZh(stockedPlan));
             }
         }
+
+        [Test]
+        public void BuildProvisioningPlan_WithPreferSafestRouteUsesSafestItineraryPlanner()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.WhitewaterCrossing,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                RpgWorld500xGrandRuntimeFacade facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.WhitewaterCrossing, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.GaleStorm);
+
+                RpgWorld500xProvisioningPlan safestPlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    boot, RpgWorldMapId.MineCamp, elapsedSeconds: 5f, preferSafestRoute: true);
+                Assert.AreEqual(1, safestPlan.Itinerary.HopCount);
+                Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, safestPlan.Itinerary.HighestRiskLevel);
+                Assert.IsTrue(safestPlan.Itinerary.SummaryZh.Contains("安全绕行行程"));
+
+                facade.BountyAndSupply.AddSaltSilver(300);
+                RpgWorld500xProvisioningReceipt receipt = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false, elapsedSeconds: 5f, preferSafestRoute: true);
+                Assert.IsTrue(receipt.FullyProvisioned);
+                Assert.AreEqual(safestPlan.TotalRequiredSaltSilver, receipt.TotalSpentSaltSilver);
+            }
+        }
     }
 }
