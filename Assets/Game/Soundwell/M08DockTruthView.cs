@@ -204,9 +204,14 @@ namespace Rpg.Soundwell
             responseButtons[index].interactable = true;
         }
 
+        private static bool CanInvoke(Button button)
+        {
+            return button != null && button.IsActive() && button.IsInteractable();
+        }
+
         private void HearTruth()
         {
-            if (disposed || IsDestroyedExternally() || !hearButton.interactable) return;
+            if (disposed || IsDestroyedExternally() || !CanInvoke(hearButton)) return;
             session.TryHearTruth();
             Refresh();
         }
@@ -216,7 +221,7 @@ namespace Rpg.Soundwell
             if (disposed || IsDestroyedExternally() ||
                 session.Stage != M08DockTruthStage.AwaitingResponse ||
                 index < 0 || index >= responseButtons.Length ||
-                !responseButtons[index].interactable)
+                !CanInvoke(responseButtons[index]))
                 return;
             session.TryRespond((M08DockTruthResponse)(index + 1));
             Refresh();
@@ -224,7 +229,7 @@ namespace Rpg.Soundwell
 
         private void Finish()
         {
-            if (disposed || IsDestroyedExternally() || acknowledging || !finishButton.interactable)
+            if (disposed || IsDestroyedExternally() || acknowledging || !CanInvoke(finishButton))
                 return;
             // Host owns the authoritative shen_relation write.
             // Guard against reentrant submits while keeping failed writes retryable.
