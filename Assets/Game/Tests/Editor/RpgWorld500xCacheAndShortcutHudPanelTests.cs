@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -31,6 +32,14 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null }))
                 using (var panel = new RpgWorld500xCacheAndShortcutHudPanel(root.transform, boot))
                 {
+                    // Hidden panel rejects tab switch AND direct stale tab callbacks cleanly.
+                    Assert.IsFalse(panel.TrySelectTab(RpgWorld500xCacheShortcutTab.Shortcuts));
+                    Button shortcutsTabBtn = root.transform
+                        .Find("World500xCacheAndShortcutHudPanel/CacheShortcutModalBox/Tab_Shortcuts")
+                        .GetComponent<Button>();
+                    shortcutsTabBtn.onClick.Invoke();
+                    Assert.AreEqual(RpgWorld500xCacheShortcutTab.HiddenCaches, panel.ActiveTab);
+
                     Assert.IsTrue(panel.Show());
                     Assert.AreEqual(RpgWorld500xCacheShortcutTab.HiddenCaches, panel.ActiveTab);
                     // Soundwell has 12 hidden caches and 4 shortcuts.
@@ -38,10 +47,11 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(0, panel.LootedCacheCount);
                     Assert.AreEqual(0, panel.UnlockedShortcutCount);
 
-                    // Parent CanvasGroup lock prevents tab switch cleanly.
+                    // Parent CanvasGroup lock prevents tab switch AND direct stale tab callbacks cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySelectTab(RpgWorld500xCacheShortcutTab.Shortcuts));
+                    shortcutsTabBtn.onClick.Invoke();
                     Assert.AreEqual(RpgWorld500xCacheShortcutTab.HiddenCaches, panel.ActiveTab);
                     group.interactable = true;
 
@@ -59,6 +69,7 @@ namespace Rpg.Tests.Editor
 
                     Assert.IsTrue(panel.Hide());
                     Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TrySelectTab(RpgWorld500xCacheShortcutTab.HiddenCaches));
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);

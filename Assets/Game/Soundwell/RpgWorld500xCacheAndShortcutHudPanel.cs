@@ -84,6 +84,11 @@ namespace Rpg.Soundwell
                 "暗藏补给箱", _font,
                 () =>
                 {
+                    if (!CanClick(_cachesTabButton))
+                    {
+                        return;
+                    }
+
                     _activeTab = RpgWorld500xCacheShortcutTab.HiddenCaches;
                     Refresh();
                 });
@@ -94,6 +99,11 @@ namespace Rpg.Soundwell
                 "可解锁捷径", _font,
                 () =>
                 {
+                    if (!CanClick(_shortcutsTabButton))
+                    {
+                        return;
+                    }
+
                     _activeTab = RpgWorld500xCacheShortcutTab.Shortcuts;
                     Refresh();
                 });
@@ -151,15 +161,10 @@ namespace Rpg.Soundwell
 
         public bool TrySelectTab(RpgWorld500xCacheShortcutTab tab)
         {
-            if (IsDisposed)
-            {
-                return false;
-            }
-
             Button btn = tab == RpgWorld500xCacheShortcutTab.HiddenCaches
                 ? _cachesTabButton
                 : _shortcutsTabButton;
-            if (btn == null || !btn.interactable || !btn.IsInteractable())
+            if (!CanClick(btn))
             {
                 return false;
             }
@@ -275,6 +280,12 @@ namespace Rpg.Soundwell
             _visible = false;
             ClearRows();
             DestroySafe(_rootObject);
+        }
+
+        private bool CanClick(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.IsInteractable();
         }
 
         private void UpdateTabHighlight()
