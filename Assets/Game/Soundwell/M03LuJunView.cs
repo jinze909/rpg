@@ -163,7 +163,13 @@ namespace Rpg.Soundwell
                     : (chinese ? "听完点名，向陆钧走去" : "After the roll, approach Lu Jun");
             bool atRollCall = !delivered &&
                 encounter.Stage == M03LuJunStage.VisitingVeterans;
-            // The roll call has no choice rows: use that space for readable\n            // fixed-size dialogue instead of shrinking long CJK copy to 10 pt.\n            dialogue.resizeTextForBestFit = !atRollCall;\n            dialogue.rectTransform.sizeDelta = new Vector2(690f, atRollCall ? 240f : 151f);\n            dialogue.rectTransform.anchoredPosition = new Vector2(72f, atRollCall ? 61.5f : 106f);\n            dialogue.alignment = atRollCall ? TextAnchor.UpperLeft : TextAnchor.MiddleLeft;\n            advance.gameObject.SetActive(atRollCall);
+            // The roll call has no choice rows: use that space for readable
+            // fixed-size dialogue instead of shrinking long CJK copy to 10 pt.
+            dialogue.resizeTextForBestFit = !atRollCall;
+            dialogue.rectTransform.sizeDelta = new Vector2(690f, atRollCall ? 240f : 151f);
+            dialogue.rectTransform.anchoredPosition = new Vector2(72f, atRollCall ? 61.5f : 106f);
+            dialogue.alignment = atRollCall ? TextAnchor.UpperLeft : TextAnchor.MiddleLeft;
+            advance.gameObject.SetActive(atRollCall);
             informantLabel.font = font;
             informantLabel.text = chinese ? "询问矿区线人" : "Ask the miner informant";
             informantButton.gameObject.SetActive(atRollCall && !informantVisited);

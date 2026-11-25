@@ -73,7 +73,11 @@ namespace Rpg.Tests.Editor
             Assert.That(view.InformantButton.gameObject.activeInHierarchy, Is.True);
             Assert.That(view.InformantButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
                 Does.Contain("询问矿区线人"));
-            Assert.That(view.Dialogue.resizeTextForBestFit, Is.False);\n            Assert.That(view.Dialogue.fontSize, Is.EqualTo(19));\n            Assert.That(view.Dialogue.rectTransform.rect.height, Is.EqualTo(240f).Within(0.1f));\n            Assert.That(view.Dialogue.text.Split('\n').Length, Is.EqualTo(4));\n            // Capture the real 960x540 runtime UGUI canvas, not a synthetic
+            Assert.That(view.Dialogue.resizeTextForBestFit, Is.False);
+            Assert.That(view.Dialogue.fontSize, Is.EqualTo(19));
+            Assert.That(view.Dialogue.rectTransform.rect.height, Is.EqualTo(240f).Within(0.1f));
+            Assert.That(view.Dialogue.text.Split('\n').Length, Is.EqualTo(4));
+            // Capture the real 960x540 runtime UGUI canvas, not a synthetic
             // text-only mock. The report and action row must remain legible.
             SoundwellSmokeHost.CaptureStoryCanvas(canvas, "m03-miner-informant-rollcall-zh");
 
