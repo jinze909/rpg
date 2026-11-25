@@ -71,6 +71,22 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(position, host.PlayerPosition);
                 Assert.IsTrue(host.Bridge.IsInDangerEncounter);
 
+                // The locked route must use the actual walking segment, not the
+                // previously selected beacon's shorter segment or danger estimate.
+                var atmosphere = boot.Driver.Facade.Atmosphere.GetSnapshot(RpgWorldMapId.RedSaltHarbor);
+                var direct = RpgWorld500xFastTravelRoutePlanner.PlanRoute(
+                    RpgWorldMapId.RedSaltHarbor, position, destination, null,
+                    atmosphere.MovementSpeedMultiplier);
+                Assert.AreEqual(direct.EstimatedWalkSeconds, locked.EstimatedWalkSeconds, 0.001f);
+                Assert.AreEqual(direct.EstimatedSprintSeconds, locked.EstimatedSprintSeconds, 0.001f);
+                Assert.AreEqual(direct.CrossesDangerZone, locked.CrossesDangerZone);
+                Assert.IsEmpty(locked.BestBeaconTitleZh);
+                Assert.AreEqual(default(Vector2Int), locked.BestBeaconTile);
+                var repeated = RpgWorld500xCampHavenService.PlanRouteFromCurrentPosition(boot, destination);
+                Assert.AreEqual(locked.SummaryZh, repeated.SummaryZh);
+                Assert.AreEqual(position, host.PlayerPosition);
+                Assert.IsTrue(host.Bridge.IsInDangerEncounter);
+
                 Assert.IsTrue(host.Bridge.TryResolveDangerZoneVictory(danger.Id, true, out _));
                 var after = RpgWorld500xCampHavenService.PlanRouteFromCurrentPosition(boot, destination);
                 Assert.IsTrue(after.RecommendFastTravel);
