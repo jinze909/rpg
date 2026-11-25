@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -30,21 +31,27 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null }))
                 using (var panel = new RpgWorld500xTravelItineraryHudPanel(root.transform, boot))
                 {
-                    // Hidden panel rejects clicks cleanly.
+                    // Hidden panel rejects clicks AND direct stale button callbacks without travelling.
                     Assert.IsFalse(panel.TryClickDepartFirstLeg());
                     Assert.IsFalse(panel.TrySelectDestination(RpgWorldMapId.MineCamp));
+                    Button departBtn = root.transform
+                        .Find("World500xTravelItineraryHudPanel/ItineraryModalBox/DepartFirstLegButton")
+                        .GetComponent<Button>();
+                    departBtn.onClick.Invoke();
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, boot.Driver.Facade.CurrentMapId);
 
                     Assert.IsTrue(panel.Show(RpgWorldMapId.MineCamp));
                     Assert.AreEqual(2, panel.LastItinerary.HopCount);
                     Assert.AreEqual(2, panel.DisplayedLegRowCount);
                     Assert.AreEqual(270, panel.LastItinerary.TotalTravelMinutesInGame);
 
-                    // Parent CanvasGroup lock blocks destination switch, depart, and close.
+                    // Parent CanvasGroup lock blocks destination switch, depart, close, AND direct stale depart clicks.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySelectDestination(RpgWorldMapId.RedSaltHarbor));
                     Assert.IsFalse(panel.TryClickDepartFirstLeg());
                     Assert.IsFalse(panel.TryClickClose());
+                    departBtn.onClick.Invoke();
                     Assert.AreEqual(RpgWorldMapId.Soundwell, boot.Driver.Facade.CurrentMapId);
                     group.interactable = true;
 
@@ -91,17 +98,22 @@ namespace Rpg.Tests.Editor
                     facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
                     facade.BountyAndSupply.AddSaltSilver(300);
 
-                    // Hidden panel must reject auto-provision click without spending Salt-Silver.
+                    // Hidden panel must reject auto-provision click AND direct stale callback without spending Salt-Silver.
                     Assert.IsFalse(panel.TryClickAutoProvision());
+                    Button provisionBtn = root.transform
+                        .Find("World500xTravelItineraryHudPanel/ItineraryModalBox/AutoProvisionItineraryButton")
+                        .GetComponent<Button>();
+                    provisionBtn.onClick.Invoke();
                     Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
 
                     Assert.IsTrue(panel.Show(RpgWorldMapId.MineCamp));
                     Assert.Greater(panel.LastProvisioningPlan.Lines.Count, 0);
 
-                    // Parent CanvasGroup lock blocks auto-provision click cleanly.
+                    // Parent CanvasGroup lock blocks auto-provision click AND direct stale callback cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TryClickAutoProvision());
+                    provisionBtn.onClick.Invoke();
                     Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
                     group.interactable = true;
 
