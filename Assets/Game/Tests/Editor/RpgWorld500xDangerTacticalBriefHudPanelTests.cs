@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -36,6 +37,16 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null }))
                 using (var panel = new RpgWorld500xDangerTacticalBriefHudPanel(root.transform, boot, read))
                 {
+                    // Hidden panel rejects Try* calls AND direct stale tab callbacks cleanly.
+                    Assert.IsFalse(panel.TrySelectFilter(RpgWorld500xDangerBriefFilter.AllZones));
+                    Assert.IsFalse(panel.TryClickRefresh(1f));
+                    Assert.IsFalse(panel.TryClickClose());
+                    Button allZonesBtn = root.transform
+                        .Find("World500xDangerTacticalBriefHudPanel/DangerBriefModalBox/Tab_AllZones")
+                        .GetComponent<Button>();
+                    allZonesBtn.onClick.Invoke();
+                    Assert.AreEqual(RpgWorld500xDangerBriefFilter.UnclearedOnly, panel.ActiveFilter);
+
                     Assert.IsTrue(panel.Show());
                     int totalZones = panel.LastBrief.TotalDangerZones;
                     Assert.Greater(totalZones, 0);
@@ -48,12 +59,13 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.TryClickRefresh(5f));
                     Assert.AreEqual(totalZones - 1, panel.DisplayedRowCount);
 
-                    // Parent CanvasGroup lock prevents tab switch, refresh, and close cleanly.
+                    // Parent CanvasGroup lock prevents tab switch, refresh, close, AND direct stale callbacks cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySelectFilter(RpgWorld500xDangerBriefFilter.AllZones));
                     Assert.IsFalse(panel.TryClickRefresh(6f));
                     Assert.IsFalse(panel.TryClickClose());
+                    allZonesBtn.onClick.Invoke();
                     Assert.AreEqual(RpgWorld500xDangerBriefFilter.UnclearedOnly, panel.ActiveFilter);
                     group.interactable = true;
 
@@ -63,6 +75,7 @@ namespace Rpg.Tests.Editor
 
                     Assert.IsTrue(panel.TryClickClose());
                     Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TryClickClose());
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);

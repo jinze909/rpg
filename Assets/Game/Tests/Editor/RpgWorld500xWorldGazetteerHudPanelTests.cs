@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -31,6 +32,22 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null }))
                 using (var panel = new RpgWorld500xWorldGazetteerHudPanel(root.transform, boot))
                 {
+                    // Hidden panel rejects Try* calls AND direct stale button callbacks cleanly.
+                    Assert.IsFalse(panel.TrySelectTab(RpgWorld500xGazetteerHudTab.SearchResults));
+                    Assert.IsFalse(panel.TrySearch("港区航标巡查"));
+                    Assert.IsFalse(panel.TryClickToggleScope());
+                    Assert.IsFalse(panel.TryClickClose());
+                    Button searchTabBtn = root.transform
+                        .Find("World500xWorldGazetteerHudPanel/GazetteerModalBox/Tab_SearchResults")
+                        .GetComponent<Button>();
+                    Button toggleScopeBtn = root.transform
+                        .Find("World500xWorldGazetteerHudPanel/GazetteerModalBox/ToggleSearchScopeButton")
+                        .GetComponent<Button>();
+                    searchTabBtn.onClick.Invoke();
+                    toggleScopeBtn.onClick.Invoke();
+                    Assert.AreEqual(RpgWorld500xGazetteerHudTab.RegionOverview, panel.ActiveTab);
+                    Assert.IsFalse(panel.FilterActiveMapOnly);
+
                     Assert.IsTrue(panel.Show());
                     Assert.AreEqual(RpgWorld500xGazetteerHudTab.RegionOverview, panel.ActiveTab);
                     Assert.AreEqual(4, panel.DisplayedRowCount);
@@ -50,7 +67,7 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(0, panel.LastSearchHitCount);
                     Assert.AreEqual(0, panel.DisplayedRowCount);
 
-                    // Parent CanvasGroup lock blocks tab switch, search, scope toggle, clear, and close.
+                    // Parent CanvasGroup lock blocks tab switch, search, scope toggle, clear, close, AND direct stale callbacks.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySelectTab(RpgWorld500xGazetteerHudTab.RegionOverview));
@@ -58,12 +75,15 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(panel.TryClickToggleScope());
                     Assert.IsFalse(panel.TryClickClearSearch());
                     Assert.IsFalse(panel.TryClickClose());
+                    toggleScopeBtn.onClick.Invoke();
+                    Assert.IsTrue(panel.FilterActiveMapOnly);
                     group.interactable = true;
 
                     Assert.IsTrue(panel.TryClickClearSearch());
                     Assert.AreEqual(string.Empty, panel.SearchQuery);
                     Assert.IsTrue(panel.TryClickClose());
                     Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TryClickClose());
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);
