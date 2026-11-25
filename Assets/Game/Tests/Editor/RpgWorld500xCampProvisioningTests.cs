@@ -82,5 +82,48 @@ namespace Rpg.Tests.Editor
                 Assert.IsTrue(partial.SummaryZh.Contains("部分备齐"));
             }
         }
+
+        [Test]
+        public void ExecuteAutoProvisioning_RespectsMaxBudgetCapAndFormatsItemizedBreakdown()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(300);
+
+                RpgWorld500xProvisioningPlan plan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    boot, RpgWorldMapId.Soundwell, elapsedSeconds: 5f);
+                string breakdown = RpgWorld500xCampProvisioningService.FormatPlanBreakdownZh(plan);
+                Assert.IsTrue(breakdown.Contains("×"));
+                Assert.IsTrue(breakdown.Contains("合计 " + plan.TotalRequiredSaltSilver + " 盐银"));
+
+                // Strict mode rejects spending when cap is below full plan cost even though wallet can afford it.
+                RpgWorld500xProvisioningReceipt cappedDenied = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.Soundwell, allowPartialIfUnderBudget: false, elapsedSeconds: 5f, maxBudgetSaltSilver: 35);
+                Assert.IsFalse(cappedDenied.FullyProvisioned);
+                Assert.AreEqual(0, cappedDenied.TotalSpentSaltSilver);
+                Assert.AreEqual(300, cappedDenied.RemainingSaltSilver);
+                Assert.IsTrue(cappedDenied.SummaryZh.Contains("超出预算上限"));
+
+                // Partial mode spends at most the 35 Salt-Silver cap (gauze 18 + rations 15 = 33), preserving 267 Salt-Silver.
+                RpgWorld500xProvisioningReceipt cappedPartial = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.Soundwell, allowPartialIfUnderBudget: true, elapsedSeconds: 5f, maxBudgetSaltSilver: 35);
+                Assert.IsFalse(cappedPartial.FullyProvisioned);
+                Assert.AreEqual(33, cappedPartial.TotalSpentSaltSilver);
+                Assert.AreEqual(267, cappedPartial.RemainingSaltSilver);
+                Assert.AreEqual(2, cappedPartial.PurchasedLines.Count);
+                Assert.Greater(cappedPartial.SkippedItemIds.Count, 0);
+
+                // Completing the remaining restock makes the formatted breakdown report fully stocked.
+                RpgWorld500xProvisioningReceipt finish = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.Soundwell, allowPartialIfUnderBudget: false, elapsedSeconds: 5f);
+                Assert.IsTrue(finish.FullyProvisioned);
+                RpgWorld500xProvisioningPlan stockedPlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    boot, RpgWorldMapId.Soundwell, elapsedSeconds: 5f);
+                Assert.AreEqual("行囊已齐备（无需补购）", RpgWorld500xCampProvisioningService.FormatPlanBreakdownZh(stockedPlan));
+            }
+        }
     }
 }

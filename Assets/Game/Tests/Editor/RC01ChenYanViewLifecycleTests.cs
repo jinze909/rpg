@@ -170,9 +170,19 @@ namespace Rpg.Tests.Editor
             view.Panel.gameObject.SetActive(true);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void EffectiveInputLockPreservesInterviewOrderAndExplicitRosterDecision(bool qiuniangFirst)
+        [Test]
+        public void EffectiveInputLockPreservesQiuniangFirstAndExplicitRosterDecision()
+        {
+            AssertEffectiveInputLockPreservesInterviewOrderAndExplicitRosterDecision(true);
+        }
+
+        [Test]
+        public void EffectiveInputLockPreservesLinSuFirstAndExplicitRosterDecision()
+        {
+            AssertEffectiveInputLockPreservesInterviewOrderAndExplicitRosterDecision(false);
+        }
+
+        private static void AssertEffectiveInputLockPreservesInterviewOrderAndExplicitRosterDecision(bool qiuniangFirst)
         {
             var root = new GameObject("RC01 effective input lock");
             var values = new Dictionary<string, int>();
