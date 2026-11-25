@@ -25,8 +25,9 @@ namespace Rpg.Soundwell
     /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, the 9-panel
     /// RpgWorld500xMenuRouter, RpgWorld500xReconPulseHudBar, and
     /// RpgWorld500xWeatherAdvisoryHudBadge. Drives movement, interaction, overview
-    /// map toggle, field recon pulse, quick auto-save, live weather advisory sync,
-    /// and mutually-exclusive modal hotkeys through deterministic RpgWorld500xInputFrame frames.
+    /// map toggle, field recon pulse, quick auto-save, DangerZone victory reward
+    /// settlement, live weather advisory sync, and mutually-exclusive modal hotkeys
+    /// through deterministic RpgWorld500xInputFrame frames.
     /// </summary>
     public sealed class RpgWorld500xPlayModeController : MonoBehaviour
     {
@@ -43,6 +44,7 @@ namespace Rpg.Soundwell
         private float _elapsedPlaySeconds;
         private bool _initialized;
         private string _lastAutoSaveStatusZh = string.Empty;
+        private string _lastDangerVictoryBannerZh = string.Empty;
 
         public bool IsInitialized => _initialized && _bootstrapper != null && !_bootstrapper.IsDisposed;
         public RpgWorld500xSceneBootstrapper Bootstrapper => _bootstrapper;
@@ -52,6 +54,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xReconPulseHudBar ReconPulseHud => _reconPulseHud;
         public RpgWorld500xWeatherAdvisoryHudBadge WeatherAdvisoryHud => _weatherAdvisoryHud;
         public string LastAutoSaveStatusZh => _lastAutoSaveStatusZh;
+        public string LastDangerVictoryBannerZh => _lastDangerVictoryBannerZh;
 
         private void Start()
         {
@@ -128,7 +131,37 @@ namespace Rpg.Soundwell
             }
 
             _lastAutoSaveStatusZh = string.Empty;
+            _lastDangerVictoryBannerZh = string.Empty;
             _initialized = true;
+        }
+
+        public bool TryResolveActiveDangerVictory(
+            bool lockBreakAchieved,
+            out RpgDangerZoneEncounterResult encounterResult,
+            out RpgWorld500xDangerVictoryReward reward)
+        {
+            encounterResult = default;
+            reward = default;
+            if (!IsInitialized)
+            {
+                return false;
+            }
+
+            RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
+            if (!facade.Session.ResolveActiveDangerVictory(lockBreakAchieved, out encounterResult))
+            {
+                return false;
+            }
+
+            reward = RpgWorld500xDangerVictoryRewardService.GrantVictoryReward(
+                _bootstrapper,
+                _campHaven,
+                facade.CurrentMapId,
+                encounterResult.MarkerId,
+                lockBreakAchieved);
+
+            _lastDangerVictoryBannerZh = reward.SummaryBannerZh;
+            return true;
         }
 
         public RpgWorld500xEffectiveExplorationModifiers ProcessInputFrame(
