@@ -9,6 +9,65 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xExpeditionMilestonesHudPanelTests
     {
         [Test]
+        public void ExpeditionMilestonesHudPanel_ClaimFlagsAndWalletFollowRestoredSave()
+        {
+            var root = new GameObject("ExpeditionClaimSaveRoot");
+            var ctrl = root.AddComponent<RpgWorld500xPlayModeController>();
+            const string claimKey = "rpg.return.world.milestone.four_regions_sworn";
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var boot = ctrl.Bootstrapper;
+                foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+                {
+                    ctrl.CampHaven.Reputation.AddPoints(spec.MapId, RpgWorld500xRegionalReputationService.SwornThreshold);
+                }
+
+                int initialSilver = boot.Driver.Facade.BountyAndSupply.SaltSilverBalance;
+                string before = boot.ExportSaveJson();
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.ExpeditionMilestones));
+                var panel = ctrl.MenuRouter.MilestonesPanel;
+                Assert.AreEqual(1, panel.ClaimableCount);
+                Assert.IsTrue(panel.TryClickClaimAllEligible());
+                Assert.AreEqual(1, boot.Store[claimKey]);
+                Assert.AreEqual(initialSilver + 300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                string after = boot.ExportSaveJson();
+
+                Assert.IsTrue(boot.TryImportSaveJson(before, out string beforeError), beforeError);
+                panel.Refresh();
+                Assert.AreEqual(0, panel.ClaimedCount);
+                Assert.AreEqual(1, panel.ClaimableCount);
+                Assert.AreEqual(initialSilver, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.IsTrue(panel.TryClickClaimAllEligible());
+                Assert.AreEqual(initialSilver + 300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+
+                // A new controller/panel reading the claimed save must not pay it again.
+                ctrl.Shutdown();
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                boot = ctrl.Bootstrapper;
+                Assert.IsTrue(boot.TryImportSaveJson(after, out string afterError), afterError);
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.ExpeditionMilestones));
+                panel = ctrl.MenuRouter.MilestonesPanel;
+                Assert.AreEqual(1, panel.ClaimedCount);
+                Assert.AreEqual(0, panel.ClaimableCount);
+                Assert.IsFalse(panel.TryClickClaimAllEligible());
+                Assert.AreEqual(1, boot.Store[claimKey]);
+                Assert.AreEqual(initialSilver + 300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ExpeditionMilestonesHudPanel_RejectsHiddenDisabledAndDisposedClaimActions()
         {
             var root = new GameObject("ExpeditionClaimLifetimeRoot");

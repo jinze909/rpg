@@ -31,6 +31,16 @@ namespace Rpg.Soundwell
                 (k, v) => _intStore[k] = v);
         }
 
+        // Expedition claim flags and their wallet rewards belong to the same save state.
+        internal RpgWorld500xExpeditionMilestoneService CreateExpeditionMilestoneService(
+            Action<RpgWorld500xExpeditionMilestoneDef> onMilestoneUnlocked)
+        {
+            return new RpgWorld500xExpeditionMilestoneService(
+                k => _intStore.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => _intStore[k] = v,
+                onMilestoneUnlocked);
+        }
+
         public RpgWorld500xSceneBootstrapper(
             GameObject hostObject = null,
             RpgWorldMapId initialMapId = RpgWorldMapId.Soundwell,
