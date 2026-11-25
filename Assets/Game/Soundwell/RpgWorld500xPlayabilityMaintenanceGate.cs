@@ -33,10 +33,19 @@ namespace Rpg.Soundwell
     /// four-region expansion stack (World Gazetteer totals, DangerZone tactical
     /// profiles &amp; Lock-Break reward keys, Camp Supply safety &amp; timed buff
     /// evaluation, Weather Travel Advisory risk matrix, Expedition Readiness
-    /// scoring, and Campfire Journal Digest synthesis across all 4 playable maps).
+    /// scoring, Campfire Journal Digest synthesis, 4x4 multi-hop Fast Travel
+    /// Itinerary reachability, and 16-panel MenuRouter + PlayMode hotkey coverage).
     /// </summary>
     public static class RpgWorld500xPlayabilityMaintenanceGate
     {
+        private static readonly KeyCode[] ExpectedModalHotkeys =
+        {
+            KeyCode.J, KeyCode.M, KeyCode.B, KeyCode.K,
+            KeyCode.T, KeyCode.N, KeyCode.O, KeyCode.L,
+            KeyCode.U, KeyCode.C, KeyCode.H, KeyCode.V,
+            KeyCode.P, KeyCode.X, KeyCode.G, KeyCode.Y
+        };
+
         public static RpgWorld500xPlayabilityGateReport RunFullAudit(Sprite[] overrideTileSlices = null)
         {
             var issues = new List<string>();
@@ -137,6 +146,63 @@ namespace Rpg.Soundwell
                           stormReadiness.Score >= 0 && stormReadiness.Score <= 100 &&
                           !string.IsNullOrWhiteSpace(stormReadiness.ChecklistSummaryZh),
                         "Expedition readiness failed under GaleStorm on " + mapId);
+                }
+            }
+
+            // 4. All-Pairs 4x4 Multi-Hop Fast Travel Itinerary Reachability
+            for (int a = 0; a < specs.Count; a++)
+            {
+                for (int b = 0; b < specs.Count; b++)
+                {
+                    RpgWorld500xTravelItinerary itinerary =
+                        RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(specs[a].MapId, specs[b].MapId);
+                    bool expectedValid = itinerary.IsReachable &&
+                        (a == b
+                            ? itinerary.HopCount == 0 && itinerary.TotalTravelMinutesInGame == 0
+                            : itinerary.HopCount > 0 && itinerary.TotalTravelMinutesInGame > 0);
+                    Check(expectedValid, "Invalid itinerary from " + specs[a].MapId + " to " + specs[b].MapId);
+                }
+            }
+
+            // 5. 16-Panel MenuRouter & PlayMode Hardware Hotkey Coverage
+            var mappedModals = new HashSet<RpgWorld500xModalKind>();
+            for (int i = 0; i < ExpectedModalHotkeys.Length; i++)
+            {
+                bool resolved = RpgWorld500xPlayModeController.TryResolveModalHotkey(
+                    ExpectedModalHotkeys[i], out RpgWorld500xModalKind kind);
+                Check(resolved && kind != RpgWorld500xModalKind.None && mappedModals.Add(kind),
+                    "Invalid or duplicate modal hotkey mapping for " + ExpectedModalHotkeys[i]);
+            }
+
+            Check(mappedModals.Count == 16, "Expected 16 unique modal hotkeys, found " + mappedModals.Count);
+
+            var uiRoot = new GameObject("World500xPlayabilityGateUiRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: slices))
+                using (var router = new RpgWorld500xMenuRouter(uiRoot.transform, boot, boot.CreateCampHavenService()))
+                {
+                    foreach (RpgWorld500xModalKind modal in mappedModals)
+                    {
+                        bool opened = router.OpenModal(modal) && router.ActiveModal == modal;
+                        Check(opened, "MenuRouter failed to open modal " + modal);
+                    }
+
+                    router.CloseAll();
+                    Check(router.ActiveModal == RpgWorld500xModalKind.None, "MenuRouter failed to close all modals.");
+                }
+            }
+            finally
+            {
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(uiRoot);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(uiRoot);
                 }
             }
 

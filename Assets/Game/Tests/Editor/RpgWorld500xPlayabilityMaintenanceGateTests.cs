@@ -18,7 +18,7 @@ namespace Rpg.Tests.Editor
 
             RpgWorld500xPlayabilityGateReport report = RpgWorld500xPlayabilityMaintenanceGate.RunFullAudit();
             Assert.IsTrue(report.Passed, string.Join("\n", report.Issues));
-            Assert.Greater(report.TotalChecks, 30);
+            Assert.Greater(report.TotalChecks, 80);
             Assert.AreEqual(report.TotalChecks, report.PassedChecks);
             Assert.AreEqual(0, report.Issues.Count);
             Assert.IsTrue(report.FormattedReportZh.Contains("通过"));
