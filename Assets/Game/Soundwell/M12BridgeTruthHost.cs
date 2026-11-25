@@ -126,12 +126,19 @@ namespace Rpg.Soundwell
                 linSuPresent() != openedLinSuPresent)
                 return;
 
-            if (!session.TryDecideTruthAndCommit(disclosure, getInt, setInt))
+            // Persistence may synchronously close this host or destroy its view.
+            // Retire only the view that submitted the successful decision.
+            var committingView = activeView;
+            var committingSession = session;
+            if (!committingSession.TryDecideTruthAndCommit(disclosure, getInt, setInt))
                 return;
 
-            activeView.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            committingView.Dispose();
+            if (ReferenceEquals(activeView, committingView))
+            {
+                activeView = null;
+                openedArrivalSequence = null;
+            }
         }
 
         public void Dispose()
