@@ -164,6 +164,49 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FastTravelBeaconHudPanel_RespectsParentCanvasGroupInputLock()
+        {
+            var root = new GameObject("BeaconCanvasGroupLockRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    var host = boot.Driver.Facade.Session.Host;
+                    const string marker = "rsh.salt-market";
+                    Assert.IsTrue(host.Tracker.TryDiscoverMarker(marker));
+                    Assert.IsTrue(panel.Show());
+                    Transform modal = root.transform.Find("World500xFastTravelBeaconHudPanel/BeaconWarpModalBox");
+                    var group = modal.gameObject.AddComponent<CanvasGroup>();
+                    var button = modal.Find("BeaconRows/BeaconRow_rsh.salt-market/WarpButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    Vector2 start = host.PlayerPosition;
+                    string status = panel.StatusText;
+
+                    group.interactable = false;
+                    Assert.IsTrue(button.interactable, "The row itself remains enabled.");
+                    Assert.IsFalse(button.IsInteractable(), "The ancestor must block selection.");
+                    button.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(start, host.PlayerPosition);
+                    Assert.AreEqual(status, panel.StatusText);
+
+                    group.interactable = true;
+                    Assert.IsTrue(button.IsInteractable());
+                    Assert.IsTrue(panel.TryClickWarp(marker));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), host.CurrentTile);
+                    Assert.IsTrue(panel.StatusText.Contains("已传送至"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_WarpsToDiscoveredBeaconRejectsLockedAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xFastTravelBeaconHudPanelTestRoot");
