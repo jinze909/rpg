@@ -86,6 +86,27 @@ namespace Rpg.Tests.Editor
                 Assert.That(notice, Is.Not.Null);
                 StringAssert.Contains("陆钧", notice.Notice.text);
 
+                // A hidden or interaction-locked notice must not persist acknowledgement.
+                var group = notice.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(notice.AcknowledgeButton.IsInteractable(), Is.False);
+                notice.AcknowledgeButton.onClick.Invoke();
+                Assert.That(M10WorldNoticeThreeFacts.TryReadForCurrentArrival(
+                    read, out bool lockedObserved), Is.True);
+                Assert.That(lockedObserved, Is.False);
+                Assert.That(flow.HasActiveHost, Is.True);
+                Assert.That(notice.IsDelivered, Is.False);
+
+                group.interactable = true;
+                notice.Panel.gameObject.SetActive(false);
+                notice.AcknowledgeButton.onClick.Invoke();
+                Assert.That(M10WorldNoticeThreeFacts.TryReadForCurrentArrival(
+                    read, out bool hiddenObserved), Is.True);
+                Assert.That(hiddenObserved, Is.False);
+                Assert.That(flow.HasActiveHost, Is.True);
+                Assert.That(notice.IsDelivered, Is.False);
+
+                notice.Panel.gameObject.SetActive(true);
                 notice.AcknowledgeButton.onClick.Invoke();
                 Assert.That(M10WorldNoticeThreeFacts.TryReadForCurrentArrival(
                     read, out bool observed), Is.True);

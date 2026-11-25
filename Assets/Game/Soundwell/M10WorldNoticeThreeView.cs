@@ -119,7 +119,7 @@ namespace Rpg.Soundwell
         private void TryAcknowledge()
         {
             if (disposed || delivered || acknowledging || IsDestroyedExternally() ||
-                !acknowledgeButton.interactable)
+                !acknowledgeButton.IsActive() || !acknowledgeButton.IsInteractable())
                 return;
 
             acknowledging = true;
