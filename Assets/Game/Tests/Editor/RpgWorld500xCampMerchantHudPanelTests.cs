@@ -9,6 +9,53 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xCampMerchantHudPanelTests
     {
         [Test]
+        public void CampMerchantPanel_RejectsStaleRegionalAndReputationQuotesBeforeCharging()
+        {
+            var root = new GameObject("World500xMerchantQuoteRoot");
+            var ctrl = root.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var boot = ctrl.Bootstrapper;
+                var haven = ctrl.CampHaven;
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(100);
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.CampMerchant));
+                var panel = ctrl.MenuRouter.MerchantPanel;
+                const string path = "World500xPlayModeUiRoot/World500xCampMerchantHudPanel/MerchantModalBox/MerchantRows/SupplyRow_flare/ActionButton";
+                Assert.AreEqual(30, haven.GetDiscountedUnitCost(RpgWorldMapId.Soundwell, "flare"));
+                var staleReputationEvent = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>().onClick;
+                haven.Reputation.AddPoints(RpgWorldMapId.Soundwell, 800);
+                staleReputationEvent.Invoke();
+                Assert.AreEqual(100, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(0, boot.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
+                Assert.That(panel.FeedbackText, Does.Contain("报价已更新"));
+                Assert.That(panel.HeaderText, Does.Contain("折扣 30%"));
+                Assert.IsTrue(panel.TryClickBuySupply("flare"));
+                Assert.AreEqual(79, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(1, boot.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
+
+                var staleRegionEvent = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>().onClick;
+                Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                Assert.AreEqual(30, haven.GetDiscountedUnitCost(RpgWorldMapId.RedSaltHarbor, "flare"));
+                staleRegionEvent.Invoke();
+                Assert.AreEqual(79, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(1, boot.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
+                Assert.That(panel.FeedbackText, Does.Contain("报价已更新"));
+                Assert.IsTrue(panel.TryClickBuySupply("flare"));
+                Assert.AreEqual(49, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(2, boot.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CampMerchantPanel_RejectsHiddenRetiredAndDisposedButtonEvents()
         {
             var root = new GameObject("World500xMerchantEventLifetimeRoot");

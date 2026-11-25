@@ -246,7 +246,7 @@ namespace Rpg.Soundwell
                     label,
                     btnLabel,
                     canBuy,
-                    () => HandleBuySupplyClicked(capturedId, capturedName));
+                    () => HandleBuySupplyClicked(capturedId, capturedName, mapId, discountedCost));
 
                 _buyButtons[item.Id] = btn;
             }
@@ -297,9 +297,19 @@ namespace Rpg.Soundwell
                 HandleClaimBountiesClicked);
         }
 
-        private void HandleBuySupplyClicked(string itemId, string itemNameZh)
+        private void HandleBuySupplyClicked(string itemId, string itemNameZh,
+            RpgWorldMapId quotedMapId, int quotedUnitCost)
         {
             RpgWorldMapId mapId = _bootstrapper.Driver.Facade.CurrentMapId;
+            // The price on the visible row is an offer, not permission to
+            // silently charge a different regional or reputation-based price.
+            if (mapId != quotedMapId || _campHaven.GetDiscountedUnitCost(mapId, itemId) != quotedUnitCost)
+            {
+                _feedbackText.text = "营地报价已更新，请确认后重试";
+                Refresh();
+                return;
+            }
+
             RpgCampSupplyPurchaseStatus status =
                 _campHaven.TryPurchaseDiscountedSupply(mapId, itemId, 1, out int charged);
             if (status == RpgCampSupplyPurchaseStatus.Succeeded)
