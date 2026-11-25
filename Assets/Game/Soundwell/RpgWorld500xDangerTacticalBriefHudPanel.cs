@@ -90,6 +90,11 @@ namespace Rpg.Soundwell
                 "未清剿目标", _font,
                 () =>
                 {
+                    if (!CanClick(_unclearedTabButton))
+                    {
+                        return;
+                    }
+
                     _activeFilter = RpgWorld500xDangerBriefFilter.UnclearedOnly;
                     Refresh(_lastElapsedSeconds);
                 });
@@ -100,6 +105,11 @@ namespace Rpg.Soundwell
                 "全境危险区", _font,
                 () =>
                 {
+                    if (!CanClick(_allZonesTabButton))
+                    {
+                        return;
+                    }
+
                     _activeFilter = RpgWorld500xDangerBriefFilter.AllZones;
                     Refresh(_lastElapsedSeconds);
                 });
@@ -135,13 +145,29 @@ namespace Rpg.Soundwell
                 modal.transform, "RefreshDangerBriefButton",
                 new Vector2(0.04f, 0.05f), new Vector2(0.48f, 0.13f),
                 "刷新战备简报", _font,
-                () => Refresh(_lastElapsedSeconds));
+                () =>
+                {
+                    if (!CanClick(_refreshButton))
+                    {
+                        return;
+                    }
+
+                    Refresh(_lastElapsedSeconds);
+                });
 
             _closeButton = CreateActionButton(
                 modal.transform, "CloseDangerBriefButton",
                 new Vector2(0.52f, 0.05f), new Vector2(0.96f, 0.13f),
                 "关闭简报", _font,
-                () => Hide());
+                () =>
+                {
+                    if (!CanClick(_closeButton))
+                    {
+                        return;
+                    }
+
+                    Hide();
+                });
 
             _visible = false;
             _rootObject.SetActive(false);
@@ -180,15 +206,10 @@ namespace Rpg.Soundwell
 
         public bool TrySelectFilter(RpgWorld500xDangerBriefFilter filter)
         {
-            if (IsDisposed)
-            {
-                return false;
-            }
-
             Button btn = filter == RpgWorld500xDangerBriefFilter.UnclearedOnly
                 ? _unclearedTabButton
                 : _allZonesTabButton;
-            if (btn == null || !btn.interactable || !btn.IsInteractable())
+            if (!CanClick(btn))
             {
                 return false;
             }
@@ -199,8 +220,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickRefresh(float elapsedSeconds = 0f)
         {
-            if (IsDisposed || _refreshButton == null ||
-                !_refreshButton.interactable || !_refreshButton.IsInteractable())
+            if (!CanClick(_refreshButton))
             {
                 return false;
             }
@@ -212,8 +232,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickClose()
         {
-            if (IsDisposed || _closeButton == null ||
-                !_closeButton.interactable || !_closeButton.IsInteractable())
+            if (!CanClick(_closeButton))
             {
                 return false;
             }
@@ -280,6 +299,12 @@ namespace Rpg.Soundwell
             _visible = false;
             ClearRows();
             DestroySafe(_rootObject);
+        }
+
+        private bool CanClick(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.IsInteractable();
         }
 
         private void UpdateTabHighlight()
