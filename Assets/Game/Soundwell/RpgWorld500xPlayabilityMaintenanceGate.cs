@@ -34,7 +34,8 @@ namespace Rpg.Soundwell
     /// profiles &amp; Lock-Break reward keys, Camp Supply safety &amp; timed buff
     /// evaluation, Weather Travel Advisory risk matrix, Expedition Readiness
     /// scoring, Campfire Journal Digest synthesis, 4x4 multi-hop Fast Travel
-    /// Itinerary reachability, and 16-panel MenuRouter + PlayMode hotkey coverage).
+    /// Itinerary reachability, 16-panel MenuRouter + PlayMode hotkey coverage,
+    /// and QuickMenuDockHud 16-button launch &amp; active-highlight sync).
     /// </summary>
     public static class RpgWorld500xPlayabilityMaintenanceGate
     {
@@ -192,7 +193,33 @@ namespace Rpg.Soundwell
 
                     router.CloseAll();
                     Check(router.ActiveModal == RpgWorld500xModalKind.None, "MenuRouter failed to close all modals.");
+
+                    // 6. QuickMenuDockHud 16-Button Launch, Active Highlight Sync & Toggle-Close
+                    using (var dock = new RpgWorld500xQuickMenuDockHud(uiRoot.transform, router))
+                    {
+                        Check(dock.DisplayedButtonCount == 16,
+                            "QuickMenuDockHud expected 16 modal buttons, found " + dock.DisplayedButtonCount);
+
+                        RpgWorld500xModalKind lastModal = RpgWorld500xModalKind.None;
+                        foreach (RpgWorld500xModalKind modal in mappedModals)
+                        {
+                            bool clicked = dock.TryClickModalButton(modal) &&
+                                router.ActiveModal == modal &&
+                                dock.ActiveHighlightedModal == modal;
+                            Check(clicked, "QuickMenuDockHud failed to open/highlight modal " + modal);
+                            lastModal = modal;
+                        }
+
+                        bool toggledClosed = lastModal != RpgWorld500xModalKind.None &&
+                            dock.TryClickModalButton(lastModal) &&
+                            router.ActiveModal == RpgWorld500xModalKind.None &&
+                            dock.ActiveHighlightedModal == RpgWorld500xModalKind.None;
+                        Check(toggledClosed, "QuickMenuDockHud failed to toggle-close active modal " + lastModal);
+                    }
                 }
+
+                Check(Application.isPlaying || uiRoot.transform.childCount == 0,
+                    "MenuRouter/QuickMenuDockHud left leaked UI child objects: " + uiRoot.transform.childCount);
             }
             finally
             {
