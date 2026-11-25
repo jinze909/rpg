@@ -100,6 +100,47 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PlayModeController_ResolveActiveDangerVictory_CreditsSilverReputationAndBanner()
+        {
+            var hostGo = new GameObject("World500xDangerVictoryTestHost");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+
+                // Without an active danger encounter, resolving returns false cleanly.
+                Assert.IsFalse(ctrl.TryResolveActiveDangerVictory(true, out _, out _));
+
+                // Trigger DangerZone sw.sunken-drain at (680, 640) via bridge and resolve with Lock-Break.
+                RpgWorldOrkExplorationBridge bridge = ctrl.Bootstrapper.Driver.Facade.Session.Host.Bridge;
+                Assert.IsTrue(bridge.TryTriggerDangerZoneEncounter("sw.sunken-drain", new Vector2(680f, 640f)));
+                Assert.IsTrue(ctrl.TryResolveActiveDangerVictory(
+                    lockBreakAchieved: true,
+                    out RpgDangerZoneEncounterResult encounter,
+                    out RpgWorld500xDangerVictoryReward reward));
+
+                Assert.AreEqual("sw.sunken-drain", encounter.MarkerId);
+                Assert.IsTrue(encounter.LockBreakBonus);
+                Assert.Greater(reward.SaltSilverReward, 0);
+                Assert.Greater(reward.ReputationGain, 0);
+                Assert.AreEqual(reward.SaltSilverReward, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(reward.ReputationGain, ctrl.CampHaven.Reputation.GetPoints(RpgWorldMapId.Soundwell));
+                Assert.IsTrue(ctrl.LastDangerVictoryBannerZh.Contains("破锁精通"));
+
+                // Duplicate resolution is rejected cleanly.
+                Assert.IsFalse(ctrl.TryResolveActiveDangerVictory(true, out _, out _));
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(hostGo);
+            }
+        }
+
+        [Test]
         public void PlayModeController_DrivesAll9ModalsOverviewReconPulseQuickAutoSaveAndDisposesWithZeroLeak()
         {
             var hostGo = new GameObject("World500xPlayModeControllerTestHost");
