@@ -139,7 +139,8 @@ namespace Rpg.Soundwell
             RpgWorld500xSceneBootstrapper bootstrapper,
             RpgWorldMapId destinationMapId,
             float elapsedSeconds = 0f,
-            RpgWorld500xFieldSupplyUseService supplyUseService = null)
+            RpgWorld500xFieldSupplyUseService supplyUseService = null,
+            bool preferSafestRoute = false)
         {
             if (bootstrapper == null || bootstrapper.IsDisposed)
             {
@@ -153,8 +154,10 @@ namespace Rpg.Soundwell
             RpgWorld500xExpeditionReadinessReport readiness =
                 RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
                     bootstrapper, elapsedSeconds, supplyUseService);
-            RpgWorld500xTravelItinerary itinerary =
-                RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(
+            RpgWorld500xTravelItinerary itinerary = preferSafestRoute
+                ? RpgWorld500xFastTravelItineraryService.PlanSafestItinerary(
+                    originMapId, destinationMapId, facade.Atmosphere)
+                : RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(
                     originMapId, destinationMapId, facade.Atmosphere);
 
             IReadOnlyList<RpgWorld500xCampSupplyItemDef> catalog =
@@ -273,10 +276,11 @@ namespace Rpg.Soundwell
             bool allowPartialIfUnderBudget = true,
             float elapsedSeconds = 0f,
             RpgWorld500xFieldSupplyUseService supplyUseService = null,
-            int? maxBudgetSaltSilver = null)
+            int? maxBudgetSaltSilver = null,
+            bool preferSafestRoute = false)
         {
             RpgWorld500xProvisioningPlan plan = BuildProvisioningPlan(
-                bootstrapper, destinationMapId, elapsedSeconds, supplyUseService);
+                bootstrapper, destinationMapId, elapsedSeconds, supplyUseService, preferSafestRoute);
             RpgWorld500xFieldBountyAndSupplyService shop = bootstrapper.Driver.Facade.BountyAndSupply;
 
             if (plan.Lines.Count == 0)
