@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Rpg.Tests.Editor
 {
@@ -24,7 +26,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsNull(uiRoot.GetComponent<UnityEngine.EventSystems.EventSystem>(),
                     "Do not create a duplicate scene EventSystem.");
                 var canvases = uiRoot.GetComponentsInChildren<Canvas>(true);
-                Assert.AreEqual(10, canvases.Length);
+                Assert.AreEqual(11, canvases.Length);
                 foreach (Canvas canvas in canvases)
                     Assert.IsNotNull(canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>(), canvas.name);
 
@@ -140,6 +142,132 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [UnityTest]
+        public IEnumerator PlayModeController_SupplyHotbarReservesSeparateHudRowAndCapturesEvidence()
+        {
+            yield return new EnterPlayMode(expectDomainReload: true);
+            var hostGo = new GameObject("World500xSupplyHudLayoutEvidence");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var ui = hostGo.transform.Find("World500xPlayModeUiRoot");
+                var supply = ui.Find("World500xFieldSupplyHotbarHud/SupplyHotbarPanel") as RectTransform;
+                var recon = ui.Find("World500xReconPulseHudBar/ReconPulsePanel") as RectTransform;
+                var weather = ui.Find("World500xWeatherAdvisoryHudBadge/WeatherAdvisoryCard") as RectTransform;
+                Assert.IsNotNull(supply);
+                Assert.IsNotNull(recon);
+                Assert.IsNotNull(weather);
+                Assert.AreEqual(0f, supply.anchorMin.y);
+                Assert.AreEqual(0f, supply.pivot.y);
+                Assert.GreaterOrEqual(supply.anchoredPosition.y,
+                    Mathf.Max(recon.anchoredPosition.y + recon.sizeDelta.y,
+                        weather.anchoredPosition.y + weather.sizeDelta.y) + 8f);
+                var shop = ctrl.Bootstrapper.Driver.Facade.BountyAndSupply;
+                shop.AddSaltSilver(100);
+                Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 2));
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedSupplySlotIndex = 3 }, 0.1f);
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+                Font expectedFont = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+                Assert.IsNotNull(expectedFont, "The pinned OFL font must be imported.");
+                foreach (var label in supply.GetComponentsInChildren<UnityEngine.UI.Text>(true))
+                {
+                    Assert.AreSame(expectedFont, label.font);
+                    Assert.GreaterOrEqual(label.fontSize, 14);
+                    foreach (char glyph in label.text)
+                    {
+                        if (!char.IsWhiteSpace(glyph))
+                            Assert.IsTrue(label.font.HasCharacter(glyph), "Missing hotbar glyph: " + glyph);
+                    }
+                }
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                SoundwellSmokeHost.CaptureStoryCanvas(supply.GetComponentInParent<Canvas>(),
+                    "world500x-live-supply-hotbar-active");
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.Destroy(hostGo);
+            }
+            yield return null;
+            yield return new ExitPlayMode();
+        }
+
+        [Test]
+        public void PlayModeController_SupplyHotbarConsumesPersistedStockAndBuildsExpeditionDigest()
+        {
+            var hostGo = new GameObject("World500xSupplyHotbarDigestTestHost");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+
+                var shop = ctrl.Bootstrapper.Driver.Facade.BountyAndSupply;
+                shop.AddSaltSilver(100);
+                // Slot 3 is lamp_oil (22 Salt-Silver).
+                Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 1));
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+                var button = hostGo.transform.Find(
+                    "World500xPlayModeUiRoot/World500xFieldSupplyHotbarHud/SupplyHotbarPanel/SupplySlot_lamp_oil")
+                    .GetComponent<UnityEngine.UI.Button>();
+                ctrl.SupplyHotbarHud.Refresh(0f);
+                Assert.IsTrue(button.IsInteractable());
+
+                // Modal open blocks hotbar consumption from both hardware and UGUI.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    RequestedModalToggle = RpgWorld500xModalKind.WorldAtlas,
+                    RequestedSupplySlotIndex = 3
+                }, 0.1f);
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+                Assert.IsFalse(button.IsInteractable());
+                button.OnPointerClick(new UnityEngine.EventSystems.PointerEventData(
+                    UnityEngine.EventSystems.EventSystem.current)
+                {
+                    button = UnityEngine.EventSystems.PointerEventData.InputButton.Left
+                });
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+                // Dismissing modal does not leak hotbar consumption in the same frame.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    CloseModalPressed = true,
+                    RequestedSupplySlotIndex = 3
+                }, 0.1f);
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+                Assert.IsFalse(button.IsInteractable());
+                ctrl.ProcessInputFrame(default, 0.1f);
+                Assert.IsTrue(button.IsInteractable());
+
+                // Next open-world frame consumes lamp_oil from shared persisted store and activates buff.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    RequestedSupplySlotIndex = 3
+                }, 0.1f);
+                Assert.AreEqual(0, shop.GetOwnedSupplyCount("lamp_oil"));
+                Assert.IsTrue(ctrl.SupplyHotbarHud.ActiveBuffsText.Contains("灯油照明"));
+
+                RpgWorld500xExpeditionDigest digest = ctrl.BuildExpeditionDigest();
+                Assert.AreEqual(RpgWorldMapId.Soundwell, digest.MapId);
+                Assert.AreEqual(78, digest.SaltSilverBalance);
+                Assert.IsTrue(digest.FormattedDigestZh.Contains("灯油照明"));
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(hostGo);
+            }
+        }
+
         [Test]
         public void PlayModeController_DrivesAll9ModalsOverviewReconPulseQuickAutoSaveAndDisposesWithZeroLeak()
         {
@@ -173,6 +301,7 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
                 Assert.IsNotNull(ctrl.ReconPulseHud);
                 Assert.IsNotNull(ctrl.WeatherAdvisoryHud);
+                Assert.IsNotNull(ctrl.SupplyHotbarHud);
 
                 // Weather advisory HUD badge updates live on atmosphere change.
                 ctrl.Bootstrapper.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
