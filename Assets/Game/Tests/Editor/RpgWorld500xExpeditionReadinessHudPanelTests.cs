@@ -1,0 +1,93 @@
+using NUnit.Framework;
+using Rpg.Soundwell;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Rpg.Tests.Editor
+{
+    public sealed class RpgWorld500xExpeditionReadinessHudPanelTests
+    {
+        [Test]
+        public void ExpeditionReadinessHudPanel_AutoRestocksRecommendedSuppliesRespectsCanvasGroupLockAndZeroLeak()
+        {
+            var root = new GameObject("World500xExpeditionReadinessHudPanelTestRoot");
+            try
+            {
+                // Warm up one-time UGUI/font caches before steady-state leak baseline.
+                using (var warmupBoot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var warmupPanel = new RpgWorld500xExpeditionReadinessHudPanel(root.transform, warmupBoot))
+                {
+                    warmupPanel.Show(0f);
+                    warmupPanel.TryClickRefresh(1f);
+                    warmupPanel.TryClickClose();
+                }
+
+                int texBefore = Resources.FindObjectsOfTypeAll<Texture2D>().Length;
+                int spriteBefore = Resources.FindObjectsOfTypeAll<Sprite>().Length;
+
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xExpeditionReadinessHudPanel(root.transform, boot))
+                {
+                    boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(300);
+
+                    // An invisible modal must not spend currency, even via a stale click.
+                    Assert.IsFalse(panel.TryClickBuyRecommended());
+                    Assert.IsFalse(panel.TryClickRefresh());
+                    Assert.IsFalse(panel.TryClickClose());
+                    var modal = root.transform.Find("World500xExpeditionReadinessHudPanel");
+                    Assert.IsNotNull(modal.GetComponent<GraphicRaycaster>());
+                    var buy = modal.Find("ReadinessModalBox/BuyRecommendedSuppliesButton").GetComponent<Button>();
+                    buy.onClick.Invoke();
+                    Assert.AreEqual(300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+
+                    Assert.IsTrue(panel.Show(5f));
+                    Assert.AreEqual(4, panel.DisplayedRowCount);
+                    Assert.AreEqual(RpgWorld500xReadinessGrade.Critical, panel.LastReport.Grade);
+                    Assert.Greater(panel.LastReport.RecommendedSupplyIds.Count, 0);
+
+                    // Parent CanvasGroup lock prevents restock, refresh, and close clicks cleanly.
+                    CanvasGroup group = root.AddComponent<CanvasGroup>();
+                    group.interactable = false;
+                    Assert.IsFalse(panel.TryClickBuyRecommended());
+                    Assert.IsFalse(panel.TryClickRefresh(6f));
+                    Assert.IsFalse(panel.TryClickClose());
+                    buy.onClick.Invoke();
+                    Assert.AreEqual(300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                    group.interactable = true;
+
+                    // A purchase made by another UI after Show must not be duplicated.
+                    var shop = boot.Driver.Facade.BountyAndSupply;
+                    Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("gauze", 1));
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("gauze"));
+
+                    // One-click restock buys only the still-missing supplies and upgrades readiness.
+                    Assert.IsTrue(panel.TryClickBuyRecommended());
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("gauze"));
+                    Assert.Less(boot.Driver.Facade.BountyAndSupply.SaltSilverBalance, 300);
+                    Assert.AreEqual(0, panel.LastReport.RecommendedSupplyIds.Count);
+                    Assert.GreaterOrEqual(panel.LastReport.Score, 70);
+                    Assert.IsTrue(panel.FeedbackText.Contains("已补购"));
+                    Assert.IsFalse(panel.TryClickBuyRecommended());
+
+                    Assert.IsTrue(panel.TryClickClose());
+                    Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TryClickRefresh());
+                    Assert.IsFalse(panel.TryClickClose());
+                }
+
+                Assert.AreEqual(0, root.transform.childCount);
+                Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Texture2D>().Length, texBefore);
+                Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Sprite>().Length, spriteBefore);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+    }
+}

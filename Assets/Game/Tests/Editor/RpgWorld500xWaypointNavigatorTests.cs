@@ -97,6 +97,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LandmarkGuidance_AllRegionsStopRecommendingCompletedLandmarksAndRestoreOldSave()
+        {
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                RpgWorld500xMapLayout layout = RpgWorld500xMapLayout.Build(spec.MapId);
+                Assert.Greater(layout.Markers.Count, 0);
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+                foreach (RpgMapLandmarkMarker marker in layout.Markers)
+                    store[RpgMapExplorationTracker.MarkerDiscoveryKey(marker.Id)] = 1;
+
+                RpgMapLandmarkMarker target = layout.Markers[0];
+                Vector2 player = new Vector2(target.Tile.x + 0.5f, target.Tile.y + 0.5f);
+                Assert.IsFalse(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                    layout, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                    out _, getInt: read), spec.MapId.ToString());
+                Assert.IsFalse(RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                    layout, player, int.MaxValue, getInt: read).Exists(
+                        p => p.Category == RpgWorld500xWaypointCategory.UndiscoveredLandmark));
+
+                store.Remove(RpgMapExplorationTracker.MarkerDiscoveryKey(target.Id));
+                Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                    layout, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                    out RpgWorld500xWaypointGuidance restored, getInt: read));
+                Assert.AreEqual(target.Id, restored.EntityId);
+                Assert.IsTrue(restored.IsArrived);
+                var nearby = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                    layout, player, int.MaxValue, getInt: read);
+                Assert.AreEqual(1, nearby.FindAll(
+                    p => p.Category == RpgWorld500xWaypointCategory.UndiscoveredLandmark).Count);
+            }
+        }
+
+        [Test]
         public void TryFindNearestTarget_SkipsLootedCachesAndRanksTopNearbyPois()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
