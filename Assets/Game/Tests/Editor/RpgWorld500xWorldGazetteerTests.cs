@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
+using UnityEngine;
 
 namespace Rpg.Tests.Editor
 {
@@ -27,6 +28,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsFalse(string.IsNullOrWhiteSpace(c.FactionNameZh));
                 Assert.Greater(c.ConnectedRouteCount, 0);
                 Assert.IsTrue(c.FormattedCardZh.Contains(c.MapDisplayNameZh));
+                Assert.IsFalse(c.HasLiveProvisioningData);
                 totalCaches += c.TotalCaches;
                 totalShortcuts += c.TotalShortcuts;
                 totalBounties += c.TotalBounties;
@@ -49,6 +51,58 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(1, soundwell.UnlockedShortcuts);
             Assert.AreEqual(1, soundwell.ClaimedBounties);
             Assert.Greater(soundwell.CompletionPercent, 0);
+        }
+
+        [Test]
+        public void BuildLiveWorldCards_AttachesLiveRouteRiskProvisioningCostAndReflectsAutoRestock()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                RpgWorld500xGrandRuntimeFacade facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+
+                List<RpgWorld500xRegionGazetteerCard> beforeCards =
+                    RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(boot, elapsedSeconds: 5f);
+                Assert.AreEqual(4, beforeCards.Count);
+
+                RpgWorld500xRegionGazetteerCard soundwell = beforeCards.Find(c => c.MapId == RpgWorldMapId.Soundwell);
+                Assert.IsTrue(soundwell.HasLiveProvisioningData);
+                Assert.AreEqual(0, soundwell.RouteHopCount);
+                Assert.IsTrue(soundwell.FormattedCardZh.Contains("本境"));
+
+                RpgWorld500xRegionGazetteerCard mineCamp = beforeCards.Find(c => c.MapId == RpgWorldMapId.MineCamp);
+                Assert.IsTrue(mineCamp.HasLiveProvisioningData);
+                Assert.AreEqual(2, mineCamp.RouteHopCount);
+                Assert.IsTrue(mineCamp.IsHazardousRoute);
+                Assert.Greater(mineCamp.ProvisioningCostSaltSilver, 0);
+                Assert.IsFalse(mineCamp.CanAffordProvisioning);
+                Assert.IsTrue(mineCamp.FormattedCardZh.Contains("2跳险途"));
+                Assert.IsTrue(mineCamp.FormattedCardZh.Contains("盐银不足"));
+
+                // Funding Salt-Silver marks the hazardous route affordable before purchase.
+                facade.BountyAndSupply.AddSaltSilver(300);
+                List<RpgWorld500xRegionGazetteerCard> fundedCards =
+                    RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(boot, elapsedSeconds: 5f);
+                RpgWorld500xRegionGazetteerCard mineFunded = fundedCards.Find(c => c.MapId == RpgWorldMapId.MineCamp);
+                Assert.IsTrue(mineFunded.CanAffordProvisioning);
+                Assert.IsTrue(mineFunded.FormattedCardZh.Contains("可备齐"));
+
+                // Executing auto-provisioning clears pending restock cost to zero.
+                RpgWorld500xProvisioningReceipt receipt = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false, elapsedSeconds: 5f);
+                Assert.IsTrue(receipt.FullyProvisioned);
+
+                List<RpgWorld500xRegionGazetteerCard> afterCards =
+                    RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(boot, elapsedSeconds: 5f);
+                RpgWorld500xRegionGazetteerCard mineAfter = afterCards.Find(c => c.MapId == RpgWorldMapId.MineCamp);
+                Assert.AreEqual(0, mineAfter.ProvisioningCostSaltSilver);
+                Assert.IsTrue(mineAfter.CanAffordProvisioning);
+                Assert.IsTrue(mineAfter.FormattedCardZh.Contains("行囊已齐备"));
+            }
         }
 
         [Test]
