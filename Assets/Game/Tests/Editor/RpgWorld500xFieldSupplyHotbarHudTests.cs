@@ -42,12 +42,24 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(2, use.GetOwnedCount("lamp_oil"));
                     root.SetActive(true);
 
+                    // An inactive component can still have a retained UnityEvent reference.
+                    button.enabled = false;
+                    button.onClick.Invoke();
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(2, use.GetOwnedCount("lamp_oil"));
+                    button.enabled = true;
+
                     Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", float.NaN));
                     Assert.AreEqual(2, use.GetOwnedCount("lamp_oil"));
                     Assert.IsTrue(hud.TryClickUseSupply("lamp_oil", 10f));
                     Assert.AreEqual(1, use.GetOwnedCount("lamp_oil"));
                     Assert.AreEqual(90f, use.GetRemainingBuffSeconds("lamp_oil", 10f), 0.01f);
                     button.onClick.Invoke();
+                    Assert.AreEqual(0, use.GetOwnedCount("lamp_oil"));
+                    Assert.AreEqual(170f, use.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
+                    // Once the stock is exhausted, a retained event cannot extend the buff.
+                    button.onClick.Invoke();
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", 20f));
                     Assert.AreEqual(0, use.GetOwnedCount("lamp_oil"));
                     Assert.AreEqual(170f, use.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
                 }
