@@ -1,0 +1,94 @@
+using System;
+using System.Collections.Generic;
+using NUnit.Framework;
+using Rpg.Soundwell;
+using UnityEngine;
+
+namespace Rpg.Tests.Editor
+{
+    public sealed class RpgWorld500xFieldReconScannerTests
+    {
+        [Test]
+        public void TryPulseScan_FindsSortedUncompletedTargetsRespectsCooldownAndFiltersCompleted()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var scanner = new RpgWorld500xFieldReconScannerService(
+                getInt: k => store.TryGetValue(k, out int v) ? v : 0,
+                cooldownSeconds: 4f);
+
+            // Near Soundwell entry (260, 720): multiple caches, NPCs, story spots, shortcuts within 420 tiles.
+            Assert.IsTrue(scanner.TryPulseScan(
+                RpgWorldMapId.Soundwell,
+                new Vector2(260f, 720f),
+                nowSeconds: 10f,
+                out List<RpgWorld500xReconPing> pings,
+                out string banner,
+                baseRadiusTiles: 420f,
+                visibilityMultiplier: 1f,
+                maxResults: 6));
+
+            Assert.Greater(pings.Count, 0);
+            Assert.LessOrEqual(pings.Count, 6);
+            Assert.IsTrue(banner.Contains("勘测发现"));
+
+            // Results must be sorted by ascending distance.
+            for (int i = 1; i < pings.Count; i++)
+            {
+                Assert.LessOrEqual(pings[i - 1].DistanceTiles, pings[i].DistanceTiles);
+                Assert.IsFalse(string.IsNullOrWhiteSpace(pings[i].DirectionZh));
+            }
+
+            // Immediate re-scan within cooldown is rejected.
+            Assert.IsFalse(scanner.TryPulseScan(
+                RpgWorldMapId.Soundwell,
+                new Vector2(260f, 720f),
+                nowSeconds: 12f,
+                out _,
+                out string cdBanner));
+            Assert.IsTrue(cdBanner.Contains("冷却"));
+            Assert.AreEqual(2f, scanner.GetRemainingCooldown(12f), 0.01f);
+
+            // Mark the closest non-ambient entity completed, scan again after cooldown -> excluded.
+            IReadOnlyList<RpgFieldNpcDef> npcs = RpgWorld500xLivingWorldCatalog.GetFieldNpcs(RpgWorldMapId.Soundwell);
+            RpgFieldNpcDef npc0 = npcs[0]; // (250, 690)
+            store[npc0.RumorMakinomKey] = 1;
+
+            Assert.IsTrue(scanner.TryPulseScan(
+                RpgWorldMapId.Soundwell,
+                new Vector2(npc0.Tile.x + 0.5f, npc0.Tile.y + 0.5f),
+                nowSeconds: 15f,
+                out List<RpgWorld500xReconPing> afterDone,
+                out _,
+                baseRadiusTiles: 200f,
+                maxResults: 10));
+
+            for (int i = 0; i < afterDone.Count; i++)
+            {
+                Assert.AreNotEqual(npc0.Id, afterDone[i].EntityId);
+            }
+
+            // Non-finite coordinates are rejected safely.
+            Assert.IsFalse(scanner.TryPulseScan(
+                RpgWorldMapId.Soundwell,
+                new Vector2(float.NaN, 0f),
+                nowSeconds: 30f,
+                out _,
+                out _));
+        }
+
+        [Test]
+        public void ResolveDirection8Zh_CoversAllEightCompassSectorsAndUnderfoot()
+        {
+            var origin = new Vector2(100.5f, 100.5f);
+            Assert.AreEqual("脚下", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(100, 100)));
+            Assert.AreEqual("正东", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(150, 100)));
+            Assert.AreEqual("东北", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(150, 150)));
+            Assert.AreEqual("正北", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(100, 150)));
+            Assert.AreEqual("西北", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(50, 150)));
+            Assert.AreEqual("正西", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(50, 100)));
+            Assert.AreEqual("西南", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(50, 50)));
+            Assert.AreEqual("正南", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(100, 50)));
+            Assert.AreEqual("东南", RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(origin, new Vector2Int(150, 50)));
+        }
+    }
+}
