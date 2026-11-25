@@ -209,8 +209,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered || IsDestroyedExternally() || index < 0 || index >= 3)
                 return;
-            // Hidden button callbacks are not an alternate gameplay route.
-            if (!choices[index].gameObject.activeSelf || !choices[index].interactable)
+            // Hidden or effectively locked controls cannot advance gameplay.
+            if (!choices[index].IsActive() || !choices[index].IsInteractable())
                 return;
             switch (session.Stage)
             {
@@ -254,7 +254,7 @@ namespace Rpg.Soundwell
         private void Finish()
         {
             if (disposed || delivered || IsDestroyedExternally() ||
-                !session.IsComplete || !finishButton.interactable)
+                !session.IsComplete || !finishButton.IsActive() || !finishButton.IsInteractable())
                 return;
             // Guard against reentrant submits while keeping failed host writes retryable.
             delivered = true;

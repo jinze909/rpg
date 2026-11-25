@@ -57,6 +57,84 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockBlocksPatrolConsentBoardingAndDelivery()
+        {
+            var root = new GameObject("M09 night ferry input lock");
+            M09EastShoreNightCrossingView view = null;
+            try
+            {
+                var session = new M09EastShoreNightCrossingSession(3);
+                int boardChecks = 0, deliveries = 0;
+                view = new M09EastShoreNightCrossingView(
+                    root.transform, session, 2,
+                    count => { boardChecks++; return count == 2; },
+                    _ => deliveries++);
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+
+                group.interactable = false;
+                Assert.That(view.ListenOrProceedButton.IsInteractable(), Is.False);
+                view.ListenOrProceedButton.onClick.Invoke();
+                view.RiskOrRefuseButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M09NightCrossingStage.FogApproach));
+                Assert.That(session.PatrolAlerts, Is.Zero);
+
+                group.interactable = true;
+                view.ListenOrProceedButton.onClick.Invoke();
+                group.interactable = false;
+                view.ListenOrProceedButton.onClick.Invoke();
+                view.RiskOrRefuseButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M09NightCrossingStage.PatrolPassing));
+                Assert.That(session.PatrolAlerts, Is.Zero);
+                group.interactable = true;
+                view.ListenOrProceedButton.onClick.Invoke();
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M09NightCrossingStage.JettyRollCall));
+
+                group.interactable = false;
+                view.ListenOrProceedButton.onClick.Invoke();
+                view.RiskOrRefuseButton.onClick.Invoke();
+                view.DeferButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M09NightCrossingStage.JettyRollCall));
+                Assert.That(session.ConfirmedHouseholdSize, Is.Zero);
+                group.interactable = true;
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M09NightCrossingStage.AwaitingActualBoarding));
+
+                group.interactable = false;
+                view.ListenOrProceedButton.onClick.Invoke();
+                view.RiskOrRefuseButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.Zero);
+                Assert.That(session.ActuallyBoardedCount, Is.Zero);
+                Assert.That(session.IsComplete, Is.False);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.EqualTo(1));
+                Assert.That(session.ActuallyBoardedCount, Is.EqualTo(2));
+                Assert.That(session.Outcome, Is.EqualTo(M09RuiyaOutcome.Rescued));
+
+                group.interactable = false;
+                view.FinishButton.onClick.Invoke();
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.FinishButton.onClick.Invoke();
+                Assert.That(deliveries, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.FinishButton.onClick.Invoke();
+                view.FinishButton.onClick.Invoke();
+                Assert.That(deliveries, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InvalidViewportAspectsAreIgnoredWithoutThrowing()
         {
             var root = new GameObject("M09 night ferry aspect guard");

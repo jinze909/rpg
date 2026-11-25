@@ -109,6 +109,86 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockBlocksAssemblyChoicesAndCommitUntilRestored()
+        {
+            var root = new GameObject("M10 assembly input lock");
+            M10AssemblyView view = null;
+            try
+            {
+                var session = CreateVerifiedSession();
+                int reconciliations = 0, commits = 0;
+                view = new M10AssemblyView(
+                    root.transform, session,
+                    () => { reconciliations++; return true; }, () => true,
+                    () => false, () => false, () => commits++);
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+
+                group.interactable = false;
+                Assert.That(view.ObserveNoticeButton.IsInteractable(), Is.False);
+                view.ObserveNoticeButton.onClick.Invoke();
+                Assert.That(session.WorldNoticeThreeObserved, Is.False);
+                Assert.That(session.Phase, Is.EqualTo(M10AssemblyPhase.NoticeAndArrival));
+
+                group.interactable = true;
+                view.ObserveNoticeButton.onClick.Invoke();
+                group.interactable = false;
+                view.ReconcileRecordsButton.onClick.Invoke();
+                Assert.That(reconciliations, Is.Zero);
+                Assert.That(session.RosterAccuracy.HasValue, Is.False);
+                group.interactable = true;
+                view.ReconcileRecordsButton.onClick.Invoke();
+                Assert.That(reconciliations, Is.EqualTo(1));
+                Assert.That(session.Phase, Is.EqualTo(M10AssemblyPhase.HanQiaoConfrontation));
+
+                group.interactable = false;
+                view.PresentM02CopyButton.onClick.Invoke();
+                view.RetrieveArchiveCopyButton.onClick.Invoke();
+                Assert.That(session.BattleReportSource.HasValue, Is.False);
+                group.interactable = true;
+                view.PresentM02CopyButton.onClick.Invoke();
+                Assert.That(session.BattleReportSource, Is.EqualTo(M10BattleReportSource.CarriedFromM02));
+
+                view.Panel.gameObject.SetActive(false);
+                view.PublishDraftButton.onClick.Invoke();
+                view.TradeForConcessionsButton.onClick.Invoke();
+                view.KeepConfidentialButton.onClick.Invoke();
+                Assert.That(session.HanLedgerUse.HasValue, Is.False);
+                view.Panel.gameObject.SetActive(true);
+                view.PublishDraftButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M10AssemblyPhase.SupplyContractTable));
+
+                group.interactable = false;
+                view.SignFullCoverageButton.onClick.Invoke();
+                view.RecordPartialGapButton.onClick.Invoke();
+                Assert.That(session.SupplyContract.HasValue, Is.False);
+                group.interactable = true;
+                view.RecordPartialGapButton.onClick.Invoke();
+                Assert.That(session.SupplyContract, Is.EqualTo(M10SupplyContractStatus.PartialGapToM13));
+
+                group.interactable = false;
+                view.HearBellTowerReportButton.onClick.Invoke();
+                Assert.That(session.BellTowerSeizureHeard, Is.False);
+                group.interactable = true;
+                view.HearBellTowerReportButton.onClick.Invoke();
+                Assert.That(session.BellTowerSeizureHeard, Is.True);
+                group.interactable = false;
+                view.ConfirmAssemblyButton.onClick.Invoke();
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.ConfirmAssemblyButton.onClick.Invoke();
+                Assert.That(commits, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.ConfirmAssemblyButton.onClick.Invoke();
+                Assert.That(commits, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InvalidViewportAspectsAreIgnoredWithoutThrowing()
         {
             var root = new GameObject("M10 view aspect guard");

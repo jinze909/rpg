@@ -321,6 +321,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReentrantBoardingVerificationCannotConsumeCapacityTwice()
+        {
+            var root = new GameObject("M09 reentrant boarding verification");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            int freeBerths = 4, boardChecks = 0, commits = 0;
+            M09EastShoreNightCrossingHost host = null;
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => freeBerths, () => 2,
+                    count =>
+                    {
+                        boardChecks++;
+                        // Reenter before the first callback consumes capacity.
+                        if (boardChecks == 1)
+                            host.ActiveView.ListenOrProceedButton.onClick.Invoke();
+                        freeBerths -= count;
+                        return true;
+                    },
+                    _ => { commits++; return true; }, read);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                ReachJetty(view);
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(host.Session.Stage,
+                    Is.EqualTo(M09NightCrossingStage.AwaitingActualBoarding));
+
+                view.ListenOrProceedButton.onClick.Invoke();
+                Assert.That(boardChecks, Is.EqualTo(1));
+                Assert.That(freeBerths, Is.EqualTo(2));
+                Assert.That(host.Session.ActuallyBoardedCount, Is.EqualTo(2));
+                view.FinishButton.onClick.Invoke();
+                Assert.That(commits, Is.EqualTo(1));
+                Assert.That(host.CommittedBoardedCount, Is.EqualTo(2));
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void VerifiedBoardingMayDeductExactlyItsOccupiedBerthsBeforeFinalCommit()
         {
             var root = new GameObject("M09 consumed ferry berth evidence");

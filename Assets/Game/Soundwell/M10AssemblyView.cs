@@ -266,7 +266,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
                 return;
-            if (!choiceButtons[index].gameObject.activeSelf || !choiceButtons[index].interactable)
+            // Effective UGUI locks include ancestor visibility and CanvasGroup interaction.
+            if (!choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
 
             switch (session.Phase)
