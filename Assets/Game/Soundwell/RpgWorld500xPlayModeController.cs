@@ -16,13 +16,15 @@ namespace Rpg.Soundwell
         public bool ToggleOverviewMapPressed;
         public bool QuickAutoSavePressed;
         public bool CloseModalPressed;
+        public bool ReconPulsePressed;
         public RpgWorld500xModalKind RequestedModalToggle;
     }
 
     /// <summary>
     /// Single-component Play Mode controller uniting RpgWorld500xSceneBootstrapper,
-    /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, and the 9-panel
-    /// RpgWorld500xMenuRouter. Drives movement, interaction, overview map toggle,
+    /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, the 9-panel
+    /// RpgWorld500xMenuRouter, and the non-modal RpgWorld500xReconPulseHudBar.
+    /// Drives movement, interaction, overview map toggle, field recon pulse,
     /// quick auto-save, and mutually-exclusive modal hotkeys through deterministic
     /// RpgWorld500xInputFrame frames.
     /// </summary>
@@ -36,6 +38,8 @@ namespace Rpg.Soundwell
         private RpgWorld500xCampHavenService _campHaven;
         private RpgWorld500xSaveSlotManager _saveSlotManager;
         private RpgWorld500xMenuRouter _menuRouter;
+        private RpgWorld500xReconPulseHudBar _reconPulseHud;
+        private float _elapsedPlaySeconds;
         private bool _initialized;
         private string _lastAutoSaveStatusZh = string.Empty;
 
@@ -44,6 +48,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xCampHavenService CampHaven => _campHaven;
         public RpgWorld500xSaveSlotManager SaveSlotManager => _saveSlotManager;
         public RpgWorld500xMenuRouter MenuRouter => _menuRouter;
+        public RpgWorld500xReconPulseHudBar ReconPulseHud => _reconPulseHud;
         public string LastAutoSaveStatusZh => _lastAutoSaveStatusZh;
 
         private void Start()
@@ -98,6 +103,9 @@ namespace Rpg.Soundwell
 
             _saveSlotManager = new RpgWorld500xSaveSlotManager(resolvedStorage, utcNowProvider);
             _menuRouter = new RpgWorld500xMenuRouter(_uiRoot.transform, _bootstrapper, _campHaven, _saveSlotManager);
+            _reconPulseHud = new RpgWorld500xReconPulseHudBar(_uiRoot.transform, _bootstrapper);
+            _elapsedPlaySeconds = 0f;
+
             // The standalone world owns only its own input setup; never add a
             // second EventSystem when a containing scene already provides one.
             foreach (Canvas canvas in _uiRoot.GetComponentsInChildren<Canvas>(true))
@@ -129,6 +137,11 @@ namespace Rpg.Soundwell
                 return default;
             }
 
+            if (deltaSeconds > 0f && !float.IsNaN(deltaSeconds) && !float.IsInfinity(deltaSeconds))
+            {
+                _elapsedPlaySeconds += deltaSeconds;
+            }
+
             // Do not let world movement or interaction leak through in the same
             // input frame that dismisses a modal (Escape or its toggle hotkey).
             bool wasModalOpen = _menuRouter.HasAnyModalOpen;
@@ -158,6 +171,12 @@ namespace Rpg.Soundwell
                 _bootstrapper.Driver.Facade.Session.ToggleOverviewMap();
             }
 
+            _reconPulseHud?.UpdateCooldownDisplay(_elapsedPlaySeconds);
+            if (frame.ReconPulsePressed && !wasModalOpen && !_menuRouter.HasAnyModalOpen)
+            {
+                _reconPulseHud?.TryClickPulseScan(_elapsedPlaySeconds);
+            }
+
             return _menuRouter.StepFrameWithModalGuard(
                 wasModalOpen ? Vector2.zero : frame.Move,
                 wasModalOpen ? 0f : deltaSeconds,
@@ -168,6 +187,8 @@ namespace Rpg.Soundwell
         public void Shutdown()
         {
             _initialized = false;
+            _reconPulseHud?.Dispose();
+            _reconPulseHud = null;
             _menuRouter?.Dispose();
             _menuRouter = null;
             _bootstrapper?.Dispose();
@@ -204,6 +225,7 @@ namespace Rpg.Soundwell
             frame.ToggleOverviewMapPressed = Input.GetKeyDown(KeyCode.Tab);
             frame.QuickAutoSavePressed = Input.GetKeyDown(KeyCode.F5);
             frame.CloseModalPressed = Input.GetKeyDown(KeyCode.Escape);
+            frame.ReconPulsePressed = Input.GetKeyDown(KeyCode.R);
 
             if (Input.GetKeyDown(KeyCode.J)) frame.RequestedModalToggle = RpgWorld500xModalKind.QuestJournal;
             else if (Input.GetKeyDown(KeyCode.M)) frame.RequestedModalToggle = RpgWorld500xModalKind.WorldAtlas;
