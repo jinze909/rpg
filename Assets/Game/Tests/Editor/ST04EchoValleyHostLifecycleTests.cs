@@ -23,9 +23,12 @@ namespace Rpg.Tests.Editor
             public bool HasEnteredChamberVia(ST04ChamberEntry approach) => true;
             public bool CompanionsMarkedBeforeDrain => true;
             public bool DrainActuallyOpened => true;
-            public bool HasResolvedBeastsAs(ST04BeastHandling outcome) => false;
-            public bool RoadOutcomeActuallyEstablished(ST04RoadResolution outcome) => false;
-            public bool LongRoadActuallyFunded => false;
+            public bool AllowFundedRidgeOutcome { get; set; }
+            public bool HasResolvedBeastsAs(ST04BeastHandling outcome) =>
+                AllowFundedRidgeOutcome && outcome == ST04BeastHandling.LedBackToOldHabitat;
+            public bool RoadOutcomeActuallyEstablished(ST04RoadResolution outcome) =>
+                AllowFundedRidgeOutcome && outcome == ST04RoadResolution.ReturnBeastsAndUseCostlyLongRoad;
+            public bool LongRoadActuallyFunded => AllowFundedRidgeOutcome;
             public bool AlternativeWorksiteActuallyArranged => false;
         }
 
@@ -34,6 +37,99 @@ namespace Rpg.Tests.Editor
 
         private static Action<string, int> Write(Dictionary<string, int> values) =>
             (key, value) => values[key] = value;
+
+        private static void AssertLockedClicksDoNotAdvance(
+            ST04EchoValleyView view, CanvasGroup group, Dictionary<string, int> values)
+        {
+            ST04EchoValleyPhase before = view.Session.Phase;
+            group.interactable = false;
+            view.FirstOption.onClick.Invoke();
+            view.SecondOption.onClick.Invoke();
+            view.ThirdOption.onClick.Invoke();
+            Assert.That(view.Session.Phase, Is.EqualTo(before));
+            Assert.That(values, Is.Empty);
+            group.interactable = true;
+
+            view.Panel.gameObject.SetActive(false);
+            view.FirstOption.onClick.Invoke();
+            view.SecondOption.onClick.Invoke();
+            view.ThirdOption.onClick.Invoke();
+            Assert.That(view.Session.Phase, Is.EqualTo(before));
+            Assert.That(values, Is.Empty);
+            view.Panel.gameObject.SetActive(true);
+        }
+
+        [Test]
+        public void EffectiveInputLockProtectsValleyEvidenceAndFundedRoadUntilExplicitConfirmation()
+        {
+            var root = new GameObject("ST04 effective input lock");
+            var values = new Dictionary<string, int>();
+            ST04EchoValleyHost host = null;
+            try
+            {
+                var world = new FakeEvidence { AllowFundedRidgeOutcome = true };
+                host = new ST04EchoValleyHost(root.transform, world, Read(values), Write(values));
+                Assert.That(host.TryOpen(), Is.True);
+                ST04EchoValleyView view = host.ActiveView;
+                var group = root.AddComponent<CanvasGroup>();
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                view.FirstOption.onClick.Invoke();
+                view.SecondOption.onClick.Invoke();
+                view.ThirdOption.onClick.Invoke();
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.ChooseValleyEntry));
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                view.SecondOption.onClick.Invoke();
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.RescueSurveyors));
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                Assert.That(view.Session.SurveyorsRescued, Is.Zero);
+                view.FirstOption.onClick.Invoke();
+                Assert.That(view.Session.SurveyorsRescued, Is.EqualTo(2));
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.VerifyEchoBehavior));
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                view.FirstOption.onClick.Invoke();
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.EnterInnerChamber));
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                view.ThirdOption.onClick.Invoke();
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.MarkAlliesAndOpenDrain));
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                view.FirstOption.onClick.Invoke();
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.HandleBeasts));
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                view.FirstOption.onClick.Invoke();
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.HandleBeasts));
+                view.SecondOption.onClick.Invoke();
+                Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.DecideRoadAndRainWall));
+
+                AssertLockedClicksDoNotAdvance(view, group, values);
+                Assert.That(host.IsCommitted, Is.False);
+                Assert.That(view.SecondOption.IsInteractable(), Is.True);
+                view.SecondOption.onClick.Invoke();
+                Assert.That(host.IsCommitted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(ST04EchoValleyFacts.TryRead(Read(values),
+                    out ST04EchoValleyOutcome? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.Story.Entry, Is.EqualTo(ST04ValleyEntry.SurveyEchoesFromRidge));
+                Assert.That(saved.Value.Story.Chamber, Is.EqualTo(ST04ChamberEntry.OpenVentGrate));
+                Assert.That(saved.Value.Story.Resolution,
+                    Is.EqualTo(ST04RoadResolution.ReturnBeastsAndUseCostlyLongRoad));
+                Assert.That(saved.Value.Story.RescuedSurveyors, Is.EqualTo(2));
+                Assert.That(saved.Value.Story.UsesFundedLongRoad, Is.True);
+                Assert.That(saved.Value.ShowZhonglingStoneOnM15Monument, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
 
         [Test]
         public void ExternalViewDisposalClearsActiveViewAndAllowsCleanReopen()
