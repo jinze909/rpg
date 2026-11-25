@@ -14,15 +14,22 @@ namespace Rpg.Soundwell
         CartographyReputation = 6,
         SaveSlots = 7,
         FieldRumorAndLore = 8,
-        ExpeditionMilestones = 9
+        ExpeditionMilestones = 9,
+        CacheAndShortcut = 10,
+        ExpeditionDigest = 11,
+        BountyBoard = 12,
+        ExpeditionReadiness = 13,
+        DangerTacticalBrief = 14,
+        WorldGazetteer = 15
     }
 
     /// <summary>
-    /// Mutually-exclusive 9-panel modal UI router uniting QuestJournal, WorldAtlas,
+    /// Mutually-exclusive 15-panel modal UI router uniting QuestJournal, WorldAtlas,
     /// CampMerchant, Bestiary, FastTravelBeacons, CartographyReputation, SaveSlots,
-    /// FieldRumorAndLore, and ExpeditionMilestones panels on top of
-    /// RpgWorld500xSceneBootstrapper. Guarantees at most one modal is visible at a
-    /// time and suppresses movement/world interaction while any modal is open.
+    /// FieldRumorAndLore, ExpeditionMilestones, CacheAndShortcut, ExpeditionDigest,
+    /// BountyBoard, ExpeditionReadiness, DangerTacticalBrief, and WorldGazetteer
+    /// panels on top of RpgWorld500xSceneBootstrapper. Guarantees at most one modal
+    /// is visible at a time and suppresses movement/world interaction while any modal is open.
     /// </summary>
     public sealed class RpgWorld500xMenuRouter : IDisposable
     {
@@ -35,6 +42,12 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xSaveSlotHudPanel _saveSlotPanel;
         private readonly RpgWorld500xFieldRumorAndLoreHudPanel _rumorLorePanel;
         private readonly RpgWorld500xExpeditionMilestonesHudPanel _milestonesPanel;
+        private readonly RpgWorld500xCacheAndShortcutHudPanel _cacheShortcutPanel;
+        private readonly RpgWorld500xExpeditionDigestHudPanel _expeditionDigestPanel;
+        private readonly RpgWorld500xBountyBoardHudPanel _bountyBoardPanel;
+        private readonly RpgWorld500xExpeditionReadinessHudPanel _readinessPanel;
+        private readonly RpgWorld500xDangerTacticalBriefHudPanel _dangerBriefPanel;
+        private readonly RpgWorld500xWorldGazetteerHudPanel _gazetteerPanel;
         private readonly bool _previousAutomaticFrameUpdates;
         private bool _disposed;
 
@@ -47,6 +60,12 @@ namespace Rpg.Soundwell
         public RpgWorld500xSaveSlotHudPanel SaveSlotPanel => _saveSlotPanel;
         public RpgWorld500xFieldRumorAndLoreHudPanel RumorLorePanel => _rumorLorePanel;
         public RpgWorld500xExpeditionMilestonesHudPanel MilestonesPanel => _milestonesPanel;
+        public RpgWorld500xCacheAndShortcutHudPanel CacheShortcutPanel => _cacheShortcutPanel;
+        public RpgWorld500xExpeditionDigestHudPanel ExpeditionDigestPanel => _expeditionDigestPanel;
+        public RpgWorld500xBountyBoardHudPanel BountyBoardPanel => _bountyBoardPanel;
+        public RpgWorld500xExpeditionReadinessHudPanel ReadinessPanel => _readinessPanel;
+        public RpgWorld500xDangerTacticalBriefHudPanel DangerBriefPanel => _dangerBriefPanel;
+        public RpgWorld500xWorldGazetteerHudPanel GazetteerPanel => _gazetteerPanel;
         public bool IsDisposed => _disposed || _bootstrapper.IsDisposed;
 
         public RpgWorld500xModalKind ActiveModal
@@ -104,6 +123,36 @@ namespace Rpg.Soundwell
                     return RpgWorld500xModalKind.ExpeditionMilestones;
                 }
 
+                if (_cacheShortcutPanel != null && _cacheShortcutPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.CacheAndShortcut;
+                }
+
+                if (_expeditionDigestPanel != null && _expeditionDigestPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.ExpeditionDigest;
+                }
+
+                if (_bountyBoardPanel != null && _bountyBoardPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.BountyBoard;
+                }
+
+                if (_readinessPanel != null && _readinessPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.ExpeditionReadiness;
+                }
+
+                if (_dangerBriefPanel != null && _dangerBriefPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.DangerTacticalBrief;
+                }
+
+                if (_gazetteerPanel != null && _gazetteerPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.WorldGazetteer;
+                }
+
                 return RpgWorld500xModalKind.None;
             }
         }
@@ -131,6 +180,12 @@ namespace Rpg.Soundwell
             _saveSlotPanel = new RpgWorld500xSaveSlotHudPanel(uiParent, _bootstrapper, resolvedSaveSlots);
             _rumorLorePanel = new RpgWorld500xFieldRumorAndLoreHudPanel(uiParent, _bootstrapper);
             _milestonesPanel = new RpgWorld500xExpeditionMilestonesHudPanel(uiParent, _bootstrapper);
+            _cacheShortcutPanel = new RpgWorld500xCacheAndShortcutHudPanel(uiParent, _bootstrapper);
+            _expeditionDigestPanel = new RpgWorld500xExpeditionDigestHudPanel(uiParent, _bootstrapper);
+            _bountyBoardPanel = new RpgWorld500xBountyBoardHudPanel(uiParent, _bootstrapper);
+            _readinessPanel = new RpgWorld500xExpeditionReadinessHudPanel(uiParent, _bootstrapper);
+            _dangerBriefPanel = new RpgWorld500xDangerTacticalBriefHudPanel(uiParent, _bootstrapper);
+            _gazetteerPanel = new RpgWorld500xWorldGazetteerHudPanel(uiParent, _bootstrapper);
 
             // The routed frame is the only frame allowed to advance the world while
             // menus exist; otherwise RuntimeDriver.Update bypasses the modal guard.
@@ -169,6 +224,18 @@ namespace Rpg.Soundwell
                     return _rumorLorePanel.Show();
                 case RpgWorld500xModalKind.ExpeditionMilestones:
                     return _milestonesPanel.Show();
+                case RpgWorld500xModalKind.CacheAndShortcut:
+                    return _cacheShortcutPanel.Show();
+                case RpgWorld500xModalKind.ExpeditionDigest:
+                    return _expeditionDigestPanel.Show();
+                case RpgWorld500xModalKind.BountyBoard:
+                    return _bountyBoardPanel.Show();
+                case RpgWorld500xModalKind.ExpeditionReadiness:
+                    return _readinessPanel.Show();
+                case RpgWorld500xModalKind.DangerTacticalBrief:
+                    return _dangerBriefPanel.Show();
+                case RpgWorld500xModalKind.WorldGazetteer:
+                    return _gazetteerPanel.Show();
                 case RpgWorld500xModalKind.None:
                 default:
                     return true;
@@ -243,6 +310,36 @@ namespace Rpg.Soundwell
             {
                 _milestonesPanel.Hide();
             }
+
+            if (_cacheShortcutPanel != null && _cacheShortcutPanel.IsVisible)
+            {
+                _cacheShortcutPanel.Hide();
+            }
+
+            if (_expeditionDigestPanel != null && _expeditionDigestPanel.IsVisible)
+            {
+                _expeditionDigestPanel.Hide();
+            }
+
+            if (_bountyBoardPanel != null && _bountyBoardPanel.IsVisible)
+            {
+                _bountyBoardPanel.Hide();
+            }
+
+            if (_readinessPanel != null && _readinessPanel.IsVisible)
+            {
+                _readinessPanel.Hide();
+            }
+
+            if (_dangerBriefPanel != null && _dangerBriefPanel.IsVisible)
+            {
+                _dangerBriefPanel.Hide();
+            }
+
+            if (_gazetteerPanel != null && _gazetteerPanel.IsVisible)
+            {
+                _gazetteerPanel.Hide();
+            }
         }
 
         public RpgWorld500xEffectiveExplorationModifiers StepFrameWithModalGuard(
@@ -283,6 +380,12 @@ namespace Rpg.Soundwell
             _saveSlotPanel?.Dispose();
             _rumorLorePanel?.Dispose();
             _milestonesPanel?.Dispose();
+            _cacheShortcutPanel?.Dispose();
+            _expeditionDigestPanel?.Dispose();
+            _bountyBoardPanel?.Dispose();
+            _readinessPanel?.Dispose();
+            _dangerBriefPanel?.Dispose();
+            _gazetteerPanel?.Dispose();
             if (_bootstrapper.Driver != null)
             {
                 _bootstrapper.Driver.AutomaticFrameUpdates = _previousAutomaticFrameUpdates;

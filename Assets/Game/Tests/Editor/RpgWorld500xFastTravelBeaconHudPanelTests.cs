@@ -224,7 +224,10 @@ namespace Rpg.Tests.Editor
                 using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
                 {
                     const string marker = "rsh.salt-market";
-                    Assert.IsTrue(boot.Driver.Facade.Session.Host.Tracker.TryDiscoverMarker(marker));
+                    var initialHost = boot.Driver.Facade.Session.Host;
+                    // Discover through the bridge so the normal persisted discovery survives remounting.
+                    initialHost.Bridge.UpdatePlayerPosition(new Vector2(1700.5f, 1260.5f));
+                    Assert.IsTrue(initialHost.Tracker.IsMarkerDiscovered(marker));
                     Assert.IsTrue(panel.Show());
                     Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.WhitewaterCrossing));
                     var facade = boot.Driver.Facade;
