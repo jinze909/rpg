@@ -110,6 +110,31 @@ namespace Rpg.Soundwell
     /// </summary>
     public static class RpgWorld500xCampProvisioningService
     {
+        public static string FormatPlanBreakdownZh(RpgWorld500xProvisioningPlan plan)
+        {
+            if (plan.Lines == null || plan.Lines.Count == 0)
+            {
+                return "行囊已齐备（无需补购）";
+            }
+
+            var sb = new StringBuilder(160);
+            for (int i = 0; i < plan.Lines.Count; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append("、");
+                }
+
+                RpgWorld500xProvisioningLine line = plan.Lines[i];
+                sb.Append(line.DisplayNameZh)
+                  .Append(" ×").Append(line.Quantity)
+                  .Append("（").Append(line.SubtotalSaltSilver).Append(" 盐银）");
+            }
+
+            sb.Append("｜合计 ").Append(plan.TotalRequiredSaltSilver).Append(" 盐银");
+            return sb.ToString();
+        }
+
         public static RpgWorld500xProvisioningPlan BuildProvisioningPlan(
             RpgWorld500xSceneBootstrapper bootstrapper,
             RpgWorldMapId destinationMapId,
@@ -247,7 +272,8 @@ namespace Rpg.Soundwell
             RpgWorldMapId destinationMapId,
             bool allowPartialIfUnderBudget = true,
             float elapsedSeconds = 0f,
-            RpgWorld500xFieldSupplyUseService supplyUseService = null)
+            RpgWorld500xFieldSupplyUseService supplyUseService = null,
+            int? maxBudgetSaltSilver = null)
         {
             RpgWorld500xProvisioningPlan plan = BuildProvisioningPlan(
                 bootstrapper, destinationMapId, elapsedSeconds, supplyUseService);
@@ -269,13 +295,20 @@ namespace Rpg.Soundwell
                     summaryZh: "【一键整备】行囊已齐全，未产生额外花费。");
             }
 
-            if (!allowPartialIfUnderBudget && !plan.CanAffordFullPlan)
+            int clampedCap = maxBudgetSaltSilver.HasValue ? Math.Max(0, maxBudgetSaltSilver.Value) : shop.SaltSilverBalance;
+            int effectiveBudget = Math.Min(shop.SaltSilverBalance, clampedCap);
+
+            if (!allowPartialIfUnderBudget && effectiveBudget < plan.TotalRequiredSaltSilver)
             {
                 var allSkipped = new List<string>(plan.Lines.Count);
                 for (int i = 0; i < plan.Lines.Count; i++)
                 {
                     allSkipped.Add(plan.Lines[i].ItemId);
                 }
+
+                string denySummary = maxBudgetSaltSilver.HasValue && shop.SaltSilverBalance >= plan.TotalRequiredSaltSilver
+                    ? "【一键整备】超出预算上限（需 " + plan.TotalRequiredSaltSilver + "，上限 " + clampedCap + "），已取消扣款。"
+                    : "【一键整备】盐银不足以全额采购（需 " + plan.TotalRequiredSaltSilver + "，持有 " + shop.SaltSilverBalance + "），已取消扣款。";
 
                 return new RpgWorld500xProvisioningReceipt(
                     alreadyPrepared: false,
@@ -288,8 +321,7 @@ namespace Rpg.Soundwell
                     remainingSaltSilver: shop.SaltSilverBalance,
                     purchasedLines: Array.Empty<RpgWorld500xProvisioningLine>(),
                     skippedItemIds: allSkipped,
-                    summaryZh: "【一键整备】盐银不足以全额采购（需 " +
-                        plan.TotalRequiredSaltSilver + "，持有 " + shop.SaltSilverBalance + "），已取消扣款。");
+                    summaryZh: denySummary);
             }
 
             var purchased = new List<RpgWorld500xProvisioningLine>(plan.Lines.Count);
@@ -299,8 +331,9 @@ namespace Rpg.Soundwell
             for (int i = 0; i < plan.Lines.Count; i++)
             {
                 RpgWorld500xProvisioningLine line = plan.Lines[i];
+                int remainingBudget = Math.Min(shop.SaltSilverBalance, (int)Math.Max(0L, effectiveBudget - spent));
                 int affordableQty = line.UnitCostSaltSilver > 0
-                    ? Math.Min(line.Quantity, shop.SaltSilverBalance / line.UnitCostSaltSilver)
+                    ? Math.Min(line.Quantity, remainingBudget / line.UnitCostSaltSilver)
                     : 0;
 
                 if (affordableQty > 0 &&
