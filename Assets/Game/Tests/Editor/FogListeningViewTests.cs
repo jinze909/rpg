@@ -137,6 +137,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void GamepadFocusRecoveryCapturesRealBilingualFogCanvasStates()
+        {
+            var root = new GameObject("M04 fog gamepad visual evidence root");
+            FogListeningView view = null;
+            string previousLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                var session = new FogListeningSession(new[]
+                {
+                    new FogListeningCue(FogBearing.Ahead, FogCueKind.ReefSurf, 35)
+                }, maxListenFocus: 1, maxHullIntegrity: 2);
+                view = new FogListeningView(root.transform, session, _ => { });
+                Canvas canvas = root.GetComponentInChildren<Canvas>(true);
+                Assert.That(canvas, Is.Not.Null);
+                Assert.That(canvas.gameObject.name, Is.EqualTo("Fog listening canvas"));
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.FocusButton));
+                SoundwellSmokeHost.CaptureStoryCanvas(
+                    canvas, "m04-fog-gamepad-focus-start-zh");
+
+                view.FocusButton.onClick.Invoke();
+                Assert.That(session.RemainingFocus, Is.Zero);
+                Assert.That(view.FocusButton.IsInteractable(), Is.False);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.SlowButton));
+                Assert.That(view.SlowButton.IsInteractable(), Is.True);
+                SoundwellSmokeHost.CaptureStoryCanvas(
+                    canvas, "m04-fog-gamepad-focus-exhausted-zh");
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                view.SlowButton.onClick.Invoke();
+                Assert.That(session.IsComplete, Is.True);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.ContinueButton));
+                Assert.That(view.ContinueButton.IsInteractable(), Is.True);
+                SoundwellSmokeHost.CaptureStoryCanvas(
+                    canvas, "m04-fog-gamepad-continue-en");
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FocusListenButtonClarifiesLowClarityCueAndDisablesWhenExhausted()
         {
             var root = new GameObject("Fog view focus");
@@ -152,12 +197,21 @@ namespace Rpg.Tests.Editor
 
                 view = new FogListeningView(root.transform, session, _ => { });
                 Assert.That(view.FocusButton.interactable, Is.True);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.FocusButton));
                 Assert.That(view.CueText.text, Does.Contain("Sound is faint in the fog"));
 
                 view.FocusButton.onClick.Invoke();
                 Assert.That(session.RemainingFocus, Is.Zero);
                 Assert.That(view.FocusButton.interactable, Is.False);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.SlowButton),
+                    "After focus is exhausted, gamepad focus must return to an enabled helm action.");
+                Assert.That(view.PreferredFocusButton.IsInteractable(), Is.True);
                 Assert.That(view.CueText.text, Does.Contain("Low reef surf"));
+
+                view.SlowButton.onClick.Invoke();
+                Assert.That(session.IsComplete, Is.True);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.ContinueButton),
+                    "After the last helm action, focus must advance to the enabled result button.");
             }
             finally
             {
