@@ -244,8 +244,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || submitting || CanvasDestroyed() ||
                 index < 0 || index >= buttons.Length ||
-                !buttons[index].gameObject.activeSelf ||
-                !buttons[index].interactable ||
+                !buttons[index].IsActive() ||
+                !buttons[index].IsInteractable() ||
                 !world.AtValley || !world.SangJingAndMengHuiPresent)
                 return;
             submitting = true;
