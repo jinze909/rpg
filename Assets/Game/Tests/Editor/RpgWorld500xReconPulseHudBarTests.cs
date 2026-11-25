@@ -7,6 +7,38 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xReconPulseHudBarTests
     {
         [Test]
+        public void ReconPulseHudBar_DisabledButtonCannotScanOrConsumeCooldown()
+        {
+            var root = new GameObject("ReconDisabledButtonRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var bar = new RpgWorld500xReconPulseHudBar(root.transform, boot, cooldownSeconds: 4f))
+                {
+                    var button = root.transform.Find("World500xReconPulseHudBar/ReconPulsePanel/PulseScanButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    bar.UpdateCooldownDisplay(10f);
+                    button.enabled = false;
+                    Assert.IsFalse(bar.IsScanButtonInteractable);
+                    button.onClick.Invoke();
+                    Assert.IsFalse(bar.TryClickPulseScan(10f));
+                    Assert.AreEqual(0, bar.LastPingCount);
+                    button.enabled = true;
+                    Assert.IsTrue(bar.IsScanButtonInteractable);
+                    Assert.IsTrue(bar.TryClickPulseScan(10f));
+                    Assert.Greater(bar.LastPingCount, 0);
+                    Assert.IsFalse(bar.IsScanButtonInteractable);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReconPulseHudBar_MouseEventAndHotkeyShareSessionClock()
         {
             var root = new GameObject("ReconSharedClockRoot");

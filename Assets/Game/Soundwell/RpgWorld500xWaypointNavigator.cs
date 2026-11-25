@@ -223,7 +223,12 @@ namespace Rpg.Soundwell
                     for (int i = 0; i < layout.Markers.Count; i++)
                     {
                         RpgMapLandmarkMarker m = layout.Markers[i];
-                        if (explorationTracker != null && explorationTracker.IsMarkerDiscovered(m.Id))
+                        // The live tracker owns discovery when present; standalone callers
+                        // can still supply the persisted discovery store.
+                        bool discovered = explorationTracker != null
+                            ? explorationTracker.IsMarkerDiscovered(m.Id)
+                            : read(RpgMapExplorationTracker.MarkerDiscoveryKey(m.Id)) == 1;
+                        if (discovered)
                         {
                             continue;
                         }

@@ -31,7 +31,7 @@ namespace Rpg.Soundwell
 
         public bool IsDisposed => _disposed || _rootObject == null;
         public bool IsScanButtonInteractable => !IsDisposed && _scanButton != null &&
-            _scanButton.gameObject.activeInHierarchy && _scanButton.IsInteractable();
+            _scanButton.isActiveAndEnabled && _scanButton.gameObject.activeInHierarchy && _scanButton.IsInteractable();
         public int LastPingCount => _lastPings.Count;
         public IReadOnlyList<RpgWorld500xReconPing> LastPings => _lastPings;
         public string BannerText => _bannerText != null ? _bannerText.text : string.Empty;
