@@ -45,7 +45,7 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void PlanSafestItinerary_DetoursAroundHazardousHubAndMatchesShortestWhenClear()
+        public void PlanSafestItinerary_AvoidsStormyHubWhenAlternativeExistsAndPreservesReachabilityThroughArticulationHub()
         {
             var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f, initialDay: 1);
             atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
@@ -53,28 +53,36 @@ namespace Rpg.Tests.Editor
             atmosphere.SetWeather(RpgWorldMapId.WhitewaterCrossing, RpgWorld500xWeatherKind.Clear);
             atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.Clear);
 
-            // Shortest-time route goes through stormy RedSaltHarbor (Hazardous).
-            RpgWorld500xTravelItinerary shortest = RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(
-                RpgWorldMapId.Soundwell, RpgWorldMapId.MineCamp, atmosphere);
-            Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, shortest.Legs[0].Route.ToMap);
-            Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, shortest.HighestRiskLevel);
+            // WhitewaterCrossing -> MineCamp has a direct 180-min clear mountain route avoiding stormy RedSaltHarbor.
+            RpgWorld500xTravelItinerary safestDirect = RpgWorld500xFastTravelItineraryService.PlanSafestItinerary(
+                RpgWorldMapId.WhitewaterCrossing, RpgWorldMapId.MineCamp, atmosphere);
+            Assert.IsTrue(safestDirect.IsReachable);
+            Assert.AreEqual(1, safestDirect.HopCount);
+            Assert.AreEqual(180, safestDirect.TotalTravelMinutesInGame);
+            Assert.AreEqual(RpgWorldMapId.MineCamp, safestDirect.Legs[0].Route.ToMap);
+            Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, safestDirect.HighestRiskLevel);
+            Assert.IsFalse(safestDirect.RecommendCampfireStop);
+            Assert.IsTrue(safestDirect.SummaryZh.Contains("安全绕行行程"));
 
-            // Safest route detours via clear WhitewaterCrossing to avoid the GaleStorm hub.
-            RpgWorld500xTravelItinerary safest = RpgWorld500xFastTravelItineraryService.PlanSafestItinerary(
+            // Soundwell only connects via RedSaltHarbor (articulation hub): PlanSafestItinerary still stays reachable and flags Hazardous + campfire stop.
+            RpgWorld500xTravelItinerary viaArticulation = RpgWorld500xFastTravelItineraryService.PlanSafestItinerary(
                 RpgWorldMapId.Soundwell, RpgWorldMapId.MineCamp, atmosphere);
-            Assert.IsTrue(safest.IsReachable);
-            Assert.AreEqual(2, safest.HopCount);
-            Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, safest.Legs[0].Route.ToMap);
-            Assert.AreEqual(RpgWorldMapId.MineCamp, safest.Legs[1].Route.ToMap);
-            Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, safest.HighestRiskLevel);
-            Assert.IsTrue(safest.SummaryZh.Contains("安全绕行行程"));
+            Assert.IsTrue(viaArticulation.IsReachable);
+            Assert.AreEqual(2, viaArticulation.HopCount);
+            Assert.AreEqual(270, viaArticulation.TotalTravelMinutesInGame);
+            Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, viaArticulation.Legs[0].Route.ToMap);
+            Assert.AreEqual(RpgWorldMapId.MineCamp, viaArticulation.Legs[1].Route.ToMap);
+            Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, viaArticulation.HighestRiskLevel);
+            Assert.IsTrue(viaArticulation.RecommendCampfireStop);
+            Assert.IsTrue(viaArticulation.SummaryZh.Contains("安全绕行行程"));
 
-            // When RedSaltHarbor clears up, safest route falls back to the fastest 270-minute path.
+            // When RedSaltHarbor clears up, safest route matches the fastest 270-minute path cleanly.
             atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
             RpgWorld500xTravelItinerary clearSafest = RpgWorld500xFastTravelItineraryService.PlanSafestItinerary(
                 RpgWorldMapId.Soundwell, RpgWorldMapId.MineCamp, atmosphere);
             Assert.AreEqual(270, clearSafest.TotalTravelMinutesInGame);
             Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, clearSafest.Legs[0].Route.ToMap);
+            Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, clearSafest.HighestRiskLevel);
         }
     }
 }
