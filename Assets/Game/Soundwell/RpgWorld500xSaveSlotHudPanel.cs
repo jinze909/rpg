@@ -27,6 +27,8 @@ namespace Rpg.Soundwell
             new Dictionary<RpgWorld500xSaveSlotId, Button>();
         private readonly Dictionary<RpgWorld500xSaveSlotId, Button> _deleteButtons =
             new Dictionary<RpgWorld500xSaveSlotId, Button>();
+        private readonly Dictionary<RpgWorld500xSaveSlotId, string> _slotRevisions =
+            new Dictionary<RpgWorld500xSaveSlotId, string>();
         private bool _visible;
         private bool _disposed;
 
@@ -180,6 +182,7 @@ namespace Rpg.Soundwell
                 }
 
                 RpgWorld500xSaveSlotId capturedId = s.SlotId;
+                _slotRevisions[capturedId] = _slotManager.ReadSlotRevision(capturedId);
                 SpawnSlotRow(
                     "SaveSlotRow_" + s.SlotId,
                     i,
@@ -277,20 +280,33 @@ namespace Rpg.Soundwell
                 Color.white);
             text.text = label;
 
+            string revision = _slotRevisions[slotId];
             _saveButtons[slotId] = CreateActionButton(
                 rowGo.transform, "SaveButton",
                 new Vector2(0.67f, 0.16f), new Vector2(0.77f, 0.84f),
-                "保存", _font, canSave, () => HandleSaveClicked(slotId));
+                "保存", _font, canSave, () =>
+                {
+                    if (ValidateSlotRevision(slotId, revision))
+                        HandleSaveClicked(slotId);
+                });
 
             _loadButtons[slotId] = CreateActionButton(
                 rowGo.transform, "LoadButton",
                 new Vector2(0.78f, 0.16f), new Vector2(0.88f, 0.84f),
-                "读取", _font, canLoad, () => HandleLoadClicked(slotId));
+                "读取", _font, canLoad, () =>
+                {
+                    if (ValidateSlotRevision(slotId, revision))
+                        HandleLoadClicked(slotId);
+                });
 
             _deleteButtons[slotId] = CreateActionButton(
                 rowGo.transform, "DeleteButton",
                 new Vector2(0.89f, 0.16f), new Vector2(0.98f, 0.84f),
-                "删除", _font, canDelete, () => HandleDeleteClicked(slotId));
+                "删除", _font, canDelete, () =>
+                {
+                    if (ValidateSlotRevision(slotId, revision))
+                        HandleDeleteClicked(slotId);
+                });
 
             _spawnedRows.Add(rowGo);
         }
@@ -302,8 +318,22 @@ namespace Rpg.Soundwell
                 return false;
             }
 
+            if (!_slotRevisions.TryGetValue(slotId, out string revision) ||
+                !ValidateSlotRevision(slotId, revision))
+                return false;
+
             btn.onClick.Invoke();
             return true;
+        }
+
+        private bool ValidateSlotRevision(RpgWorld500xSaveSlotId slotId, string expected)
+        {
+            if (string.Equals(expected, _slotManager.ReadSlotRevision(slotId), StringComparison.Ordinal))
+                return true;
+
+            _statusText.text = "档位已更新，请确认后重试";
+            Refresh();
+            return false;
         }
 
         private bool CanInvoke(Button button)
@@ -317,6 +347,7 @@ namespace Rpg.Soundwell
             _saveButtons.Clear();
             _loadButtons.Clear();
             _deleteButtons.Clear();
+            _slotRevisions.Clear();
             for (int i = 0; i < _spawnedRows.Count; i++)
             {
                 GameObject row = _spawnedRows[i];
