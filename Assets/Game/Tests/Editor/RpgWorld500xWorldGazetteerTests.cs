@@ -106,6 +106,29 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BuildLiveWorldCards_WithPreferSafestRouteReflectsDirectClearPathToMineCamp()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.WhitewaterCrossing,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                RpgWorld500xGrandRuntimeFacade facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.WhitewaterCrossing, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.GaleStorm);
+
+                List<RpgWorld500xRegionGazetteerCard> safestCards =
+                    RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(
+                        boot, elapsedSeconds: 5f, preferSafestRoute: true);
+                RpgWorld500xRegionGazetteerCard mineCard = safestCards.Find(c => c.MapId == RpgWorldMapId.MineCamp);
+                Assert.IsTrue(mineCard.HasLiveProvisioningData);
+                Assert.AreEqual(1, mineCard.RouteHopCount);
+                Assert.IsFalse(mineCard.IsHazardousRoute);
+                Assert.IsTrue(mineCard.FormattedCardZh.Contains("1跳可达"));
+            }
+        }
+
+        [Test]
         public void SearchGazetteer_FindsCrossRegionMatchesSupportsMapFilterAndHandlesEmptyQuery()
         {
             Assert.AreEqual(0, RpgWorld500xWorldGazetteerService.SearchGazetteer("").Count);
