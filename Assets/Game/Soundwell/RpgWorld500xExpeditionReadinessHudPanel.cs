@@ -10,10 +10,10 @@ namespace Rpg.Soundwell
     /// modal panel bound to RpgWorld500xSceneBootstrapper and
     /// RpgWorld500xExpeditionReadinessService. Displays live 0-100 readiness score,
     /// color-coded readiness grade banner, four readiness checks, prioritized missing
-    /// camp supplies, one-click auto-restock, and cross-region destination
-    /// auto-provisioning (with optional Salt-Silver budget cap &amp; itemized breakdown)
-    /// via RpgWorld500xCampProvisioningService with parent CanvasGroup interactability
-    /// guards and zero-leak IDisposable cleanup.
+    /// camp supplies, one-click auto-restock, remote destination readiness preview,
+    /// and cross-region destination auto-provisioning (with optional Salt-Silver
+    /// budget cap &amp; itemized breakdown) via RpgWorld500xCampProvisioningService with
+    /// parent CanvasGroup interactability guards and zero-leak IDisposable cleanup.
     /// </summary>
     public sealed class RpgWorld500xExpeditionReadinessHudPanel : IDisposable
     {
@@ -32,6 +32,7 @@ namespace Rpg.Soundwell
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorld500xExpeditionReadinessReport _lastReport;
         private RpgWorld500xProvisioningReceipt _lastProvisioningReceipt;
+        private RpgWorldMapId? _previewTargetMapId;
         private float _lastElapsedSeconds;
         private bool _visible;
         private bool _disposed;
@@ -40,6 +41,11 @@ namespace Rpg.Soundwell
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xExpeditionReadinessReport LastReport => _lastReport;
         public RpgWorld500xProvisioningReceipt LastProvisioningReceipt => _lastProvisioningReceipt;
+        public RpgWorldMapId EvaluatedMapId => _lastReport.MapId;
+        public bool IsPreviewingRemoteMap =>
+            !IsDisposed && !_bootstrapper.IsDisposed &&
+            _previewTargetMapId.HasValue &&
+            _previewTargetMapId.Value != _bootstrapper.Driver.Facade.CurrentMapId;
         public int DisplayedRowCount => _spawnedRows.Count;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string GradeBannerText => _gradeBannerText != null ? _gradeBannerText.text : string.Empty;
@@ -181,6 +187,18 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TryPreviewTargetMap(RpgWorldMapId? targetMapId)
+        {
+            if (!CanClick(_refreshButton))
+            {
+                return false;
+            }
+
+            _previewTargetMapId = targetMapId;
+            Refresh(_lastElapsedSeconds);
+            return true;
+        }
+
         public void Refresh(float elapsedSeconds = 0f)
         {
             if (IsDisposed || _bootstrapper.IsDisposed)
@@ -190,13 +208,20 @@ namespace Rpg.Soundwell
 
             ClearRows();
             _lastElapsedSeconds = elapsedSeconds;
-            _lastReport = RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
-                _bootstrapper,
-                elapsedSeconds,
-                _supplyUseService);
+            _lastReport = _previewTargetMapId.HasValue
+                ? RpgWorld500xExpeditionReadinessService.EvaluateReadinessForMap(
+                    _bootstrapper,
+                    _previewTargetMapId.Value,
+                    elapsedSeconds,
+                    _supplyUseService)
+                : RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
+                    _bootstrapper,
+                    elapsedSeconds,
+                    _supplyUseService);
 
             int balance = _bootstrapper.Driver.Facade.BountyAndSupply.SaltSilverBalance;
-            _headerText.text = "【启程整备核验】" + _lastReport.MapDisplayNameZh +
+            string prefix = IsPreviewingRemoteMap ? "【远征预检】" : "【启程整备核验】";
+            _headerText.text = prefix + _lastReport.MapDisplayNameZh +
                                "｜盐银余额 " + balance +
                                "｜未通捷径 " + _lastReport.LockedShortcutCount + " 处";
 
@@ -328,8 +353,11 @@ namespace Rpg.Soundwell
 
             // A different HUD can buy supplies while this panel is open.
             // Re-evaluate against the authoritative inventory before spending.
-            var current = RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
-                _bootstrapper, _lastElapsedSeconds, _supplyUseService);
+            var current = _previewTargetMapId.HasValue
+                ? RpgWorld500xExpeditionReadinessService.EvaluateReadinessForMap(
+                    _bootstrapper, _previewTargetMapId.Value, _lastElapsedSeconds, _supplyUseService)
+                : RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
+                    _bootstrapper, _lastElapsedSeconds, _supplyUseService);
             if (current.MapId != _lastReport.MapId)
             {
                 _feedbackText.text = "所在地区已变化，请核对新的整备单后再补购。";
