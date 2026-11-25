@@ -205,7 +205,8 @@ namespace Rpg.Soundwell
             RpgWorld500xSceneBootstrapper bootstrapper,
             Func<string, int> getInt = null,
             float elapsedSeconds = 0f,
-            RpgWorld500xFieldSupplyUseService supplyUseService = null)
+            RpgWorld500xFieldSupplyUseService supplyUseService = null,
+            bool preferSafestRoute = false)
         {
             if (bootstrapper == null || bootstrapper.IsDisposed)
             {
@@ -220,7 +221,7 @@ namespace Rpg.Soundwell
             {
                 RpgWorld500xRegionGazetteerCard card = baseCards[i];
                 RpgWorld500xProvisioningPlan plan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
-                    bootstrapper, card.MapId, elapsedSeconds, supplyUseService);
+                    bootstrapper, card.MapId, elapsedSeconds, supplyUseService, preferSafestRoute);
 
                 int hopCount = plan.Itinerary.HopCount;
                 bool hazardous = plan.Itinerary.HighestRiskLevel == RpgWorld500xTravelRiskLevel.Hazardous;
