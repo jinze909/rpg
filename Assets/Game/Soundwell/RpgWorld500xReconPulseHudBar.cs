@@ -24,12 +24,14 @@ namespace Rpg.Soundwell
         private readonly Text _pingsText;
         private readonly Font _font;
         private readonly List<RpgWorld500xReconPing> _lastPings = new List<RpgWorld500xReconPing>();
-        private float _lastRequestedScanTime;
-        private bool _hasPendingScanTime;
+        // The controller supplies its session clock each frame. Mouse and hotkey
+        // clicks must share it rather than mixing it with Unity's global clock.
+        private float _currentClockSeconds;
         private bool _disposed;
 
         public bool IsDisposed => _disposed || _rootObject == null;
-        public bool IsScanButtonInteractable => !IsDisposed && _scanButton != null && _scanButton.interactable;
+        public bool IsScanButtonInteractable => !IsDisposed && _scanButton != null &&
+            _scanButton.gameObject.activeInHierarchy && _scanButton.IsInteractable();
         public int LastPingCount => _lastPings.Count;
         public IReadOnlyList<RpgWorld500xReconPing> LastPings => _lastPings;
         public string BannerText => _bannerText != null ? _bannerText.text : string.Empty;
@@ -96,11 +98,12 @@ namespace Rpg.Soundwell
 
         public void UpdateCooldownDisplay(float nowSeconds)
         {
-            if (IsDisposed)
+            if (IsDisposed || float.IsNaN(nowSeconds) || float.IsInfinity(nowSeconds))
             {
                 return;
             }
 
+            _currentClockSeconds = nowSeconds;
             float remaining = _scanner.GetRemainingCooldown(nowSeconds);
             bool ready = remaining <= 0.0001f;
             _scanButton.interactable = ready;
@@ -119,19 +122,17 @@ namespace Rpg.Soundwell
 
         public bool TryClickPulseScan(float nowSeconds)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed || float.IsNaN(nowSeconds) || float.IsInfinity(nowSeconds))
             {
                 return false;
             }
 
             UpdateCooldownDisplay(nowSeconds);
-            if (_scanButton == null || !_scanButton.interactable || !_scanButton.IsInteractable())
+            if (!IsScanButtonInteractable)
             {
                 return false;
             }
 
-            _lastRequestedScanTime = nowSeconds;
-            _hasPendingScanTime = true;
             _scanButton.onClick.Invoke();
             return true;
         }
@@ -150,13 +151,12 @@ namespace Rpg.Soundwell
 
         private void HandleScanButtonClicked()
         {
-            if (IsDisposed || _bootstrapper.IsDisposed)
+            if (_bootstrapper.IsDisposed || !IsScanButtonInteractable)
             {
                 return;
             }
 
-            float scanTime = _hasPendingScanTime ? _lastRequestedScanTime : Time.unscaledTime;
-            _hasPendingScanTime = false;
+            float scanTime = _currentClockSeconds;
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
             RpgWorldMapId mapId = facade.CurrentMapId;
