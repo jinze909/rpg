@@ -89,5 +89,54 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void ExpeditionReadinessHudPanel_AutoProvisionsCrossRegionHazardousTripAndRespectsVisibilityAndLock()
+        {
+            var root = new GameObject("World500xReadinessProvisioningHudTestRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xExpeditionReadinessHudPanel(root.transform, boot))
+                {
+                    RpgWorld500xGrandRuntimeFacade facade = boot.Driver.Facade;
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+                    facade.BountyAndSupply.AddSaltSilver(300);
+
+                    // Hidden panel must reject cross-region auto-provisioning without spending Salt-Silver.
+                    Assert.IsFalse(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                    Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
+
+                    Assert.IsTrue(panel.Show(5f));
+
+                    // Parent CanvasGroup lock must block cross-region auto-provisioning cleanly.
+                    CanvasGroup group = root.AddComponent<CanvasGroup>();
+                    group.interactable = false;
+                    Assert.IsFalse(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                    Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
+                    group.interactable = true;
+
+                    // Full cross-region provisioning stocks 2 rations + lamp_oil + flare + gauze + iron_clamps.
+                    Assert.IsTrue(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                    Assert.IsTrue(panel.LastProvisioningReceipt.FullyProvisioned);
+                    Assert.Greater(panel.LastProvisioningReceipt.TotalSpentSaltSilver, 0);
+                    Assert.AreEqual(2, facade.BountyAndSupply.GetOwnedSupplyCount("rations"));
+                    Assert.AreEqual(1, facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(1, facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
+                    Assert.AreEqual(RpgWorld500xReadinessGrade.WellPrepared, panel.LastReport.Grade);
+                    Assert.IsTrue(panel.FeedbackText.Contains("全额备齐"));
+                }
+
+                Assert.AreEqual(0, root.transform.childCount);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
