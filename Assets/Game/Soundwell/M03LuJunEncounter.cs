@@ -303,13 +303,22 @@ namespace Rpg.Soundwell
         // M03's three unanswered names are three actual playable beats,
         // not a one-line summary that lets the player skip the silence.
         // No ORK/Makinom fact is awarded during the roll call.
+        // Optional M03 camp contact from the scene script. This is a clue,
+        // not proof that a vessel, berth or official registration exists.
+        public static string MineInformantReport(bool chinese)
+        {
+            return chinese
+                ? "旧营的矿区线人展开赤盐潮道图，标出一处可供民船尝试的背风登陆水路。\n线人：这是备用登陆情报，不是现成的船。船只、舱位和登记，还得在码头逐一核对。"
+                : "A miner informant marks a sheltered civilian landing approach on the Red Salt tide chart.\n'It is an alternate landing lead, not a booked ship. Check the vessel, berths and registration at the dock.'";
+        }
+
         public static string RollCallMoment(int beat, bool chinese)
         {
             switch (beat)
             {
                 case 0:
                     return chinese
-                        ? "傍晚海边，旧部穿着各色便衣，袖口缝着蓝布。陆钧替缺腿老兵付医费，记得他的家人；让不愿再穿军服的木匠自由离开。入夜，他翻开每晚点三十人的旧名册。"
+                        ? "傍晚海边，旧部穿着各色便衣，袖口缝着蓝布。\n陆钧替缺腿老兵付医费，记得他的家人；\n让不愿再穿军服的木匠自由离开。\n入夜，他翻开每晚点三十人的旧名册。"
                         : "At dusk the old soldiers wear ordinary clothes with blue cloth at their cuffs. Lu Jun pays a disabled veteran's care and lets a carpenter leave freely. At night he opens the roll of thirty names.";
                 case 1:
                     return chinese
