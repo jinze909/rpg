@@ -50,7 +50,7 @@ namespace Rpg.Soundwell
             _supplyUseService = supplyUseService;
             _font = ResolveUiFont();
 
-            _rootObject = new GameObject("World500xExpeditionReadinessHudPanel", typeof(RectTransform), typeof(Canvas));
+            _rootObject = new GameObject("World500xExpeditionReadinessHudPanel", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
             if (parent != null)
             {
                 _rootObject.transform.SetParent(parent, false);
@@ -205,8 +205,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickBuyRecommended()
         {
-            if (IsDisposed || _buyRecommendedButton == null ||
-                !_buyRecommendedButton.interactable || !_buyRecommendedButton.IsInteractable())
+            if (!CanClick(_buyRecommendedButton))
             {
                 return false;
             }
@@ -217,8 +216,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickRefresh(float elapsedSeconds = 0f)
         {
-            if (IsDisposed || _refreshButton == null ||
-                !_refreshButton.interactable || !_refreshButton.IsInteractable())
+            if (!CanClick(_refreshButton))
             {
                 return false;
             }
@@ -230,8 +228,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickClose()
         {
-            if (IsDisposed || _closeButton == null ||
-                !_closeButton.interactable || !_closeButton.IsInteractable())
+            if (!CanClick(_closeButton))
             {
                 return false;
             }
@@ -253,15 +250,38 @@ namespace Rpg.Soundwell
             DestroySafe(_rootObject);
         }
 
+        private bool CanClick(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.IsInteractable();
+        }
+
         private void HandleBuyRecommendedClicked()
         {
-            if (IsDisposed || _bootstrapper.IsDisposed)
+            if (!CanClick(_buyRecommendedButton))
             {
                 return;
             }
 
+            // A different HUD can buy supplies while this panel is open.
+            // Re-evaluate against the authoritative inventory before spending.
+            var current = RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
+                _bootstrapper, _lastElapsedSeconds, _supplyUseService);
+            if (current.MapId != _lastReport.MapId)
+            {
+                _feedbackText.text = "所在地区已变化，请核对新的整备单后再补购。";
+                Refresh(_lastElapsedSeconds);
+                return;
+            }
+
             RpgWorld500xFieldBountyAndSupplyService shop = _bootstrapper.Driver.Facade.BountyAndSupply;
-            IReadOnlyList<string> rec = _lastReport.RecommendedSupplyIds;
+            IReadOnlyList<string> rec = current.RecommendedSupplyIds;
+            if (rec.Count == 0)
+            {
+                _feedbackText.text = "推荐补给已齐备，无需重复购买。";
+                Refresh(_lastElapsedSeconds);
+                return;
+            }
             int bought = 0;
             int skipped = 0;
 

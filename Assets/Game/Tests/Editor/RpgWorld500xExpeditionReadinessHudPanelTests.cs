@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -34,6 +35,16 @@ namespace Rpg.Tests.Editor
                     boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
                     boot.Driver.Facade.BountyAndSupply.AddSaltSilver(300);
 
+                    // An invisible modal must not spend currency, even via a stale click.
+                    Assert.IsFalse(panel.TryClickBuyRecommended());
+                    Assert.IsFalse(panel.TryClickRefresh());
+                    Assert.IsFalse(panel.TryClickClose());
+                    var modal = root.transform.Find("World500xExpeditionReadinessHudPanel");
+                    Assert.IsNotNull(modal.GetComponent<GraphicRaycaster>());
+                    var buy = modal.Find("ReadinessModalBox/BuyRecommendedSuppliesButton").GetComponent<Button>();
+                    buy.onClick.Invoke();
+                    Assert.AreEqual(300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+
                     Assert.IsTrue(panel.Show(5f));
                     Assert.AreEqual(4, panel.DisplayedRowCount);
                     Assert.AreEqual(RpgWorld500xReadinessGrade.Critical, panel.LastReport.Grade);
@@ -45,11 +56,18 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(panel.TryClickBuyRecommended());
                     Assert.IsFalse(panel.TryClickRefresh(6f));
                     Assert.IsFalse(panel.TryClickClose());
+                    buy.onClick.Invoke();
                     Assert.AreEqual(300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
                     group.interactable = true;
 
-                    // One-click restock buys all missing recommended supplies and upgrades readiness.
+                    // A purchase made by another UI after Show must not be duplicated.
+                    var shop = boot.Driver.Facade.BountyAndSupply;
+                    Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("gauze", 1));
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("gauze"));
+
+                    // One-click restock buys only the still-missing supplies and upgrades readiness.
                     Assert.IsTrue(panel.TryClickBuyRecommended());
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("gauze"));
                     Assert.Less(boot.Driver.Facade.BountyAndSupply.SaltSilverBalance, 300);
                     Assert.AreEqual(0, panel.LastReport.RecommendedSupplyIds.Count);
                     Assert.GreaterOrEqual(panel.LastReport.Score, 70);
@@ -58,6 +76,8 @@ namespace Rpg.Tests.Editor
 
                     Assert.IsTrue(panel.TryClickClose());
                     Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TryClickRefresh());
+                    Assert.IsFalse(panel.TryClickClose());
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);
