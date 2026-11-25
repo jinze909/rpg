@@ -87,6 +87,69 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SaveSlotHudPanel_RejectsActionsOnExternallyReplacedRevision()
+        {
+            var root = new GameObject("SaveSlotExternalRevisionRoot");
+            try
+            {
+                var storage = new RpgWorld500xInMemorySaveSlotStorage();
+                DateTime clock = new DateTime(2026, 11, 24, 8, 0, 0, DateTimeKind.Utc);
+                var manager = new RpgWorld500xSaveSlotManager(storage, () => clock);
+                var external = new RpgWorld500xSaveSlotManager(storage, () => clock);
+                const RpgWorld500xSaveSlotId slot = RpgWorld500xSaveSlotId.Slot1;
+                string key = RpgWorld500xSaveSlotManager.GetStorageKey(slot);
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xSaveSlotHudPanel(root.transform, boot, manager))
+                {
+                    var economy = boot.Driver.Facade.BountyAndSupply;
+                    string ExternalReplace()
+                    {
+                        economy.AddSaltSilver(10);
+                        Assert.IsTrue(external.TrySaveSlot(boot, slot, out _, out string error), error);
+                        Assert.IsTrue(storage.TryRead(key, out string payload));
+                        economy.AddSaltSilver(1);
+                        return payload;
+                    }
+
+                    Assert.IsTrue(panel.Show());
+                    Assert.IsTrue(panel.TryClickSave(slot));
+
+                    // Even identical timestamps cannot identify different payloads.
+                    string replacement = ExternalReplace();
+                    Assert.IsFalse(panel.TryClickSave(slot));
+                    Assert.IsTrue(storage.TryRead(key, out string unchanged));
+                    Assert.AreEqual(replacement, unchanged);
+                    Assert.That(panel.StatusText, Does.Contain("档位已更新"));
+
+                    replacement = ExternalReplace();
+                    int liveSilver = economy.SaltSilverBalance;
+                    Assert.IsFalse(panel.TryClickLoad(slot));
+                    Assert.AreEqual(liveSilver, economy.SaltSilverBalance);
+                    Assert.IsTrue(storage.TryRead(key, out unchanged));
+                    Assert.AreEqual(replacement, unchanged);
+
+                    const string path = "World500xSaveSlotHudPanel/SaveSlotModalBox/SaveSlotRows/SaveSlotRow_Slot1/DeleteButton";
+                    var staleDelete = root.transform.Find(path).GetComponent<UnityEngine.UI.Button>().onClick;
+                    replacement = ExternalReplace();
+                    staleDelete.Invoke();
+                    Assert.IsTrue(storage.TryRead(key, out unchanged));
+                    Assert.AreEqual(replacement, unchanged);
+                    Assert.That(panel.StatusText, Does.Contain("档位已更新"));
+
+                    // The refreshed row can still perform an intentional action.
+                    Assert.IsTrue(panel.TryClickDelete(slot));
+                    Assert.IsFalse(storage.TryRead(key, out _));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void SaveSlotHudPanel_KeepsLegacyWidthForPreciseCheckpointTimestamp()
         {
             var root = new GameObject("SaveSlotTimestampRoot");
