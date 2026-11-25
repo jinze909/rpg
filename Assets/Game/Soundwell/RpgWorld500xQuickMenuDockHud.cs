@@ -120,13 +120,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickModalButton(RpgWorld500xModalKind kind)
         {
-            if (IsDisposed || _menuRouter.IsDisposed)
-            {
-                return false;
-            }
-
-            if (!_buttons.TryGetValue(kind, out Button btn) ||
-                btn == null || !btn.interactable || !btn.IsInteractable())
+            if (!_buttons.TryGetValue(kind, out Button btn) || !CanClick(btn))
             {
                 return false;
             }
@@ -173,9 +167,15 @@ namespace Rpg.Soundwell
             DestroySafe(_rootObject);
         }
 
+        private bool CanClick(Button button)
+        {
+            return !IsDisposed && !_menuRouter.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.IsInteractable();
+        }
+
         private void HandleDockButtonClicked(RpgWorld500xModalKind kind)
         {
-            if (IsDisposed || _menuRouter.IsDisposed)
+            if (!_buttons.TryGetValue(kind, out Button btn) || !CanClick(btn))
             {
                 return;
             }

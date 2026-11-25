@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -44,6 +45,16 @@ namespace Rpg.Tests.Editor
                     boot.Driver.Facade.BountyAndSupply.AddSaltSilver(88);
                     boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
 
+                    // Hidden panel rejects Try* calls AND direct stale button callbacks cleanly.
+                    int refreshesWhileHidden = panel.RefreshCount;
+                    Assert.IsFalse(panel.TryClickRefresh(1f));
+                    Assert.IsFalse(panel.TryClickClose());
+                    Button refreshBtn = root.transform
+                        .Find("World500xExpeditionDigestHudPanel/DigestModalBox/RefreshDigestButton")
+                        .GetComponent<Button>();
+                    refreshBtn.onClick.Invoke();
+                    Assert.AreEqual(refreshesWhileHidden, panel.RefreshCount);
+
                     Assert.IsTrue(panel.Show(2f));
                     Assert.IsTrue(panel.IsVisible);
                     Assert.AreEqual(RpgWorldMapId.Soundwell, panel.LastDigest.MapId);
@@ -55,11 +66,12 @@ namespace Rpg.Tests.Editor
 
                     int refreshesBeforeLock = panel.RefreshCount;
 
-                    // Parent CanvasGroup lock blocks refresh and close clicks cleanly.
+                    // Parent CanvasGroup lock blocks refresh, close, AND direct stale callbacks cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TryClickRefresh(10f));
                     Assert.IsFalse(panel.TryClickClose());
+                    refreshBtn.onClick.Invoke();
                     Assert.IsTrue(panel.IsVisible);
                     Assert.AreEqual(refreshesBeforeLock, panel.RefreshCount);
                     group.interactable = true;
@@ -77,6 +89,7 @@ namespace Rpg.Tests.Editor
 
                     Assert.IsTrue(panel.TryClickClose());
                     Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TryClickClose());
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);
