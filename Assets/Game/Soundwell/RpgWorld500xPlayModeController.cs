@@ -25,7 +25,7 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Single-component Play Mode controller uniting RpgWorld500xSceneBootstrapper,
     /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, the 16-panel
-    /// RpgWorld500xMenuRouter, RpgWorld500xReconPulseHudBar,
+    /// RpgWorld500xMenuRouter, RpgWorld500xQuickMenuDockHud, RpgWorld500xReconPulseHudBar,
     /// RpgWorld500xWeatherAdvisoryHudBadge, and RpgWorld500xFieldSupplyHotbarHud.
     /// Drives movement, interaction, overview map toggle, field recon pulse,
     /// field supply hotbar consumption, quick auto-save, DangerZone victory reward
@@ -62,6 +62,7 @@ namespace Rpg.Soundwell
         private RpgWorld500xCampHavenService _campHaven;
         private RpgWorld500xSaveSlotManager _saveSlotManager;
         private RpgWorld500xMenuRouter _menuRouter;
+        private RpgWorld500xQuickMenuDockHud _quickMenuDockHud;
         private RpgWorld500xReconPulseHudBar _reconPulseHud;
         private RpgWorld500xWeatherAdvisoryHudBadge _weatherAdvisoryHud;
         private RpgWorld500xFieldSupplyHotbarHud _supplyHotbarHud;
@@ -76,6 +77,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xCampHavenService CampHaven => _campHaven;
         public RpgWorld500xSaveSlotManager SaveSlotManager => _saveSlotManager;
         public RpgWorld500xMenuRouter MenuRouter => _menuRouter;
+        public RpgWorld500xQuickMenuDockHud QuickMenuDockHud => _quickMenuDockHud;
         public RpgWorld500xReconPulseHudBar ReconPulseHud => _reconPulseHud;
         public RpgWorld500xWeatherAdvisoryHudBadge WeatherAdvisoryHud => _weatherAdvisoryHud;
         public RpgWorld500xFieldSupplyHotbarHud SupplyHotbarHud => _supplyHotbarHud;
@@ -158,6 +160,7 @@ namespace Rpg.Soundwell
 
             _saveSlotManager = new RpgWorld500xSaveSlotManager(resolvedStorage, utcNowProvider);
             _menuRouter = new RpgWorld500xMenuRouter(_uiRoot.transform, _bootstrapper, _campHaven, _saveSlotManager);
+            _quickMenuDockHud = new RpgWorld500xQuickMenuDockHud(_uiRoot.transform, _menuRouter);
             _reconPulseHud = new RpgWorld500xReconPulseHudBar(_uiRoot.transform, _bootstrapper);
             _weatherAdvisoryHud = new RpgWorld500xWeatherAdvisoryHudBadge(_uiRoot.transform, _bootstrapper);
             _supplyHotbarHud = new RpgWorld500xFieldSupplyHotbarHud(
@@ -324,6 +327,7 @@ namespace Rpg.Soundwell
                 !wasModalOpen && frame.Sprint,
                 !wasModalOpen && frame.InteractPressed);
 
+            _quickMenuDockHud?.RefreshActiveHighlight();
             _weatherAdvisoryHud?.Refresh(_elapsedPlaySeconds);
             _supplyHotbarHud?.Refresh(_elapsedPlaySeconds);
             return mods;
@@ -339,6 +343,8 @@ namespace Rpg.Soundwell
             _weatherAdvisoryHud = null;
             _reconPulseHud?.Dispose();
             _reconPulseHud = null;
+            _quickMenuDockHud?.Dispose();
+            _quickMenuDockHud = null;
             _menuRouter?.Dispose();
             _menuRouter = null;
             _bootstrapper?.Dispose();
