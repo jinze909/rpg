@@ -114,9 +114,19 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void EffectiveInputLockPreservesCoverUpAndDinnerFactsUntilExplicitChoice(bool remediate)
+        [Test]
+        public void EffectiveInputLockPreservesUnremediatedCoverUpWithoutDinner()
+        {
+            AssertEffectiveInputLockPreservesCoverUpAndDinnerFacts(false);
+        }
+
+        [Test]
+        public void EffectiveInputLockAllowsExplicitRemediationAndDinnerAfterUnlock()
+        {
+            AssertEffectiveInputLockPreservesCoverUpAndDinnerFacts(true);
+        }
+
+        private static void AssertEffectiveInputLockPreservesCoverUpAndDinnerFacts(bool remediate)
         {
             var root = new GameObject("ST06 effective input lock");
             var values = new Dictionary<string, int>();
