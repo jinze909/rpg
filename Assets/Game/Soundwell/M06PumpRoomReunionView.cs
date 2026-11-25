@@ -320,6 +320,10 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            if (index < 0 || index >= choiceButtons.Length ||
+                !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
+                return;
+
             if (session.Stage == M06ReunionStage.LetterHandoff && index >= 0 && index <= 2)
             {
                 if (!session.TryDeliverCarriedLetter((M06FamilyLetterRecipient)index))
@@ -370,6 +374,9 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+
+            if (!advanceButton.IsActive() || !advanceButton.IsInteractable())
+                return;
 
             switch (session.Stage)
             {

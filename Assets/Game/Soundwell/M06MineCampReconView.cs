@@ -144,6 +144,9 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            if (!confirmButton.IsActive() || !confirmButton.IsInteractable())
+                return;
+
             recorded = true;
             Refresh();
             try

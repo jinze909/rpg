@@ -115,6 +115,77 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ParentInputLockBlocksReunionChoicesWitnessesLettersAndPlan()
+        {
+            var root = new GameObject("M06 reunion input lock");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values, letterDecision: M05LetterDecision.TakePacket);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M06PumpRoomReunionView view = null;
+            try
+            {
+                Assert.That(M06PumpRoomReunionSession.TryCreateFromSavedFacts(
+                    read, write, out var session), Is.True);
+                int saves = 0;
+                view = new M06PumpRoomReunionView(root.transform, session, plan =>
+                {
+                    saves++;
+                    Assert.That(session.TryConfirmRescuePlan(plan, read, write), Is.True);
+                });
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                view.GreetingBringBackButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.VesselBriefing));
+                group.interactable = true;
+                view.GreetingBringBackButton.onClick.Invoke();
+                group.interactable = false;
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.PumpRoomWitnesses));
+                group.interactable = true;
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.LetterHandoff));
+
+                group.interactable = false;
+                view.TaoJiLetterButton.onClick.Invoke();
+                Assert.That(session.LettersHandledCount, Is.Zero);
+                group.interactable = true;
+                view.TaoJiLetterButton.onClick.Invoke();
+                Assert.DoesNotThrow(() => view.TaoJiLetterButton.onClick.Invoke());
+                Assert.That(session.LettersHandledCount, Is.EqualTo(1));
+                view.LedgerLetterButton.onClick.Invoke();
+                view.ReturnedLetterButton.onClick.Invoke();
+                view.AdvanceButton.onClick.Invoke();
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+
+                group.interactable = false;
+                view.ShenHelpButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                group.interactable = true;
+                view.ShenHelpButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+                group.interactable = false;
+                view.CargoCoverButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.CargoCoverButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.CargoCoverButton.onClick.Invoke();
+                view.CargoCoverButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(session.Stage, Is.EqualTo(M06ReunionStage.Completed));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ZeroUsableBerthsAndUnopenedLettersSkipsDeliveryAndShowsChannelChoice()
         {
             var root = new GameObject("M06 reunion view zero berths");

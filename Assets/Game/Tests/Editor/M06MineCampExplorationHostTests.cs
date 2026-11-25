@@ -125,7 +125,19 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.StepMovement(Vector2.right, 0.2f), Is.False,
                     "Movement must lock while a dialogue view is open.");
 
-                host.ActiveReconView.ConfirmButton.onClick.Invoke();
+                var recon = host.ActiveReconView;
+                var group = recon.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(recon.ConfirmButton.IsInteractable(), Is.False);
+                recon.ConfirmButton.onClick.Invoke();
+                Assert.That(host.IsDialogueOpen, Is.True);
+                Assert.That(host.ObservedReconCount, Is.Zero);
+                group.interactable = true;
+                recon.Panel.gameObject.SetActive(false);
+                recon.ConfirmButton.onClick.Invoke();
+                Assert.That(host.ObservedReconCount, Is.Zero);
+                recon.Panel.gameObject.SetActive(true);
+                recon.ConfirmButton.onClick.Invoke();
                 Assert.That(host.IsDialogueOpen, Is.False);
                 Assert.That(host.ObservedReconCount, Is.EqualTo(1));
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
