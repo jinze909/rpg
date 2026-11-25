@@ -116,6 +116,100 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockBlocksFallbackRescueDecisionsAndCommit()
+        {
+            AssertEffectiveInputLockBlocksRescueDecisionsAndCommit(false);
+        }
+
+        [Test]
+        public void EffectiveInputLockBlocksShenLiRescueDecisionsAndCommit()
+        {
+            AssertEffectiveInputLockBlocksRescueDecisionsAndCommit(true);
+        }
+
+        private static void AssertEffectiveInputLockBlocksRescueDecisionsAndCommit(bool shenLiAccompanying)
+        {
+            var root = new GameObject("M11 rescue input lock");
+            M11ReverseRescueView view = null;
+            try
+            {
+                var session = CreateVerifiedSession(shenLiAccompanying);
+                int commits = 0;
+                view = new M11ReverseRescueView(root.transform, session, () => commits++);
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+
+                group.interactable = false;
+                Assert.That(view.LandGateButton.IsInteractable(), Is.False);
+                view.LandGateButton.onClick.Invoke();
+                view.MerchantCaravanButton.onClick.Invoke();
+                view.ReliefPassButton.onClick.Invoke();
+                Assert.That(session.ThreeBellsObserved, Is.False);
+                Assert.That(session.EntryMethod.HasValue, Is.False);
+
+                group.interactable = true;
+                view.LandGateButton.onClick.Invoke();
+                view.Panel.gameObject.SetActive(false);
+                view.CoverReturneesButton.onClick.Invoke();
+                Assert.That(session.ConscriptionObserved, Is.False);
+                view.Panel.gameObject.SetActive(true);
+                view.CoverReturneesButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(M11Phase.FogExtraction));
+
+                group.interactable = false;
+                if (shenLiAccompanying)
+                {
+                    view.HearFogCallButton.onClick.Invoke();
+                    Assert.That(session.EchoCallsHeard, Is.Zero);
+                    group.interactable = true;
+                    for (int i = 0; i < 3; i++)
+                        view.HearFogCallButton.onClick.Invoke();
+                    Assert.That(session.EchoCallsHeard, Is.EqualTo(3));
+
+                    group.interactable = false;
+                    view.AnswerPresentButton.onClick.Invoke();
+                    Assert.That(session.RescueProvider.HasValue, Is.False);
+                    group.interactable = true;
+                    view.AnswerPresentButton.onClick.Invoke();
+                    Assert.That(session.RescueProvider, Is.EqualTo(M11RescueProvider.ShenLiShallowBoat));
+
+                    view.Panel.gameObject.SetActive(false);
+                    view.MutualDivisionButton.onClick.Invoke();
+                    view.CallItEvenButton.onClick.Invoke();
+                    Assert.That(session.DivisionPact, Is.EqualTo(M11ShenDivisionPact.NoneShenAbsent));
+                    view.Panel.gameObject.SetActive(true);
+                    view.MutualDivisionButton.onClick.Invoke();
+                    Assert.That(session.DivisionPact, Is.EqualTo(M11ShenDivisionPact.MutualConsultAndDivision));
+                }
+                else
+                {
+                    view.FallbackArtisansButton.onClick.Invoke();
+                    Assert.That(session.RescueProvider.HasValue, Is.False);
+                    group.interactable = true;
+                    view.FallbackArtisansButton.onClick.Invoke();
+                    Assert.That(session.RescueProvider.HasValue, Is.True);
+                    Assert.That(session.EchoCallsHeard, Is.Zero);
+                    Assert.That(session.DivisionPact, Is.EqualTo(M11ShenDivisionPact.NoneShenAbsent));
+                }
+
+                Assert.That(session.Phase, Is.EqualTo(M11Phase.PostRescuePact));
+                group.interactable = false;
+                view.ConfirmRescueButton.onClick.Invoke();
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.ConfirmRescueButton.onClick.Invoke();
+                Assert.That(commits, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+                view.ConfirmRescueButton.onClick.Invoke();
+                Assert.That(commits, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InvalidViewportAspectsAreIgnoredWithoutThrowing()
         {
             var root = new GameObject("M11 view aspect guard");

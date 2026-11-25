@@ -105,12 +105,19 @@ namespace Rpg.Soundwell
                 oulinParticipating() != openedOulinParticipating)
                 return;
 
-            if (!session.TryCommit(getInt, setInt))
+            // Persistence callbacks can synchronously close the host or its view.
+            // Only retire the view that requested this commit, never a replacement.
+            var committingView = activeView;
+            var committingSession = session;
+            if (!committingSession.TryCommit(getInt, setInt))
                 return;
 
-            activeView.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            committingView.Dispose();
+            if (ReferenceEquals(activeView, committingView))
+            {
+                activeView = null;
+                openedArrivalSequence = null;
+            }
         }
 
         public void Dispose()
