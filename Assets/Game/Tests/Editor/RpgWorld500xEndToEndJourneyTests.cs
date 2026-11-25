@@ -47,6 +47,12 @@ namespace Rpg.Tests.Editor
                 Assert.IsTrue(ctrl.MenuRouter.ReadinessPanel.TryClickBuyRecommended());
                 Assert.GreaterOrEqual(ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"), 1);
 
+                // Top up multi-hop cross-region rations for Soundwell -> MineCamp via CampProvisioningService.
+                Assert.IsTrue(ctrl.MenuRouter.ReadinessPanel.TryAutoProvisionForDestination(
+                    RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                Assert.IsTrue(ctrl.MenuRouter.ReadinessPanel.LastProvisioningReceipt.FullyProvisioned);
+                Assert.AreEqual(2, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("rations"));
+
                 // Close readiness modal, then consume lamp_oil (slot 3) on the next open-world frame.
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { CloseModalPressed = true }, 0.1f);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
@@ -95,12 +101,13 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
 
-                // 5. Mutate wallet on RedSaltHarbor, then reload Slot1 -> rolls back cleanly to Soundwell & savedSilver.
+                // 5. Mutate wallet on RedSaltHarbor, then reload Slot1 -> rolls back cleanly to Soundwell, savedSilver & provisioned rations.
                 ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(55);
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = saveModal }, 0.1f);
                 Assert.IsTrue(ctrl.MenuRouter.SaveSlotPanel.TryClickLoad(RpgWorld500xSaveSlotId.Slot1));
                 Assert.AreEqual(RpgWorldMapId.Soundwell, ctrl.Bootstrapper.Driver.Facade.CurrentMapId);
                 Assert.AreEqual(savedSilver, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(2, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("rations"));
 
                 ctrl.Shutdown();
                 Assert.IsTrue(ctrl.QuickMenuDockHud == null || ctrl.QuickMenuDockHud.IsDisposed);
