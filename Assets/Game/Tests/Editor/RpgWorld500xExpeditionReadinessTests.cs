@@ -78,5 +78,32 @@ namespace Rpg.Tests.Editor
                 }
             }
         }
+
+        [Test]
+        public void EvaluateReadinessForMap_PreEvaluatesRemoteHazardousDestinationBeforeTravel()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+
+                RpgWorld500xExpeditionReadinessReport localClear =
+                    RpgWorld500xExpeditionReadinessService.EvaluateReadiness(boot, elapsedSeconds: 5f);
+                Assert.AreEqual(RpgWorldMapId.Soundwell, localClear.MapId);
+                Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, localClear.TravelRiskLevel);
+
+                RpgWorld500xExpeditionReadinessReport remoteStorm =
+                    RpgWorld500xExpeditionReadinessService.EvaluateReadinessForMap(boot, RpgWorldMapId.MineCamp, elapsedSeconds: 5f);
+                Assert.AreEqual(RpgWorldMapId.MineCamp, remoteStorm.MapId);
+                Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, remoteStorm.TravelRiskLevel);
+                Assert.AreEqual(RpgWorld500xReadinessGrade.Critical, remoteStorm.Grade);
+                Assert.AreEqual(5, remoteStorm.Score);
+                CollectionAssert.Contains(remoteStorm.RecommendedSupplyIds, "lamp_oil");
+                CollectionAssert.Contains(remoteStorm.RecommendedSupplyIds, "flare");
+                Assert.AreEqual(RpgWorldMapId.Soundwell, boot.Driver.Facade.CurrentMapId);
+            }
+        }
     }
 }
