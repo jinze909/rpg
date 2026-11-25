@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -17,17 +18,19 @@ namespace Rpg.Soundwell
         public bool QuickAutoSavePressed;
         public bool CloseModalPressed;
         public bool ReconPulsePressed;
+        public int RequestedSupplySlotIndex;
         public RpgWorld500xModalKind RequestedModalToggle;
     }
 
     /// <summary>
     /// Single-component Play Mode controller uniting RpgWorld500xSceneBootstrapper,
     /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, the 9-panel
-    /// RpgWorld500xMenuRouter, RpgWorld500xReconPulseHudBar, and
-    /// RpgWorld500xWeatherAdvisoryHudBadge. Drives movement, interaction, overview
-    /// map toggle, field recon pulse, quick auto-save, DangerZone victory reward
-    /// settlement, live weather advisory sync, and mutually-exclusive modal hotkeys
-    /// through deterministic RpgWorld500xInputFrame frames.
+    /// RpgWorld500xMenuRouter, RpgWorld500xReconPulseHudBar,
+    /// RpgWorld500xWeatherAdvisoryHudBadge, and RpgWorld500xFieldSupplyHotbarHud.
+    /// Drives movement, interaction, overview map toggle, field recon pulse,
+    /// field supply hotbar consumption, quick auto-save, DangerZone victory reward
+    /// settlement, expedition digest recap, live weather advisory sync, and
+    /// mutually-exclusive modal hotkeys through deterministic RpgWorld500xInputFrame frames.
     /// </summary>
     public sealed class RpgWorld500xPlayModeController : MonoBehaviour
     {
@@ -41,6 +44,7 @@ namespace Rpg.Soundwell
         private RpgWorld500xMenuRouter _menuRouter;
         private RpgWorld500xReconPulseHudBar _reconPulseHud;
         private RpgWorld500xWeatherAdvisoryHudBadge _weatherAdvisoryHud;
+        private RpgWorld500xFieldSupplyHotbarHud _supplyHotbarHud;
         private float _elapsedPlaySeconds;
         private bool _initialized;
         private string _lastAutoSaveStatusZh = string.Empty;
@@ -53,6 +57,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xMenuRouter MenuRouter => _menuRouter;
         public RpgWorld500xReconPulseHudBar ReconPulseHud => _reconPulseHud;
         public RpgWorld500xWeatherAdvisoryHudBadge WeatherAdvisoryHud => _weatherAdvisoryHud;
+        public RpgWorld500xFieldSupplyHotbarHud SupplyHotbarHud => _supplyHotbarHud;
         public string LastAutoSaveStatusZh => _lastAutoSaveStatusZh;
         public string LastDangerVictoryBannerZh => _lastDangerVictoryBannerZh;
 
@@ -110,6 +115,11 @@ namespace Rpg.Soundwell
             _menuRouter = new RpgWorld500xMenuRouter(_uiRoot.transform, _bootstrapper, _campHaven, _saveSlotManager);
             _reconPulseHud = new RpgWorld500xReconPulseHudBar(_uiRoot.transform, _bootstrapper);
             _weatherAdvisoryHud = new RpgWorld500xWeatherAdvisoryHudBadge(_uiRoot.transform, _bootstrapper);
+            _supplyHotbarHud = new RpgWorld500xFieldSupplyHotbarHud(
+                _uiRoot.transform,
+                _bootstrapper,
+                _bootstrapper.CreateFieldSupplyUseService(),
+                () => _elapsedPlaySeconds);
             _elapsedPlaySeconds = 0f;
 
             // The standalone world owns only its own input setup; never add a
@@ -164,6 +174,19 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public RpgWorld500xExpeditionDigest BuildExpeditionDigest()
+        {
+            if (!IsInitialized)
+            {
+                return default;
+            }
+
+            return RpgWorld500xCampfireJournalDigestService.BuildDigest(
+                _bootstrapper,
+                _elapsedPlaySeconds,
+                _supplyHotbarHud != null ? _supplyHotbarHud.SupplyUseService : null);
+        }
+
         public RpgWorld500xEffectiveExplorationModifiers ProcessInputFrame(
             RpgWorld500xInputFrame frame,
             float deltaSeconds)
@@ -202,15 +225,27 @@ namespace Rpg.Soundwell
                 }
             }
 
-            if (frame.ToggleOverviewMapPressed && !wasModalOpen && !_menuRouter.HasAnyModalOpen)
+            bool allowOpenWorldActions = !wasModalOpen && !_menuRouter.HasAnyModalOpen;
+            if (frame.ToggleOverviewMapPressed && allowOpenWorldActions)
             {
                 _bootstrapper.Driver.Facade.Session.ToggleOverviewMap();
             }
 
             _reconPulseHud?.UpdateCooldownDisplay(_elapsedPlaySeconds);
-            if (frame.ReconPulsePressed && !wasModalOpen && !_menuRouter.HasAnyModalOpen)
+            if (frame.ReconPulsePressed && allowOpenWorldActions)
             {
                 _reconPulseHud?.TryClickPulseScan(_elapsedPlaySeconds);
+            }
+
+            if (frame.RequestedSupplySlotIndex > 0 && allowOpenWorldActions && _supplyHotbarHud != null)
+            {
+                IReadOnlyList<RpgWorld500xCampSupplyItemDef> supplies =
+                    RpgWorld500xBountyAndSupplyCatalog.GetCampSupplies();
+                int idx = frame.RequestedSupplySlotIndex - 1;
+                if (idx >= 0 && idx < supplies.Count)
+                {
+                    _supplyHotbarHud.TryClickUseSupply(supplies[idx].Id, _elapsedPlaySeconds);
+                }
             }
 
             RpgWorld500xEffectiveExplorationModifiers mods = _menuRouter.StepFrameWithModalGuard(
@@ -220,12 +255,15 @@ namespace Rpg.Soundwell
                 !wasModalOpen && frame.InteractPressed);
 
             _weatherAdvisoryHud?.Refresh(_elapsedPlaySeconds);
+            _supplyHotbarHud?.Refresh(_elapsedPlaySeconds);
             return mods;
         }
 
         public void Shutdown()
         {
             _initialized = false;
+            _supplyHotbarHud?.Dispose();
+            _supplyHotbarHud = null;
             _weatherAdvisoryHud?.Dispose();
             _weatherAdvisoryHud = null;
             _reconPulseHud?.Dispose();
@@ -267,6 +305,13 @@ namespace Rpg.Soundwell
             frame.QuickAutoSavePressed = Input.GetKeyDown(KeyCode.F5);
             frame.CloseModalPressed = Input.GetKeyDown(KeyCode.Escape);
             frame.ReconPulsePressed = Input.GetKeyDown(KeyCode.R);
+
+            if (Input.GetKeyDown(KeyCode.Alpha1)) frame.RequestedSupplySlotIndex = 1;
+            else if (Input.GetKeyDown(KeyCode.Alpha2)) frame.RequestedSupplySlotIndex = 2;
+            else if (Input.GetKeyDown(KeyCode.Alpha3)) frame.RequestedSupplySlotIndex = 3;
+            else if (Input.GetKeyDown(KeyCode.Alpha4)) frame.RequestedSupplySlotIndex = 4;
+            else if (Input.GetKeyDown(KeyCode.Alpha5)) frame.RequestedSupplySlotIndex = 5;
+            else if (Input.GetKeyDown(KeyCode.Alpha6)) frame.RequestedSupplySlotIndex = 6;
 
             if (Input.GetKeyDown(KeyCode.J)) frame.RequestedModalToggle = RpgWorld500xModalKind.QuestJournal;
             else if (Input.GetKeyDown(KeyCode.M)) frame.RequestedModalToggle = RpgWorld500xModalKind.WorldAtlas;

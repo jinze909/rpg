@@ -31,14 +31,14 @@ namespace Rpg.Soundwell
                 (k, v) => _intStore[k] = v);
         }
 
-        // Expedition claim flags and their wallet rewards belong to the same save state.
-        internal RpgWorld500xExpeditionMilestoneService CreateExpeditionMilestoneService(
-            Action<RpgWorld500xExpeditionMilestoneDef> onMilestoneUnlocked)
+        // Field supply consumption must share persisted supply counts with camp purchases and saves.
+        internal RpgWorld500xFieldSupplyUseService CreateFieldSupplyUseService(
+            Action<string, int> onPartyHealPercent = null)
         {
-            return new RpgWorld500xExpeditionMilestoneService(
+            return new RpgWorld500xFieldSupplyUseService(
                 k => _intStore.TryGetValue(k, out int v) ? v : 0,
                 (k, v) => _intStore[k] = v,
-                onMilestoneUnlocked);
+                onPartyHealPercent);
         }
 
         public RpgWorld500xSceneBootstrapper(
