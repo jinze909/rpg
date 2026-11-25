@@ -203,7 +203,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || delivered || submitting ||
                 index < 0 || index >= choices.Length ||
-                !buttons[index].interactable)
+                !buttons[index].IsActive() || !buttons[index].IsInteractable())
                 return;
             RC04Resolution choice = choices[index];
             // Scene facts can change between Refresh and button Submit.
