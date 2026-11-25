@@ -320,20 +320,20 @@ namespace Rpg.Soundwell
         {
             for (int i = 0; i < choiceButtons.Length; i++)
             {
-                if (choiceButtons[i].gameObject.activeSelf && choiceButtons[i].interactable)
+                if (choiceButtons[i].IsActive() && choiceButtons[i].IsInteractable())
                 {
                     SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, choiceButtons[i]);
                     return;
                 }
             }
-            if (advanceButton.gameObject.activeSelf && advanceButton.interactable)
+            if (advanceButton.IsActive() && advanceButton.IsInteractable())
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, advanceButton);
         }
 
         private void HandleAdvanceClick()
         {
-            if (disposed || IsDestroyedExternally() || !advanceButton.gameObject.activeSelf ||
-                !advanceButton.interactable)
+            if (disposed || IsDestroyedExternally() || !advanceButton.IsActive() ||
+                !advanceButton.IsInteractable())
                 return;
 
             if (session.Phase == M16Phase.AfternoonWalk && session.TryProceedToDesk())
@@ -346,7 +346,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
                 return;
-            if (!choiceButtons[index].gameObject.activeSelf || !choiceButtons[index].interactable)
+            if (!choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
 
             switch (session.Phase)
