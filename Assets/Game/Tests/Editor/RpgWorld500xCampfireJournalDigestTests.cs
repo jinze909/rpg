@@ -28,7 +28,7 @@ namespace Rpg.Tests.Editor
                     (k, v) => supplyStore[k] = v);
                 Assert.IsTrue(useSvc.TryConsumeSupply("lamp_oil", 5f).Succeeded);
 
-                // Clear day -> suggests nearest undiscovered POI via Recon Scanner.
+                // Clear day -> suggests nearest undiscovered POI via Recon Scanner and reports readiness & pending camp provisioning.
                 boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
                 RpgWorld500xExpeditionDigest clearDigest =
                     RpgWorld500xCampfireJournalDigestService.BuildDigest(boot, elapsedSeconds: 10f, supplyUseService: useSvc);
@@ -37,7 +37,11 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(98, clearDigest.SaltSilverBalance); // 120 - 22 (lamp_oil)
                 Assert.AreEqual(1, clearDigest.TotalOwnedSupplyItems);
                 Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, clearDigest.TravelRiskLevel);
+                Assert.Greater(clearDigest.ReadinessScore, 0);
+                Assert.IsFalse(string.IsNullOrWhiteSpace(clearDigest.ReadinessGradeLabelZh));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("远征营火纪要"));
+                Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("整备状态："));
+                Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("本境待补"));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("灯油照明"));
                 Assert.IsTrue(clearDigest.NextObjectiveHintZh.Contains("未探索目标"));
 
@@ -48,6 +52,17 @@ namespace Rpg.Tests.Editor
 
                 Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, stormDigest.TravelRiskLevel);
                 Assert.IsTrue(stormDigest.NextObjectiveHintZh.Contains("营火休整"));
+
+                // Full auto-provisioning updates digest readiness summary to stocked.
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(200);
+                RpgWorld500xProvisioningReceipt receipt = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.Soundwell, allowPartialIfUnderBudget: false, elapsedSeconds: 10f);
+                Assert.IsTrue(receipt.FullyProvisioned);
+
+                RpgWorld500xExpeditionDigest stockedDigest =
+                    RpgWorld500xCampfireJournalDigestService.BuildDigest(boot, elapsedSeconds: 10f);
+                Assert.Greater(stockedDigest.ReadinessScore, stormDigest.ReadinessScore);
+                Assert.IsTrue(stockedDigest.FormattedDigestZh.Contains("行囊已齐备"));
             }
         }
     }

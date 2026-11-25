@@ -24,7 +24,9 @@ namespace Rpg.Soundwell
             int globalWorldCompletionPercent,
             int claimableMilestoneCount,
             string nextObjectiveHintZh,
-            string formattedDigestZh)
+            string formattedDigestZh,
+            int readinessScore = 0,
+            string readinessGradeLabelZh = "")
         {
             MapId = mapId;
             MapDisplayNameZh = mapDisplayNameZh ?? string.Empty;
@@ -43,6 +45,8 @@ namespace Rpg.Soundwell
             ClaimableMilestoneCount = claimableMilestoneCount;
             NextObjectiveHintZh = nextObjectiveHintZh ?? string.Empty;
             FormattedDigestZh = formattedDigestZh ?? string.Empty;
+            ReadinessScore = readinessScore;
+            ReadinessGradeLabelZh = readinessGradeLabelZh ?? string.Empty;
         }
 
         public RpgWorldMapId MapId { get; }
@@ -62,13 +66,16 @@ namespace Rpg.Soundwell
         public int ClaimableMilestoneCount { get; }
         public string NextObjectiveHintZh { get; }
         public string FormattedDigestZh { get; }
+        public int ReadinessScore { get; }
+        public string ReadinessGradeLabelZh { get; }
     }
 
     /// <summary>
     /// Synthesizes a concise, deterministic Chinese campfire &amp; expedition recap
     /// digest across all 500x world subsystems (active map &amp; district, weather risk,
-    /// faction standing, Salt-Silver &amp; supply stock, map/global completion, claimable
-    /// milestones, and prioritized next objective hint).
+    /// faction standing, Salt-Silver &amp; supply stock, expedition readiness &amp; camp
+    /// provisioning cost, map/global completion, claimable milestones, and prioritized
+    /// next objective hint).
     /// </summary>
     public static class RpgWorld500xCampfireJournalDigestService
     {
@@ -127,6 +134,13 @@ namespace Rpg.Soundwell
                 }
             }
 
+            RpgWorld500xExpeditionReadinessReport readiness =
+                RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
+                    bootstrapper, elapsedSeconds, supplyUseService);
+            RpgWorld500xProvisioningPlan localPlan =
+                RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    bootstrapper, mapId, elapsedSeconds, supplyUseService);
+
             string activeBuffCaption = string.Empty;
             if (supplyUseService != null)
             {
@@ -144,7 +158,7 @@ namespace Rpg.Soundwell
                 advisory,
                 claimableMilestones);
 
-            var sb = new StringBuilder(384);
+            var sb = new StringBuilder(448);
             sb.AppendLine("【远征营火纪要】" + mapNameZh + " · " + districtNameZh);
             sb.AppendLine("天时：第 " + atmo.DayCount + " 日 " + atmo.FormattedClock + " " +
                           atmo.PhaseDisplayName + " · " + atmo.WeatherDisplayName +
@@ -152,6 +166,17 @@ namespace Rpg.Soundwell
             sb.AppendLine("声望与补给：" + rep.FactionNameZh + "「" + rep.RankNameZh + "」（营地 -" +
                           rep.CampSupplyDiscountPercent + "%）｜盐银 " + saltSilver +
                           "｜随身补给 " + totalSupplies + " 件");
+            sb.Append("整备状态：").Append(readiness.Score).Append("/100（").Append(readiness.GradeLabelZh).Append("）");
+            if (localPlan.Lines.Count > 0)
+            {
+                sb.Append("｜本境待补 ").Append(localPlan.Lines.Count).Append(" 项（需 ")
+                  .Append(localPlan.TotalRequiredSaltSilver).AppendLine(" 盐银，按 P/Y 可一键整备）");
+            }
+            else
+            {
+                sb.AppendLine("｜行囊已齐备");
+            }
+
             sb.AppendLine("堪舆进度：本图 " + mapComp.OverallCompletionPercent + "%｜四境总进度 " +
                           globalComp.OverallWorldCompletionPercent + "%（待领里程碑 " + claimableMilestones + " 项）");
             if (!string.IsNullOrEmpty(activeBuffCaption))
@@ -178,7 +203,9 @@ namespace Rpg.Soundwell
                 globalComp.OverallWorldCompletionPercent,
                 claimableMilestones,
                 nextHint,
-                sb.ToString());
+                sb.ToString(),
+                readiness.Score,
+                readiness.GradeLabelZh);
         }
 
         private static string ResolveNextObjectiveHintZh(
