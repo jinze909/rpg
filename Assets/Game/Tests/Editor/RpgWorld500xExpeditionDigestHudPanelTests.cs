@@ -59,10 +59,13 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.IsVisible);
                     Assert.AreEqual(RpgWorldMapId.Soundwell, panel.LastDigest.MapId);
                     Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, panel.LastDigest.TravelRiskLevel);
+                    Assert.Greater(panel.LastDigest.ReadinessScore, 0);
                     Assert.IsTrue(panel.HeaderText.Contains("远征营火手记"));
                     Assert.IsTrue(panel.StatusRibbonText.Contains("盐银 88"));
                     Assert.IsTrue(panel.RiskBannerText.Contains("平稳"));
                     Assert.IsTrue(panel.DigestBodyText.Contains("远征营火纪要"));
+                    Assert.IsTrue(panel.DigestBodyText.Contains("整备状态："));
+                    Assert.IsTrue(panel.DigestBodyText.Contains("本境待补"));
 
                     int refreshesBeforeLock = panel.RefreshCount;
 

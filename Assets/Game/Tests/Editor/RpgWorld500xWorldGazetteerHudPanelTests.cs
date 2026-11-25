@@ -32,6 +32,10 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null }))
                 using (var panel = new RpgWorld500xWorldGazetteerHudPanel(root.transform, boot))
                 {
+                    boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                    boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                    boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+
                     // Hidden panel rejects Try* calls AND direct stale button callbacks cleanly.
                     Assert.IsFalse(panel.TrySelectTab(RpgWorld500xGazetteerHudTab.SearchResults));
                     Assert.IsFalse(panel.TrySearch("港区航标巡查"));
@@ -51,9 +55,28 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.Show());
                     Assert.AreEqual(RpgWorld500xGazetteerHudTab.RegionOverview, panel.ActiveTab);
                     Assert.AreEqual(4, panel.DisplayedRowCount);
+                    Assert.AreEqual(4, panel.LastCards.Count);
                     Assert.IsTrue(panel.HeaderText.Contains("补给箱 42"));
                     Assert.IsTrue(panel.HeaderText.Contains("捷径 16"));
                     Assert.IsTrue(panel.HeaderText.Contains("悬赏 12"));
+
+                    // Live route-risk & provisioning badges render on MineCamp row and update after auto-provisioning.
+                    Text mineRowBefore = root.transform
+                        .Find("World500xWorldGazetteerHudPanel/GazetteerModalBox/GazetteerRows/GazetteerRegion_MineCamp/Label")
+                        .GetComponent<Text>();
+                    Assert.IsTrue(mineRowBefore.text.Contains("2跳险途"));
+                    Assert.IsTrue(mineRowBefore.text.Contains("盐银不足"));
+
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(300);
+                    RpgWorld500xProvisioningReceipt receipt = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                        boot, RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false);
+                    Assert.IsTrue(receipt.FullyProvisioned);
+                    panel.Refresh();
+
+                    Text mineRowAfter = root.transform
+                        .Find("World500xWorldGazetteerHudPanel/GazetteerModalBox/GazetteerRows/GazetteerRegion_MineCamp/Label")
+                        .GetComponent<Text>();
+                    Assert.IsTrue(mineRowAfter.text.Contains("行囊已齐备"));
 
                     // Search for a RedSaltHarbor bounty across all 4 regions -> found!
                     Assert.IsTrue(panel.TrySearch("港区航标巡查", filterActiveMapOnly: false));

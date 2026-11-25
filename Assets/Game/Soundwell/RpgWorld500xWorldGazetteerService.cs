@@ -59,7 +59,12 @@ namespace Rpg.Soundwell
             int ambientZoneCount,
             int connectedRouteCount,
             int completionPercent,
-            string formattedCardZh)
+            string formattedCardZh,
+            int routeHopCount = 0,
+            bool isHazardousRoute = false,
+            int provisioningCostSaltSilver = 0,
+            bool canAffordProvisioning = true,
+            bool hasLiveProvisioningData = false)
         {
             MapId = mapId;
             MapDisplayNameZh = mapDisplayNameZh ?? string.Empty;
@@ -76,6 +81,11 @@ namespace Rpg.Soundwell
             ConnectedRouteCount = connectedRouteCount;
             CompletionPercent = completionPercent;
             FormattedCardZh = formattedCardZh ?? string.Empty;
+            RouteHopCount = Math.Max(0, routeHopCount);
+            IsHazardousRoute = isHazardousRoute;
+            ProvisioningCostSaltSilver = Math.Max(0, provisioningCostSaltSilver);
+            CanAffordProvisioning = canAffordProvisioning;
+            HasLiveProvisioningData = hasLiveProvisioningData;
         }
 
         public RpgWorldMapId MapId { get; }
@@ -93,13 +103,19 @@ namespace Rpg.Soundwell
         public int ConnectedRouteCount { get; }
         public int CompletionPercent { get; }
         public string FormattedCardZh { get; }
+        public int RouteHopCount { get; }
+        public bool IsHazardousRoute { get; }
+        public int ProvisioningCostSaltSilver { get; }
+        public bool CanAffordProvisioning { get; }
+        public bool HasLiveProvisioningData { get; }
     }
 
     /// <summary>
     /// Cross-map 500x World Gazetteer &amp; Search Directory across all four playable
     /// regions (Soundwell, RedSaltHarbor, WhitewaterCrossing, MineCamp). Summarizes
-    /// live cache/shortcut/bounty/ambient coverage and faction standing per region
-    /// and provides deterministic Chinese keyword lookup across world catalogs.
+    /// live cache/shortcut/bounty/ambient coverage, faction standing, and optional live
+    /// route-risk &amp; camp-provisioning readiness per region, plus deterministic Chinese
+    /// keyword lookup across world catalogs.
     /// </summary>
     public static class RpgWorld500xWorldGazetteerService
     {
@@ -183,6 +199,79 @@ namespace Rpg.Soundwell
             }
 
             return cards;
+        }
+
+        public static List<RpgWorld500xRegionGazetteerCard> BuildLiveWorldCards(
+            RpgWorld500xSceneBootstrapper bootstrapper,
+            Func<string, int> getInt = null,
+            float elapsedSeconds = 0f,
+            RpgWorld500xFieldSupplyUseService supplyUseService = null)
+        {
+            if (bootstrapper == null || bootstrapper.IsDisposed)
+            {
+                throw new ArgumentNullException(nameof(bootstrapper));
+            }
+
+            RpgWorldMapId originMapId = bootstrapper.Driver.Facade.CurrentMapId;
+            List<RpgWorld500xRegionGazetteerCard> baseCards = BuildWorldCards(getInt);
+            var enriched = new List<RpgWorld500xRegionGazetteerCard>(baseCards.Count);
+
+            for (int i = 0; i < baseCards.Count; i++)
+            {
+                RpgWorld500xRegionGazetteerCard card = baseCards[i];
+                RpgWorld500xProvisioningPlan plan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    bootstrapper, card.MapId, elapsedSeconds, supplyUseService);
+
+                int hopCount = plan.Itinerary.HopCount;
+                bool hazardous = plan.Itinerary.HighestRiskLevel == RpgWorld500xTravelRiskLevel.Hazardous;
+                int restockCost = plan.TotalRequiredSaltSilver;
+                bool canAfford = plan.CanAffordFullPlan;
+
+                var sb = new StringBuilder(card.FormattedCardZh.Length + 64);
+                sb.Append(card.FormattedCardZh);
+                if (card.MapId == originMapId)
+                {
+                    sb.Append("｜本境");
+                }
+                else
+                {
+                    sb.Append("｜").Append(hopCount).Append(hazardous ? "跳险途" : "跳可达");
+                }
+
+                if (plan.Lines.Count == 0)
+                {
+                    sb.Append("｜行囊已齐备");
+                }
+                else
+                {
+                    sb.Append("｜待补 ").Append(restockCost).Append(" 盐银")
+                      .Append(canAfford ? "（可备齐）" : "（盐银不足）");
+                }
+
+                enriched.Add(new RpgWorld500xRegionGazetteerCard(
+                    card.MapId,
+                    card.MapDisplayNameZh,
+                    card.FactionNameZh,
+                    card.ReputationRankZh,
+                    card.CampDiscountPercent,
+                    card.LootedCaches,
+                    card.TotalCaches,
+                    card.UnlockedShortcuts,
+                    card.TotalShortcuts,
+                    card.ClaimedBounties,
+                    card.TotalBounties,
+                    card.AmbientZoneCount,
+                    card.ConnectedRouteCount,
+                    card.CompletionPercent,
+                    sb.ToString(),
+                    routeHopCount: hopCount,
+                    isHazardousRoute: hazardous,
+                    provisioningCostSaltSilver: restockCost,
+                    canAffordProvisioning: canAfford,
+                    hasLiveProvisioningData: true));
+            }
+
+            return enriched;
         }
 
         public static List<RpgWorld500xGazetteerSearchHit> SearchGazetteer(
