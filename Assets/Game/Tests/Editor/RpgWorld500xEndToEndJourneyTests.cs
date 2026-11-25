@@ -32,6 +32,10 @@ namespace Rpg.Tests.Editor
                     utcNowProvider: () => clock,
                     overrideTileSlices: new Sprite[] { null });
 
+                Assert.IsNotNull(ctrl.QuickMenuDockHud);
+                Assert.AreEqual(16, ctrl.QuickMenuDockHud.DisplayedButtonCount);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
+
                 // 1. Seed wallet and set GaleStorm on Soundwell; open ExpeditionReadiness via P hotkey.
                 ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(300);
                 ctrl.Bootstrapper.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
@@ -39,12 +43,14 @@ namespace Rpg.Tests.Editor
                 Assert.IsTrue(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.P, out RpgWorld500xModalKind prepModal));
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = prepModal }, 0.1f);
                 Assert.AreEqual(RpgWorld500xModalKind.ExpeditionReadiness, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.ExpeditionReadiness, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 Assert.IsTrue(ctrl.MenuRouter.ReadinessPanel.TryClickBuyRecommended());
                 Assert.GreaterOrEqual(ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"), 1);
 
                 // Close readiness modal, then consume lamp_oil (slot 3) on the next open-world frame.
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { CloseModalPressed = true }, 0.1f);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
 
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedSupplySlotIndex = 3 }, 0.1f);
                 Assert.IsTrue(ctrl.SupplyHotbarHud.ActiveBuffsText.Contains("灯油照明"));
@@ -59,27 +65,35 @@ namespace Rpg.Tests.Editor
                 Assert.IsTrue(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.O, out RpgWorld500xModalKind saveModal));
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = saveModal }, 0.1f);
                 Assert.AreEqual(RpgWorld500xModalKind.SaveSlots, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.SaveSlots, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 Assert.IsTrue(ctrl.MenuRouter.SaveSlotPanel.TryClickSave(RpgWorld500xSaveSlotId.Slot1));
 
                 // 3. Plan multi-hop itinerary to MineCamp (Y hotkey) and depart first leg -> RedSaltHarbor.
                 Assert.IsTrue(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.Y, out RpgWorld500xModalKind itineraryModal));
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = itineraryModal }, 0.1f);
                 Assert.AreEqual(RpgWorld500xModalKind.TravelItinerary, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.TravelItinerary, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 Assert.IsTrue(ctrl.MenuRouter.ItineraryPanel.TrySelectDestination(RpgWorldMapId.MineCamp));
                 Assert.AreEqual(2, ctrl.MenuRouter.ItineraryPanel.LastItinerary.HopCount);
                 Assert.IsTrue(ctrl.MenuRouter.ItineraryPanel.TryClickDepartFirstLeg());
                 Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, ctrl.Bootstrapper.Driver.Facade.CurrentMapId);
 
-                // 4. Inspect BountyBoard (V) and WorldGazetteer (G) on RedSaltHarbor.
+                // 4. Inspect BountyBoard (V hotkey) and launch/toggle WorldGazetteer via QuickMenuDockHud button click on RedSaltHarbor.
                 Assert.IsTrue(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.V, out RpgWorld500xModalKind bountyModal));
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = bountyModal }, 0.1f);
                 Assert.AreEqual(RpgWorld500xModalKind.BountyBoard, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.BountyBoard, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 Assert.AreEqual(3, ctrl.MenuRouter.BountyBoardPanel.DisplayedRowCount);
 
-                Assert.IsTrue(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.G, out RpgWorld500xModalKind gazetteerModal));
-                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { RequestedModalToggle = gazetteerModal }, 0.1f);
+                Assert.IsTrue(ctrl.QuickMenuDockHud.TryClickModalButton(RpgWorld500xModalKind.WorldGazetteer));
                 Assert.AreEqual(RpgWorld500xModalKind.WorldGazetteer, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.WorldGazetteer, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
                 Assert.AreEqual(4, ctrl.MenuRouter.GazetteerPanel.DisplayedRowCount);
+
+                // Clicking the active QuickMenuDockHud button toggles it closed cleanly.
+                Assert.IsTrue(ctrl.QuickMenuDockHud.TryClickModalButton(RpgWorld500xModalKind.WorldGazetteer));
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.QuickMenuDockHud.ActiveHighlightedModal);
 
                 // 5. Mutate wallet on RedSaltHarbor, then reload Slot1 -> rolls back cleanly to Soundwell & savedSilver.
                 ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.AddSaltSilver(55);
@@ -89,6 +103,7 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(savedSilver, ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.SaltSilverBalance);
 
                 ctrl.Shutdown();
+                Assert.IsTrue(ctrl.QuickMenuDockHud == null || ctrl.QuickMenuDockHud.IsDisposed);
                 Assert.AreEqual(0, hostGo.transform.childCount);
                 Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Texture2D>().Length, texBefore);
                 Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Sprite>().Length, spriteBefore);
