@@ -57,16 +57,35 @@ namespace Rpg.Soundwell
     }
 
     /// <summary>
-    /// Multi-hop shortest-time cross-region itinerary planner over the four 500x
-    /// playable maps (Soundwell, RedSaltHarbor, WhitewaterCrossing, MineCamp),
+    /// Multi-hop shortest-time and weather-safest cross-region itinerary planner over
+    /// the four 500x playable maps (Soundwell, RedSaltHarbor, WhitewaterCrossing, MineCamp),
     /// annotating each travel leg with live weather risk and campfire stop advisories.
     /// </summary>
     public static class RpgWorld500xFastTravelItineraryService
     {
+        private const int RiskWeightPerLevel = 10000;
+
         public static RpgWorld500xTravelItinerary PlanShortestItinerary(
             RpgWorldMapId originMapId,
             RpgWorldMapId destinationMapId,
             RpgWorld500xWeatherAndTimeOfDayService atmosphere = null)
+        {
+            return PlanItineraryCore(originMapId, destinationMapId, atmosphere, prioritizeSafety: false);
+        }
+
+        public static RpgWorld500xTravelItinerary PlanSafestItinerary(
+            RpgWorldMapId originMapId,
+            RpgWorldMapId destinationMapId,
+            RpgWorld500xWeatherAndTimeOfDayService atmosphere = null)
+        {
+            return PlanItineraryCore(originMapId, destinationMapId, atmosphere, prioritizeSafety: true);
+        }
+
+        private static RpgWorld500xTravelItinerary PlanItineraryCore(
+            RpgWorldMapId originMapId,
+            RpgWorldMapId destinationMapId,
+            RpgWorld500xWeatherAndTimeOfDayService atmosphere,
+            bool prioritizeSafety)
         {
             if (originMapId == destinationMapId)
             {
@@ -84,7 +103,8 @@ namespace Rpg.Soundwell
                     summaryZh: sameSummary);
             }
 
-            // Deterministic Dijkstra over the 4-region portal graph by in-game travel minutes.
+            // Deterministic Dijkstra over the 4-region portal graph by in-game travel minutes
+            // (with weather-risk penalty weighted above minutes when prioritizeSafety is true).
             var dist = new Dictionary<RpgWorldMapId, int>();
             var prevEdge = new Dictionary<RpgWorldMapId, RpgWorld500xRegionRouteDef>();
             var unvisited = new List<RpgWorldMapId>();
@@ -143,7 +163,10 @@ namespace Rpg.Soundwell
                         continue;
                     }
 
-                    int candidate = bestCost + edge.TravelMinutesInGame;
+                    int riskPenalty = prioritizeSafety
+                        ? (int)ResolveMapRisk(edge.ToMap, atmosphere) * RiskWeightPerLevel
+                        : 0;
+                    int candidate = bestCost + riskPenalty + edge.TravelMinutesInGame;
                     if (candidate < existingCost)
                     {
                         dist[edge.ToMap] = candidate;
@@ -193,7 +216,7 @@ namespace Rpg.Soundwell
             bool recommendRest = highestRisk == RpgWorld500xTravelRiskLevel.Hazardous || totalMinutes >= 240;
 
             var sb = new StringBuilder(192);
-            sb.Append("【跨境行程】")
+            sb.Append(prioritizeSafety ? "【安全绕行行程】" : "【跨境行程】")
               .Append(ResolveMapNameZh(originMapId)).Append(" → ").Append(ResolveMapNameZh(destinationMapId))
               .Append("（共 ").Append(legs.Count).Append(" 段，耗时 ").Append(totalMinutes).Append(" 分钟｜最高风险：")
               .Append(RpgWorld500xWeatherTravelAdvisoryService.GetRiskLabelZh(highestRisk)).Append("）");
