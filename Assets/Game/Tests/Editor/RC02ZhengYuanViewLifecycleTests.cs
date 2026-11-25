@@ -131,6 +131,124 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        private static void AssertEffectiveInputLock(
+            RC02ZhengYuanView view, CanvasGroup group, Dictionary<string, int> values,
+            Func<int> willingnessCalls, Func<int> submissions)
+        {
+            var session = view.Session;
+            var stage = session.Stage;
+            var checks = session.ChecksCompleted;
+            bool confession = session.RoofConfessionHeard;
+            bool motherCalled = session.MotherCalledShiLeng;
+            bool consented = session.ShiLengConsented;
+            int beforeWillingness = willingnessCalls();
+            int beforeSubmissions = submissions();
+            var before = new Dictionary<string, int>(values);
+            Action clickAll = () =>
+            {
+                view.ToothCheckButton.onClick.Invoke();
+                view.FlankQuestionButton.onClick.Invoke();
+                view.HandQuestionButton.onClick.Invoke();
+            };
+            Action assertUnchanged = () =>
+            {
+                Assert.That(session.Stage, Is.EqualTo(stage));
+                Assert.That(session.ChecksCompleted, Is.EqualTo(checks));
+                Assert.That(session.RoofConfessionHeard, Is.EqualTo(confession));
+                Assert.That(session.MotherCalledShiLeng, Is.EqualTo(motherCalled));
+                Assert.That(session.ShiLengConsented, Is.EqualTo(consented));
+                Assert.That(willingnessCalls(), Is.EqualTo(beforeWillingness));
+                Assert.That(submissions(), Is.EqualTo(beforeSubmissions));
+                CollectionAssert.AreEquivalent(before, values);
+            };
+            group.interactable = false;
+            clickAll();
+            assertUnchanged();
+            group.interactable = true;
+            view.Panel.gameObject.SetActive(false);
+            clickAll();
+            assertUnchanged();
+            view.Panel.gameObject.SetActive(true);
+        }
+
+        [Test]
+        public void EffectiveInputLockPreservesConsentAndExplicitAdoptionRegistration()
+        {
+            var root = new GameObject("RC02 effective input lock");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            RC02ZhengYuanView view = null;
+            try
+            {
+                RC02ZhengYuanSession session = CreateSession(values);
+                bool willing = false;
+                int willingnessCalls = 0;
+                int submissions = 0;
+                view = new RC02ZhengYuanView(root.transform, session,
+                    () => { willingnessCalls++; return willing; },
+                    resolution =>
+                    {
+                        submissions++;
+                        Assert.That(session.TrySettleResolution(resolution, read, write), Is.True);
+                    });
+                var group = root.AddComponent<CanvasGroup>();
+                Action assertLocked = () => AssertEffectiveInputLock(
+                    view, group, values, () => willingnessCalls, () => submissions);
+
+                assertLocked();
+                view.ToothCheckButton.onClick.Invoke();
+                assertLocked();
+                view.FlankQuestionButton.onClick.Invoke();
+                view.HandQuestionButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC02Stage.RoofConfession));
+                assertLocked();
+                view.HearConfessionButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC02Stage.DeskDecision));
+                assertLocked();
+
+                view.BeginAdoptionButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC02Stage.AdoptionNameMoment));
+                assertLocked();
+                view.WaitQuietlyButton.onClick.Invoke();
+                Assert.That(willingnessCalls, Is.EqualTo(1));
+                Assert.That(session.Stage, Is.EqualTo(RC02Stage.DeskDecision));
+                Assert.That(session.MotherCalledShiLeng, Is.False);
+                Assert.That(session.ShiLengConsented, Is.False);
+                Assert.That(read(RC02ZhengYuanFacts.ConfirmedKey), Is.Zero);
+
+                willing = true;
+                assertLocked();
+                view.BeginAdoptionButton.onClick.Invoke();
+                assertLocked();
+                view.WaitQuietlyButton.onClick.Invoke();
+                Assert.That(willingnessCalls, Is.EqualTo(2));
+                Assert.That(session.MotherCalledShiLeng, Is.True);
+                Assert.That(session.ShiLengConsented, Is.True);
+                assertLocked();
+                Assert.That(submissions, Is.Zero);
+                Assert.That(read(RC02ZhengYuanFacts.ConfirmedKey), Is.Zero);
+
+                view.ConfirmAdoptionButton.onClick.Invoke();
+                view.ExposeButton.onClick.Invoke();
+                Assert.That(submissions, Is.EqualTo(1));
+                Assert.That(session.IsResolved, Is.True);
+                Assert.That(RC02ZhengYuanFacts.TryRead(read, out RC02ZhengYuanRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.ChecksCompleted, Is.EqualTo(RC02IntakeChecks.All));
+                Assert.That(saved.Value.RoofConfessionHeard, Is.True);
+                Assert.That(saved.Value.Resolution, Is.EqualTo(RC02Resolution.AdoptAsShiLeng));
+                Assert.That(saved.Value.MotherCalledShiLeng, Is.True);
+                Assert.That(saved.Value.ShiLengConsented, Is.True);
+                Assert.That(saved.Value.RealZhengYuanFound, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ReentrantResolutionSubmitClickIsIgnoredDuringSubmissionCallback()
         {
