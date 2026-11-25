@@ -94,6 +94,87 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        private static void AssertLockedChoiceDoesNotAdvance(
+            ST03BathhouseView view, CanvasGroup group, UnityEngine.UI.Button button,
+            Dictionary<string, int> values)
+        {
+            ST03BathhouseSession session = view.Session;
+            ST03BathhousePhase phase = session.Phase;
+            int clues = session.InspectedClueCount;
+            bool trial = session.TrialCompleted;
+            group.interactable = false;
+            Assert.That(button.IsInteractable(), Is.False);
+            button.onClick.Invoke();
+            group.interactable = true;
+
+            view.Panel.gameObject.SetActive(false);
+            button.onClick.Invoke();
+            view.Panel.gameObject.SetActive(true);
+            Assert.That(session.Phase, Is.EqualTo(phase));
+            Assert.That(session.InspectedClueCount, Is.EqualTo(clues));
+            Assert.That(session.TrialCompleted, Is.EqualTo(trial));
+            Assert.That(values, Is.Empty);
+        }
+
+        [Test]
+        public void EffectiveInputLockPreservesBathhouseEvidenceAndRelocationOutcome()
+        {
+            var root = new GameObject("ST03 effective input lock");
+            var values = new Dictionary<string, int>();
+            ST03BathhouseView view = null;
+            try
+            {
+                ST03BathhouseSession session = CreateSession(values);
+                int commits = 0;
+                view = new ST03BathhouseView(root.transform, session,
+                    () => true, () => true, () => true, () => true, () =>
+                    {
+                        commits++;
+                        Assert.That(session.TryCommit(Reader(values), (k, v) => values[k] = v), Is.True);
+                    });
+                var group = root.AddComponent<CanvasGroup>();
+                foreach (var button in new[]
+                {
+                    view.BoilerClueButton, view.LockersClueButton, view.LettersClueButton
+                })
+                {
+                    AssertLockedChoiceDoesNotAdvance(view, group, button, values);
+                    button.onClick.Invoke();
+                }
+
+                Assert.That(session.Phase, Is.EqualTo(ST03BathhousePhase.MeetResidentsAtCareHome));
+                AssertLockedChoiceDoesNotAdvance(view, group, view.InterviewWuSuButton, values);
+                view.InterviewWuSuButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(ST03BathhousePhase.RepairRouteAndTransport));
+                AssertLockedChoiceDoesNotAdvance(view, group, view.MakeSafeRouteButton, values);
+                view.MakeSafeRouteButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(ST03BathhousePhase.TrialReopening));
+                AssertLockedChoiceDoesNotAdvance(view, group, view.CompleteTrialNightButton, values);
+                view.CompleteTrialNightButton.onClick.Invoke();
+                Assert.That(session.TrialCompleted, Is.True);
+                AssertLockedChoiceDoesNotAdvance(view, group, view.ReconcileBudgetButton, values);
+                view.ReconcileBudgetButton.onClick.Invoke();
+                Assert.That(session.Phase, Is.EqualTo(ST03BathhousePhase.CompareOperatingPlans));
+
+                AssertLockedChoiceDoesNotAdvance(view, group, view.ReopenSubsidizedButton, values);
+                AssertLockedChoiceDoesNotAdvance(view, group, view.ElderBackroomButton, values);
+                AssertLockedChoiceDoesNotAdvance(view, group, view.SellAndRelocateButton, values);
+                Assert.That(commits, Is.Zero);
+
+                view.SellAndRelocateButton.onClick.Invoke();
+                Assert.That(commits, Is.EqualTo(1));
+                Assert.That(ST03BathhouseFacts.TryRead(Reader(values), out ST03BathhouseRecord? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.M15Sign, Is.EqualTo(ST03M15BathhouseSign.NoNewSignAtOldSite));
+                Assert.That(saved.Value.WusuWorkplace, Is.EqualTo(ST03WusuWorkplace.CareHome));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ReentrantPlanSubmitClickIsIgnoredDuringSubmissionCallback()
         {
