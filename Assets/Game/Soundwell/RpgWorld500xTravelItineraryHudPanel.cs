@@ -141,7 +141,15 @@ namespace Rpg.Soundwell
                 modal.transform, "CloseItineraryButton",
                 new Vector2(0.74f, 0.05f), new Vector2(0.96f, 0.13f),
                 "关闭行程规划", _font,
-                () => Hide());
+                () =>
+                {
+                    if (!CanClick(_closeButton))
+                    {
+                        return;
+                    }
+
+                    Hide();
+                });
 
             _visible = false;
             _rootObject.SetActive(false);
@@ -180,13 +188,7 @@ namespace Rpg.Soundwell
 
         public bool TrySelectDestination(RpgWorldMapId destination)
         {
-            if (!IsVisible)
-            {
-                return false;
-            }
-
-            if (!_destinationButtons.TryGetValue(destination, out Button btn) ||
-                btn == null || !btn.interactable || !btn.IsInteractable())
+            if (!_destinationButtons.TryGetValue(destination, out Button btn) || !CanClick(btn))
             {
                 return false;
             }
@@ -197,8 +199,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickAutoProvision()
         {
-            if (!IsVisible || _autoProvisionButton == null ||
-                !_autoProvisionButton.interactable || !_autoProvisionButton.IsInteractable())
+            if (!CanClick(_autoProvisionButton))
             {
                 return false;
             }
@@ -209,8 +210,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickDepartFirstLeg()
         {
-            if (!IsVisible || _departFirstLegButton == null ||
-                !_departFirstLegButton.interactable || !_departFirstLegButton.IsInteractable())
+            if (!CanClick(_departFirstLegButton))
             {
                 return false;
             }
@@ -221,8 +221,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickClose()
         {
-            if (!IsVisible || _closeButton == null ||
-                !_closeButton.interactable || !_closeButton.IsInteractable())
+            if (!CanClick(_closeButton))
             {
                 return false;
             }
@@ -300,6 +299,12 @@ namespace Rpg.Soundwell
             DestroySafe(_rootObject);
         }
 
+        private bool CanClick(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.IsInteractable();
+        }
+
         private void BuildDestinationButtons(Transform parent)
         {
             IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
@@ -310,7 +315,8 @@ namespace Rpg.Soundwell
                 float xMin = 0.04f + (i * width) + 0.004f;
                 float xMax = 0.04f + ((i + 1) * width) - 0.004f;
                 RpgWorldMapId captured = spec.MapId;
-                Button btn = CreateActionButton(
+                Button btn = null;
+                btn = CreateActionButton(
                     parent,
                     "Dest_" + spec.MapId,
                     new Vector2(xMin, 0.80f), new Vector2(xMax, 0.88f),
@@ -318,6 +324,11 @@ namespace Rpg.Soundwell
                     _font,
                     () =>
                     {
+                        if (!CanClick(btn))
+                        {
+                            return;
+                        }
+
                         _selectedDestination = captured;
                         Refresh();
                     });
@@ -327,8 +338,7 @@ namespace Rpg.Soundwell
 
         private void HandleAutoProvisionClicked()
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || _autoProvisionButton == null ||
-                !_autoProvisionButton.interactable || !_autoProvisionButton.IsInteractable())
+            if (!CanClick(_autoProvisionButton))
             {
                 return;
             }
@@ -349,7 +359,7 @@ namespace Rpg.Soundwell
 
         private void HandleDepartFirstLegClicked()
         {
-            if (IsDisposed || _bootstrapper.IsDisposed || !_lastItinerary.IsReachable || _lastItinerary.Legs.Count == 0)
+            if (!CanClick(_departFirstLegButton) || !_lastItinerary.IsReachable || _lastItinerary.Legs.Count == 0)
             {
                 return;
             }
