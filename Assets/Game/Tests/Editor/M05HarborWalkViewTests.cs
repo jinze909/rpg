@@ -183,6 +183,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ParentInputLockPreventsWitnessingAndCompletionUntilUnlocked()
+        {
+            var root = new GameObject("M05 harbor input lock");
+            M05HarborWalkView view = null;
+            try
+            {
+                int completed = 0;
+                var observed = new System.Collections.Generic.List<M05HarborBeat>();
+                view = new M05HarborWalkView(root.transform, () => completed++,
+                    observed.Add);
+                CanvasGroup group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+                foreach (M05HarborBeat beat in new[]
+                {
+                    M05HarborBeat.RepairStall,
+                    M05HarborBeat.FisherRumor,
+                    M05HarborBeat.MarketAccusation
+                })
+                {
+                    Assert.That(view.Beat, Is.EqualTo(beat));
+                    int previousCount = observed.Count;
+                    group.interactable = false;
+                    Assert.That(view.AdvanceButton.IsInteractable(), Is.False);
+                    view.AdvanceButton.onClick.Invoke();
+                    Assert.That(view.Beat, Is.EqualTo(beat));
+                    Assert.That(observed.Count, Is.EqualTo(previousCount));
+                    Assert.That(completed, Is.Zero);
+
+                    group.interactable = true;
+                    view.Panel.gameObject.SetActive(false);
+                    view.AdvanceButton.onClick.Invoke();
+                    Assert.That(view.Beat, Is.EqualTo(beat));
+                    Assert.That(observed.Count, Is.EqualTo(previousCount));
+                    view.Panel.gameObject.SetActive(true);
+
+                    Assert.That(view.AdvanceButton.IsInteractable(), Is.True);
+                    view.AdvanceButton.onClick.Invoke();
+                    Assert.That(observed.Count, Is.EqualTo(previousCount + 1));
+                    Assert.That(observed[previousCount], Is.EqualTo(beat));
+                }
+                Assert.That(view.Beat, Is.EqualTo(M05HarborBeat.Finished));
+                view.AdvanceButton.onClick.Invoke();
+                Assert.That(completed, Is.EqualTo(1));
+                Assert.That(observed.Count, Is.EqualTo(3));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedFinalHostTransitionRetainsTheLastBeatForRetry()
         {
             var root = new GameObject("M05 transition retry");
