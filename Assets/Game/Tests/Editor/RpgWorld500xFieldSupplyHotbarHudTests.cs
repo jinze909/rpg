@@ -9,6 +9,68 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xFieldSupplyHotbarHudTests
     {
         [Test]
+        public void FieldSupplyHotbarHud_RejectsLockedEventsAndReportsActualConsumption()
+        {
+            var root = new GameObject("SupplyHotbarActionGuardRoot");
+            try
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+                Action<string, int> write = (k, v) => store[k] = v;
+                var shop = new RpgWorld500xFieldBountyAndSupplyService(read, write);
+                shop.AddSaltSilver(100);
+                Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 2));
+                var use = new RpgWorld500xFieldSupplyUseService(read, write);
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var hud = new RpgWorld500xFieldSupplyHotbarHud(root.transform, boot, use, () => 20f))
+                {
+                    hud.Refresh(10f);
+                    var button = Array.Find(root.GetComponentsInChildren<UnityEngine.UI.Button>(true),
+                        b => b.name == "SupplySlot_lamp_oil");
+                    Assert.IsNotNull(button);
+                    var group = root.AddComponent<CanvasGroup>();
+                    group.interactable = false;
+                    button.onClick.Invoke();
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(2, use.GetOwnedCount("lamp_oil"));
+                    group.interactable = true;
+                    root.SetActive(false);
+                    button.onClick.Invoke();
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(2, use.GetOwnedCount("lamp_oil"));
+                    root.SetActive(true);
+
+                    // An inactive component can still have a retained UnityEvent reference.
+                    button.enabled = false;
+                    button.onClick.Invoke();
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(2, use.GetOwnedCount("lamp_oil"));
+                    button.enabled = true;
+
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", float.NaN));
+                    Assert.AreEqual(2, use.GetOwnedCount("lamp_oil"));
+                    Assert.IsTrue(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(1, use.GetOwnedCount("lamp_oil"));
+                    Assert.AreEqual(90f, use.GetRemainingBuffSeconds("lamp_oil", 10f), 0.01f);
+                    button.onClick.Invoke();
+                    Assert.AreEqual(0, use.GetOwnedCount("lamp_oil"));
+                    Assert.AreEqual(170f, use.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
+                    // Once the stock is exhausted, a retained event cannot extend the buff.
+                    button.onClick.Invoke();
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", 20f));
+                    Assert.AreEqual(0, use.GetOwnedCount("lamp_oil"));
+                    Assert.AreEqual(170f, use.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FieldSupplyHotbarHud_ConsumesOwnedSuppliesShowsBuffsRespectsParentLockAndZeroLeak()
         {
             var root = new GameObject("World500xFieldSupplyHotbarHudTestRoot");

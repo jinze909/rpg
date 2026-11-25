@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private readonly Dictionary<RpgWorldMapId, Button> _travelButtons = new Dictionary<RpgWorldMapId, Button>();
+        private RpgWorldMapId _displayedMapId;
         private bool _visible;
         private bool _disposed;
 
@@ -130,7 +131,8 @@ namespace Rpg.Soundwell
 
         public bool TryClickTravelTo(RpgWorldMapId targetMap)
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || RejectEncounterAction())
+            if (!IsVisible || _bootstrapper.IsDisposed || RejectEncounterAction() ||
+                RejectStaleTravelOrigin(_displayedMapId))
             {
                 return false;
             }
@@ -179,6 +181,7 @@ namespace Rpg.Soundwell
             }
 
             RpgWorldMapId currentMap = _bootstrapper.Driver.Facade.CurrentMapId;
+            _displayedMapId = currentMap;
             RpgWorld500xAtmosphereSnapshot atmo = _bootstrapper.Driver.Facade.Atmosphere.GetSnapshot(currentMap);
             _headerText.text = "四境世界图册 · 第 " + atmo.DayCount + " 日 " + atmo.FormattedClock + " " + atmo.WeatherDisplayName;
 
@@ -212,7 +215,7 @@ namespace Rpg.Soundwell
                     rowLabel,
                     btnLabel,
                     hasDirectRoute && !encounterActive,
-                    () => HandleTravelClicked(capturedTarget));
+                    () => HandleTravelClicked(currentMap, capturedTarget));
 
                 _travelButtons[entry.MapId] = travelBtn;
             }
@@ -229,9 +232,22 @@ namespace Rpg.Soundwell
             return true;
         }
 
-        private void HandleTravelClicked(RpgWorldMapId targetMap)
+        private bool RejectStaleTravelOrigin(RpgWorldMapId quotedOrigin)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction())
+            if (_bootstrapper.Driver.Facade.CurrentMapId == quotedOrigin)
+            {
+                return false;
+            }
+
+            _statusBannerText.text = "所在区域已变化，请重新确认启程";
+            Refresh();
+            return true;
+        }
+
+        private void HandleTravelClicked(RpgWorldMapId quotedOrigin, RpgWorldMapId targetMap)
+        {
+            if (IsDisposed || _bootstrapper.IsDisposed || RejectEncounterAction() ||
+                RejectStaleTravelOrigin(quotedOrigin))
             {
                 return;
             }
