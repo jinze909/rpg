@@ -24,7 +24,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsNull(uiRoot.GetComponent<UnityEngine.EventSystems.EventSystem>(),
                     "Do not create a duplicate scene EventSystem.");
                 var canvases = uiRoot.GetComponentsInChildren<Canvas>(true);
-                Assert.AreEqual(9, canvases.Length);
+                Assert.AreEqual(10, canvases.Length);
                 foreach (Canvas canvas in canvases)
                     Assert.IsNotNull(canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>(), canvas.name);
 
@@ -131,6 +131,13 @@ namespace Rpg.Tests.Editor
                 Assert.IsTrue(ctrl.IsInitialized);
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
                 Assert.IsNotNull(ctrl.ReconPulseHud);
+                Assert.IsNotNull(ctrl.WeatherAdvisoryHud);
+
+                // Weather advisory HUD badge updates live on atmosphere change.
+                ctrl.Bootstrapper.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame(), 0.05f);
+                Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, ctrl.WeatherAdvisoryHud.LastRiskLevel);
+                Assert.IsTrue(ctrl.WeatherAdvisoryHud.LastRecommendCampfireRest);
 
                 // Toggle overview map when no modal is open.
                 ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { ToggleOverviewMapPressed = true }, 0.05f);
