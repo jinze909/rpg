@@ -24,7 +24,7 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Single-component Play Mode controller uniting RpgWorld500xSceneBootstrapper,
-    /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, the 9-panel
+    /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, the 16-panel
     /// RpgWorld500xMenuRouter, RpgWorld500xReconPulseHudBar,
     /// RpgWorld500xWeatherAdvisoryHudBadge, and RpgWorld500xFieldSupplyHotbarHud.
     /// Drives movement, interaction, overview map toggle, field recon pulse,
@@ -34,6 +34,26 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class RpgWorld500xPlayModeController : MonoBehaviour
     {
+        private static readonly KeyCode[] ModalHotkeyOrder =
+        {
+            KeyCode.J,
+            KeyCode.M,
+            KeyCode.B,
+            KeyCode.K,
+            KeyCode.T,
+            KeyCode.N,
+            KeyCode.O,
+            KeyCode.L,
+            KeyCode.U,
+            KeyCode.C,
+            KeyCode.H,
+            KeyCode.V,
+            KeyCode.P,
+            KeyCode.X,
+            KeyCode.G,
+            KeyCode.Y
+        };
+
         [SerializeField] private RpgWorldMapId initialMapId = RpgWorldMapId.Soundwell;
         [SerializeField] private bool autoInitializeOnStart = true;
 
@@ -61,6 +81,30 @@ namespace Rpg.Soundwell
         public RpgWorld500xFieldSupplyHotbarHud SupplyHotbarHud => _supplyHotbarHud;
         public string LastAutoSaveStatusZh => _lastAutoSaveStatusZh;
         public string LastDangerVictoryBannerZh => _lastDangerVictoryBannerZh;
+
+        public static bool TryResolveModalHotkey(KeyCode key, out RpgWorld500xModalKind modalKind)
+        {
+            switch (key)
+            {
+                case KeyCode.J: modalKind = RpgWorld500xModalKind.QuestJournal; return true;
+                case KeyCode.M: modalKind = RpgWorld500xModalKind.WorldAtlas; return true;
+                case KeyCode.B: modalKind = RpgWorld500xModalKind.CampMerchant; return true;
+                case KeyCode.K: modalKind = RpgWorld500xModalKind.Bestiary; return true;
+                case KeyCode.T: modalKind = RpgWorld500xModalKind.FastTravelBeacons; return true;
+                case KeyCode.N: modalKind = RpgWorld500xModalKind.CartographyReputation; return true;
+                case KeyCode.O: modalKind = RpgWorld500xModalKind.SaveSlots; return true;
+                case KeyCode.L: modalKind = RpgWorld500xModalKind.FieldRumorAndLore; return true;
+                case KeyCode.U: modalKind = RpgWorld500xModalKind.ExpeditionMilestones; return true;
+                case KeyCode.C: modalKind = RpgWorld500xModalKind.CacheAndShortcut; return true;
+                case KeyCode.H: modalKind = RpgWorld500xModalKind.ExpeditionDigest; return true;
+                case KeyCode.V: modalKind = RpgWorld500xModalKind.BountyBoard; return true;
+                case KeyCode.P: modalKind = RpgWorld500xModalKind.ExpeditionReadiness; return true;
+                case KeyCode.X: modalKind = RpgWorld500xModalKind.DangerTacticalBrief; return true;
+                case KeyCode.G: modalKind = RpgWorld500xModalKind.WorldGazetteer; return true;
+                case KeyCode.Y: modalKind = RpgWorld500xModalKind.TravelItinerary; return true;
+                default: modalKind = RpgWorld500xModalKind.None; return false;
+            }
+        }
 
         private void Start()
         {
@@ -340,15 +384,15 @@ namespace Rpg.Soundwell
             else if (Input.GetKeyDown(KeyCode.Alpha5)) frame.RequestedSupplySlotIndex = 5;
             else if (Input.GetKeyDown(KeyCode.Alpha6)) frame.RequestedSupplySlotIndex = 6;
 
-            if (Input.GetKeyDown(KeyCode.J)) frame.RequestedModalToggle = RpgWorld500xModalKind.QuestJournal;
-            else if (Input.GetKeyDown(KeyCode.M)) frame.RequestedModalToggle = RpgWorld500xModalKind.WorldAtlas;
-            else if (Input.GetKeyDown(KeyCode.B)) frame.RequestedModalToggle = RpgWorld500xModalKind.CampMerchant;
-            else if (Input.GetKeyDown(KeyCode.K)) frame.RequestedModalToggle = RpgWorld500xModalKind.Bestiary;
-            else if (Input.GetKeyDown(KeyCode.T)) frame.RequestedModalToggle = RpgWorld500xModalKind.FastTravelBeacons;
-            else if (Input.GetKeyDown(KeyCode.N)) frame.RequestedModalToggle = RpgWorld500xModalKind.CartographyReputation;
-            else if (Input.GetKeyDown(KeyCode.O)) frame.RequestedModalToggle = RpgWorld500xModalKind.SaveSlots;
-            else if (Input.GetKeyDown(KeyCode.L)) frame.RequestedModalToggle = RpgWorld500xModalKind.FieldRumorAndLore;
-            else if (Input.GetKeyDown(KeyCode.U)) frame.RequestedModalToggle = RpgWorld500xModalKind.ExpeditionMilestones;
+            for (int i = 0; i < ModalHotkeyOrder.Length; i++)
+            {
+                if (Input.GetKeyDown(ModalHotkeyOrder[i]) &&
+                    TryResolveModalHotkey(ModalHotkeyOrder[i], out RpgWorld500xModalKind modalKind))
+                {
+                    frame.RequestedModalToggle = modalKind;
+                    break;
+                }
+            }
 #endif
             return frame;
         }

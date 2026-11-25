@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -9,6 +10,70 @@ namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xPlayModeControllerTests
     {
+        [Test]
+        public void PlayModeController_MapsAll16ModalsToUniqueNonCollidingHotkeysAndDrivesNewPanels()
+        {
+            KeyCode[] keys =
+            {
+                KeyCode.J, KeyCode.M, KeyCode.B, KeyCode.K,
+                KeyCode.T, KeyCode.N, KeyCode.O, KeyCode.L,
+                KeyCode.U, KeyCode.C, KeyCode.H, KeyCode.V,
+                KeyCode.P, KeyCode.X, KeyCode.G, KeyCode.Y
+            };
+
+            var mappedModals = new HashSet<RpgWorld500xModalKind>();
+            for (int i = 0; i < keys.Length; i++)
+            {
+                Assert.IsTrue(RpgWorld500xPlayModeController.TryResolveModalHotkey(keys[i], out RpgWorld500xModalKind modal),
+                    "Expected hotkey mapping for " + keys[i]);
+                Assert.AreNotEqual(RpgWorld500xModalKind.None, modal);
+                Assert.IsTrue(mappedModals.Add(modal), "Duplicate modal mapping: " + modal);
+            }
+
+            Assert.AreEqual(16, mappedModals.Count);
+            Assert.IsFalse(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.W, out _));
+            Assert.IsFalse(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.R, out _));
+            Assert.IsFalse(RpgWorld500xPlayModeController.TryResolveModalHotkey(KeyCode.Escape, out _));
+
+            var hostGo = new GameObject("World500xPlayMode16PanelHotkeyTestHost");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+
+                RpgWorld500xModalKind[] newModals =
+                {
+                    RpgWorld500xModalKind.CacheAndShortcut,
+                    RpgWorld500xModalKind.ExpeditionDigest,
+                    RpgWorld500xModalKind.BountyBoard,
+                    RpgWorld500xModalKind.ExpeditionReadiness,
+                    RpgWorld500xModalKind.DangerTacticalBrief,
+                    RpgWorld500xModalKind.WorldGazetteer,
+                    RpgWorld500xModalKind.TravelItinerary
+                };
+
+                for (int i = 0; i < newModals.Length; i++)
+                {
+                    ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                    {
+                        RequestedModalToggle = newModals[i]
+                    }, 0.05f);
+                    Assert.AreEqual(newModals[i], ctrl.MenuRouter.ActiveModal);
+                }
+
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { CloseModalPressed = true }, 0.05f);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(hostGo);
+            }
+        }
+
         [Test]
         public void PlayModeController_WiresModalRaycastersAndReusesSceneEventSystem()
         {
