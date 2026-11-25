@@ -93,6 +93,96 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        private static void AssertLockedChoiceDoesNotAdvance(
+            ST05TwoDoorsView view, CanvasGroup group, UnityEngine.UI.Button button,
+            Dictionary<string, int> values)
+        {
+            var phase = view.Session.Phase;
+            var before = new Dictionary<string, int>(values);
+            group.interactable = false;
+            Assert.That(button.IsInteractable(), Is.False);
+            button.onClick.Invoke();
+            group.interactable = true;
+            Assert.That(view.Session.Phase, Is.EqualTo(phase));
+            CollectionAssert.AreEquivalent(before, values);
+
+            view.Panel.gameObject.SetActive(false);
+            Assert.That(button.IsActive(), Is.False);
+            button.onClick.Invoke();
+            view.Panel.gameObject.SetActive(true);
+            Assert.That(view.Session.Phase, Is.EqualTo(phase));
+            CollectionAssert.AreEquivalent(before, values);
+        }
+
+        [Test]
+        public void EffectiveInputLockPreventsUnwitnessedHomeAndAssignmentDecisions()
+        {
+            var root = new GameObject("ST05 effective input lock");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            ST05TwoDoorsView view = null;
+            try
+            {
+                var session = CreateSession(values);
+                int homeCalls = 0;
+                int assignmentCalls = 0;
+                view = new ST05TwoDoorsView(
+                    root.transform, session, () => true, () => true, () => true,
+                    () => true, () => true, () => true,
+                    () =>
+                    {
+                        homeCalls++;
+                        Assert.That(session.TryCommitLivingAgreement(read, write), Is.True);
+                    },
+                    () =>
+                    {
+                        assignmentCalls++;
+                        Assert.That(session.TryCommitChengAssignment(read, write), Is.True);
+                    });
+                var group = root.AddComponent<CanvasGroup>();
+                foreach (var button in new[] { view.RemoveDoorFrameButton,
+                    view.ConvertToBenchesButton, view.ReturnBedButton })
+                    AssertLockedChoiceDoesNotAdvance(view, group, button, values);
+                view.ConvertToBenchesButton.onClick.Invoke();
+                foreach (var button in new[] { view.TestMarketGiftsButton,
+                    view.ResolveCourtyardButton, view.HearBothPartnersButton })
+                {
+                    AssertLockedChoiceDoesNotAdvance(view, group, button, values);
+                    button.onClick.Invoke();
+                }
+
+                Assert.That(session.Phase, Is.EqualTo(ST05TwoDoorsPhase.AgreeHomeAndKeys));
+                AssertLockedChoiceDoesNotAdvance(view, group, view.KeepTwoDoorsButton, values);
+                AssertLockedChoiceDoesNotAdvance(view, group, view.TrialSharedHomeButton, values);
+                Assert.That(homeCalls, Is.Zero);
+                Assert.That(values, Is.Empty);
+                view.KeepTwoDoorsButton.onClick.Invoke();
+                Assert.That(homeCalls, Is.EqualTo(1));
+
+                Assert.That(session.Phase, Is.EqualTo(ST05TwoDoorsPhase.AwaitChengOwnJobDecision));
+                AssertLockedChoiceDoesNotAdvance(view, group, view.ChengStayLocalButton, values);
+                AssertLockedChoiceDoesNotAdvance(view, group, view.ChengOutsideSurveyButton, values);
+                Assert.That(assignmentCalls, Is.Zero);
+                Assert.That(read(ST05TwoDoorsFacts.AssignmentConfirmedKey), Is.Zero);
+                view.ChengOutsideSurveyButton.onClick.Invoke();
+
+                Assert.That(assignmentCalls, Is.EqualTo(1));
+                Assert.That(session.Phase, Is.EqualTo(ST05TwoDoorsPhase.Completed));
+                Assert.That(ST05TwoDoorsFacts.TryRead(read, out ST05TwoDoorsOutcome? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.Home.Arrangement,
+                    Is.EqualTo(ST05HomeArrangement.KeepTwoDoorsAndCourtyardTable));
+                Assert.That(saved.Value.Assignment, Is.EqualTo(ST05ChengAssignment.AcceptOutsideSurvey));
+                Assert.That(saved.Value.OutsideWorkStarted, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ReentrantHomeAndAssignmentSubmitsAreIgnoredDuringCallbacks()
         {
