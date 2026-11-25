@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -130,6 +132,49 @@ namespace Rpg.Tests.Editor
                     // Immediately depart first leg to RedSaltHarbor.
                     Assert.IsTrue(panel.TryClickDepartFirstLeg());
                     Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, facade.CurrentMapId);
+                }
+
+                Assert.AreEqual(0, root.transform.childCount);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void TravelItineraryHudPanel_HonorsActiveSupplyBuffsToAvoidRedundantProvisioningSpend()
+        {
+            var root = new GameObject("World500xItinerarySupplyBuffTestRoot");
+            try
+            {
+                var buffStore = new Dictionary<string, int>(StringComparer.Ordinal)
+                {
+                    ["rpg.return.world.supply.item.lamp_oil"] = 1
+                };
+                var supplyUse = new RpgWorld500xFieldSupplyUseService(
+                    k => buffStore.TryGetValue(k, out int v) ? v : 0,
+                    (k, v) => buffStore[k] = v);
+                Assert.IsTrue(supplyUse.TryConsumeSupply("lamp_oil", 2f).Succeeded);
+
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xTravelItineraryHudPanel(root.transform, boot, supplyUse))
+                {
+                    RpgWorld500xGrandRuntimeFacade facade = boot.Driver.Facade;
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+                    facade.BountyAndSupply.AddSaltSilver(300);
+
+                    Assert.IsTrue(panel.Show(RpgWorldMapId.MineCamp, elapsedSeconds: 10f));
+                    Assert.IsTrue(panel.TryClickAutoProvision());
+                    Assert.IsTrue(panel.LastProvisioningReceipt.FullyProvisioned);
+                    // Active lamp_oil buff avoids redundant 22 Salt-Silver purchase while still stocking rations & flare.
+                    Assert.AreEqual(0, facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(2, facade.BountyAndSupply.GetOwnedSupplyCount("rations"));
+                    Assert.AreEqual(1, facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);

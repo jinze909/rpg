@@ -10,13 +10,14 @@ namespace Rpg.Soundwell
     /// RpgWorld500xSceneBootstrapper, RpgWorld500xFastTravelItineraryService,
     /// RpgWorld500xCampProvisioningService, and RpgWorld500xWorldAtlasPortalService.
     /// Lets players pick any of the 4 500x maps, inspect the shortest-time multi-hop
-    /// route and per-leg weather risks, auto-provision route supplies in one click,
-    /// and depart along the first hop with parent CanvasGroup interactability guards
-    /// and zero-leak cleanup.
+    /// route and per-leg weather risks, auto-provision route supplies in one click
+    /// (respecting active timed supply buffs), and depart along the first hop with
+    /// parent CanvasGroup interactability guards and zero-leak cleanup.
     /// </summary>
     public sealed class RpgWorld500xTravelItineraryHudPanel : IDisposable
     {
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
+        private readonly RpgWorld500xFieldSupplyUseService _supplyUseService;
         private readonly GameObject _rootObject;
         private readonly Transform _rowContainer;
         private readonly Text _headerText;
@@ -35,6 +36,7 @@ namespace Rpg.Soundwell
         private RpgWorld500xTravelItinerary _lastItinerary;
         private RpgWorld500xProvisioningPlan _lastProvisioningPlan;
         private RpgWorld500xProvisioningReceipt _lastProvisioningReceipt;
+        private float _lastElapsedSeconds;
         private bool _visible;
         private bool _disposed;
 
@@ -51,9 +53,11 @@ namespace Rpg.Soundwell
 
         public RpgWorld500xTravelItineraryHudPanel(
             Transform parent,
-            RpgWorld500xSceneBootstrapper bootstrapper)
+            RpgWorld500xSceneBootstrapper bootstrapper,
+            RpgWorld500xFieldSupplyUseService supplyUseService = null)
         {
             _bootstrapper = bootstrapper ?? throw new ArgumentNullException(nameof(bootstrapper));
+            _supplyUseService = supplyUseService;
             _selectedDestination = _bootstrapper.Driver.Facade.CurrentMapId == RpgWorldMapId.MineCamp
                 ? RpgWorldMapId.Soundwell
                 : RpgWorldMapId.MineCamp;
@@ -153,10 +157,10 @@ namespace Rpg.Soundwell
 
             _visible = false;
             _rootObject.SetActive(false);
-            Refresh();
+            Refresh(0f);
         }
 
-        public bool Show(RpgWorldMapId? destination = null)
+        public bool Show(RpgWorldMapId? destination = null, float elapsedSeconds = 0f)
         {
             if (IsDisposed)
             {
@@ -170,7 +174,7 @@ namespace Rpg.Soundwell
 
             _visible = true;
             _rootObject.SetActive(true);
-            Refresh();
+            Refresh(elapsedSeconds);
             return true;
         }
 
@@ -230,7 +234,7 @@ namespace Rpg.Soundwell
             return true;
         }
 
-        public void Refresh()
+        public void Refresh(float elapsedSeconds = 0f)
         {
             if (IsDisposed || _bootstrapper.IsDisposed)
             {
@@ -238,6 +242,7 @@ namespace Rpg.Soundwell
             }
 
             ClearRows();
+            _lastElapsedSeconds = elapsedSeconds;
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
             RpgWorldMapId origin = facade.CurrentMapId;
@@ -247,7 +252,9 @@ namespace Rpg.Soundwell
                 facade.Atmosphere);
             _lastProvisioningPlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
                 _bootstrapper,
-                _selectedDestination);
+                _selectedDestination,
+                _lastElapsedSeconds,
+                _supplyUseService);
 
             _headerText.text = "【四境多跳行程规划】当前位置：" + facade.Session.Host.Layout.Spec.DisplayNameZh;
             _summaryBannerImage.color = ResolveRiskColor(_lastItinerary.HighestRiskLevel);
@@ -330,7 +337,7 @@ namespace Rpg.Soundwell
                         }
 
                         _selectedDestination = captured;
-                        Refresh();
+                        Refresh(_lastElapsedSeconds);
                     });
                 _destinationButtons[spec.MapId] = btn;
             }
@@ -346,7 +353,9 @@ namespace Rpg.Soundwell
             _lastProvisioningReceipt = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
                 _bootstrapper,
                 _selectedDestination,
-                allowPartialIfUnderBudget: true);
+                allowPartialIfUnderBudget: true,
+                elapsedSeconds: _lastElapsedSeconds,
+                supplyUseService: _supplyUseService);
 
             _feedbackText.text = _lastProvisioningReceipt.SummaryZh;
             if (_lastProvisioningReceipt.TotalSpentSaltSilver > 0)
@@ -354,7 +363,7 @@ namespace Rpg.Soundwell
                 _bootstrapper.StatusHud.SyncFromDriver(_bootstrapper.Driver);
             }
 
-            Refresh();
+            Refresh(_lastElapsedSeconds);
         }
 
         private void HandleDepartFirstLegClicked()
@@ -377,7 +386,7 @@ namespace Rpg.Soundwell
                 _feedbackText.text = "当前无法启程，请确认未处于危险遭遇战中。";
             }
 
-            Refresh();
+            Refresh(_lastElapsedSeconds);
         }
 
         private void UpdateDestinationHighlights()
