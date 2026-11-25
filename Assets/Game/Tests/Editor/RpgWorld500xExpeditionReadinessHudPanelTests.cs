@@ -107,19 +107,36 @@ namespace Rpg.Tests.Editor
                     facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
                     facade.BountyAndSupply.AddSaltSilver(300);
 
-                    // Hidden panel must reject cross-region auto-provisioning without spending Salt-Silver.
+                    // Hidden panel must reject cross-region auto-provisioning and remote preview cleanly.
                     Assert.IsFalse(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                    Assert.IsFalse(panel.TryPreviewTargetMap(RpgWorldMapId.MineCamp));
                     Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
 
                     Assert.IsTrue(panel.Show(5f));
+                    Assert.IsFalse(panel.IsPreviewingRemoteMap);
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, panel.EvaluatedMapId);
+
+                    // Remote preview switches evaluation to stormy MineCamp without changing CurrentMapId.
+                    Assert.IsTrue(panel.TryPreviewTargetMap(RpgWorldMapId.MineCamp));
+                    Assert.IsTrue(panel.IsPreviewingRemoteMap);
+                    Assert.AreEqual(RpgWorldMapId.MineCamp, panel.EvaluatedMapId);
+                    Assert.AreEqual(RpgWorld500xReadinessGrade.Critical, panel.LastReport.Grade);
+                    Assert.IsTrue(panel.HeaderText.Contains("【远征预检】"));
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, facade.CurrentMapId);
+
+                    Assert.IsTrue(panel.TryPreviewTargetMap(null));
+                    Assert.IsFalse(panel.IsPreviewingRemoteMap);
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, panel.EvaluatedMapId);
+
                     string breakdownBefore = panel.FormatProvisioningBreakdownForDestination(RpgWorldMapId.MineCamp);
                     Assert.IsTrue(breakdownBefore.Contains("合计"));
                     Assert.IsTrue(breakdownBefore.Contains("盐银"));
 
-                    // Parent CanvasGroup lock must block cross-region auto-provisioning cleanly.
+                    // Parent CanvasGroup lock must block cross-region auto-provisioning and remote preview cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                    Assert.IsFalse(panel.TryPreviewTargetMap(RpgWorldMapId.MineCamp));
                     Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
                     group.interactable = true;
 
