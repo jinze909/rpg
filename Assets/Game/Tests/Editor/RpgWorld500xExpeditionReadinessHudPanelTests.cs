@@ -112,6 +112,9 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
 
                     Assert.IsTrue(panel.Show(5f));
+                    string breakdownBefore = panel.FormatProvisioningBreakdownForDestination(RpgWorldMapId.MineCamp);
+                    Assert.IsTrue(breakdownBefore.Contains("合计"));
+                    Assert.IsTrue(breakdownBefore.Contains("盐银"));
 
                     // Parent CanvasGroup lock must block cross-region auto-provisioning cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
@@ -120,7 +123,21 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
                     group.interactable = true;
 
-                    // Full cross-region provisioning stocks 2 rations + lamp_oil + flare + gauze + iron_clamps.
+                    // Strict cap below full cost rejects without spending; partial cap spends within 35 Salt-Silver.
+                    Assert.IsTrue(panel.TryAutoProvisionForDestination(
+                        RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false, maxBudgetSaltSilver: 35));
+                    Assert.IsFalse(panel.LastProvisioningReceipt.FullyProvisioned);
+                    Assert.AreEqual(0, panel.LastProvisioningReceipt.TotalSpentSaltSilver);
+                    Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
+                    Assert.IsTrue(panel.FeedbackText.Contains("超出预算上限"));
+
+                    Assert.IsTrue(panel.TryAutoProvisionForDestination(
+                        RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: true, maxBudgetSaltSilver: 35));
+                    Assert.IsFalse(panel.LastProvisioningReceipt.FullyProvisioned);
+                    Assert.Greater(panel.LastProvisioningReceipt.TotalSpentSaltSilver, 0);
+                    Assert.LessOrEqual(panel.LastProvisioningReceipt.TotalSpentSaltSilver, 35);
+
+                    // Full cross-region provisioning stocks remaining items (2 rations + lamp_oil + flare + gauze + iron_clamps).
                     Assert.IsTrue(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
                     Assert.IsTrue(panel.LastProvisioningReceipt.FullyProvisioned);
                     Assert.Greater(panel.LastProvisioningReceipt.TotalSpentSaltSilver, 0);
@@ -129,6 +146,9 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(1, facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
                     Assert.AreEqual(RpgWorld500xReadinessGrade.WellPrepared, panel.LastReport.Grade);
                     Assert.IsTrue(panel.FeedbackText.Contains("全额备齐"));
+                    Assert.AreEqual(
+                        "行囊已齐备（无需补购）",
+                        panel.FormatProvisioningBreakdownForDestination(RpgWorldMapId.MineCamp));
                 }
 
                 Assert.AreEqual(0, root.transform.childCount);
