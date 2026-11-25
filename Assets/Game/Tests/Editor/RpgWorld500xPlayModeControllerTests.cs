@@ -24,7 +24,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsNull(uiRoot.GetComponent<UnityEngine.EventSystems.EventSystem>(),
                     "Do not create a duplicate scene EventSystem.");
                 var canvases = uiRoot.GetComponentsInChildren<Canvas>(true);
-                Assert.AreEqual(10, canvases.Length);
+                Assert.AreEqual(11, canvases.Length);
                 foreach (Canvas canvas in canvases)
                     Assert.IsNotNull(canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>(), canvas.name);
 
@@ -141,6 +141,60 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PlayModeController_SupplyHotbarConsumesPersistedStockAndBuildsExpeditionDigest()
+        {
+            var hostGo = new GameObject("World500xSupplyHotbarDigestTestHost");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+
+                var shop = ctrl.Bootstrapper.Driver.Facade.BountyAndSupply;
+                shop.AddSaltSilver(100);
+                // Slot 3 is lamp_oil (22 Salt-Silver).
+                Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 1));
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+                // Modal open blocks hotbar consumption.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    RequestedModalToggle = RpgWorld500xModalKind.WorldAtlas,
+                    RequestedSupplySlotIndex = 3
+                }, 0.1f);
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+                // Dismissing modal does not leak hotbar consumption in the same frame.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    CloseModalPressed = true,
+                    RequestedSupplySlotIndex = 3
+                }, 0.1f);
+                Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+                // Next open-world frame consumes lamp_oil from shared persisted store and activates buff.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    RequestedSupplySlotIndex = 3
+                }, 0.1f);
+                Assert.AreEqual(0, shop.GetOwnedSupplyCount("lamp_oil"));
+                Assert.IsTrue(ctrl.SupplyHotbarHud.ActiveBuffsText.Contains("灯油照明"));
+
+                RpgWorld500xExpeditionDigest digest = ctrl.BuildExpeditionDigest();
+                Assert.AreEqual(RpgWorldMapId.Soundwell, digest.MapId);
+                Assert.AreEqual(78, digest.SaltSilverBalance);
+                Assert.IsTrue(digest.FormattedDigestZh.Contains("灯油照明"));
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(hostGo);
+            }
+        }
+
+        [Test]
         public void PlayModeController_DrivesAll9ModalsOverviewReconPulseQuickAutoSaveAndDisposesWithZeroLeak()
         {
             var hostGo = new GameObject("World500xPlayModeControllerTestHost");
@@ -173,6 +227,7 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
                 Assert.IsNotNull(ctrl.ReconPulseHud);
                 Assert.IsNotNull(ctrl.WeatherAdvisoryHud);
+                Assert.IsNotNull(ctrl.SupplyHotbarHud);
 
                 // Weather advisory HUD badge updates live on atmosphere change.
                 ctrl.Bootstrapper.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);

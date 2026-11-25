@@ -41,6 +41,16 @@ namespace Rpg.Soundwell
                 onMilestoneUnlocked);
         }
 
+        // Field supply consumption must share persisted supply counts with camp purchases and saves.
+        internal RpgWorld500xFieldSupplyUseService CreateFieldSupplyUseService(
+            Action<string, int> onPartyHealPercent = null)
+        {
+            return new RpgWorld500xFieldSupplyUseService(
+                k => _intStore.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => _intStore[k] = v,
+                onPartyHealPercent);
+        }
+
         public RpgWorld500xSceneBootstrapper(
             GameObject hostObject = null,
             RpgWorldMapId initialMapId = RpgWorldMapId.Soundwell,
