@@ -63,8 +63,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Evaluates pre-departure expedition readiness across live 500x weather risk,
     /// owned camp supplies, active timed buffs, remaining locked shortcuts, and
-    /// regional faction standing, emitting a 0-100 readiness score and prioritized
-    /// camp shopping recommendations.
+    /// regional faction standing for the current or any target destination region,
+    /// emitting a 0-100 readiness score and prioritized camp shopping recommendations.
     /// </summary>
     public static class RpgWorld500xExpeditionReadinessService
     {
@@ -78,9 +78,27 @@ namespace Rpg.Soundwell
                 throw new ArgumentNullException(nameof(bootstrapper));
             }
 
+            return EvaluateReadinessForMap(
+                bootstrapper,
+                bootstrapper.Driver.Facade.CurrentMapId,
+                elapsedSeconds,
+                supplyUseService);
+        }
+
+        public static RpgWorld500xExpeditionReadinessReport EvaluateReadinessForMap(
+            RpgWorld500xSceneBootstrapper bootstrapper,
+            RpgWorldMapId targetMapId,
+            float elapsedSeconds = 0f,
+            RpgWorld500xFieldSupplyUseService supplyUseService = null)
+        {
+            if (bootstrapper == null || bootstrapper.IsDisposed)
+            {
+                throw new ArgumentNullException(nameof(bootstrapper));
+            }
+
             RpgWorld500xGrandRuntimeFacade facade = bootstrapper.Driver.Facade;
-            RpgWorldMapId mapId = facade.CurrentMapId;
-            string mapNameZh = facade.Session.Host.Layout.Spec.DisplayNameZh;
+            RpgWorldMapId mapId = targetMapId;
+            string mapNameZh = ResolveMapDisplayNameZh(mapId, facade);
             RpgWorld500xAtmosphereSnapshot atmo = facade.Atmosphere.GetSnapshot(mapId);
             RpgWorld500xTravelAdvisoryReport advisory =
                 RpgWorld500xWeatherTravelAdvisoryService.BuildAdvisory(atmo, elapsedSeconds);
@@ -252,6 +270,27 @@ namespace Rpg.Soundwell
                 case RpgWorld500xTravelRiskLevel.Caution: return 20;
                 default: return 35;
             }
+        }
+
+        private static string ResolveMapDisplayNameZh(
+            RpgWorldMapId mapId,
+            RpgWorld500xGrandRuntimeFacade facade)
+        {
+            if (facade != null && facade.CurrentMapId == mapId)
+            {
+                return facade.Session.Host.Layout.Spec.DisplayNameZh;
+            }
+
+            IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
+            for (int i = 0; i < specs.Count; i++)
+            {
+                if (specs[i].MapId == mapId)
+                {
+                    return specs[i].DisplayNameZh;
+                }
+            }
+
+            return mapId.ToString();
         }
 
         private static string ResolveSupplyNameZh(string supplyId)
