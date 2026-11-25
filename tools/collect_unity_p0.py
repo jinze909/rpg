@@ -77,6 +77,10 @@ ADDITIONAL_SOUNDWELL_TESTS = {
         "DeskLetterReadoutsCaptureChineseAndEnglishGameViewEvidence":
             "Rpg.Tests.Editor.M16EpilogueGameViewEvidenceTests.DeskLetterReadoutsCaptureChineseAndEnglishGameViewEvidence",
     },
+    "Assets/Game/Tests/Editor/RpgWorld500xPlayModeControllerTests.cs": {
+        "PlayModeController_SupplyHotbarReservesSeparateHudRowAndCapturesEvidence":
+            "Rpg.Tests.Editor.RpgWorld500xPlayModeControllerTests.PlayModeController_SupplyHotbarReservesSeparateHudRowAndCapturesEvidence",
+    },
     "Assets/Game/Tests/Editor/M06FamilyLetterDeliveryGameViewEvidenceTests.cs": {
         "FamilyLetterHandoffCapturesChineseAndEnglishGameViewEvidence":
             "Rpg.Tests.Editor.M06FamilyLetterDeliveryGameViewEvidenceTests.FamilyLetterHandoffCapturesChineseAndEnglishGameViewEvidence",
