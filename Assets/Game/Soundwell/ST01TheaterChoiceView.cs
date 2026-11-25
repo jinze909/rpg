@@ -161,7 +161,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || submitting ||
                 index < 0 || index >= buttons.Length ||
-                !buttons[index].gameObject.activeSelf || !buttons[index].interactable)
+                !buttons[index].IsActive() || !buttons[index].IsInteractable())
                 return;
             var choice = (ST01TheaterChoice)(index + 1);
             submitting = true;
