@@ -35,7 +35,8 @@ namespace Rpg.Soundwell
     /// evaluation, Weather Travel Advisory risk matrix, Expedition Readiness
     /// scoring, Campfire Journal Digest synthesis, 4x4 multi-hop Fast Travel
     /// Itinerary reachability, 16-panel MenuRouter + PlayMode hotkey coverage,
-    /// and QuickMenuDockHud 16-button launch &amp; active-highlight sync).
+    /// QuickMenuDockHud 16-button launch &amp; active-highlight sync, and
+    /// CampProvisioningService cross-region auto-provisioning).
     /// </summary>
     public static class RpgWorld500xPlayabilityMaintenanceGate
     {
@@ -231,6 +232,40 @@ namespace Rpg.Soundwell
                 {
                     UnityEngine.Object.DestroyImmediate(uiRoot);
                 }
+            }
+
+            // 7. Cross-Region CampProvisioningService Audit (Strict Budget Guard, Full Stocking & Idempotency)
+            using (var provBoot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: slices))
+            {
+                RpgWorld500xGrandRuntimeFacade provFacade = provBoot.Driver.Facade;
+                provFacade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                provFacade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                provFacade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+
+                RpgWorld500xProvisioningPlan plan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    provBoot, RpgWorldMapId.MineCamp, elapsedSeconds: 5f);
+                Check(plan.Itinerary.HopCount == 2 && plan.TotalRequiredSaltSilver > 0 && !plan.CanAffordFullPlan,
+                    "CampProvisioningService failed to plan 2-hop hazardous Soundwell->MineCamp route.");
+
+                RpgWorld500xProvisioningReceipt denied = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    provBoot, RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false, elapsedSeconds: 5f);
+                Check(!denied.FullyProvisioned && denied.TotalSpentSaltSilver == 0,
+                    "CampProvisioningService spent currency when under budget in strict mode.");
+
+                provFacade.BountyAndSupply.AddSaltSilver(300);
+                RpgWorld500xProvisioningReceipt full = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    provBoot, RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false, elapsedSeconds: 5f);
+                Check(full.FullyProvisioned && full.TotalSpentSaltSilver == plan.TotalRequiredSaltSilver &&
+                      full.AfterScore > full.BeforeScore && full.AfterGrade == RpgWorld500xReadinessGrade.WellPrepared &&
+                      provFacade.BountyAndSupply.GetOwnedSupplyCount("rations") >= 2,
+                    "CampProvisioningService failed full provisioning execution for Soundwell->MineCamp.");
+
+                RpgWorld500xProvisioningReceipt repeat = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    provBoot, RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: true, elapsedSeconds: 5f);
+                Check(repeat.AlreadyPrepared && repeat.TotalSpentSaltSilver == 0,
+                    "CampProvisioningService was not idempotent on immediate repeat execution.");
             }
 
             bool passed = issues.Count == 0;
