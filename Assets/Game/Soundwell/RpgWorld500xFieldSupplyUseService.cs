@@ -79,6 +79,8 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class RpgWorld500xFieldSupplyUseService
     {
+        private const float MaxRestoredBuffSeconds = 3600f;
+
         private readonly Func<string, int> _getInt;
         private readonly Action<string, int> _setInt;
         private readonly Action<string, int> _onPartyHealPercent;
@@ -227,6 +229,62 @@ namespace Rpg.Soundwell
                 Mathf.Clamp(repair, 1f, 2f),
                 activeCount,
                 sb.ToString());
+        }
+
+        public Dictionary<string, float> ExportRemainingBuffSeconds(float nowSeconds)
+        {
+            var snapshot = new Dictionary<string, float>(StringComparer.Ordinal);
+            if (!IsFinite(nowSeconds))
+            {
+                return snapshot;
+            }
+
+            foreach (KeyValuePair<string, float> kv in _buffExpiryByItemId)
+            {
+                float remaining = kv.Value - nowSeconds;
+                if (remaining > 0f && IsFinite(remaining))
+                {
+                    snapshot[kv.Key] = remaining;
+                }
+            }
+
+            return snapshot;
+        }
+
+        public int RestoreRemainingBuffSeconds(
+            IReadOnlyDictionary<string, float> remainingByItemId,
+            float nowSeconds,
+            bool clearExisting = true)
+        {
+            if (clearExisting)
+            {
+                _buffExpiryByItemId.Clear();
+            }
+
+            if (remainingByItemId == null || !IsFinite(nowSeconds) || nowSeconds < 0f)
+            {
+                return 0;
+            }
+
+            int restored = 0;
+            foreach (KeyValuePair<string, float> kv in remainingByItemId)
+            {
+                if (string.IsNullOrEmpty(kv.Key) || !_itemsById.ContainsKey(kv.Key))
+                {
+                    continue;
+                }
+
+                if (!IsFinite(kv.Value) || kv.Value <= 0f)
+                {
+                    continue;
+                }
+
+                float clamped = Mathf.Min(kv.Value, MaxRestoredBuffSeconds);
+                _buffExpiryByItemId[kv.Key] = nowSeconds + clamped;
+                restored++;
+            }
+
+            return restored;
         }
 
         public void ClearActiveBuffs()
