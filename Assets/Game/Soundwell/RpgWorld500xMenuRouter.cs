@@ -20,16 +20,18 @@ namespace Rpg.Soundwell
         BountyBoard = 12,
         ExpeditionReadiness = 13,
         DangerTacticalBrief = 14,
-        WorldGazetteer = 15
+        WorldGazetteer = 15,
+        TravelItinerary = 16
     }
 
     /// <summary>
-    /// Mutually-exclusive 15-panel modal UI router uniting QuestJournal, WorldAtlas,
+    /// Mutually-exclusive 16-panel modal UI router uniting QuestJournal, WorldAtlas,
     /// CampMerchant, Bestiary, FastTravelBeacons, CartographyReputation, SaveSlots,
     /// FieldRumorAndLore, ExpeditionMilestones, CacheAndShortcut, ExpeditionDigest,
-    /// BountyBoard, ExpeditionReadiness, DangerTacticalBrief, and WorldGazetteer
-    /// panels on top of RpgWorld500xSceneBootstrapper. Guarantees at most one modal
-    /// is visible at a time and suppresses movement/world interaction while any modal is open.
+    /// BountyBoard, ExpeditionReadiness, DangerTacticalBrief, WorldGazetteer, and
+    /// TravelItinerary panels on top of RpgWorld500xSceneBootstrapper. Guarantees at
+    /// most one modal is visible at a time and suppresses movement/world interaction
+    /// while any modal is open.
     /// </summary>
     public sealed class RpgWorld500xMenuRouter : IDisposable
     {
@@ -48,6 +50,7 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xExpeditionReadinessHudPanel _readinessPanel;
         private readonly RpgWorld500xDangerTacticalBriefHudPanel _dangerBriefPanel;
         private readonly RpgWorld500xWorldGazetteerHudPanel _gazetteerPanel;
+        private readonly RpgWorld500xTravelItineraryHudPanel _itineraryPanel;
         private readonly bool _previousAutomaticFrameUpdates;
         private bool _disposed;
 
@@ -66,6 +69,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xExpeditionReadinessHudPanel ReadinessPanel => _readinessPanel;
         public RpgWorld500xDangerTacticalBriefHudPanel DangerBriefPanel => _dangerBriefPanel;
         public RpgWorld500xWorldGazetteerHudPanel GazetteerPanel => _gazetteerPanel;
+        public RpgWorld500xTravelItineraryHudPanel ItineraryPanel => _itineraryPanel;
         public bool IsDisposed => _disposed || _bootstrapper.IsDisposed;
 
         public RpgWorld500xModalKind ActiveModal
@@ -153,6 +157,11 @@ namespace Rpg.Soundwell
                     return RpgWorld500xModalKind.WorldGazetteer;
                 }
 
+                if (_itineraryPanel != null && _itineraryPanel.IsVisible)
+                {
+                    return RpgWorld500xModalKind.TravelItinerary;
+                }
+
                 return RpgWorld500xModalKind.None;
             }
         }
@@ -186,6 +195,7 @@ namespace Rpg.Soundwell
             _readinessPanel = new RpgWorld500xExpeditionReadinessHudPanel(uiParent, _bootstrapper);
             _dangerBriefPanel = new RpgWorld500xDangerTacticalBriefHudPanel(uiParent, _bootstrapper);
             _gazetteerPanel = new RpgWorld500xWorldGazetteerHudPanel(uiParent, _bootstrapper);
+            _itineraryPanel = new RpgWorld500xTravelItineraryHudPanel(uiParent, _bootstrapper);
 
             // The routed frame is the only frame allowed to advance the world while
             // menus exist; otherwise RuntimeDriver.Update bypasses the modal guard.
@@ -236,6 +246,8 @@ namespace Rpg.Soundwell
                     return _dangerBriefPanel.Show();
                 case RpgWorld500xModalKind.WorldGazetteer:
                     return _gazetteerPanel.Show();
+                case RpgWorld500xModalKind.TravelItinerary:
+                    return _itineraryPanel.Show();
                 case RpgWorld500xModalKind.None:
                 default:
                     return true;
@@ -340,6 +352,11 @@ namespace Rpg.Soundwell
             {
                 _gazetteerPanel.Hide();
             }
+
+            if (_itineraryPanel != null && _itineraryPanel.IsVisible)
+            {
+                _itineraryPanel.Hide();
+            }
         }
 
         public RpgWorld500xEffectiveExplorationModifiers StepFrameWithModalGuard(
@@ -386,6 +403,7 @@ namespace Rpg.Soundwell
             _readinessPanel?.Dispose();
             _dangerBriefPanel?.Dispose();
             _gazetteerPanel?.Dispose();
+            _itineraryPanel?.Dispose();
             if (_bootstrapper.Driver != null)
             {
                 _bootstrapper.Driver.AutomaticFrameUpdates = _previousAutomaticFrameUpdates;
