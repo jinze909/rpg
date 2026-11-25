@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         private RpgWorld500xReconPulseHudBar _reconPulseHud;
         private RpgWorld500xWeatherAdvisoryHudBadge _weatherAdvisoryHud;
         private RpgWorld500xFieldSupplyHotbarHud _supplyHotbarHud;
+        private CanvasGroup _supplyHotbarInputGroup;
         private float _elapsedPlaySeconds;
         private bool _initialized;
         private string _lastAutoSaveStatusZh = string.Empty;
@@ -125,6 +126,7 @@ namespace Rpg.Soundwell
             var supplyPanel = _uiRoot.transform.Find("World500xFieldSupplyHotbarHud/SupplyHotbarPanel") as RectTransform;
             if (supplyPanel != null)
             {
+                _supplyHotbarInputGroup = supplyPanel.gameObject.AddComponent<CanvasGroup>();
                 supplyPanel.anchoredPosition = new Vector2(0f, 142f);
                 // This HUD currently uses Chinese copy regardless of story locale.
                 // Use the same pinned OFL font as the localized story presentation,
@@ -243,6 +245,13 @@ namespace Rpg.Soundwell
             }
 
             bool allowOpenWorldActions = !wasModalOpen && !_menuRouter.HasAnyModalOpen;
+            // Mouse and keyboard must share the modal guard, including the closing frame.
+            if (_supplyHotbarInputGroup != null)
+            {
+                _supplyHotbarInputGroup.interactable = allowOpenWorldActions;
+                _supplyHotbarInputGroup.blocksRaycasts = allowOpenWorldActions;
+            }
+
             if (frame.ToggleOverviewMapPressed && allowOpenWorldActions)
             {
                 _bootstrapper.Driver.Facade.Session.ToggleOverviewMap();
@@ -281,6 +290,7 @@ namespace Rpg.Soundwell
             _initialized = false;
             _supplyHotbarHud?.Dispose();
             _supplyHotbarHud = null;
+            _supplyHotbarInputGroup = null;
             _weatherAdvisoryHud?.Dispose();
             _weatherAdvisoryHud = null;
             _reconPulseHud?.Dispose();
