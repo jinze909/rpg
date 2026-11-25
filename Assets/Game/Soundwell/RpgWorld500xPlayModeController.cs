@@ -23,10 +23,10 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Single-component Play Mode controller uniting RpgWorld500xSceneBootstrapper,
     /// RpgWorld500xCampHavenService, RpgWorld500xSaveSlotManager, the 9-panel
-    /// RpgWorld500xMenuRouter, and the non-modal RpgWorld500xReconPulseHudBar.
-    /// Drives movement, interaction, overview map toggle, field recon pulse,
-    /// quick auto-save, and mutually-exclusive modal hotkeys through deterministic
-    /// RpgWorld500xInputFrame frames.
+    /// RpgWorld500xMenuRouter, RpgWorld500xReconPulseHudBar, and
+    /// RpgWorld500xWeatherAdvisoryHudBadge. Drives movement, interaction, overview
+    /// map toggle, field recon pulse, quick auto-save, live weather advisory sync,
+    /// and mutually-exclusive modal hotkeys through deterministic RpgWorld500xInputFrame frames.
     /// </summary>
     public sealed class RpgWorld500xPlayModeController : MonoBehaviour
     {
@@ -39,6 +39,7 @@ namespace Rpg.Soundwell
         private RpgWorld500xSaveSlotManager _saveSlotManager;
         private RpgWorld500xMenuRouter _menuRouter;
         private RpgWorld500xReconPulseHudBar _reconPulseHud;
+        private RpgWorld500xWeatherAdvisoryHudBadge _weatherAdvisoryHud;
         private float _elapsedPlaySeconds;
         private bool _initialized;
         private string _lastAutoSaveStatusZh = string.Empty;
@@ -49,6 +50,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xSaveSlotManager SaveSlotManager => _saveSlotManager;
         public RpgWorld500xMenuRouter MenuRouter => _menuRouter;
         public RpgWorld500xReconPulseHudBar ReconPulseHud => _reconPulseHud;
+        public RpgWorld500xWeatherAdvisoryHudBadge WeatherAdvisoryHud => _weatherAdvisoryHud;
         public string LastAutoSaveStatusZh => _lastAutoSaveStatusZh;
 
         private void Start()
@@ -104,6 +106,7 @@ namespace Rpg.Soundwell
             _saveSlotManager = new RpgWorld500xSaveSlotManager(resolvedStorage, utcNowProvider);
             _menuRouter = new RpgWorld500xMenuRouter(_uiRoot.transform, _bootstrapper, _campHaven, _saveSlotManager);
             _reconPulseHud = new RpgWorld500xReconPulseHudBar(_uiRoot.transform, _bootstrapper);
+            _weatherAdvisoryHud = new RpgWorld500xWeatherAdvisoryHudBadge(_uiRoot.transform, _bootstrapper);
             _elapsedPlaySeconds = 0f;
 
             // The standalone world owns only its own input setup; never add a
@@ -177,16 +180,21 @@ namespace Rpg.Soundwell
                 _reconPulseHud?.TryClickPulseScan(_elapsedPlaySeconds);
             }
 
-            return _menuRouter.StepFrameWithModalGuard(
+            RpgWorld500xEffectiveExplorationModifiers mods = _menuRouter.StepFrameWithModalGuard(
                 wasModalOpen ? Vector2.zero : frame.Move,
                 wasModalOpen ? 0f : deltaSeconds,
                 !wasModalOpen && frame.Sprint,
                 !wasModalOpen && frame.InteractPressed);
+
+            _weatherAdvisoryHud?.Refresh(_elapsedPlaySeconds);
+            return mods;
         }
 
         public void Shutdown()
         {
             _initialized = false;
+            _weatherAdvisoryHud?.Dispose();
+            _weatherAdvisoryHud = null;
             _reconPulseHud?.Dispose();
             _reconPulseHud = null;
             _menuRouter?.Dispose();
