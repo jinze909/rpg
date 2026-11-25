@@ -189,7 +189,8 @@ namespace Rpg.Soundwell
                 facade.Session.Host.PlayerPosition,
                 destinationTile,
                 facade.Session.Host.Tracker,
-                atmo.MovementSpeedMultiplier);
+                atmo.MovementSpeedMultiplier,
+                fastTravelLockedByEncounter: facade.Session.Host.Bridge.IsInDangerEncounter);
         }
     }
 }
