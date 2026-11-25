@@ -35,8 +35,8 @@ namespace Rpg.Soundwell
     /// evaluation, Weather Travel Advisory risk matrix, Expedition Readiness
     /// scoring, Campfire Journal Digest synthesis, 4x4 multi-hop Fast Travel
     /// Itinerary reachability, 16-panel MenuRouter + PlayMode hotkey coverage,
-    /// QuickMenuDockHud 16-button launch &amp; active-highlight sync, and
-    /// CampProvisioningService cross-region auto-provisioning).
+    /// QuickMenuDockHud 16-button launch, active-highlight &amp; ancestor lock guards,
+    /// and CampProvisioningService cross-region auto-provisioning).
     /// </summary>
     public static class RpgWorld500xPlayabilityMaintenanceGate
     {
@@ -195,7 +195,7 @@ namespace Rpg.Soundwell
                     router.CloseAll();
                     Check(router.ActiveModal == RpgWorld500xModalKind.None, "MenuRouter failed to close all modals.");
 
-                    // 6. QuickMenuDockHud 16-Button Launch, Active Highlight Sync & Toggle-Close
+                    // 6. QuickMenuDockHud 16-Button Launch, Active Highlight Sync, Toggle-Close & Ancestor Lock Guard
                     using (var dock = new RpgWorld500xQuickMenuDockHud(uiRoot.transform, router))
                     {
                         Check(dock.DisplayedButtonCount == 16,
@@ -216,6 +216,20 @@ namespace Rpg.Soundwell
                             router.ActiveModal == RpgWorld500xModalKind.None &&
                             dock.ActiveHighlightedModal == RpgWorld500xModalKind.None;
                         Check(toggledClosed, "QuickMenuDockHud failed to toggle-close active modal " + lastModal);
+
+                        CanvasGroup lockGroup = uiRoot.AddComponent<CanvasGroup>();
+                        lockGroup.interactable = false;
+                        bool blockedWhileLocked = !dock.TryClickModalButton(RpgWorld500xModalKind.WorldAtlas) &&
+                            router.ActiveModal == RpgWorld500xModalKind.None &&
+                            dock.ActiveHighlightedModal == RpgWorld500xModalKind.None;
+                        Check(blockedWhileLocked, "QuickMenuDockHud failed to block clicks under locked ancestor CanvasGroup.");
+                        lockGroup.interactable = true;
+
+                        bool restoredAfterUnlock = dock.TryClickModalButton(RpgWorld500xModalKind.WorldAtlas) &&
+                            router.ActiveModal == RpgWorld500xModalKind.WorldAtlas &&
+                            dock.TryClickModalButton(RpgWorld500xModalKind.WorldAtlas) &&
+                            router.ActiveModal == RpgWorld500xModalKind.None;
+                        Check(restoredAfterUnlock, "QuickMenuDockHud failed to restore interactivity after CanvasGroup unlock.");
                     }
                 }
 
