@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -45,10 +46,14 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(RpgWorld500xModalKind.TravelItinerary, router.ActiveModal);
                     Assert.AreEqual(RpgWorld500xModalKind.TravelItinerary, dock.ActiveHighlightedModal);
 
-                    // Parent CanvasGroup lock blocks dock clicks cleanly.
+                    // Parent CanvasGroup lock blocks dock clicks AND direct stale button callbacks cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(dock.TryClickModalButton(RpgWorld500xModalKind.TravelItinerary));
+                    Button itineraryDockBtn = root.transform
+                        .Find("World500xQuickMenuDockHud/QuickMenuDockPanel/DockBtn_TravelItinerary")
+                        .GetComponent<Button>();
+                    itineraryDockBtn.onClick.Invoke();
                     Assert.AreEqual(RpgWorld500xModalKind.TravelItinerary, router.ActiveModal);
                     group.interactable = true;
 

@@ -125,7 +125,15 @@ namespace Rpg.Soundwell
                 new Vector2(0.04f, 0.05f), new Vector2(0.48f, 0.14f),
                 "刷新营火手记",
                 _font,
-                () => Refresh(_lastElapsedSeconds));
+                () =>
+                {
+                    if (!CanClick(_refreshButton))
+                    {
+                        return;
+                    }
+
+                    Refresh(_lastElapsedSeconds);
+                });
 
             _closeButton = CreateActionButton(
                 modal.transform,
@@ -133,7 +141,15 @@ namespace Rpg.Soundwell
                 new Vector2(0.52f, 0.05f), new Vector2(0.96f, 0.14f),
                 "合上手记",
                 _font,
-                () => Hide());
+                () =>
+                {
+                    if (!CanClick(_closeButton))
+                    {
+                        return;
+                    }
+
+                    Hide();
+                });
 
             _visible = false;
             _rootObject.SetActive(false);
@@ -197,7 +213,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickRefresh(float elapsedSeconds = 0f)
         {
-            if (IsDisposed || _refreshButton == null || !_refreshButton.interactable || !_refreshButton.IsInteractable())
+            if (!CanClick(_refreshButton))
             {
                 return false;
             }
@@ -209,7 +225,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickClose()
         {
-            if (IsDisposed || _closeButton == null || !_closeButton.interactable || !_closeButton.IsInteractable())
+            if (!CanClick(_closeButton))
             {
                 return false;
             }
@@ -228,6 +244,12 @@ namespace Rpg.Soundwell
             _disposed = true;
             _visible = false;
             DestroySafe(_rootObject);
+        }
+
+        private bool CanClick(Button button)
+        {
+            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+                button.isActiveAndEnabled && button.IsInteractable();
         }
 
         private static Color ResolveRiskColor(RpgWorld500xTravelRiskLevel level)
