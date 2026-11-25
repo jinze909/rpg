@@ -188,6 +188,11 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            // Direct or stale UI callbacks must respect the effective parent
+            // interaction lock before witnessing a conversation.
+            if (!advance.IsActive() || !advance.IsInteractable())
+                return;
+
             // A failed save must leave this same witnessed beat actionable;
             // do not advance to the next conversation until it is committed.
             delivering = true;

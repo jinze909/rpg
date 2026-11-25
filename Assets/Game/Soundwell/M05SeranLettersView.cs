@@ -150,6 +150,11 @@ namespace Rpg.Soundwell
                 leaveLabel == null || readPacketLabel == null || continueLabel == null;
         }
 
+        private static bool CanInvoke(Button button)
+        {
+            return button != null && button.IsActive() && button.IsInteractable();
+        }
+
         private void Choose(M05LetterDecision choice)
         {
             if (disposed || delivered || selected.HasValue)
@@ -161,6 +166,9 @@ namespace Rpg.Soundwell
             }
             if (choice != M05LetterDecision.TakePacket &&
                 choice != M05LetterDecision.LeaveForNextBoat)
+                return;
+            Button source = choice == M05LetterDecision.TakePacket ? takeButton : leaveButton;
+            if (!CanInvoke(source))
                 return;
             selected = choice;
             Refresh();
@@ -177,6 +185,8 @@ namespace Rpg.Soundwell
                 return;
             }
 
+            if (!CanInvoke(readPacketButton))
+                return;
             packetOpened = true;
             Refresh();
         }
@@ -190,6 +200,9 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+
+            if (!CanInvoke(continueButton))
+                return;
 
             // Disable all UGUI callbacks before the single Makinom host write.
             // An interrupted write preserves this exact choice for retry.
