@@ -39,7 +39,10 @@ namespace Rpg.Tests.Editor
 
                 // Loot cache and refresh sprite -> should switch to RelicShrineLooted
                 Assert.IsTrue(ctrl.TryLootNearbyCache(new Vector2(290.5f, 780.5f), 6f, out _));
-                spawner.RefreshActiveSprites();
+                // Same-chunk focus must refresh state without respawning the prop.
+                Assert.IsTrue(spawner.UpdateFocus(new Vector2(291.5f, 780.5f), 2));
+                Assert.IsTrue(spawner.TryGetActiveRenderer("sw_c03", out SpriteRenderer sameRenderer));
+                Assert.AreSame(relicRenderer, sameRenderer);
                 Assert.IsFalse(ReferenceEquals(beforeLoot, relicRenderer.sprite));
 
                 // Pan far away -> sw_c03 should be culled
@@ -47,8 +50,24 @@ namespace Rpg.Tests.Editor
                 Assert.IsFalse(spawner.TryGetActiveRenderer("sw_c03", out _));
                 Assert.IsTrue(spawner.TryGetActiveRenderer("sw_c11", out _));
 
-                // Invalid focus rejected safely
+                // Invalid coordinates or radii cannot disturb the current window.
+                int retainedCount = spawner.ActiveVisualCount;
+                Assert.IsTrue(spawner.TryGetActiveRenderer("sw_c11", out SpriteRenderer retained));
                 Assert.IsFalse(spawner.UpdateFocus(new Vector2(float.NaN, 0f), 1));
+                Assert.IsFalse(spawner.UpdateFocus(new Vector2(float.MaxValue, 620f), 1));
+                Assert.IsFalse(spawner.UpdateFocus(new Vector2(-0.1f, 620f), 1));
+                Assert.IsFalse(spawner.UpdateFocus(new Vector2(290f, 780f), int.MaxValue));
+                Assert.AreEqual(retainedCount, spawner.ActiveVisualCount);
+                Assert.IsTrue(spawner.TryGetActiveRenderer("sw_c11", out SpriteRenderer stillRetained));
+                Assert.AreSame(retained, stillRetained);
+
+                // A valid map-sized window enumerates only catalogued props.
+                int mapRadius = Math.Max(soundwell.Spec.ExpandedWidth,
+                    soundwell.Spec.ExpandedHeight) / RpgLargeMapChunkRenderer.ChunkSizeTiles;
+                Assert.IsTrue(spawner.UpdateFocus(new Vector2(1940.5f, 620.5f), mapRadius));
+                Assert.AreEqual(spawner.TotalIndexedPropCount, spawner.ActiveVisualCount);
+                Assert.IsTrue(spawner.UpdateFocus(new Vector2(1940.5f, 620.5f), 1));
+                Assert.AreEqual(retainedCount, spawner.ActiveVisualCount);
 
                 spawner.Dispose();
                 spawner.Dispose();

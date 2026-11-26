@@ -76,6 +76,45 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void StudyRewardsRequireRealRegionalDangerZoneAndWritableStore()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            int rewards = 0;
+            var codex = new RpgWorld500xThreatCodexService(read,
+                (k, v) => store[k] = v, _ => rewards++);
+            var map = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            var danger = codex.BuildMapDossiers(map)[0];
+            string ordinaryMarker = null;
+            foreach (var marker in map.Markers)
+            {
+                if (marker.Category != RpgMapMarkerCategory.DangerZone)
+                {
+                    ordinaryMarker = marker.Id;
+                    break;
+                }
+            }
+            Assert.IsNotNull(ordinaryMarker);
+            Assert.IsFalse(codex.TryRecordDangerZoneStudied(map.MapId, ordinaryMarker, out _));
+            Assert.IsFalse(codex.TryRecordDangerZoneStudied(map.MapId, "not-a-real-marker", out _));
+            Assert.IsFalse(codex.TryRecordDangerZoneStudied(RpgWorldMapId.RedSaltHarbor, danger.MarkerId, out _));
+            Assert.IsFalse(codex.TryRecordDangerZoneStudied((RpgWorldMapId)255, danger.MarkerId, out _));
+
+            var readOnly = new RpgWorld500xThreatCodexService(read, onDossierStudied: _ => rewards++);
+            Assert.IsFalse(readOnly.TryRecordDangerZoneStudied(map.MapId, danger.MarkerId, out _));
+            Assert.IsFalse(readOnly.TryRecordDangerZoneStudied(map.MapId, danger.MarkerId, out _));
+            Assert.AreEqual(0, rewards);
+            Assert.AreEqual(0, store.Count);
+
+            Assert.IsTrue(codex.TryRecordDangerZoneStudied(map.MapId, danger.MarkerId, out var studied));
+            Assert.IsTrue(studied.IsStudied);
+            Assert.IsFalse(codex.TryRecordDangerZoneStudied(map.MapId, danger.MarkerId, out _));
+            Assert.AreEqual(1, rewards);
+            Assert.AreEqual(1, store.Count);
+            Assert.AreEqual(1, store[danger.CodexMakinomKey]);
+        }
+
+        [Test]
         public void BuildMapCodexSummaryAndFilterDossiers_AreReadOnlyAndTrackStudyProgress()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
