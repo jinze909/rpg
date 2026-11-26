@@ -62,6 +62,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RegionBriefAndFirstClearPreview_UseSamePersistedCompletionRule()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var flags = new Dictionary<string, int>(StringComparer.Ordinal);
+                Func<string, int> read = k => flags.TryGetValue(k, out int v) ? v : 0;
+                var baseline = RpgWorld500xDangerZoneTacticalBriefService.BuildRegionBrief(boot, overrideGetInt: read);
+                Assert.Greater(baseline.TotalDangerZones, 0);
+                string markerId = baseline.NearestUnclearedZone.MarkerId;
+                string key = RpgWorld500xDangerVictoryRewardService.FirstClearKey(markerId);
+
+                foreach (int persistedValue in new[] { 0, 1, 2, -1 })
+                {
+                    flags[key] = persistedValue;
+                    var brief = RpgWorld500xDangerZoneTacticalBriefService.BuildRegionBrief(boot, overrideGetInt: read);
+                    var preview = RpgWorld500xDangerVictoryRewardService.PreviewVictoryReward(
+                        RpgWorldMapId.Soundwell, markerId, false, read);
+                    var remaining = RpgWorld500xDangerVictoryRewardService.SummarizeRemainingFirstClearRewards(
+                        boot.Driver.Facade.Session.Host.Layout, read);
+                    var payouts = RpgWorld500xDangerZoneTacticalBriefService.SummarizeRemainingPayouts(brief);
+
+                    Assert.AreEqual(persistedValue != 0, !preview.IsFirstClear);
+                    Assert.AreEqual(remaining.ClearedDangerZones, brief.ClearedDangerZones);
+                    Assert.AreEqual(remaining.RemainingDangerZones, payouts.RemainingZones);
+                    Assert.AreEqual(remaining.RemainingStandardSaltSilver, payouts.RemainingStandardSilver);
+                    Assert.AreEqual(remaining.RemainingLockBreakSaltSilver, payouts.RemainingLockBreakSilver);
+                    foreach (var entry in brief.Entries)
+                    {
+                        if (entry.MarkerId != markerId) continue;
+                        Assert.AreEqual(!preview.IsFirstClear, entry.IsCleared);
+                        Assert.AreEqual(preview.SaltSilverReward, entry.EstimatedStandardSilver);
+                    }
+                    Assert.AreEqual(persistedValue, flags[key], "Preview must not rewrite saved flags.");
+                }
+            }
+        }
+
+        [Test]
         public void SummarizeRemainingPayoutsAndFilterEntries_TrackClearanceTotalsThreatThresholdAndTier()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(

@@ -202,6 +202,31 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(reward.ReputationGain, ctrl.CampHaven.Reputation.GetPoints(RpgWorldMapId.Soundwell));
                 Assert.IsTrue(ctrl.LastDangerVictoryBannerZh.Contains("破锁精通"));
 
+                // Production entry omits explicit store delegates; first clear and loot must still persist.
+                string clearKey = RpgWorld500xDangerVictoryRewardService.FirstClearKey(encounter.MarkerId);
+                Assert.IsTrue(reward.IsFirstClear);
+                Assert.AreEqual(1, ctrl.Bootstrapper.Store[clearKey]);
+                Assert.AreEqual(1, reward.BonusSupplyQuantity);
+                Assert.IsNotEmpty(reward.BonusSupplyId);
+                Assert.AreEqual(reward.BonusSupplyQuantity,
+                    ctrl.Bootstrapper.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount(reward.BonusSupplyId));
+
+                string saved = ctrl.Bootstrapper.ExportSaveJson();
+                using (var restored = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                {
+                    Assert.IsTrue(restored.TryImportSaveJson(saved, out string error), error);
+                    Assert.AreEqual(1, restored.Store[clearKey]);
+                    Assert.AreEqual(reward.BonusSupplyQuantity,
+                        restored.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount(reward.BonusSupplyId));
+                    var preview = RpgWorld500xDangerVictoryRewardService.PreviewVictoryReward(
+                        RpgWorldMapId.Soundwell, encounter.MarkerId, false,
+                        key => restored.Store.TryGetValue(key, out int value) ? value : 0);
+                    Assert.IsFalse(preview.IsFirstClear);
+                    Assert.AreEqual(0, preview.BonusSupplyQuantity);
+                }
+
                 // Duplicate resolution is rejected cleanly.
                 Assert.IsFalse(ctrl.TryResolveActiveDangerVictory(true, out _, out _));
             }
