@@ -344,6 +344,13 @@ namespace Rpg.Soundwell
                 if (progress.GetMetricValue(def.Metric) >= def.TargetCount)
                 {
                     _setInt(def.MakinomKey, 1);
+                    // A writable delegate alone does not prove the claim was
+                    // recorded. Do not grant a repeatable reward on rejected writes.
+                    if (_getInt(def.MakinomKey) != 1)
+                    {
+                        continue;
+                    }
+
                     _onMilestoneUnlocked?.Invoke(def);
                     newlyClaimed.Add(def);
                 }
