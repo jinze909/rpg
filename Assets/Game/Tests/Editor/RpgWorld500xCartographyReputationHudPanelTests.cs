@@ -109,11 +109,17 @@ namespace Rpg.Tests.Editor
                 using (var panel = new RpgWorld500xCartographyReputationHudPanel(root.transform, boot))
                 {
                     Assert.IsFalse(panel.IsVisible);
+                    Assert.IsFalse(panel.TrySelectHighestStandingRegion());
                     Assert.IsTrue(panel.Show());
                     Assert.IsTrue(panel.IsVisible);
                     Assert.AreEqual(RpgWorldMapId.Soundwell, panel.SelectedMapId);
                     Assert.IsTrue(panel.HeaderText.Contains("当前所在"));
                     Assert.IsTrue(panel.SummaryText.Contains("综合堪舆度"));
+                    Assert.IsTrue(panel.SummaryText.Contains("【四境声望总览】"));
+                    Assert.IsTrue(panel.WorldReputationSummaryZh.Contains("【四境声望总览】"));
+                    Assert.AreEqual(0, panel.ClaimedMilestoneCount);
+                    Assert.AreEqual(3, panel.TotalMilestoneCount);
+                    Assert.Greater(panel.RemainingMilestoneSaltSilver, 0);
                     // Soundwell has 4 districts + 3 cartography milestones = 7 rows.
                     Assert.AreEqual(7, panel.DisplayedRowCount);
 
@@ -132,6 +138,10 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.TrySelectRegion(RpgWorldMapId.MineCamp));
                     Assert.IsTrue(panel.HeaderText.Contains("赤盐矿营互助会"));
                     Assert.AreEqual(7, panel.DisplayedRowCount);
+
+                    // Jump directly to highest-standing region (defaults to Soundwell when tied at 0).
+                    Assert.IsTrue(panel.TrySelectHighestStandingRegion());
+                    Assert.AreEqual(panel.LastWorldReputationOverview.HighestStandingMapId, panel.SelectedMapId);
 
                     Assert.IsTrue(panel.Hide());
                     Assert.IsFalse(panel.IsVisible);

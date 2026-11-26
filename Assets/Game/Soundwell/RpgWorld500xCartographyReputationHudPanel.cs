@@ -6,10 +6,11 @@ using UnityEngine.UI;
 namespace Rpg.Soundwell
 {
     /// <summary>
-    /// Interactive UGUI Cartography & Regional Reputation panel bound to
+    /// Interactive UGUI Cartography &amp; Regional Reputation panel bound to
     /// RpgWorld500xSceneBootstrapper. Lets players switch across all 4 500x-area
-    /// regions to inspect faction reputation ranks, camp supply discounts, Sworn
-    /// honor titles, 15-district coverage, and 25%/50%/100% cartography milestones.
+    /// regions to inspect faction reputation ranks, 4-region reputation overview,
+    /// camp supply discounts, Sworn honor titles, 15-district coverage, and
+    /// 25%/50%/100% cartography milestones.
     /// </summary>
     public sealed class RpgWorld500xCartographyReputationHudPanel : IDisposable
     {
@@ -24,12 +25,21 @@ namespace Rpg.Soundwell
             new Dictionary<RpgWorldMapId, Button>();
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorldMapId _selectedMapId;
+        private RpgWorld500xWorldReputationOverview _lastWorldReputationOverview;
+        private int _claimedMilestoneCount;
+        private int _totalMilestoneCount;
+        private int _remainingMilestoneSaltSilver;
         private bool _visible;
         private bool _disposed;
 
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorldMapId SelectedMapId => _selectedMapId;
+        public RpgWorld500xWorldReputationOverview LastWorldReputationOverview => _lastWorldReputationOverview;
+        public string WorldReputationSummaryZh => _lastWorldReputationOverview.SummaryLineZh;
+        public int ClaimedMilestoneCount => _claimedMilestoneCount;
+        public int TotalMilestoneCount => _totalMilestoneCount;
+        public int RemainingMilestoneSaltSilver => _remainingMilestoneSaltSilver;
         public int DisplayedRowCount => _spawnedRows.Count;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string SummaryText => _summaryText != null ? _summaryText.text : string.Empty;
@@ -145,6 +155,11 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TrySelectHighestStandingRegion()
+        {
+            return TrySelectRegion(_lastWorldReputationOverview.HighestStandingMapId);
+        }
+
         public void Refresh()
         {
             if (IsDisposed || _bootstrapper.IsDisposed)
@@ -157,6 +172,7 @@ namespace Rpg.Soundwell
             IReadOnlyDictionary<string, int> store = _bootstrapper.Store;
             Func<string, int> read = k => (store != null && store.TryGetValue(k, out int v)) ? v : 0;
             var repService = new RpgWorld500xRegionalReputationService(read);
+            _lastWorldReputationOverview = repService.BuildWorldOverview();
             RpgRegionalReputationSnapshot rep = repService.GetSnapshot(_selectedMapId);
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
@@ -173,12 +189,18 @@ namespace Rpg.Soundwell
             UpdateTabHighlight();
 
             RpgWorld500xCartographyMilestone[] milestones = RpgWorld500xDistrictCatalog.GetMilestones(_selectedMapId);
-            int claimedMilestones = 0;
+            _claimedMilestoneCount = 0;
+            _totalMilestoneCount = milestones.Length;
+            _remainingMilestoneSaltSilver = 0;
             for (int i = 0; i < milestones.Length; i++)
             {
                 if (read(milestones[i].MakinomKey) == 1)
                 {
-                    claimedMilestones++;
+                    _claimedMilestoneCount++;
+                }
+                else
+                {
+                    _remainingMilestoneSaltSilver += Math.Max(0, milestones[i].SaltSilverReward);
                 }
             }
 
@@ -195,12 +217,16 @@ namespace Rpg.Soundwell
                                     "｜暗藏补给 " + comp.LootedCaches + "/" + comp.TotalCaches +
                                     "｜捷径 " + comp.UnlockedShortcuts + "/" + comp.TotalShortcuts +
                                     "｜轶事点 " + comp.InspectedStorySpots + "/" + comp.TotalStorySpots + "）\n" +
-                                    "堪舆里程碑：" + claimedMilestones + "/" + milestones.Length + "｜" + nextRankText;
+                                    "堪舆里程碑：" + _claimedMilestoneCount + "/" + milestones.Length +
+                                    "（待领盐银 +" + _remainingMilestoneSaltSilver + "）｜" + nextRankText + "\n" +
+                                    _lastWorldReputationOverview.SummaryLineZh;
             }
             else
             {
                 _summaryText.text = "非当前所在区域（切换前往后可实时统计区块迷雾覆盖）\n" +
-                                    "已领堪舆里程碑：" + claimedMilestones + "/" + milestones.Length + "｜" + nextRankText;
+                                    "已领堪舆里程碑：" + _claimedMilestoneCount + "/" + milestones.Length +
+                                    "（待领盐银 +" + _remainingMilestoneSaltSilver + "）｜" + nextRankText + "\n" +
+                                    _lastWorldReputationOverview.SummaryLineZh;
             }
 
             IReadOnlyList<RpgWorld500xDistrictDef> districts = RpgWorld500xDistrictCatalog.GetDistricts(_selectedMapId);
