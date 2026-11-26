@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace Rpg.Soundwell
@@ -70,13 +71,93 @@ namespace Rpg.Soundwell
         public IReadOnlyList<RpgWorld500xAmbientWindowForecast> AmbientWindows { get; }
     }
 
+    public readonly struct RpgWorld500xWorldWeatherDigest
+    {
+        public RpgWorld500xWorldWeatherDigest(
+            IReadOnlyList<RpgWorld500xTravelAdvisoryReport> regionReports,
+            int hazardousRegionCount,
+            int stealthWindowRegionCount,
+            RpgWorldMapId safestMapId,
+            string worldBulletinZh)
+        {
+            RegionReports = regionReports ?? Array.Empty<RpgWorld500xTravelAdvisoryReport>();
+            HazardousRegionCount = hazardousRegionCount;
+            StealthWindowRegionCount = stealthWindowRegionCount;
+            SafestMapId = safestMapId;
+            WorldBulletinZh = worldBulletinZh ?? string.Empty;
+        }
+
+        public IReadOnlyList<RpgWorld500xTravelAdvisoryReport> RegionReports { get; }
+        public int HazardousRegionCount { get; }
+        public int StealthWindowRegionCount { get; }
+        public RpgWorldMapId SafestMapId { get; }
+        public string WorldBulletinZh { get; }
+    }
+
     /// <summary>
     /// Computes deterministic travel risk ratings, next phase countdowns, campfire-rest
-    /// recommendations, and per-zone ambient micro-event active/cooldown window forecasts
-    /// for all four 500x-area RPG maps.
+    /// recommendations, cross-region weather digests, and per-zone ambient micro-event
+    /// active/cooldown window forecasts for all four 500x-area RPG maps.
     /// </summary>
     public static class RpgWorld500xWeatherTravelAdvisoryService
     {
+        public static RpgWorld500xWorldWeatherDigest BuildWorldWeatherDigest(
+            RpgWorld500xWeatherAndTimeOfDayService atmosphere,
+            float elapsedSeconds = 0f)
+        {
+            if (atmosphere == null)
+            {
+                throw new ArgumentNullException(nameof(atmosphere));
+            }
+
+            IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
+            var reports = new List<RpgWorld500xTravelAdvisoryReport>(specs.Count);
+            int hazardousCount = 0;
+            int stealthCount = 0;
+            RpgWorldMapId safestMapId = specs.Count > 0 ? specs[0].MapId : RpgWorldMapId.Soundwell;
+            int lowestRiskRank = int.MaxValue;
+            var sb = new StringBuilder(192);
+            sb.Append("【四境气象速报】");
+
+            for (int i = 0; i < specs.Count; i++)
+            {
+                RpgExpandedMapSpec spec = specs[i];
+                RpgWorld500xTravelAdvisoryReport report = BuildAdvisory(
+                    atmosphere.GetSnapshot(spec.MapId), elapsedSeconds);
+                reports.Add(report);
+
+                if (report.RiskLevel == RpgWorld500xTravelRiskLevel.Hazardous)
+                {
+                    hazardousCount++;
+                }
+                else if (report.RiskLevel == RpgWorld500xTravelRiskLevel.StealthAdvantage)
+                {
+                    stealthCount++;
+                }
+
+                int rank = (int)report.RiskLevel;
+                if (rank < lowestRiskRank)
+                {
+                    lowestRiskRank = rank;
+                    safestMapId = spec.MapId;
+                }
+
+                if (i > 0)
+                {
+                    sb.Append("｜");
+                }
+
+                sb.Append(spec.DisplayNameZh).Append('(').Append(report.RiskLabelZh).Append(')');
+            }
+
+            return new RpgWorld500xWorldWeatherDigest(
+                reports,
+                hazardousCount,
+                stealthCount,
+                safestMapId,
+                sb.ToString());
+        }
+
         public static RpgWorld500xTravelAdvisoryReport BuildAdvisory(
             RpgWorld500xAtmosphereSnapshot snapshot,
             float elapsedSeconds = 0f)
