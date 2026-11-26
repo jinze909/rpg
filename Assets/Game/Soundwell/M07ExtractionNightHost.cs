@@ -99,8 +99,8 @@ namespace Rpg.Soundwell
         {
             PruneDisposedView();
 
-            if (disposed || parent == null || activeView != null || !nightExtractionReady() ||
-                HasAnyPersistedFacts())
+            if (!CanOpenView() || !nightExtractionReady() || !CanOpenView() ||
+                HasAnyPersistedFacts() || !CanOpenView())
                 return false;
 
             int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
@@ -108,7 +108,10 @@ namespace Rpg.Soundwell
                 return false;
 
             if (!M07ExtractionNightSession.TryCreateFromSavedFacts(
-                    getInt, out M07ExtractionNightSession created))
+                    getInt, out M07ExtractionNightSession created) ||
+                !CanOpenView() ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                !CanOpenView())
                 return false;
 
             openedArrivalSequence = arrivalSequence;
@@ -128,22 +131,51 @@ namespace Rpg.Soundwell
             M07YidaChoice yidaChoice)
         {
             PruneDisposedView();
-            if (disposed || parent == null || session == null || activeView == null ||
+            var submittingView = activeView;
+            var submittingSession = session;
+            if (!IsCurrentView(submittingView, submittingSession) ||
                 !nightExtractionReady() ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+                !IsCurrentView(submittingView, submittingSession))
+                return;
+
+            bool taoJiRescued = taoJiRescuedInScene();
+            if (!IsCurrentView(submittingView, submittingSession))
                 return;
 
             // The session owns all ten authoritative extraction fields.
             // Do not acknowledge a different roll call just because its
             // Liang and Yida choices happen to match the current dialogue.
-            if (!session.TryCompleteDockRollCall(
-                    liangChoice, yidaChoice, taoJiRescuedInScene(), getInt, setInt))
+            if (!submittingSession.TryCompleteDockRollCall(
+                    liangChoice, yidaChoice, taoJiRescued, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            if (activeView == submittingView)
+            {
+                submittingView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+        }
+
+        private bool CanOpenView() =>
+            !disposed && parent != null && activeView == null;
+
+        private bool IsOpenView(M07ExtractionNightView expectedView,
+            M07ExtractionNightSession expectedSession) =>
+            !disposed && parent != null && expectedView != null &&
+            expectedSession != null && activeView == expectedView &&
+            session == expectedSession && !expectedView.IsDisposed;
+
+        private bool IsCurrentView(M07ExtractionNightView expectedView,
+            M07ExtractionNightSession expectedSession)
+        {
+            int? arrival = openedArrivalSequence;
+            if (!IsOpenView(expectedView, expectedSession) || !arrival.HasValue)
+                return false;
+
+            int currentArrival = getInt(M05LandingFacts.ArrivalSequenceKey);
+            return IsOpenView(expectedView, expectedSession) &&
+                openedArrivalSequence == arrival && currentArrival == arrival.Value;
         }
 
         public void Dispose()

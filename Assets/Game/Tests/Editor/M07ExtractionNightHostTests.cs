@@ -405,6 +405,85 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReadinessCallbackClosingHostCannotOpenExtraction()
+        {
+            var root = new GameObject("M07 readiness closes opening");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.OfficialHandover);
+            M07ExtractionNightHost host = null;
+            try
+            {
+                host = new M07ExtractionNightHost(root.transform, () =>
+                {
+                    host.Dispose();
+                    return true;
+                }, () => true, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsCompleted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ReadinessCallbackClosingHostCannotSettleRollCall()
+        {
+            AssertSceneCallbackClosingHostCannotSettleRollCall(false);
+        }
+
+        [Test]
+        public void TaoJiCallbackClosingHostCannotSettleRollCall()
+        {
+            AssertSceneCallbackClosingHostCannotSettleRollCall(true);
+        }
+
+        private static void AssertSceneCallbackClosingHostCannotSettleRollCall(bool closeOnTaoJi)
+        {
+            var root = new GameObject("M07 scene callback closes settlement");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM06(values, M06RescuePlan.OfficialHandover);
+            M07ExtractionNightHost host = null;
+            bool closeOnRead = false;
+            int writes = 0;
+            try
+            {
+                host = new M07ExtractionNightHost(root.transform, () =>
+                {
+                    if (closeOnRead && !closeOnTaoJi) host.Dispose();
+                    return true;
+                }, () =>
+                {
+                    if (closeOnRead && closeOnTaoJi) host.Dispose();
+                    return true;
+                }, Reader(values), (k, v) =>
+                {
+                    writes++;
+                    values[k] = v;
+                });
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                AdvanceToDockRollCall(view);
+                var stayButton = view.LiangStayButton;
+                closeOnRead = true;
+                Assert.DoesNotThrow(() => stayButton.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(writes, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DisposalCleansUpViewAndIgnoresStaleDockRollCallClicks()
         {
             var root = new GameObject("M07 host dispose");
