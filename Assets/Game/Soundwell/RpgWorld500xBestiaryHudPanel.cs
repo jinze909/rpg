@@ -7,10 +7,10 @@ namespace Rpg.Soundwell
 {
     /// <summary>
     /// Interactive UGUI DangerZone Bestiary &amp; Tactical Prep panel bound to
-    /// RpgWorld500xSceneBootstrapper. Lists all or unstudied DangerZones on the active
+    /// RpgWorld500xSceneBootstrapper. Lists all or filtered DangerZones on the active
     /// 500x map with threat tier, weakness hints, recommended camp supplies (+ owned count),
-    /// remaining study Salt-Silver totals, fast-travel route guidance, and one-click or
-    /// batch dossier study unlock.
+    /// codex summary &amp; remaining study Salt-Silver totals, fast-travel route guidance,
+    /// and one-click or batch dossier study unlock.
     /// </summary>
     public sealed class RpgWorld500xBestiaryHudPanel : IDisposable
     {
@@ -24,6 +24,8 @@ namespace Rpg.Soundwell
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private readonly Dictionary<string, Button> _studyButtons = new Dictionary<string, Button>(StringComparer.Ordinal);
         private bool _unstudiedOnly;
+        private RpgWorld500xThreatTier? _tierFilter;
+        private RpgWorld500xMapCodexSummary _lastCodexSummary;
         private int _studiedCount;
         private int _totalDossierCount;
         private int _remainingStudySilver;
@@ -33,6 +35,10 @@ namespace Rpg.Soundwell
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public bool UnstudiedOnly => _unstudiedOnly;
+        public RpgWorld500xThreatTier? TierFilter => _tierFilter;
+        public RpgWorld500xMapCodexSummary LastCodexSummary => _lastCodexSummary;
+        public string CodexSummaryText => _lastCodexSummary.SummaryZh;
+        public IReadOnlyList<string> RecommendedUnstudiedSupplyIds => _lastCodexSummary.RecommendedSupplyIds;
         public int StudiedCount => _studiedCount;
         public int TotalDossierCount => _totalDossierCount;
         public int RemainingStudySilver => _remainingStudySilver;
@@ -139,6 +145,18 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TrySetTierFilter(RpgWorld500xThreatTier? tierFilter)
+        {
+            if (!IsPanelInteractable())
+            {
+                return false;
+            }
+
+            _tierFilter = tierFilter;
+            Refresh();
+            return true;
+        }
+
         public bool TryClickStudyDossier(string markerId)
         {
             if (string.IsNullOrEmpty(markerId) ||
@@ -207,38 +225,23 @@ namespace Rpg.Soundwell
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
             RpgWorld500xMapLayout layout = facade.Session.Host.Layout;
-            List<RpgWorld500xDangerZoneDossier> dossiers = facade.ThreatCodex.BuildMapDossiers(layout);
-
-            _studiedCount = 0;
-            _totalDossierCount = dossiers.Count;
-            _remainingStudySilver = 0;
-            for (int i = 0; i < dossiers.Count; i++)
-            {
-                if (dossiers[i].IsStudied)
-                {
-                    _studiedCount++;
-                }
-                else
-                {
-                    _remainingStudySilver += Math.Max(0, dossiers[i].Profile.CodexStudySilverBonus);
-                }
-            }
+            _lastCodexSummary = facade.ThreatCodex.BuildMapCodexSummary(layout);
+            _studiedCount = _lastCodexSummary.StudiedCount;
+            _totalDossierCount = _lastCodexSummary.TotalDossiers;
+            _remainingStudySilver = _lastCodexSummary.RemainingStudySilverBonus;
 
             _headerText.text = layout.Spec.DisplayNameZh + " · 危险区威胁图鉴（已收录 " +
-                               _studiedCount + "/" + dossiers.Count +
+                               _studiedCount + "/" + _totalDossierCount +
                                "｜待研读盐银 +" + _remainingStudySilver + "）";
+
+            List<RpgWorld500xDangerZoneDossier> visibleDossiers =
+                facade.ThreatCodex.FilterDossiers(layout, unstudiedOnly: _unstudiedOnly, tierFilter: _tierFilter);
 
             const float rowHeight = 52f;
             const float spacing = 8f;
-            int rowIndex = 0;
-            for (int i = 0; i < dossiers.Count; i++)
+            for (int i = 0; i < visibleDossiers.Count; i++)
             {
-                RpgWorld500xDangerZoneDossier d = dossiers[i];
-                if (_unstudiedOnly && d.IsStudied)
-                {
-                    continue;
-                }
-
+                RpgWorld500xDangerZoneDossier d = visibleDossiers[i];
                 string supplyName = _supplyNameById.TryGetValue(d.Profile.RecommendedSupplyId, out string nameZh)
                     ? nameZh
                     : d.Profile.RecommendedSupplyId;
@@ -252,7 +255,7 @@ namespace Rpg.Soundwell
                 string capturedMarkerId = d.MarkerId;
                 Button btn = SpawnRow(
                     "DossierRow_" + d.MarkerId,
-                    rowIndex++,
+                    i,
                     rowHeight,
                     spacing,
                     label,
