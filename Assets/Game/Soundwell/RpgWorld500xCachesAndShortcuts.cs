@@ -355,7 +355,6 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> getInt;
         private readonly Action<string, int> setInt;
         private readonly Action<RpgSupplyCacheDef> onCacheLooted;
-        private readonly Dictionary<Vector2Int, List<RpgSupplyCacheDef>> cachesByChunk = new Dictionary<Vector2Int, List<RpgSupplyCacheDef>>();
         private readonly Dictionary<string, RpgSupplyCacheDef> cachesById = new Dictionary<string, RpgSupplyCacheDef>(StringComparer.Ordinal);
         private readonly Dictionary<string, RpgWorldShortcutDef> shortcutsById = new Dictionary<string, RpgWorldShortcutDef>(StringComparer.Ordinal);
         private readonly HashSet<string> lootedCaches = new HashSet<string>(StringComparer.Ordinal);
@@ -382,13 +381,6 @@ namespace Rpg.Soundwell
             {
                 RpgSupplyCacheDef c = caches[i];
                 cachesById[c.Id] = c;
-                Vector2Int chunk = ToChunkCoord(c.Tile);
-                if (!cachesByChunk.TryGetValue(chunk, out List<RpgSupplyCacheDef> bucket))
-                {
-                    bucket = new List<RpgSupplyCacheDef>();
-                    cachesByChunk[chunk] = bucket;
-                }
-                bucket.Add(c);
                 if (this.getInt(c.MakinomKey) == 1)
                     lootedCaches.Add(c.Id);
             }
@@ -530,72 +522,41 @@ namespace Rpg.Soundwell
         public bool TryLootNearbyCache(Vector2 playerTile, float interactRadius, out RpgSupplyCacheDef looted)
         {
             looted = default;
-            if (float.IsNaN(playerTile.x) || float.IsInfinity(playerTile.x) ||
-                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y) ||
-                float.IsNaN(interactRadius) || float.IsInfinity(interactRadius) ||
-                interactRadius <= 0f)
-                return false;
-
-            Vector2Int centerChunk = ToChunkCoord(new Vector2Int(
-                Mathf.FloorToInt(playerTile.x), Mathf.FloorToInt(playerTile.y)));
-            float radiusSq = interactRadius * interactRadius;
-
-            for (int dy = -1; dy <= 1; dy++)
+            if (float.IsNaN(interactRadius) || float.IsInfinity(interactRadius) ||
+                interactRadius <= 0f ||
+                !TryFindNearestUnlootedCache(playerTile, out RpgSupplyCacheDef nearest, out float distance) ||
+                distance > interactRadius)
             {
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    if (!cachesByChunk.TryGetValue(new Vector2Int(centerChunk.x + dx, centerChunk.y + dy),
-                            out List<RpgSupplyCacheDef> bucket))
-                        continue;
-                    for (int i = 0; i < bucket.Count; i++)
-                    {
-                        RpgSupplyCacheDef c = bucket[i];
-                        if (lootedCaches.Contains(c.Id))
-                            continue;
-                        float cx = playerTile.x - (c.Tile.x + 0.5f);
-                        float cy = playerTile.y - (c.Tile.y + 0.5f);
-                        if (cx * cx + cy * cy <= radiusSq)
-                        {
-                            lootedCaches.Add(c.Id);
-                            setInt(c.MakinomKey, 1);
-                            onCacheLooted?.Invoke(c);
-                            looted = c;
-                            return true;
-                        }
-                    }
-                }
+                return false;
             }
-            return false;
+
+            // Use the same nearest-target authority as the read-only exploration HUD.
+            // The small regional catalog is bounded; no fixed chunk window can hide
+            // a target that is within the caller's supplied interaction radius.
+            lootedCaches.Add(nearest.Id);
+            setInt(nearest.MakinomKey, 1);
+            onCacheLooted?.Invoke(nearest);
+            looted = nearest;
+            return true;
         }
 
         public bool TryUnlockNearbyShortcut(Vector2 playerTile, float interactRadius,
             out RpgWorldShortcutDef unlocked)
         {
             unlocked = default;
-            if (float.IsNaN(playerTile.x) || float.IsInfinity(playerTile.x) ||
-                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y) ||
-                float.IsNaN(interactRadius) || float.IsInfinity(interactRadius) ||
-                interactRadius <= 0f)
-                return false;
-
-            float radiusSq = interactRadius * interactRadius;
-            foreach (KeyValuePair<string, RpgWorldShortcutDef> kvp in shortcutsById)
+            if (float.IsNaN(interactRadius) || float.IsInfinity(interactRadius) ||
+                interactRadius <= 0f ||
+                !TryFindNearestLockedShortcut(playerTile, out RpgWorldShortcutDef nearest, out float distance) ||
+                distance > interactRadius)
             {
-                RpgWorldShortcutDef sc = kvp.Value;
-                if (unlockedShortcuts.Contains(sc.Id))
-                    continue;
-                float dx = playerTile.x - (sc.TriggerTile.x + 0.5f);
-                float dy = playerTile.y - (sc.TriggerTile.y + 0.5f);
-                if (dx * dx + dy * dy <= radiusSq)
-                {
-                    unlockedShortcuts.Add(sc.Id);
-                    setInt(sc.MakinomKey, 1);
-                    ApplyShortcutTiles(sc);
-                    unlocked = sc;
-                    return true;
-                }
+                return false;
             }
-            return false;
+
+            unlockedShortcuts.Add(nearest.Id);
+            setInt(nearest.MakinomKey, 1);
+            ApplyShortcutTiles(nearest);
+            unlocked = nearest;
+            return true;
         }
 
         private void ApplyShortcutTiles(RpgWorldShortcutDef sc)
@@ -611,11 +572,5 @@ namespace Rpg.Soundwell
             }
         }
 
-        private static Vector2Int ToChunkCoord(Vector2Int tile)
-        {
-            return new Vector2Int(
-                tile.x / RpgLargeMapChunkRenderer.ChunkSizeTiles,
-                tile.y / RpgLargeMapChunkRenderer.ChunkSizeTiles);
-        }
     }
 }

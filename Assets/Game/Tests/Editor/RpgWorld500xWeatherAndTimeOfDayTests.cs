@@ -99,6 +99,36 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SetWeather_RejectsUndefinedOverridesWithoutChangingLiveOrSavedForecast()
+        {
+            var service = new RpgWorld500xWeatherAndTimeOfDayService(
+                initialMinutes: 600f, initialDay: 2, gameMinutesPerRealSecond: 1f);
+            var map = RpgWorldMapId.RedSaltHarbor;
+            service.SetWeather(map, RpgWorld500xWeatherKind.GaleStorm);
+            var before = service.GetSnapshot(map);
+            var saved = service.ExportPersistenceState();
+
+            service.SetWeather(map, (RpgWorld500xWeatherKind)999);
+            service.SetWeather((RpgWorldMapId)255, RpgWorld500xWeatherKind.AshHaze);
+
+            var after = service.GetSnapshot(map);
+            Assert.AreEqual(before.Weather, after.Weather);
+            Assert.AreEqual(before.WeatherDisplayName, after.WeatherDisplayName);
+            Assert.AreEqual(before.MovementSpeedMultiplier, after.MovementSpeedMultiplier);
+            Assert.AreEqual(before.EncounterTensionMultiplier, after.EncounterTensionMultiplier);
+            Assert.AreEqual(RpgWorld500xWeatherKind.Clear, service.GetWeather((RpgWorldMapId)255));
+            CollectionAssert.AreEquivalent(saved, service.ExportPersistenceState());
+
+            var restored = new RpgWorld500xWeatherAndTimeOfDayService(gameMinutesPerRealSecond: 1f);
+            restored.ImportPersistenceState(saved);
+            Assert.AreEqual(before.Weather, restored.GetSnapshot(map).Weather);
+            Assert.AreEqual(restored.AdvanceRealSeconds(180f, map).Weather,
+                service.AdvanceRealSeconds(180f, map).Weather);
+            service.SetWeather(map, RpgWorld500xWeatherKind.Clear);
+            Assert.AreEqual(RpgWorld500xWeatherKind.Clear, service.GetWeather(map));
+        }
+
+        [Test]
         public void RestAtCampfire_AdvancesToDawnAndCalmsSevereStorms()
         {
             var service = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 1300f, initialDay: 3);

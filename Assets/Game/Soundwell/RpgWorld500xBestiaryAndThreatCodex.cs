@@ -200,7 +200,7 @@ namespace Rpg.Soundwell
             Action<RpgWorld500xDangerZoneDossier> onDossierStudied = null)
         {
             _getInt = getInt ?? (_ => 0);
-            _setInt = setInt ?? ((_, __) => { });
+            _setInt = setInt;
             _onDossierStudied = onDossierStudied;
         }
 
@@ -220,13 +220,24 @@ namespace Rpg.Soundwell
             string markerId,
             out RpgWorld500xDangerZoneDossier dossier)
         {
-            dossier = GetDossier(mapId, markerId);
-            if (string.IsNullOrWhiteSpace(markerId) || dossier.IsStudied)
+            dossier = default;
+            // Only real danger zones in the requested region can earn a study
+            // reward, and a read-only codex cannot persist a study.
+            if (_setInt == null || !Enum.IsDefined(typeof(RpgWorldMapId), mapId) ||
+                string.IsNullOrWhiteSpace(markerId) ||
+                !RpgWorldLandmarkCatalog.TryGetMarker(mapId, markerId, out RpgMapLandmarkMarker marker) ||
+                marker.Category != RpgMapMarkerCategory.DangerZone)
             {
                 return false;
             }
 
-            _setInt(CodexKey(markerId), 1);
+            dossier = GetDossier(mapId, marker.Id);
+            if (dossier.IsStudied)
+            {
+                return false;
+            }
+
+            _setInt(CodexKey(marker.Id), 1);
             dossier = new RpgWorld500xDangerZoneDossier(mapId, markerId, dossier.Profile, true);
             _onDossierStudied?.Invoke(dossier);
             return true;
