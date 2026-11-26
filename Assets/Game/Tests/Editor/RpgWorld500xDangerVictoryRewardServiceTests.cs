@@ -36,6 +36,67 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PreviewVictoryRewardAndRemainingFirstClearSummary_AreReadOnlyAndTrackClears()
+        {
+            RpgWorld500xMapLayout soundwell = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+
+            RpgWorld500xMapFirstClearSummary initial =
+                RpgWorld500xDangerVictoryRewardService.SummarizeRemainingFirstClearRewards(soundwell, read);
+            Assert.AreEqual(RpgWorldMapId.Soundwell, initial.MapId);
+            Assert.Greater(initial.TotalDangerZones, 0);
+            Assert.AreEqual(0, initial.ClearedDangerZones);
+            Assert.AreEqual(initial.TotalDangerZones, initial.RemainingDangerZones);
+            Assert.Greater(initial.RemainingLockBreakSaltSilver, initial.RemainingStandardSaltSilver);
+            Assert.Greater(initial.RemainingLockBreakReputation, initial.RemainingStandardReputation);
+            Assert.That(initial.SummaryZh, Does.Contain("【首破悬赏余量】"));
+
+            var dangerIds = new List<string>();
+            for (int i = 0; i < soundwell.Markers.Count; i++)
+            {
+                if (soundwell.Markers[i].Category == RpgMapMarkerCategory.DangerZone)
+                {
+                    dangerIds.Add(soundwell.Markers[i].Id);
+                }
+            }
+
+            string firstId = dangerIds[0];
+            Assert.IsFalse(RpgWorld500xDangerVictoryRewardService.IsFirstClearCompleted(firstId, read));
+            RpgWorld500xDangerVictoryReward beforePreview =
+                RpgWorld500xDangerVictoryRewardService.PreviewVictoryReward(RpgWorldMapId.Soundwell, firstId, lockBreakAchieved: false, read);
+            Assert.IsTrue(beforePreview.IsFirstClear);
+            Assert.AreEqual(0, store.Count);
+
+            // Mark first DangerZone cleared and verify preview & remaining summary update accurately.
+            store[RpgWorld500xDangerVictoryRewardService.FirstClearKey(firstId)] = 1;
+            Assert.IsTrue(RpgWorld500xDangerVictoryRewardService.IsFirstClearCompleted(firstId, read));
+            RpgWorld500xDangerVictoryReward afterPreview =
+                RpgWorld500xDangerVictoryRewardService.PreviewVictoryReward(RpgWorldMapId.Soundwell, firstId, lockBreakAchieved: false, read);
+            Assert.IsFalse(afterPreview.IsFirstClear);
+            Assert.Less(afterPreview.SaltSilverReward, beforePreview.SaltSilverReward);
+
+            RpgWorld500xMapFirstClearSummary afterOne =
+                RpgWorld500xDangerVictoryRewardService.SummarizeRemainingFirstClearRewards(soundwell, read);
+            Assert.AreEqual(1, afterOne.ClearedDangerZones);
+            Assert.AreEqual(initial.TotalDangerZones - 1, afterOne.RemainingDangerZones);
+            Assert.AreEqual(initial.RemainingStandardSaltSilver - beforePreview.SaltSilverReward, afterOne.RemainingStandardSaltSilver);
+
+            // Clear all DangerZones -> remaining drops to zero with completed banner.
+            for (int i = 0; i < dangerIds.Count; i++)
+            {
+                store[RpgWorld500xDangerVictoryRewardService.FirstClearKey(dangerIds[i])] = 1;
+            }
+
+            RpgWorld500xMapFirstClearSummary allCleared =
+                RpgWorld500xDangerVictoryRewardService.SummarizeRemainingFirstClearRewards(soundwell, read);
+            Assert.AreEqual(0, allCleared.RemainingDangerZones);
+            Assert.AreEqual(0, allCleared.RemainingStandardSaltSilver);
+            Assert.AreEqual(0, allCleared.RemainingLockBreakSaltSilver);
+            Assert.That(allCleared.SummaryZh, Does.Contain("已全部完成首破"));
+        }
+
+        [Test]
         public void GrantVictoryReward_CreditsSilverReputationMarksFirstClearAndRespectsRepeatScaling()
         {
             var metaStore = new Dictionary<string, int>(StringComparer.Ordinal);
