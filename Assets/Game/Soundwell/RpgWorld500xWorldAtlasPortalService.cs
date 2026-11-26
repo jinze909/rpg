@@ -121,7 +121,7 @@ namespace Rpg.Soundwell
             int totalClaimedBounties,
             int totalBounties,
             int remainingBounties,
-            int totalReputationScore,
+            int totalReputationPoints,
             RpgWorldMapId highestReputationMap,
             string summaryZh)
         {
@@ -129,7 +129,7 @@ namespace Rpg.Soundwell
             TotalClaimedBounties = totalClaimedBounties;
             TotalBounties = totalBounties;
             RemainingBounties = remainingBounties;
-            TotalReputationScore = totalReputationScore;
+            TotalReputationPoints = totalReputationPoints;
             HighestReputationMap = highestReputationMap;
             SummaryZh = summaryZh ?? string.Empty;
         }
@@ -139,7 +139,7 @@ namespace Rpg.Soundwell
         public int TotalClaimedBounties { get; }
         public int TotalBounties { get; }
         public int RemainingBounties { get; }
-        public int TotalReputationScore { get; }
+        public int TotalReputationPoints { get; }
         public RpgWorldMapId HighestReputationMap { get; }
         public string SummaryZh { get; }
     }
@@ -419,7 +419,7 @@ namespace Rpg.Soundwell
             int totalRep = 0;
             RpgWorldMapId highestMap = entries.Count > 0 ? entries[0].MapId : RpgWorldMapId.Soundwell;
             string highestNameZh = entries.Count > 0 ? entries[0].DisplayNameZh : string.Empty;
-            int highestScore = entries.Count > 0 ? entries[0].Reputation.Points : int.MinValue;
+            int highestPoints = entries.Count > 0 ? entries[0].Reputation.Points : int.MinValue;
 
             for (int i = 0; i < entries.Count; i++)
             {
@@ -427,9 +427,9 @@ namespace Rpg.Soundwell
                 totalClaimed += e.ClaimedBounties;
                 totalBounties += e.TotalBounties;
                 totalRep += e.Reputation.Points;
-                if (e.Reputation.Points > highestScore)
+                if (e.Reputation.Points > highestPoints)
                 {
-                    highestScore = e.Reputation.Points;
+                    highestPoints = e.Reputation.Points;
                     highestMap = e.MapId;
                     highestNameZh = e.DisplayNameZh;
                 }

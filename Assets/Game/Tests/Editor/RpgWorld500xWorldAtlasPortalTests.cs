@@ -96,7 +96,7 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(1, summary.TotalClaimedBounties);
             Assert.Greater(summary.TotalBounties, 1);
             Assert.AreEqual(summary.TotalBounties - 1, summary.RemainingBounties);
-            Assert.AreEqual(570, summary.TotalReputationScore);
+            Assert.AreEqual(570, summary.TotalReputationPoints);
             Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, summary.HighestReputationMap);
             StringAssert.Contains("【四境总览】", summary.SummaryZh);
             Assert.AreEqual(storeCountBefore, store.Count);
