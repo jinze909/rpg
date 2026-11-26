@@ -146,6 +146,89 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SceneCallbackCannotOpenOtherPanelDuringRegionalDispatch()
+        {
+            var root = new GameObject("Command hub reentrant dispatch");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            ReturnHarborCommandHubHost hub = null;
+            int attempts = 0;
+            try
+            {
+                var regional = new ReturnRegionalStoriesHubContext
+                {
+                    AtLutingDock = () =>
+                    {
+                        attempts++;
+                        Assert.That(hub.TryOpenStoryLedger(), Is.False);
+                        Assert.That(hub.TryOpenRosterCase(ReturnRosterCaseId.RC01ChenYan), Is.False);
+                        Assert.That(hub.TryOpenNextFinaleStage(), Is.False);
+                        return true;
+                    }
+                };
+                hub = new ReturnHarborCommandHubHost(root.transform, Reader(values),
+                    (k, v) => values[k] = v,
+                    rosterContext: new ReturnRosterCasesHubContext
+                    { AtWhiteReedFerry = () => true },
+                    regionalContext: regional,
+                    finaleContext: new ReturnFinaleFlowContext
+                    { AtJingwanAssembly = () => true });
+                Assert.That(hub.TryOpenRegionalStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.True);
+                Assert.That(attempts, Is.GreaterThan(0));
+                Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.RegionalStory));
+                Assert.That(hub.LedgerHost.IsOpen, Is.False);
+                Assert.That(hub.RosterHub.HasActiveCase, Is.False);
+                Assert.That(hub.FinaleHub.HasActiveHost, Is.False);
+                hub.CloseActivePanel();
+                Assert.That(hub.TryOpenStoryLedger(), Is.True);
+            }
+            finally
+            {
+                hub?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SceneCallbackClosingCommandHubCannotLeaveLatePanel(bool disposeHub)
+        {
+            var root = new GameObject("Command hub cancelled opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            ReturnHarborCommandHubHost hub = null;
+            int writes = 0;
+            try
+            {
+                var regional = new ReturnRegionalStoriesHubContext
+                {
+                    AtLutingDock = () =>
+                    {
+                        if (disposeHub) hub.Dispose();
+                        else hub.CloseActivePanel();
+                        return true;
+                    }
+                };
+                hub = new ReturnHarborCommandHubHost(root.transform, Reader(values),
+                    (k, v) => { writes++; values[k] = v; }, regionalContext: regional);
+                Assert.That(hub.TryOpenRegionalStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.False);
+                Assert.That(hub.ActiveMode, Is.EqualTo(ReturnCommandHubMode.None));
+                Assert.That(hub.RegionalHub.HasActiveStory, Is.False);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(writes, Is.Zero);
+
+                regional.AtLutingDock = () => true;
+                Assert.That(hub.TryOpenRegionalStory(ReturnRegionalStoryId.ST02RiverLanterns),
+                    Is.EqualTo(!disposeHub));
+            }
+            finally
+            {
+                hub?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DisposalClosesActivePanelDisposesAllSubHubsAndBlocksFurtherCalls()
         {
             var root = new GameObject("CommandHubDisposeRoot");

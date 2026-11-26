@@ -29,6 +29,8 @@ namespace Rpg.Soundwell
         private readonly ReturnFinaleFlowHost finaleHub;
         private readonly Func<string, int> getInt;
         private bool disposed;
+        private bool openingPanel;
+        private bool openingCancelled;
 
         public ReturnStoryLedgerHost LedgerHost => ledgerHost;
         public ReturnRosterCasesHubHost RosterHub => rosterHub;
@@ -80,49 +82,67 @@ namespace Rpg.Soundwell
             return ReturnStoryLedger.TryBuildSnapshot(getInt, out snapshot);
         }
 
-        public bool TryOpenStoryLedger(Action onClosed = null)
-        {
-            if (disposed || uiParent == null)
-                return false;
-            if (ActiveMode != ReturnCommandHubMode.None &&
-                ActiveMode != ReturnCommandHubMode.StoryLedger)
-                return false;
-            return ledgerHost.TryOpenOrRefresh(onClosed);
-        }
+        public bool TryOpenStoryLedger(Action onClosed = null) =>
+            TryOpenPanel(ReturnCommandHubMode.StoryLedger,
+                () => ledgerHost.TryOpenOrRefresh(onClosed));
 
-        public bool TryOpenRosterCase(ReturnRosterCaseId caseId)
-        {
-            if (disposed || uiParent == null)
-                return false;
-            if (ActiveMode != ReturnCommandHubMode.None &&
-                ActiveMode != ReturnCommandHubMode.RosterCase)
-                return false;
-            return rosterHub.TryOpenCase(caseId);
-        }
+        public bool TryOpenRosterCase(ReturnRosterCaseId caseId) =>
+            TryOpenPanel(ReturnCommandHubMode.RosterCase,
+                () => rosterHub.TryOpenCase(caseId));
 
-        public bool TryOpenRegionalStory(ReturnRegionalStoryId storyId)
-        {
-            if (disposed || uiParent == null)
-                return false;
-            if (ActiveMode != ReturnCommandHubMode.None &&
-                ActiveMode != ReturnCommandHubMode.RegionalStory)
-                return false;
-            return regionalHub.TryOpenStory(storyId);
-        }
+        public bool TryOpenRegionalStory(ReturnRegionalStoryId storyId) =>
+            TryOpenPanel(ReturnCommandHubMode.RegionalStory,
+                () => regionalHub.TryOpenStory(storyId));
 
-        public bool TryOpenNextFinaleStage()
+        public bool TryOpenNextFinaleStage() =>
+            TryOpenPanel(ReturnCommandHubMode.FinaleFlow, finaleHub.TryOpenNextStage);
+
+        // Scene and fact callbacks can synchronously re-enter this hub before
+        // the first child becomes visible to ActiveMode. Reserve the opening
+        // slot until dispatch finishes, including any cancellation cleanup.
+        private bool TryOpenPanel(ReturnCommandHubMode requested, Func<bool> open)
         {
-            if (disposed || uiParent == null)
+            if (disposed || uiParent == null || openingPanel)
                 return false;
-            if (ActiveMode != ReturnCommandHubMode.None &&
-                ActiveMode != ReturnCommandHubMode.FinaleFlow)
+
+            ReturnCommandHubMode active = ActiveMode;
+            if (active != ReturnCommandHubMode.None && active != requested)
                 return false;
-            return finaleHub.TryOpenNextStage();
+
+            openingPanel = true;
+            openingCancelled = false;
+            try
+            {
+                bool opened = open();
+                return opened && !openingCancelled && !disposed && uiParent != null;
+            }
+            finally
+            {
+                try
+                {
+                    // A child may only become active after a synchronous close
+                    // or dispose callback returns. Retire that late child too.
+                    if (openingCancelled || disposed || uiParent == null)
+                        ClosePanels();
+                }
+                finally
+                {
+                    openingPanel = false;
+                    openingCancelled = false;
+                }
+            }
         }
 
         public void CloseActivePanel()
         {
             if (disposed) return;
+            if (openingPanel)
+                openingCancelled = true;
+            ClosePanels();
+        }
+
+        private void ClosePanels()
+        {
             ledgerHost.Close();
             rosterHub.CloseActiveCase();
             regionalHub.CloseActiveStory();
