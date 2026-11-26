@@ -141,6 +141,28 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ExtremeFiniteMovementInputPreservesDirectionAndNormalTravelDistance()
+        {
+            host = new RpgWorld500xExplorationHost(
+                root.transform, RpgWorldMapId.Soundwell,
+                streamingRadiusChunks: 1, tileSlices: new Sprite[] { null });
+            Vector2 start = host.PlayerPosition;
+            Assert.IsTrue(host.StepMovement(Vector2.right, 0.25f));
+            Vector2 normalEnd = host.PlayerPosition;
+            Assert.IsTrue(host.TryPlaceAtWalkablePosition(start));
+
+            Assert.IsTrue(host.StepMovement(new Vector2(float.MaxValue, 0f), 0.25f));
+            Assert.AreEqual(normalEnd.x, host.PlayerPosition.x, 0.001f);
+            Assert.AreEqual(normalEnd.y, host.PlayerPosition.y, 0.001f);
+            Assert.AreEqual(Vector2.right, host.Facing);
+
+            Vector2 before = host.PlayerPosition;
+            Assert.IsFalse(host.StepMovement(new Vector2(float.PositiveInfinity, 1f), 0.25f));
+            Assert.AreEqual(before, host.PlayerPosition);
+            Assert.AreEqual(Vector2.right, host.Facing);
+        }
+
+        [Test]
         public void LargeMovementStepCannotTunnelThroughClosedIronGateButCanCrossWhenOpened()
         {
             host = new RpgWorld500xExplorationHost(
