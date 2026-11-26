@@ -58,6 +58,61 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BuildInventorySnapshotAndHasUsableSupply_AreReadOnlyAndTrackStockAndBuffs()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            Action<string, int> write = (k, v) => store[k] = v;
+
+            var shop = new RpgWorld500xFieldBountyAndSupplyService(read, write);
+            shop.AddSaltSilver(300);
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("gauze", 2));
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 1));
+
+            var useSvc = new RpgWorld500xFieldSupplyUseService(read, write);
+            Assert.IsTrue(useSvc.HasUsableSupply("gauze"));
+            Assert.IsFalse(useSvc.HasUsableSupply("flare"));
+            Assert.IsFalse(useSvc.HasUsableSupply("unknown"));
+
+            RpgWorld500xFieldSupplyInventorySummary before = useSvc.BuildInventorySnapshot(10f);
+            Assert.AreEqual(3, before.TotalOwnedItems);
+            Assert.AreEqual(2, before.DistinctOwnedKinds);
+            Assert.AreEqual(0, before.ActiveBuffCount);
+            Assert.AreEqual(6, before.Slots.Count);
+            Assert.That(before.SummaryZh, Does.Contain("【随身补给】共 3 件（2/6 类）"));
+            Assert.That(before.SummaryZh, Does.Contain("当前无生效增益"));
+
+            // Consume lamp_oil at t=10s -> owned drops to 2 (1 distinct), 1 active buff for 90s.
+            Assert.IsTrue(useSvc.TryConsumeSupply("lamp_oil", 10f).Succeeded);
+            RpgWorld500xFieldSupplyInventorySummary after = useSvc.BuildInventorySnapshot(25f);
+            Assert.AreEqual(2, after.TotalOwnedItems);
+            Assert.AreEqual(1, after.DistinctOwnedKinds);
+            Assert.AreEqual(1, after.ActiveBuffCount);
+            Assert.That(after.SummaryZh, Does.Contain("生效增益 1 项"));
+
+            bool foundLamp = false;
+            for (int i = 0; i < after.Slots.Count; i++)
+            {
+                if (after.Slots[i].ItemId == "lamp_oil")
+                {
+                    foundLamp = true;
+                    Assert.AreEqual(0, after.Slots[i].OwnedCount);
+                    Assert.IsFalse(after.Slots[i].CanUseNow);
+                    Assert.IsTrue(after.Slots[i].IsBuffActive);
+                    Assert.AreEqual(75f, after.Slots[i].RemainingBuffSeconds, 0.01f);
+                }
+            }
+
+            Assert.IsTrue(foundLamp);
+
+            // Non-finite clock still returns safe read-only summary with 0 active buffs.
+            RpgWorld500xFieldSupplyInventorySummary nanSummary = useSvc.BuildInventorySnapshot(float.NaN);
+            Assert.AreEqual(2, nanSummary.TotalOwnedItems);
+            Assert.AreEqual(0, nanSummary.ActiveBuffCount);
+            Assert.AreEqual(2, useSvc.GetOwnedCount("gauze"));
+        }
+
+        [Test]
         public void ExportAndRestoreRemainingBuffSeconds_PreservesActiveBuffsAcrossSessionClockAndFiltersInvalidEntries()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
