@@ -63,6 +63,10 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.HeaderText.Contains("远征营火手记"));
                     Assert.IsTrue(panel.StatusRibbonText.Contains("盐银 88"));
                     Assert.IsTrue(panel.RiskBannerText.Contains("平稳"));
+                    Assert.IsTrue(panel.RiskBannerText.Contains("高危区域"));
+                    Assert.IsTrue(panel.WorldWeatherBulletinText.Contains("【四境气象速报】"));
+                    Assert.IsTrue(panel.WorldReputationSummaryText.Contains("【四境声望总览】"));
+                    Assert.IsTrue(panel.MilestoneSummaryText.Contains("【远征里程碑】"));
                     Assert.IsTrue(panel.DigestBodyText.Contains("远征营火纪要"));
                     Assert.IsTrue(panel.DigestBodyText.Contains("整备状态："));
                     Assert.IsTrue(panel.DigestBodyText.Contains("本境待补"));
@@ -86,6 +90,7 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.TryClickRefresh(12f));
                     Assert.AreEqual(refreshesBeforeLock + 1, panel.RefreshCount);
                     Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, panel.LastDigest.TravelRiskLevel);
+                    Assert.GreaterOrEqual(panel.HazardousRegionCount, 1);
                     Assert.IsTrue(panel.RiskBannerText.Contains("高危"));
                     Assert.IsTrue(panel.DigestBodyText.Contains("灯油照明"));
                     Assert.IsTrue(panel.DigestBodyText.Contains("营火休整"));
