@@ -87,6 +87,38 @@ namespace Rpg.Soundwell
         public string FormattedBriefZh { get; }
     }
 
+    public readonly struct RpgWorld500xDangerClearancePayoutSummary
+    {
+        public RpgWorld500xDangerClearancePayoutSummary(
+            RpgWorldMapId mapId,
+            int remainingZones,
+            int remainingStandardSilver,
+            int remainingLockBreakSilver,
+            int lockBreakBonusSilver,
+            int peakEffectiveThreatLevel,
+            string topRecommendedSupplyId,
+            string summaryZh)
+        {
+            MapId = mapId;
+            RemainingZones = remainingZones;
+            RemainingStandardSilver = remainingStandardSilver;
+            RemainingLockBreakSilver = remainingLockBreakSilver;
+            LockBreakBonusSilver = lockBreakBonusSilver;
+            PeakEffectiveThreatLevel = peakEffectiveThreatLevel;
+            TopRecommendedSupplyId = topRecommendedSupplyId ?? string.Empty;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int RemainingZones { get; }
+        public int RemainingStandardSilver { get; }
+        public int RemainingLockBreakSilver { get; }
+        public int LockBreakBonusSilver { get; }
+        public int PeakEffectiveThreatLevel { get; }
+        public string TopRecommendedSupplyId { get; }
+        public string SummaryZh { get; }
+    }
+
     /// <summary>
     /// Builds a deterministic DangerZone tactical briefing for the active 500x map,
     /// combining Bestiary threat profiles, live weather risk scaling, 8-direction
@@ -216,6 +248,116 @@ namespace Rpg.Soundwell
                 nearest,
                 entries,
                 sb.ToString());
+        }
+
+        /// <summary>
+        /// Aggregates remaining standard vs. Lock-Break Salt-Silver payouts, peak
+        /// effective threat level, and top recommended camp supply across all uncleared
+        /// DangerZones in a region tactical brief.
+        /// </summary>
+        public static RpgWorld500xDangerClearancePayoutSummary SummarizeRemainingPayouts(
+            RpgWorld500xRegionThreatBrief brief)
+        {
+            IReadOnlyList<RpgWorld500xDangerZoneTacticalEntry> entries =
+                brief.Entries ?? Array.Empty<RpgWorld500xDangerZoneTacticalEntry>();
+
+            int remainingZones = 0;
+            int remainingStd = 0;
+            int remainingLockBreak = 0;
+            int peakThreat = 0;
+            var supplyCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                RpgWorld500xDangerZoneTacticalEntry entry = entries[i];
+                if (entry.IsCleared)
+                {
+                    continue;
+                }
+
+                remainingZones++;
+                remainingStd += Math.Max(0, entry.EstimatedStandardSilver);
+                remainingLockBreak += Math.Max(0, entry.EstimatedLockBreakSilver);
+                if (entry.EffectiveThreatLevel > peakThreat)
+                {
+                    peakThreat = entry.EffectiveThreatLevel;
+                }
+
+                if (!string.IsNullOrEmpty(entry.RecommendedSupplyId))
+                {
+                    supplyCounts.TryGetValue(entry.RecommendedSupplyId, out int c);
+                    supplyCounts[entry.RecommendedSupplyId] = c + 1;
+                }
+            }
+
+            string topSupply = string.Empty;
+            int topSupplyCount = 0;
+            foreach (KeyValuePair<string, int> kv in supplyCounts)
+            {
+                if (kv.Value > topSupplyCount ||
+                    (kv.Value == topSupplyCount && StringComparer.Ordinal.Compare(kv.Key, topSupply) < 0))
+                {
+                    topSupply = kv.Key;
+                    topSupplyCount = kv.Value;
+                }
+            }
+
+            int lockBreakBonus = Math.Max(0, remainingLockBreak - remainingStd);
+            string mapName = string.IsNullOrEmpty(brief.MapDisplayNameZh)
+                ? brief.MapId.ToString()
+                : brief.MapDisplayNameZh;
+            string summaryZh = remainingZones == 0
+                ? "【清剿收益预估】" + mapName + "：本境危险区已全部首破，暂无待清剿赏金"
+                : "【清剿收益预估】" + mapName + "：待清剿 " + remainingZones + " 处 · 最高威胁 Lv." + peakThreat +
+                  " · 预计盐银 " + remainingStd + "（破锁 " + remainingLockBreak + "，额外 +" + lockBreakBonus + "）";
+
+            return new RpgWorld500xDangerClearancePayoutSummary(
+                brief.MapId,
+                remainingZones,
+                remainingStd,
+                remainingLockBreak,
+                lockBreakBonus,
+                peakThreat,
+                topSupply,
+                summaryZh);
+        }
+
+        /// <summary>
+        /// Filters entries from a region threat brief by clearance status, minimum
+        /// effective threat level, and optional threat tier while preserving distance order.
+        /// </summary>
+        public static List<RpgWorld500xDangerZoneTacticalEntry> FilterEntries(
+            RpgWorld500xRegionThreatBrief brief,
+            bool unclearedOnly = false,
+            int minEffectiveThreatLevel = 1,
+            RpgWorld500xThreatTier? tierFilter = null)
+        {
+            var filtered = new List<RpgWorld500xDangerZoneTacticalEntry>();
+            IReadOnlyList<RpgWorld500xDangerZoneTacticalEntry> entries =
+                brief.Entries ?? Array.Empty<RpgWorld500xDangerZoneTacticalEntry>();
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                RpgWorld500xDangerZoneTacticalEntry entry = entries[i];
+                if (unclearedOnly && entry.IsCleared)
+                {
+                    continue;
+                }
+
+                if (entry.EffectiveThreatLevel < minEffectiveThreatLevel)
+                {
+                    continue;
+                }
+
+                if (tierFilter.HasValue && entry.Tier != tierFilter.Value)
+                {
+                    continue;
+                }
+
+                filtered.Add(entry);
+            }
+
+            return filtered;
         }
 
         public static int ComputeEffectiveThreatLevel(

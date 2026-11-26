@@ -60,5 +60,70 @@ namespace Rpg.Tests.Editor
                 }
             }
         }
+
+        [Test]
+        public void SummarizeRemainingPayoutsAndFilterEntries_TrackClearanceTotalsThreatThresholdAndTier()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var clearFlags = new Dictionary<string, int>(StringComparer.Ordinal);
+                Func<string, int> read = k => clearFlags.TryGetValue(k, out int v) ? v : 0;
+
+                boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                RpgWorld500xRegionThreatBrief brief =
+                    RpgWorld500xDangerZoneTacticalBriefService.BuildRegionBrief(boot, elapsedSeconds: 5f, overrideGetInt: read);
+
+                RpgWorld500xDangerClearancePayoutSummary initialPayout =
+                    RpgWorld500xDangerZoneTacticalBriefService.SummarizeRemainingPayouts(brief);
+                Assert.AreEqual(RpgWorldMapId.Soundwell, initialPayout.MapId);
+                Assert.AreEqual(brief.TotalDangerZones, initialPayout.RemainingZones);
+                Assert.Greater(initialPayout.RemainingStandardSilver, 0);
+                Assert.Greater(initialPayout.RemainingLockBreakSilver, initialPayout.RemainingStandardSilver);
+                Assert.AreEqual(initialPayout.RemainingLockBreakSilver - initialPayout.RemainingStandardSilver,
+                    initialPayout.LockBreakBonusSilver);
+                Assert.GreaterOrEqual(initialPayout.PeakEffectiveThreatLevel, 1);
+                Assert.IsFalse(string.IsNullOrEmpty(initialPayout.TopRecommendedSupplyId));
+                StringAssert.Contains("清剿收益预估", initialPayout.SummaryZh);
+
+                // Filter by tier matching the first entry preserves distance order and tier constraint.
+                RpgWorld500xThreatTier sampleTier = brief.Entries[0].Tier;
+                int sampleLevel = brief.Entries[0].EffectiveThreatLevel;
+                List<RpgWorld500xDangerZoneTacticalEntry> filtered =
+                    RpgWorld500xDangerZoneTacticalBriefService.FilterEntries(
+                        brief,
+                        unclearedOnly: true,
+                        minEffectiveThreatLevel: sampleLevel,
+                        tierFilter: sampleTier);
+                Assert.Greater(filtered.Count, 0);
+                for (int i = 0; i < filtered.Count; i++)
+                {
+                    Assert.IsFalse(filtered[i].IsCleared);
+                    Assert.AreEqual(sampleTier, filtered[i].Tier);
+                    Assert.GreaterOrEqual(filtered[i].EffectiveThreatLevel, sampleLevel);
+                }
+
+                // Clearing every DangerZone zeroes remaining payouts and switches to cleared summary copy.
+                for (int i = 0; i < brief.Entries.Count; i++)
+                {
+                    clearFlags[RpgWorld500xDangerVictoryRewardService.FirstClearKey(brief.Entries[i].MarkerId)] = 1;
+                }
+
+                RpgWorld500xRegionThreatBrief clearedBrief =
+                    RpgWorld500xDangerZoneTacticalBriefService.BuildRegionBrief(boot, elapsedSeconds: 5f, overrideGetInt: read);
+                RpgWorld500xDangerClearancePayoutSummary clearedPayout =
+                    RpgWorld500xDangerZoneTacticalBriefService.SummarizeRemainingPayouts(clearedBrief);
+                Assert.AreEqual(0, clearedPayout.RemainingZones);
+                Assert.AreEqual(0, clearedPayout.RemainingStandardSilver);
+                Assert.AreEqual(0, clearedPayout.RemainingLockBreakSilver);
+                Assert.AreEqual(0, clearedPayout.PeakEffectiveThreatLevel);
+                Assert.AreEqual(string.Empty, clearedPayout.TopRecommendedSupplyId);
+                StringAssert.Contains("已全部首破", clearedPayout.SummaryZh);
+
+                Assert.AreEqual(0,
+                    RpgWorld500xDangerZoneTacticalBriefService.FilterEntries(clearedBrief, unclearedOnly: true).Count);
+            }
+        }
     }
 }
