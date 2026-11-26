@@ -29,6 +29,7 @@ namespace Rpg.Soundwell
         // clicks must share it rather than mixing it with Unity's global clock.
         private float _currentClockSeconds;
         private RpgWorld500xReconPingKind? _activeFilterKind;
+        private RpgWorldMapId? _lastScanMapId;
         private bool _disposed;
 
         public bool IsDisposed => _disposed || _rootObject == null;
@@ -131,7 +132,11 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            _activeFilterKind = filterKind;
+            if (_activeFilterKind != filterKind)
+            {
+                _activeFilterKind = filterKind;
+                InvalidateScanResults();
+            }
             return true;
         }
 
@@ -166,6 +171,11 @@ namespace Rpg.Soundwell
             }
 
             _currentClockSeconds = nowSeconds;
+            if (!_bootstrapper.IsDisposed && _lastScanMapId.HasValue &&
+                _lastScanMapId.Value != _bootstrapper.Driver.Facade.CurrentMapId)
+            {
+                InvalidateScanResults();
+            }
             float remaining = _scanner.GetRemainingCooldown(nowSeconds);
             bool ready = remaining <= 0.0001f;
             _scanButton.interactable = ready;
@@ -235,6 +245,7 @@ namespace Rpg.Soundwell
                 maxResults: 3,
                 filterKind: _activeFilterKind))
             {
+                _lastScanMapId = mapId;
                 _lastPings.Clear();
                 _lastPings.AddRange(pings);
                 _bannerText.text = _activeFilterKind.HasValue
@@ -260,6 +271,14 @@ namespace Rpg.Soundwell
             }
 
             UpdateCooldownDisplay(scanTime);
+        }
+
+        private void InvalidateScanResults()
+        {
+            _lastScanMapId = null;
+            _lastPings.Clear();
+            _pingsText.text = string.Empty;
+            _bannerText.text = "[" + ActiveFilterLabelZh + "] 请重新勘测附近目标";
         }
 
         private static GameObject CreateBox(
