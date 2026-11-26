@@ -47,11 +47,28 @@ namespace Rpg.Tests.Editor
             Assert.IsTrue(director.TryGetNearestActiveThreat(anchor, out var edge));
             Assert.AreEqual(RpgWorld500xPatrolAndEncounterDirector.LeashRadiusTiles,
                 Vector2.Distance(anchor, edge.Position), 0.01f);
-            Assert.IsEmpty(director.Step(anchor + direction * 50f, true, 10f));
+            // Small real-frame steps used to alternate patrol and chase:
+            // after one inward movement the outside target became eligible again.
+            Assert.IsEmpty(director.Step(anchor + direction * 50f, true, 0.1f));
             Assert.IsTrue(director.TryGetNearestActiveThreat(anchor, out var returned));
             Assert.AreEqual(RpgWorldPatrolState.Patrolling, returned.State);
-            Assert.Less(Vector2.Distance(anchor, returned.Position), RpgWorld500xPatrolAndEncounterDirector.LeashRadiusTiles);
+            float previousDistance = Vector2.Distance(anchor, returned.Position);
+            Assert.Less(previousDistance, RpgWorld500xPatrolAndEncounterDirector.LeashRadiusTiles);
+            for (int i = 0; i < 10; i++)
+            {
+                Assert.IsEmpty(director.Step(anchor + direction * 50f, true, 0.1f));
+                Assert.IsTrue(director.TryGetNearestActiveThreat(anchor, out returned));
+                Assert.AreEqual(RpgWorldPatrolState.Patrolling, returned.State);
+                float distance = Vector2.Distance(anchor, returned.Position);
+                Assert.LessOrEqual(distance, previousDistance + 0.001f);
+                previousDistance = distance;
+            }
             Assert.IsFalse(bridge.IsInDangerEncounter);
+
+            // A player returning inside the leash can draw attention again.
+            Assert.IsEmpty(director.Step(anchor + direction * 18f, true, 0.1f));
+            Assert.IsTrue(director.TryGetNearestActiveThreat(anchor, out var reacquired));
+            Assert.AreEqual(RpgWorldPatrolState.AlertChasing, reacquired.State);
         }
 
         [Test]

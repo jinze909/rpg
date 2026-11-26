@@ -53,6 +53,7 @@ namespace Rpg.Soundwell
             public int WaypointIndex;
             public Vector2 Position;
             public RpgWorldPatrolState State;
+            public bool ReturningToPatrol;
         }
 
         private readonly RpgWorld500xMapLayout layout;
@@ -131,7 +132,15 @@ namespace Rpg.Soundwell
                 float distToPlayer = Vector2.Distance(unit.Position, playerTile);
                 float distToAnchor = Vector2.Distance(unit.Position, unit.Anchor);
                 bool playerOutsideLeash = Vector2.Distance(playerTile, unit.Anchor) > LeashRadiusTiles;
-                bool canPursue = distToAnchor < LeashRadiusTiles - 0.01f || !playerOutsideLeash;
+                // Once a pursuit reaches its leash, finish returning to a
+                // patrol waypoint instead of reacquiring the same outside
+                // target on the very next frame. A player entering the leash
+                // again may immediately draw the patrol's attention.
+                if (!playerOutsideLeash)
+                    unit.ReturningToPatrol = false;
+                else if (distToAnchor >= LeashRadiusTiles - 0.01f)
+                    unit.ReturningToPatrol = true;
+                bool canPursue = !unit.ReturningToPatrol;
 
                 if (distToPlayer <= ContactEncounterRadiusTiles && !playerOutsideLeash)
                 {
@@ -157,7 +166,10 @@ namespace Rpg.Soundwell
                     Vector2 target = unit.Waypoints[unit.WaypointIndex];
                     MoveToward(unit, target, PatrolSpeedTilesPerSec * deltaSeconds);
                     if (Vector2.Distance(unit.Position, target) < 0.6f)
+                    {
                         unit.WaypointIndex = (unit.WaypointIndex + 1) % unit.Waypoints.Length;
+                        unit.ReturningToPatrol = false;
+                    }
                 }
             }
 

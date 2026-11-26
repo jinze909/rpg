@@ -105,7 +105,12 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            Vector2 dir = input.normalized;
+            // Scale oversized finite inputs before normalization: squaring an
+            // extreme component can overflow and collapse the direction to zero.
+            float maxComponent = Mathf.Max(Mathf.Abs(input.x), Mathf.Abs(input.y));
+            Vector2 dir = maxComponent > 1f
+                ? (input / maxComponent).normalized
+                : input.normalized;
             facing = dir;
             float travel = Mathf.Min(speed * deltaSeconds, MaxMovementDistancePerStep);
             if (!IsFinite(travel) || travel <= 0f)
