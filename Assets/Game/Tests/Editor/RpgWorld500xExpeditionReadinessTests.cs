@@ -80,6 +80,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FullyStockedExpedition_StillRecommendsRestInHazardousWeather()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var facade = boot.Driver.Facade;
+                var shop = facade.BountyAndSupply;
+                shop.AddSaltSilver(300);
+                foreach (string id in new[] { "gauze", "rations", "lamp_oil", "flare", "iron_clamps" })
+                {
+                    Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply(id, 1), id);
+                }
+
+                int balance = shop.SaltSilverBalance;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                var storm = RpgWorld500xExpeditionReadinessService.EvaluateReadiness(boot);
+                Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, storm.TravelRiskLevel);
+                Assert.AreEqual(0, storm.RecommendedSupplyIds.Count);
+                StringAssert.Contains("整备齐全", storm.ChecklistSummaryZh);
+                StringAssert.Contains("建议营火休整", storm.ChecklistSummaryZh);
+                StringAssert.DoesNotContain("可直接启程", storm.ChecklistSummaryZh);
+
+                facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                var clear = RpgWorld500xExpeditionReadinessService.EvaluateReadiness(boot);
+                Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, clear.TravelRiskLevel);
+                Assert.AreEqual(0, clear.RecommendedSupplyIds.Count);
+                StringAssert.Contains("可直接启程", clear.ChecklistSummaryZh);
+                StringAssert.DoesNotContain("建议营火休整", clear.ChecklistSummaryZh);
+                Assert.AreEqual(balance, shop.SaltSilverBalance);
+            }
+        }
+
+        [Test]
         public void EvaluateReadinessForMap_PreEvaluatesRemoteHazardousDestinationBeforeTravel()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(

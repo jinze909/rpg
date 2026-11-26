@@ -85,6 +85,65 @@ namespace Rpg.Soundwell
         public int ConnectedRouteCount { get; }
     }
 
+    public readonly struct RpgWorld500xRegionPathPlan
+    {
+        public RpgWorld500xRegionPathPlan(
+            RpgWorldMapId fromMap,
+            RpgWorldMapId toMap,
+            bool isSameRegion,
+            bool isDirect,
+            int totalTravelMinutesInGame,
+            IReadOnlyList<RpgWorld500xRegionRouteDef> hops,
+            string summaryZh)
+        {
+            FromMap = fromMap;
+            ToMap = toMap;
+            IsSameRegion = isSameRegion;
+            IsDirect = isDirect;
+            TotalTravelMinutesInGame = totalTravelMinutesInGame;
+            Hops = hops ?? Array.Empty<RpgWorld500xRegionRouteDef>();
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId FromMap { get; }
+        public RpgWorldMapId ToMap { get; }
+        public bool IsSameRegion { get; }
+        public bool IsDirect { get; }
+        public int TotalTravelMinutesInGame { get; }
+        public IReadOnlyList<RpgWorld500xRegionRouteDef> Hops { get; }
+        public string SummaryZh { get; }
+    }
+
+    public readonly struct RpgWorld500xWorldAtlasSummary
+    {
+        public RpgWorld500xWorldAtlasSummary(
+            IReadOnlyList<RpgWorld500xRegionAtlasEntry> entries,
+            int totalClaimedBounties,
+            int totalBounties,
+            int remainingBounties,
+            int totalReputationPoints,
+            RpgWorldMapId highestReputationMap,
+            string summaryZh)
+        {
+            Entries = entries ?? Array.Empty<RpgWorld500xRegionAtlasEntry>();
+            TotalClaimedBounties = totalClaimedBounties;
+            TotalBounties = totalBounties;
+            RemainingBounties = remainingBounties;
+            TotalReputationPoints = totalReputationPoints;
+            HighestReputationMap = highestReputationMap;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public IReadOnlyList<RpgWorld500xRegionAtlasEntry> Entries { get; }
+        public int TotalRegions => Entries.Count;
+        public int TotalClaimedBounties { get; }
+        public int TotalBounties { get; }
+        public int RemainingBounties { get; }
+        public int TotalReputationPoints { get; }
+        public RpgWorldMapId HighestReputationMap { get; }
+        public string SummaryZh { get; }
+    }
+
     /// <summary>
     /// Connects all four 500x-area maps (Soundwell, Red Salt Harbor, Whitewater
     /// Crossing, Mine Camp) into a bidirectional regional travel graph with in-game
@@ -142,6 +201,135 @@ namespace Rpg.Soundwell
 
             route = default;
             return false;
+        }
+
+        public static bool TryFindShortestRegionPath(
+            RpgWorldMapId fromMap,
+            RpgWorldMapId toMap,
+            out RpgWorld500xRegionPathPlan plan)
+        {
+            plan = default;
+            if (!Enum.IsDefined(typeof(RpgWorldMapId), fromMap) ||
+                !Enum.IsDefined(typeof(RpgWorldMapId), toMap))
+            {
+                return false;
+            }
+
+            if (fromMap == toMap)
+            {
+                plan = new RpgWorld500xRegionPathPlan(
+                    fromMap,
+                    toMap,
+                    isSameRegion: true,
+                    isDirect: false,
+                    totalTravelMinutesInGame: 0,
+                    hops: Array.Empty<RpgWorld500xRegionRouteDef>(),
+                    summaryZh: "【跨境路线】已在当前大区，无需跨区跋涉");
+                return true;
+            }
+
+            var bestMinutes = new Dictionary<RpgWorldMapId, int> { [fromMap] = 0 };
+            var bestHopCount = new Dictionary<RpgWorldMapId, int> { [fromMap] = 0 };
+            var prevEdge = new Dictionary<RpgWorldMapId, RpgWorld500xRegionRouteDef>();
+            var visited = new HashSet<RpgWorldMapId>();
+
+            while (true)
+            {
+                bool foundNext = false;
+                RpgWorldMapId current = default;
+                int currentMin = int.MaxValue;
+                int currentHops = int.MaxValue;
+
+                foreach (KeyValuePair<RpgWorldMapId, int> kvp in bestMinutes)
+                {
+                    if (visited.Contains(kvp.Key))
+                    {
+                        continue;
+                    }
+
+                    int hops = bestHopCount[kvp.Key];
+                    if (!foundNext ||
+                        kvp.Value < currentMin ||
+                        (kvp.Value == currentMin && hops < currentHops) ||
+                        (kvp.Value == currentMin && hops == currentHops && (int)kvp.Key < (int)current))
+                    {
+                        foundNext = true;
+                        current = kvp.Key;
+                        currentMin = kvp.Value;
+                        currentHops = hops;
+                    }
+                }
+
+                if (!foundNext)
+                {
+                    break;
+                }
+
+                visited.Add(current);
+                if (current == toMap)
+                {
+                    break;
+                }
+
+                for (int i = 0; i < BidirectionalRoutes.Length; i++)
+                {
+                    RpgWorld500xRegionRouteDef edge = BidirectionalRoutes[i];
+                    if (edge.FromMap != current || visited.Contains(edge.ToMap))
+                    {
+                        continue;
+                    }
+
+                    int candMin = currentMin + Math.Max(0, edge.TravelMinutesInGame);
+                    int candHops = currentHops + 1;
+                    bool hasExisting = bestMinutes.TryGetValue(edge.ToMap, out int existingMin);
+                    int existingHops = hasExisting ? bestHopCount[edge.ToMap] : int.MaxValue;
+
+                    if (!hasExisting ||
+                        candMin < existingMin ||
+                        (candMin == existingMin && candHops < existingHops) ||
+                        (candMin == existingMin && candHops == existingHops &&
+                         StringComparer.Ordinal.Compare(edge.RouteId, prevEdge[edge.ToMap].RouteId) < 0))
+                    {
+                        bestMinutes[edge.ToMap] = candMin;
+                        bestHopCount[edge.ToMap] = candHops;
+                        prevEdge[edge.ToMap] = edge;
+                    }
+                }
+            }
+
+            if (!prevEdge.ContainsKey(toMap))
+            {
+                return false;
+            }
+
+            var hopsList = new List<RpgWorld500xRegionRouteDef>();
+            RpgWorldMapId cursor = toMap;
+            while (cursor != fromMap && prevEdge.TryGetValue(cursor, out RpgWorld500xRegionRouteDef step))
+            {
+                hopsList.Add(step);
+                cursor = step.FromMap;
+            }
+
+            hopsList.Reverse();
+            int totalMinutes = bestMinutes[toMap];
+            var chain = new string[hopsList.Count];
+            for (int i = 0; i < hopsList.Count; i++)
+            {
+                chain[i] = hopsList[i].RouteNameZh;
+            }
+
+            string summaryZh = "【跨境路线】共 " + hopsList.Count + " 段｜预计耗时 " + totalMinutes +
+                               " 分钟（" + string.Join(" -> ", chain) + "）";
+
+            plan = new RpgWorld500xRegionPathPlan(
+                fromMap,
+                toMap,
+                isSameRegion: false,
+                isDirect: hopsList.Count == 1,
+                totalTravelMinutesInGame: totalMinutes,
+                hops: hopsList,
+                summaryZh: summaryZh);
+            return true;
         }
 
         public static bool TryTravelToConnectedRegion(
@@ -220,6 +408,45 @@ namespace Rpg.Soundwell
             }
 
             return entries;
+        }
+
+        public static RpgWorld500xWorldAtlasSummary BuildWorldAtlasSummary(
+            IReadOnlyDictionary<string, int> intStore)
+        {
+            List<RpgWorld500xRegionAtlasEntry> entries = BuildWorldAtlasOverview(intStore);
+            int totalClaimed = 0;
+            int totalBounties = 0;
+            int totalRep = 0;
+            RpgWorldMapId highestMap = entries.Count > 0 ? entries[0].MapId : RpgWorldMapId.Soundwell;
+            string highestNameZh = entries.Count > 0 ? entries[0].DisplayNameZh : string.Empty;
+            int highestPoints = entries.Count > 0 ? entries[0].Reputation.Points : int.MinValue;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                RpgWorld500xRegionAtlasEntry e = entries[i];
+                totalClaimed += e.ClaimedBounties;
+                totalBounties += e.TotalBounties;
+                totalRep += e.Reputation.Points;
+                if (e.Reputation.Points > highestPoints)
+                {
+                    highestPoints = e.Reputation.Points;
+                    highestMap = e.MapId;
+                    highestNameZh = e.DisplayNameZh;
+                }
+            }
+
+            int remaining = Math.Max(0, totalBounties - totalClaimed);
+            string summaryZh = "【四境总览】悬赏 " + totalClaimed + "/" + totalBounties +
+                               "｜总声望 " + totalRep + "｜最高声望：" + highestNameZh;
+
+            return new RpgWorld500xWorldAtlasSummary(
+                entries,
+                totalClaimed,
+                totalBounties,
+                remaining,
+                totalRep,
+                highestMap,
+                summaryZh);
         }
     }
 }

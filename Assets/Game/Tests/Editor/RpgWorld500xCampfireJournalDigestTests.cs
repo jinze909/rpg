@@ -66,6 +66,56 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BuildDigest_GuidesToUnfinishedRegionThroughCompletedTransitAndStopsWhenDone()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                var flags = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var entry in boot.Store)
+                    flags[entry.Key] = entry.Value;
+                foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+                {
+                    foreach (var cache in RpgWorld500xContentCatalog.GetCaches(spec.MapId))
+                        flags[cache.MakinomKey] = 1;
+                    foreach (var shortcut in RpgWorld500xContentCatalog.GetShortcuts(spec.MapId))
+                        flags[shortcut.MakinomKey] = 1;
+                    foreach (var npc in RpgWorld500xLivingWorldCatalog.GetFieldNpcs(spec.MapId))
+                        flags[npc.RumorMakinomKey] = 1;
+                    foreach (var spot in RpgWorld500xLivingWorldCatalog.GetStorySpots(spec.MapId))
+                        flags[spot.MakinomKey] = 1;
+                }
+                foreach (var milestone in RpgWorld500xExpeditionMilestoneService.AllMilestones)
+                    flags[milestone.MakinomKey] = 1;
+
+                string remoteKey = RpgWorld500xContentCatalog.GetCaches(RpgWorldMapId.WhitewaterCrossing)[0].MakinomKey;
+                flags[remoteKey] = 0;
+                Vector2 player = facade.Session.Host.PlayerPosition;
+                var snapshot = RpgWorld500xSaveSnapshotSerializer.Capture(
+                    RpgWorldMapId.Soundwell, player, flags, facade.Atmosphere);
+                Assert.IsTrue(boot.TryImportSaveJson(RpgWorld500xSaveSnapshotSerializer.Serialize(snapshot), out string error), error);
+                var remote = RpgWorld500xCampfireJournalDigestService.BuildDigest(boot);
+                StringAssert.Contains("中转", remote.NextObjectiveHintZh);
+                StringAssert.Contains(RpgExpandedWorldScale.GetSpec(RpgWorldMapId.WhitewaterCrossing).DisplayNameZh,
+                    remote.NextObjectiveHintZh);
+                StringAssert.Contains(RpgWorld500xWorldAtlasPortalService.GetConnectedRegions(RpgWorldMapId.Soundwell)[0].RouteNameZh,
+                    remote.NextObjectiveHintZh);
+                Assert.AreEqual(0, boot.Store[remoteKey]);
+
+                flags[remoteKey] = 1;
+                snapshot = RpgWorld500xSaveSnapshotSerializer.Capture(
+                    RpgWorldMapId.Soundwell, player, flags, facade.Atmosphere);
+                Assert.IsTrue(boot.TryImportSaveJson(RpgWorld500xSaveSnapshotSerializer.Serialize(snapshot), out error), error);
+                var done = RpgWorld500xCampfireJournalDigestService.BuildDigest(boot);
+                StringAssert.Contains("四境暂无未探索野外目标", done.NextObjectiveHintZh);
+                StringAssert.DoesNotContain("中转", done.NextObjectiveHintZh);
+            }
+        }
+
+        [Test]
         public void BuildDigest_SynthesizesLiveWorldStatePrioritizesHazardAndIncludesActiveSupplyBuffs()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(

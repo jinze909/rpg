@@ -51,6 +51,32 @@ namespace Rpg.Soundwell
         public string SummaryZh { get; }
     }
 
+    public readonly struct RpgWorld500xBeaconNetworkSummary
+    {
+        public RpgWorld500xBeaconNetworkSummary(
+            RpgWorldMapId mapId,
+            int discoveredBeaconCount,
+            int totalBeaconCount,
+            int undiscoveredBeaconCount,
+            float coverageRatio,
+            string summaryZh)
+        {
+            MapId = mapId;
+            DiscoveredBeaconCount = discoveredBeaconCount;
+            TotalBeaconCount = totalBeaconCount;
+            UndiscoveredBeaconCount = undiscoveredBeaconCount;
+            CoverageRatio = coverageRatio;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int DiscoveredBeaconCount { get; }
+        public int TotalBeaconCount { get; }
+        public int UndiscoveredBeaconCount { get; }
+        public float CoverageRatio { get; }
+        public string SummaryZh { get; }
+    }
+
     /// <summary>
     /// Compares direct traversal vs. warping to the nearest discovered fast-travel
     /// beacon across 500x-area maps, estimating walk/sprint duration under active
@@ -63,6 +89,65 @@ namespace Rpg.Soundwell
         public const float BaseSprintTilesPerSecond = 11.5f;
         public const float DefaultFastTravelOverheadTiles = 16f;
         public const float DefaultDangerProximityTiles = 48f;
+
+        public static RpgWorld500xBeaconNetworkSummary BuildBeaconNetworkSummary(
+            RpgWorldMapId mapId,
+            RpgMapExplorationTracker tracker)
+        {
+            if (!Enum.IsDefined(typeof(RpgWorldMapId), mapId))
+            {
+                return new RpgWorld500xBeaconNetworkSummary(
+                    mapId, 0, 0, 0, 0f, "【传送烽火】未知大区");
+            }
+
+            IReadOnlyList<RpgMapLandmarkMarker> markers = RpgWorldLandmarkCatalog.GetMarkers(mapId);
+            int total = 0;
+            int discovered = 0;
+            for (int i = 0; i < markers.Count; i++)
+            {
+                RpgMapLandmarkMarker m = markers[i];
+                if (!m.SupportsFastTravel)
+                {
+                    continue;
+                }
+
+                total++;
+                if (tracker != null && tracker.IsMarkerDiscovered(m.Id))
+                {
+                    discovered++;
+                }
+            }
+
+            int undiscovered = Math.Max(0, total - discovered);
+            float ratio = total > 0 ? (float)discovered / total : 0f;
+            string summaryZh = (total > 0 && discovered >= total)
+                ? "【传送烽火】全境 " + total + " 处烽火已全部点亮"
+                : "【传送烽火】已点亮 " + discovered + "/" + total + " 处（" +
+                  Mathf.RoundToInt(ratio * 100f) + "%）";
+
+            return new RpgWorld500xBeaconNetworkSummary(
+                mapId, discovered, total, undiscovered, ratio, summaryZh);
+        }
+
+        public static bool TryFindNearestDiscoveredBeacon(
+            RpgWorldMapId mapId,
+            Vector2 playerTile,
+            RpgMapExplorationTracker tracker,
+            out RpgMapLandmarkMarker nearest,
+            out float distanceTiles)
+        {
+            return TryFindNearestBeacon(mapId, playerTile, tracker, wantDiscovered: true, out nearest, out distanceTiles);
+        }
+
+        public static bool TryFindNearestUndiscoveredBeacon(
+            RpgWorldMapId mapId,
+            Vector2 playerTile,
+            RpgMapExplorationTracker tracker,
+            out RpgMapLandmarkMarker nearest,
+            out float distanceTiles)
+        {
+            return TryFindNearestBeacon(mapId, playerTile, tracker, wantDiscovered: false, out nearest, out distanceTiles);
+        }
 
         public static RpgWorld500xRoutePlan PlanRoute(
             RpgWorldMapId mapId,
@@ -108,7 +193,9 @@ namespace Rpg.Soundwell
 
                     Vector2 beaconCenter = new Vector2(m.Tile.x + 0.5f, m.Tile.y + 0.5f);
                     float legDist = Vector2.Distance(beaconCenter, destCenter);
-                    if (legDist < bestBeaconWalkDist)
+                    if (!hasBeacon || legDist < bestBeaconWalkDist ||
+                        (Mathf.Approximately(legDist, bestBeaconWalkDist) &&
+                         StringComparer.Ordinal.Compare(m.Id, bestBeaconId) < 0))
                     {
                         hasBeacon = true;
                         bestBeaconWalkDist = legDist;
@@ -169,6 +256,52 @@ namespace Rpg.Soundwell
                 sprintSeconds,
                 crossesDanger,
                 summary);
+        }
+
+        private static bool TryFindNearestBeacon(
+            RpgWorldMapId mapId,
+            Vector2 playerTile,
+            RpgMapExplorationTracker tracker,
+            bool wantDiscovered,
+            out RpgMapLandmarkMarker nearest,
+            out float distanceTiles)
+        {
+            nearest = default;
+            distanceTiles = 0f;
+            if (!Enum.IsDefined(typeof(RpgWorldMapId), mapId) || !IsFinite(playerTile) || tracker == null)
+            {
+                return false;
+            }
+
+            IReadOnlyList<RpgMapLandmarkMarker> markers = RpgWorldLandmarkCatalog.GetMarkers(mapId);
+            bool found = false;
+            float bestDistSq = float.MaxValue;
+            for (int i = 0; i < markers.Count; i++)
+            {
+                RpgMapLandmarkMarker m = markers[i];
+                if (!m.SupportsFastTravel || tracker.IsMarkerDiscovered(m.Id) != wantDiscovered)
+                {
+                    continue;
+                }
+
+                float dx = playerTile.x - (m.Tile.x + 0.5f);
+                float dy = playerTile.y - (m.Tile.y + 0.5f);
+                float distSq = (dx * dx) + (dy * dy);
+                if (!found || distSq < bestDistSq ||
+                    (Mathf.Approximately(distSq, bestDistSq) && StringComparer.Ordinal.Compare(m.Id, nearest.Id) < 0))
+                {
+                    found = true;
+                    bestDistSq = distSq;
+                    nearest = m;
+                }
+            }
+
+            if (found)
+            {
+                distanceTiles = Mathf.Sqrt(bestDistSq);
+            }
+
+            return found;
         }
 
         private static bool SegmentNearAnyDangerZone(

@@ -70,5 +70,61 @@ namespace Rpg.Tests.Editor
             Assert.IsTrue(plan.CrossesDangerZone);
             Assert.IsTrue(plan.SummaryZh.Contains("途经危险区"));
         }
+
+        [Test]
+        public void BeaconNetworkSummaryAndNearestQueries_AreReadOnlyHandleInvalidInputAndTrackDiscoveries()
+        {
+            var tracker = new RpgMapExplorationTracker(RpgWorldMapId.RedSaltHarbor);
+
+            // Invalid enum, null tracker, and non-finite coordinates are rejected safely.
+            RpgWorld500xBeaconNetworkSummary invalidSummary =
+                RpgWorld500xFastTravelRoutePlanner.BuildBeaconNetworkSummary((RpgWorldMapId)255, tracker);
+            Assert.AreEqual(0, invalidSummary.TotalBeaconCount);
+            StringAssert.Contains("未知大区", invalidSummary.SummaryZh);
+
+            Assert.IsFalse(RpgWorld500xFastTravelRoutePlanner.TryFindNearestDiscoveredBeacon(
+                (RpgWorldMapId)255, Vector2.zero, tracker, out _, out _));
+            Assert.IsFalse(RpgWorld500xFastTravelRoutePlanner.TryFindNearestUndiscoveredBeacon(
+                RpgWorldMapId.RedSaltHarbor, new Vector2(float.NaN, 0f), tracker, out _, out _));
+            Assert.IsFalse(RpgWorld500xFastTravelRoutePlanner.TryFindNearestDiscoveredBeacon(
+                RpgWorldMapId.RedSaltHarbor, Vector2.zero, null, out _, out _));
+
+            RpgWorld500xBeaconNetworkSummary before =
+                RpgWorld500xFastTravelRoutePlanner.BuildBeaconNetworkSummary(RpgWorldMapId.RedSaltHarbor, tracker);
+            Assert.Greater(before.TotalBeaconCount, 1);
+            Assert.Greater(before.UndiscoveredBeaconCount, 0);
+            Assert.AreEqual(before.TotalBeaconCount - before.DiscoveredBeaconCount, before.UndiscoveredBeaconCount);
+            StringAssert.Contains("【传送烽火】", before.SummaryZh);
+
+            Assert.IsTrue(RpgWorld500xFastTravelRoutePlanner.TryFindNearestUndiscoveredBeacon(
+                RpgWorldMapId.RedSaltHarbor, new Vector2(1000f, 1000f), tracker,
+                out RpgMapLandmarkMarker targetBeacon, out float distBefore));
+            Assert.IsTrue(targetBeacon.SupportsFastTravel);
+            Assert.GreaterOrEqual(distBefore, 0f);
+            Assert.IsFalse(tracker.IsMarkerDiscovered(targetBeacon.Id));
+
+            // Discover targetBeacon -> summary increments and nearest discovered/undiscovered update.
+            Assert.IsTrue(tracker.TryDiscoverMarker(targetBeacon.Id));
+            RpgWorld500xBeaconNetworkSummary after =
+                RpgWorld500xFastTravelRoutePlanner.BuildBeaconNetworkSummary(RpgWorldMapId.RedSaltHarbor, tracker);
+            Assert.AreEqual(before.DiscoveredBeaconCount + 1, after.DiscoveredBeaconCount);
+            Assert.AreEqual(before.UndiscoveredBeaconCount - 1, after.UndiscoveredBeaconCount);
+            Assert.Greater(after.CoverageRatio, before.CoverageRatio);
+
+            Vector2 beaconCenter = new Vector2(targetBeacon.Tile.x + 0.5f, targetBeacon.Tile.y + 0.5f);
+            Assert.IsTrue(RpgWorld500xFastTravelRoutePlanner.TryFindNearestDiscoveredBeacon(
+                RpgWorldMapId.RedSaltHarbor, beaconCenter, tracker,
+                out RpgMapLandmarkMarker nearestDisc, out float discDist));
+            Assert.AreEqual(targetBeacon.Id, nearestDisc.Id);
+            Assert.AreEqual(0f, discDist, 0.01f);
+
+            if (after.UndiscoveredBeaconCount > 0)
+            {
+                Assert.IsTrue(RpgWorld500xFastTravelRoutePlanner.TryFindNearestUndiscoveredBeacon(
+                    RpgWorldMapId.RedSaltHarbor, beaconCenter, tracker,
+                    out RpgMapLandmarkMarker nextUndisc, out _));
+                Assert.AreNotEqual(targetBeacon.Id, nextUndisc.Id);
+            }
+        }
     }
 }
