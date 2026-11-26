@@ -72,7 +72,7 @@ namespace Rpg.Soundwell
 
         public float GetRemainingCooldown(float nowSeconds)
         {
-            if (float.IsNaN(nowSeconds) || float.IsInfinity(nowSeconds))
+            if (!IsFinite(nowSeconds) || nowSeconds < 0f)
             {
                 return _cooldownSeconds;
             }
@@ -105,9 +105,16 @@ namespace Rpg.Soundwell
             pings = new List<RpgWorld500xReconPing>();
             summaryBannerZh = string.Empty;
 
-            if (!IsFinite(playerTile) || float.IsNaN(nowSeconds) || float.IsInfinity(nowSeconds))
+            if (!IsFinite(playerTile) || !IsFinite(nowSeconds) || nowSeconds < 0f)
             {
-                summaryBannerZh = "勘测坐标无效";
+                summaryBannerZh = "勘测坐标或时钟无效";
+                return false;
+            }
+
+            // Invalid map requests must not consume a valid session's pulse cooldown.
+            if (!IsPlayableMap(mapId))
+            {
+                summaryBannerZh = "勘测区域无效";
                 return false;
             }
 
@@ -162,7 +169,7 @@ namespace Rpg.Soundwell
             float maxRadiusTiles = 2000f)
         {
             nearest = default;
-            if (!IsFinite(playerTile))
+            if (!IsFinite(playerTile) || !IsPlayableMap(mapId))
             {
                 return false;
             }
@@ -358,6 +365,18 @@ namespace Rpg.Soundwell
             string dir = ResolveDirection8Zh(playerTile, tile);
             string formatted = "[" + kindTagZh + "] " + titleZh + "（" + dir + " " + Mathf.CeilToInt(dist) + " 格）";
             output.Add(new RpgWorld500xReconPing(kind, id, titleZh, tile, dist, dir, formatted));
+        }
+
+        private static bool IsPlayableMap(RpgWorldMapId mapId)
+        {
+            IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
+            for (int i = 0; i < specs.Count; i++)
+            {
+                if (specs[i].MapId == mapId)
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
