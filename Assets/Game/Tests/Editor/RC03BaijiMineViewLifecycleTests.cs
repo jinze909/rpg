@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
@@ -67,6 +68,118 @@ namespace Rpg.Tests.Editor
             view.CanteenVisitButton.onClick.Invoke();
             view.PumpRoomVisitButton.onClick.Invoke();
             view.CharterTalksButton.onClick.Invoke();
+        }
+
+        [Test]
+        public void EffectiveInputLockProtectsIslandEvidenceConsentAndExplicitResolution()
+        {
+            var root = new GameObject("RC03 effective input lock");
+            var group = root.AddComponent<CanvasGroup>();
+            var values = new Dictionary<string, int>();
+            RC03BaijiMineView view = null;
+            try
+            {
+                RC03BaijiMineSession session = CreateSession(values);
+                int diagramCalls = 0, trainingCalls = 0, consentCalls = 0, submits = 0;
+                bool matched = false, trained = false, agreed = false;
+                view = new RC03BaijiMineView(root.transform, session,
+                    () => { diagramCalls++; return matched; },
+                    () => { trainingCalls++; return trained; },
+                    () => { consentCalls++; return agreed; },
+                    resolution =>
+                    {
+                        submits++;
+                        Assert.That(session.TrySettleResolution(
+                            resolution, Reader(values), (key, value) => values[key] = value), Is.True);
+                    });
+
+                void AssertBlockedClicks()
+                {
+                    var stage = session.Stage;
+                    var visits = session.VisitsCompleted;
+                    bool diagram = session.PumpDiagramVerified;
+                    bool training = session.SuccessorTrainingSecured;
+                    bool consent = session.LanRuoConsentedToStay;
+                    int[] counts = { diagramCalls, trainingCalls, consentCalls, submits };
+                    var before = new Dictionary<string, int>(values);
+                    Button[] buttons = { view.CanteenVisitButton, view.PumpRoomVisitButton,
+                        view.CharterTalksButton, view.AmendCharterButton,
+                        view.SecretEvacuateButton, view.StayOneYearButton };
+
+                    group.interactable = false;
+                    foreach (Button button in buttons) button.onClick.Invoke();
+                    group.interactable = true;
+                    view.Panel.gameObject.SetActive(false);
+                    foreach (Button button in buttons) button.onClick.Invoke();
+                    view.Panel.gameObject.SetActive(true);
+
+                    Assert.That(session.Stage, Is.EqualTo(stage));
+                    Assert.That(session.VisitsCompleted, Is.EqualTo(visits));
+                    Assert.That(session.PumpDiagramVerified, Is.EqualTo(diagram));
+                    Assert.That(session.SuccessorTrainingSecured, Is.EqualTo(training));
+                    Assert.That(session.LanRuoConsentedToStay, Is.EqualTo(consent));
+                    Assert.That(new[] { diagramCalls, trainingCalls, consentCalls, submits },
+                        Is.EqualTo(counts));
+                    CollectionAssert.AreEquivalent(before, values);
+                }
+
+                AssertBlockedClicks();
+                view.CanteenVisitButton.onClick.Invoke();
+                AssertBlockedClicks();
+                view.PumpRoomVisitButton.onClick.Invoke();
+                view.CharterTalksButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC03Stage.ResolutionDecision));
+
+                AssertBlockedClicks();
+                view.SecureTrainingButton.onClick.Invoke();
+                Assert.That(trainingCalls, Is.Zero);
+                view.VerifyDiagramButton.onClick.Invoke();
+                Assert.That(session.PumpDiagramVerified, Is.False);
+                matched = true;
+                AssertBlockedClicks();
+                view.VerifyDiagramButton.onClick.Invoke();
+                Assert.That(session.PumpDiagramVerified, Is.True);
+                view.SecureTrainingButton.onClick.Invoke();
+                Assert.That(session.SuccessorTrainingSecured, Is.False);
+                trained = true;
+                AssertBlockedClicks();
+                view.SecureTrainingButton.onClick.Invoke();
+                Assert.That(session.SuccessorTrainingSecured, Is.True);
+                Assert.That(view.AmendCharterButton.IsInteractable(), Is.True);
+
+                view.AskLanRuoStayButton.onClick.Invoke();
+                Assert.That(session.LanRuoConsentedToStay, Is.False);
+                view.StayOneYearButton.onClick.Invoke();
+                Assert.That(submits, Is.Zero);
+                agreed = true;
+                AssertBlockedClicks();
+                view.AskLanRuoStayButton.onClick.Invoke();
+                Assert.That(session.LanRuoConsentedToStay, Is.True);
+                Assert.That(view.StayOneYearButton.IsInteractable(), Is.True);
+                AssertBlockedClicks();
+                Assert.That(values.ContainsKey(RC03BaijiMineFacts.ConfirmedKey), Is.False);
+
+                view.StayOneYearButton.onClick.Invoke();
+                Assert.That(submits, Is.EqualTo(1));
+                Assert.That(session.IsResolved, Is.True);
+                Assert.That(RC03BaijiMineFacts.TryRead(Reader(values), out RC03BaijiMineRecord? record), Is.True);
+                Assert.That(record.HasValue, Is.True);
+                Assert.That(record.Value.Resolution, Is.EqualTo(RC03Resolution.StayOneYearByConsent));
+                Assert.That(record.Value.LanRuoConsentedToStay, Is.True);
+                Assert.That(record.Value.PumpDiagramVerified, Is.True);
+                Assert.That(record.Value.SuccessorTrainingSecured, Is.True);
+                Assert.That(record.Value.ChairmanLuoRegisterNoteRecorded, Is.True);
+                Assert.That(record.Value.IslandWaterDisrupted, Is.False);
+                Assert.That(record.Value.LanRuoQueuedForNextBatch, Is.False);
+                AssertBlockedClicks();
+                view.StayOneYearButton.onClick.Invoke();
+                Assert.That(submits, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
 
         [Test]
