@@ -334,27 +334,34 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void SettlementEvidenceCannotSaveAfterClosingHost(bool closeDuringFee)
+        [TestCase(0)] // Outcome evidence in the host.
+        [TestCase(1)] // Fee evidence during the initial view refresh.
+        [TestCase(2)] // Fee evidence in the host after outcome read.
+        public void SettlementEvidenceCannotSaveAfterClosingHost(int closeAtFeeRead)
         {
             var root = new GameObject("M09 settlement evidence teardown");
             var values = new Dictionary<string, int>();
             SeedVerifiedExtraction(values);
             M09BerthTableHost host = null;
             bool closeOnRead = false;
+            int feeReads = 0, outcomeReads = 0;
             try
             {
                 host = NewHost(root.transform, values,
                     shenPresent: () => false,
                     ruiya: () =>
                     {
-                        if (closeOnRead && !closeDuringFee) host.Dispose();
+                        if (closeOnRead)
+                        {
+                            outcomeReads++;
+                            if (closeAtFeeRead == 0) host.Dispose();
+                        }
                         return M09RuiyaOutcome.Deferred;
                     },
                     shipwrightFeePaidInWorld: () =>
                     {
-                        if (closeOnRead && closeDuringFee) host.Dispose();
+                        if (closeOnRead && ++feeReads == closeAtFeeRead)
+                            host.Dispose();
                         return true;
                     });
                 Assert.That(host.TryOpen(), Is.True);
@@ -364,6 +371,8 @@ namespace Rpg.Tests.Editor
                 closeOnRead = true;
 
                 Assert.DoesNotThrow(() => button.onClick.Invoke());
+                Assert.That(feeReads, Is.EqualTo(closeAtFeeRead == 2 ? 2 : 1));
+                Assert.That(outcomeReads, Is.EqualTo(closeAtFeeRead == 1 ? 0 : 1));
                 Assert.That(host.IsDisposed, Is.True);
                 Assert.That(host.ActiveView, Is.Null);
                 Assert.That(host.HasRecordedTable, Is.False);
