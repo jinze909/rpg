@@ -97,5 +97,59 @@ namespace Rpg.Tests.Editor
             Assert.GreaterOrEqual(summary.OverallCompletionPercent, 0);
             Assert.LessOrEqual(summary.OverallCompletionPercent, 100);
         }
+
+        [Test]
+        public void BuildCartographyPreviewAndDistrictCoverage_AreReadOnlyAndTrackThresholdsAccurately()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            Action<string, int> write = (k, v) => store[k] = v;
+
+            RpgWorld500xMapLayout soundwell = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            int rewardTotal = 0;
+            var tracker = new RpgWorld500xDistrictProgressTracker(
+                soundwell.Spec, read, write, m => rewardTotal += m.SaltSilverReward);
+
+            // District coverage starts at 0, handles unknown/empty ids safely, and increases on visit.
+            Assert.AreEqual(0f, tracker.ComputeDistrictChunkCoverageRatio(null), 0.0001f);
+            Assert.AreEqual(0f, tracker.ComputeDistrictChunkCoverageRatio("unknown_district"), 0.0001f);
+            Assert.AreEqual(0f, tracker.ComputeDistrictChunkCoverageRatio("sw_dist_sw"), 0.0001f);
+            tracker.RecordPlayerTile(new Vector2(200.5f, 300.5f), 1, out _);
+            Assert.Greater(tracker.ComputeDistrictChunkCoverageRatio("sw_dist_sw"), 0f);
+            Assert.AreEqual(0f, tracker.ComputeDistrictChunkCoverageRatio("sw_dist_ne"), 0.0001f);
+
+            // Below 25%: next threshold is 25%, remaining silver is 45 + 90 + 180 = 315.
+            RpgWorld500xCartographyProgressPreview early = tracker.BuildCartographyPreview(10);
+            Assert.AreEqual(RpgWorldMapId.Soundwell, early.MapId);
+            Assert.AreEqual(0, early.ClaimedCount);
+            Assert.AreEqual(3, early.TotalMilestones);
+            Assert.AreEqual(0, early.ClaimableCount);
+            Assert.AreEqual(315, early.RemainingSaltSilver);
+            Assert.IsTrue(early.HasNextThreshold);
+            Assert.AreEqual(25, early.NextThresholdPercent);
+            StringAssert.Contains("下一阶 25%", early.SummaryZh);
+
+            // At 55%: 25% & 50% are claimable (+135), strictly read-only (no writes or callbacks).
+            RpgWorld500xCartographyProgressPreview ready = tracker.BuildCartographyPreview(55);
+            Assert.AreEqual(0, ready.ClaimedCount);
+            Assert.AreEqual(2, ready.ClaimableCount);
+            Assert.AreEqual(135, ready.ClaimableSaltSilver);
+            Assert.AreEqual(315, ready.RemainingSaltSilver);
+            Assert.IsTrue(ready.HasNextThreshold);
+            Assert.AreEqual(100, ready.NextThresholdPercent);
+            StringAssert.Contains("可领 2 项（+135 盐银）", ready.SummaryZh);
+            Assert.AreEqual(0, store.Count);
+            Assert.AreEqual(0, rewardTotal);
+
+            // After claiming all 3 at 100%: 3/3 claimed, 0 remaining, cleared copy.
+            Assert.AreEqual(3, tracker.ClaimEligibleMilestones(100).Count);
+            Assert.AreEqual(315, rewardTotal);
+            RpgWorld500xCartographyProgressPreview cleared = tracker.BuildCartographyPreview(100);
+            Assert.AreEqual(3, cleared.ClaimedCount);
+            Assert.AreEqual(0, cleared.ClaimableCount);
+            Assert.AreEqual(0, cleared.RemainingSaltSilver);
+            Assert.IsFalse(cleared.HasNextThreshold);
+            StringAssert.Contains("本境堪舆里程碑已全部结清", cleared.SummaryZh);
+        }
     }
 }

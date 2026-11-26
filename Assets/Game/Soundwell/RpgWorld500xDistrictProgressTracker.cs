@@ -47,6 +47,44 @@ namespace Rpg.Soundwell
             "rpg.return.world.cartography." + MapId.ToString().ToLowerInvariant() + ".tier" + ThresholdPercent;
     }
 
+    public readonly struct RpgWorld500xCartographyProgressPreview
+    {
+        public RpgWorld500xCartographyProgressPreview(
+            RpgWorldMapId mapId,
+            int completionPercent,
+            int claimedCount,
+            int totalMilestones,
+            int claimableCount,
+            int claimableSaltSilver,
+            int remainingSaltSilver,
+            bool hasNextThreshold,
+            int nextThresholdPercent,
+            string summaryZh)
+        {
+            MapId = mapId;
+            CompletionPercent = completionPercent;
+            ClaimedCount = claimedCount;
+            TotalMilestones = totalMilestones;
+            ClaimableCount = claimableCount;
+            ClaimableSaltSilver = claimableSaltSilver;
+            RemainingSaltSilver = remainingSaltSilver;
+            HasNextThreshold = hasNextThreshold;
+            NextThresholdPercent = nextThresholdPercent;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int CompletionPercent { get; }
+        public int ClaimedCount { get; }
+        public int TotalMilestones { get; }
+        public int ClaimableCount { get; }
+        public int ClaimableSaltSilver { get; }
+        public int RemainingSaltSilver { get; }
+        public bool HasNextThreshold { get; }
+        public int NextThresholdPercent { get; }
+        public string SummaryZh { get; }
+    }
+
     public readonly struct RpgWorld500xMapCompletionSummary
     {
         public RpgWorld500xMapCompletionSummary(
@@ -188,7 +226,8 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Tracks chunk-level fog-of-war cartography, active district transitions,
-    /// cross-system POI completion, and idempotent regional cartography rewards.
+    /// cross-system POI completion, per-district fog coverage, read-only cartography
+    /// milestone previews, and idempotent regional cartography rewards.
     /// </summary>
     public sealed class RpgWorld500xDistrictProgressTracker
     {
@@ -275,6 +314,123 @@ namespace Rpg.Soundwell
             }
 
             return _visitedChunkIndices.Contains((chunkY * _chunksWide) + chunkX);
+        }
+
+        /// <summary>
+        /// Computes the fraction [0, 1] of map chunks within the specified district
+        /// that have been revealed in fog-of-war.
+        /// </summary>
+        public float ComputeDistrictChunkCoverageRatio(string districtId)
+        {
+            if (string.IsNullOrEmpty(districtId))
+            {
+                return 0f;
+            }
+
+            IReadOnlyList<RpgWorld500xDistrictDef> districts = RpgWorld500xDistrictCatalog.GetDistricts(_mapId);
+            RpgWorld500xDistrictDef target = default;
+            bool found = false;
+            for (int i = 0; i < districts.Count; i++)
+            {
+                if (string.Equals(districts[i].Id, districtId, StringComparison.Ordinal))
+                {
+                    target = districts[i];
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                return 0f;
+            }
+
+            int chunkSize = Math.Max(1, RpgLargeMapChunkRenderer.ChunkSizeTiles);
+            int minCx = Mathf.Clamp(target.BoundsTiles.xMin / chunkSize, 0, _chunksWide - 1);
+            int maxCx = Mathf.Clamp((target.BoundsTiles.xMax - 1) / chunkSize, 0, _chunksWide - 1);
+            int minCy = Mathf.Clamp(target.BoundsTiles.yMin / chunkSize, 0, _chunksHigh - 1);
+            int maxCy = Mathf.Clamp((target.BoundsTiles.yMax - 1) / chunkSize, 0, _chunksHigh - 1);
+
+            int total = 0;
+            int visited = 0;
+            for (int cy = minCy; cy <= maxCy; cy++)
+            {
+                for (int cx = minCx; cx <= maxCx; cx++)
+                {
+                    total++;
+                    if (_visitedChunkIndices.Contains((cy * _chunksWide) + cx))
+                    {
+                        visited++;
+                    }
+                }
+            }
+
+            return total > 0 ? Mathf.Clamp01((float)visited / total) : 0f;
+        }
+
+        /// <summary>
+        /// Builds a read-only preview of cartography milestone progress and claimable
+        /// Salt-Silver for the given completion percent without mutating claim flags.
+        /// </summary>
+        public RpgWorld500xCartographyProgressPreview BuildCartographyPreview(int completionPercent)
+        {
+            int clamped = Mathf.Clamp(completionPercent, 0, 100);
+            int claimedCount = 0;
+            int claimableCount = 0;
+            int claimableSilver = 0;
+            int remainingSilver = 0;
+            bool hasNext = false;
+            int nextThreshold = 0;
+
+            for (int i = 0; i < _milestones.Length; i++)
+            {
+                RpgWorld500xCartographyMilestone m = _milestones[i];
+                if (_getInt(m.MakinomKey) == 1)
+                {
+                    claimedCount++;
+                    continue;
+                }
+
+                remainingSilver += m.SaltSilverReward;
+                if (clamped >= m.ThresholdPercent)
+                {
+                    claimableCount++;
+                    claimableSilver += m.SaltSilverReward;
+                }
+                else if (!hasNext)
+                {
+                    hasNext = true;
+                    nextThreshold = m.ThresholdPercent;
+                }
+            }
+
+            string summaryZh;
+            if (claimedCount >= _milestones.Length)
+            {
+                summaryZh = "【堪舆里程碑】已领 " + claimedCount + "/" + _milestones.Length + " · 本境堪舆里程碑已全部结清";
+            }
+            else if (claimableCount > 0)
+            {
+                summaryZh = "【堪舆里程碑】已领 " + claimedCount + "/" + _milestones.Length +
+                            " · 可领 " + claimableCount + " 项（+" + claimableSilver + " 盐银）· 剩余总赏 " + remainingSilver + " 盐银";
+            }
+            else
+            {
+                summaryZh = "【堪舆里程碑】已领 " + claimedCount + "/" + _milestones.Length +
+                            " · 下一阶 " + nextThreshold + "%（当前 " + clamped + "%）· 剩余总赏 " + remainingSilver + " 盐银";
+            }
+
+            return new RpgWorld500xCartographyProgressPreview(
+                _mapId,
+                clamped,
+                claimedCount,
+                _milestones.Length,
+                claimableCount,
+                claimableSilver,
+                remainingSilver,
+                hasNext,
+                nextThreshold,
+                summaryZh);
         }
 
         public RpgWorld500xMapCompletionSummary ComputeCompletionSummary(
