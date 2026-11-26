@@ -4,6 +4,41 @@ using UnityEngine;
 
 namespace Rpg.Soundwell
 {
+    public readonly struct RpgWorld500xMapFirstClearSummary
+    {
+        public RpgWorld500xMapFirstClearSummary(
+            RpgWorldMapId mapId,
+            int totalDangerZones,
+            int clearedDangerZones,
+            int remainingDangerZones,
+            int remainingStandardSaltSilver,
+            int remainingLockBreakSaltSilver,
+            int remainingStandardReputation,
+            int remainingLockBreakReputation,
+            string summaryZh)
+        {
+            MapId = mapId;
+            TotalDangerZones = totalDangerZones;
+            ClearedDangerZones = clearedDangerZones;
+            RemainingDangerZones = remainingDangerZones;
+            RemainingStandardSaltSilver = remainingStandardSaltSilver;
+            RemainingLockBreakSaltSilver = remainingLockBreakSaltSilver;
+            RemainingStandardReputation = remainingStandardReputation;
+            RemainingLockBreakReputation = remainingLockBreakReputation;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int TotalDangerZones { get; }
+        public int ClearedDangerZones { get; }
+        public int RemainingDangerZones { get; }
+        public int RemainingStandardSaltSilver { get; }
+        public int RemainingLockBreakSaltSilver { get; }
+        public int RemainingStandardReputation { get; }
+        public int RemainingLockBreakReputation { get; }
+        public string SummaryZh { get; }
+    }
+
     public readonly struct RpgWorld500xDangerVictoryReward
     {
         public RpgWorld500xDangerVictoryReward(
@@ -60,6 +95,81 @@ namespace Rpg.Soundwell
 
         public static string FirstClearKey(string markerId) =>
             FirstClearKeyPrefix + (markerId ?? string.Empty);
+
+        public static bool IsFirstClearCompleted(string markerId, Func<string, int> getInt)
+        {
+            return !string.IsNullOrWhiteSpace(markerId) &&
+                   getInt != null &&
+                   getInt(FirstClearKey(markerId)) != 0;
+        }
+
+        public static RpgWorld500xDangerVictoryReward PreviewVictoryReward(
+            RpgWorldMapId mapId,
+            string markerId,
+            bool lockBreakAchieved,
+            Func<string, int> getInt = null)
+        {
+            bool isFirstClear = !string.IsNullOrWhiteSpace(markerId) && !IsFirstClearCompleted(markerId, getInt);
+            return ComputeReward(mapId, markerId, lockBreakAchieved, isFirstClear);
+        }
+
+        public static RpgWorld500xMapFirstClearSummary SummarizeRemainingFirstClearRewards(
+            RpgWorld500xMapLayout layout,
+            Func<string, int> getInt = null)
+        {
+            if (layout == null)
+            {
+                throw new ArgumentNullException(nameof(layout));
+            }
+
+            RpgWorldMapId mapId = layout.Spec.MapId;
+            int total = 0;
+            int cleared = 0;
+            int remStdSilver = 0;
+            int remLbSilver = 0;
+            int remStdRep = 0;
+            int remLbRep = 0;
+
+            for (int i = 0; i < layout.Markers.Count; i++)
+            {
+                RpgMapLandmarkMarker marker = layout.Markers[i];
+                if (marker.Category != RpgMapMarkerCategory.DangerZone)
+                {
+                    continue;
+                }
+
+                total++;
+                if (IsFirstClearCompleted(marker.Id, getInt))
+                {
+                    cleared++;
+                    continue;
+                }
+
+                RpgWorld500xDangerVictoryReward std = ComputeReward(mapId, marker.Id, lockBreakAchieved: false, isFirstClear: true);
+                RpgWorld500xDangerVictoryReward lb = ComputeReward(mapId, marker.Id, lockBreakAchieved: true, isFirstClear: true);
+                remStdSilver += std.SaltSilverReward;
+                remLbSilver += lb.SaltSilverReward;
+                remStdRep += std.ReputationGain;
+                remLbRep += lb.ReputationGain;
+            }
+
+            int remaining = Math.Max(0, total - cleared);
+            string summaryZh = remaining > 0
+                ? "【首破悬赏余量】" + layout.Spec.DisplayNameZh + "｜已首破 " + cleared + "/" + total +
+                  "｜剩余盐银 " + remStdSilver + "（破锁 " + remLbSilver + "）｜声望 " + remStdRep + "（破锁 " + remLbRep + "）"
+                : "【首破悬赏余量】" + layout.Spec.DisplayNameZh + "｜已全部完成首破（" + cleared + "/" + total + "）";
+
+            return new RpgWorld500xMapFirstClearSummary(
+                mapId,
+                total,
+                cleared,
+                remaining,
+                remStdSilver,
+                remLbSilver,
+                remStdRep,
+                remLbRep,
+                summaryZh);
+        }
 
         public static RpgWorld500xDangerVictoryReward ComputeReward(
             RpgWorldMapId mapId,
