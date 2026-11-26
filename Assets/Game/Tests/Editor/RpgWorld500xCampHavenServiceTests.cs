@@ -141,6 +141,39 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CampRestPersistsReputationInLiveSaveEvenWithStandaloneHaven()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.RedSaltHarbor,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var map = RpgWorldMapId.RedSaltHarbor;
+                var host = boot.Driver.Facade.Session.Host;
+                Assert.IsTrue(host.Tracker.TryDiscoverMarker("rsh.salt-market"));
+                string key = RpgWorld500xRegionalReputationService.ReputationKey(map);
+
+                // No external read/write delegates are needed for a live rest.
+                var haven = new RpgWorld500xCampHavenService();
+                var rested = haven.RestAndSyncCampHaven(boot);
+                Assert.Greater(rested.Reputation.Points, 0);
+                Assert.IsTrue(boot.Store.TryGetValue(key, out int savedPoints));
+                Assert.AreEqual(rested.Reputation.Points, savedPoints);
+
+                using (var restored = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: map, overrideTileSlices: new Sprite[] { null }))
+                {
+                    Assert.IsTrue(restored.TryImportSaveJson(rested.SaveSnapshotJson, out string error), error);
+                    Assert.AreEqual(savedPoints, restored.Store[key]);
+                    var liveReader = new RpgWorld500xRegionalReputationService(
+                        k => restored.Store.TryGetValue(k, out int v) ? v : 0);
+                    Assert.AreEqual(rested.Reputation.Rank, liveReader.GetSnapshot(map).Rank);
+                    Assert.AreEqual(rested.Reputation.CampSupplyDiscountPercent,
+                        liveReader.GetSnapshot(map).CampSupplyDiscountPercent);
+                }
+            }
+        }
+
+        [Test]
         public void RestAndSyncCampHaven_AdvancesToDawnSavesSnapshotAndPlansRoute()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(
