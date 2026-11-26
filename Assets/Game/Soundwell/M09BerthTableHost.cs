@@ -125,16 +125,24 @@ namespace Rpg.Soundwell
 
         private void ConfirmTable(M09BerthTableSession proposed)
         {
-            if (view == null || view.IsDisposed || proposed != session || !LiveSceneStillMatches() ||
-                // Never persist invented paid berths after scene evidence
-                // has been withdrawn or the payment was rolled back.
-                (proposed.ShipwrightFeePaid && !shipwrightFeePaidInWorld()))
+            M09BerthTableView submittingView = view;
+            if (!IsCurrentTable(submittingView, proposed) || !LiveSceneStillMatches() ||
+                !IsCurrentTable(submittingView, proposed))
                 return;
 
             M09RuiyaOutcome? outcome = ruiyaOutcome();
-            if (!outcome.HasValue ||
-                !Enum.IsDefined(typeof(M09RuiyaOutcome), outcome.Value) ||
-                !M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? existing))
+            if (!IsCurrentTable(submittingView, proposed) ||
+                !outcome.HasValue ||
+                !Enum.IsDefined(typeof(M09RuiyaOutcome), outcome.Value))
+                return;
+
+            // Live callbacks can close the table or change its scene while
+            // returning evidence. Recheck the original table before saving.
+            if ((proposed.ShipwrightFeePaid && !shipwrightFeePaidInWorld()) ||
+                !IsCurrentTable(submittingView, proposed) || !LiveSceneStillMatches() ||
+                !IsCurrentTable(submittingView, proposed) ||
+                !M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? existing) ||
+                !IsCurrentTable(submittingView, proposed))
                 return;
 
             // The confirmed flag is a commit marker. If a prior write
@@ -155,8 +163,19 @@ namespace Rpg.Soundwell
                 !saved.HasValue || !Matches(saved.Value, proposed, outcome.Value))
                 return;
 
-            view.Dispose();
-            view = null;
+            // A save callback can retire the original panel. Never close a
+            // replacement view or dereference a host that has been disposed.
+            if (view == submittingView)
+            {
+                submittingView.Dispose();
+                view = null;
+            }
+        }
+
+        private bool IsCurrentTable(M09BerthTableView expected, M09BerthTableSession proposed)
+        {
+            return !disposed && expected != null && view == expected &&
+                !expected.IsDisposed && session == proposed;
         }
 
         private static bool Matches(

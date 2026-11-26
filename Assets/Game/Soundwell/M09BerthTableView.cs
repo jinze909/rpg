@@ -38,6 +38,7 @@ namespace Rpg.Soundwell
         private readonly Func<bool> shipwrightFeePaidInWorld;
         private Action<M09BerthTableSession> onSettleRequested;
         private bool settling;
+        private bool checkingFeeEvidence;
         private bool disposed;
 
         public M09BerthTableSession Session => session;
@@ -158,7 +159,7 @@ namespace Rpg.Soundwell
 
         public void Refresh()
         {
-            if (disposed) return;
+            if (disposed || checkingFeeEvidence) return;
             if (CanvasDestroyed())
             {
                 Dispose();
@@ -213,7 +214,12 @@ namespace Rpg.Soundwell
             hanQiaoButton.gameObject.SetActive(!session.IsSettled);
             hanQiaoButton.interactable = active && !hanUsed;
 
-            bool paidDealObserved = !session.ShenLiPresent && shipwrightFeePaidInWorld();
+            bool paidDealObserved = !session.ShenLiPresent && ReadShipwrightFeeEvidence();
+            if (disposed || CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             shipwrightButton.gameObject.SetActive(!session.IsSettled &&
                 (session.ShenLiPresent || paidDealObserved));
             shipwrightButton.interactable = active && !shipUsed &&
@@ -236,9 +242,18 @@ namespace Rpg.Soundwell
             return button != null && button.IsActive() && button.IsInteractable();
         }
 
+        // The scene callback observes an existing payment, not a new charge.
+        // Block nested UI actions and refreshes while it is being evaluated.
+        private bool ReadShipwrightFeeEvidence()
+        {
+            checkingFeeEvidence = true;
+            try { return shipwrightFeePaidInWorld(); }
+            finally { checkingFeeEvidence = false; }
+        }
+
         private void HandleExchange(Button button, M09BerthExchangeFlags exchange, int gain)
         {
-            if (disposed || settling || session.IsSettled)
+            if (disposed || settling || checkingFeeEvidence || session.IsSettled)
                 return;
             if (CanvasDestroyed())
             {
@@ -250,8 +265,16 @@ namespace Rpg.Soundwell
 
             bool needsPaidDeal = exchange == M09BerthExchangeFlags.ShipwrightExtraBerths &&
                 !session.ShenLiPresent;
-            if (needsPaidDeal && !shipwrightFeePaidInWorld())
-                return;
+            if (needsPaidDeal)
+            {
+                bool paid = ReadShipwrightFeeEvidence();
+                if (disposed || CanvasDestroyed())
+                {
+                    Dispose();
+                    return;
+                }
+                if (!paid || !CanInvoke(button)) return;
+            }
             if (session.TryNegotiateExchange(exchange, gain,
                     shipwrightFeePaid: needsPaidDeal))
                 Refresh();
@@ -259,7 +282,7 @@ namespace Rpg.Soundwell
 
         private void HandleReconcile()
         {
-            if (disposed || settling || session.IsSettled)
+            if (disposed || settling || checkingFeeEvidence || session.IsSettled)
                 return;
             if (CanvasDestroyed())
             {
@@ -275,7 +298,7 @@ namespace Rpg.Soundwell
 
         private void HandleSettle()
         {
-            if (disposed || settling || session.IsSettled)
+            if (disposed || settling || checkingFeeEvidence || session.IsSettled)
                 return;
             if (CanvasDestroyed())
             {
