@@ -8,8 +8,9 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Interactive UGUI Cross-Map Expedition Milestones &amp; 4-Region World Completion
     /// panel bound to RpgWorld500xSceneBootstrapper and RpgWorld500xExpeditionMilestoneService.
-    /// Displays global 500x world progress across all 4 maps and provides one-click
-    /// claiming of eligible Salt-Silver milestone bonuses under a zero-leak lifecycle.
+    /// Displays global 500x world progress across all 4 maps, read-only milestone summary
+    /// with next target and claimable Salt-Silver preview, optional unclaimed-only filtering,
+    /// and one-click claiming of eligible Salt-Silver milestone bonuses under a zero-leak lifecycle.
     /// </summary>
     public sealed class RpgWorld500xExpeditionMilestonesHudPanel : IDisposable
     {
@@ -25,6 +26,8 @@ namespace Rpg.Soundwell
         private readonly Button _claimAllButton;
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
+        private RpgWorld500xMilestoneSummary _lastMilestoneSummary;
+        private bool _unclaimedOnly;
         private int _claimableCount;
         private int _claimedCount;
         private bool _visible;
@@ -32,6 +35,10 @@ namespace Rpg.Soundwell
 
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
+        public bool UnclaimedOnly => _unclaimedOnly;
+        public RpgWorld500xMilestoneSummary LastMilestoneSummary => _lastMilestoneSummary;
+        public int ClaimableSaltSilver => _lastMilestoneSummary.UnclaimedSaltSilverReward;
+        public string MilestoneSummaryLineZh => _lastMilestoneSummary.SummaryLineZh;
         public int DisplayedMilestoneRowCount => _spawnedRows.Count;
         public int ClaimableCount => _claimableCount;
         public int ClaimedCount => _claimedCount;
@@ -185,6 +192,18 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TrySetUnclaimedOnly(bool unclaimedOnly)
+        {
+            if (!IsPanelInteractable())
+            {
+                return false;
+            }
+
+            _unclaimedOnly = unclaimedOnly;
+            Refresh();
+            return true;
+        }
+
         public bool TryClickClaimAllEligible()
         {
             if (!CanClaimFromButton())
@@ -207,6 +226,7 @@ namespace Rpg.Soundwell
             _claimableCount = 0;
             _claimedCount = 0;
 
+            _lastMilestoneSummary = _milestoneService.BuildMilestoneSummary();
             List<RpgWorld500xMilestoneStatus> statuses =
                 _milestoneService.BuildStatusList(out RpgWorld500xCrossMapProgressSnapshot progress);
 
@@ -231,16 +251,23 @@ namespace Rpg.Soundwell
                                 "｜风物轶事 " + progress.InspectedStorySpots + "/" + progress.TotalStorySpots + "\n" +
                                 "区域悬赏 " + progress.ClaimedBounties + "/" + progress.TotalBounties +
                                 "｜堪舆里程碑 " + progress.ClaimedCartographyMilestones + "/" + progress.TotalCartographyMilestones +
-                                "｜生死托付阵营 " + progress.SwornFactions + "/" + progress.TotalFactions;
+                                "｜生死托付阵营 " + progress.SwornFactions + "/" + progress.TotalFactions + "\n" +
+                                _lastMilestoneSummary.SummaryLineZh;
 
             UpdateClaimButtonState();
 
             const float rowHeight = 32f;
             const float spacing = 5f;
+            int rowIndex = 0;
 
             for (int i = 0; i < statuses.Count; i++)
             {
                 RpgWorld500xMilestoneStatus st = statuses[i];
+                if (_unclaimedOnly && st.IsClaimed)
+                {
+                    continue;
+                }
+
                 RpgWorld500xExpeditionMilestoneDef d = st.Definition;
                 string badge = st.IsClaimed ? "[已领取] " : (st.IsSatisfied ? "[可领取] " : "[进行中] ");
                 string line = badge + d.TitleZh + "（" + st.CurrentCount + "/" + d.TargetCount +
@@ -250,7 +277,7 @@ namespace Rpg.Soundwell
                     ? new Color(0.16f, 0.22f, 0.16f, 0.90f)
                     : (st.IsSatisfied ? new Color(0.26f, 0.23f, 0.14f, 0.94f) : new Color(0.12f, 0.14f, 0.19f, 0.86f));
 
-                SpawnInfoRow("MilestoneRow_" + d.Id, i, rowHeight, spacing, line, bg);
+                SpawnInfoRow("MilestoneRow_" + d.Id, rowIndex++, rowHeight, spacing, line, bg);
             }
         }
 
@@ -265,6 +292,30 @@ namespace Rpg.Soundwell
             _visible = false;
             ClearRows();
             DestroySafe(_rootObject);
+        }
+
+        private bool IsPanelInteractable()
+        {
+            if (!IsVisible || _bootstrapper.IsDisposed || !_rootObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            CanvasGroup[] groups = _rootObject.GetComponentsInParent<CanvasGroup>(false);
+            for (int i = 0; i < groups.Length; i++)
+            {
+                if (!groups[i].interactable)
+                {
+                    return false;
+                }
+
+                if (groups[i].ignoreParentGroups)
+                {
+                    break;
+                }
+            }
+
+            return true;
         }
 
         private bool CanClaimFromButton()
@@ -319,7 +370,9 @@ namespace Rpg.Soundwell
             Text txt = _claimAllButton.GetComponentInChildren<Text>();
             if (txt != null)
             {
-                txt.text = canClaim ? "领取奖励（" + _claimableCount + "）" : "暂无可领";
+                txt.text = canClaim
+                    ? "领取奖励（" + _claimableCount + "｜+" + _lastMilestoneSummary.UnclaimedSaltSilverReward + "盐银）"
+                    : "暂无可领";
             }
         }
 

@@ -31,6 +31,8 @@ namespace Rpg.Tests.Editor
                 Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.ExpeditionMilestones));
                 var panel = ctrl.MenuRouter.MilestonesPanel;
                 Assert.AreEqual(1, panel.ClaimableCount);
+                Assert.AreEqual(300, panel.ClaimableSaltSilver);
+                StringAssert.Contains("【远征里程碑】", panel.MilestoneSummaryLineZh);
                 Assert.IsTrue(panel.TryClickClaimAllEligible());
                 Assert.AreEqual(1, boot.Store[claimKey]);
                 Assert.AreEqual(initialSilver + 300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
@@ -56,6 +58,7 @@ namespace Rpg.Tests.Editor
                 panel = ctrl.MenuRouter.MilestonesPanel;
                 Assert.AreEqual(1, panel.ClaimedCount);
                 Assert.AreEqual(0, panel.ClaimableCount);
+                Assert.AreEqual(0, panel.ClaimableSaltSilver);
                 Assert.IsFalse(panel.TryClickClaimAllEligible());
                 Assert.AreEqual(1, boot.Store[claimKey]);
                 Assert.AreEqual(initialSilver + 300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
@@ -107,6 +110,7 @@ namespace Rpg.Tests.Editor
                     using (var panel = new RpgWorld500xExpeditionMilestonesHudPanel(root.transform, boot, Read, Write))
                     {
                         Assert.AreEqual(1, panel.ClaimableCount);
+                        Assert.IsFalse(panel.TrySetUnclaimedOnly(true));
                         var button = ClaimButton();
                         var action = button.onClick;
                         action.Invoke();
@@ -124,6 +128,7 @@ namespace Rpg.Tests.Editor
                         root.SetActive(false);
                         action.Invoke();
                         Assert.IsFalse(panel.TryClickClaimAllEligible());
+                        Assert.IsFalse(panel.TrySetUnclaimedOnly(true));
                         AssertUnclaimed();
                         root.SetActive(true);
 
@@ -136,6 +141,7 @@ namespace Rpg.Tests.Editor
                         panel.Dispose();
                         action.Invoke();
                         Assert.IsFalse(panel.TryClickClaimAllEligible());
+                        Assert.IsFalse(panel.TrySetUnclaimedOnly(true));
                         AssertUnclaimed();
                     }
 
@@ -196,7 +202,10 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.Show());
                     Assert.AreEqual(8, panel.DisplayedMilestoneRowCount);
                     Assert.AreEqual(0, panel.ClaimableCount);
+                    Assert.AreEqual(0, panel.ClaimableSaltSilver);
+                    Assert.IsFalse(panel.UnclaimedOnly);
                     Assert.IsFalse(panel.TryClickClaimAllEligible());
+                    StringAssert.Contains("【远征里程碑】", panel.SummaryText);
 
                     // Satisfy four_regions_sworn (+300 Salt-Silver).
                     IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
@@ -208,11 +217,27 @@ namespace Rpg.Tests.Editor
 
                     panel.Refresh();
                     Assert.AreEqual(1, panel.ClaimableCount);
+                    Assert.AreEqual(300, panel.ClaimableSaltSilver);
                     Assert.IsTrue(panel.TryClickClaimAllEligible());
                     Assert.AreEqual(0, panel.ClaimableCount);
+                    Assert.AreEqual(0, panel.ClaimableSaltSilver);
                     Assert.AreEqual(1, panel.ClaimedCount);
                     Assert.AreEqual(300, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
                     Assert.IsTrue(panel.StatusText.Contains("300"));
+
+                    // UnclaimedOnly hides the claimed milestone (8 -> 7) and respects ancestor CanvasGroup lock.
+                    Assert.IsTrue(panel.TrySetUnclaimedOnly(true));
+                    Assert.IsTrue(panel.UnclaimedOnly);
+                    Assert.AreEqual(7, panel.DisplayedMilestoneRowCount);
+
+                    CanvasGroup group = root.AddComponent<CanvasGroup>();
+                    group.interactable = false;
+                    Assert.IsFalse(panel.TrySetUnclaimedOnly(false));
+                    Assert.IsTrue(panel.UnclaimedOnly);
+                    group.interactable = true;
+
+                    Assert.IsTrue(panel.TrySetUnclaimedOnly(false));
+                    Assert.AreEqual(8, panel.DisplayedMilestoneRowCount);
 
                     // Duplicate claim is disabled/idempotent.
                     Assert.IsFalse(panel.TryClickClaimAllEligible());
