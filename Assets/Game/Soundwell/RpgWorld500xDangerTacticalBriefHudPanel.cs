@@ -16,8 +16,8 @@ namespace Rpg.Soundwell
     /// RpgWorld500xSceneBootstrapper and RpgWorld500xDangerZoneTacticalBriefService.
     /// Lists uncleared or all DangerZones on the active 500x map with weather-scaled
     /// threat levels, 8-direction bearings, standard vs. Lock-Break Salt-Silver
-    /// payouts, remaining payout summaries, threat/tier criteria filters, parent
-    /// CanvasGroup interactability guards, and zero-leak cleanup.
+    /// payouts, remaining payout and first-clear reputation summaries, threat/tier
+    /// criteria filters, parent CanvasGroup interactability guards, and zero-leak cleanup.
     /// </summary>
     public sealed class RpgWorld500xDangerTacticalBriefHudPanel : IDisposable
     {
@@ -39,6 +39,7 @@ namespace Rpg.Soundwell
         private RpgWorld500xThreatTier? _tierFilter;
         private RpgWorld500xRegionThreatBrief _lastBrief;
         private RpgWorld500xDangerClearancePayoutSummary _lastPayoutSummary;
+        private RpgWorld500xMapFirstClearSummary _lastFirstClearSummary;
         private float _lastElapsedSeconds;
         private bool _visible;
         private bool _disposed;
@@ -51,6 +52,10 @@ namespace Rpg.Soundwell
         public RpgWorld500xRegionThreatBrief LastBrief => _lastBrief;
         public RpgWorld500xDangerClearancePayoutSummary LastPayoutSummary => _lastPayoutSummary;
         public string PayoutSummaryText => _lastPayoutSummary.SummaryZh;
+        public RpgWorld500xMapFirstClearSummary LastFirstClearSummary => _lastFirstClearSummary;
+        public string FirstClearSummaryText => _lastFirstClearSummary.SummaryZh;
+        public int RemainingFirstClearStandardReputation => _lastFirstClearSummary.RemainingStandardReputation;
+        public int RemainingFirstClearLockBreakReputation => _lastFirstClearSummary.RemainingLockBreakReputation;
         public int DisplayedRowCount => _spawnedRows.Count;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string SummaryRibbonText => _summaryRibbonText != null ? _summaryRibbonText.text : string.Empty;
@@ -279,11 +284,20 @@ namespace Rpg.Soundwell
                 _overrideGetInt);
             _lastPayoutSummary = RpgWorld500xDangerZoneTacticalBriefService.SummarizeRemainingPayouts(_lastBrief);
 
+            IReadOnlyDictionary<string, int> store = _bootstrapper.Store;
+            Func<string, int> read = _overrideGetInt ??
+                (k => (store != null && store.TryGetValue(k, out int v)) ? v : 0);
+            _lastFirstClearSummary = RpgWorld500xDangerVictoryRewardService.SummarizeRemainingFirstClearRewards(
+                _bootstrapper.Driver.Facade.Session.Host.Layout,
+                read);
+
             _headerText.text = "【危险区战备简报】" + _lastBrief.MapDisplayNameZh +
                                "（已首破 " + _lastBrief.ClearedDangerZones + "/" + _lastBrief.TotalDangerZones +
                                "｜剩余 " + _lastBrief.RemainingDangerZones +
                                "｜余赏 " + _lastPayoutSummary.RemainingStandardSilver +
-                               "/破锁 " + _lastPayoutSummary.RemainingLockBreakSilver + "）";
+                               "/破锁 " + _lastPayoutSummary.RemainingLockBreakSilver +
+                               "｜余声望 " + _lastFirstClearSummary.RemainingStandardReputation +
+                               "/破锁 " + _lastFirstClearSummary.RemainingLockBreakReputation + "）";
 
             _summaryRibbonImage.color = ResolveRiskColor(_lastBrief.TravelRiskLevel);
             _summaryRibbonText.text = _lastBrief.HasNearestUncleared

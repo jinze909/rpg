@@ -58,14 +58,22 @@ namespace Rpg.Tests.Editor
                         panel.LastPayoutSummary.RemainingStandardSilver);
                     StringAssert.Contains("清剿收益预估", panel.PayoutSummaryText);
                     StringAssert.Contains("余赏", panel.HeaderText);
+                    Assert.AreEqual(totalZones, panel.LastFirstClearSummary.RemainingDangerZones);
+                    Assert.Greater(panel.RemainingFirstClearLockBreakReputation,
+                        panel.RemainingFirstClearStandardReputation);
+                    StringAssert.Contains("【首破悬赏余量】", panel.FirstClearSummaryText);
+                    StringAssert.Contains("余声望", panel.HeaderText);
 
                     // Mark first DangerZone cleared -> UnclearedOnly drops by 1; AllZones keeps full count.
                     string firstMarkerId = panel.LastBrief.NearestUnclearedZone.MarkerId;
                     int initialRemainingSilver = panel.LastPayoutSummary.RemainingStandardSilver;
+                    int initialRemainingRep = panel.RemainingFirstClearStandardReputation;
                     clearFlags[RpgWorld500xDangerVictoryRewardService.FirstClearKey(firstMarkerId)] = 1;
                     Assert.IsTrue(panel.TryClickRefresh(5f));
                     Assert.AreEqual(totalZones - 1, panel.DisplayedRowCount);
                     Assert.Less(panel.LastPayoutSummary.RemainingStandardSilver, initialRemainingSilver);
+                    Assert.AreEqual(1, panel.LastFirstClearSummary.ClearedDangerZones);
+                    Assert.Less(panel.RemainingFirstClearStandardReputation, initialRemainingRep);
 
                     // Parent CanvasGroup lock prevents tab switch, criteria change, refresh, close, AND direct stale callbacks cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
