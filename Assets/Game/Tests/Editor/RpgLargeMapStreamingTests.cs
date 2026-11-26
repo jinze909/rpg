@@ -80,6 +80,14 @@ namespace Rpg.Tests.Editor
             Assert.That(renderer.UpdateStreamingFocus(new Vector2(100f, float.PositiveInfinity)), Is.False);
             Assert.That(renderer.ChunkCount, Is.EqualTo(9));
 
+            // Invalid oversized windows must not unload the current chunks.
+            Assert.IsFalse(renderer.UpdateStreamingFocus(new Vector2(2800f, 1600f), int.MaxValue));
+            Assert.AreEqual(1, renderer.StreamingRadiusChunks);
+            Assert.AreEqual(9, renderer.ChunkCount);
+            Assert.IsTrue(westHalo.gameObject.activeSelf);
+            foreach (Texture2D oldTex in initialTextures)
+                Assert.IsTrue(oldTex != null);
+
             // Fast-travel across 2,500+ tiles must destroy all distant chunk textures and swap visible halos.
             Assert.That(renderer.UpdateStreamingFocus(new Vector2(2800f, 1600f)), Is.True);
             Assert.That(renderer.ChunkCount, Is.EqualTo(9));
@@ -97,6 +105,25 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ExtremeFiniteFocusClampsToCorrectMapEdgeBeforeIntegerConversion()
+        {
+            renderer = RpgLargeMapChunkRenderer.BuildStreaming(
+                root.transform, "Edge streaming", 96, 64, (x, y) => 0,
+                false, null, Vector2.zero, streamingRadiusChunks: 0,
+                tileSlices: new Sprite[] { null });
+            Assert.AreEqual(1, renderer.ChunkCount);
+            Assert.IsTrue(renderer.UpdateStreamingFocus(new Vector2(float.MaxValue, float.MaxValue)));
+            Assert.AreEqual(1, renderer.ChunkCount);
+            var sprite = renderer.RootObject.GetComponentInChildren<SpriteRenderer>();
+            Assert.AreEqual(64f, sprite.transform.localPosition.x, 0.001f);
+            Assert.AreEqual(32f, sprite.transform.localPosition.y, 0.001f);
+            Assert.IsTrue(renderer.UpdateStreamingFocus(new Vector2(-float.MaxValue, -float.MaxValue)));
+            sprite = renderer.RootObject.GetComponentInChildren<SpriteRenderer>();
+            Assert.AreEqual(0f, sprite.transform.localPosition.x, 0.001f);
+            Assert.AreEqual(0f, sprite.transform.localPosition.y, 0.001f);
+        }
+
+        [Test]
         public void BuildStreamingRejectsInvalidArgumentsWithoutLeakingChildren()
         {
             Assert.Throws<ArgumentNullException>(() => RpgLargeMapChunkRenderer.BuildStreaming(
@@ -107,6 +134,9 @@ namespace Rpg.Tests.Editor
                 root.transform, "x", 0, 64, (x, y) => 0, false, null, Vector2.zero));
             Assert.Throws<ArgumentOutOfRangeException>(() => RpgLargeMapChunkRenderer.BuildStreaming(
                 root.transform, "x", 64, 64, (x, y) => 0, false, null, Vector2.zero, streamingRadiusChunks: -1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => RpgLargeMapChunkRenderer.BuildStreaming(
+                root.transform, "x", 64, 64, (x, y) => 0, false, null, Vector2.zero,
+                streamingRadiusChunks: int.MaxValue));
             Assert.That(root.transform.childCount, Is.Zero);
         }
     }
