@@ -225,7 +225,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || submitting || index < 0 || index >= 3)
                 return;
-            if (!topButtons[index].gameObject.activeSelf || !topButtons[index].interactable)
+            if (!topButtons[index].IsActive() || !topButtons[index].IsInteractable())
                 return;
 
             if (session.Stage == RC03Stage.IslandInvestigation)
@@ -253,8 +253,8 @@ namespace Rpg.Soundwell
             if (disposed || IsDestroyedExternally() || submitting || index < 0 || index >= 3)
                 return;
             if (session.Stage != RC03Stage.ResolutionDecision ||
-                !bottomButtons[index].gameObject.activeSelf ||
-                !bottomButtons[index].interactable)
+                !bottomButtons[index].IsActive() ||
+                !bottomButtons[index].IsInteractable())
                 return;
 
             var resolution = (RC03Resolution)(index + 1);
