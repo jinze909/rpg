@@ -9,7 +9,8 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Compact non-modal UGUI Field Recon Pulse HUD bar bound to
     /// RpgWorld500xSceneBootstrapper and RpgWorld500xFieldReconScannerService.
-    /// Triggers weather-modulated recon scans around the player, displays live
+    /// Triggers weather-modulated recon scans around the player, supports optional
+    /// category filtering and cooldown-free nearest-target preview, displays live
     /// cooldown readiness, and renders the top 3 nearest undiscovered POI pings
     /// under a zero-leak IDisposable lifecycle.
     /// </summary>
@@ -27,11 +28,14 @@ namespace Rpg.Soundwell
         // The controller supplies its session clock each frame. Mouse and hotkey
         // clicks must share it rather than mixing it with Unity's global clock.
         private float _currentClockSeconds;
+        private RpgWorld500xReconPingKind? _activeFilterKind;
         private bool _disposed;
 
         public bool IsDisposed => _disposed || _rootObject == null;
         public bool IsScanButtonInteractable => !IsDisposed && _scanButton != null &&
             _scanButton.isActiveAndEnabled && _scanButton.gameObject.activeInHierarchy && _scanButton.IsInteractable();
+        public RpgWorld500xReconPingKind? ActiveFilterKind => _activeFilterKind;
+        public string ActiveFilterLabelZh => ResolveFilterLabelZh(_activeFilterKind);
         public int LastPingCount => _lastPings.Count;
         public IReadOnlyList<RpgWorld500xReconPing> LastPings => _lastPings;
         public string BannerText => _bannerText != null ? _bannerText.text : string.Empty;
@@ -94,6 +98,64 @@ namespace Rpg.Soundwell
                 _font, 11, TextAnchor.UpperLeft,
                 new Color(0.84f, 0.90f, 0.96f, 1f));
             _pingsText.text = string.Empty;
+        }
+
+        public static string ResolveFilterLabelZh(RpgWorld500xReconPingKind? filterKind)
+        {
+            if (!filterKind.HasValue)
+            {
+                return "全部分类";
+            }
+
+            switch (filterKind.Value)
+            {
+                case RpgWorld500xReconPingKind.HiddenCache:
+                    return "暗藏补给";
+                case RpgWorld500xReconPingKind.LockedShortcut:
+                    return "未通捷径";
+                case RpgWorld500xReconPingKind.UnheardRumorNpc:
+                    return "未闻传闻";
+                case RpgWorld500xReconPingKind.UninspectedStorySpot:
+                    return "待查旧迹";
+                case RpgWorld500xReconPingKind.AmbientEventZone:
+                    return "环境事件";
+                default:
+                    return "全部分类";
+            }
+        }
+
+        public bool TrySetFilterKind(RpgWorld500xReconPingKind? filterKind)
+        {
+            if (IsDisposed || _bootstrapper.IsDisposed)
+            {
+                return false;
+            }
+
+            _activeFilterKind = filterKind;
+            return true;
+        }
+
+        /// <summary>
+        /// Cooldown-free lookup for the nearest undiscovered target matching the active
+        /// category filter. Returns false when disposed or when no filter is selected.
+        /// </summary>
+        public bool TryPreviewNearestForActiveFilter(
+            out RpgWorld500xReconPing nearest,
+            float maxRadiusTiles = 2000f)
+        {
+            nearest = default;
+            if (IsDisposed || _bootstrapper.IsDisposed || !_activeFilterKind.HasValue)
+            {
+                return false;
+            }
+
+            RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
+            return _scanner.TryFindNearestByKind(
+                facade.CurrentMapId,
+                facade.Session.Host.PlayerPosition,
+                _activeFilterKind.Value,
+                out nearest,
+                maxRadiusTiles);
         }
 
         public void UpdateCooldownDisplay(float nowSeconds)
@@ -170,11 +232,14 @@ namespace Rpg.Soundwell
                 out List<RpgWorld500xReconPing> pings,
                 out string banner,
                 visibilityMultiplier: atmo.PatrolDetectionMultiplier,
-                maxResults: 3))
+                maxResults: 3,
+                filterKind: _activeFilterKind))
             {
                 _lastPings.Clear();
                 _lastPings.AddRange(pings);
-                _bannerText.text = banner;
+                _bannerText.text = _activeFilterKind.HasValue
+                    ? "[" + ResolveFilterLabelZh(_activeFilterKind) + "] " + banner
+                    : banner;
 
                 var sb = new StringBuilder(160);
                 for (int i = 0; i < pings.Count; i++)

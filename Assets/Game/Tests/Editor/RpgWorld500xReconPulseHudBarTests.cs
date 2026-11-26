@@ -127,5 +127,56 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void ReconPulseHudBar_SupportsCategoryFilterAndCooldownFreeNearestPreview()
+        {
+            var root = new GameObject("ReconFilterPreviewRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var bar = new RpgWorld500xReconPulseHudBar(root.transform, boot, cooldownSeconds: 4f))
+                {
+                    Assert.IsNull(bar.ActiveFilterKind);
+                    Assert.AreEqual("全部分类", bar.ActiveFilterLabelZh);
+                    Assert.IsFalse(bar.TryPreviewNearestForActiveFilter(out _));
+
+                    // Discover at least one live ping category in range around the Soundwell spawn.
+                    Assert.IsTrue(bar.TryClickPulseScan(10f));
+                    Assert.Greater(bar.LastPingCount, 0);
+                    RpgWorld500xReconPingKind inRangeKind = bar.LastPings[0].Kind;
+
+                    // After cooldown expires, set the filter and verify cooldown-free nearest preview.
+                    bar.UpdateCooldownDisplay(15f);
+                    Assert.IsTrue(bar.IsScanButtonInteractable);
+                    Assert.IsTrue(bar.TrySetFilterKind(inRangeKind));
+                    Assert.AreEqual(inRangeKind, bar.ActiveFilterKind);
+                    Assert.IsTrue(bar.TryPreviewNearestForActiveFilter(out RpgWorld500xReconPing nearest));
+                    Assert.AreEqual(inRangeKind, nearest.Kind);
+                    Assert.IsTrue(bar.IsScanButtonInteractable);
+
+                    // Filtered pulse scan returns only pings of the selected category and tags the banner.
+                    Assert.IsTrue(bar.TryClickPulseScan(15f));
+                    Assert.Greater(bar.LastPingCount, 0);
+                    Assert.IsTrue(bar.BannerText.Contains("[" + bar.ActiveFilterLabelZh + "]"));
+                    for (int i = 0; i < bar.LastPings.Count; i++)
+                    {
+                        Assert.AreEqual(inRangeKind, bar.LastPings[i].Kind);
+                    }
+
+                    // Clearing the filter restores default all-category behavior.
+                    Assert.IsTrue(bar.TrySetFilterKind(null));
+                    Assert.IsNull(bar.ActiveFilterKind);
+                    Assert.AreEqual("全部分类", bar.ActiveFilterLabelZh);
+                    Assert.IsFalse(bar.TryPreviewNearestForActiveFilter(out _));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
