@@ -92,5 +92,43 @@ namespace Rpg.Tests.Editor
             }
             Assert.AreEqual(2, claimedCount);
         }
+
+        [Test]
+        public void BuildMilestoneSummary_PreviewsUnclaimedSilverAndClosestNextTargetWithoutMutatingState()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var service = new RpgWorld500xExpeditionMilestoneService(
+                getInt: k => store.TryGetValue(k, out int v) ? v : 0,
+                setInt: (k, v) => store[k] = v);
+
+            // Partial progress: 3 shortcuts (3/8 = 37.5%) -> closest next target is pathfinder_shortcuts.
+            IReadOnlyList<RpgWorldShortcutDef> swShortcuts = RpgWorld500xContentCatalog.GetShortcuts(RpgWorldMapId.Soundwell);
+            for (int i = 0; i < 3 && i < swShortcuts.Count; i++)
+            {
+                store[swShortcuts[i].MakinomKey] = 1;
+            }
+
+            RpgWorld500xMilestoneSummary inProgress = service.BuildMilestoneSummary();
+            Assert.AreEqual(8, inProgress.TotalMilestones);
+            Assert.AreEqual(0, inProgress.ClaimedCount);
+            Assert.AreEqual(0, inProgress.ClaimableCount);
+            Assert.AreEqual(0, inProgress.UnclaimedSaltSilverReward);
+            Assert.IsTrue(inProgress.HasNextMilestone);
+            Assert.AreEqual("pathfinder_shortcuts", inProgress.NextMilestone.Definition.Id);
+            Assert.IsTrue(inProgress.SummaryLineZh.Contains("最近目标「逢山开路」3/8"));
+
+            // Satisfy first_cache_sweep (10 caches, +60 Salt-Silver) -> read-only summary previews claimable reward without claiming.
+            IReadOnlyList<RpgSupplyCacheDef> swCaches = RpgWorld500xContentCatalog.GetCaches(RpgWorldMapId.Soundwell);
+            for (int i = 0; i < 10 && i < swCaches.Count; i++)
+            {
+                store[swCaches[i].MakinomKey] = 1;
+            }
+
+            RpgWorld500xMilestoneSummary claimable = service.BuildMilestoneSummary();
+            Assert.AreEqual(0, claimable.ClaimedCount);
+            Assert.AreEqual(1, claimable.ClaimableCount);
+            Assert.AreEqual(60, claimable.UnclaimedSaltSilverReward);
+            Assert.IsTrue(claimable.SummaryLineZh.Contains("待领 1 项（+60 盐银）"));
+        }
     }
 }
