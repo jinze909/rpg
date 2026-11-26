@@ -126,8 +126,10 @@ namespace Rpg.Soundwell
             // story discoveries nor NPC actions may fire behind its UI.
             // RpgWorld500xPlayableSession already blocks movement and its own
             // interactions while the journal is visible; guard this higher-
-            // priority activity path as well.
-            if (IsDisposed || (_session.JournalPanel != null && _session.JournalPanel.IsVisible))
+            // priority activity path as well. Active combat must also block
+            // looting, shortcut unlocks and NPC/story interactions.
+            if (IsDisposed || _session.Host.Bridge.IsInDangerEncounter ||
+                (_session.JournalPanel != null && _session.JournalPanel.IsVisible))
             {
                 return false;
             }
