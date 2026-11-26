@@ -214,7 +214,9 @@ namespace Rpg.Soundwell
             }
 
             RpgWorldMapId originMapId = bootstrapper.Driver.Facade.CurrentMapId;
-            List<RpgWorld500xRegionGazetteerCard> baseCards = BuildWorldCards(getInt);
+            // With no override, read the same persisted facts as the live route and camp services.
+            Func<string, int> read = getInt ?? (key => bootstrapper.Store.TryGetValue(key, out int value) ? value : 0);
+            List<RpgWorld500xRegionGazetteerCard> baseCards = BuildWorldCards(read);
             var enriched = new List<RpgWorld500xRegionGazetteerCard>(baseCards.Count);
 
             for (int i = 0; i < baseCards.Count; i++)

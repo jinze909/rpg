@@ -54,6 +54,41 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RumorInteraction_FirstDiscoveryTracksHearingRatherThanWaypointReveal()
+        {
+            foreach (bool discoverLandmarkFirst in new[] { false, true })
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                var layout = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+                var tracker = new RpgMapExplorationTracker(RpgWorldMapId.Soundwell);
+                var director = new RpgWorld500xWorldActivityDirector(
+                    layout, tracker,
+                    k => store.TryGetValue(k, out int v) ? v : 0,
+                    (k, v) => store[k] = v);
+                var npc = RpgWorld500xLivingWorldCatalog.GetFieldNpcs(RpgWorldMapId.Soundwell)[0];
+                Assert.AreEqual("sw_npc_01", npc.Id);
+                if (discoverLandmarkFirst)
+                    Assert.IsTrue(tracker.TryDiscoverMarker(npc.RumorTargetMarkerId));
+
+                var position = new Vector2(npc.Tile.x + 0.5f, npc.Tile.y + 0.5f);
+                Assert.IsTrue(director.TryInteractPriority(position, 6f, out var first));
+                Assert.AreEqual(RpgWorld500xInteractionKind.NpcDialogue, first.Kind);
+                Assert.IsTrue(first.FirstTimeDiscovery);
+                Assert.AreEqual(1, store[npc.RumorMakinomKey]);
+                Assert.AreEqual(discoverLandmarkFirst ? string.Empty : npc.RumorTargetMarkerId,
+                    first.RevealedMarkerId);
+
+                // Until visiting the landmark, a repeat hint may still reveal a waypoint,
+                // but must never be reported as a newly heard rumor.
+                Assert.IsTrue(director.TryInteractPriority(position, 6f, out var repeat));
+                Assert.AreEqual(RpgWorld500xInteractionKind.NpcDialogue, repeat.Kind);
+                Assert.IsFalse(repeat.FirstTimeDiscovery);
+                Assert.AreEqual(first.RevealedMarkerId, repeat.RevealedMarkerId);
+                Assert.AreEqual(1, director.LivingWorld.BuildLivingWorldProgressSummary().HeardRumorCount);
+            }
+        }
+
+        [Test]
         public void StepEnvironment_CombinesWeatherAndAmbientMicroEventsAndSupportsCampfireRest()
         {
             RpgWorld500xMapLayout ww = RpgWorld500xMapLayout.Build(RpgWorldMapId.WhitewaterCrossing);
