@@ -14,7 +14,8 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Interactive UGUI Landmark Quest Journal and Fast-Travel Beacon panel for
-    /// 500x-area RPG maps. Displays exploration completion stats, tracks active
+    /// 500x-area RPG maps. Displays exploration completion stats, beacon network
+    /// coverage summary via RpgWorld500xFastTravelRoutePlanner, tracks active
     /// or completed landmark quests with one-click tracking, and dispatches
     /// fast-travel requests strictly for discovered beacons.
     /// </summary>
@@ -34,6 +35,7 @@ namespace Rpg.Soundwell
         private readonly Dictionary<string, Button> questTrackButtons = new Dictionary<string, Button>(StringComparer.Ordinal);
         private readonly Dictionary<string, Button> fastTravelButtons = new Dictionary<string, Button>(StringComparer.Ordinal);
         private readonly Font defaultFont;
+        private RpgWorld500xBeaconNetworkSummary lastBeaconNetworkSummary;
         private RpgQuestJournalTab currentTab = RpgQuestJournalTab.ActiveQuests;
         private bool visible;
         private bool disposed;
@@ -44,6 +46,15 @@ namespace Rpg.Soundwell
         public bool IsDisposed => disposed || rootObject == null;
         public string HeaderText => headerText != null ? headerText.text : string.Empty;
         public string BodySummaryText => bodySummaryText != null ? bodySummaryText.text : string.Empty;
+        public RpgWorld500xBeaconNetworkSummary LastBeaconNetworkSummary => lastBeaconNetworkSummary;
+        public string BeaconNetworkSummaryText => lastBeaconNetworkSummary.SummaryZh ?? string.Empty;
+        public int UnlockedBeaconCount => lastBeaconNetworkSummary.DiscoveredBeaconCount;
+        public int TotalBeaconCount => lastBeaconNetworkSummary.TotalBeaconCount;
+        public int CompletedQuestCount => tracker.CompletedQuestCount;
+        public int ActiveQuestCount => Math.Max(0, tracker.TotalQuestCount - tracker.CompletedQuestCount);
+        public int TotalQuestCount => tracker.TotalQuestCount;
+        public int DiscoveredMarkerCount => tracker.DiscoveredMarkerCount;
+        public int TotalMarkerCount => tracker.TotalMarkerCount;
         public int DisplayedRowCount => spawnedRows.Count;
 
         public RpgWorld500xQuestJournalPanel(
@@ -219,16 +230,10 @@ namespace Rpg.Soundwell
             ClearRows();
             RefreshTabAppearance();
 
-            int totalBeacons = 0;
-            int unlockedBeacons = 0;
+            lastBeaconNetworkSummary = RpgWorld500xFastTravelRoutePlanner.BuildBeaconNetworkSummary(tracker.MapId, tracker);
+            int totalBeacons = lastBeaconNetworkSummary.TotalBeaconCount;
+            int unlockedBeacons = lastBeaconNetworkSummary.DiscoveredBeaconCount;
             IReadOnlyList<RpgMapLandmarkMarker> markers = RpgWorldLandmarkCatalog.GetMarkers(tracker.MapId);
-            for (int i = 0; i < markers.Count; i++)
-            {
-                if (!markers[i].SupportsFastTravel) continue;
-                totalBeacons++;
-                if (tracker.IsMarkerDiscovered(markers[i].Id))
-                    unlockedBeacons++;
-            }
 
             headerText.text = spec.DisplayNameZh + " · 地标日志与传送灯标";
             bodySummaryText.text = "已发现地标 " + tracker.DiscoveredMarkerCount + "/" + tracker.TotalMarkerCount +
