@@ -94,6 +94,35 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReadOnlyMilestoneServiceCannotEmitUnpersistedRewards()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var caches = RpgWorld500xContentCatalog.GetCaches(RpgWorldMapId.Soundwell);
+            for (int i = 0; i < 10; i++)
+                store[caches[i].MakinomKey] = 1;
+
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            int silver = 0;
+            var preview = new RpgWorld500xExpeditionMilestoneService(
+                getInt: read, onMilestoneUnlocked: d => silver += d.SaltSilverReward);
+            Assert.AreEqual(1, preview.BuildMilestoneSummary().ClaimableCount);
+            Assert.AreEqual(0, preview.EvaluateAndClaimAll(out var progress).Count);
+            Assert.AreEqual(10, progress.LootedCaches);
+            Assert.AreEqual(0, preview.EvaluateAndClaimAll(out _).Count);
+            Assert.AreEqual(0, silver);
+            Assert.AreEqual(10, store.Count);
+            Assert.AreEqual(1, preview.BuildMilestoneSummary().ClaimableCount);
+
+            var writable = new RpgWorld500xExpeditionMilestoneService(
+                read, (k, v) => store[k] = v, d => silver += d.SaltSilverReward);
+            Assert.AreEqual(1, writable.EvaluateAndClaimAll(out _).Count);
+            Assert.AreEqual(60, silver);
+            Assert.AreEqual(0, writable.EvaluateAndClaimAll(out _).Count);
+            Assert.AreEqual(60, silver);
+            Assert.AreEqual(0, preview.BuildMilestoneSummary().ClaimableCount);
+        }
+
+        [Test]
         public void BuildMilestoneSummary_PreviewsUnclaimedSilverAndClosestNextTargetWithoutMutatingState()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);

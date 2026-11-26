@@ -215,7 +215,7 @@ namespace Rpg.Soundwell
             Action<RpgWorld500xExpeditionMilestoneDef> onMilestoneUnlocked = null)
         {
             _getInt = getInt ?? (_ => 0);
-            _setInt = setInt ?? ((_, __) => { });
+            _setInt = setInt;
             _onMilestoneUnlocked = onMilestoneUnlocked;
         }
 
@@ -325,6 +325,13 @@ namespace Rpg.Soundwell
         {
             progress = ComputeCrossMapProgress();
             var newlyClaimed = new List<RpgWorld500xExpeditionMilestoneDef>();
+
+            // A read-only progress view cannot persist a claim. Never emit a
+            // reward callback for a claim that would remain claimable next time.
+            if (_setInt == null)
+            {
+                return newlyClaimed;
+            }
 
             for (int i = 0; i < MilestoneDefs.Length; i++)
             {
