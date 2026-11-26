@@ -94,7 +94,10 @@ namespace Rpg.Soundwell
             Vector2 delta = targetCenter - playerTile;
             float distance = delta.magnitude;
             string compass = ResolveCompassDirectionZh(delta);
-            bool arrived = distance <= Math.Max(0f, arrivalThresholdTiles);
+            // Invalid thresholds must never turn a distant waypoint into an arrival.
+            bool arrived = !float.IsNaN(arrivalThresholdTiles) &&
+                !float.IsInfinity(arrivalThresholdTiles) &&
+                distance <= Math.Max(0f, arrivalThresholdTiles);
 
             string districtName = RpgWorld500xDistrictCatalog.TryResolveDistrictAtTile(mapId, targetTile, out RpgWorld500xDistrictDef dist)
                 ? dist.DisplayNameZh
