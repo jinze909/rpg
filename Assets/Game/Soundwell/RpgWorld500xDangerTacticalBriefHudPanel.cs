@@ -16,7 +16,8 @@ namespace Rpg.Soundwell
     /// RpgWorld500xSceneBootstrapper and RpgWorld500xDangerZoneTacticalBriefService.
     /// Lists uncleared or all DangerZones on the active 500x map with weather-scaled
     /// threat levels, 8-direction bearings, standard vs. Lock-Break Salt-Silver
-    /// payouts, parent CanvasGroup interactability guards, and zero-leak cleanup.
+    /// payouts, remaining payout summaries, threat/tier criteria filters, parent
+    /// CanvasGroup interactability guards, and zero-leak cleanup.
     /// </summary>
     public sealed class RpgWorld500xDangerTacticalBriefHudPanel : IDisposable
     {
@@ -34,7 +35,10 @@ namespace Rpg.Soundwell
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorld500xDangerBriefFilter _activeFilter = RpgWorld500xDangerBriefFilter.UnclearedOnly;
+        private int _minEffectiveThreatLevel = 1;
+        private RpgWorld500xThreatTier? _tierFilter;
         private RpgWorld500xRegionThreatBrief _lastBrief;
+        private RpgWorld500xDangerClearancePayoutSummary _lastPayoutSummary;
         private float _lastElapsedSeconds;
         private bool _visible;
         private bool _disposed;
@@ -42,7 +46,11 @@ namespace Rpg.Soundwell
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xDangerBriefFilter ActiveFilter => _activeFilter;
+        public int MinEffectiveThreatLevel => _minEffectiveThreatLevel;
+        public RpgWorld500xThreatTier? TierFilter => _tierFilter;
         public RpgWorld500xRegionThreatBrief LastBrief => _lastBrief;
+        public RpgWorld500xDangerClearancePayoutSummary LastPayoutSummary => _lastPayoutSummary;
+        public string PayoutSummaryText => _lastPayoutSummary.SummaryZh;
         public int DisplayedRowCount => _spawnedRows.Count;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string SummaryRibbonText => _summaryRibbonText != null ? _summaryRibbonText.text : string.Empty;
@@ -218,6 +226,21 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TrySetThreatCriteria(
+            int minEffectiveThreatLevel = 1,
+            RpgWorld500xThreatTier? tierFilter = null)
+        {
+            if (!CanClick(_refreshButton))
+            {
+                return false;
+            }
+
+            _minEffectiveThreatLevel = Mathf.Clamp(minEffectiveThreatLevel, 1, 5);
+            _tierFilter = tierFilter;
+            Refresh(_lastElapsedSeconds);
+            return true;
+        }
+
         public bool TryClickRefresh(float elapsedSeconds = 0f)
         {
             if (!CanClick(_refreshButton))
@@ -254,10 +277,13 @@ namespace Rpg.Soundwell
                 _bootstrapper,
                 elapsedSeconds,
                 _overrideGetInt);
+            _lastPayoutSummary = RpgWorld500xDangerZoneTacticalBriefService.SummarizeRemainingPayouts(_lastBrief);
 
             _headerText.text = "【危险区战备简报】" + _lastBrief.MapDisplayNameZh +
                                "（已首破 " + _lastBrief.ClearedDangerZones + "/" + _lastBrief.TotalDangerZones +
-                               "｜剩余 " + _lastBrief.RemainingDangerZones + "）";
+                               "｜剩余 " + _lastBrief.RemainingDangerZones +
+                               "｜余赏 " + _lastPayoutSummary.RemainingStandardSilver +
+                               "/破锁 " + _lastPayoutSummary.RemainingLockBreakSilver + "）";
 
             _summaryRibbonImage.color = ResolveRiskColor(_lastBrief.TravelRiskLevel);
             _summaryRibbonText.text = _lastBrief.HasNearestUncleared
@@ -266,25 +292,26 @@ namespace Rpg.Soundwell
 
             UpdateTabHighlight();
 
+            List<RpgWorld500xDangerZoneTacticalEntry> filtered =
+                RpgWorld500xDangerZoneTacticalBriefService.FilterEntries(
+                    _lastBrief,
+                    unclearedOnly: _activeFilter == RpgWorld500xDangerBriefFilter.UnclearedOnly,
+                    minEffectiveThreatLevel: _minEffectiveThreatLevel,
+                    tierFilter: _tierFilter);
+
             const float rowHeight = 36f;
             const float spacing = 6f;
-            int rowIndex = 0;
 
-            for (int i = 0; i < _lastBrief.Entries.Count; i++)
+            for (int i = 0; i < filtered.Count; i++)
             {
-                RpgWorld500xDangerZoneTacticalEntry entry = _lastBrief.Entries[i];
-                if (_activeFilter == RpgWorld500xDangerBriefFilter.UnclearedOnly && entry.IsCleared)
-                {
-                    continue;
-                }
-
+                RpgWorld500xDangerZoneTacticalEntry entry = filtered[i];
                 Color rowColor = entry.IsCleared
                     ? new Color(0.15f, 0.23f, 0.17f, 0.90f)
                     : (entry.EffectiveThreatLevel >= 4
                         ? new Color(0.30f, 0.14f, 0.16f, 0.92f)
                         : new Color(0.13f, 0.15f, 0.22f, 0.90f));
 
-                SpawnInfoRow("DangerRow_" + entry.MarkerId, rowIndex++, rowHeight, spacing, entry.SummaryLineZh, rowColor);
+                SpawnInfoRow("DangerRow_" + entry.MarkerId, i, rowHeight, spacing, entry.SummaryLineZh, rowColor);
             }
         }
 
