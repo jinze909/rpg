@@ -844,9 +844,9 @@ namespace Rpg.Soundwell
             int current = GetQuestProgress(questId);
             if (current >= quest.RequiredSteps)
                 return false;
-            int next = current + deltaSteps;
-            if (next > quest.RequiredSteps)
-                next = quest.RequiredSteps;
+            // Bound the increment before adding so an oversized request cannot
+            // wrap a partially completed quest into negative saved progress.
+            int next = current + Math.Min(deltaSteps, quest.RequiredSteps - current);
             questProgress[questId] = next;
             discoveredMarkers.Add(quest.MarkerId);
             ReleaseCompletedQuestTracking();
