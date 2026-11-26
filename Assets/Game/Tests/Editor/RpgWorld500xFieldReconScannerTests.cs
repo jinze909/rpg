@@ -137,6 +137,52 @@ namespace Rpg.Tests.Editor
             Assert.IsTrue(scanner.TryPulseScan(RpgWorldMapId.Soundwell, player, 14f, out _, out _));
         }
 
+
+        [Test]
+        public void InvalidCoordinatesAndFilterCannotSpendOrResetReconPulseCooldown()
+        {
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var scanner = new RpgWorld500xFieldReconScannerService(cooldownSeconds: 4f);
+                var player = new Vector2(260f, 720f);
+                var invalidKind = (RpgWorld500xReconPingKind)255;
+                var invalidTiles = new[]
+                {
+                    new Vector2(-0.1f, player.y),
+                    new Vector2(player.x, -0.1f),
+                    new Vector2(spec.ExpandedWidth, player.y),
+                    new Vector2(player.x, spec.ExpandedHeight),
+                    new Vector2(float.MaxValue, player.y)
+                };
+
+                foreach (Vector2 invalid in invalidTiles)
+                {
+                    Assert.IsFalse(scanner.TryPulseScan(spec.MapId, invalid, 10f,
+                        out var pings, out string banner));
+                    Assert.IsEmpty(pings);
+                    StringAssert.Contains("坐标超出区域", banner);
+                    Assert.IsFalse(scanner.TryFindNearestByKind(spec.MapId, invalid,
+                        RpgWorld500xReconPingKind.HiddenCache, out _));
+                    Assert.AreEqual(0f, scanner.GetRemainingCooldown(10f));
+                }
+
+                Assert.IsFalse(scanner.TryPulseScan(spec.MapId, player, 10f,
+                    out var invalidFilterPings, out string invalidFilterBanner, filterKind: invalidKind));
+                Assert.IsEmpty(invalidFilterPings);
+                StringAssert.Contains("分类无效", invalidFilterBanner);
+                Assert.IsFalse(scanner.TryFindNearestByKind(spec.MapId, player, invalidKind, out _));
+                Assert.AreEqual(0f, scanner.GetRemainingCooldown(10f));
+
+                Assert.IsTrue(scanner.TryPulseScan(spec.MapId, player, 10f, out _, out _));
+                Assert.IsFalse(scanner.TryPulseScan(spec.MapId, invalidTiles[0], 11f, out _, out _));
+                Assert.IsFalse(scanner.TryPulseScan(spec.MapId, player, 12f,
+                    out _, out _, filterKind: invalidKind));
+                Assert.AreEqual(1f, scanner.GetRemainingCooldown(13f), 0.001f);
+                Assert.IsTrue(scanner.TryPulseScan(spec.MapId, player, 14f, out _, out _,
+                    filterKind: RpgWorld500xReconPingKind.HiddenCache));
+            }
+        }
+
         [Test]
         public void ResolveDirection8Zh_CoversAllEightCompassSectorsAndUnderfoot()
         {

@@ -139,9 +139,15 @@ namespace Rpg.Soundwell
             Func<DateTime> utcNowProvider = null,
             Sprite[] overrideTileSlices = null)
         {
-            Shutdown();
-
             RpgWorldMapId targetMap = overrideMap ?? initialMapId;
+            // Validate the public play-mode entry before shutting down the live
+            // controller; the driver's lower-level guard cannot restore a disposed UI.
+            if (!Enum.IsDefined(typeof(RpgWorldMapId), targetMap))
+            {
+                throw new ArgumentOutOfRangeException(nameof(overrideMap), targetMap, "Unknown map id.");
+            }
+
+            Shutdown();
             _uiRoot = new GameObject("World500xPlayModeUiRoot");
             _uiRoot.transform.SetParent(transform, false);
 

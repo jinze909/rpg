@@ -255,6 +255,14 @@ namespace Rpg.Soundwell
                 !RpgWorldLandmarkCatalog.TryGetQuest(tracker.MapId, questId, out RpgLandmarkQuestDefinition quest))
                 return false;
 
+            // Danger-linked quests must be advanced only after the encounter
+            // has been cleared. The victory path records the clear before
+            // calling this method; direct callers must not bypass that gate.
+            if (RpgWorldLandmarkCatalog.TryGetMarker(tracker.MapId, quest.MarkerId, out RpgMapLandmarkMarker marker) &&
+                marker.Category == RpgMapMarkerCategory.DangerZone &&
+                !IsDangerZoneCleared(marker.Id))
+                return false;
+
             if (!tracker.TryAdvanceQuest(questId, deltaSteps))
                 return false;
 

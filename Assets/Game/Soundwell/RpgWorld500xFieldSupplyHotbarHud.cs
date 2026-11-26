@@ -48,8 +48,9 @@ namespace Rpg.Soundwell
             Func<float> clockSecondsProvider = null)
         {
             _bootstrapper = bootstrapper ?? throw new ArgumentNullException(nameof(bootstrapper));
-            _supplyUseService = supplyUseService ?? new RpgWorld500xFieldSupplyUseService(
-                getInt: k => (_bootstrapper.Store != null && _bootstrapper.Store.TryGetValue(k, out int v)) ? v : 0);
+            // A standalone hotbar must consume from the same authoritative
+            // inventory that the merchant, world HUD and saved game use.
+            _supplyUseService = supplyUseService ?? _bootstrapper.CreateFieldSupplyUseService();
             _clockSecondsProvider = clockSecondsProvider ?? (() => Time.unscaledTime);
             _font = ResolveUiFont();
 

@@ -188,6 +188,7 @@ namespace Rpg.Soundwell
             if (sameMap)
             {
                 currentHost.Bridge.LoadState();
+                _driver.Facade.DistrictTracker.ReloadVisitedChunks();
             }
 
             if (!_driver.TryRestorePlayerPosition(savedPosition))
@@ -196,6 +197,11 @@ namespace Rpg.Soundwell
                 return false;
             }
 
+            // Reveal the restored player's actual neighborhood immediately,
+            // including legacy saves that predate persisted fog coverage.
+            RpgWorld500xExplorationHost restoredHost = _driver.Facade.Session.Host;
+            _driver.Facade.DistrictTracker.RecordPlayerTile(savedPosition,
+                restoredHost.ChunkRenderer.StreamingRadiusChunks, out _);
             _driver.Facade.PropSpawner.RefreshActiveSprites();
             _statusHud.SyncFromDriver(_driver);
             return true;
