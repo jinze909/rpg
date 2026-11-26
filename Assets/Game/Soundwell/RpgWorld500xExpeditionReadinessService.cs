@@ -224,7 +224,16 @@ namespace Rpg.Soundwell
             }
             else
             {
-                sb.Append("｜随身整备齐全，可直接启程");
+                sb.Append(advisory.RecommendCampfireRest
+                    ? "｜随身整备齐全"
+                    : "｜随身整备齐全，可直接启程");
+            }
+
+            // Supply readiness does not override hazardous weather guidance.
+            // Even a fully stocked player should see the existing rest advisory.
+            if (advisory.RecommendCampfireRest)
+            {
+                sb.Append("｜天时高危，建议营火休整后启程");
             }
 
             return new RpgWorld500xExpeditionReadinessReport(
