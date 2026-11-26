@@ -92,6 +92,66 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SailingSequenceReadClosingLandingViewCannotWriteOrOpenArrival()
+        {
+            AssertFactReadClosingLandingViewCannotWriteOrOpenArrival(M04DepartureFacts.SailingSequenceKey);
+        }
+
+        [Test]
+        public void PendingArrivalSequenceReadClosingLandingViewCannotWriteOrOpenArrival()
+        {
+            AssertFactReadClosingLandingViewCannotWriteOrOpenArrival(M05LandingFacts.PendingArrivalSequenceKey);
+        }
+
+        private static void AssertFactReadClosingLandingViewCannotWriteOrOpenArrival(string closeOnKey)
+        {
+            var root = new GameObject("M05 landing closes during fact read");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            var read = Reader(values);
+            M05OuterHarborFlowHost host = null;
+            bool closeOnRead = false;
+            int writes = 0;
+            int completions = 0;
+            try
+            {
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform,
+                    new M05LandingReport(3, 8, true, true), key =>
+                    {
+                        int value = read(key);
+                        if (closeOnRead && key == closeOnKey)
+                        {
+                            closeOnRead = false;
+                            host.Dispose();
+                        }
+                        return value;
+                    }, (key, value) =>
+                    {
+                        writes++;
+                        values[key] = value;
+                    }, _ => completions++, out host), Is.True);
+
+                var button = host.LandingCheckView.ConfirmButton;
+                closeOnRead = true;
+                Assert.Throws<InvalidOperationException>(() => button.onClick.Invoke());
+                Assert.That(closeOnRead, Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.LandingCheckView, Is.Null);
+                Assert.That(host.ArrivalSession, Is.Null);
+                Assert.That(writes, Is.Zero);
+                Assert.That(completions, Is.Zero);
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+                Assert.That(read(M05LandingFacts.PendingSignatureKey), Is.Zero);
+                Assert.That(root.transform.childCount, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CorruptSeranDecisionRejectsFreshAndSavedArrivalBeforeShowingUnfinishableUi()
         {
             foreach (bool landingSaved in new[] { false, true })

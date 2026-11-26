@@ -177,15 +177,41 @@ namespace Rpg.Soundwell
             if (disposed || parent == null || stage != M05OuterHarborFlowStage.LandingCheck)
                 return;
 
-            // The manifest and observed landing can be identical on replay.
-            // Match the actual cast-off identity before any arrival write.
-            RequireCurrentSailing();
+            M05LandingCheckView submittingView = landingCheckView;
+            void RequireLiveLanding()
+            {
+                if (disposed || parent == null ||
+                    stage != M05OuterHarborFlowStage.LandingCheck ||
+                    submittingView == null || submittingView.IsDisposed ||
+                    landingCheckView != submittingView)
+                    throw new InvalidOperationException("The M05 landing view is no longer active.");
+            }
+
+            int ReadLive(string key)
+            {
+                RequireLiveLanding();
+                int value = getInt(key);
+                RequireLiveLanding();
+                return value;
+            }
+
+            void WriteLive(string key, int value)
+            {
+                RequireLiveLanding();
+                setInt(key, value);
+                RequireLiveLanding();
+            }
+
+            // A fact reader can synchronously close the scene. Check the
+            // captured view throughout validation, not only before reading.
+            // The actual cast-off identity must still match on replay.
+            RequireCurrentSailing(ReadLive);
 
             // Save first, but keep the landing UI until the next scene is
             // successfully constructed. A failed handoff must remain retryable.
             // If the save already succeeded on a previous attempt, accept
             // only the exact same report and never write it a second time.
-            if (!M05LandingFacts.TryRead(getInt, out M05LandingReport? saved))
+            if (!M05LandingFacts.TryRead(ReadLive, out M05LandingReport? saved))
                 throw new InvalidOperationException(
                     "Unable to read verified M05 landing report.");
             if (saved.HasValue)
@@ -194,18 +220,20 @@ namespace Rpg.Soundwell
                     throw new InvalidOperationException(
                         "Saved M05 landing differs from the confirmed report.");
             }
-            else if (getInt(M05LandingFacts.ConfirmedKey) != 0 ||
-                !M05LandingFacts.TryRecord(confirmed, getInt, setInt))
+            else if (ReadLive(M05LandingFacts.ConfirmedKey) != 0 ||
+                !M05LandingFacts.TryRecord(confirmed, ReadLive, WriteLive))
                 throw new InvalidOperationException(
                     "Unable to persist verified M05 landing report.");
 
-            OpenArrivalSession();
+            RequireLiveLanding();
+            OpenArrivalSession(RequireLiveLanding);
             landingCheckView?.Dispose();
             landingCheckView = null;
         }
 
-        private void OpenArrivalSession()
+        private void OpenArrivalSession(Action requireLive = null)
         {
+            requireLive?.Invoke();
             if (!M05OuterHarborArrivalSession.TryOpen(
                 parent, getInt, setInt, OnArrivalSessionCompleted,
                 out M05OuterHarborArrivalSession next))
@@ -214,8 +242,10 @@ namespace Rpg.Soundwell
 
             try
             {
+                requireLive?.Invoke();
                 if (lastAspect.HasValue)
                     next.LayoutForViewportAspect(lastAspect.Value);
+                requireLive?.Invoke();
             }
             catch
             {
@@ -242,11 +272,12 @@ namespace Rpg.Soundwell
             arrivalSession = null;
         }
 
-        private void RequireCurrentSailing()
+        private void RequireCurrentSailing(Func<string, int> read = null)
         {
-            if (getInt(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
-                !M04DepartureFacts.TryReadSailed(getInt, out bool sailed) || !sailed ||
-                !FogListeningFacts.TryRead(getInt, out FogListeningRecord? fog) ||
+            read = read ?? getInt;
+            if (read(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
+                !M04DepartureFacts.TryReadSailed(read, out bool sailed) || !sailed ||
+                !FogListeningFacts.TryRead(read, out FogListeningRecord? fog) ||
                 !fog.HasValue || !fog.Value.Succeeded)
                 throw new InvalidOperationException(
                     "The M05 landing check belongs to a previous or invalid sailing.");
