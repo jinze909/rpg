@@ -39,6 +39,7 @@ namespace Rpg.Tests.Editor
                 {
                     // Hidden panel rejects Try* calls AND direct stale tab callbacks cleanly.
                     Assert.IsFalse(panel.TrySelectFilter(RpgWorld500xDangerBriefFilter.AllZones));
+                    Assert.IsFalse(panel.TrySetThreatCriteria(3, RpgWorld500xThreatTier.ElitePatrol));
                     Assert.IsFalse(panel.TryClickRefresh(1f));
                     Assert.IsFalse(panel.TryClickClose());
                     Button allZonesBtn = root.transform
@@ -52,26 +53,46 @@ namespace Rpg.Tests.Editor
                     Assert.Greater(totalZones, 0);
                     Assert.AreEqual(totalZones, panel.DisplayedRowCount);
                     Assert.IsTrue(panel.SummaryRibbonText.Contains("最近未清剿"));
+                    Assert.AreEqual(totalZones, panel.LastPayoutSummary.RemainingZones);
+                    Assert.Greater(panel.LastPayoutSummary.RemainingLockBreakSilver,
+                        panel.LastPayoutSummary.RemainingStandardSilver);
+                    StringAssert.Contains("清剿收益预估", panel.PayoutSummaryText);
+                    StringAssert.Contains("余赏", panel.HeaderText);
 
                     // Mark first DangerZone cleared -> UnclearedOnly drops by 1; AllZones keeps full count.
                     string firstMarkerId = panel.LastBrief.NearestUnclearedZone.MarkerId;
+                    int initialRemainingSilver = panel.LastPayoutSummary.RemainingStandardSilver;
                     clearFlags[RpgWorld500xDangerVictoryRewardService.FirstClearKey(firstMarkerId)] = 1;
                     Assert.IsTrue(panel.TryClickRefresh(5f));
                     Assert.AreEqual(totalZones - 1, panel.DisplayedRowCount);
+                    Assert.Less(panel.LastPayoutSummary.RemainingStandardSilver, initialRemainingSilver);
 
-                    // Parent CanvasGroup lock prevents tab switch, refresh, close, AND direct stale callbacks cleanly.
+                    // Parent CanvasGroup lock prevents tab switch, criteria change, refresh, close, AND direct stale callbacks cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySelectFilter(RpgWorld500xDangerBriefFilter.AllZones));
+                    Assert.IsFalse(panel.TrySetThreatCriteria(4, RpgWorld500xThreatTier.HazardBoss));
                     Assert.IsFalse(panel.TryClickRefresh(6f));
                     Assert.IsFalse(panel.TryClickClose());
                     allZonesBtn.onClick.Invoke();
                     Assert.AreEqual(RpgWorld500xDangerBriefFilter.UnclearedOnly, panel.ActiveFilter);
+                    Assert.AreEqual(1, panel.MinEffectiveThreatLevel);
+                    Assert.IsNull(panel.TierFilter);
                     group.interactable = true;
 
                     Assert.IsTrue(panel.TrySelectFilter(RpgWorld500xDangerBriefFilter.AllZones));
                     Assert.AreEqual(totalZones, panel.DisplayedRowCount);
                     Assert.IsTrue(panel.HeaderText.Contains("已首破 1/" + totalZones));
+
+                    // Apply threat tier filter matching first entry and then reset back to all entries.
+                    RpgWorld500xThreatTier sampleTier = panel.LastBrief.Entries[0].Tier;
+                    Assert.IsTrue(panel.TrySetThreatCriteria(minEffectiveThreatLevel: 1, tierFilter: sampleTier));
+                    Assert.AreEqual(sampleTier, panel.TierFilter);
+                    Assert.Greater(panel.DisplayedRowCount, 0);
+                    Assert.LessOrEqual(panel.DisplayedRowCount, totalZones);
+
+                    Assert.IsTrue(panel.TrySetThreatCriteria(minEffectiveThreatLevel: 1, tierFilter: null));
+                    Assert.AreEqual(totalZones, panel.DisplayedRowCount);
 
                     Assert.IsTrue(panel.TryClickClose());
                     Assert.IsFalse(panel.IsVisible);
