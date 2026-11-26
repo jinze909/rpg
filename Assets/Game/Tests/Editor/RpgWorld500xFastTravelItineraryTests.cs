@@ -5,6 +5,39 @@ namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xFastTravelItineraryTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PlanItinerary_RejectsUnknownRegionsEvenForSameMap(bool safest)
+        {
+            var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f);
+            var unknown = (RpgWorldMapId)255;
+            var valid = RpgWorldMapId.Soundwell;
+            var origins = new[] { unknown, unknown, valid };
+            var destinations = new[] { unknown, valid, unknown };
+
+            for (int i = 0; i < origins.Length; i++)
+            {
+                RpgWorld500xTravelItinerary result = safest
+                    ? RpgWorld500xFastTravelItineraryService.PlanSafestItinerary(origins[i], destinations[i], atmosphere)
+                    : RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(origins[i], destinations[i], atmosphere);
+
+                Assert.IsFalse(result.IsReachable);
+                Assert.AreEqual(0, result.HopCount);
+                Assert.AreEqual(0, result.TotalTravelMinutesInGame);
+                Assert.IsEmpty(result.Legs);
+                Assert.IsFalse(result.RecommendCampfireStop);
+                StringAssert.Contains("未找到有效区域路径", result.SummaryZh);
+                StringAssert.DoesNotContain("当前已在目的地", result.SummaryZh);
+            }
+
+            RpgWorld500xTravelItinerary local = safest
+                ? RpgWorld500xFastTravelItineraryService.PlanSafestItinerary(valid, valid, atmosphere)
+                : RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(valid, valid, atmosphere);
+            Assert.IsTrue(local.IsReachable);
+            Assert.AreEqual(0, local.HopCount);
+            StringAssert.Contains("当前已在目的地", local.SummaryZh);
+        }
+
         [Test]
         public void PlanShortestItinerary_FindsOptimalMultiHopRouteAndFlagsHazardousWeatherLegs()
         {
