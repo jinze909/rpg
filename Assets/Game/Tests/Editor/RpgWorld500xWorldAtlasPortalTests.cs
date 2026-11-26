@@ -43,6 +43,66 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ShortestRegionPathAndAtlasSummary_ComputeMultiHopRoutesRejectInvalidRegionsAndAggregateBounties()
+        {
+            // Invalid enum values are rejected safely.
+            Assert.IsFalse(RpgWorld500xWorldAtlasPortalService.TryFindShortestRegionPath(
+                (RpgWorldMapId)255, RpgWorldMapId.Soundwell, out _));
+            Assert.IsFalse(RpgWorld500xWorldAtlasPortalService.TryFindShortestRegionPath(
+                RpgWorldMapId.Soundwell, (RpgWorldMapId)255, out _));
+
+            // Same-region path requires zero travel minutes and zero hops.
+            Assert.IsTrue(RpgWorld500xWorldAtlasPortalService.TryFindShortestRegionPath(
+                RpgWorldMapId.Soundwell, RpgWorldMapId.Soundwell, out RpgWorld500xRegionPathPlan samePlan));
+            Assert.IsTrue(samePlan.IsSameRegion);
+            Assert.IsFalse(samePlan.IsDirect);
+            Assert.AreEqual(0, samePlan.TotalTravelMinutesInGame);
+            Assert.AreEqual(0, samePlan.Hops.Count);
+            StringAssert.Contains("【跨境路线】", samePlan.SummaryZh);
+
+            // Direct hop Soundwell -> RedSaltHarbor is 1 hop / 120 minutes.
+            Assert.IsTrue(RpgWorld500xWorldAtlasPortalService.TryFindShortestRegionPath(
+                RpgWorldMapId.Soundwell, RpgWorldMapId.RedSaltHarbor, out RpgWorld500xRegionPathPlan directPlan));
+            Assert.IsFalse(directPlan.IsSameRegion);
+            Assert.IsTrue(directPlan.IsDirect);
+            Assert.AreEqual(1, directPlan.Hops.Count);
+            Assert.AreEqual(120, directPlan.TotalTravelMinutesInGame);
+            Assert.AreEqual("route_sw_rsh", directPlan.Hops[0].RouteId);
+
+            // Multi-hop Soundwell -> MineCamp picks Soundwell -> RedSaltHarbor -> MineCamp (270m < 390m).
+            Assert.IsTrue(RpgWorld500xWorldAtlasPortalService.TryFindShortestRegionPath(
+                RpgWorldMapId.Soundwell, RpgWorldMapId.MineCamp, out RpgWorld500xRegionPathPlan multiHop));
+            Assert.IsFalse(multiHop.IsSameRegion);
+            Assert.IsFalse(multiHop.IsDirect);
+            Assert.AreEqual(2, multiHop.Hops.Count);
+            Assert.AreEqual("route_sw_rsh", multiHop.Hops[0].RouteId);
+            Assert.AreEqual("route_rsh_mc", multiHop.Hops[1].RouteId);
+            Assert.AreEqual(270, multiHop.TotalTravelMinutesInGame);
+            StringAssert.Contains("270 分钟", multiHop.SummaryZh);
+
+            // World atlas summary aggregates all 4 regions without mutating the store.
+            IReadOnlyList<RpgWorld500xFieldBountyDef> harborBounties =
+                RpgWorld500xBountyAndSupplyCatalog.GetBounties(RpgWorldMapId.RedSaltHarbor);
+            var store = new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                [RpgWorld500xRegionalReputationService.ReputationKey(RpgWorldMapId.RedSaltHarbor)] = 420,
+                [RpgWorld500xRegionalReputationService.ReputationKey(RpgWorldMapId.MineCamp)] = 150,
+                [harborBounties[0].MakinomKey] = 1
+            };
+            int storeCountBefore = store.Count;
+
+            RpgWorld500xWorldAtlasSummary summary = RpgWorld500xWorldAtlasPortalService.BuildWorldAtlasSummary(store);
+            Assert.AreEqual(4, summary.TotalRegions);
+            Assert.AreEqual(1, summary.TotalClaimedBounties);
+            Assert.Greater(summary.TotalBounties, 1);
+            Assert.AreEqual(summary.TotalBounties - 1, summary.RemainingBounties);
+            Assert.AreEqual(570, summary.TotalReputationPoints);
+            Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, summary.HighestReputationMap);
+            StringAssert.Contains("【四境总览】", summary.SummaryZh);
+            Assert.AreEqual(storeCountBefore, store.Count);
+        }
+
+        [Test]
         public void TryTravelToConnectedRegion_RejectsActiveDangerWithoutChangingMapOrClock()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(
