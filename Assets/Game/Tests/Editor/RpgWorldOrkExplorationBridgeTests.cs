@@ -50,9 +50,20 @@ namespace Rpg.Tests.Editor
             Assert.That(rest.TotalCampRests, Is.EqualTo(1));
             Assert.That(partyRecoverCalls, Is.EqualTo(1));
 
+            // Even a direct bridge caller cannot claim a danger quest without victory.
+            string questKey = RpgMapExplorationTracker.QuestProgressKey("q.sw.clear-drain-grate");
+            int progressBeforeVictory = read(questKey);
+            Assert.That(bridge.TryAdvanceLandmarkQuest("q.sw.clear-drain-grate", int.MaxValue, out _), Is.False);
+            Assert.That(read(questKey), Is.EqualTo(progressBeforeVictory));
+            Assert.That(bridge.IsQuestRewarded("q.sw.clear-drain-grate"), Is.False);
+            Assert.That(rewardCalls, Is.Zero);
+
             // DangerZone encounter blocks fast-travel and camp rest until resolved, then completes linked quest once.
             Assert.That(bridge.TryTriggerDangerZoneEncounter("sw.sunken-drain", new Vector2(680f, 640f)), Is.True);
             Assert.That(bridge.IsInDangerEncounter, Is.True);
+            Assert.That(bridge.TryAdvanceLandmarkQuest("q.sw.clear-drain-grate", 1, out _), Is.False);
+            Assert.That(read(questKey), Is.EqualTo(progressBeforeVictory));
+            Assert.That(rewardCalls, Is.Zero);
             Assert.That(bridge.TryFastTravel("sw.entry-shaft", (x, y) => true, out _), Is.False);
             Assert.That(bridge.TryRestAtCamp("sw.moss-cistern", new Vector2(1180f, 1120f), out _), Is.False);
 

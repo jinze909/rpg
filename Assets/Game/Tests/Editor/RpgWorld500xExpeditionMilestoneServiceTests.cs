@@ -122,6 +122,54 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(0, preview.BuildMilestoneSummary().ClaimableCount);
         }
 
+
+        [Test]
+        public void RejectedMilestoneClaimRemainsPendingWithoutPayingRepeatableRewards()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var caches = RpgWorld500xContentCatalog.GetCaches(RpgWorldMapId.Soundwell);
+            for (int i = 0; i < 10; i++)
+                store[caches[i].MakinomKey] = 1;
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+                store[RpgWorld500xRegionalReputationService.ReputationKey(spec.MapId)] =
+                    RpgWorld500xRegionalReputationService.SwornThreshold;
+
+            bool rejectCacheClaim = true;
+            string cacheClaimKey = "rpg.return.world.milestone.first_cache_sweep";
+            int silver = 0;
+            int rewardCalls = 0;
+            var service = new RpgWorld500xExpeditionMilestoneService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) =>
+                {
+                    if (!rejectCacheClaim || k != cacheClaimKey)
+                        store[k] = v;
+                },
+                d => { silver += d.SaltSilverReward; rewardCalls++; });
+
+            // A failed claim must not prevent another eligible claim from succeeding.
+            var first = service.EvaluateAndClaimAll(out _);
+            Assert.AreEqual(1, first.Count);
+            Assert.AreEqual("four_regions_sworn", first[0].Id);
+            Assert.AreEqual(300, silver);
+            Assert.AreEqual(1, rewardCalls);
+            Assert.IsFalse(store.ContainsKey(cacheClaimKey));
+            Assert.AreEqual(1, service.BuildMilestoneSummary().ClaimableCount);
+            Assert.AreEqual(0, service.EvaluateAndClaimAll(out _).Count);
+            Assert.AreEqual(300, silver);
+
+            rejectCacheClaim = false;
+            var retried = service.EvaluateAndClaimAll(out _);
+            Assert.AreEqual(1, retried.Count);
+            Assert.AreEqual("first_cache_sweep", retried[0].Id);
+            Assert.AreEqual(1, store[cacheClaimKey]);
+            Assert.AreEqual(360, silver);
+            Assert.AreEqual(2, rewardCalls);
+            Assert.AreEqual(0, service.EvaluateAndClaimAll(out _).Count);
+            Assert.AreEqual(0, service.BuildMilestoneSummary().ClaimableCount);
+            Assert.AreEqual(360, silver);
+        }
+
         [Test]
         public void BuildMilestoneSummary_PreviewsUnclaimedSilverAndClosestNextTargetWithoutMutatingState()
         {

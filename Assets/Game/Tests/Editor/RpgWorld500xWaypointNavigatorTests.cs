@@ -162,6 +162,65 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [Test]
+        public void CacheAndShortcutGuidance_PrefersLiveControllerAfterSaveRollback()
+        {
+            var layout = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            var cache = RpgWorld500xContentCatalog.GetCaches(layout.MapId)[0];
+            var shortcut = RpgWorld500xContentCatalog.GetShortcuts(layout.MapId)[0];
+            var live = new Dictionary<string, int>(StringComparer.Ordinal);
+            var stale = new Dictionary<string, int>(StringComparer.Ordinal)
+            {
+                [cache.MakinomKey] = 1,
+                [shortcut.MakinomKey] = 1
+            };
+            Func<string, int> readLive = k => live.TryGetValue(k, out int v) ? v : 0;
+            Func<string, int> readStale = k => stale.TryGetValue(k, out int v) ? v : 0;
+            var controller = new RpgWorld500xCachesAndShortcutsController(
+                layout, readLive, (k, v) => live[k] = v);
+            var cacheCenter = new Vector2(cache.Tile.x + 0.5f, cache.Tile.y + 0.5f);
+            var shortcutCenter = new Vector2(shortcut.TriggerTile.x + 0.5f, shortcut.TriggerTile.y + 0.5f);
+
+            // The restored session has not looted or unlocked either target.
+            Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                layout, cacheCenter, RpgWorld500xWaypointCategory.UnlootedCache,
+                out var cacheTarget, cachesCtrl: controller, getInt: readStale));
+            Assert.AreEqual(cache.Id, cacheTarget.EntityId);
+            Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                layout, shortcutCenter, RpgWorld500xWaypointCategory.LockedShortcut,
+                out var shortcutTarget, cachesCtrl: controller, getInt: readStale));
+            Assert.AreEqual(shortcut.Id, shortcutTarget.EntityId);
+
+            var nearby = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                layout, cacheCenter, int.MaxValue, cachesCtrl: controller, getInt: readStale);
+            Assert.IsTrue(nearby.Exists(p => p.EntityId == cache.Id &&
+                p.Category == RpgWorld500xWaypointCategory.UnlootedCache));
+            Assert.IsTrue(nearby.Exists(p => p.EntityId == shortcut.Id &&
+                p.Category == RpgWorld500xWaypointCategory.LockedShortcut));
+
+            // Standalone guidance still uses the persisted reader.
+            var standalone = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                layout, cacheCenter, int.MaxValue, getInt: readStale);
+            Assert.IsFalse(standalone.Exists(p => p.EntityId == cache.Id &&
+                p.Category == RpgWorld500xWaypointCategory.UnlootedCache));
+            Assert.IsFalse(standalone.Exists(p => p.EntityId == shortcut.Id &&
+                p.Category == RpgWorld500xWaypointCategory.LockedShortcut));
+
+            // Actual interactions remove targets even if a separate reader is stale at zero.
+            stale.Clear();
+            Assert.IsTrue(controller.TryLootNearbyCache(cacheCenter, 0.5f, out var looted));
+            Assert.AreEqual(cache.Id, looted.Id);
+            Assert.IsTrue(controller.TryUnlockNearbyShortcut(shortcutCenter, 0.5f, out var unlocked));
+            Assert.AreEqual(shortcut.Id, unlocked.Id);
+            nearby = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                layout, cacheCenter, int.MaxValue, cachesCtrl: controller, getInt: readStale);
+            Assert.IsFalse(nearby.Exists(p => p.EntityId == cache.Id &&
+                p.Category == RpgWorld500xWaypointCategory.UnlootedCache));
+            Assert.IsFalse(nearby.Exists(p => p.EntityId == shortcut.Id &&
+                p.Category == RpgWorld500xWaypointCategory.LockedShortcut));
+        }
+
         [Test]
         public void TryFindNearestTarget_SkipsLootedCachesAndRanksTopNearbyPois()
         {

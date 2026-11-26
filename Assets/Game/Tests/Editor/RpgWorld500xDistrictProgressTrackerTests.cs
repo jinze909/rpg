@@ -99,6 +99,36 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FogCoveragePersistsInCompactRegionalBlocksWithoutRepeatWrites()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            int writes = 0;
+            Action<string, int> write = (k, v) => { store[k] = v; writes++; };
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var tracker = new RpgWorld500xDistrictProgressTracker(spec, read, write);
+                Assert.AreEqual(0, tracker.VisitedChunkCount);
+                tracker.RecordPlayerTile(new Vector2(200.5f, 300.5f), 1, out _);
+                int visited = tracker.VisitedChunkCount;
+                int priorWrites = writes;
+                tracker.RecordPlayerTile(new Vector2(200.5f, 300.5f), 1, out _);
+                Assert.AreEqual(priorWrites, writes);
+                var restored = new RpgWorld500xDistrictProgressTracker(spec, read, write);
+                Assert.AreEqual(visited, restored.VisitedChunkCount);
+                Assert.IsTrue(restored.IsChunkVisited(6, 9));
+                Assert.IsFalse(restored.IsChunkVisited(0, 0));
+                Assert.IsEmpty(restored.CurrentDistrictId);
+            }
+            foreach (var entry in store)
+            {
+                StringAssert.StartsWith("rpg.return.world.cartography.fog.", entry.Key);
+                Assert.Greater(entry.Value, 0);
+            }
+            Assert.Less(store.Count, 4 * 9);
+        }
+
+        [Test]
         public void RecordPlayerTile_RejectsOutOfBoundsAndBoundsOversizedRevealWork()
         {
             RpgExpandedMapSpec spec = RpgExpandedWorldScale.GetSpec(RpgWorldMapId.Soundwell);
@@ -150,6 +180,9 @@ namespace Rpg.Tests.Editor
             Assert.Greater(tracker.ComputeDistrictChunkCoverageRatio("sw_dist_sw"), 0f);
             Assert.AreEqual(0f, tracker.ComputeDistrictChunkCoverageRatio("sw_dist_ne"), 0.0001f);
 
+            int persistedFogFacts = store.Count;
+            Assert.Greater(persistedFogFacts, 0);
+
             // Below 25%: next threshold is 25%, remaining silver is 45 + 90 + 180 = 315.
             RpgWorld500xCartographyProgressPreview early = tracker.BuildCartographyPreview(10);
             Assert.AreEqual(RpgWorldMapId.Soundwell, early.MapId);
@@ -170,7 +203,7 @@ namespace Rpg.Tests.Editor
             Assert.IsTrue(ready.HasNextThreshold);
             Assert.AreEqual(100, ready.NextThresholdPercent);
             StringAssert.Contains("可领 2 项（+135 盐银）", ready.SummaryZh);
-            Assert.AreEqual(0, store.Count);
+            Assert.AreEqual(persistedFogFacts, store.Count);
             Assert.AreEqual(0, rewardTotal);
 
             // After claiming all 3 at 100%: 3/3 claimed, 0 remaining, cleared copy.

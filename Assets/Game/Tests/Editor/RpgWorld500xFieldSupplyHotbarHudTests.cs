@@ -71,6 +71,43 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DefaultHotbarConsumesLiveInventoryAndPersistsAcrossSaveReload()
+        {
+            var root = new GameObject("SupplyHotbarLiveInventoryRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var hud = new RpgWorld500xFieldSupplyHotbarHud(root.transform, boot))
+                {
+                    var shop = boot.Driver.Facade.BountyAndSupply;
+                    shop.AddSaltSilver(200);
+                    Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded,
+                        shop.TryPurchaseSupply("lamp_oil", 2));
+                    hud.Refresh(10f);
+                    Assert.AreEqual(2, hud.TotalOwnedSupplyCount);
+                    Assert.IsTrue(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(1, hud.TotalOwnedSupplyCount);
+                    Assert.AreEqual(90f, hud.SupplyUseService.GetRemainingBuffSeconds("lamp_oil", 10f), 0.01f);
+                    string saved = boot.ExportSaveJson();
+                    using (var restored = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: RpgWorldMapId.Soundwell,
+                        overrideTileSlices: new Sprite[] { null }))
+                    {
+                        Assert.IsTrue(restored.TryImportSaveJson(saved, out string error), error);
+                        Assert.AreEqual(1, restored.Driver.Facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"));
+                    }
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FieldSupplyHotbarHud_ConsumesOwnedSuppliesShowsBuffsRespectsParentLockAndZeroLeak()
         {
             var root = new GameObject("World500xFieldSupplyHotbarHudTestRoot");

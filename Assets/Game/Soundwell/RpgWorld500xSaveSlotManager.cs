@@ -269,7 +269,11 @@ namespace Rpg.Soundwell
             };
 
             string encoded = JsonUtility.ToJson(envelope, false);
-            _storage.Write(GetStorageKey(slotId), encoded);
+            if (!TryWriteVerified(slotId, encoded, out error))
+            {
+                return false;
+            }
+
             summary = BuildValidSummary(slotId, envelope, verifiedSnapshot);
             return true;
         }
@@ -346,8 +350,7 @@ namespace Rpg.Soundwell
             }
 
             string encoded = JsonUtility.ToJson(envelope, false);
-            _storage.Write(GetStorageKey(targetSlotId), encoded);
-            return true;
+            return TryWriteVerified(targetSlotId, encoded, out error);
         }
 
         public bool DeleteSlot(RpgWorld500xSaveSlotId slotId)
@@ -358,13 +361,46 @@ namespace Rpg.Soundwell
             }
 
             string key = GetStorageKey(slotId);
-            if (!_storage.TryRead(key, out _))
+            try
             {
+                if (!_storage.TryRead(key, out _))
+                {
+                    return false;
+                }
+
+                _storage.Delete(key);
+                return !_storage.TryRead(key, out _);
+            }
+            catch (Exception)
+            {
+                // The slot is not confirmed empty; do not report deletion.
+                return false;
+            }
+        }
+
+        private bool TryWriteVerified(RpgWorld500xSaveSlotId slotId, string encoded, out string error)
+        {
+            error = string.Empty;
+            string key = GetStorageKey(slotId);
+            try
+            {
+                _storage.Write(key, encoded);
+                // Storage adapters return void. Only report success when the
+                // exact new envelope is observable through the same reader.
+                if (_storage.TryRead(key, out string stored) &&
+                    string.Equals(encoded, stored, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                error = "存档存储写入或读取失败";
                 return false;
             }
 
-            _storage.Delete(key);
-            return true;
+            error = "存档写入未确认，请重试";
+            return false;
         }
 
         // The HUD uses the exact stored envelope as its revision token, including
