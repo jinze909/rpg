@@ -224,9 +224,15 @@ namespace Rpg.Soundwell
             out RpgWorld500xTimePhase nextPhase,
             out int minutesUntilNext)
         {
+            // Match the atmosphere clock's normalization. Adding a whole day
+            // to an already positive float can round it across a phase boundary.
             float normalized = (!float.IsNaN(timeOfDayMinutes) && !float.IsInfinity(timeOfDayMinutes))
-                ? ((timeOfDayMinutes % 1440f) + 1440f) % 1440f
+                ? timeOfDayMinutes % 1440f
                 : 0f;
+            if (normalized < 0f)
+            {
+                normalized += 1440f;
+            }
 
             if (normalized < 300f)
             {
