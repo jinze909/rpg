@@ -149,6 +149,7 @@ namespace Rpg.Tests.Editor
                 {
                     // Hidden panel rejects filter and batch-study actions cleanly.
                     Assert.IsFalse(panel.TrySetUnstudiedOnly(true));
+                    Assert.IsFalse(panel.TrySetTierFilter(RpgWorld500xThreatTier.HazardBoss));
                     Assert.IsFalse(panel.TryStudyAllUnstudied(out _, out _));
 
                     Assert.IsTrue(panel.Show());
@@ -158,6 +159,9 @@ namespace Rpg.Tests.Editor
                     int initialRemainingSilver = panel.RemainingStudySilver;
                     Assert.Greater(initialRemainingSilver, 0);
                     StringAssert.Contains("待研读盐银 +" + initialRemainingSilver, panel.HeaderText);
+                    Assert.AreEqual(total, panel.LastCodexSummary.TotalDossiers);
+                    StringAssert.Contains("【图鉴考据】", panel.CodexSummaryText);
+                    Assert.Greater(panel.RecommendedUnstudiedSupplyIds.Count, 0);
 
                     // Study first dossier and enable UnstudiedOnly filter -> DisplayedDossierRowCount drops by 1.
                     List<RpgWorld500xDangerZoneDossier> dossiers =
@@ -171,10 +175,21 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.UnstudiedOnly);
                     Assert.AreEqual(total - 1, panel.DisplayedDossierRowCount);
 
+                    // Filter by threat tier of an unstudied dossier, then clear tier filter.
+                    RpgWorld500xThreatTier sampleTier = dossiers[1].Profile.Tier;
+                    Assert.IsTrue(panel.TrySetTierFilter(sampleTier));
+                    Assert.AreEqual(sampleTier, panel.TierFilter);
+                    Assert.Greater(panel.DisplayedDossierRowCount, 0);
+                    Assert.LessOrEqual(panel.DisplayedDossierRowCount, total - 1);
+                    Assert.IsTrue(panel.TrySetTierFilter(null));
+                    Assert.IsNull(panel.TierFilter);
+                    Assert.AreEqual(total - 1, panel.DisplayedDossierRowCount);
+
                     // Ancestor CanvasGroup lock blocks filter changes and batch study cleanly.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySetUnstudiedOnly(false));
+                    Assert.IsFalse(panel.TrySetTierFilter(sampleTier));
                     Assert.IsFalse(panel.TryStudyAllUnstudied(out _, out _));
                     Assert.AreEqual(1, panel.StudiedCount);
                     group.interactable = true;
@@ -186,6 +201,8 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(total, panel.StudiedCount);
                     Assert.AreEqual(0, panel.RemainingStudySilver);
                     Assert.AreEqual(0, panel.DisplayedDossierRowCount);
+                    Assert.AreEqual(0, panel.RecommendedUnstudiedSupplyIds.Count);
+                    StringAssert.Contains("已全部收录", panel.CodexSummaryText);
                     StringAssert.Contains("已批量研读", panel.DetailText);
                     Assert.AreEqual(initialRemainingSilver, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
 
