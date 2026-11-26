@@ -148,6 +148,41 @@ namespace Rpg.Soundwell
             new RpgActiveAmbientState(RpgAmbientMicroEventKind.None, string.Empty, 1f, 1f, 1f, string.Empty);
     }
 
+    public readonly struct RpgWorld500xLivingWorldProgressSummary
+    {
+        public RpgWorld500xLivingWorldProgressSummary(
+            RpgWorldMapId mapId,
+            int heardRumorCount,
+            int totalRumorCount,
+            int remainingRumorCount,
+            int inspectedStorySpotCount,
+            int totalStorySpotCount,
+            int remainingStorySpotCount,
+            int ambientZoneCount,
+            string summaryZh)
+        {
+            MapId = mapId;
+            HeardRumorCount = heardRumorCount;
+            TotalRumorCount = totalRumorCount;
+            RemainingRumorCount = remainingRumorCount;
+            InspectedStorySpotCount = inspectedStorySpotCount;
+            TotalStorySpotCount = totalStorySpotCount;
+            RemainingStorySpotCount = remainingStorySpotCount;
+            AmbientZoneCount = ambientZoneCount;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int HeardRumorCount { get; }
+        public int TotalRumorCount { get; }
+        public int RemainingRumorCount { get; }
+        public int InspectedStorySpotCount { get; }
+        public int TotalStorySpotCount { get; }
+        public int RemainingStorySpotCount { get; }
+        public int AmbientZoneCount { get; }
+        public string SummaryZh { get; }
+    }
+
     /// <summary>
     /// Wave-2 500x world enrichment catalog: 24 interactive field NPCs & rumor
     /// brokers, 16 inspectable environmental storytelling spots, and 12 regional
@@ -432,6 +467,128 @@ namespace Rpg.Soundwell
             npcs = RpgWorld500xLivingWorldCatalog.GetFieldNpcs(mapId);
             storySpots = RpgWorld500xLivingWorldCatalog.GetStorySpots(mapId);
             ambientZones = RpgWorld500xLivingWorldCatalog.GetAmbientZones(mapId);
+        }
+
+        public RpgWorld500xLivingWorldProgressSummary BuildLivingWorldProgressSummary()
+        {
+            int heard = 0;
+            for (int i = 0; i < npcs.Count; i++)
+            {
+                if (getInt(npcs[i].RumorMakinomKey) == 1)
+                {
+                    heard++;
+                }
+            }
+
+            int inspected = 0;
+            for (int i = 0; i < storySpots.Count; i++)
+            {
+                if (getInt(storySpots[i].MakinomKey) == 1)
+                {
+                    inspected++;
+                }
+            }
+
+            int remRumors = Math.Max(0, npcs.Count - heard);
+            int remSpots = Math.Max(0, storySpots.Count - inspected);
+            string summaryZh = "【风土与传闻】传闻 " + heard + "/" + npcs.Count +
+                               "｜轶事点 " + inspected + "/" + storySpots.Count +
+                               "｜微事件区 " + ambientZones.Count + " 处";
+
+            return new RpgWorld500xLivingWorldProgressSummary(
+                mapId,
+                heard,
+                npcs.Count,
+                remRumors,
+                inspected,
+                storySpots.Count,
+                remSpots,
+                ambientZones.Count,
+                summaryZh);
+        }
+
+        public bool TryFindNearestUnheardRumorNpc(
+            Vector2 playerTile,
+            out RpgFieldNpcDef nearest,
+            out float distanceTiles)
+        {
+            nearest = default;
+            distanceTiles = 0f;
+            if (!IsFinite(playerTile))
+            {
+                return false;
+            }
+
+            bool found = false;
+            float bestDistSq = float.MaxValue;
+            for (int i = 0; i < npcs.Count; i++)
+            {
+                RpgFieldNpcDef n = npcs[i];
+                if (getInt(n.RumorMakinomKey) == 1)
+                {
+                    continue;
+                }
+
+                float dx = playerTile.x - (n.Tile.x + 0.5f);
+                float dy = playerTile.y - (n.Tile.y + 0.5f);
+                float distSq = (dx * dx) + (dy * dy);
+                if (!found || distSq < bestDistSq ||
+                    (Mathf.Approximately(distSq, bestDistSq) && StringComparer.Ordinal.Compare(n.Id, nearest.Id) < 0))
+                {
+                    found = true;
+                    bestDistSq = distSq;
+                    nearest = n;
+                }
+            }
+
+            if (found)
+            {
+                distanceTiles = Mathf.Sqrt(bestDistSq);
+            }
+
+            return found;
+        }
+
+        public bool TryFindNearestUninspectedStorySpot(
+            Vector2 playerTile,
+            out RpgStorySpotDef nearest,
+            out float distanceTiles)
+        {
+            nearest = default;
+            distanceTiles = 0f;
+            if (!IsFinite(playerTile))
+            {
+                return false;
+            }
+
+            bool found = false;
+            float bestDistSq = float.MaxValue;
+            for (int i = 0; i < storySpots.Count; i++)
+            {
+                RpgStorySpotDef s = storySpots[i];
+                if (getInt(s.MakinomKey) == 1)
+                {
+                    continue;
+                }
+
+                float dx = playerTile.x - (s.Tile.x + 0.5f);
+                float dy = playerTile.y - (s.Tile.y + 0.5f);
+                float distSq = (dx * dx) + (dy * dy);
+                if (!found || distSq < bestDistSq ||
+                    (Mathf.Approximately(distSq, bestDistSq) && StringComparer.Ordinal.Compare(s.Id, nearest.Id) < 0))
+                {
+                    found = true;
+                    bestDistSq = distSq;
+                    nearest = s;
+                }
+            }
+
+            if (found)
+            {
+                distanceTiles = Mathf.Sqrt(bestDistSq);
+            }
+
+            return found;
         }
 
         public bool TryTalkToNearbyNpc(Vector2 playerTile, float interactRadius,
