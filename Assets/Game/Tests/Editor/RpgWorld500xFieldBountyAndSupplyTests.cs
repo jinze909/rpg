@@ -51,6 +51,33 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RegionalBountyProgressCannotUseAnotherRegionsCompletion()
+        {
+            foreach (RpgExpandedMapSpec source in RpgExpandedWorldScale.AllSpecs)
+            {
+                var summary = new RpgWorld500xMapCompletionSummary(
+                    source.MapId,
+                    visitedChunks: 120, totalChunks: 2814,
+                    discoveredMarkers: 12, totalMarkers: 18,
+                    lootedCaches: 8, totalCaches: 12,
+                    unlockedShortcuts: 4, totalShortcuts: 4,
+                    inspectedStorySpots: 4, totalStorySpots: 4);
+
+                foreach (RpgExpandedMapSpec destination in RpgExpandedWorldScale.AllSpecs)
+                {
+                    foreach (var bounty in RpgWorld500xBountyAndSupplyCatalog.GetBounties(destination.MapId))
+                    {
+                        int progress = RpgWorld500xFieldBountyAndSupplyService.EvaluateProgressCount(bounty, summary);
+                        if (source.MapId == destination.MapId)
+                            Assert.GreaterOrEqual(progress, bounty.TargetCount, bounty.Id);
+                        else
+                            Assert.AreEqual(0, progress, bounty.Id);
+                    }
+                }
+            }
+        }
+
+        [Test]
         public void BountiesClaimIdempotentlyAndCampSupplyExchangeEnforcesBalanceAndStock()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
