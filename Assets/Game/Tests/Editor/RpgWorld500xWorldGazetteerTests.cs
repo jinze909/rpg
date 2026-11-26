@@ -106,6 +106,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BuildLiveWorldCards_DefaultReaderReflectsRestoredWorldFactsAndPreservesExplicitOverride()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var map = RpgWorldMapId.Soundwell;
+                var facade = boot.Driver.Facade;
+                var store = new Dictionary<string, int>(StringComparer.Ordinal)
+                {
+                    [RpgWorld500xContentCatalog.GetCaches(map)[0].MakinomKey] = 1,
+                    [RpgWorld500xContentCatalog.GetShortcuts(map)[0].MakinomKey] = 1,
+                    [RpgWorld500xBountyAndSupplyCatalog.GetBounties(map)[0].MakinomKey] = 1,
+                    [RpgWorld500xRegionalReputationService.ReputationKey(map)] = 400
+                };
+                var snapshot = RpgWorld500xSaveSnapshotSerializer.Capture(
+                    map, facade.Session.Host.PlayerPosition, store, facade.Atmosphere);
+                Assert.IsTrue(boot.TryImportSaveJson(
+                    RpgWorld500xSaveSnapshotSerializer.Serialize(snapshot), out string error), error);
+
+                var card = RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(boot)
+                    .Find(c => c.MapId == map);
+                Assert.AreEqual(1, card.LootedCaches);
+                Assert.AreEqual(1, card.UnlockedShortcuts);
+                Assert.AreEqual(1, card.ClaimedBounties);
+                Assert.Greater(card.CompletionPercent, 0);
+                Assert.AreEqual(RpgWorld500xRegionalReputationService.GetRankNameZh(
+                    RpgRegionalReputationRank.Ally), card.ReputationRankZh);
+                Assert.Greater(card.CampDiscountPercent, 0);
+
+                // A supplied reader is still honored for callers rendering another snapshot.
+                var overridden = RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(boot, _ => 0)
+                    .Find(c => c.MapId == map);
+                Assert.AreEqual(0, overridden.CompletionPercent);
+                Assert.AreEqual(0, overridden.CampDiscountPercent);
+                Assert.AreEqual(1, boot.Store[RpgWorld500xContentCatalog.GetCaches(map)[0].MakinomKey]);
+            }
+        }
+
+        [Test]
         public void BuildLiveWorldCards_WithPreferSafestRouteReflectsDirectClearPathToMineCamp()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(
