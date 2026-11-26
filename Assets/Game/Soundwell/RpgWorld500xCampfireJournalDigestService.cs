@@ -241,17 +241,25 @@ namespace Rpg.Soundwell
             }
 
             var scanner = new RpgWorld500xFieldReconScannerService(read, cooldownSeconds: 0f);
+            // Ambient zones are repeatable scenery/events, not completion-tracked POIs.
+            // Keep the scanner's distance/ID order, but do not let an ambient ping
+            // hide the nearest actionable target or block the adjacent-region hint.
             if (scanner.TryPulseScan(mapId, playerPos, 0f, out List<RpgWorld500xReconPing> pings, out _,
-                baseRadiusTiles: 900f, visibilityMultiplier: 1f, maxResults: 1) &&
-                pings.Count > 0)
+                baseRadiusTiles: 900f, visibilityMultiplier: 1f, maxResults: int.MaxValue))
             {
-                return "优先前往近处未探索目标：" + pings[0].FormattedPingZh;
+                for (int i = 0; i < pings.Count; i++)
+                {
+                    if (pings[i].Kind != RpgWorld500xReconPingKind.AmbientEventZone)
+                    {
+                        return "优先前往近处未探索目标：" + pings[i].FormattedPingZh;
+                    }
+                }
             }
 
             List<RpgWorld500xRegionRouteDef> routes = RpgWorld500xWorldAtlasPortalService.GetConnectedRegions(mapId);
             if (routes.Count > 0)
             {
-                return "本片区已大致踏勘，可沿【" + routes[0].RouteNameZh + "】前往相邻区域继续远征。";
+                return "附近暂无未探索目标，可沿【" + routes[0].RouteNameZh + "】前往相邻区域继续远征。";
             }
 
             return "继续沿主线推进当前区域探索。";
