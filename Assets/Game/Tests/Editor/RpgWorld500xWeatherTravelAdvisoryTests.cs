@@ -55,5 +55,26 @@ namespace Rpg.Tests.Editor
             Assert.IsFalse(cooldownList[0].IsCurrentlyActive);
             Assert.AreEqual(18f, cooldownList[0].SecondsUntilNextChange, 0.01f);
         }
+
+        [Test]
+        public void BuildWorldWeatherDigest_SummarizesAllFourRegionsCountsHazardsAndIdentifiesSafestMap()
+        {
+            var svc = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f, initialDay: 1);
+            svc.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+            svc.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.AshHaze);
+            svc.SetWeather(RpgWorldMapId.WhitewaterCrossing, RpgWorld500xWeatherKind.MistFog);
+            svc.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.Clear);
+
+            RpgWorld500xWorldWeatherDigest digest =
+                RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(svc, elapsedSeconds: 5f);
+            Assert.AreEqual(4, digest.RegionReports.Count);
+            Assert.AreEqual(1, digest.HazardousRegionCount);
+            Assert.AreEqual(1, digest.StealthWindowRegionCount);
+            Assert.AreEqual(RpgWorldMapId.MineCamp, digest.SafestMapId);
+            Assert.IsTrue(digest.WorldBulletinZh.Contains("【四境气象速报】"));
+            Assert.IsTrue(digest.WorldBulletinZh.Contains("高危预警"));
+            Assert.IsTrue(digest.WorldBulletinZh.Contains("潜行良机"));
+            Assert.IsTrue(digest.WorldBulletinZh.Contains("行路平稳"));
+        }
     }
 }
