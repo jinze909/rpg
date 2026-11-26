@@ -115,8 +115,15 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(RpgWorldMapId.Soundwell, panel.SelectedMapId);
                     Assert.IsTrue(panel.HeaderText.Contains("当前所在"));
                     Assert.IsTrue(panel.SummaryText.Contains("综合堪舆度"));
+                    Assert.IsTrue(panel.SummaryText.Contains("【堪舆里程碑】"));
                     Assert.IsTrue(panel.SummaryText.Contains("【四境声望总览】"));
                     Assert.IsTrue(panel.WorldReputationSummaryZh.Contains("【四境声望总览】"));
+                    Assert.IsTrue(panel.HasCurrentMapCartographyPreview);
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, panel.LastCartographyPreview.MapId);
+                    Assert.IsTrue(panel.CartographyPreviewSummaryZh.Contains("【堪舆里程碑】"));
+                    Assert.AreEqual(panel.RemainingMilestoneSaltSilver, panel.LastCartographyPreview.RemainingSaltSilver);
+                    Assert.GreaterOrEqual(panel.ActiveDistrictCoverageRatio, 0f);
+                    Assert.LessOrEqual(panel.ActiveDistrictCoverageRatio, 1f);
                     Assert.AreEqual(0, panel.ClaimedMilestoneCount);
                     Assert.AreEqual(3, panel.TotalMilestoneCount);
                     Assert.Greater(panel.RemainingMilestoneSaltSilver, 0);
@@ -127,6 +134,9 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.TrySelectRegion(RpgWorldMapId.WhitewaterCrossing));
                     Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, panel.SelectedMapId);
                     Assert.IsTrue(panel.HeaderText.Contains("白水渡工兵防线"));
+                    Assert.IsFalse(panel.HasCurrentMapCartographyPreview);
+                    Assert.AreEqual(string.Empty, panel.CartographyPreviewSummaryZh);
+                    Assert.AreEqual(0f, panel.ActiveDistrictCoverageRatio, 0.0001f);
                     Assert.AreEqual(6, panel.DisplayedRowCount);
 
                     // Switch tab to RedSaltHarbor (4 districts + 3 milestones = 7 rows).
@@ -142,6 +152,7 @@ namespace Rpg.Tests.Editor
                     // Jump directly to highest-standing region (defaults to Soundwell when tied at 0).
                     Assert.IsTrue(panel.TrySelectHighestStandingRegion());
                     Assert.AreEqual(panel.LastWorldReputationOverview.HighestStandingMapId, panel.SelectedMapId);
+                    Assert.IsTrue(panel.HasCurrentMapCartographyPreview);
 
                     Assert.IsTrue(panel.Hide());
                     Assert.IsFalse(panel.IsVisible);

@@ -26,6 +26,9 @@ namespace Rpg.Soundwell
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorldMapId _selectedMapId;
         private RpgWorld500xWorldReputationOverview _lastWorldReputationOverview;
+        private bool _hasCurrentMapCartographyPreview;
+        private RpgWorld500xCartographyProgressPreview _lastCartographyPreview;
+        private float _activeDistrictCoverageRatio;
         private int _claimedMilestoneCount;
         private int _totalMilestoneCount;
         private int _remainingMilestoneSaltSilver;
@@ -37,6 +40,10 @@ namespace Rpg.Soundwell
         public RpgWorldMapId SelectedMapId => _selectedMapId;
         public RpgWorld500xWorldReputationOverview LastWorldReputationOverview => _lastWorldReputationOverview;
         public string WorldReputationSummaryZh => _lastWorldReputationOverview.SummaryLineZh;
+        public bool HasCurrentMapCartographyPreview => _hasCurrentMapCartographyPreview;
+        public RpgWorld500xCartographyProgressPreview LastCartographyPreview => _lastCartographyPreview;
+        public string CartographyPreviewSummaryZh => _hasCurrentMapCartographyPreview ? _lastCartographyPreview.SummaryZh : string.Empty;
+        public float ActiveDistrictCoverageRatio => _activeDistrictCoverageRatio;
         public int ClaimedMilestoneCount => _claimedMilestoneCount;
         public int TotalMilestoneCount => _totalMilestoneCount;
         public int RemainingMilestoneSaltSilver => _remainingMilestoneSaltSilver;
@@ -211,6 +218,9 @@ namespace Rpg.Soundwell
             if (isCurrentMap)
             {
                 RpgWorld500xMapCompletionSummary comp = facade.GetCompletionSummary();
+                _lastCartographyPreview = facade.DistrictTracker.BuildCartographyPreview(comp.OverallCompletionPercent);
+                _hasCurrentMapCartographyPreview = true;
+                _activeDistrictCoverageRatio = facade.DistrictTracker.ComputeDistrictChunkCoverageRatio(facade.DistrictTracker.CurrentDistrictId);
                 _summaryText.text = "综合堪舆度：" + comp.OverallCompletionPercent + "%（区块 " +
                                     comp.VisitedChunks + "/" + comp.TotalChunks +
                                     "｜地标 " + comp.DiscoveredMarkers + "/" + comp.TotalMarkers +
@@ -219,10 +229,14 @@ namespace Rpg.Soundwell
                                     "｜轶事点 " + comp.InspectedStorySpots + "/" + comp.TotalStorySpots + "）\n" +
                                     "堪舆里程碑：" + _claimedMilestoneCount + "/" + milestones.Length +
                                     "（待领盐银 +" + _remainingMilestoneSaltSilver + "）｜" + nextRankText + "\n" +
+                                    _lastCartographyPreview.SummaryZh + "\n" +
                                     _lastWorldReputationOverview.SummaryLineZh;
             }
             else
             {
+                _hasCurrentMapCartographyPreview = false;
+                _lastCartographyPreview = default;
+                _activeDistrictCoverageRatio = 0f;
                 _summaryText.text = "非当前所在区域（切换前往后可实时统计区块迷雾覆盖）\n" +
                                     "已领堪舆里程碑：" + _claimedMilestoneCount + "/" + milestones.Length +
                                     "（待领盐银 +" + _remainingMilestoneSaltSilver + "）｜" + nextRankText + "\n" +
@@ -241,7 +255,10 @@ namespace Rpg.Soundwell
                 RpgWorld500xDistrictDef d = districts[i];
                 bool isHere = isCurrentMap && string.Equals(d.Id, activeDistrictId, StringComparison.Ordinal);
                 string tag = isHere ? "[所在片区] " : "[片区] ";
-                string line = tag + d.DisplayNameZh + "（范围 " + d.BoundsTiles.width + "×" + d.BoundsTiles.height + " 格）";
+                string coverageSegment = isCurrentMap
+                    ? "｜区块覆盖 " + Mathf.RoundToInt(facade.DistrictTracker.ComputeDistrictChunkCoverageRatio(d.Id) * 100f) + "%"
+                    : string.Empty;
+                string line = tag + d.DisplayNameZh + "（范围 " + d.BoundsTiles.width + "×" + d.BoundsTiles.height + " 格）" + coverageSegment;
                 SpawnInfoRow(
                     "DistrictRow_" + d.Id,
                     rowIndex++,
