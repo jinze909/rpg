@@ -135,6 +135,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ActiveDangerEncounterBlocksWorldActivityUntilVictory()
+        {
+            var root = new GameObject("World500x combat interaction guard test");
+            RpgWorld500xGrandRuntimeFacade facade = null;
+            try
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                var toasts = new List<string>();
+                facade = new RpgWorld500xGrandRuntimeFacade(
+                    root.transform, RpgWorldMapId.Soundwell,
+                    getInt: k => store.TryGetValue(k, out int v) ? v : 0,
+                    setInt: (k, v) => store[k] = v,
+                    onToast: (title, body) => toasts.Add(title + ":" + body),
+                    streamingRadiusChunks: 1,
+                    overrideTileSlices: new Sprite[] { null });
+                Assert.IsTrue(facade.Session.Host.TryPlaceAtWalkableTile(new Vector2Int(680, 640)));
+                Assert.IsTrue(facade.Session.Host.TryTriggerNearbyDangerEncounter(out string markerId));
+                Assert.AreEqual("sw.sunken-drain", markerId);
+                var before = new Dictionary<string, int>(store);
+                int toastCount = toasts.Count;
+                int interactions = facade.ActivityDirector.InteractionCount;
+                int balance = facade.BountyAndSupply.SaltSilverBalance;
+
+                Assert.IsFalse(facade.TryInteractUnified(100000f, out var activity, out var outcome));
+                Assert.AreEqual(RpgWorld500xInteractionKind.None, activity.Kind);
+                Assert.AreEqual(RpgWorldInteractOutcome.None, outcome);
+                Assert.AreEqual(interactions, facade.ActivityDirector.InteractionCount);
+                Assert.AreEqual(balance, facade.BountyAndSupply.SaltSilverBalance);
+                Assert.AreEqual(toastCount, toasts.Count);
+                CollectionAssert.AreEquivalent(before, store);
+
+                Assert.IsTrue(facade.Session.ResolveActiveDangerVictory(true, out _));
+                Assert.IsFalse(facade.Session.Host.Bridge.IsInDangerEncounter);
+                Assert.IsTrue(facade.TryInteractUnified(100000f, out var resumed, out _));
+                Assert.IsTrue(resumed.Succeeded);
+                Assert.AreEqual(interactions + 1, facade.ActivityDirector.InteractionCount);
+            }
+            finally
+            {
+                facade?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RejectedOrSameMapSwitchKeepsLiveSubsystemsAndExplorationPlayable()
         {
             var root = new GameObject("World500x map-switch guard test");
