@@ -13,6 +13,57 @@ namespace Rpg.Soundwell
         InvalidTimestamp = 3
     }
 
+    public readonly struct RpgWorld500xFieldSupplySlotReadout
+    {
+        public RpgWorld500xFieldSupplySlotReadout(
+            string itemId,
+            string displayNameZh,
+            int ownedCount,
+            int maxStock,
+            float remainingBuffSeconds)
+        {
+            ItemId = itemId ?? string.Empty;
+            DisplayNameZh = displayNameZh ?? string.Empty;
+            OwnedCount = ownedCount;
+            MaxStock = maxStock;
+            RemainingBuffSeconds = remainingBuffSeconds;
+        }
+
+        public string ItemId { get; }
+        public string DisplayNameZh { get; }
+        public int OwnedCount { get; }
+        public int MaxStock { get; }
+        public float RemainingBuffSeconds { get; }
+        public bool IsBuffActive => RemainingBuffSeconds > 0f;
+        public bool CanUseNow => OwnedCount > 0;
+    }
+
+    public readonly struct RpgWorld500xFieldSupplyInventorySummary
+    {
+        public RpgWorld500xFieldSupplyInventorySummary(
+            int totalOwnedItems,
+            int distinctOwnedKinds,
+            int activeBuffCount,
+            string activeBuffSummaryZh,
+            IReadOnlyList<RpgWorld500xFieldSupplySlotReadout> slots,
+            string summaryZh)
+        {
+            TotalOwnedItems = totalOwnedItems;
+            DistinctOwnedKinds = distinctOwnedKinds;
+            ActiveBuffCount = activeBuffCount;
+            ActiveBuffSummaryZh = activeBuffSummaryZh ?? string.Empty;
+            Slots = slots ?? Array.Empty<RpgWorld500xFieldSupplySlotReadout>();
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public int TotalOwnedItems { get; }
+        public int DistinctOwnedKinds { get; }
+        public int ActiveBuffCount { get; }
+        public string ActiveBuffSummaryZh { get; }
+        public IReadOnlyList<RpgWorld500xFieldSupplySlotReadout> Slots { get; }
+        public string SummaryZh { get; }
+    }
+
     public readonly struct RpgWorld500xActiveSupplyBuffModifiers
     {
         public RpgWorld500xActiveSupplyBuffModifiers(
@@ -116,6 +167,11 @@ namespace Rpg.Soundwell
             return Math.Max(0, _getInt(item.OwnedCountKey));
         }
 
+        public bool HasUsableSupply(string itemId)
+        {
+            return GetOwnedCount(itemId) > 0;
+        }
+
         public float GetRemainingBuffSeconds(string itemId, float nowSeconds)
         {
             if (string.IsNullOrEmpty(itemId) || !IsFinite(nowSeconds) ||
@@ -125,6 +181,48 @@ namespace Rpg.Soundwell
             }
 
             return Mathf.Max(0f, expiry - nowSeconds);
+        }
+
+        public RpgWorld500xFieldSupplyInventorySummary BuildInventorySnapshot(float nowSeconds)
+        {
+            IReadOnlyList<RpgWorld500xCampSupplyItemDef> supplies =
+                RpgWorld500xBountyAndSupplyCatalog.GetCampSupplies();
+            var slots = new List<RpgWorld500xFieldSupplySlotReadout>(supplies.Count);
+            int totalOwned = 0;
+            int distinctOwned = 0;
+
+            for (int i = 0; i < supplies.Count; i++)
+            {
+                RpgWorld500xCampSupplyItemDef item = supplies[i];
+                int owned = Math.Max(0, _getInt(item.OwnedCountKey));
+                if (owned > 0)
+                {
+                    totalOwned += owned;
+                    distinctOwned++;
+                }
+
+                float remaining = GetRemainingBuffSeconds(item.Id, nowSeconds);
+                slots.Add(new RpgWorld500xFieldSupplySlotReadout(
+                    item.Id,
+                    item.DisplayNameZh,
+                    owned,
+                    item.MaxStock,
+                    remaining));
+            }
+
+            RpgWorld500xActiveSupplyBuffModifiers mods = EvaluateActiveModifiers(nowSeconds);
+            string buffSegment = mods.ActiveBuffCount > 0
+                ? "｜生效增益 " + mods.ActiveBuffCount + " 项（" + mods.ActiveBuffSummaryZh + "）"
+                : "｜当前无生效增益";
+            string summaryZh = "【随身补给】共 " + totalOwned + " 件（" + distinctOwned + "/" + supplies.Count + " 类）" + buffSegment;
+
+            return new RpgWorld500xFieldSupplyInventorySummary(
+                totalOwned,
+                distinctOwned,
+                mods.ActiveBuffCount,
+                mods.ActiveBuffSummaryZh,
+                slots,
+                summaryZh);
         }
 
         public RpgWorld500xFieldSupplyUseResult TryConsumeSupply(string itemId, float nowSeconds)
