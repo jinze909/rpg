@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -123,6 +124,54 @@ namespace Rpg.Tests.Editor
                 RpgWorld500xProvisioningPlan stockedPlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
                     boot, RpgWorldMapId.Soundwell, elapsedSeconds: 5f);
                 Assert.AreEqual("行囊已齐备（无需补购）", RpgWorld500xCampProvisioningService.FormatPlanBreakdownZh(stockedPlan));
+            }
+        }
+
+        [Test]
+        public void ExecuteAutoProvisioning_RejectsUnconfirmedPurchasesAndCanRetry()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var store = new Dictionary<string, int>();
+                bool acceptWrites = true;
+                boot.Driver.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    getInt: k => store.TryGetValue(k, out int value) ? value : 0,
+                    setInt: (k, v) => { if (acceptWrites) store[k] = v; },
+                    overrideTileSlices: new Sprite[] { null });
+
+                var facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                facade.BountyAndSupply.AddSaltSilver(300);
+                var plan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    boot, RpgWorldMapId.Soundwell, elapsedSeconds: 5f);
+                Assert.IsTrue(plan.CanAffordFullPlan);
+                Assert.Greater(plan.Lines.Count, 0);
+
+                acceptWrites = false;
+                var rejected = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.Soundwell, allowPartialIfUnderBudget: false, elapsedSeconds: 5f);
+                Assert.IsFalse(rejected.AlreadyPrepared);
+                Assert.IsFalse(rejected.FullyProvisioned);
+                Assert.AreEqual(0, rejected.TotalSpentSaltSilver);
+                Assert.AreEqual(300, rejected.RemainingSaltSilver);
+                Assert.IsEmpty(rejected.PurchasedLines);
+                Assert.AreEqual(plan.Lines.Count, rejected.SkippedItemIds.Count);
+                Assert.AreEqual(rejected.BeforeScore, rejected.AfterScore);
+                StringAssert.Contains("采购未完整确认", rejected.SummaryZh);
+                foreach (var line in plan.Lines)
+                    CollectionAssert.Contains(rejected.SkippedItemIds, line.ItemId);
+
+                acceptWrites = true;
+                var retry = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                    boot, RpgWorldMapId.Soundwell, allowPartialIfUnderBudget: false, elapsedSeconds: 5f);
+                Assert.IsTrue(retry.FullyProvisioned);
+                Assert.AreEqual(plan.TotalRequiredSaltSilver, retry.TotalSpentSaltSilver);
+                Assert.AreEqual(300 - retry.TotalSpentSaltSilver, retry.RemainingSaltSilver);
+                Assert.IsEmpty(retry.SkippedItemIds);
+                Assert.Greater(retry.AfterScore, retry.BeforeScore);
             }
         }
 
