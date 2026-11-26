@@ -87,6 +87,26 @@ namespace Rpg.Soundwell
             RpgWorld500xWeatherAndTimeOfDayService atmosphere,
             bool prioritizeSafety)
         {
+            // Validate against the playable catalog before the zero-hop shortcut.
+            // An unknown ID is not a reachable destination, even if both IDs match.
+            IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
+            bool hasOrigin = false;
+            bool hasDestination = false;
+            for (int i = 0; i < specs.Count; i++)
+            {
+                hasOrigin |= specs[i].MapId == originMapId;
+                hasDestination |= specs[i].MapId == destinationMapId;
+            }
+
+            if (!hasOrigin || !hasDestination)
+            {
+                return new RpgWorld500xTravelItinerary(
+                    originMapId, destinationMapId, false, 0, 0,
+                    RpgWorld500xTravelRiskLevel.Safe, false,
+                    Array.Empty<RpgWorld500xItineraryLeg>(),
+                    "【行程规划】未找到有效区域路径。");
+            }
+
             if (originMapId == destinationMapId)
             {
                 RpgWorld500xTravelRiskLevel localRisk = ResolveMapRisk(destinationMapId, atmosphere);
@@ -109,21 +129,11 @@ namespace Rpg.Soundwell
             var prevEdge = new Dictionary<RpgWorldMapId, RpgWorld500xRegionRouteDef>();
             var unvisited = new List<RpgWorldMapId>();
 
-            IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
             for (int i = 0; i < specs.Count; i++)
             {
                 RpgWorldMapId id = specs[i].MapId;
                 dist[id] = int.MaxValue;
                 unvisited.Add(id);
-            }
-
-            if (!dist.ContainsKey(originMapId) || !dist.ContainsKey(destinationMapId))
-            {
-                return new RpgWorld500xTravelItinerary(
-                    originMapId, destinationMapId, false, 0, 0,
-                    RpgWorld500xTravelRiskLevel.Safe, false,
-                    Array.Empty<RpgWorld500xItineraryLeg>(),
-                    "【行程规划】未找到有效区域路径。");
             }
 
             dist[originMapId] = 0;
