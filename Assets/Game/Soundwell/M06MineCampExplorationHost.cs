@@ -45,9 +45,26 @@ namespace Rpg.Soundwell
         public Vector2Int CurrentTile => new Vector2Int(
             Mathf.FloorToInt(playerPosition.x),
             Mathf.FloorToInt(playerPosition.y));
-        public M06MineCampReconView ActiveReconView => activeReconView;
-        public M06PumpRoomReunionView ActiveReunionView => activeReunionView;
-        public bool IsDialogueOpen => activeReconView != null || activeReunionView != null;
+        public M06MineCampReconView ActiveReconView
+        {
+            get { PruneDisposedDialogs(); return activeReconView; }
+        }
+        public M06PumpRoomReunionView ActiveReunionView
+        {
+            get { PruneDisposedDialogs(); return activeReunionView; }
+        }
+        public bool IsDialogueOpen
+        {
+            get { PruneDisposedDialogs(); return activeReconView != null || activeReunionView != null; }
+        }
+
+        private void PruneDisposedDialogs()
+        {
+            if (activeReconView != null && activeReconView.IsDisposed)
+                activeReconView = null;
+            if (activeReunionView != null && activeReunionView.IsDisposed)
+                activeReunionView = null;
+        }
         public bool IsDisposed => disposed;
         public Text DistrictBanner => districtBanner;
         public Text PromptBanner => promptBanner;
@@ -123,19 +140,20 @@ namespace Rpg.Soundwell
 
         public bool TryPlaceAtWalkableTile(Vector2Int tile)
         {
-            if (disposed || !IsWalkableTile(tile.x, tile.y))
+            if (disposed || parent == null || !IsWalkableTile(tile.x, tile.y))
                 return false;
 
             playerPosition = new Vector2(tile.x + 0.5f, tile.y + 0.5f);
             SyncHero(moving: false, deltaSeconds: 0f);
-            minimapHud?.UpdatePlayerPosition(playerPosition);
+            if (minimapHud != null && !minimapHud.IsDisposed)
+                minimapHud.UpdatePlayerPosition(playerPosition);
             RefreshHud();
             return true;
         }
 
         public bool StepMovement(Vector2 input, float deltaSeconds)
         {
-            if (disposed)
+            if (disposed || parent == null)
                 return false;
             float inputMagnitudeSquared = input.sqrMagnitude;
             if (IsDialogueOpen || !IsFinite(input) ||
@@ -192,7 +210,8 @@ namespace Rpg.Soundwell
             if (moved)
             {
                 playerPosition = next;
-                minimapHud?.UpdatePlayerPosition(playerPosition);
+                if (minimapHud != null && !minimapHud.IsDisposed)
+                    minimapHud.UpdatePlayerPosition(playerPosition);
                 RefreshHud();
             }
             SyncHero(moving: moved, deltaSeconds: deltaSeconds);
@@ -216,6 +235,8 @@ namespace Rpg.Soundwell
 
         private void SyncHero(bool moving, float deltaSeconds)
         {
+            if (heroVisual == null || heroVisual.IsDisposed)
+                return;
             Vector2Int cardinal = Mathf.Abs(facing.x) >= Mathf.Abs(facing.y)
                 ? (facing.x >= 0f ? Vector2Int.right : Vector2Int.left)
                 : (facing.y >= 0f ? Vector2Int.up : Vector2Int.down);
@@ -228,7 +249,7 @@ namespace Rpg.Soundwell
         // only camera (Cinemachine/Pixel Perfect remains the final authority).
         public Vector3 StepCamera(Vector3 currentCameraPosition, float deltaSeconds)
         {
-            if (disposed || !IsFinite(currentCameraPosition) ||
+            if (disposed || parent == null || !IsFinite(currentCameraPosition) ||
                 !IsFinite(playerPosition) || !IsFinite(deltaSeconds) ||
                 deltaSeconds < 0f)
                 return currentCameraPosition;
@@ -252,7 +273,7 @@ namespace Rpg.Soundwell
 
         public string FindNearbyInteractableTriggerId()
         {
-            if (disposed || IsDialogueOpen)
+            if (disposed || parent == null || IsDialogueOpen)
                 return null;
 
             string bestId = null;
@@ -277,7 +298,7 @@ namespace Rpg.Soundwell
 
         public bool TryInteractAtCurrentPosition()
         {
-            if (disposed || IsDialogueOpen)
+            if (disposed || parent == null || IsDialogueOpen)
                 return false;
 
             string triggerId = FindNearbyInteractableTriggerId();
@@ -295,19 +316,22 @@ namespace Rpg.Soundwell
 
         public void RefreshHud()
         {
-            if (disposed || hudCanvasObject == null)
+            if (disposed || parent == null || hudCanvasObject == null ||
+                districtBanner == null || promptBanner == null)
                 return;
+
+            PruneDisposedDialogs();
 
             // The established M05 landing is a live scene prerequisite;
             // do not leak Shen Li into an unverified visit.
             bool landed = HasVerifiedLanding();
-            if (shenLiVisual?.ActorObject != null)
+            if (shenLiVisual != null && !shenLiVisual.IsDisposed && shenLiVisual.ActorObject != null)
                 shenLiVisual.ActorObject.SetActive(landed);
 
             // Do not advertise active objectives from a prior, unverified
             // voyage. Recon completion reads only the Makinom facts, never
             // a shadow UI-progress store.
-            if (minimapHud != null)
+            if (minimapHud != null && !minimapHud.IsDisposed && minimapHud.Panel != null)
             {
                 minimapHud.Panel.gameObject.SetActive(landed);
                 minimapHud.UpdatePlayerPosition(playerPosition);
@@ -395,6 +419,8 @@ namespace Rpg.Soundwell
 
         private bool TryOpenReconLead(M06MineCampLead lead)
         {
+            if (parent == null)
+                return false;
             int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             if (arrivalSequence < 0)
                 return false;
@@ -403,9 +429,10 @@ namespace Rpg.Soundwell
                 session.IsLeadObserved(lead))
                 return false;
 
-            activeReconView = new M06MineCampReconView(parent, lead, inspected =>
+            M06MineCampReconView openedView = null;
+            openedView = new M06MineCampReconView(parent, lead, inspected =>
             {
-                if (disposed ||
+                if (disposed || activeReconView != openedView ||
                     getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
                     !HasVerifiedLanding())
                     throw new InvalidOperationException(
@@ -419,24 +446,28 @@ namespace Rpg.Soundwell
                 activeReconView = null;
                 RefreshHud();
             });
+            activeReconView = openedView;
             RefreshHud();
             return true;
         }
 
         private bool TryOpenPumpRoomReunion()
         {
+            if (parent == null)
+                return false;
             int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             if (arrivalSequence < 0 ||
                 RescuePlanSettled ||
                 HasAnyPersistedRescuePlanFacts() ||
                 M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt) ||
                 !M06PumpRoomReunionSession.TryCreateFromSavedFacts(
-                    getInt, out M06PumpRoomReunionSession session))
+                    getInt, setInt, out M06PumpRoomReunionSession session))
                 return false;
 
-            activeReunionView = new M06PumpRoomReunionView(parent, session, plan =>
+            M06PumpRoomReunionView openedView = null;
+            openedView = new M06PumpRoomReunionView(parent, session, plan =>
             {
-                if (disposed ||
+                if (disposed || activeReunionView != openedView ||
                     getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
                     !HasVerifiedLanding())
                     throw new InvalidOperationException(
@@ -450,6 +481,7 @@ namespace Rpg.Soundwell
                 activeReunionView = null;
                 RefreshHud();
             });
+            activeReunionView = openedView;
             RefreshHud();
             return true;
         }

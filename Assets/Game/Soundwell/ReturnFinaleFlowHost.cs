@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
     /// </summary>
     public sealed class ReturnFinaleFlowContext
     {
+        public Func<bool> AtLinchaoFerry { get; set; } = () => false;
         public Func<bool> AtJingwanAssembly { get; set; } = () => false;
         public Func<bool> ThreeRecordsMatched { get; set; } = () => false;
         public Func<bool> CarriesM02BattleReport { get; set; } = () => false;
@@ -80,7 +81,7 @@ namespace Rpg.Soundwell
 
         public ReturnFinaleStage CurrentStage => currentStage;
         public bool IsDisposed => disposed;
-        public bool HasActiveHost => activeHost != null;
+        public bool HasActiveHost => IsActiveHostOpen();
 
         public M10AssemblyHost ActiveM10Host => activeHost as M10AssemblyHost;
         public M11ReverseRescueHost ActiveM11Host => activeHost as M11ReverseRescueHost;
@@ -143,6 +144,28 @@ namespace Rpg.Soundwell
             return ReturnFinaleStage.Completed;
         }
 
+        private bool IsActiveHostOpen()
+        {
+            if (activeHost == null)
+                return false;
+            if (activeHost is M10AssemblyHost m10)
+                return !m10.IsDisposed &&
+                    (m10.ActiveView != null || m10.ActiveWorldNoticeView != null);
+            if (activeHost is M11ReverseRescueHost m11)
+                return !m11.IsDisposed && m11.ActiveView != null;
+            if (activeHost is M12BridgeTruthHost m12)
+                return !m12.IsDisposed && m12.ActiveView != null;
+            if (activeHost is M13DepartureRiskHost m13)
+                return !m13.IsDisposed && m13.ActiveView != null;
+            if (activeHost is M14FinalPassageHost m14)
+                return !m14.IsDisposed && m14.ActiveView != null;
+            if (activeHost is M15FinalRollCallHost m15)
+                return !m15.IsDisposed && m15.ActiveView != null;
+            if (activeHost is M16EpilogueHost m16)
+                return !m16.IsDisposed && m16.ActiveView != null;
+            return false;
+        }
+
         // Validate scene callbacks before closing a prior host so missing
         // wiring fails closed without throwing or orphaning active UI.
         private bool HasRequiredDelegates(ReturnFinaleStage stage)
@@ -150,7 +173,8 @@ namespace Rpg.Soundwell
             switch (stage)
             {
                 case ReturnFinaleStage.M10Assembly:
-                    return context.AtJingwanAssembly != null &&
+                    return context.AtLinchaoFerry != null &&
+                        context.AtJingwanAssembly != null &&
                         context.ThreeRecordsMatched != null &&
                         context.CarriesM02BattleReport != null;
                 case ReturnFinaleStage.M11ReverseRescue:
@@ -190,7 +214,7 @@ namespace Rpg.Soundwell
 
         public bool TryOpenNextStage()
         {
-            if (disposed)
+            if (disposed || uiParent == null)
                 return false;
 
             ReturnFinaleStage next = EvaluateNextStage();
@@ -207,7 +231,7 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            if (activeHost != null && currentStage == next)
+            if (IsActiveHostOpen() && currentStage == next)
                 return false;
             if (!HasRequiredDelegates(next))
                 return false;
@@ -223,7 +247,8 @@ namespace Rpg.Soundwell
                         context.AtJingwanAssembly,
                         context.ThreeRecordsMatched,
                         context.CarriesM02BattleReport,
-                        getInt, setInt);
+                        getInt, setInt,
+                        context.AtLinchaoFerry);
                     return ActivateStage(next, host, host.TryOpen());
                 }
                 case ReturnFinaleStage.M11ReverseRescue:

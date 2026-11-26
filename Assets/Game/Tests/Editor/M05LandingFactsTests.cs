@@ -50,6 +50,49 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LandingRejectsUnresetM06AndLaterFactsWithoutWritingAnArrival()
+        {
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            Func<string, int> read = Reader(values);
+            var report = new M05LandingReport(3, 10, true, true);
+            int writes = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                writes++;
+                values[key] = value;
+            };
+
+            string[] orphanKeys =
+            {
+                M06RescuePlanFacts.ConfirmedKey,
+                M06RescuePlanFacts.PendingSignatureKey,
+                M06RescuePlanFacts.PlanKey,
+                M06RescuePlanFacts.UsableCapacityKey,
+                M06RescuePlanFacts.LetterDeliveryKey,
+                M06RescuePlanFacts.RetaliationHeardKey,
+                M06RescuePlanFacts.ShenResponseKey,
+                M07ExtractionFacts.ExecutedRouteKey,
+                M16EpilogueFacts.ConfirmedKey
+            };
+            foreach (string key in orphanKeys)
+            {
+                values[key] = 1;
+                Assert.That(M05LandingFacts.CanRecord(report, read), Is.False, key);
+                Assert.That(M05LandingFacts.TryRecord(report, read, write),
+                    Is.False, key);
+                Assert.That(writes, Is.Zero, key);
+                values[key] = 0;
+            }
+
+            Assert.That(M05LandingFacts.CanRecord(report, read), Is.True);
+            Assert.That(M05LandingFacts.TryRecord(report, read, write), Is.True);
+            Assert.That(M05LandingFacts.TryRead(
+                read, out M05LandingReport? saved), Is.True);
+            Assert.That(saved.HasValue, Is.True);
+        }
+
+        [Test]
         public void CurrentRouteMismatchCannotConfirmOrReadAnOldLanding()
         {
             var values = new Dictionary<string, int>();
@@ -128,9 +171,15 @@ namespace Rpg.Tests.Editor
             var landing = new M05LandingReport(3, 10, true, true);
 
             Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.False);
-            SeedCompletedCrossing(values, sailed: false);
+            SeedCompletedCrossing(values, sailed: false, crossedFog: false);
             Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.False);
             Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+            var fog = new FogListeningSession(
+                new[] { new FogListeningCue(FogBearing.Ahead,
+                    FogCueKind.ClearWater, 80) },
+                maxListenFocus: 1, maxHullIntegrity: 2);
+            fog.ApplyHelmAction(FogHelmAction.HoldCourse);
+            Assert.That(FogListeningFacts.TryRecord(fog, write), Is.True);
             Assert.That(M05LandingFacts.TryRead(read, out M05LandingReport? before), Is.True);
             Assert.That(before, Is.Null, "Crossing the fog is not a port arrival.");
             Assert.That(M05LandingFacts.TryRecord(landing, read, write), Is.True);

@@ -50,7 +50,10 @@ namespace Rpg.Soundwell
         public M04CastOffView CastOffView => castOffView;
         public M04SailedFogLegHost FogHost => fogHost;
         public M05OuterHarborFlowHost OuterHarborHost => outerHarborHost;
-        public M05LandingObservationView LandingObservationView => landingObservationView;
+        public M05LandingObservationView LandingObservationView =>
+            landingObservationView != null && !landingObservationView.IsDisposed
+                ? landingObservationView
+                : null;
         public bool IsDisposed => disposed;
 
         public static bool TryOpen(
@@ -269,6 +272,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             lastAspect = aspect;
             castOffView?.LayoutForViewportAspect(aspect);
             fogHost?.LayoutForViewportAspect(aspect);
@@ -390,7 +395,9 @@ namespace Rpg.Soundwell
         private void OnLandingObserved(M05LandingReport report)
         {
             if (disposed || parent == null ||
-                stage != M04ToM05SeaCrossingStage.LandingObservation)
+                stage != M04ToM05SeaCrossingStage.LandingObservation ||
+                landingObservationView == null ||
+                landingObservationView.IsDisposed)
                 return;
 
             // A dock panel can remain open while another voyage is started.

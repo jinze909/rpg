@@ -192,12 +192,12 @@ namespace Rpg.Tests.Editor
                 M10HanLedgerUse.KeepConfidential, M10SupplyContractStatus.SignedFullCoverage,
                 false, true, true), read, write), Is.True);
 
-            // Simulate a torn write after the 20 marker-invalidation writes.
+            // Simulate a torn write after the 21 marker-invalidation writes.
             int writes = 0;
             Assert.Throws<InvalidOperationException>(() =>
                 ReturnStoryLedger.TryResetAllDownstreamVoyageFacts((k, v) =>
                 {
-                    if (writes >= 20)
+                    if (writes >= 21)
                         throw new InvalidOperationException("Simulated torn reset");
                     writes++;
                     values[k] = v;

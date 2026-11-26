@@ -26,7 +26,8 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public M11ReverseRescueSession Session => session;
-        public M11ReverseRescueView ActiveView => activeView;
+        public M11ReverseRescueView ActiveView =>
+            (activeView != null && !activeView.IsDisposed) ? activeView : null;
         public bool IsDisposed => disposed;
         public bool IsCompleted =>
             M11ReverseRescueFacts.TryRead(getInt, out M11ReverseRescueRecord? saved) &&
@@ -53,7 +54,13 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || !atHuilanPass() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+            if (disposed || parent == null || activeView != null || !atHuilanPass() ||
                 HasAnyPersistedFacts())
                 return false;
 
@@ -90,19 +97,27 @@ namespace Rpg.Soundwell
 
         private void HandleCommitRequested()
         {
-            if (disposed || session == null || !atHuilanPass() ||
+            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+                !atHuilanPass() ||
                 !openedArrivalSequence.HasValue ||
                 getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
                 shenLiAccompanying() != openedShenLiAccompanying ||
                 oulinParticipating() != openedOulinParticipating)
                 return;
 
-            if (!session.TryCommit(getInt, setInt))
+            // Persistence callbacks can synchronously close the host or its view.
+            // Only retire the view that requested this commit, never a replacement.
+            var committingView = activeView;
+            var committingSession = session;
+            if (!committingSession.TryCommit(getInt, setInt))
                 return;
 
-            activeView?.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            committingView.Dispose();
+            if (ReferenceEquals(activeView, committingView))
+            {
+                activeView = null;
+                openedArrivalSequence = null;
+            }
         }
 
         public void Dispose()

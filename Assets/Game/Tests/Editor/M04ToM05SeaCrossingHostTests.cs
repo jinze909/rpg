@@ -131,6 +131,69 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DestroyedFogCanvasReopensSameCompletedLegOnNextViewportLayout()
+        {
+            var root = new GameObject("M04 to M05 fog canvas recovery");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = Writer(values);
+            FogListeningSession leg = ClearFogLeg();
+            M04ToM05SeaCrossingHost host = null;
+            try
+            {
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, () => leg, new M05LandingReport(3, 10, true, true),
+                    read, write, _ => { },
+                    _ => Assert.Fail("A clear fog leg cannot fail."),
+                    out host), Is.True);
+
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+                M04SailedFogLegHost fogHost = host.FogHost;
+                FogListeningView originalView = fogHost.View;
+                Assert.That(originalView, Is.Not.Null);
+
+                originalView.HoldButton.onClick.Invoke();
+                Assert.That(leg.IsComplete, Is.True);
+                Assert.That(originalView.ContinueButton.interactable, Is.True);
+                Assert.That(values.ContainsKey(FogListeningFacts.CompletedKey), Is.False,
+                    "The finished leg is not persisted until the player continues.");
+
+                Canvas canvas = originalView.HoldButton.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+                Assert.That(originalView.IsDisposed, Is.True);
+                Assert.That(fogHost.HasLiveView, Is.False);
+
+                // The orchestrator already forwards viewport layout to its
+                // active fog host. That call must rebuild the destroyed view
+                // around the same completed session, not replay the voyage.
+                host.LayoutForViewportAspect(16f / 9f);
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.FogPassage));
+                Assert.That(host.FogHost, Is.SameAs(fogHost));
+                FogListeningView reopenedView = fogHost.View;
+                Assert.That(reopenedView, Is.Not.Null);
+                Assert.That(reopenedView, Is.Not.SameAs(originalView));
+                Assert.That(reopenedView.Session, Is.SameAs(leg));
+                Assert.That(reopenedView.ContinueButton.interactable, Is.True);
+                Assert.That(leg.IsComplete, Is.True);
+
+                reopenedView.ContinueButton.onClick.Invoke();
+                Assert.That(values[FogListeningFacts.CompletedKey], Is.EqualTo(1));
+                Assert.That(values[FogListeningFacts.SucceededKey], Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.OuterHarbor));
+                Assert.That(host.FogHost, Is.Null);
+                Assert.That(host.OuterHarborHost, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void LiveLandingIsObservedOnlyAfterSailedFogAndMissingEvidenceRetainsRetry()
         {
             var root = new GameObject("M04 to M05 deferred real landing");
@@ -666,7 +729,9 @@ namespace Rpg.Tests.Editor
                 Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
                 Assert.That(root.transform.childCount, Is.Zero);
 
-                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.False,
+                    "A torn fog save must block the durable cast-off, not only the UI.");
+                Assert.That(read(M04DepartureFacts.SailedKey), Is.Zero);
                 Assert.That(M04ToM05SeaCrossingHost.TryOpen(
                     root.transform, ClearFogLeg, new M05LandingReport(3, 8, true, true),
                     read, write, _ => { }, _ => { }, out var afterCastOff), Is.False);
@@ -675,6 +740,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(root.transform.childCount, Is.Zero);
 
                 Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
                 Assert.That(M04ToM05SeaCrossingHost.TryOpen(
                     root.transform, ClearFogLeg, new M05LandingReport(3, 8, true, true),
                     read, write, _ => { }, _ => { }, out resumed), Is.True);
@@ -730,5 +796,92 @@ namespace Rpg.Tests.Editor
                     UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void DestroyedFogActionControlReopensSameLegWithoutAdvancingOrPersisting()
+        {
+            var root = new GameObject("M04 to M05 fog action-control recovery");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedReadyManifest(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = Writer(values);
+            FogListeningSession leg = ClearFogLeg();
+            M04ToM05SeaCrossingHost host = null;
+
+            try
+            {
+                Assert.That(M04ToM05SeaCrossingHost.TryOpen(
+                    root.transform, () => leg, new M05LandingReport(3, 10, true, true),
+                    read, write, _ => { },
+                    _ => Assert.Fail("A clear fog leg cannot fail."),
+                    out host), Is.True);
+
+                host.CastOffView.CastOffButton.onClick.Invoke();
+                M04SailedFogLegHost fogHost = host.FogHost;
+                FogListeningView originalView = fogHost.View;
+                Assert.That(originalView, Is.Not.Null);
+
+                UnityEngine.Object.DestroyImmediate(originalView.HoldButton.gameObject);
+                Assert.That(originalView.IsDisposed, Is.True);
+                Assert.That(fogHost.HasLiveView, Is.False);
+
+                host.LayoutForViewportAspect(16f / 9f);
+                FogListeningView reopenedView = fogHost.View;
+                Assert.That(reopenedView, Is.Not.Null);
+                Assert.That(reopenedView, Is.Not.SameAs(originalView));
+                Assert.That(reopenedView.Session, Is.SameAs(leg));
+                Assert.That(leg.IsComplete, Is.False);
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero);
+
+                reopenedView.HoldButton.onClick.Invoke();
+                reopenedView.ContinueButton.onClick.Invoke();
+
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.EqualTo(1));
+                Assert.That(host.Stage, Is.EqualTo(M04ToM05SeaCrossingStage.OuterHarbor));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void LandingCrewAtMaximumOffersAnEnabledGamepadFocusFallback()
+        {
+            var root = new GameObject("M05 full crew controller focus recovery");
+            var values = new Dictionary<string, int>();
+            M05LandingObservationView view = null;
+            try
+            {
+                SeedVerifiedReadyManifest(values);
+                Assert.That(M04DepartureFacts.TryRead(Reader(values),
+                    out M04DepartureRecord? departure), Is.True);
+                Assert.That(departure.HasValue, Is.True);
+                view = new M05LandingObservationView(root.transform, departure.Value,
+                    Reader(values), _ => { });
+
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.CrewPlusButton));
+                for (int i = 0; i < departure.Value.AssignedCrew; i++)
+                    view.CrewPlusButton.onClick.Invoke();
+
+                Assert.That(view.CrewArrived, Is.EqualTo(departure.Value.AssignedCrew));
+                Assert.That(view.CrewPlusButton.interactable, Is.False);
+                Assert.That(view.PreferredFocusButton, Is.SameAs(view.TenderButton),
+                    "A gamepad must not be directed back to disabled crew increase.");
+                Assert.That(view.PreferredFocusButton.IsInteractable(), Is.True);
+
+                view.TenderButton.onClick.Invoke();
+                view.ReceiverButton.onClick.Invoke();
+                Assert.That(view.BerthPlusButton.interactable, Is.True);
+                Assert.That(view.PreferredFocusButton, Is.Not.Null);
+                Assert.That(view.PreferredFocusButton.IsInteractable(), Is.True);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }

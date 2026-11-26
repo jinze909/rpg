@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         public Button RemediateCoverUpButton => choiceButtons[0];
         public Button HoldWelcomeDinnerButton => choiceButtons[1];
         public Button SettleButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public ST06TaoJiHomecomingView(
             Transform parent,
@@ -123,23 +124,14 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -208,7 +200,9 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed()) return;
+            if (disposed || IsDestroyedExternally()) return;
+            if (settling || index < 0 || index >= choiceButtons.Length ||
+                !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable()) return;
 
             if (step == ST06HomecomingViewStep.ResolveChair && index >= 0 && index <= 3)
             {
@@ -251,6 +245,13 @@ namespace Rpg.Soundwell
                     }
                 }
             }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

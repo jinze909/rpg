@@ -240,5 +240,58 @@ namespace Rpg.Tests.Editor
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 Assert.That(M11ReverseRescueFacts.TryRead(out _), Is.False);
         }
+
+        [Test]
+        public void TornOrCorruptRC05NeverMasqueradesAsAbsentThirdSquadInM11()
+        {
+            var values = new Dictionary<string, int>();
+            SeedThroughM10Assembly(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+
+            Assert.That(M11ReverseRescueSession.TryCreateFromSavedFacts(
+                read, shenLiAccompanying: false, oulinParticipating: false,
+                out var cleanSession), Is.True);
+            Assert.That(cleanSession.RC05EnlistedInPass, Is.False);
+
+            var absentSquad = new M11ReverseRescueRecord(
+                threeBellsObserved: true,
+                M11PassEntryMethod.ReliefSupplyPass,
+                conscriptionObserved: true,
+                M11ThirdSquadConscriptionStance.NotInPass,
+                M11RescueProvider.FallbackPaidArtisans,
+                echoCallsHeard: 0,
+                oulinJoinedExtraction: false,
+                M11ShenDivisionPact.NoneShenAbsent);
+
+            // The RC-05 confirmation exists, but its resolution is invalid.
+            // This must not silently become "NotInPass" in M11.
+            values[RC05ThirdSquadFacts.ConfirmedKey] = 1;
+            values[RC05ThirdSquadFacts.ResolutionKey] = 99;
+            Assert.That(RC05ThirdSquadFacts.TryRead(read, out _), Is.True);
+            Assert.That(M11ReverseRescueSession.TryCreateFromSavedFacts(
+                read, false, false, out _), Is.False);
+            Assert.That(M11ReverseRescueFacts.TryRecord(absentSquad, read, write),
+                Is.False);
+            Assert.That(values.ContainsKey(M11ReverseRescueFacts.ConfirmedKey), Is.False);
+
+            // An interrupted RC-05 intent before confirmation must also block
+            // the encounter; clearing the torn state restores the normal path.
+            values[RC05ThirdSquadFacts.ConfirmedKey] = 0;
+            values[RC05ThirdSquadFacts.ResolutionKey] = 0;
+            values[RC05ThirdSquadFacts.PendingSignatureKey] = 1200;
+            Assert.That(RC05ThirdSquadFacts.TryRead(read, out _), Is.False);
+            Assert.That(M11ReverseRescueSession.TryCreateFromSavedFacts(
+                read, false, false, out _), Is.False);
+            Assert.That(M11ReverseRescueFacts.TryRecord(absentSquad, read, write),
+                Is.False);
+
+            values[RC05ThirdSquadFacts.PendingSignatureKey] = 0;
+            Assert.That(M11ReverseRescueSession.TryCreateFromSavedFacts(
+                read, false, false, out var recoveredSession), Is.True);
+            Assert.That(recoveredSession.RC05EnlistedInPass, Is.False);
+            Assert.That(M11ReverseRescueFacts.TryRecord(absentSquad, read, write),
+                Is.True);
+        }
     }
 }

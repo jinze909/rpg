@@ -23,22 +23,29 @@ namespace Rpg.Soundwell
         private readonly Text[] choiceLabels = new Text[5];
         private readonly Button advance;
         private readonly Text advanceLabel;
+        private readonly Button informantButton;
+        private readonly Text informantLabel;
         private Action<M03LuJunEncounter> onFinished;
         private bool disposed;
         private bool delivered;
         private int rollCallBeat;
+        private bool informantVisited;
+        private bool showingInformant;
 
         public M03LuJunEncounter Encounter => encounter;
         public Text Dialogue => dialogue;
         public Image StageIcon => stageIcon;
         public Button AdvanceButton => advance;
+        public Button InformantButton => informantButton;
+        public bool InformantVisited => informantVisited;
         public int RollCallBeat => rollCallBeat;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         private Button PreferredFocusTarget
         {
             get
             {
-                if (disposed || delivered)
+                if (disposed || delivered || CanvasDestroyed())
                     return null;
                 if (advance.gameObject.activeInHierarchy)
                     return advance;
@@ -83,6 +90,10 @@ namespace Rpg.Soundwell
                 "M03 Lu Jun advance", new Vector2(0f, -238f),
                 new Vector2(405f, 38f), 17, out advanceLabel);
             advance.onClick.AddListener(Advance);
+            informantButton = SoundwellUiTheme.CreateButton(authoredView,
+                "M03 miner informant", new Vector2(-210f, -238f),
+                new Vector2(400f, 38f), 17, out informantLabel);
+            informantButton.onClick.AddListener(AskInformant);
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
                 Mathf.Max(1, Screen.height));
             Refresh();
@@ -102,18 +113,20 @@ namespace Rpg.Soundwell
                 return;
             // The scene owner can destroy the canvas before calling Dispose.
             // Detach the locale listener instead of laying out dead Unity UI.
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -122,10 +135,11 @@ namespace Rpg.Soundwell
                 RpgStoryArtResolver.ApplyPixelSprite(stageIcon, ResolveStageSprite());
             bool chinese = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
-            heading.font = dialogue.font = advanceLabel.font = font;
+            heading.font = dialogue.font = advanceLabel.font = informantLabel.font = font;
             heading.text = chinese ? "海边旧营 · 陆钧的名册" : "OLD GUARD CAMP · LU JUN'S ROLL";
             dialogue.text = encounter.Stage == M03LuJunStage.VisitingVeterans
-                ? M03LuJunCopy.RollCallMoment(rollCallBeat, chinese)
+                ? (showingInformant ? M03LuJunCopy.MineInformantReport(chinese)
+                    : M03LuJunCopy.RollCallMoment(rollCallBeat, chinese))
                 : M03LuJunCopy.Narration(encounter, chinese);
             string[] options = M03LuJunCopy.Choices(encounter, chinese);
             for (int i = 0; i < choices.Length; i++)
@@ -142,11 +156,27 @@ namespace Rpg.Soundwell
                 choices[i].gameObject.SetActive(visible);
                 choices[i].interactable = eligible;
             }
-            advanceLabel.text = rollCallBeat < 3
-                ? (chinese ? "继续听点名" : "Listen to the next name")
-                : (chinese ? "听完点名，向陆钧走去" : "After the roll, approach Lu Jun");
-            advance.gameObject.SetActive(!delivered &&
-                encounter.Stage == M03LuJunStage.VisitingVeterans);
+            advanceLabel.text = showingInformant
+                ? (chinese ? "回到点名" : "Return to the roll call")
+                : rollCallBeat < 3
+                    ? (chinese ? "继续听点名" : "Listen to the next name")
+                    : (chinese ? "听完点名，向陆钧走去" : "After the roll, approach Lu Jun");
+            bool atRollCall = !delivered &&
+                encounter.Stage == M03LuJunStage.VisitingVeterans;
+            // The roll call has no choice rows: use that space for readable
+            // fixed-size dialogue instead of shrinking long CJK copy to 10 pt.
+            dialogue.resizeTextForBestFit = !atRollCall;
+            dialogue.rectTransform.sizeDelta = new Vector2(690f, atRollCall ? 240f : 151f);
+            dialogue.rectTransform.anchoredPosition = new Vector2(72f, atRollCall ? 61.5f : 106f);
+            dialogue.alignment = atRollCall ? TextAnchor.UpperLeft : TextAnchor.MiddleLeft;
+            advance.gameObject.SetActive(atRollCall);
+            informantLabel.font = font;
+            informantLabel.text = chinese ? "询问矿区线人" : "Ask the miner informant";
+            informantButton.gameObject.SetActive(atRollCall && !informantVisited);
+            // Share the existing bottom action row; never cover the story text.
+            advance.GetComponent<RectTransform>().anchoredPosition =
+                informantButton.gameObject.activeSelf
+                    ? new Vector2(210f, -238f) : new Vector2(0f, -238f);
             if (!delivered)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, PreferredFocusTarget);
         }
@@ -177,7 +207,14 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            if (disposed || delivered || index < 0 || index >= choices.Length)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (index < 0 || index >= choices.Length)
                 return;
             switch (encounter.Stage)
             {
@@ -212,8 +249,11 @@ namespace Rpg.Soundwell
                     {
                         // The encounter has restored ChoosingVoyage and
                         // cleared its provisional choice for a safe retry.
-                        delivered = false;
-                        Refresh();
+                        if (!disposed)
+                        {
+                            delivered = false;
+                            Refresh();
+                        }
                         throw;
                     }
                     return;
@@ -224,10 +264,43 @@ namespace Rpg.Soundwell
             FocusFirstActionAfterStageChange();
         }
 
+        private void AskInformant()
+        {
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (encounter.Stage != M03LuJunStage.VisitingVeterans || informantVisited)
+                return;
+            // The camp contact provides optional route context, not a stamped
+            // registration, booked ship or shortcut past the three missing names.
+            informantVisited = true;
+            showingInformant = true;
+            Refresh();
+            FocusFirstActionAfterStageChange();
+        }
+
         private void Advance()
         {
-            if (disposed || delivered || encounter.Stage != M03LuJunStage.VisitingVeterans)
+            if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (encounter.Stage != M03LuJunStage.VisitingVeterans)
+                return;
+            if (showingInformant)
+            {
+                showingInformant = false;
+                Refresh();
+                FocusFirstActionAfterStageChange();
+                return;
+            }
             // The third unanswered name must actually be heard before the
             // opening questions become available.
             if (rollCallBeat < 3)
@@ -243,6 +316,8 @@ namespace Rpg.Soundwell
         // into an unintended ship booking rather than a deliberate choice.
         private void FocusFirstActionAfterStageChange()
         {
+            if (disposed || CanvasDestroyed())
+                return;
             EventSystem system = EventSystem.current;
             if (system == null || system.alreadySelecting)
                 return;
@@ -266,7 +341,23 @@ namespace Rpg.Soundwell
                     button.onClick.RemoveAllListeners();
             if (advance != null)
                 advance.onClick.RemoveAllListeners();
+            if (informantButton != null)
+                informantButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || heading == null ||
+                dialogue == null || advance == null || advanceLabel == null ||
+                informantButton == null || informantLabel == null)
+                return true;
+            for (int i = 0; i < choices.Length; i++)
+            {
+                if (choices[i] == null || choiceLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
     }
 }

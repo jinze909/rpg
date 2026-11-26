@@ -46,6 +46,15 @@ namespace Rpg.Soundwell
         public Button LiangStayButton => choiceButtons[0];
         public Button LiangPersuadeButton => choiceButtons[1];
         public Button LiangForceButton => choiceButtons[2];
+        public bool IsDisposed
+        {
+            get
+            {
+                if (!disposed && CanvasDestroyed())
+                    Dispose();
+                return disposed;
+            }
+        }
 
         public M07ExtractionNightView(
             Transform parent,
@@ -142,23 +151,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
                 return;
-            }
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -283,8 +284,10 @@ namespace Rpg.Soundwell
                         break;
                 }
             }
-            RpgStoryArtResolver.ApplyPixelSprite(primaryIcon, primary);
-            RpgStoryArtResolver.ApplyPixelSprite(secondaryIcon, secondary);
+            if (primaryIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(primaryIcon, primary);
+            if (secondaryIcon != null)
+                RpgStoryArtResolver.ApplyPixelSprite(secondaryIcon, secondary);
         }
 
         private void ShowChoice(int index, string text, bool interactable = true)
@@ -304,9 +307,13 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed()) return;
+            if (disposed || IsDestroyedExternally()) return;
 
-            if (session.Stage == M07ExtractionStage.RouteExecution)
+            if (index < 0 || index >= choiceButtons.Length ||
+                !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
+                return;
+
+            if (session.Stage == M07ExtractionStage.RouteExecution && (index == 0 || index == 1))
             {
                 bool blocked = index == 1;
                 session.ExecuteRoute(blocked, blocked ? fallbackBoardedCount : defaultBoardedCount);
@@ -346,7 +353,10 @@ namespace Rpg.Soundwell
 
         private void HandleAdvanceClick()
         {
-            if (disposed || CanvasDestroyed()) return;
+            if (disposed || IsDestroyedExternally()) return;
+
+            if (!advanceButton.IsActive() || !advanceButton.IsInteractable())
+                return;
 
             if (session.Stage == M07ExtractionStage.OulinLockAndYidaGate)
             {
@@ -358,6 +368,14 @@ namespace Rpg.Soundwell
                 session.AdvanceReturnLettersCheck();
                 Refresh();
             }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed())
+                return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

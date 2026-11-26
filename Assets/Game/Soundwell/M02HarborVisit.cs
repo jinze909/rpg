@@ -19,12 +19,17 @@ namespace Rpg.Soundwell
         private M02BridgeEvidence unwrittenEvidence;
         private bool started;
         private bool finishedInquiry;
+        private bool disposed;
         private float layoutAspect;
+
+        public bool IsDisposed => disposed || parent == null;
 
         public M02HarborVisit(Transform parent, M01PensionChoice priorChoice, Action onFinished)
         {
             if (parent == null)
                 throw new ArgumentNullException(nameof(parent));
+            if (!Enum.IsDefined(typeof(M01PensionChoice), priorChoice))
+                throw new ArgumentOutOfRangeException(nameof(priorChoice));
             if (onFinished == null)
                 throw new ArgumentNullException(nameof(onFinished));
             this.parent = parent;
@@ -35,7 +40,7 @@ namespace Rpg.Soundwell
 
         public void Tick(float aspect)
         {
-            if (onFinished == null)
+            if (disposed || onFinished == null)
                 return;
             if (parent == null)
             {
@@ -74,12 +79,7 @@ namespace Rpg.Soundwell
                 {
                     if (reviewOutcome.Approved && !M02MissingReturnFacts.TryRecordApproved(reviewOutcome))
                         return;
-                    reviewOutcome = null;
-                    review?.Dispose();
-                    review = null;
-                    Action completed = onFinished;
-                    onFinished = null;
-                    completed?.Invoke();
+                    CompleteReview();
                     return;
                 }
             }
@@ -91,6 +91,24 @@ namespace Rpg.Soundwell
                 inquiry?.LayoutForViewportAspect(aspect);
                 review?.LayoutForViewportAspect(aspect);
             }
+        }
+
+        // The host may fail to transition after Makinom has recorded an
+        // approval. Keep the observed outcome and completion delegate until
+        // the handoff actually succeeds, so a subsequent Tick can retry.
+        // Clearing them before invoking the callback permanently strands the
+        // completed review on transient host failures.
+        private void CompleteReview()
+        {
+            if (reviewOutcome == null || onFinished == null)
+                return;
+
+            Action completed = onFinished;
+            completed();
+            onFinished = null;
+            reviewOutcome = null;
+            review?.Dispose();
+            review = null;
         }
 
         private void LeaveDesk(M02HarborDeskOutcome outcome)
@@ -105,7 +123,7 @@ namespace Rpg.Soundwell
             if (deskOutcome.QiQueDebtDiscovered && !M02QiQueDebtFacts.TryRecordDiscovered())
                 return;
 
-            desk.Dispose();
+            desk?.Dispose();
             desk = null;
             var investigation = new M02BridgeInquiry();
             investigation.Begin();
@@ -143,7 +161,7 @@ namespace Rpg.Soundwell
 
         private void OpenReview()
         {
-            inquiry.Dispose();
+            inquiry?.Dispose();
             inquiry = null;
             review = new M02MissingReturnView(parent, priorChoice, evidenceFound,
                 deskOutcome.TransferAssistanceAccepted, outcome => reviewOutcome = outcome);
@@ -153,6 +171,9 @@ namespace Rpg.Soundwell
 
         public void Dispose()
         {
+            if (disposed)
+                return;
+            disposed = true;
             onFinished = null;
             desk?.Dispose();
             desk = null;

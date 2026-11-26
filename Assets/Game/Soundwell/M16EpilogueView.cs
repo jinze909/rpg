@@ -32,10 +32,12 @@ namespace Rpg.Soundwell
         private readonly Text advanceLabel;
         private readonly M16EpilogueSession session;
         private Action<M16StandingSpot> onStandingSpotSubmitted;
+        private M16DeliveredLettersFlags lastReadLetter;
         private bool submitting;
         private bool disposed;
 
         public M16EpilogueSession Session => session;
+        public M16DeliveredLettersFlags LastReadLetter => lastReadLetter;
         public RectTransform Panel => panel;
         public Text Heading => heading;
         public Text Body => body;
@@ -49,6 +51,7 @@ namespace Rpg.Soundwell
         public Button PierButton => choiceButtons[0];
         public Button SteleButton => choiceButtons[1];
         public Button WorkshopDoorButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M16EpilogueView(
             Transform parent,
@@ -124,23 +127,14 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -181,12 +175,8 @@ namespace Rpg.Soundwell
                 case M16Phase.DeskLettersAndRegister:
                     heading.text = zh ? "M16 · 桌上的来信与名册笔迹" : "M16 · DESK LETTERS & REGISTER";
                     M16DeliveredLettersFlags nextLetter = FindNextUnreadLetter();
-                    body.text = nextLetter != M16DeliveredLettersFlags.None
-                        ? (zh ? "桌上只放着确实寄出并送达的朋友来信，可逐封拆读或翻看名册上的各方笔迹。"
-                              : "Only actually delivered letters from completed tales rest on the desk. Read them or review the register notes.")
-                        : (zh ? "桌上已送达的来信均已看清，未开支线不生成虚构回信。随时可走出屋门看傍晚海风。"
-                              : "All delivered letters have been read; unstarted tales stay unfabricated. Step outside whenever ready.");
-                    ShowChoice(0, zh ? "拆读下一封已送达来信" : "Read next delivered letter",
+                    body.text = FormatDeskBody(nextLetter, zh);
+                    ShowChoice(0, FormatNextLetterButtonLabel(nextLetter, zh),
                         nextLetter != M16DeliveredLettersFlags.None);
                     ShowChoice(1, zh ? "翻看名册页边笔迹" : "Review register notes",
                         !session.DeskRegisterReviewed);
@@ -209,6 +199,67 @@ namespace Rpg.Soundwell
                         ? "海风吹过港口，远处渡船归港。全剧终。"
                         : "Sea breeze crosses the harbor as the distant ferry returns. Fin.";
                     break;
+            }
+        }
+
+        private string FormatDeskBody(M16DeliveredLettersFlags nextLetter, bool zh)
+        {
+            if (lastReadLetter != M16DeliveredLettersFlags.None)
+            {
+                string letterText = FormatDeliveredLetterBody(lastReadLetter, zh);
+                string tail = nextLetter != M16DeliveredLettersFlags.None
+                    ? (zh ? "桌上还有未拆的来信。" : "Another delivered letter waits on the desk.")
+                    : (zh ? "桌上已送达的来信均已看清，随时可走出屋门看傍晚海风。"
+                          : "All delivered letters have been read. Step outside whenever ready.");
+                return letterText + "\n" + tail;
+            }
+
+            return nextLetter != M16DeliveredLettersFlags.None
+                ? (zh ? "桌上只放着确实寄出并送达的朋友来信，可逐封拆读或翻看名册上的各方笔迹。"
+                      : "Only actually delivered letters from completed tales rest on the desk. Read them or review the register notes.")
+                : (zh ? "桌上已送达的来信均已看清，未开支线不生成虚构回信。随时可走出屋门看傍晚海风。"
+                      : "All delivered letters have been read; unstarted tales stay unfabricated. Step outside whenever ready.");
+        }
+
+        private static string FormatNextLetterButtonLabel(M16DeliveredLettersFlags nextLetter, bool zh)
+        {
+            switch (nextLetter)
+            {
+                case M16DeliveredLettersFlags.RC01ChenYan:
+                    return zh ? "拆读砚叔来信" : "Read Chen Yan's letter";
+                case M16DeliveredLettersFlags.RC02ZhengYuan:
+                    return zh ? "拆读郑远来信" : "Read Zheng Yuan's letter";
+                case M16DeliveredLettersFlags.RC05ThirdSquad:
+                    return zh ? "拆读第三班来信" : "Read Third Squad's letter";
+                case M16DeliveredLettersFlags.ST02RiverLanterns:
+                    return zh ? "拆读两盏河灯来信" : "Read River Lanterns letter";
+                default:
+                    return zh ? "已读完全部送达来信" : "All delivered letters read";
+            }
+        }
+
+        private static string FormatDeliveredLetterBody(M16DeliveredLettersFlags letter, bool zh)
+        {
+            switch (letter)
+            {
+                case M16DeliveredLettersFlags.RC01ChenYan:
+                    return zh
+                        ? "【RC-01 砚叔来信】白芦渡水浅平稳，名册账目已按当日约定落定，嘱你保重。"
+                        : "[RC-01 Chen Yan] White Reed Ferry runs calm; the roster settlement holds as agreed.";
+                case M16DeliveredLettersFlags.RC02ZhengYuan:
+                    return zh
+                        ? "【RC-02 郑远来信】临潮户籍与名姓已各归其位，家里安稳，特寄信报一声平安。"
+                        : "[RC-02 Zheng Yuan] The household and names stand settled in Linchao; all is quiet at home.";
+                case M16DeliveredLettersFlags.RC05ThirdSquad:
+                    return zh
+                        ? "【RC-05 第三班来信】山口旧班组与盐粮接济均已按约落定，托过路船带信致谢。"
+                        : "[RC-05 Third Squad] The mountain-pass settlement and supply terms hold; they send word by passing boat.";
+                case M16DeliveredLettersFlags.ST02RiverLanterns:
+                    return zh
+                        ? "【ST-02 两盏河灯来信】河埠水闸夜灯照旧点着，两船联标契约运转如常，邀你得空再访。"
+                        : "[ST-02 River Lanterns] The lock lanterns still burn at dusk and the joint shipping terms hold steady.";
+                default:
+                    return string.Empty;
             }
         }
 
@@ -269,20 +320,20 @@ namespace Rpg.Soundwell
         {
             for (int i = 0; i < choiceButtons.Length; i++)
             {
-                if (choiceButtons[i].gameObject.activeSelf && choiceButtons[i].interactable)
+                if (choiceButtons[i].IsActive() && choiceButtons[i].IsInteractable())
                 {
                     SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, choiceButtons[i]);
                     return;
                 }
             }
-            if (advanceButton.gameObject.activeSelf && advanceButton.interactable)
+            if (advanceButton.IsActive() && advanceButton.IsInteractable())
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, advanceButton);
         }
 
         private void HandleAdvanceClick()
         {
-            if (disposed || CanvasDestroyed() || !advanceButton.gameObject.activeSelf ||
-                !advanceButton.interactable)
+            if (disposed || IsDestroyedExternally() || !advanceButton.IsActive() ||
+                !advanceButton.IsInteractable())
                 return;
 
             if (session.Phase == M16Phase.AfternoonWalk && session.TryProceedToDesk())
@@ -293,9 +344,9 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed() || index < 0 || index >= choiceButtons.Length)
+            if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
                 return;
-            if (!choiceButtons[index].gameObject.activeSelf || !choiceButtons[index].interactable)
+            if (!choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
 
             switch (session.Phase)
@@ -319,7 +370,10 @@ namespace Rpg.Soundwell
                     {
                         M16DeliveredLettersFlags next = FindNextUnreadLetter();
                         if (next != M16DeliveredLettersFlags.None && session.TryReadLetter(next))
+                        {
+                            lastReadLetter = next;
                             Refresh();
+                        }
                     }
                     else if (index == 1 && session.TryReviewRegisterNotes())
                     {
@@ -345,6 +399,13 @@ namespace Rpg.Soundwell
                     }
                     break;
             }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Rpg.Soundwell
@@ -50,6 +51,7 @@ namespace Rpg.Soundwell
         private bool disposed;
 
         public FogListeningSession Session => session;
+        public bool IsDisposed => disposed || CanvasDestroyed();
         public Text StatusText => statusText;
         public Text CueText => cueText;
         public Image CueIcon => cueIcon;
@@ -62,6 +64,12 @@ namespace Rpg.Soundwell
         public Button StarboardButton => starboardButton;
         public Button SignalButton => signalButton;
         public Button ContinueButton => continueButton;
+        // After focus is spent or the passage ends, the gamepad must land on
+        // a still-interactable button, not the just-disabled action.
+        public Button PreferredFocusButton =>
+            continueButton.IsActive() && continueButton.IsInteractable() ? continueButton :
+            focusButton.IsActive() && focusButton.IsInteractable() ? focusButton :
+            slowButton.IsActive() && slowButton.IsInteractable() ? slowButton : null;
 
         public FogListeningView(
             Transform parent,
@@ -123,22 +131,14 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || authored == null)
-            {
-                Dispose();
-                return;
-            }
+            if (IsDestroyedExternally()) return;
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || heading == null)
-            {
-                Dispose();
-                return;
-            }
+            if (IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = statusText.font = cueText.font = font;
@@ -176,10 +176,24 @@ namespace Rpg.Soundwell
 
             if (!delivered)
             {
-                Button preferred = continueButton.interactable ? continueButton
-                    : focusButton.interactable ? focusButton
-                    : slowButton;
-                SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, preferred);
+                // KeepDialogFocus preserves an active in-dialog selection.
+                // A disabled Button is still active, however: when focus
+                // listening spends its last point, gamepad Submit would
+                // remain on a button which cannot respond to the next press.
+                EventSystem events = EventSystem.current;
+                if (Application.isPlaying && events != null && !events.alreadySelecting)
+                {
+                    GameObject selected = events.currentSelectedGameObject;
+                    if (selected != null &&
+                        selected.transform.IsChildOf(canvasObject.transform))
+                    {
+                        Selectable control = selected.GetComponent<Selectable>();
+                        if (control == null || !control.IsActive() || !control.IsInteractable())
+                            events.SetSelectedGameObject(null);
+                    }
+                }
+                SoundwellInputAdapter.KeepDialogFocus(
+                    canvasObject.transform, PreferredFocusButton);
             }
         }
 
@@ -210,10 +224,21 @@ namespace Rpg.Soundwell
 
         private bool IsDestroyedExternally()
         {
-            if (canvasObject != null && heading != null)
+            if (!CanvasDestroyed())
                 return false;
             Dispose();
             return true;
+        }
+
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || authored == null || heading == null ||
+                statusText == null || cueText == null || cueIcon == null ||
+                focusButton == null || focusLabel == null || holdButton == null ||
+                holdLabel == null || slowButton == null || slowLabel == null ||
+                portButton == null || portLabel == null || starboardButton == null ||
+                starboardLabel == null || signalButton == null || signalLabel == null ||
+                continueButton == null || continueLabel == null;
         }
 
         private void FocusListen()

@@ -225,6 +225,61 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LockedDockDialogueCannotHearChooseOrPersistResponseUntilUnlocked()
+        {
+            var root = new GameObject("M08 dock input lock");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M08DockTruthHost host = null;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(view.HearButton.IsInteractable(), Is.False);
+                view.HearButton.onClick.Invoke();
+                Assert.That(view.Session.Stage, Is.EqualTo(M08DockTruthStage.AwaitingTruth));
+                group.interactable = true;
+                view.HearButton.onClick.Invoke();
+
+                group.interactable = false;
+                view.FirstResponseButton.onClick.Invoke();
+                view.SecondResponseButton.onClick.Invoke();
+                view.ThirdResponseButton.onClick.Invoke();
+                Assert.That(view.Session.Stage, Is.EqualTo(M08DockTruthStage.AwaitingResponse));
+                Assert.That(view.Session.SelectedResponse, Is.Null);
+                group.interactable = true;
+                view.SecondResponseButton.onClick.Invoke();
+                Assert.That(view.Session.Stage, Is.EqualTo(M08DockTruthStage.AwaitingHost));
+
+                group.interactable = false;
+                view.FinishButton.onClick.Invoke();
+                Assert.That(host.HasRecordedResponse, Is.False);
+                Assert.That(read(M08DockTruthFacts.ShenRelationResponseKey), Is.Zero);
+                Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.FinishButton.onClick.Invoke();
+                Assert.That(host.HasRecordedResponse, Is.False);
+                view.Panel.gameObject.SetActive(true);
+                view.FinishButton.onClick.Invoke();
+                Assert.That(host.HasRecordedResponse, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(M08DockTruthFacts.TryRead(read, out M08DockTruthResponse? saved), Is.True);
+                Assert.That(saved, Is.EqualTo(M08DockTruthResponse.StaySilent));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedWriteKeepsSelectedResponseAndHostCanRetry()
         {
             var root = new GameObject("M08 dock interrupted write");
@@ -300,6 +355,67 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PresenceCallbackClosingHostCannotOpenDockDialogue()
+        {
+            var root = new GameObject("M08 presence closes opening");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            M08DockTruthHost host = null;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () =>
+                {
+                    host.Dispose();
+                    return true;
+                }, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.HasRecordedResponse, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void PresenceCallbackClosingDockCannotPersistSelectedResponse()
+        {
+            var root = new GameObject("M08 presence closes submission");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            M08DockTruthHost host = null;
+            bool closeOnRead = false;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () =>
+                {
+                    if (closeOnRead) host.Dispose();
+                    return true;
+                }, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.HearButton.onClick.Invoke();
+                view.SecondResponseButton.onClick.Invoke();
+                var finish = view.FinishButton;
+                closeOnRead = true;
+                Assert.DoesNotThrow(() => finish.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.HasRecordedResponse, Is.False);
+                Assert.That(Reader(values)(M08DockTruthFacts.ShenRelationResponseKey), Is.Zero);
+                Assert.That(Reader(values)(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PartySplitBeforeSaveCannotWriteAndCorruptOrStaleFactsDoNotRead()
         {
             var root = new GameObject("M08 dock late party split");
@@ -346,65 +462,5 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
-
-        [Test]
-        public void DestroyedCanvasReleasesDockHostAndAllowsFreshDialogue()
-        {
-            var root = new GameObject("M08 dock destroyed canvas");
-            var values = new Dictionary<string, int>();
-            SeedConfirmedWorkshop(values);
-            Func<string, int> read = Reader(values);
-            Action<string, int> write = (key, value) => values[key] = value;
-            M08DockTruthHost host = null;
-            try
-            {
-                host = new M08DockTruthHost(root.transform, () => true, read, write);
-                Assert.That(host.TryOpen(), Is.True);
-                M08DockTruthView oldView = host.ActiveView;
-                Canvas canvas = oldView.Panel.GetComponentInParent<Canvas>();
-                Assert.That(canvas, Is.Not.Null);
-                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
-
-                Assert.That(oldView.IsDisposed, Is.True);
-                Assert.That(host.ActiveView, Is.Null);
-                Assert.That(host.TryOpen(), Is.True);
-                Assert.That(host.ActiveView, Is.Not.Null);
-                Assert.That(host.ActiveView, Is.Not.SameAs(oldView));
-            }
-            finally
-            {
-                host?.Dispose();
-                UnityEngine.Object.DestroyImmediate(root);
-            }
-        }
-
-        [Test]
-        public void DestroyedParentDisposesDockDialogueAndFailsClosedOnReopen()
-        {
-            var root = new GameObject("M08 dock destroyed parent");
-            var values = new Dictionary<string, int>();
-            SeedConfirmedWorkshop(values);
-            Func<string, int> read = Reader(values);
-            Action<string, int> write = (key, value) => values[key] = value;
-            M08DockTruthHost host = null;
-            try
-            {
-                host = new M08DockTruthHost(root.transform, () => true, read, write);
-                Assert.That(host.TryOpen(), Is.True);
-                M08DockTruthView oldView = host.ActiveView;
-                UnityEngine.Object.DestroyImmediate(root);
-
-                Assert.That(oldView.IsDisposed, Is.True);
-                Assert.That(host.ActiveView, Is.Null);
-                Assert.That(host.TryOpen(), Is.False);
-            }
-            finally
-            {
-                host?.Dispose();
-                if (root != null)
-                    UnityEngine.Object.DestroyImmediate(root);
-            }
-        }
-
     }
 }

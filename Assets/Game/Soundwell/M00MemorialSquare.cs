@@ -65,8 +65,10 @@ namespace Rpg.Soundwell
         private Text inscription;
         private Text childLine;
         private Text crowdLine;
+        private Image stageDialoguePanel;
         private Button[] choices = new Button[4];
         private Button rollCallButton;
+        private Image choicePanel;
         private Action onExit;
         private Vector2 walker = new Vector2(-360f, 0f);
         private float stageStartedAt;
@@ -145,7 +147,8 @@ namespace Rpg.Soundwell
             narration = Label(authoredView,
                 Copy("Daytime. Linchao Harbor. The sea wind carries a vendor’s call for “hero sugar figures.” Children line up to touch the memorial; one patch of stone has been polished bright.",
                     "白天。临潮港。海风里有人叫卖“英雄糖人”。孩子们排着队，摸石碑上刻的字，那一块已经摸得发亮。"),
-                16, Ink, new Vector2(0f, 151f), new Vector2(870f, 66f));
+                16, Ink, new Vector2(-105f, 151f), new Vector2(630f, 66f));
+            narration.gameObject.name = "M00 scene narration";
             narration.alignment = TextAnchor.MiddleCenter;
 
             // The polished memorial stone and the statue remain visible from
@@ -155,7 +158,7 @@ namespace Rpg.Soundwell
             RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 memorial statue",
                 new Vector2(StatueX, 87f), new Vector2(64f, 64f), artManifest?.M00MemorialStatue);
             inscription = Label(authoredView, "", 16, Ink,
-                new Vector2(0f, 151f), new Vector2(870f, 66f));
+                new Vector2(-105f, 151f), new Vector2(630f, 66f));
             inscription.alignment = TextAnchor.MiddleCenter;
             inscription.gameObject.SetActive(false);
 
@@ -176,24 +179,52 @@ namespace Rpg.Soundwell
             childImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView,
                 "M00 Xiaodou in oversized uniform", new Vector2(StageX, 62f),
                 actorSize, artManifest?.M00Xiaodou);
-            childLine = Label(authoredView, "", 16, Ink,
-                new Vector2(StageX, 132f), new Vector2(360f, 30f));
+            // Give the stage dialogue its own high-contrast backing in the
+            // non-walkable water band. It stays left of the stage art and below
+            // narration; both lines are clipped to this reserved panel.
+            stageDialoguePanel = Panel(authoredView, "M00 stage dialogue panel",
+                new Vector2(-280f, 80f), new Vector2(340f, 66f),
+                new Color(0.43f, 0.47f, 0.45f));
+            Panel(stageDialoguePanel.rectTransform, "M00 stage dialogue backing",
+                Vector2.zero, new Vector2(338f, 64f), SoundwellUiTheme.DefaultBackdropColor);
+            stageDialoguePanel.gameObject.SetActive(false);
+            childLine = Label(authoredView, "", 16, SoundwellUiTheme.DefaultPaperColor,
+                new Vector2(-280f, 92f), new Vector2(320f, 24f));
+            childLine.gameObject.name = "M00 Xiaodou stage line";
             childLine.gameObject.SetActive(false);
-            crowdLine = Label(authoredView, "", 13, Ink,
-                new Vector2(StageX, 108f), new Vector2(360f, 24f));
+            crowdLine = Label(authoredView, "", 13, SoundwellUiTheme.DefaultPaperColor,
+                new Vector2(-280f, 62f), new Vector2(320f, 20f));
+            crowdLine.gameObject.name = "M00 crowd reaction";
             crowdLine.gameObject.SetActive(false);
 
             playerImage = RpgStoryArtResolver.CreateOrUpdatePixelIcon(authoredView, "M00 player",
                 new Vector2(walker.x, LaneY), actorSize, artManifest?.FerryGuideIdle);
 
-            instructions = Label(authoredView, "", 15, Ink,
-                new Vector2(0f, -224f), new Vector2(880f, 34f));
+            // Set aside the strip below the paving so the prompt stays readable
+            // over both the daylight scene and the final roll-call choice.
+            Image footer = Panel(authoredView, "M00 objective footer",
+                new Vector2(0f, -243f), new Vector2(920f, 40f),
+                new Color(0.43f, 0.47f, 0.45f));
+            Image footerBacking = Panel(footer.rectTransform, "M00 objective footer backing",
+                Vector2.zero, new Vector2(918f, 38f), SoundwellUiTheme.DefaultBackdropColor);
+            instructions = Label(footerBacking.rectTransform, "", 15, SoundwellUiTheme.DefaultPaperColor,
+                Vector2.zero, new Vector2(888f, 32f));
+
+            // Choice controls live in the non-walkable water band at the right
+            // edge, clear of the playable paving, actors, and narration.
+            choicePanel = Panel(authoredView, "M00 choice panel",
+                new Vector2(350f, 91f), new Vector2(240f, 184f),
+                new Color(0.43f, 0.47f, 0.45f));
+            Panel(choicePanel.rectTransform, "M00 choice panel backing",
+                Vector2.zero, new Vector2(238f, 182f), SoundwellUiTheme.DefaultBackdropColor);
+            choicePanel.gameObject.SetActive(false);
+
             for (int i = 0; i < choices.Length; i++)
                 choices[i] = CreateChoiceButton(i,
-                    new Vector2(0f, -34f - i * 43f));
+                    new Vector2(350f, 151f - i * 43f));
             rollCallButton = CreateButton("M00 begin roll call",
                 Copy("Attend the roll call", "参加正式点名"),
-                new Vector2(0f, -165f), new Vector2(300f, 42f), BeginRollCall);
+                new Vector2(350f, 91f), new Vector2(220f, 42f), BeginRollCall);
             rollCallButton.gameObject.SetActive(false);
             RefreshViewLayout();
         }
@@ -208,7 +239,7 @@ namespace Rpg.Soundwell
             image.pixelsPerUnitMultiplier = canvas.referencePixelsPerUnit / 64f;
         }
 
-        private static void Panel(Transform parent, string name,
+        private static Image Panel(Transform parent, string name,
             Vector2 position, Vector2 size, Color color)
         {
             var obj = new GameObject(name,
@@ -221,6 +252,7 @@ namespace Rpg.Soundwell
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
             rect.sizeDelta = size;
+            return image;
         }
 
         private static Text Label(Transform parent, string value, int fontSize,
@@ -238,7 +270,10 @@ namespace Rpg.Soundwell
         private Button CreateChoiceButton(int index, Vector2 position)
         {
             Button button = CreateButton("M00 choice " + index, "",
-                position, new Vector2(700f, 38f), () => SelectChoice(index));
+                position, new Vector2(220f, 38f), () => SelectChoice(index));
+            Text caption = button.GetComponentInChildren<Text>(true);
+            caption.resizeTextMinSize = 11;
+            caption.resizeTextMaxSize = 13;
             button.gameObject.SetActive(false);
             return button;
         }
@@ -437,6 +472,7 @@ namespace Rpg.Soundwell
             childLine.text = Copy(
                 "Xiaodou (loudly): “While the bridge stands, so do I!”",
                 "小豆（台词，背得很响）：桥在我在！");
+            stageDialoguePanel.gameObject.SetActive(true);
             childLine.gameObject.SetActive(true);
             crowdLine.gameObject.SetActive(false);
             childImage.color = Color.white;
@@ -457,6 +493,7 @@ namespace Rpg.Soundwell
 
         private void SetChoices(string[] english, string[] chinese, int count)
         {
+            choicePanel.gameObject.SetActive(true);
             SoundwellInputAdapter.SetUiContext();
             for (int i = 0; i < choices.Length; i++)
             {
@@ -500,6 +537,8 @@ namespace Rpg.Soundwell
                 Maki.Game.Variables.Set(XiaodouPromptedKey, xiaodouPrompted ? 1 : 0);
             phase = 5;
             HideChoices();
+            HideStageDialogue();
+            choicePanel.gameObject.SetActive(true);
             SoundwellInputAdapter.SetUiContext();
             narration.text = index == 0
                 ? Copy("You step forward and give Xiaodou the line: “Who has spare rope?”",
@@ -530,8 +569,20 @@ namespace Rpg.Soundwell
         {
             foreach (Button choice in choices)
                 choice.gameObject.SetActive(false);
+            if (choicePanel != null)
+                choicePanel.gameObject.SetActive(false);
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        private void HideStageDialogue()
+        {
+            if (stageDialoguePanel != null)
+                stageDialoguePanel.gameObject.SetActive(false);
+            if (childLine != null)
+                childLine.gameObject.SetActive(false);
+            if (crowdLine != null)
+                crowdLine.gameObject.SetActive(false);
         }
 
         private static string Copy(string english, string chinese) =>

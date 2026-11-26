@@ -41,6 +41,7 @@ namespace Rpg.Soundwell
         public Text Narrative => narrative;
         public Image StageIcon => stageIcon;
         public M02BridgeInquiry Inquiry => inquiry;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         // Prefer undiscovered evidence, not an already-read clue or a hidden
         // archive choice. A player can still deliberately skip via Continue.
@@ -48,7 +49,8 @@ namespace Rpg.Soundwell
         {
             get
             {
-                if (disposed || completed || inquiry.Location == M02EvidenceLocation.Finished)
+                if (disposed || completed || CanvasDestroyed() ||
+                    inquiry.Location == M02EvidenceLocation.Finished)
                     return null;
                 if (inquiry.Location == M02EvidenceLocation.FerryWarehouse)
                 {
@@ -131,11 +133,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -143,7 +147,7 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -223,6 +227,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             bool newlyObserved = false;
             if (inquiry.Location == M02EvidenceLocation.FerryWarehouse)
             {
@@ -256,6 +265,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || completed)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             bool enteringArchive = inquiry.Location == M02EvidenceLocation.FerryWarehouse;
             if (enteringArchive)
                 inquiry.LeaveWarehouse();
@@ -273,8 +287,11 @@ namespace Rpg.Soundwell
                 }
                 catch
                 {
-                    completed = false;
-                    Refresh();
+                    if (!disposed)
+                    {
+                        completed = false;
+                        Refresh();
+                    }
                     throw;
                 }
             }
@@ -311,6 +328,19 @@ namespace Rpg.Soundwell
             if (continueButton != null)
                 continueButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || heading == null ||
+                narrative == null || continueButton == null || continueLabel == null)
+                return true;
+            for (int i = 0; i < clueButtons.Length; i++)
+            {
+                if (clueButtons[i] == null || clueLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
     }
 }

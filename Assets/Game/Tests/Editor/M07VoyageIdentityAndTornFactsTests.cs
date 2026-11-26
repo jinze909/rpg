@@ -38,6 +38,14 @@ namespace Rpg.Tests.Editor
                 new M05LandingReport(3, 10, true, true), read, write), Is.True);
             Assert.That(M05LettersFacts.TryRecord(
                 M05LetterDecision.TakePacket, read, write), Is.True);
+            foreach (M06FamilyLetterRecipient recipient in new[]
+            {
+                M06FamilyLetterRecipient.TaoJi,
+                M06FamilyLetterRecipient.LedgerMiner,
+                M06FamilyLetterRecipient.PendingMiner
+            })
+                Assert.That(M06FamilyLetterDeliveryFacts.TryRecord(
+                    recipient, read, write), Is.True);
             Assert.That(M06RescuePlanFacts.TryRecord(
                 new M06ReunionRecord(
                     plan, true, M06LetterDeliveryOutcome.DeliveredWithPending, true),
@@ -143,6 +151,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(M06RescuePlanFacts.TryResetForNewVoyage(write), Is.True);
                 Assert.That(M05LettersFacts.TryResetForNewVoyage(write), Is.True);
                 Assert.That(M05LandingFacts.TryResetForNewVisit(write), Is.True);
+                Assert.That(FogListeningFacts.TryResetForNewLeg(write), Is.True);
                 SeedVerifiedM06(values, M06RescuePlan.OfficialHandover);
                 Assert.That(values[M05LandingFacts.ArrivalSequenceKey], Is.GreaterThan(firstArrival));
 

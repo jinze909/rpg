@@ -60,8 +60,10 @@ namespace Rpg.Soundwell
                 !m11.HasValue)
                 return false;
 
-            bool rc01Completed = RC01ChenYanFacts.TryRead(getInt, out RC01ChenYanRecord? rc01) &&
-                rc01.HasValue;
+            if (!M12BridgeTruthFacts.TryEvaluateRC01Completed(
+                    getInt, out bool rc01Completed))
+                return false;
+
             session = new M12BridgeTruthSession(
                 m03PriorConfession,
                 m03SecrecyPromised,

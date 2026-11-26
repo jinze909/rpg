@@ -25,26 +25,18 @@ namespace Rpg.Soundwell
         private readonly Text finishLabel;
         private readonly Font latinFont;
         private Func<M08DockTruthResponse, bool> recordResponse;
+        private bool acknowledging;
         private bool disposed;
 
         public M08DockTruthSession Session => session;
         public Text Body => body;
         public RectTransform Panel => panel;
-        public bool IsDisposed
-        {
-            get
-            {
-                if (!disposed && CanvasDestroyed())
-                    Dispose();
-                return disposed;
-            }
-        }
-
         public Button HearButton => hearButton;
         public Button FirstResponseButton => responseButtons[0];
         public Button SecondResponseButton => responseButtons[1];
         public Button ThirdResponseButton => responseButtons[2];
         public Button FinishButton => finishButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M08DockTruthView(
             Transform parent,
@@ -121,15 +113,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = body.font = hearLabel.font = finishLabel.font = font;
@@ -190,8 +182,9 @@ namespace Rpg.Soundwell
                     }
                     finishLabel.text = zh ? "记下这次回应" : "Record this response";
                     finishButton.gameObject.SetActive(true);
-                    finishButton.interactable = true;
-                    focus = finishButton;
+                    finishButton.interactable = !acknowledging;
+                    if (!acknowledging)
+                        focus = finishButton;
                     break;
 
                 case M08DockTruthStage.Completed:
@@ -211,19 +204,24 @@ namespace Rpg.Soundwell
             responseButtons[index].interactable = true;
         }
 
+        private static bool CanInvoke(Button button)
+        {
+            return button != null && button.IsActive() && button.IsInteractable();
+        }
+
         private void HearTruth()
         {
-            if (disposed || CanvasDestroyed() || !hearButton.interactable) return;
+            if (disposed || IsDestroyedExternally() || !CanInvoke(hearButton)) return;
             session.TryHearTruth();
             Refresh();
         }
 
         private void Respond(int index)
         {
-            if (disposed || CanvasDestroyed() ||
+            if (disposed || IsDestroyedExternally() ||
                 session.Stage != M08DockTruthStage.AwaitingResponse ||
                 index < 0 || index >= responseButtons.Length ||
-                !responseButtons[index].interactable)
+                !CanInvoke(responseButtons[index]))
                 return;
             session.TryRespond((M08DockTruthResponse)(index + 1));
             Refresh();
@@ -231,15 +229,30 @@ namespace Rpg.Soundwell
 
         private void Finish()
         {
-            if (disposed || CanvasDestroyed() || !finishButton.interactable)
+            if (disposed || IsDestroyedExternally() || acknowledging || !CanInvoke(finishButton))
                 return;
             // Host owns the authoritative shen_relation write.
-            // A failed or interrupted save keeps this confirmation retryable.
-            if (session.TryAcknowledge(recordResponse))
+            // Guard against reentrant submits while keeping failed writes retryable.
+            acknowledging = true;
+            Refresh();
+            try
             {
-                recordResponse = null;
-                Refresh();
+                if (session.TryAcknowledge(recordResponse))
+                    recordResponse = null;
             }
+            finally
+            {
+                acknowledging = false;
+                if (!disposed) Refresh();
+            }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed())
+                return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

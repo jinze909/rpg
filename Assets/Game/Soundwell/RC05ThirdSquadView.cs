@@ -7,7 +7,7 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Bottom-anchored safe-region UGUI panel for RC-05 ("山上的第三班").
     /// Steps through mountain-pass roll-call tracking, salt-grain boat delivery
-    /// trial, abandoned-mill meeting (M00 stele callback & real Zheng Yuan
+    /// trial, abandoned-mill meeting (M00 stele callback &amp; real Zheng Yuan
     /// roster+testimony check), and three-party decision with ZH/EN support.
     /// </summary>
     public sealed class RC05ThirdSquadView : IDisposable
@@ -40,6 +40,7 @@ namespace Rpg.Soundwell
         public Button CivilianPardonButton => choiceButtons[0];
         public Button EnlistLuJunButton => choiceButtons[1];
         public Button ContinueSmugglingButton => choiceButtons[2];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC05ThirdSquadView(
             Transform parent,
@@ -122,23 +123,14 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -229,7 +221,7 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed() || index < 0 || index >= choiceButtons.Length)
+            if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
                 return;
             if (!choiceButtons[index].gameObject.activeSelf || !choiceButtons[index].interactable)
                 return;
@@ -269,6 +261,13 @@ namespace Rpg.Soundwell
                     }
                     break;
             }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

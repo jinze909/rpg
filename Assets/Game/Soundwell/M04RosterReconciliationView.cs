@@ -61,6 +61,7 @@ namespace Rpg.Soundwell
         public Button DeclineButton => declineButton;
         public Button FinishButton => finishButton;
         public Button BackButton => backButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M04RosterReconciliationView(
             Transform parent,
@@ -143,25 +144,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            // Unity may destroy the whole UI tree during scene unload
-            // before the owner has a chance to call Dispose.
-            if (canvasObject == null || authored == null)
-            {
-                Dispose();
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
                 return;
-            }
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (canvasObject == null || heading == null)
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = summary.font = selectedDetails.font = font;
@@ -245,9 +236,36 @@ namespace Rpg.Soundwell
             RpgStoryArtResolver.ApplyPixelSprite(rosterIcon, sprite);
         }
 
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null ||
+                authored == null ||
+                heading == null ||
+                summary == null ||
+                selectedDetails == null ||
+                prevButton == null ||
+                prevLabel == null ||
+                nextButton == null ||
+                nextLabel == null ||
+                confirmDockButton == null ||
+                confirmDockLabel == null ||
+                resolveRollButton == null ||
+                resolveRollLabel == null ||
+                bookButton == null ||
+                bookLabel == null ||
+                unbookButton == null ||
+                unbookLabel == null ||
+                declineButton == null ||
+                declineLabel == null ||
+                finishButton == null ||
+                finishLabel == null ||
+                backButton == null ||
+                backLabel == null;
+        }
+
         private bool IsDestroyedExternally()
         {
-            if (canvasObject != null && heading != null)
+            if (!CanvasDestroyed())
                 return false;
             Dispose();
             return true;
@@ -346,8 +364,11 @@ namespace Rpg.Soundwell
             {
                 // A failed host write must not leave this panel permanently
                 // delivered; the M04 roster record can be safely retried.
-                delivered = false;
-                Refresh();
+                if (!disposed)
+                {
+                    delivered = false;
+                    Refresh();
+                }
                 throw;
             }
         }
@@ -368,8 +389,11 @@ namespace Rpg.Soundwell
             {
                 // If the host could not navigate, keep the same roster open
                 // and interactive so the player can try returning again.
-                navigatingBack = false;
-                Refresh();
+                if (!disposed)
+                {
+                    navigatingBack = false;
+                    Refresh();
+                }
                 throw;
             }
         }

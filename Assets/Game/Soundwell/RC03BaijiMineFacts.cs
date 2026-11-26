@@ -106,6 +106,13 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> getInt)
+        {
+            return getInt == null ||
+                M10AssemblyFacts.HasAnyPersistedFacts(getInt) ||
+                M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt);
+        }
+
         // The outcome and every consent/training fact are locked before the
         // first Makinom payload field. A torn charter decision cannot turn
         // Lan Ruo's unconsented stay into a saved one, or overwrite a pump plan.
@@ -127,6 +134,7 @@ namespace Rpg.Soundwell
         public static bool CanRecord(RC03BaijiMineRecord record, Func<string, int> getInt)
         {
             if (getInt == null || getInt(ConfirmedKey) != 0 ||
+                HasOrphanedDownstreamFacts(getInt) ||
                 !IsValidRecord(record, getInt))
                 return false;
 

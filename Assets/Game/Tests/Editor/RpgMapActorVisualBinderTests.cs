@@ -24,11 +24,12 @@ namespace Rpg.Tests.Editor
             Sprite walk1 = MakeTestSprite("walk1");
             Sprite walk2 = MakeTestSprite("walk2");
             Sprite alert = MakeTestSprite("alert");
+            Sprite hit = MakeTestSprite("hit");
             RpgMapActorVisualBinder binder = null;
             try
             {
                 binder = new RpgMapActorVisualBinder(root.transform, "Hero",
-                    idle, walk1, walk2, alert, baseSortingOrder: 6);
+                    idle, walk1, walk2, alert, baseSortingOrder: 6, hitSprite: hit);
                 Assert.That(binder.SpriteRenderer.sprite, Is.EqualTo(idle));
 
                 binder.Sync(new Vector2(20f, 30f), Vector2Int.left, RpgActorVisualState.Moving, 0.05f);
@@ -44,6 +45,10 @@ namespace Rpg.Tests.Editor
 
                 binder.Sync(new Vector2(20f, 10f), Vector2Int.right, RpgActorVisualState.AlertOrBrace, 0.1f);
                 Assert.That(binder.SpriteRenderer.sprite, Is.EqualTo(alert));
+
+                binder.Sync(new Vector2(20f, 10f), Vector2Int.right, RpgActorVisualState.Hit, 0.1f);
+                Assert.That(binder.SpriteRenderer.sprite, Is.EqualTo(hit),
+                    "A confirmed hit uses its authored recoil frame, not the idle or alert pose.");
 
                 binder.Sync(new Vector2(20f, 10f), Vector2Int.right, RpgActorVisualState.Idle, 0.1f);
                 Assert.That(binder.SpriteRenderer.sprite, Is.EqualTo(idle));
@@ -63,6 +68,35 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(walk2);
                 UnityEngine.Object.DestroyImmediate(alert.texture);
                 UnityEngine.Object.DestroyImmediate(alert);
+                UnityEngine.Object.DestroyImmediate(hit.texture);
+                UnityEngine.Object.DestroyImmediate(hit);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void FixedSortingOrderDoesNotDriftWhenActorMoves()
+        {
+            var root = new GameObject("Fixed sorting order actor");
+            Sprite idle = MakeTestSprite("fixed-idle");
+            RpgMapActorVisualBinder actor = null;
+            try
+            {
+                actor = new RpgMapActorVisualBinder(root.transform, "Beast",
+                    idle, baseSortingOrder: 3, sortByY: false);
+                actor.Sync(new Vector2(20f, 30f), Vector2Int.left,
+                    RpgActorVisualState.Moving, 0.45f);
+                Assert.That(actor.SpriteRenderer.sortingOrder, Is.EqualTo(3));
+                actor.Sync(new Vector2(20f, -100f), Vector2Int.right,
+                    RpgActorVisualState.Idle, 0.1f);
+                Assert.That(actor.SpriteRenderer.sortingOrder, Is.EqualTo(3),
+                    "The child sprite keeps its authored world layer while the ORK actor moves.");
+            }
+            finally
+            {
+                actor?.Dispose();
+                UnityEngine.Object.DestroyImmediate(idle.texture);
+                UnityEngine.Object.DestroyImmediate(idle);
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }

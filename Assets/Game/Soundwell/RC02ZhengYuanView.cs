@@ -39,6 +39,7 @@ namespace Rpg.Soundwell
         public Button WaitQuietlyButton => choiceButtons[0];
         public Button SpeakForHerButton => choiceButtons[1];
         public Button ConfirmAdoptionButton => choiceButtons[0];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RC02ZhengYuanView(
             Transform parent,
@@ -112,23 +113,14 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -228,9 +220,9 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed() || index < 0 || index >= choiceButtons.Length)
+            if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
                 return;
-            if (!choiceButtons[index].gameObject.activeSelf || !choiceButtons[index].interactable)
+            if (submitting || !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
 
             switch (session.Stage)
@@ -292,6 +284,13 @@ namespace Rpg.Soundwell
                 submitting = false;
                 if (!disposed) Refresh();
             }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

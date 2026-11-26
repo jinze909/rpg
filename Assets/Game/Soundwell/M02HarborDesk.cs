@@ -162,22 +162,50 @@ namespace Rpg.Soundwell
             if (!outcome.LivingRegistryStamped)
                 throw new InvalidOperationException(
                     "Only the observed M02 living-registration stamp can unlock official passage.");
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
-            Maki.Game.Variables.Set(LivingRegistrationStampedKey, 1);
+            return TryRecordLivingRegistration(outcome,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecordLivingRegistration(M02HarborDeskOutcome outcome,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (outcome == null)
+                throw new ArgumentNullException(nameof(outcome));
+            if (!outcome.LivingRegistryStamped)
+                throw new InvalidOperationException(
+                    "Only the observed M02 living-registration stamp can unlock official passage.");
+            if (getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
+                return false;
+            setInt(LivingRegistrationStampedKey, 1);
             return true;
         }
 
         public static bool TryReadEffective(out bool officialRegistrationEffective)
         {
             officialRegistrationEffective = false;
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
                 return false;
 
-            var variables = Maki.Game.Variables;
+            return TryReadEffective(key => variables.GetInt(key),
+                out officialRegistrationEffective);
+        }
+
+        public static bool TryReadEffective(Func<string, int> getInt,
+            out bool officialRegistrationEffective)
+        {
+            officialRegistrationEffective = false;
+            if (getInt == null)
+                return false;
+
             officialRegistrationEffective = IsEffective(
-                variables.GetInt(LivingRegistrationStampedKey) == 1,
-                variables.GetInt(M02MissingReturnFacts.ApprovalKey) == 1);
+                getInt(LivingRegistrationStampedKey) == 1,
+                getInt(M02MissingReturnFacts.ApprovalKey) == 1);
             return true;
         }
     }

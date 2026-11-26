@@ -228,6 +228,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DisposingHostDuringSuccessfulConfirmationDoesNotThrowOrRepeatSave()
+        {
+            var root = new GameObject("M11 dispose during confirmation");
+            var values = new Dictionary<string, int>();
+            SeedThroughM10(values);
+            Func<string, int> read = Reader(values);
+            int confirmWrites = 0;
+            M11ReverseRescueHost host = null;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M11ReverseRescueFacts.ConfirmedKey && value == 1)
+                {
+                    confirmWrites++;
+                    host.Dispose();
+                }
+            };
+
+            try
+            {
+                host = new M11ReverseRescueHost(
+                    root.transform, () => true, () => false, () => false, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.ReliefPassButton.onClick.Invoke();
+                view.CoverReturneesButton.onClick.Invoke();
+                view.FallbackArtisansButton.onClick.Invoke();
+                Assert.That(host.Session.Phase, Is.EqualTo(M11Phase.PostRescuePact));
+
+                var confirm = view.ConfirmRescueButton;
+                Assert.DoesNotThrow(() => confirm.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.Session.IsCompleted, Is.True);
+                Assert.That(confirmWrites, Is.EqualTo(1));
+                Assert.That(M11ReverseRescueFacts.TryRead(
+                    read, out M11ReverseRescueRecord? saved), Is.True);
+                Assert.That(saved.Value.UsedHigherCostFallback, Is.True);
+                Assert.That(saved.Value.EchoCallsHeard, Is.Zero);
+                Assert.DoesNotThrow(() => confirm.onClick.Invoke());
+                Assert.That(confirmWrites, Is.EqualTo(1));
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void LocaleAspectPresenceWithdrawalAndDisposalGuardsWorkCleanly()
         {
             var root = new GameObject("M11 host guards");

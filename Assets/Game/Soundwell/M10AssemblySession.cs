@@ -40,10 +40,14 @@ namespace Rpg.Soundwell
             if (getInt == null || M10AssemblyFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M09BerthTableFacts.TryRead(getInt, out M09BerthTableRecord? m09) ||
-                !m09.HasValue)
+                !m09.HasValue ||
+                !M10WorldNoticeThreeFacts.TryReadForCurrentArrival(
+                    getInt, out bool noticeObserved))
                 return false;
 
             session = new M10AssemblySession();
+            if (noticeObserved && !session.TryObserveWorldNoticeThree())
+                return false;
             return true;
         }
 

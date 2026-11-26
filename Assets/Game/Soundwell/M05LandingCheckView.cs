@@ -31,6 +31,7 @@ namespace Rpg.Soundwell
         public Button ConfirmButton => confirmButton;
         public RectTransform Panel => panel;
         public Image StatusIcon => statusIcon;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M05LandingCheckView(Transform parent, M05LandingReport report,
             Action<M05LandingReport> onConfirmed)
@@ -96,11 +97,13 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || panel == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
@@ -143,8 +146,13 @@ namespace Rpg.Soundwell
 
         private void Confirm()
         {
-            if (disposed || delivered || CanvasDestroyed())
+            if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
 
             delivered = true;
             Refresh();

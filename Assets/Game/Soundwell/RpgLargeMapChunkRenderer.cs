@@ -5,30 +5,63 @@ using UnityEngine;
 namespace Rpg.Soundwell
 {
     /// <summary>
-    /// Renders 4x-scale RPG tilemap layouts (Soundwell 96x60, Red Salt Harbor
-    /// 140x84, Whitewater Crossing 80x44) into crisp 16-PPU, Point-filtered
-    /// 32x32-tile SpriteRenderer chunks plus warm beacon halos at every
-    /// RpgLight2DAnchor. Automatically loads authored pixel-art slices from
-    /// RpgPixelArtManifest when tileSlices is omitted, keeping draw calls low
-    /// (~6-15 chunks) and guaranteeing 1:1 world-to-tile alignment.
+    /// Renders RPG tilemap layouts into crisp 16-PPU, Point-filtered 32x32-tile
+    /// SpriteRenderer chunks plus warm beacon halos at every RpgLight2DAnchor.
+    /// Supports both eager full-map builds (for compact maps) and camera-windowed
+    /// chunk streaming (for 500x-area world maps, bounding active GPU textures to
+    /// (2R+1)^2 chunks around the focus tile with immediate native cleanup).
     /// </summary>
     public sealed class RpgLargeMapChunkRenderer : IDisposable
     {
         public const int ChunkSizeTiles = 32;
         public const int TilePixels = RpgWorldMapScale.PixelsPerUnit;
 
+        private readonly struct ChunkHandle
+        {
+            public ChunkHandle(GameObject obj, SpriteRenderer renderer, Sprite sprite, Texture2D texture)
+            {
+                Obj = obj;
+                Renderer = renderer;
+                Sprite = sprite;
+                Texture = texture;
+            }
+
+            public GameObject Obj { get; }
+            public SpriteRenderer Renderer { get; }
+            public Sprite Sprite { get; }
+            public Texture2D Texture { get; }
+        }
+
         private readonly GameObject rootObject;
-        private readonly List<Texture2D> ownedTextures = new List<Texture2D>();
-        private readonly List<Sprite> ownedSprites = new List<Sprite>();
-        private readonly List<SpriteRenderer> chunkRenderers = new List<SpriteRenderer>();
+        private readonly int mapWidth;
+        private readonly int mapHeight;
+        private readonly int chunkGridWidth;
+        private readonly int chunkGridHeight;
+        private readonly Func<int, int, int> tileIndexAt;
+        private readonly Func<int, Color32> fallbackPalette;
+        private readonly Color32[][] cachedSlicePixels;
+        private readonly bool isStreaming;
+        private int streamingRadiusChunks;
+        private Vector2Int lastFocusChunk = new Vector2Int(int.MinValue, int.MinValue);
+
+        private readonly Dictionary<Vector2Int, ChunkHandle> activeChunks = new Dictionary<Vector2Int, ChunkHandle>();
+        private readonly List<Texture2D> haloTextures = new List<Texture2D>();
+        private readonly List<Sprite> haloSprites = new List<Sprite>();
         private readonly List<SpriteRenderer> lightHalos = new List<SpriteRenderer>();
+        private readonly List<RpgLight2DAnchor> lightAnchors = new List<RpgLight2DAnchor>();
+        private readonly List<Vector2Int> unloadScratch = new List<Vector2Int>();
         private bool disposed;
 
         public GameObject RootObject => rootObject;
-        public int ChunkCount => chunkRenderers.Count;
+        public int MapWidth => mapWidth;
+        public int MapHeight => mapHeight;
+        public int ChunkCount => activeChunks.Count;
+        public int TotalPossibleChunks => chunkGridWidth * chunkGridHeight;
         public int LightHaloCount => lightHalos.Count;
+        public bool IsStreaming => isStreaming;
+        public int StreamingRadiusChunks => streamingRadiusChunks;
         public bool UsedRealArtSlices { get; }
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || rootObject == null;
 
         public static RpgLargeMapChunkRenderer BuildForSoundwell(Transform parent,
             SoundwellLargeMapLayout layout, Sprite[] tileSlices = null)
@@ -42,7 +75,10 @@ namespace Rpg.Soundwell
                 (x, y) => (int)layout.Tiles[x, y],
                 SoundwellFallbackColor,
                 layout.PointLights,
-                resolvedSlices);
+                resolvedSlices,
+                streaming: false,
+                initialFocusTile: Vector2.zero,
+                streamingRadius: 0);
         }
 
         public static RpgLargeMapChunkRenderer BuildForRedSaltHarbor(Transform parent,
@@ -57,7 +93,10 @@ namespace Rpg.Soundwell
                 (x, y) => (int)layout.Tiles[x, y],
                 HarborFallbackColor,
                 layout.PointLights,
-                resolvedSlices);
+                resolvedSlices,
+                streaming: false,
+                initialFocusTile: Vector2.zero,
+                streamingRadius: 0);
         }
 
         /// <summary>
@@ -77,7 +116,10 @@ namespace Rpg.Soundwell
                 (x, y) => (int)layout.Tiles[x, y],
                 SoundwellFallbackColor,
                 layout.PointLights,
-                resolvedSlices);
+                resolvedSlices,
+                streaming: false,
+                initialFocusTile: Vector2.zero,
+                streamingRadius: 0);
         }
 
         public static RpgLargeMapChunkRenderer BuildForWhitewaterCrossing(Transform parent,
@@ -92,40 +134,159 @@ namespace Rpg.Soundwell
                 (x, y) => (int)layout.Tiles[x, y],
                 HarborFallbackColor,
                 layout.PointLights,
-                resolvedSlices);
+                resolvedSlices,
+                streaming: false,
+                initialFocusTile: Vector2.zero,
+                streamingRadius: 0);
+        }
+
+        /// <summary>
+        /// Builds a camera-windowed streaming chunk renderer for 500x-area world
+        /// maps. Only chunks within streamingRadiusChunks of focusTile are
+        /// materialized; distant chunks are unloaded and destroyed immediately.
+        /// </summary>
+        public static RpgLargeMapChunkRenderer BuildStreaming(
+            Transform parent,
+            string rootName,
+            int mapWidth,
+            int mapHeight,
+            Func<int, int, int> tileIndexAt,
+            bool useHarborPalette,
+            IReadOnlyList<RpgLight2DAnchor> lights,
+            Vector2 initialFocusTile,
+            int streamingRadiusChunks = 3,
+            Sprite[] tileSlices = null)
+        {
+            if (parent == null) throw new ArgumentNullException(nameof(parent));
+            if (tileIndexAt == null) throw new ArgumentNullException(nameof(tileIndexAt));
+            if (mapWidth <= 0) throw new ArgumentOutOfRangeException(nameof(mapWidth));
+            if (mapHeight <= 0) throw new ArgumentOutOfRangeException(nameof(mapHeight));
+            if (streamingRadiusChunks < 0) throw new ArgumentOutOfRangeException(nameof(streamingRadiusChunks));
+
+            RpgPixelArtManifest manifest = tileSlices == null ? RpgPixelArtManifest.LoadDefault() : null;
+            Sprite[] resolvedSlices = tileSlices ??
+                (useHarborPalette ? manifest?.HarborTiles : manifest?.SoundwellTiles);
+            Func<int, Color32> palette = useHarborPalette
+                ? (Func<int, Color32>)HarborFallbackColor
+                : SoundwellFallbackColor;
+            string resolvedName = string.IsNullOrEmpty(rootName) ? "Streaming large map chunks" : rootName;
+            Vector2 safeFocus = IsFiniteVector(initialFocusTile) ? initialFocusTile : Vector2.zero;
+
+            return new RpgLargeMapChunkRenderer(parent, resolvedName,
+                mapWidth, mapHeight, tileIndexAt, palette, lights, resolvedSlices,
+                streaming: true,
+                initialFocusTile: safeFocus,
+                streamingRadius: streamingRadiusChunks);
         }
 
         private RpgLargeMapChunkRenderer(Transform parent, string rootName,
             int mapWidth, int mapHeight, Func<int, int, int> tileIndexAt,
             Func<int, Color32> fallbackPalette,
             IReadOnlyList<RpgLight2DAnchor> lights,
-            Sprite[] tileSlices)
+            Sprite[] tileSlices,
+            bool streaming,
+            Vector2 initialFocusTile,
+            int streamingRadius)
         {
+            this.mapWidth = mapWidth;
+            this.mapHeight = mapHeight;
+            chunkGridWidth = (mapWidth + ChunkSizeTiles - 1) / ChunkSizeTiles;
+            chunkGridHeight = (mapHeight + ChunkSizeTiles - 1) / ChunkSizeTiles;
+            this.tileIndexAt = tileIndexAt;
+            this.fallbackPalette = fallbackPalette;
+            isStreaming = streaming;
+            streamingRadiusChunks = streamingRadius;
+
             rootObject = new GameObject(rootName);
             rootObject.transform.SetParent(parent, false);
-
-            var cachedSlicePixels = ExtractReadableSlices(tileSlices, out int readableCount);
-            UsedRealArtSlices = readableCount > 0;
-
-            for (int cy = 0; cy < mapHeight; cy += ChunkSizeTiles)
+            try
             {
-                int chunkTilesH = Mathf.Min(ChunkSizeTiles, mapHeight - cy);
-                for (int cx = 0; cx < mapWidth; cx += ChunkSizeTiles)
+                cachedSlicePixels = ExtractReadableSlices(tileSlices, out int readableCount);
+                UsedRealArtSlices = readableCount > 0;
+
+                if (lights != null && lights.Count > 0)
+                    BuildLightHalos(lights);
+
+                if (isStreaming)
                 {
-                    int chunkTilesW = Mathf.Min(ChunkSizeTiles, mapWidth - cx);
-                    BuildChunk(cx, cy, chunkTilesW, chunkTilesH,
-                        tileIndexAt, fallbackPalette, cachedSlicePixels);
+                    UpdateStreamingFocus(initialFocusTile);
+                }
+                else
+                {
+                    for (int cy = 0; cy < chunkGridHeight; cy++)
+                    {
+                        for (int cx = 0; cx < chunkGridWidth; cx++)
+                            LoadChunk(new Vector2Int(cx, cy));
+                    }
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        public bool UpdateStreamingFocus(Vector2 focusTile)
+        {
+            return UpdateStreamingFocus(focusTile, streamingRadiusChunks);
+        }
+
+        public bool UpdateStreamingFocus(Vector2 focusTile, int radiusChunks)
+        {
+            if (IsDisposed || !isStreaming || radiusChunks < 0 || !IsFiniteVector(focusTile))
+                return false;
+
+            int centerCx = Mathf.Clamp(Mathf.FloorToInt(focusTile.x / ChunkSizeTiles), 0, chunkGridWidth - 1);
+            int centerCy = Mathf.Clamp(Mathf.FloorToInt(focusTile.y / ChunkSizeTiles), 0, chunkGridHeight - 1);
+            var centerChunk = new Vector2Int(centerCx, centerCy);
+
+            if (centerChunk == lastFocusChunk && radiusChunks == streamingRadiusChunks && activeChunks.Count > 0)
+                return true;
+
+            streamingRadiusChunks = radiusChunks;
+            lastFocusChunk = centerChunk;
+
+            int minCx = Mathf.Max(0, centerCx - radiusChunks);
+            int maxCx = Mathf.Min(chunkGridWidth - 1, centerCx + radiusChunks);
+            int minCy = Mathf.Max(0, centerCy - radiusChunks);
+            int maxCy = Mathf.Min(chunkGridHeight - 1, centerCy + radiusChunks);
+
+            unloadScratch.Clear();
+            foreach (KeyValuePair<Vector2Int, ChunkHandle> kvp in activeChunks)
+            {
+                Vector2Int coord = kvp.Key;
+                if (coord.x < minCx || coord.x > maxCx || coord.y < minCy || coord.y > maxCy)
+                    unloadScratch.Add(coord);
+            }
+            for (int i = 0; i < unloadScratch.Count; i++)
+                UnloadChunk(unloadScratch[i]);
+            unloadScratch.Clear();
+
+            for (int cy = minCy; cy <= maxCy; cy++)
+            {
+                for (int cx = minCx; cx <= maxCx; cx++)
+                {
+                    var coord = new Vector2Int(cx, cy);
+                    if (!activeChunks.ContainsKey(coord))
+                        LoadChunk(coord);
                 }
             }
 
-            if (lights != null && lights.Count > 0)
-                BuildLightHalos(lights);
+            UpdateLightHaloVisibility(minCx * ChunkSizeTiles, (maxCx + 1) * ChunkSizeTiles,
+                minCy * ChunkSizeTiles, (maxCy + 1) * ChunkSizeTiles);
+            return true;
         }
 
-        private void BuildChunk(int originX, int originY, int tilesW, int tilesH,
-            Func<int, int, int> tileIndexAt, Func<int, Color32> fallbackPalette,
-            Color32[][] slicePixels)
+        private void LoadChunk(Vector2Int chunkCoord)
         {
+            int originX = chunkCoord.x * ChunkSizeTiles;
+            int originY = chunkCoord.y * ChunkSizeTiles;
+            int tilesW = Mathf.Min(ChunkSizeTiles, mapWidth - originX);
+            int tilesH = Mathf.Min(ChunkSizeTiles, mapHeight - originY);
+            if (tilesW <= 0 || tilesH <= 0)
+                return;
+
             int texW = tilesW * TilePixels;
             int texH = tilesH * TilePixels;
             var pixels = new Color32[texW * texH];
@@ -135,8 +296,8 @@ namespace Rpg.Soundwell
                 for (int tx = 0; tx < tilesW; tx++)
                 {
                     int tileId = tileIndexAt(originX + tx, originY + ty);
-                    Color32[] src = (slicePixels != null && tileId >= 0 && tileId < slicePixels.Length)
-                        ? slicePixels[tileId]
+                    Color32[] src = (cachedSlicePixels != null && tileId >= 0 && tileId < cachedSlicePixels.Length)
+                        ? cachedSlicePixels[tileId]
                         : null;
                     Color32 baseColor = fallbackPalette(tileId);
                     BlitTile(pixels, texW, tx * TilePixels, ty * TilePixels, src, baseColor);
@@ -148,11 +309,9 @@ namespace Rpg.Soundwell
             tex.wrapMode = TextureWrapMode.Clamp;
             tex.SetPixels32(pixels);
             tex.Apply(updateMipmaps: false, makeNoLongerReadable: true);
-            ownedTextures.Add(tex);
 
             var sprite = Sprite.Create(tex, new Rect(0, 0, texW, texH),
                 Vector2.zero, TilePixels);
-            ownedSprites.Add(sprite);
 
             var chunkObj = new GameObject("Chunk_" + originX + "_" + originY);
             chunkObj.transform.SetParent(rootObject.transform, false);
@@ -160,7 +319,35 @@ namespace Rpg.Soundwell
             var sr = chunkObj.AddComponent<SpriteRenderer>();
             sr.sprite = sprite;
             sr.sortingOrder = 0;
-            chunkRenderers.Add(sr);
+
+            activeChunks[chunkCoord] = new ChunkHandle(chunkObj, sr, sprite, tex);
+        }
+
+        private void UnloadChunk(Vector2Int chunkCoord)
+        {
+            if (!activeChunks.TryGetValue(chunkCoord, out ChunkHandle handle))
+                return;
+            activeChunks.Remove(chunkCoord);
+            DestroySafe(handle.Obj);
+            DestroySafe(handle.Sprite);
+            DestroySafe(handle.Texture);
+        }
+
+        private void UpdateLightHaloVisibility(int minTileX, int maxTileX, int minTileY, int maxTileY)
+        {
+            for (int i = 0; i < lightHalos.Count && i < lightAnchors.Count; i++)
+            {
+                SpriteRenderer sr = lightHalos[i];
+                if (sr == null) continue;
+                RpgLight2DAnchor anchor = lightAnchors[i];
+                float pad = (!float.IsNaN(anchor.OuterRadiusTiles) && !float.IsInfinity(anchor.OuterRadiusTiles))
+                    ? Mathf.Max(1f, anchor.OuterRadiusTiles)
+                    : 1f;
+                bool visible = anchor.Tile.x + pad >= minTileX && anchor.Tile.x - pad <= maxTileX &&
+                    anchor.Tile.y + pad >= minTileY && anchor.Tile.y - pad <= maxTileY;
+                if (sr.gameObject.activeSelf != visible)
+                    sr.gameObject.SetActive(visible);
+            }
         }
 
         private void BuildLightHalos(IReadOnlyList<RpgLight2DAnchor> lights)
@@ -187,11 +374,11 @@ namespace Rpg.Soundwell
             }
             haloTex.SetPixels32(pixels);
             haloTex.Apply(updateMipmaps: false, makeNoLongerReadable: true);
-            ownedTextures.Add(haloTex);
+            haloTextures.Add(haloTex);
 
             var haloSprite = Sprite.Create(haloTex, new Rect(0, 0, haloSize, haloSize),
                 new Vector2(0.5f, 0.5f), TilePixels);
-            ownedSprites.Add(haloSprite);
+            haloSprites.Add(haloSprite);
 
             for (int i = 0; i < lights.Count; i++)
             {
@@ -200,14 +387,23 @@ namespace Rpg.Soundwell
                 obj.transform.SetParent(rootObject.transform, false);
                 obj.transform.localPosition = new Vector3(
                     anchor.Tile.x + 0.5f, anchor.Tile.y + 0.5f, 0f);
-                float scale = Mathf.Max(1f, anchor.OuterRadiusTiles);
+                float scale = (!float.IsNaN(anchor.OuterRadiusTiles) && !float.IsInfinity(anchor.OuterRadiusTiles))
+                    ? Mathf.Max(1f, anchor.OuterRadiusTiles)
+                    : 1f;
                 obj.transform.localScale = new Vector3(scale, scale, 1f);
                 var sr = obj.AddComponent<SpriteRenderer>();
                 sr.sprite = haloSprite;
                 sr.color = anchor.Color;
                 sr.sortingOrder = 12;
                 lightHalos.Add(sr);
+                lightAnchors.Add(anchor);
             }
+        }
+
+        private static bool IsFiniteVector(Vector2 v)
+        {
+            return !float.IsNaN(v.x) && !float.IsInfinity(v.x) &&
+                !float.IsNaN(v.y) && !float.IsInfinity(v.y);
         }
 
         private static Color32[][] ExtractReadableSlices(Sprite[] slices, out int readableCount)
@@ -223,12 +419,14 @@ namespace Rpg.Soundwell
                 if (s == null || s.texture == null || !s.texture.isReadable)
                     continue;
                 Rect r = s.textureRect;
+                int rx = Mathf.RoundToInt(r.x);
+                int ry = Mathf.RoundToInt(r.y);
                 int w = Mathf.RoundToInt(r.width);
                 int h = Mathf.RoundToInt(r.height);
-                if (w != TilePixels || h != TilePixels)
+                if (w != TilePixels || h != TilePixels ||
+                    rx < 0 || ry < 0 || rx + w > s.texture.width || ry + h > s.texture.height)
                     continue;
-                Color[] raw = s.texture.GetPixels(
-                    Mathf.RoundToInt(r.x), Mathf.RoundToInt(r.y), w, h);
+                Color[] raw = s.texture.GetPixels(rx, ry, w, h);
                 var buf = new Color32[raw.Length];
                 for (int p = 0; p < raw.Length; p++)
                     buf[p] = raw[p];
@@ -317,15 +515,22 @@ namespace Rpg.Soundwell
         {
             if (disposed) return;
             disposed = true;
-            chunkRenderers.Clear();
+            foreach (KeyValuePair<Vector2Int, ChunkHandle> kvp in activeChunks)
+            {
+                DestroySafe(kvp.Value.Obj);
+                DestroySafe(kvp.Value.Sprite);
+                DestroySafe(kvp.Value.Texture);
+            }
+            activeChunks.Clear();
             lightHalos.Clear();
+            lightAnchors.Clear();
             DestroySafe(rootObject);
-            for (int i = 0; i < ownedSprites.Count; i++)
-                DestroySafe(ownedSprites[i]);
-            ownedSprites.Clear();
-            for (int i = 0; i < ownedTextures.Count; i++)
-                DestroySafe(ownedTextures[i]);
-            ownedTextures.Clear();
+            for (int i = 0; i < haloSprites.Count; i++)
+                DestroySafe(haloSprites[i]);
+            haloSprites.Clear();
+            for (int i = 0; i < haloTextures.Count; i++)
+                DestroySafe(haloTextures[i]);
+            haloTextures.Clear();
         }
     }
 }

@@ -31,6 +31,7 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public Image StageIcon => stageIcon;
         public Button LeaveButton => leaveButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         // Prefer subjects the player has not heard yet. Everything remains
         // independently selectable for revisits, but default focus should
@@ -39,7 +40,7 @@ namespace Rpg.Soundwell
         {
             get
             {
-                if (disposed || delivered)
+                if (disposed || delivered || CanvasDestroyed())
                     return null;
                 for (int i = 0; i < actionButtons.Length; i++)
                     if (actionButtons[i] != null &&
@@ -124,11 +125,13 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || authoredView == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authoredView, aspect);
         }
 
@@ -136,7 +139,7 @@ namespace Rpg.Soundwell
         {
             if (disposed)
                 return;
-            if (canvasObject == null || title == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -198,6 +201,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             // UnityEvent.Invoke can still call an inactive button. Re-check
             // the domain gate to prevent a second or unauthorized stamp.
             if (action == M02HarborDeskAction.PresentLivingRegistration &&
@@ -224,6 +232,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             // Lock against reentrant UGUI submits before persisting through the
             // host. A failed write must keep the harbor desk retryable instead
             // of discarding the player's stamped papers and discoveries.
@@ -236,8 +249,11 @@ namespace Rpg.Soundwell
             }
             catch
             {
-                delivered = false;
-                Refresh();
+                if (!disposed)
+                {
+                    delivered = false;
+                    Refresh();
+                }
                 throw;
             }
         }
@@ -255,6 +271,19 @@ namespace Rpg.Soundwell
             if (leaveButton != null)
                 leaveButton.onClick.RemoveAllListeners();
             SoundwellUiTheme.SafeDestroyCanvas(canvasObject);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authoredView == null || title == null ||
+                dialogue == null || leaveButton == null || leaveLabel == null)
+                return true;
+            for (int i = 0; i < actionButtons.Length; i++)
+            {
+                if (actionButtons[i] == null || actionLabels[i] == null)
+                    return true;
+            }
+            return false;
         }
     }
 }

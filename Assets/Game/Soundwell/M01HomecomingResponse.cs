@@ -22,11 +22,25 @@ namespace Rpg.Soundwell
 
         internal static bool TryRecordPensionChoice(M01PensionChoice choice)
         {
-            if (!Maki.Initialized || Maki.Game?.Variables == null)
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                return false;
+
+            return TryRecordPensionChoice(choice,
+                key => variables.GetInt(key),
+                (key, value) => variables.Set(key, value));
+        }
+
+        public static bool TryRecordPensionChoice(M01PensionChoice choice,
+            Func<string, int> getInt, Action<string, int> setInt)
+        {
+            if (!Enum.IsDefined(typeof(M01PensionChoice), choice) ||
+                getInt == null || setInt == null ||
+                M06RescuePlanFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             // Stored values 1-4 represent the four decisions; 0 means no choice was recorded.
-            Maki.Game.Variables.Set(PensionChoiceKey, (int)choice + 1);
+            setInt(PensionChoiceKey, (int)choice + 1);
             return true;
         }
         public static bool AnsweredAtMemorial(M00RollCallOutcome outcome)

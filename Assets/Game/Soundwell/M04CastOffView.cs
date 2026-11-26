@@ -33,6 +33,7 @@ namespace Rpg.Soundwell
         public Text Details => details;
         public RectTransform Panel => panel;
         public Image StatusIcon => statusIcon;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M04CastOffView(Transform parent,
             Func<string, int> read, Action<string, int> write, Action onSailed)
@@ -96,19 +97,20 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || panel == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || heading == null || details == null ||
-                castOffButton == null || actionLabel == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -132,6 +134,12 @@ namespace Rpg.Soundwell
             castOffButton.interactable = !completed && !transitioning && ready;
             if (castOffButton.interactable)
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, castOffButton);
+        }
+
+        private bool CanvasDestroyed()
+        {
+            return canvasObject == null || panel == null || heading == null ||
+                details == null || castOffButton == null || actionLabel == null;
         }
 
         private Sprite ResolveStatusSprite(bool ready)
@@ -170,8 +178,14 @@ namespace Rpg.Soundwell
         private void CastOff()
         {
             // Direct onClick.Invoke bypasses Button.interactable.
-            if (disposed || completed || transitioning || canvasObject == null ||
-                !TryReadStatus(out M04DepartureRecord? manifest, out bool sailed))
+            if (disposed || completed || transitioning)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (!TryReadStatus(out M04DepartureRecord? manifest, out bool sailed))
                 return;
 
             transitioning = true;

@@ -20,14 +20,7 @@ namespace Rpg.Tests.Editor
             Func<string, int> read = Reader(values);
             Action<string, int> write = (k, v) => values[k] = v;
 
-            Assert.That(M15FinalRollCallFacts.TryRecord(new M15FinalRollCallRecord(
-                M15RollCallReader.Protagonist,
-                M15FinalIdentityResponse.PublicTrueName,
-                M15PensionClosure.StoppedAndReconciled,
-                M15SteleInscription.AddReturnedAliveLine,
-                consentedVerifiedNamesCount: 0,
-                xiaoqiCalledByNumberSeventyTwo: false), read, write), Is.True);
-
+            // An optional regional outcome must precede the final M15 roll call.
             if (seedST02Completed)
             {
                 Assert.That(ST02RiverLanternsFacts.TryRecord(new ST02RiverLanternsRecord(
@@ -36,6 +29,14 @@ namespace Rpg.Tests.Editor
                     ST02BidMode.JointBidWithWrittenTerms,
                     ST02LockRescueMethod.BraceHullStressPoint), read, write), Is.True);
             }
+
+            Assert.That(M15FinalRollCallFacts.TryRecord(new M15FinalRollCallRecord(
+                M15RollCallReader.Protagonist,
+                M15FinalIdentityResponse.PublicTrueName,
+                M15PensionClosure.StoppedAndReconciled,
+                M15SteleInscription.AddReturnedAliveLine,
+                consentedVerifiedNamesCount: 0,
+                xiaoqiCalledByNumberSeventyTwo: false), read, write), Is.True);
         }
 
         [Test]

@@ -32,6 +32,7 @@ namespace Rpg.Soundwell
         public Button SecondaryButton => choices[1];
         public Button ThirdButton => choices[2];
         public Button FinishButton => finishButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M08FirstWinchOrderView(
             Transform parent,
@@ -102,15 +103,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed()) { Dispose(); return; }
+            if (disposed || IsDestroyedExternally()) return;
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = body.font = finishLabel.font = font;
@@ -185,7 +186,7 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            if (disposed || delivered || CanvasDestroyed() ||
+            if (disposed || delivered || IsDestroyedExternally() ||
                 index < 0 || index >= choices.Length ||
                 !choices[index].gameObject.activeSelf || !choices[index].interactable)
                 return;
@@ -211,14 +212,35 @@ namespace Rpg.Soundwell
 
         private void Finish()
         {
-            if (disposed || delivered || CanvasDestroyed() ||
+            if (disposed || delivered || IsDestroyedExternally() ||
                 !session.IsCompleted || !finishButton.interactable)
                 return;
-            // Do not acknowledge the reward if the Makinom host fails.
-            onCompleted(session);
+            // Guard against reentrant submits while keeping failed host writes retryable.
             delivered = true;
-            onCompleted = null;
             Refresh();
+            var callback = onCompleted;
+            try
+            {
+                callback?.Invoke(session);
+                onCompleted = null;
+            }
+            catch
+            {
+                if (!disposed)
+                {
+                    delivered = false;
+                    Refresh();
+                }
+                throw;
+            }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed())
+                return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

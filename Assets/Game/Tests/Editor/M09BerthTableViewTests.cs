@@ -109,6 +109,74 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LockedBerthTableCannotNegotiateReconcileOrSettleUntilUnlocked()
+        {
+            var root = new GameObject("M09 berth table input lock");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM07(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M09BerthTableView view = null;
+            try
+            {
+                var session = new M09BerthTableSession(
+                    baseBerths: 18, pendingNames: 23,
+                    shenLiPresent: true, qiDebtPreviouslyKnown: false);
+                int saves = 0;
+                view = new M09BerthTableView(root.transform, session, s =>
+                {
+                    saves++;
+                    Assert.That(s.TrySettleBerthTable(M09RuiyaOutcome.Deferred, read, write), Is.True);
+                });
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(view.HanQiaoButton.IsInteractable(), Is.False);
+                view.HanQiaoButton.onClick.Invoke();
+                view.ShipwrightButton.onClick.Invoke();
+                view.QiQueButton.onClick.Invoke();
+                view.ReconcileButton.onClick.Invoke();
+                view.SettleButton.onClick.Invoke();
+                Assert.That(session.AddedBerths, Is.Zero);
+                Assert.That(session.QiDebtDisclosedHere, Is.False);
+                Assert.That(session.ShenReconciled, Is.False);
+                Assert.That(saves, Is.Zero);
+                Assert.That(session.IsSettled, Is.False);
+
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.HanQiaoButton.onClick.Invoke();
+                view.ShipwrightButton.onClick.Invoke();
+                view.QiQueButton.onClick.Invoke();
+                view.ReconcileButton.onClick.Invoke();
+                view.SettleButton.onClick.Invoke();
+                Assert.That(session.AddedBerths, Is.Zero);
+                Assert.That(session.ShenReconciled, Is.False);
+                Assert.That(saves, Is.Zero);
+                view.Panel.gameObject.SetActive(true);
+
+                view.HanQiaoButton.onClick.Invoke();
+                view.ShipwrightButton.onClick.Invoke();
+                view.QiQueButton.onClick.Invoke();
+                view.QiQueButton.onClick.Invoke();
+                view.ReconcileButton.onClick.Invoke();
+                Assert.That(session.TotalBerths, Is.EqualTo(26));
+                Assert.That(session.QiDebtDisclosedHere, Is.True);
+                Assert.That(session.ShenReconciled, Is.True);
+                view.SettleButton.onClick.Invoke();
+                view.SettleButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(session.IsSettled, Is.True);
+                Assert.That(M09BerthTableFacts.TryRead(read, out M09BerthTableRecord? saved), Is.True);
+                Assert.That(saved.Value.TotalBerths, Is.EqualTo(26));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void AbsentShenLiHidesShipwrightAndReconcileButtonsAndKeepsUnassignedPending()
         {
             var root = new GameObject("M09 view absent shen");

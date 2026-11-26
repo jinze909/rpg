@@ -23,7 +23,9 @@ namespace Rpg.Soundwell
         private M04DockPreflightView dockPreflight;
         private bool dockPreflightPending;
         private M04ToM05SeaCrossingHost seaCrossing;
+        private M06MineCampSceneHost mineCamp;
         public M04ToM05SeaCrossingHost ActiveSeaCrossing => seaCrossing;
+        public M06MineCampSceneHost ActiveMineCamp => mineCamp;
         private Action onFinished;
         private bool ransomCountPending;
         private bool meetingFinished;
@@ -424,7 +426,7 @@ namespace Rpg.Soundwell
             Action<string, int> write = (key, value) => variables.Set(key, value);
             if (!M04ToM05SeaCrossingHost.TryOpenWithInteractiveLandingObservation(
                 transform, CreateSailedFogLeg, read, write,
-                _ => CloseOpening(), _ => CloseOpening(),
+                outcome => OpenMineCamp(outcome), _ => CloseOpening(),
                 out M04ToM05SeaCrossingHost next))
                 throw new InvalidOperationException(
                     "Unable to open the current voyage's M04-to-M05 crossing.");
@@ -432,6 +434,39 @@ namespace Rpg.Soundwell
             seaCrossing = next;
             dockPreflight?.Dispose();
             dockPreflight = null;
+        }
+
+        private void OpenMineCamp(M05OuterHarborOutcome outcome)
+        {
+            if (mineCamp != null) return;
+            var variables = Maki.Initialized ? Maki.Game?.Variables : null;
+            if (variables == null)
+                throw new InvalidOperationException(
+                    "The current voyage store is unavailable when entering the M06 mine camp.");
+
+            Func<string, int> read = key => variables.GetInt(key);
+            if (!M05LandingFacts.TryRead(read, out M05LandingReport? savedLanding) ||
+                !savedLanding.HasValue ||
+                !SameLanding(savedLanding.Value, outcome.Landing) ||
+                !M05LettersFacts.TryRead(read, out M05LetterDecision? savedLetters) ||
+                savedLetters != outcome.LetterDecision)
+                throw new InvalidOperationException(
+                    "M06 must receive the same verified M05 landing and letter choice that completed the outer harbor.");
+
+            Action<string, int> write = (key, value) => variables.Set(key, value);
+            M06MineCampSceneHost next = new M06MineCampSceneHost(
+                transform, Camera.main, read, write, CloseOpening);
+            seaCrossing?.Dispose();
+            seaCrossing = null;
+            mineCamp = next;
+        }
+
+        private static bool SameLanding(M05LandingReport a, M05LandingReport b)
+        {
+            return a.CrewArrived == b.CrewArrived &&
+                a.ReadyRescueBerths == b.ReadyRescueBerths &&
+                a.TenderArrived == b.TenderArrived &&
+                a.ReceiverMet == b.ReceiverMet;
         }
 
         private FogListeningSession CreateSailedFogLeg()
@@ -460,6 +495,8 @@ namespace Rpg.Soundwell
             dockPreflight?.Dispose();
             dockPreflight = null;
             dockPreflightPending = false;
+            mineCamp?.Dispose();
+            mineCamp = null;
             seaCrossing?.Dispose();
             seaCrossing = null;
             Action completed = onFinished;
@@ -469,6 +506,12 @@ namespace Rpg.Soundwell
 
         private void Update()
         {
+            if (mineCamp != null)
+            {
+                mineCamp.Tick(Time.unscaledDeltaTime);
+                return;
+            }
+
             if (ransomCountPending)
                 RecordRansomCount();
             if (meetingFinished)
@@ -520,6 +563,8 @@ namespace Rpg.Soundwell
             xiaodouFarewell?.Dispose();
             qiQueCup?.Dispose();
             dockPreflight?.Dispose();
+            mineCamp?.Dispose();
+            mineCamp = null;
             seaCrossing?.Dispose();
             seaCrossing = null;
             onFinished = null;

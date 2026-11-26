@@ -45,6 +45,7 @@ namespace Rpg.Soundwell
         public Button RouteAButton => routeAButton;
         public Button RouteBButton => routeBButton;
         public Button RouteCButton => routeCButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M13DepartureRiskView(
             Transform parent,
@@ -133,23 +134,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
                 return;
-            }
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -215,29 +208,41 @@ namespace Rpg.Soundwell
 
         private void HandleCompletePrep()
         {
-            if (disposed || submitting || session.IsDeparted || CanvasDestroyed()) return;
+            if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
+            if (!completePrepButton.IsActive() || !completePrepButton.IsInteractable()) return;
             session.CompleteSafetyPreparation();
             Refresh();
         }
 
         private void HandleAgreeThreeBells()
         {
-            if (disposed || submitting || session.IsDeparted || CanvasDestroyed()) return;
+            if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
+            if (!agreeThreeBellsButton.IsActive() || !agreeThreeBellsButton.IsInteractable()) return;
             session.AgreeThreeBellReverseSignal();
             Refresh();
         }
 
         private void HandleAcceptRiskConsent()
         {
-            if (disposed || submitting || session.IsDeparted || CanvasDestroyed()) return;
+            if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
+            if (!acceptRiskConsentButton.IsActive() || !acceptRiskConsentButton.IsInteractable()) return;
             if (session.TryAcceptHighRiskConsent())
                 Refresh();
         }
 
         private void HandleConfirmRoute(M13ApproachRoute route)
         {
-            if (disposed || submitting || session.IsDeparted || CanvasDestroyed()) return;
-            if (!session.CanConfirmDeparture(route)) return;
+            if (disposed || submitting || session.IsDeparted || IsDestroyedExternally()) return;
+            Button routeButton;
+            switch (route)
+            {
+                case M13ApproachRoute.RouteASupervisedCivilian: routeButton = routeAButton; break;
+                case M13ApproachRoute.RouteBBellTowerAssault: routeButton = routeBButton; break;
+                case M13ApproachRoute.RouteCOldCanalNightRun: routeButton = routeCButton; break;
+                default: return;
+            }
+            if (!routeButton.IsActive() || !routeButton.IsInteractable() ||
+                !session.CanConfirmDeparture(route)) return;
 
             submitting = true;
             Refresh();
@@ -254,12 +259,23 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed())
+                return false;
+            Dispose();
+            return true;
+        }
+
         private bool CanvasDestroyed()
         {
             return canvasObject == null || panel == null || heading == null ||
-                summary == null || completePrepButton == null || agreeThreeBellsButton == null ||
-                acceptRiskConsentButton == null || routeAButton == null ||
-                routeBButton == null || routeCButton == null;
+                summary == null || completePrepButton == null || completePrepLabel == null ||
+                agreeThreeBellsButton == null || agreeThreeBellsLabel == null ||
+                acceptRiskConsentButton == null || acceptRiskConsentLabel == null ||
+                routeAButton == null || routeALabel == null ||
+                routeBButton == null || routeBLabel == null ||
+                routeCButton == null || routeCLabel == null;
         }
 
         public void Dispose()

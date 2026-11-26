@@ -243,6 +243,92 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockBlocksConfrontationStatementsEchoAndTruthSave()
+        {
+            var root = new GameObject("M12 truth input lock");
+            var values = new Dictionary<string, int>();
+            SeedThroughM11(values, M10HanLedgerUse.TradeForConcessions, seedRC01Completed: true);
+            Func<string, int> read = Reader(values);
+            int confirmWrites = 0;
+            Action<string, int> write = (key, value) =>
+            {
+                values[key] = value;
+                if (key == M12BridgeTruthFacts.ConfirmedKey && value == 1)
+                    confirmWrites++;
+            };
+            M12BridgeTruthHost host = null;
+            try
+            {
+                host = new M12BridgeTruthHost(
+                    root.transform, () => true, () => true, () => true,
+                    () => true, () => true, read, write);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+
+                group.interactable = false;
+                Assert.That(view.YouSaidThatLastTimeButton.IsInteractable(), Is.False);
+                view.SomeWantNoMoreWarButton.onClick.Invoke();
+                view.YouTookTheirRoadButton.onClick.Invoke();
+                view.YouSaidThatLastTimeButton.onClick.Invoke();
+                Assert.That(host.Session.LuReply.HasValue, Is.False);
+                group.interactable = true;
+                view.YouSaidThatLastTimeButton.onClick.Invoke();
+                Assert.That(host.Session.Phase, Is.EqualTo(M12Phase.StakeholderStatements));
+                Assert.That(view.LinSuEchoButton.gameObject.activeSelf, Is.True);
+
+                group.interactable = false;
+                view.LinSuEchoButton.onClick.Invoke();
+                view.HearJiangShenButton.onClick.Invoke();
+                view.HearHanAndYiLeiButton.onClick.Invoke();
+                view.HearShenLiButton.onClick.Invoke();
+                Assert.That(host.Session.LinSuEchoHeard, Is.False);
+                Assert.That(host.Session.StatementsHeard, Is.EqualTo(M12StatementFlags.None));
+                group.interactable = true;
+
+                view.Panel.gameObject.SetActive(false);
+                view.LinSuEchoButton.onClick.Invoke();
+                view.HearShenLiButton.onClick.Invoke();
+                Assert.That(host.Session.LinSuEchoHeard, Is.False);
+                Assert.That(host.Session.StatementsHeard, Is.EqualTo(M12StatementFlags.None));
+                view.Panel.gameObject.SetActive(true);
+
+                view.LinSuEchoButton.onClick.Invoke();
+                view.HearHanAndYiLeiButton.onClick.Invoke();
+                view.HearJiangShenButton.onClick.Invoke();
+                view.HearShenLiButton.onClick.Invoke();
+                Assert.That(host.Session.LinSuEchoHeard, Is.True);
+                Assert.That(host.Session.Phase, Is.EqualTo(M12Phase.TruthDisclosureChoice));
+
+                group.interactable = false;
+                view.PublishTruthButton.onClick.Invoke();
+                view.WillingKnowersButton.onClick.Invoke();
+                view.SealTruthButton.onClick.Invoke();
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.WillingKnowersButton.onClick.Invoke();
+                Assert.That(confirmWrites, Is.Zero);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(host.Session.Disclosure.HasValue, Is.False);
+
+                view.Panel.gameObject.SetActive(true);
+                view.WillingKnowersButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(confirmWrites, Is.EqualTo(1));
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(M12BridgeTruthFacts.TryRead(
+                    read, out M12BridgeTruthRecord? saved), Is.True);
+                Assert.That(saved.Value.LinSuEchoHeard, Is.True);
+                Assert.That(saved.Value.BreaksLuSecrecyPromise, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void LocaleAspectPresenceWithdrawalAndDisposalGuardsWorkCleanly()
         {
             var root = new GameObject("M12 host guards");

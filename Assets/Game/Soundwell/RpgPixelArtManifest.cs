@@ -26,6 +26,8 @@ namespace Rpg.Soundwell
         [SerializeField] private Sprite ferryGuideBrace;
         [SerializeField] private Sprite rescueRiggerIdle;
         [SerializeField] private Sprite soundBorrowingBeastIdle;
+        [SerializeField] private Sprite soundBorrowingBeastCreep1;
+        [SerializeField] private Sprite soundBorrowingBeastCreep2;
         [SerializeField] private Sprite soundBorrowingBeastAlert;
         [SerializeField] private Sprite bridgeGuardIdle;
         [SerializeField] private Sprite bridgeGuardThrust;
@@ -184,6 +186,8 @@ namespace Rpg.Soundwell
         public Sprite FerryGuideBrace => ferryGuideBrace;
         public Sprite RescueRiggerIdle => rescueRiggerIdle;
         public Sprite SoundBorrowingBeastIdle => soundBorrowingBeastIdle;
+        public Sprite SoundBorrowingBeastCreep1 => soundBorrowingBeastCreep1;
+        public Sprite SoundBorrowingBeastCreep2 => soundBorrowingBeastCreep2;
         public Sprite SoundBorrowingBeastAlert => soundBorrowingBeastAlert;
         public Sprite BridgeGuardIdle => bridgeGuardIdle;
         public Sprite BridgeGuardThrust => bridgeGuardThrust;

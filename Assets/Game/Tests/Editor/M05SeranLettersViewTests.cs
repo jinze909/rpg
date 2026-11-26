@@ -222,6 +222,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ParentInputLockBlocksChoicePreviewAndCommitUntilUnlocked()
+        {
+            var root = new GameObject("M05 letters parent input lock");
+            M05SeranLettersView view = null;
+            string previousLanguage = SoundwellUiLocalization.Language;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                int saved = 0;
+                view = new M05SeranLettersView(root.transform, decision =>
+                {
+                    Assert.That(decision, Is.EqualTo(M05LetterDecision.TakePacket));
+                    saved++;
+                });
+                Canvas canvas = view.TakeButton.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                CanvasGroup group = canvas.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(view.TakeButton.IsInteractable(), Is.False);
+                view.TakeButton.onClick.Invoke();
+                view.LeaveButton.onClick.Invoke();
+                Assert.That(view.SelectedDecision, Is.Null);
+                Assert.That(saved, Is.Zero);
+
+                group.interactable = true;
+                view.TakeButton.onClick.Invoke();
+                Assert.That(view.SelectedDecision, Is.EqualTo(M05LetterDecision.TakePacket));
+
+                group.interactable = false;
+                Assert.That(view.ReadPacketButton.IsInteractable(), Is.False);
+                Assert.That(view.ContinueButton.IsInteractable(), Is.False);
+                view.ReadPacketButton.onClick.Invoke();
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(view.Dialogue.text, Does.Not.Contain("doorstep"));
+                Assert.That(saved, Is.Zero);
+
+                group.interactable = true;
+                view.ReadPacketButton.onClick.Invoke();
+                Assert.That(view.Dialogue.text, Does.Contain("doorstep"));
+                view.ContinueButton.onClick.Invoke();
+                view.ContinueButton.onClick.Invoke();
+                Assert.That(saved, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void NullParentOrCallbackRejectedAndDisposedUiCannotDeliverAgain()
         {
             var root = new GameObject("M05 letters disposed");

@@ -14,6 +14,67 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockPreventsTheaterSettlementUntilExplicitLiveChoice()
+        {
+            var root = new GameObject("ST01 effective input lock");
+            var values = new Dictionary<string, int>();
+            var read = Read(values);
+            ST01TheaterChoiceHost host = null;
+            try
+            {
+                bool forumArranged = true;
+                host = new ST01TheaterChoiceHost(root.transform,
+                    () => true, () => true, () => true, () => true,
+                    () => true, () => true, () => true, () => forumArranged,
+                    () => true, read, (key, value) => values[key] = value);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                var group = root.AddComponent<CanvasGroup>();
+                Action clickAll = () =>
+                {
+                    view.RewriteButton.onClick.Invoke();
+                    view.ContractButton.onClick.Invoke();
+                    view.BoycottButton.onClick.Invoke();
+                };
+
+                group.interactable = false;
+                Assert.That(view.RewriteButton.IsInteractable(), Is.False);
+                clickAll();
+                Assert.That(values, Is.Empty);
+                Assert.That(host.ActiveView, Is.SameAs(view));
+
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                clickAll();
+                Assert.That(values, Is.Empty);
+                Assert.That(host.ActiveView, Is.SameAs(view));
+
+                view.Panel.gameObject.SetActive(true);
+                Assert.That(view.ContractButton.IsInteractable(), Is.True);
+                forumArranged = false;
+                view.ContractButton.onClick.Invoke();
+                Assert.That(values, Is.Empty);
+                Assert.That(host.ActiveView, Is.SameAs(view));
+                Assert.That(view.ContractButton.IsInteractable(), Is.False);
+
+                forumArranged = true;
+                host.RefreshView();
+                view.ContractButton.onClick.Invoke();
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(ST01RegionalStoryFacts.TryRead(read, out ST01RegionalOutcome saved), Is.True);
+                Assert.That(saved.Departure.HasValue, Is.False);
+                Assert.That(saved.Theater, Is.EqualTo(ST01TheaterChoice.KeepContractAndHearResidents));
+                Assert.That(saved.ShowM15Ticket, Is.False);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void TheaterNeedsActualScriptRehearsalAndDisplacedResidentsEvidence()
         {
             var root = new GameObject("ST01 host evidence");

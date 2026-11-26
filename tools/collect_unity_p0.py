@@ -9,6 +9,7 @@ import os
 import re
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
@@ -24,6 +25,38 @@ SOUNDWELL_TESTS = {
     "Rpg.Tests.Editor.SoundwellTrialTests.PlayerCanRingWrapRetreatAndRetry",
     "Rpg.Tests.Editor.SoundwellOrkBattleTests.ThreePlayerCombatantsEnterOneOrkTurnBasedBattle",
 }
+M06_STORY_FRAMES = (
+    "m06-mine-camp-map.png",
+    "m06-pump-room-reunion.png",
+)
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def validate_m06_story_frames(evidence: Path) -> list[str]:
+    errors = []
+    for filename in M06_STORY_FRAMES:
+        frame = evidence / "story" / filename
+        if not frame.is_file():
+            errors.append(f"Missing M06 GameView frame: {filename}")
+            continue
+        try:
+            data = frame.read_bytes()
+        except OSError as error:
+            errors.append(f"Could not read M06 GameView frame {filename}: {error}")
+            continue
+        if len(data) < 1024 or data[:8] != PNG_SIGNATURE:
+            errors.append(f"Invalid M06 GameView PNG: {filename}")
+            continue
+        if len(data) < 24:
+            errors.append(f"Truncated M06 GameView PNG: {filename}")
+            continue
+        width, height = struct.unpack(">II", data[16:24])
+        if (width, height) != (960, 540):
+            errors.append(
+                f"M06 GameView frame {filename} must be 960x540, got {width}x{height}."
+            )
+    return errors
+
 INPUT_SYSTEM_TESTS = {
     "Rpg.Tests.Editor.SoundwellInputSystemTests.InputActionsHaveSeparateContextsAndKeepBothBackendsEnabled",
     "Rpg.Tests.Editor.SoundwellInputSystemTests.EntryAndGameplayContextsRouteLiveKeyboardAndGamepadEvents",
@@ -36,6 +69,22 @@ ORK_UI_MARKER = "RPG_ORK_UI_SURFACE_VALIDATED"
 # Require every test actually declared in the clean candidate; never accept
 # partial/skipped results or silently disregard a new UnityTest.
 ADDITIONAL_SOUNDWELL_TESTS = {
+    "Assets/Game/Tests/Editor/M10WorldNoticeGameViewEvidenceTests.cs": {
+        "LinchaoThirdOmenCapturesChineseAndEnglishGameViewEvidence":
+            "Rpg.Tests.Editor.M10WorldNoticeGameViewEvidenceTests.LinchaoThirdOmenCapturesChineseAndEnglishGameViewEvidence",
+    },
+    "Assets/Game/Tests/Editor/M16EpilogueGameViewEvidenceTests.cs": {
+        "DeskLetterReadoutsCaptureChineseAndEnglishGameViewEvidence":
+            "Rpg.Tests.Editor.M16EpilogueGameViewEvidenceTests.DeskLetterReadoutsCaptureChineseAndEnglishGameViewEvidence",
+    },
+    "Assets/Game/Tests/Editor/RpgWorld500xPlayModeControllerTests.cs": {
+        "PlayModeController_SupplyHotbarReservesSeparateHudRowAndCapturesEvidence":
+            "Rpg.Tests.Editor.RpgWorld500xPlayModeControllerTests.PlayModeController_SupplyHotbarReservesSeparateHudRowAndCapturesEvidence",
+    },
+    "Assets/Game/Tests/Editor/M06FamilyLetterDeliveryGameViewEvidenceTests.cs": {
+        "FamilyLetterHandoffCapturesChineseAndEnglishGameViewEvidence":
+            "Rpg.Tests.Editor.M06FamilyLetterDeliveryGameViewEvidenceTests.FamilyLetterHandoffCapturesChineseAndEnglishGameViewEvidence",
+    },
     "Assets/Game/Tests/Editor/PlayableRoleBattleTests.cs": {
         "VisibleEntryPlaysRealInterruptAndPunishExchange":
             "Rpg.Tests.Editor.PlayableRoleBattleTests.VisibleEntryPlaysRealInterruptAndPunishExchange",
@@ -573,6 +622,8 @@ def collect(mode):
             frame = evidence / "soundwell" / filename
             if not frame.is_file() or frame.stat().st_size < 1024:
                 errors.append(f"Missing Soundwell frame: {filename}")
+
+        errors.extend(validate_m06_story_frames(evidence))
 
         # Independently validate the end-to-end Play Mode performance artifact.
         # Reject absent, zero, non-finite, or internally inconsistent measurements.

@@ -38,7 +38,7 @@ namespace Rpg.Soundwell
             out RC03BaijiMineSession session)
         {
             session = null;
-            if (getInt == null)
+            if (getInt == null || RC03BaijiMineFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
             if (!M08FirstWorldNoticeFacts.TryCaseAvailable(
                     RC03BaijiMineFacts.RosterCaseNumber, getInt, out bool available) ||

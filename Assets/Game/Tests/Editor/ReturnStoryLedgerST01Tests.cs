@@ -60,7 +60,7 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void StoryLedgerViewDisplaysST01StatusAndFiveStoryCounterInChineseAndEnglish()
+        public void StoryLedgerViewDisplaysST01StatusAndRegionalStoryCounterInChineseAndEnglish()
         {
             var root = new GameObject("LedgerST01ViewRoot");
             string previousLanguage = SoundwellUiLocalization.Language;
@@ -78,7 +78,7 @@ namespace Rpg.Tests.Editor
                     SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
                     Assert.That(host.TryOpenOrRefresh(), Is.True);
                     var view = host.ActiveView;
-                    Assert.That(view.Body.text, Does.Contain("1/5"));
+                    Assert.That(view.Body.text, Does.Contain("1/6"));
 
                     view.RegionalTabButton.onClick.Invoke();
                     Assert.That(view.Body.text, Does.Contain("ST-01 镜湾戏院：已落盘"));
@@ -87,7 +87,7 @@ namespace Rpg.Tests.Editor
                     Assert.That(view.Body.text, Does.Contain("ST-01 Jingwan Theater: Settled"));
 
                     view.MainTabButton.onClick.Invoke();
-                    Assert.That(view.Body.text, Does.Contain("1/5"));
+                    Assert.That(view.Body.text, Does.Contain("1/6"));
                 }
             }
             finally

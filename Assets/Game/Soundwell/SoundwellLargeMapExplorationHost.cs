@@ -129,7 +129,7 @@ namespace Rpg.Soundwell
 
         public bool IsGateOpen { get; private set; }
         public bool ExtractionCompleted { get; private set; }
-        public bool IsDisposed => disposed;
+        public bool IsDisposed => disposed || CanvasDestroyed();
         public string CurrentZoneId => Explorer.CurrentZone.HasValue
             ? Explorer.CurrentZone.Value.Id
             : string.Empty;
@@ -270,7 +270,8 @@ namespace Rpg.Soundwell
             SyncActorVisuals(moved, safeDt);
             acousticPulseChannel.Step(safeDt);
             threatBreakChannel.Step(safeDt);
-            MinimapHud.UpdatePlayerPosition(Explorer.Position);
+            if (!MinimapHud.IsDisposed)
+                MinimapHud.UpdatePlayerPosition(Explorer.Position);
             UpdateBeastMinimapMarker();
 
             if (cameraTransform != null)
@@ -307,7 +308,8 @@ namespace Rpg.Soundwell
                     bool wasEscapeReady = AcousticTracker.CanTriggerNonViolentEscape;
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.WetClothMuffle))
                     {
-                        MinimapHud.SetBeaconCompleted("soundwell.wet-cloth", true);
+                        if (!MinimapHud.IsDisposed)
+                            MinimapHud.SetBeaconCompleted("soundwell.wet-cloth", true);
                         acousticPulseChannel.Trigger(acousticPulseFrames, Explorer.Position);
                         if (!wasEscapeReady && AcousticTracker.CanTriggerNonViolentEscape)
                         {
@@ -337,7 +339,8 @@ namespace Rpg.Soundwell
                     if (AcousticTracker.ApplyAcousticCounter(CombatLockKind.DecoyBellRing))
                     {
                         BeastPatrol.NotifyBronzeBellRung(Layout.BronzeBellTile);
-                        MinimapHud.SetBeaconCompleted("soundwell.bell", true);
+                        if (!MinimapHud.IsDisposed)
+                            MinimapHud.SetBeaconCompleted("soundwell.bell", true);
                         acousticPulseChannel.Trigger(
                             acousticPulseFrames,
                             new Vector2(Layout.BronzeBellTile.x + 0.5f, Layout.BronzeBellTile.y + 0.5f));
@@ -389,7 +392,8 @@ namespace Rpg.Soundwell
                         return false;
                     }
                     IsGateOpen = true;
-                    MinimapHud.SetBeaconCompleted("soundwell.gate-lever", true);
+                    if (!MinimapHud.IsDisposed)
+                        MinimapHud.SetBeaconCompleted("soundwell.gate-lever", true);
                     Explorer.TriggerScreenShake(0.18f, 0.12f);
                     SetFeedback(
                         "铁闸已开启！前往东侧撤退井口安全脱身。",
@@ -411,7 +415,8 @@ namespace Rpg.Soundwell
                         return false;
                     }
                     ExtractionCompleted = true;
-                    MinimapHud.SetBeaconCompleted("soundwell.extraction", true);
+                    if (!MinimapHud.IsDisposed)
+                        MinimapHud.SetBeaconCompleted("soundwell.extraction", true);
                     SetFeedback(
                         "小队已抵达南侧撤退井口，完成钟岭声井零杀伤脱身。",
                         "Party reached the extraction hatch — non-violent Soundwell escape complete.");
@@ -433,10 +438,14 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(zonePanel, aspect);
             SoundwellUiTheme.ApplyViewportAspectScale(promptPanel, aspect);
-            LockBreakHud.LayoutForViewportAspect(aspect);
-            MinimapHud.LayoutForViewportAspect(aspect);
+            if (!LockBreakHud.IsDisposed)
+                LockBreakHud.LayoutForViewportAspect(aspect);
+            if (!MinimapHud.IsDisposed)
+                MinimapHud.LayoutForViewportAspect(aspect);
         }
 
         public void RefreshHud()
@@ -471,38 +480,48 @@ namespace Rpg.Soundwell
                     : "Move to explore Soundwell (96x60) · Find wet cloth, bell, and west gate");
 
             feedbackLabel.text = zh ? lastFeedbackZh : lastFeedbackEn;
-            LockBreakHud.Refresh();
-            MinimapHud.Refresh();
+            if (!LockBreakHud.IsDisposed)
+                LockBreakHud.Refresh();
+            if (!MinimapHud.IsDisposed)
+                MinimapHud.Refresh();
         }
 
         private void SyncActorVisuals(bool heroMoved, float deltaTime)
         {
-            HeroVisual.Sync(
-                Explorer.Position,
-                Explorer.Facing,
-                heroMoved ? RpgActorVisualState.Moving : RpgActorVisualState.Idle,
-                deltaTime);
+            if (!HeroVisual.IsDisposed)
+            {
+                HeroVisual.Sync(
+                    Explorer.Position,
+                    Explorer.Facing,
+                    heroMoved ? RpgActorVisualState.Moving : RpgActorVisualState.Idle,
+                    deltaTime);
+            }
 
             Vector2 beastDelta = BeastPatrol.Position - prevBeastPosition;
             if (Mathf.Abs(beastDelta.x) > 0.001f)
                 beastFacing = beastDelta.x < 0f ? Vector2Int.left : Vector2Int.right;
             prevBeastPosition = BeastPatrol.Position;
 
-            RpgActorVisualState beastVisualState =
-                BeastPatrol.State == SoundwellBeastAlertState.Alerted
-                    ? RpgActorVisualState.AlertOrBrace
-                    : BeastPatrol.State == SoundwellBeastAlertState.StaggeredBroken
-                        ? RpgActorVisualState.Idle
-                        : RpgActorVisualState.Moving;
+            if (!BeastVisual.IsDisposed)
+            {
+                RpgActorVisualState beastVisualState =
+                    BeastPatrol.State == SoundwellBeastAlertState.Alerted
+                        ? RpgActorVisualState.AlertOrBrace
+                        : BeastPatrol.State == SoundwellBeastAlertState.StaggeredBroken
+                            ? RpgActorVisualState.Idle
+                            : RpgActorVisualState.Moving;
 
-            BeastVisual.Sync(BeastPatrol.Position, beastFacing, beastVisualState, deltaTime);
-            BeastVisual.SetTint(BeastPatrol.State == SoundwellBeastAlertState.StaggeredBroken
-                ? new Color(0.70f, 0.76f, 0.84f, 0.85f)
-                : Color.white);
+                BeastVisual.Sync(BeastPatrol.Position, beastFacing, beastVisualState, deltaTime);
+                BeastVisual.SetTint(BeastPatrol.State == SoundwellBeastAlertState.StaggeredBroken
+                    ? new Color(0.70f, 0.76f, 0.84f, 0.85f)
+                    : Color.white);
+            }
         }
 
         private void UpdateBeastMinimapMarker()
         {
+            if (MinimapHud.IsDisposed)
+                return;
             Color tint;
             switch (BeastPatrol.State)
             {
@@ -543,11 +562,13 @@ namespace Rpg.Soundwell
 
         private void HandleZoneEntered(RpgMapZone zone)
         {
+            if (disposed || CanvasDestroyed()) return;
             ZoneChanged?.Invoke(zone.Id);
         }
 
         private void HandleBeastEncounter()
         {
+            if (disposed || CanvasDestroyed()) return;
             BeastEncounterTriggered?.Invoke();
         }
 
@@ -578,6 +599,11 @@ namespace Rpg.Soundwell
             Explorer.ZoneEntered -= HandleZoneEntered;
             BeastPatrol.EncounterTriggered -= HandleBeastEncounter;
             SoundwellUiLocalization.Changed -= RefreshHud;
+            ZoneChanged = null;
+            InteractionResolved = null;
+            GateOpened = null;
+            ExtractionReached = null;
+            BeastEncounterTriggered = null;
             acousticPulseChannel.Stop();
             threatBreakChannel.Stop();
             HeroVisual.Dispose();

@@ -28,6 +28,14 @@ namespace Rpg.Soundwell
         public Text Summary => summary;
         public Button ConfirmButton => confirmButton;
         public RectTransform Panel => panel;
+        public bool IsDisposed
+        {
+            get
+            {
+                if (!disposed && CanvasDestroyed()) Dispose();
+                return disposed;
+            }
+        }
 
         public M06MineCampReconView(
             Transform parent,
@@ -87,11 +95,13 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || panel == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
@@ -126,7 +136,15 @@ namespace Rpg.Soundwell
 
         private void Confirm()
         {
-            if (disposed || recorded || CanvasDestroyed())
+            if (disposed || recorded)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+
+            if (!confirmButton.IsActive() || !confirmButton.IsInteractable())
                 return;
 
             recorded = true;

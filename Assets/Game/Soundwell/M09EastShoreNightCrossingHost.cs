@@ -28,10 +28,12 @@ namespace Rpg.Soundwell
         private M09EastShoreNightCrossingView activeView;
         private M09RuiyaOutcome? committedOutcome;
         private int committedBoardedCount;
+        private bool verifyingBoarding;
         private bool disposed;
 
         public M09EastShoreNightCrossingSession Session => session;
-        public M09EastShoreNightCrossingView ActiveView => activeView;
+        public M09EastShoreNightCrossingView ActiveView =>
+            activeView != null && !activeView.IsDisposed ? activeView : null;
         public M09RuiyaOutcome? CommittedOutcome => committedOutcome;
         public int CommittedBoardedCount => committedBoardedCount;
         public bool IsCommitted => committedOutcome.HasValue;
@@ -62,7 +64,16 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
-            if (disposed || activeView != null || IsCommitted || !nightFerryReady() ||
+            if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+                openedAvailableBerths = null;
+                openedHouseholdSize = null;
+            }
+
+            if (disposed || parent == null || activeView != null || IsCommitted || !nightFerryReady() ||
                 !HasUnsettledCleanM09State())
                 return false;
 
@@ -80,19 +91,37 @@ namespace Rpg.Soundwell
                 parent,
                 session,
                 household,
-                count => IsCurrentVoyage() && nightFerryReady() &&
-                    // An unrelated berth-table settlement, torn M09 payload,
-                    // or orphaned Act-3 fact invalidates this still-visible
-                    // ferry panel before real boarding begins.
-                    HasUnsettledCleanM09State() &&
-                    LiveTransferCountsMatch() && confirmActuallyBoarded(count),
+                TryVerifyActualBoarding,
                 HandleCompleted);
             return true;
         }
 
+        private bool TryVerifyActualBoarding(int count)
+        {
+            // Boarding verification can consume real manifest capacity.
+            // A callback that reenters the UI must not verify it twice.
+            if (verifyingBoarding || disposed || activeView == null || activeView.IsDisposed)
+                return false;
+
+            verifyingBoarding = true;
+            try
+            {
+                // A stale voyage, competing settlement or torn payload
+                // invalidates the panel before real boarding begins.
+                return IsCurrentVoyage() && nightFerryReady() &&
+                    HasUnsettledCleanM09State() && LiveTransferCountsMatch() &&
+                    confirmActuallyBoarded(count);
+            }
+            finally
+            {
+                verifyingBoarding = false;
+            }
+        }
+
         private void HandleCompleted(M09EastShoreNightCrossingSession completed)
         {
-            if (disposed || completed != session || !completed.IsComplete ||
+            if (disposed || activeView == null || activeView.IsDisposed ||
+                completed != session || !completed.IsComplete ||
                 !completed.Outcome.HasValue || !nightFerryReady() ||
                 // A competing, torn, or corrupted M09 settlement—or orphaned
                 // Act-3 downstream facts—must not be overwritten by this panel.
@@ -110,6 +139,9 @@ namespace Rpg.Soundwell
             committedBoardedCount = completed.ActuallyBoardedCount;
             activeView?.Dispose();
             activeView = null;
+            openedArrivalSequence = null;
+            openedAvailableBerths = null;
+            openedHouseholdSize = null;
         }
 
         private bool HasUnsettledCleanM09State()

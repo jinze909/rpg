@@ -36,12 +36,17 @@ namespace Rpg.Soundwell
         public void Gain(int amount)
         {
             if (amount <= 0) return;
-            Current = Mathf.Min(MaxPoints, Current + amount);
+            int space = MaxPoints - Current;
+            if (amount >= space)
+                Current = MaxPoints;
+            else
+                Current += amount;
         }
 
         public bool TrySpend(int cost)
         {
-            if (cost <= 0) return true;
+            if (cost < 0) return false;
+            if (cost == 0) return true;
             if (Current < cost) return false;
             Current -= cost;
             return true;
@@ -81,6 +86,11 @@ namespace Rpg.Soundwell
         {
             if (requiredLocks == null || requiredLocks.Length == 0)
                 throw new ArgumentException("At least one lock is required.", nameof(requiredLocks));
+            for (int i = 0; i < requiredLocks.Length; i++)
+            {
+                if (!Enum.IsDefined(typeof(CombatLockKind), requiredLocks[i]))
+                    throw new ArgumentOutOfRangeException(nameof(requiredLocks));
+            }
             locks = new List<CombatLockKind>(requiredLocks);
             brokenFlags = new bool[locks.Count];
             BrokenCount = 0;
@@ -133,7 +143,7 @@ namespace Rpg.Soundwell
 
         public bool ResolveHeroCounter(CombatLockKind counterAction)
         {
-            if (ReadyForThirdBellCollapse)
+            if (ReadyForThirdBellCollapse || !Enum.IsDefined(typeof(CombatLockKind), counterAction))
                 return false;
 
             bool brokeLock = CurrentLocks.TryBreakLock(counterAction);
@@ -224,7 +234,9 @@ namespace Rpg.Soundwell
 
         public bool ApplyAcousticCounter(CombatLockKind action, int momentumCost = 0)
         {
-            if (IsBeastBroken || !AcousticLocks.HasRemainingLock(action))
+            if (IsBeastBroken || momentumCost < 0 ||
+                !Enum.IsDefined(typeof(CombatLockKind), action) ||
+                !AcousticLocks.HasRemainingLock(action))
                 return false;
             if (momentumCost > 0 && !Momentum.TrySpend(momentumCost))
                 return false;

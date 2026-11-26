@@ -17,7 +17,8 @@ namespace Rpg.Soundwell
     /// and stele inscription. Steps through reader selection (Protagonist /
     /// Han Qiao / Aunt Jiang), public vs. private identity response, and stele
     /// inscription (disabling public name carving when consented verified count
-    /// is zero), with retry-safe Makinom persistence and ZH/EN localization.
+    /// is zero, and displaying verified ST-04 Zhongling quarry stone when
+    /// delivered), with retry-safe Makinom persistence and ZH/EN localization.
     /// </summary>
     public sealed class M15FinalRollCallView : IDisposable
     {
@@ -29,6 +30,7 @@ namespace Rpg.Soundwell
         private readonly Button[] choiceButtons = new Button[4];
         private readonly Text[] choiceLabels = new Text[4];
         private readonly M15FinalRollCallSession session;
+        private readonly bool showZhonglingStone;
         private Action<M15RollCallReader, M15FinalIdentityResponse, M15SteleInscription> onRollCallSubmitted;
         private M15RollCallViewStep step;
         private M15RollCallReader selectedReader;
@@ -38,6 +40,7 @@ namespace Rpg.Soundwell
 
         public M15FinalRollCallSession Session => session;
         public M15RollCallViewStep Step => step;
+        public bool ShowZhonglingStone => showZhonglingStone;
         public RectTransform Panel => panel;
         public Text Heading => heading;
         public Text Body => body;
@@ -50,16 +53,19 @@ namespace Rpg.Soundwell
         public Button AddReturnedAliveSteleButton => choiceButtons[1];
         public Button CarveNamesSteleButton => choiceButtons[2];
         public Button LeaveBlankSteleButton => choiceButtons[3];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M15FinalRollCallView(
             Transform parent,
             M15FinalRollCallSession session,
-            Action<M15RollCallReader, M15FinalIdentityResponse, M15SteleInscription> onRollCallSubmitted)
+            Action<M15RollCallReader, M15FinalIdentityResponse, M15SteleInscription> onRollCallSubmitted,
+            bool showZhonglingStone = false)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             this.session = session ?? throw new ArgumentNullException(nameof(session));
             this.onRollCallSubmitted = onRollCallSubmitted ??
                 throw new ArgumentNullException(nameof(onRollCallSubmitted));
+            this.showZhonglingStone = showZhonglingStone;
             step = session.IsCompleted
                 ? M15RollCallViewStep.Completed
                 : M15RollCallViewStep.SelectReader;
@@ -124,23 +130,14 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f) return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -179,9 +176,14 @@ namespace Rpg.Soundwell
 
                 case M15RollCallViewStep.SelectSteleInscription:
                     heading.text = zh ? "石碑刻字 · 留给临潮的字" : "MEMORIAL STELE · INSCRIPTION";
+                    string stoneNote = showZhonglingStone
+                        ? (zh
+                            ? "钟岭采石场运抵临潮的新碑石已立妥。"
+                            : " The delivered Zhongling quarry stone stands ready at the memorial.")
+                        : string.Empty;
                     body.text = zh
-                        ? $"已同意公开且核验的归来者人名：{session.ConsentedVerifiedNamesCount} 人。请选择石碑刻字方案："
-                        : $"Consented verified returnee names available to carve: {session.ConsentedVerifiedNamesCount}. Choose the stele inscription:";
+                        ? $"已同意公开且核验的归来者人名：{session.ConsentedVerifiedNamesCount} 人。{stoneNote}请选择石碑刻字方案："
+                        : $"Consented verified returnee names available to carve: {session.ConsentedVerifiedNamesCount}.{stoneNote} Choose the stele inscription:";
                     bool canCarve = session.CanChooseSteleInscription(M15SteleInscription.CarveConsentedVerifiedNames);
                     ShowChoice(0, zh ? "保留石碑原文" : "Keep original inscription", !submitting);
                     ShowChoice(1, zh ? "加刻一行「他们活着回来了」" : "Add \"They returned alive\"", !submitting);
@@ -209,7 +211,9 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed()) return;
+            if (disposed || IsDestroyedExternally()) return;
+            if (submitting || index < 0 || index >= choiceButtons.Length ||
+                !choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable()) return;
 
             if (step == M15RollCallViewStep.SelectReader && index >= 0 && index <= 2)
             {
@@ -250,6 +254,13 @@ namespace Rpg.Soundwell
                     if (!disposed) Refresh();
                 }
             }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed()) return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

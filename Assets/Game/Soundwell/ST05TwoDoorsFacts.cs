@@ -116,6 +116,13 @@ namespace Rpg.Soundwell
         public const string YuheArrivalIntentKey = "rpg.return.st05.m15-yuhe-arrival-intent";
         public const string ChengArrivalIntentKey = "rpg.return.st05.m15-cheng-arrival-intent";
 
+        public static bool HasOrphanedDownstreamFacts(Func<string, int> read)
+        {
+            return read == null ||
+                M15FinalRollCallFacts.HasAnyPersistedFacts(read) ||
+                M16EpilogueFacts.HasAnyPersistedFacts(read);
+        }
+
         private static int Signature(ST05HouseholdRecord record)
         {
             return 1000 + (int)record.Bed * 100 +
@@ -147,7 +154,7 @@ namespace Rpg.Soundwell
         public static bool CanRecordHome(ST05HouseholdRecord record, Func<string, int> read)
         {
             if (read == null || !Valid(record) || read(HomeConfirmedKey) != 0 ||
-                !EmptyFurtherFacts(read))
+                !EmptyFurtherFacts(read) || HasOrphanedDownstreamFacts(read))
                 return false;
             int intent = read(HomeIntentKey);
             if (intent == 0)
@@ -203,6 +210,7 @@ namespace Rpg.Soundwell
             Func<string, int> read, Action<string, int> write)
         {
             if (read == null || write == null ||
+                HasOrphanedDownstreamFacts(read) ||
                 !Enum.IsDefined(typeof(ST05ChengAssignment), assignment) ||
                 !TryReadHome(read, out ST05HouseholdRecord? home) || !home.HasValue)
                 return false;
@@ -296,7 +304,8 @@ namespace Rpg.Soundwell
         public static bool TryStartOutsideWork(Func<string, int> read,
             Action<string, int> write)
         {
-            if (write == null || !TryRead(read, out ST05TwoDoorsOutcome? saved) ||
+            if (write == null || HasOrphanedDownstreamFacts(read) ||
+                !TryRead(read, out ST05TwoDoorsOutcome? saved) ||
                 !saved.HasValue ||
                 saved.Value.Assignment != ST05ChengAssignment.AcceptOutsideSurvey)
                 return false;
@@ -310,7 +319,8 @@ namespace Rpg.Soundwell
         public static bool TryMarkLetterSent(Func<string, int> read,
             Action<string, int> write)
         {
-            if (write == null || !TryRead(read, out ST05TwoDoorsOutcome? saved) ||
+            if (write == null || HasOrphanedDownstreamFacts(read) ||
+                !TryRead(read, out ST05TwoDoorsOutcome? saved) ||
                 !saved.HasValue || !saved.Value.OutsideWorkStarted)
                 return false;
             if (saved.Value.Letter != ST05LetterStatus.NotSent)
@@ -322,7 +332,8 @@ namespace Rpg.Soundwell
         public static bool TryMarkLetterDelivered(Func<string, int> read,
             Action<string, int> write)
         {
-            if (write == null || !TryRead(read, out ST05TwoDoorsOutcome? saved) ||
+            if (write == null || HasOrphanedDownstreamFacts(read) ||
+                !TryRead(read, out ST05TwoDoorsOutcome? saved) ||
                 !saved.HasValue || saved.Value.Letter == ST05LetterStatus.NotSent)
                 return false;
             if (saved.Value.Letter == ST05LetterStatus.Delivered)
@@ -341,7 +352,7 @@ namespace Rpg.Soundwell
             string intentKey, string itemKey, string arrivedKey,
             Func<string, int> read, Action<string, int> write)
         {
-            if (read == null || write == null)
+            if (read == null || write == null || HasOrphanedDownstreamFacts(read))
                 return false;
             int intended = itemActuallyBrought ? 2 : 1;
             int item = itemActuallyBrought ? 1 : 0;

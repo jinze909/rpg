@@ -30,6 +30,7 @@ namespace Rpg.Soundwell
         public Text Dialogue => dialogue;
         public Image GiftIcon => giftIcon;
         public Button AdvanceButton => advance;
+        public bool IsDisposed => disposed || CanvasDestroyed();
         public Button GetChoiceButton(int index)
         {
             if (index < 0 || index >= choices.Length)
@@ -76,18 +77,20 @@ namespace Rpg.Soundwell
         public void LayoutForViewportAspect(float aspect)
         {
             if (disposed) return;
-            if (canvasObject == null || authored == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(authored, aspect);
         }
 
         public void Refresh()
         {
             if (disposed) return;
-            if (canvasObject == null || heading == null)
+            if (CanvasDestroyed())
             {
                 Dispose();
                 return;
@@ -118,6 +121,17 @@ namespace Rpg.Soundwell
                     advance.gameObject.activeInHierarchy ? advance : choices[0]);
         }
 
+        private bool CanvasDestroyed()
+        {
+            if (canvasObject == null || authored == null || heading == null ||
+                dialogue == null || advance == null || advanceLabel == null)
+                return true;
+            for (int i = 0; i < choices.Length; i++)
+                if (choices[i] == null || choiceLabels[i] == null)
+                    return true;
+            return false;
+        }
+
         private Sprite ResolveGiftSprite()
         {
             switch (cup.Stage)
@@ -136,7 +150,14 @@ namespace Rpg.Soundwell
 
         private void Choose(int index)
         {
-            if (disposed || delivered || cup.Stage != M04QiQueCupStage.ChoosingReply)
+            if (disposed || delivered)
+                return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+            if (cup.Stage != M04QiQueCupStage.ChoosingReply)
                 return;
             if (index < 0 || index >= M04QiQueCupCopy.Choices(cup, false).Length)
                 return;
@@ -148,6 +169,11 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
             if (cup.Stage == M04QiQueCupStage.OfferingCup)
                 cup.ExamineGift();
             else if (cup.Stage == M04QiQueCupStage.Responding ||
@@ -166,7 +192,7 @@ namespace Rpg.Soundwell
                 catch
                 {
                     delivered = false;
-                    Refresh();
+                    if (!disposed) Refresh();
                     throw;
                 }
                 return;

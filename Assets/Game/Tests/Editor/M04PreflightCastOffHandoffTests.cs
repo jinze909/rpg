@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using GamingIsLove.Makinom;
@@ -257,10 +258,82 @@ namespace Rpg.Tests.Editor
                 harborWalk.AdvanceButton.onClick.Invoke();
                 Assert.That(harborWalk.Beat, Is.EqualTo(M05HarborBeat.MarketAccusation));
                 harborWalk.AdvanceButton.onClick.Invoke();
-                Assert.That(deliveries, Is.EqualTo(1));
-                Assert.That(continuation.ActiveSeaCrossing, Is.Null,
-                    "The owning opening releases the crossing after M05 accepts its outcome.");
+                Assert.That(deliveries, Is.Zero,
+                    "M05 must hand its verified outcome into the playable M06 mine camp, not end the opening.");
+                Assert.That(continuation.ActiveSeaCrossing, Is.Null);
                 Assert.That(vars.GetInt(M05LandingFacts.ConfirmedKey), Is.EqualTo(1));
+
+                M06MineCampSceneHost activeMineCamp = continuation.ActiveMineCamp;
+                Assert.That(activeMineCamp, Is.Not.Null);
+                Assert.That(activeMineCamp.CameraRig, Is.Not.Null);
+                Assert.That(activeMineCamp.CameraRig.VirtualCamera.Lens.OrthographicSize,
+                    Is.EqualTo(5.625f).Within(0.001f));
+
+                M06MineCampExplorationHost mineCamp = activeMineCamp.Exploration;
+                Vector2 spawn = mineCamp.PlayerPosition;
+                Assert.That(mineCamp.StepMovement(Vector2.right, 0.1f), Is.True);
+                Assert.That(mineCamp.PlayerPosition.x, Is.GreaterThan(spawn.x));
+
+                // Travel through the authored south-gate, checkpost, and pump-hall
+                // corridors instead of teleporting the hero. This lets the live
+                // Cinemachine follow camera track the same movement the player uses.
+                int movementFrames = 0;
+                while (mineCamp.PlayerPosition.x < 50f && movementFrames++ < 80)
+                {
+                    Assert.That(mineCamp.StepMovement(Vector2.right, 0.1f), Is.True);
+                    yield return new WaitForSecondsRealtime(0.1f);
+                }
+                Assert.That(mineCamp.PlayerPosition.x, Is.GreaterThanOrEqualTo(50f));
+
+                movementFrames = 0;
+                while (mineCamp.PlayerPosition.y < 36f && movementFrames++ < 80)
+                {
+                    Assert.That(mineCamp.StepMovement(Vector2.up, 0.1f), Is.True);
+                    yield return new WaitForSecondsRealtime(0.1f);
+                }
+                Assert.That(mineCamp.PlayerPosition.y, Is.GreaterThanOrEqualTo(36f));
+
+                movementFrames = 0;
+                while (mineCamp.PlayerPosition.x < 54f && movementFrames++ < 20)
+                {
+                    Assert.That(mineCamp.StepMovement(Vector2.right, 0.1f), Is.True);
+                    yield return new WaitForSecondsRealtime(0.1f);
+                }
+                Assert.That(mineCamp.PlayerPosition.x, Is.GreaterThanOrEqualTo(54f));
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                CaptureM06GameView(owner.transform, "m06-mine-camp-map.png",
+                    mineCamp.HeroVisual.ActorObject.transform.position);
+                Assert.That(mineCamp.FindNearbyInteractableTriggerId(), Is.EqualTo("m06.pump-reunion"));
+                Assert.That(mineCamp.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(mineCamp.ActiveReunionView, Is.Not.Null);
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                CaptureM06GameView(owner.transform, "m06-pump-room-reunion.png",
+                    mineCamp.HeroVisual.ActorObject.transform.position);
+
+                mineCamp.ActiveReunionView.GreetingBringBackButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.TaoJiLetterButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.LedgerLetterButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.ReturnedLetterButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.AdvanceButton.onClick.Invoke();
+                Assert.That(mineCamp.ActiveReunionView.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                mineCamp.ActiveReunionView.ShenWaitButton.onClick.Invoke();
+                mineCamp.ActiveReunionView.OfficialHandoverButton.onClick.Invoke();
+
+                Assert.That(mineCamp.RescuePlanSettled, Is.True);
+                Assert.That(M06RescuePlanFacts.TryRead(read, out M06ReunionRecord? savedPlan), Is.True);
+                Assert.That(savedPlan.HasValue, Is.True);
+                Assert.That(savedPlan.Value.Plan, Is.EqualTo(M06RescuePlan.OfficialHandover));
+                Assert.That(savedPlan.Value.LetterDelivery,
+                    Is.EqualTo(M06LetterDeliveryOutcome.DeliveredWithPending));
+                Assert.That(deliveries, Is.Zero);
+
+                activeMineCamp.Exit();
+                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(continuation.ActiveMineCamp, Is.Null);
 
                 Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
                 SeedVerifiedDeparture(write, M03VoyageChoice.QiQueMerchant);
@@ -299,6 +372,129 @@ namespace Rpg.Tests.Editor
                 if (noShipOwner != null) UnityEngine.Object.Destroy(noShipOwner);
             }
             yield return new ExitPlayMode();
+        }
+
+        private static void CaptureM06GameView(Transform owner, string filename, Vector3 heroPosition)
+        {
+            Assert.That(SystemInfo.graphicsDeviceType,
+                Is.Not.EqualTo(UnityEngine.Rendering.GraphicsDeviceType.Null),
+                "M06 GameView evidence requires a graphics-capable Unity runner.");
+
+            Camera camera = Camera.main;
+            Assert.That(camera, Is.Not.Null);
+            Assert.That(camera.orthographic, Is.True);
+
+            Canvas[] canvases = owner.GetComponentsInChildren<Canvas>(true)
+                .Where(canvas => canvas != null && canvas.isActiveAndEnabled &&
+                    canvas.gameObject.name.StartsWith("M06 ", StringComparison.Ordinal))
+                .ToArray();
+            Assert.That(canvases.Any(canvas =>
+                canvas.gameObject.name == "M06 mine camp HUD canvas"), Is.True);
+            if (filename.Contains("reunion"))
+            {
+                Assert.That(canvases.Any(canvas =>
+                    canvas.gameObject.name == "M06 pump room reunion canvas"), Is.True);
+            }
+
+            var rig = camera.GetComponent<SoundwellCameraRig>();
+            Assert.That(rig, Is.Not.Null);
+            Assert.That(rig.VirtualCamera, Is.Not.Null);
+
+            RenderMode[] previousModes = canvases.Select(canvas => canvas.renderMode).ToArray();
+            Camera[] previousWorldCameras = canvases.Select(canvas => canvas.worldCamera).ToArray();
+            float[] previousPlaneDistances = canvases.Select(canvas => canvas.planeDistance).ToArray();
+            int previousCullingMask = camera.cullingMask;
+            float previousOrthographicSize = camera.orthographicSize;
+            float previousAspect = camera.aspect;
+            RenderTexture previousTarget = camera.targetTexture;
+            RenderTexture previousActive = RenderTexture.active;
+            RenderTexture target = RenderTexture.GetTemporary(960, 540, 24, RenderTextureFormat.ARGB32);
+            Texture2D frame = null;
+
+            try
+            {
+                camera.targetTexture = target;
+                camera.aspect = 960f / 540f;
+                camera.orthographicSize = rig.VirtualCamera.Lens.OrthographicSize;
+
+                camera.Render();
+                RenderTexture.active = target;
+                frame = new Texture2D(960, 540, TextureFormat.RGB24, false);
+                frame.ReadPixels(new Rect(0, 0, 960, 540), 0, 0, false);
+                frame.Apply(false, false);
+                Color32[] worldPixels = frame.GetPixels32();
+
+                for (int index = 0; index < canvases.Length; index++)
+                {
+                    Canvas canvas = canvases[index];
+                    canvas.worldCamera = camera;
+                    canvas.planeDistance = 1f;
+                    canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                    camera.cullingMask |= 1 << canvas.gameObject.layer;
+                }
+
+                Canvas.ForceUpdateCanvases();
+                camera.Render();
+                RenderTexture.active = target;
+                frame.ReadPixels(new Rect(0, 0, 960, 540), 0, 0, false);
+                frame.Apply(false, false);
+                Color32[] finalPixels = frame.GetPixels32();
+
+                int changedSamples = 0;
+                var sampledColors = new HashSet<int>();
+                for (int index = 0; index < finalPixels.Length; index += 3)
+                {
+                    Color32 before = worldPixels[index];
+                    Color32 after = finalPixels[index];
+                    int difference = Math.Abs((int)before.r - after.r) +
+                        Math.Abs((int)before.g - after.g) + Math.Abs((int)before.b - after.b);
+                    if (difference > 24) changedSamples++;
+                    if (index % 127 == 0)
+                    {
+                        sampledColors.Add((after.r << 24) | (after.g << 16) |
+                            (after.b << 8) | after.a);
+                    }
+                }
+
+                Assert.That(changedSamples, Is.GreaterThan(100),
+                    "M06 GameView capture must composite the live UGUI canvas over the mine-camp world.");
+                Assert.That(sampledColors.Count, Is.GreaterThan(6),
+                    "M06 GameView capture must retain the scene's pixel-art color detail.");
+
+                Vector3 viewport = camera.WorldToViewportPoint(heroPosition);
+                Assert.That(viewport.z, Is.GreaterThan(0f),
+                    $"M06 hero must be in front of the live camera. Hero={heroPosition}, camera={camera.transform.position}.");
+                Assert.That(viewport.x, Is.InRange(0.02f, 0.98f),
+                    $"M06 hero must remain horizontally visible. Viewport={viewport}, camera={camera.transform.position}, target={rig.FramingTarget.position}.");
+                Assert.That(viewport.y, Is.InRange(0.02f, 0.98f),
+                    $"M06 hero must remain vertically visible. Viewport={viewport}, camera={camera.transform.position}, target={rig.FramingTarget.position}, lens={camera.orthographicSize}.");
+
+                string directory = Path.Combine("artifacts", "p0", "story");
+                Directory.CreateDirectory(directory);
+                string path = Path.Combine(directory, filename);
+                File.WriteAllBytes(path, frame.EncodeToPNG());
+                Assert.That(new FileInfo(path).Length, Is.GreaterThan(1024));
+            }
+            finally
+            {
+                for (int index = 0; index < canvases.Length; index++)
+                {
+                    Canvas canvas = canvases[index];
+                    if (canvas == null) continue;
+                    canvas.renderMode = previousModes[index];
+                    canvas.worldCamera = previousWorldCameras[index];
+                    canvas.planeDistance = previousPlaneDistances[index];
+                }
+
+                camera.cullingMask = previousCullingMask;
+                camera.orthographicSize = previousOrthographicSize;
+                camera.aspect = previousAspect;
+                camera.targetTexture = previousTarget;
+                RenderTexture.active = previousActive;
+                Canvas.ForceUpdateCanvases();
+                RenderTexture.ReleaseTemporary(target);
+                if (frame != null) UnityEngine.Object.Destroy(frame);
+            }
         }
 
         private static Button FindButton(GameObject owner, string name)

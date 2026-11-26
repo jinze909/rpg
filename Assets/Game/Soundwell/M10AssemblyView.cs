@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Rpg.Soundwell
 {
     /// <summary>
-    /// Bottom-anchored safe-region UGUI panel for M10 ("靖湾会盟").
+    /// Bottom-anchored safe-region UGUI panel for M10 ("镜湾会盟").
     /// Steps through the third world notice ("桥在我在"), three-record spelling
     /// reconciliation (re-queueable without soft-lock), battle-report copy
     /// verification before Han Qiao's ledger choice, supply contract signing,
@@ -44,6 +44,7 @@ namespace Rpg.Soundwell
         public Button RecordPartialGapButton => choiceButtons[1];
         public Button HearBellTowerReportButton => choiceButtons[0];
         public Button ConfirmAssemblyButton => choiceButtons[0];
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M10AssemblyView(
             Transform parent,
@@ -126,23 +127,15 @@ namespace Rpg.Soundwell
 
         public void LayoutForViewportAspect(float aspect)
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
+            if (disposed || IsDestroyedExternally()) return;
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
                 return;
-            }
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
         public void Refresh()
         {
-            if (disposed) return;
-            if (CanvasDestroyed())
-            {
-                Dispose();
-                return;
-            }
+            if (disposed || IsDestroyedExternally()) return;
 
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
@@ -161,9 +154,9 @@ namespace Rpg.Soundwell
                 case M10AssemblyPhase.NoticeAndArrival:
                     heading.text = zh ? "M10 · 晨间告示与二批靠岸" : "M10 · THIRD WORLD NOTICE & ARRIVAL";
                     body.text = zh
-                        ? "临潮码头贴出陆钧征兵告示「桥在我在」，第二批渡船正靠向靖湾。先读清告示再赴会盟桌。"
+                        ? "临潮码头贴出陆钧征兵告示「桥在我在」，第二批渡船正靠向镜湾。先读清告示再赴会盟桌。"
                         : "Lu Jun's conscription notice ('The Bridge Stands While I Stand') is posted at dawn as the second-batch ferry nears Jingwan.";
-                    ShowChoice(0, zh ? "读清告示并入靖湾会盟" : "Read notice & enter assembly");
+                    ShowChoice(0, zh ? "读清告示并入镜湾会盟" : "Read notice & enter assembly");
                     FocusFirstInteractable();
                     break;
 
@@ -171,12 +164,12 @@ namespace Rpg.Soundwell
                     heading.text = zh ? "M10 · 三表核名放行" : "M10 · THREE-RECORD RECONCILIATION";
                     body.text = session.HadReconciliationDelay
                         ? (zh
-                            ? "刚才核名有出入，已退回重排复核（无软锁）。请再次核对东岸名单、M09 登船账与本人口供，由易磊盖章放行。"
+                            ? "刚才核名有出入，已退回重排复核（无软锁）。请再次核对东岸名单、M09 登船账与本人口供，由伊蕾盖章放行。"
                             : "The prior check had a mismatch and was re-queued without soft-lock. Re-verify the three records so Yi Lei can stamp clearance.")
                         : (zh
-                            ? "靖湾会盟三张桌前，需逐项核对东岸名单、M09 登船账与本人口供，核准后由易磊盖章放行。"
+                            ? "镜湾会盟三张桌前，需逐项核对东岸名单、M09 登船账与本人口供，核准后由伊蕾盖章放行。"
                             : "Reconcile the east-shore list, M09 boarding log, and personal testimony at the table so Yi Lei can stamp clearance.");
-                    ShowChoice(0, zh ? "三表核名并请易磊盖章" : "Reconcile 3 records & stamp");
+                    ShowChoice(0, zh ? "三表核名并请伊蕾盖章" : "Reconcile 3 records & stamp");
                     FocusFirstInteractable();
                     break;
 
@@ -234,7 +227,7 @@ namespace Rpg.Soundwell
                     else
                     {
                         body.text = zh
-                            ? "靖湾会盟各项账目与回澜关急报均已核清，请确认落盘保存。"
+                            ? "镜湾会盟各项账目与回澜关急报均已核清，请确认落盘保存。"
                             : "All Jingwan assembly outcomes and the Huilan Pass report are verified. Confirm to save.";
                         ShowChoice(0, zh ? "确认落盘结束 M10 会盟" : "Confirm & save M10 assembly", !submitting);
                         if (!submitting) FocusFirstInteractable();
@@ -242,9 +235,9 @@ namespace Rpg.Soundwell
                     break;
 
                 case M10AssemblyPhase.Completed:
-                    heading.text = zh ? "M10 · 靖湾会盟已落盘" : "M10 · JINGWAN ASSEMBLY SAVED";
+                    heading.text = zh ? "M10 · 镜湾会盟已落盘" : "M10 · JINGWAN ASSEMBLY SAVED";
                     body.text = zh
-                        ? "靖湾会盟结果已写入记录。"
+                        ? "镜湾会盟结果已写入记录。"
                         : "The Jingwan assembly outcome has been saved.";
                     break;
             }
@@ -271,9 +264,10 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || CanvasDestroyed() || index < 0 || index >= choiceButtons.Length)
+            if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
                 return;
-            if (!choiceButtons[index].gameObject.activeSelf || !choiceButtons[index].interactable)
+            // Effective UGUI locks include ancestor visibility and CanvasGroup interaction.
+            if (!choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
 
             switch (session.Phase)
@@ -337,6 +331,14 @@ namespace Rpg.Soundwell
                     }
                     break;
             }
+        }
+
+        private bool IsDestroyedExternally()
+        {
+            if (!CanvasDestroyed())
+                return false;
+            Dispose();
+            return true;
         }
 
         private bool CanvasDestroyed()

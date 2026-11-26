@@ -49,6 +49,7 @@ namespace Rpg.Soundwell
         public Button QiQueButton => qiQueButton;
         public Button ReconcileButton => reconcileButton;
         public Button SettleButton => settleButton;
+        public bool IsDisposed => disposed || CanvasDestroyed();
 
         public M09BerthTableView(
             Transform parent,
@@ -112,19 +113,19 @@ namespace Rpg.Soundwell
                 panel, "M09 han qiao exchange", new Vector2(-216f, -24f),
                 new Vector2(414f, 34f), 14, out hanQiaoLabel);
             hanQiaoButton.onClick.AddListener(() =>
-                HandleExchange(M09BerthExchangeFlags.HanQiaoCivilianVoyage, this.hanQiaoGain));
+                HandleExchange(hanQiaoButton, M09BerthExchangeFlags.HanQiaoCivilianVoyage, this.hanQiaoGain));
 
             shipwrightButton = SoundwellUiTheme.CreateButton(
                 panel, "M09 shipwright exchange", new Vector2(216f, -24f),
                 new Vector2(414f, 34f), 14, out shipwrightLabel);
             shipwrightButton.onClick.AddListener(() =>
-                HandleExchange(M09BerthExchangeFlags.ShipwrightExtraBerths, this.shipwrightGain));
+                HandleExchange(shipwrightButton, M09BerthExchangeFlags.ShipwrightExtraBerths, this.shipwrightGain));
 
             qiQueButton = SoundwellUiTheme.CreateButton(
                 panel, "M09 qi que exchange", new Vector2(-216f, -66f),
                 new Vector2(414f, 34f), 14, out qiQueLabel);
             qiQueButton.onClick.AddListener(() =>
-                HandleExchange(M09BerthExchangeFlags.QiQueCargoVoyage, this.qiQueGain));
+                HandleExchange(qiQueButton, M09BerthExchangeFlags.QiQueCargoVoyage, this.qiQueGain));
 
             reconcileButton = SoundwellUiTheme.CreateButton(
                 panel, "M09 shen reconcile", new Vector2(216f, -66f),
@@ -150,6 +151,8 @@ namespace Rpg.Soundwell
                 Dispose();
                 return;
             }
+            if (float.IsNaN(aspect) || float.IsInfinity(aspect) || aspect <= 0f)
+                return;
             SoundwellUiTheme.ApplyViewportAspectScale(panel, aspect);
         }
 
@@ -228,10 +231,22 @@ namespace Rpg.Soundwell
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, settleButton);
         }
 
-        private void HandleExchange(M09BerthExchangeFlags exchange, int gain)
+        private static bool CanInvoke(Button button)
         {
-            if (disposed || settling || session.IsSettled || CanvasDestroyed())
+            return button != null && button.IsActive() && button.IsInteractable();
+        }
+
+        private void HandleExchange(Button button, M09BerthExchangeFlags exchange, int gain)
+        {
+            if (disposed || settling || session.IsSettled)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+
+            if (!CanInvoke(button)) return;
 
             bool needsPaidDeal = exchange == M09BerthExchangeFlags.ShipwrightExtraBerths &&
                 !session.ShenLiPresent;
@@ -244,8 +259,15 @@ namespace Rpg.Soundwell
 
         private void HandleReconcile()
         {
-            if (disposed || settling || session.IsSettled || CanvasDestroyed())
+            if (disposed || settling || session.IsSettled)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+
+            if (!CanInvoke(reconcileButton)) return;
 
             if (session.TryPlayShenReconciliation())
                 Refresh();
@@ -253,8 +275,15 @@ namespace Rpg.Soundwell
 
         private void HandleSettle()
         {
-            if (disposed || settling || session.IsSettled || CanvasDestroyed())
+            if (disposed || settling || session.IsSettled)
                 return;
+            if (CanvasDestroyed())
+            {
+                Dispose();
+                return;
+            }
+
+            if (!CanInvoke(settleButton)) return;
 
             settling = true;
             Refresh();
@@ -274,8 +303,11 @@ namespace Rpg.Soundwell
         private bool CanvasDestroyed()
         {
             return canvasObject == null || panel == null || heading == null ||
-                summary == null || hanQiaoButton == null || shipwrightButton == null ||
-                qiQueButton == null || reconcileButton == null || settleButton == null;
+                summary == null || hanQiaoButton == null || hanQiaoLabel == null ||
+                shipwrightButton == null || shipwrightLabel == null ||
+                qiQueButton == null || qiQueLabel == null ||
+                reconcileButton == null || reconcileLabel == null ||
+                settleButton == null || settleLabel == null;
         }
 
         public void Dispose()

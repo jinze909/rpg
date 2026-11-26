@@ -125,7 +125,19 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.StepMovement(Vector2.right, 0.2f), Is.False,
                     "Movement must lock while a dialogue view is open.");
 
-                host.ActiveReconView.ConfirmButton.onClick.Invoke();
+                var recon = host.ActiveReconView;
+                var group = recon.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(recon.ConfirmButton.IsInteractable(), Is.False);
+                recon.ConfirmButton.onClick.Invoke();
+                Assert.That(host.IsDialogueOpen, Is.True);
+                Assert.That(host.ObservedReconCount, Is.Zero);
+                group.interactable = true;
+                recon.Panel.gameObject.SetActive(false);
+                recon.ConfirmButton.onClick.Invoke();
+                Assert.That(host.ObservedReconCount, Is.Zero);
+                recon.Panel.gameObject.SetActive(true);
+                recon.ConfirmButton.onClick.Invoke();
                 Assert.That(host.IsDialogueOpen, Is.False);
                 Assert.That(host.ObservedReconCount, Is.EqualTo(1));
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.False,
@@ -206,11 +218,16 @@ namespace Rpg.Tests.Editor
                 Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
                 Assert.That(host.ActiveReunionView, Is.Not.Null);
 
-                host.ActiveReunionView.GreetingBringBackButton.onClick.Invoke();
-                host.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                host.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                host.ActiveReunionView.AdvanceButton.onClick.Invoke();
-                Assert.That(host.ActiveReunionView.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
+                var reunion = host.ActiveReunionView;
+                reunion.GreetingBringBackButton.onClick.Invoke();
+                reunion.AdvanceButton.onClick.Invoke();
+                Assert.That(reunion.Session.Stage, Is.EqualTo(M06ReunionStage.LetterHandoff));
+                reunion.TaoJiLetterButton.onClick.Invoke();
+                reunion.LedgerLetterButton.onClick.Invoke();
+                reunion.ReturnedLetterButton.onClick.Invoke();
+                reunion.AdvanceButton.onClick.Invoke();
+                reunion.AdvanceButton.onClick.Invoke();
+                Assert.That(reunion.Session.Stage, Is.EqualTo(M06ReunionStage.ShenResponse));
                 host.ActiveReunionView.ShenWaitButton.onClick.Invoke();
                 host.ActiveReunionView.OfficialHandoverButton.onClick.Invoke();
 
@@ -322,5 +339,69 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void DestroyedReconCanvasReleasesDialogueLockAndAllowsReopening()
+        {
+            var root = new GameObject("M06 recon destroyed canvas");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(42, 12)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                M06MineCampReconView oldView = host.ActiveReconView;
+                Canvas canvas = oldView.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveReconView, Is.Null);
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveReconView, Is.Not.Null);
+                Assert.That(host.ActiveReconView, Is.Not.SameAs(oldView));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedPumpRoomCanvasReleasesDialogueLockAndAllowsReopening()
+        {
+            var root = new GameObject("M06 pump room destroyed canvas");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values, letterDecision: null);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            M06MineCampExplorationHost host = null;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, read, write);
+                Assert.That(host.TryPlaceAtWalkableTile(new Vector2Int(54, 36)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                M06PumpRoomReunionView oldView = host.ActiveReunionView;
+                Canvas canvas = oldView.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+                UnityEngine.Object.DestroyImmediate(canvas.gameObject);
+                Assert.That(oldView.IsDisposed, Is.True);
+                Assert.That(host.ActiveReunionView, Is.Null);
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Assert.That(host.ActiveReunionView, Is.Not.Null);
+                Assert.That(host.ActiveReunionView, Is.Not.SameAs(oldView));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }

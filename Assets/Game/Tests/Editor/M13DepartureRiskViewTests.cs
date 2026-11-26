@@ -100,6 +100,125 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockBlocksPreparationSignalAndSafeDeparture()
+        {
+            var root = new GameObject("M13 safe departure input lock");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M13DepartureRiskView view = null;
+            try
+            {
+                var session = new M13DepartureRiskSession();
+                int saves = 0;
+                view = new M13DepartureRiskView(root.transform, session, route =>
+                {
+                    saves++;
+                    Assert.That(session.TryConfirmDeparture(route, read, write), Is.True);
+                });
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                Assert.That(view.CompletePrepButton.IsInteractable(), Is.False);
+                view.CompletePrepButton.onClick.Invoke();
+                view.AgreeThreeBellsButton.onClick.Invoke();
+                view.RouteAButton.onClick.Invoke();
+                Assert.That(session.SafetyPreparationComplete, Is.False);
+                Assert.That(session.ThreeBellReverseSignalAgreed, Is.False);
+                Assert.That(saves, Is.Zero);
+
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.CompletePrepButton.onClick.Invoke();
+                view.AgreeThreeBellsButton.onClick.Invoke();
+                view.RouteAButton.onClick.Invoke();
+                Assert.That(session.SafetyPreparationComplete, Is.False);
+                Assert.That(session.ThreeBellReverseSignalAgreed, Is.False);
+                Assert.That(saves, Is.Zero);
+
+                view.Panel.gameObject.SetActive(true);
+                view.CompletePrepButton.onClick.Invoke();
+                view.AgreeThreeBellsButton.onClick.Invoke();
+                Assert.That(session.SafetyPreparationComplete, Is.True);
+                Assert.That(session.ThreeBellReverseSignalAgreed, Is.True);
+
+                group.interactable = false;
+                view.RouteAButton.onClick.Invoke();
+                view.RouteBButton.onClick.Invoke();
+                view.RouteCButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                Assert.That(session.IsDeparted, Is.False);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.RouteBButton.onClick.Invoke();
+                view.RouteCButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+
+                view.Panel.gameObject.SetActive(true);
+                view.RouteBButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(session.ConfirmedRoute, Is.EqualTo(M13ApproachRoute.RouteBBellTowerAssault));
+                Assert.That(M13DepartureRiskFacts.TryReadDeparture(read, out M13DepartureRecord? saved), Is.True);
+                Assert.That(saved.Value.CanAyuanSufferHighRiskOutcome, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void EffectiveInputLockBlocksExplicitRiskConsentAndHighRiskDeparture()
+        {
+            var root = new GameObject("M13 high risk consent input lock");
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            M13DepartureRiskView view = null;
+            try
+            {
+                var session = new M13DepartureRiskSession();
+                int saves = 0;
+                view = new M13DepartureRiskView(root.transform, session, route =>
+                {
+                    saves++;
+                    Assert.That(session.TryConfirmDeparture(route, read, write), Is.True);
+                });
+                session.DeliverQiQueWarning();
+                view.Refresh();
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+                group.interactable = false;
+                view.AcceptRiskConsentButton.onClick.Invoke();
+                Assert.That(session.ExplicitHighRiskConsent, Is.False);
+                group.interactable = true;
+                view.Panel.gameObject.SetActive(false);
+                view.AcceptRiskConsentButton.onClick.Invoke();
+                Assert.That(session.ExplicitHighRiskConsent, Is.False);
+                view.Panel.gameObject.SetActive(true);
+                view.RouteCButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+
+                view.AcceptRiskConsentButton.onClick.Invoke();
+                Assert.That(session.ExplicitHighRiskConsent, Is.True);
+                group.interactable = false;
+                view.RouteCButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                Assert.That(session.IsDeparted, Is.False);
+                group.interactable = true;
+                view.RouteCButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(session.ConfirmedRoute, Is.EqualTo(M13ApproachRoute.RouteCOldCanalNightRun));
+                Assert.That(M13DepartureRiskFacts.TryReadDeparture(read, out M13DepartureRecord? saved), Is.True);
+                Assert.That(saved.Value.CanAyuanSufferHighRiskOutcome, Is.True);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void InterruptedDepartureSaveRetainsRouteButtonsForCleanRetry()
         {
             var root = new GameObject("M13 view retry");
