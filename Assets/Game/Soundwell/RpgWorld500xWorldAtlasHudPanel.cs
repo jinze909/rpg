@@ -6,9 +6,10 @@ using UnityEngine.UI;
 namespace Rpg.Soundwell
 {
     /// <summary>
-    /// Interactive UGUI World Atlas & Camp Haven panel bound to RpgWorld500xSceneBootstrapper.
-    /// Displays all four 500x regions' reputation/bounty status, clickable travel buttons
-    /// for directly connected regions, and a one-click Camp Rest & Auto-Save button.
+    /// Interactive UGUI World Atlas &amp; Camp Haven panel bound to RpgWorld500xSceneBootstrapper.
+    /// Displays all four 500x regions' reputation/bounty status, 4-region atlas summary and
+    /// multi-hop shortest-route preview, clickable travel buttons for directly connected
+    /// regions, and a one-click Camp Rest &amp; Auto-Save button.
     /// </summary>
     public sealed class RpgWorld500xWorldAtlasHudPanel : IDisposable
     {
@@ -24,12 +25,19 @@ namespace Rpg.Soundwell
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private readonly Dictionary<RpgWorldMapId, Button> _travelButtons = new Dictionary<RpgWorldMapId, Button>();
+        private RpgWorld500xWorldAtlasSummary _lastAtlasSummary;
         private RpgWorldMapId _displayedMapId;
         private bool _visible;
         private bool _disposed;
 
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
+        public RpgWorld500xWorldAtlasSummary LastAtlasSummary => _lastAtlasSummary;
+        public string AtlasSummaryText => _lastAtlasSummary.SummaryZh;
+        public int TotalClaimedBounties => _lastAtlasSummary.TotalClaimedBounties;
+        public int TotalBounties => _lastAtlasSummary.TotalBounties;
+        public int TotalReputationPoints => _lastAtlasSummary.TotalReputationPoints;
+        public RpgWorldMapId HighestReputationMap => _lastAtlasSummary.HighestReputationMap;
         public int DisplayedRegionRowCount => _spawnedRows.Count;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string StatusBannerText => _statusBannerText != null ? _statusBannerText.text : string.Empty;
@@ -129,6 +137,20 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TryPreviewShortestRouteTo(
+            RpgWorldMapId targetMap,
+            out RpgWorld500xRegionPathPlan plan)
+        {
+            plan = default;
+            if (IsDisposed || _bootstrapper.IsDisposed)
+            {
+                return false;
+            }
+
+            RpgWorldMapId currentMap = _bootstrapper.Driver.Facade.CurrentMapId;
+            return RpgWorld500xWorldAtlasPortalService.TryFindShortestRegionPath(currentMap, targetMap, out plan);
+        }
+
         public bool TryClickTravelTo(RpgWorldMapId targetMap)
         {
             if (!IsVisible || _bootstrapper.IsDisposed || RejectEncounterAction() ||
@@ -185,8 +207,8 @@ namespace Rpg.Soundwell
             RpgWorld500xAtmosphereSnapshot atmo = _bootstrapper.Driver.Facade.Atmosphere.GetSnapshot(currentMap);
             _headerText.text = "四境世界图册 · 第 " + atmo.DayCount + " 日 " + atmo.FormattedClock + " " + atmo.WeatherDisplayName;
 
-            List<RpgWorld500xRegionAtlasEntry> entries =
-                RpgWorld500xWorldAtlasPortalService.BuildWorldAtlasOverview(_bootstrapper.Store);
+            _lastAtlasSummary = RpgWorld500xWorldAtlasPortalService.BuildWorldAtlasSummary(_bootstrapper.Store);
+            IReadOnlyList<RpgWorld500xRegionAtlasEntry> entries = _lastAtlasSummary.Entries;
 
             const float rowHeight = 56f;
             const float rowSpacing = 8f;
