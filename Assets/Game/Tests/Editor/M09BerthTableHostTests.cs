@@ -334,6 +334,84 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SettlementEvidenceCannotSaveAfterClosingHost(bool closeDuringFee)
+        {
+            var root = new GameObject("M09 settlement evidence teardown");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            bool closeOnRead = false;
+            try
+            {
+                host = NewHost(root.transform, values,
+                    shenPresent: () => false,
+                    ruiya: () =>
+                    {
+                        if (closeOnRead && !closeDuringFee) host.Dispose();
+                        return M09RuiyaOutcome.Deferred;
+                    },
+                    shipwrightFeePaidInWorld: () =>
+                    {
+                        if (closeOnRead && closeDuringFee) host.Dispose();
+                        return true;
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                host.ActiveView.ShipwrightButton.onClick.Invoke();
+                Assert.That(host.Session.ShipwrightFeePaid, Is.True);
+                var button = host.ActiveView.SettleButton;
+                closeOnRead = true;
+
+                Assert.DoesNotThrow(() => button.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.HasRecordedTable, Is.False);
+                Assert.That(Reader(values)(M09BerthTableFacts.PendingSignatureKey), Is.Zero);
+                Assert.That(host.Session.IsSettled, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void OutcomeEvidenceChangingSceneRequiresFreshSettlement()
+        {
+            var root = new GameObject("M09 settlement scene change");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            bool inScene = true, leaveDuringRead = true;
+            try
+            {
+                host = NewHost(root.transform, values,
+                    inScene: () => inScene,
+                    ruiya: () =>
+                    {
+                        if (leaveDuringRead) inScene = false;
+                        return M09RuiyaOutcome.Deferred;
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                host.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.False);
+                Assert.That(Reader(values)(M09BerthTableFacts.PendingSignatureKey), Is.Zero);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                leaveDuringRead = false;
+                inScene = true;
+                host.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void DisposedHostNeverSavesFromFormerView()
         {
