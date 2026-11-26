@@ -64,15 +64,17 @@ namespace Rpg.Tests.Editor
                     ctrl.MenuRouter.ReadinessPanel.FormatProvisioningBreakdownForDestination(
                         RpgWorldMapId.MineCamp, preferSafestRoute: true));
 
-                // 3. Build live Expedition Digest -> includes 4-region weather bulletin (flagging GaleStorm) & world reputation overview.
+                // 3. Build live Expedition Digest -> includes 4-region weather bulletin, world reputation overview, and milestone summary.
                 RpgWorld500xExpeditionDigest digest = ctrl.BuildExpeditionDigest();
                 Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, digest.MapId);
                 Assert.GreaterOrEqual(digest.HazardousRegionCount, 1);
                 Assert.IsTrue(digest.WorldWeatherBulletinZh.Contains("【四境气象速报】"));
                 Assert.IsTrue(digest.WorldWeatherBulletinZh.Contains("高危预警"));
                 Assert.IsTrue(digest.WorldReputationSummaryZh.Contains("【四境声望总览】"));
+                Assert.IsTrue(digest.MilestoneSummaryZh.Contains("【远征里程碑】"));
                 Assert.IsTrue(digest.FormattedDigestZh.Contains("【四境气象速报】"));
                 Assert.IsTrue(digest.FormattedDigestZh.Contains("【四境声望总览】"));
+                Assert.IsTrue(digest.FormattedDigestZh.Contains("【远征里程碑】"));
 
                 ctrl.Shutdown();
                 Assert.AreEqual(0, hostGo.transform.childCount);
