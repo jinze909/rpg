@@ -107,6 +107,96 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AfternoonCallbackClosingHostCannotOpenEpilogue()
+        {
+            var root = new GameObject("M16 afternoon closes opening");
+            var values = new Dictionary<string, int>();
+            SeedM15(values);
+            M16EpilogueHost host = null;
+            try
+            {
+                host = new M16EpilogueHost(root.transform, () =>
+                {
+                    host.Dispose();
+                    return true;
+                }, () => true, () => M16RespectAgencyTone.RespectedOthersChoices,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsCompleted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void AfternoonCallbackClosingEpilogueCannotPersistStandingSpot()
+        {
+            AssertSceneCallbackClosingEpilogueCannotPersistStandingSpot(0);
+        }
+
+        [Test]
+        public void WillingnessCallbackClosingEpilogueCannotPersistStandingSpot()
+        {
+            AssertSceneCallbackClosingEpilogueCannotPersistStandingSpot(1);
+        }
+
+        [Test]
+        public void ClosingToneCallbackClosingEpilogueCannotPersistStandingSpot()
+        {
+            AssertSceneCallbackClosingEpilogueCannotPersistStandingSpot(2);
+        }
+
+        private static void AssertSceneCallbackClosingEpilogueCannotPersistStandingSpot(int closeCallback)
+        {
+            var root = new GameObject("M16 callback closes settlement");
+            var values = new Dictionary<string, int>();
+            SeedM15(values);
+            M16EpilogueHost host = null;
+            bool closeOnRead = false;
+            int writes = 0;
+            try
+            {
+                host = new M16EpilogueHost(root.transform, () =>
+                {
+                    if (closeOnRead && closeCallback == 0) host.Dispose();
+                    return true;
+                }, () =>
+                {
+                    if (closeOnRead && closeCallback == 1) host.Dispose();
+                    return true;
+                }, () =>
+                {
+                    if (closeOnRead && closeCallback == 2) host.Dispose();
+                    return M16RespectAgencyTone.RespectedOthersChoices;
+                }, Reader(values), (k, v) =>
+                {
+                    writes++;
+                    values[k] = v;
+                });
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.ProceedToDeskButton.onClick.Invoke();
+                view.StepOutsideButton.onClick.Invoke();
+                var button = view.PierButton;
+                closeOnRead = true;
+                Assert.DoesNotThrow(() => button.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(writes, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedParentFailsClosedOnTryOpenWithoutThrowing()
         {
             var root = new GameObject("M16 host parent destroy");

@@ -61,19 +61,29 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
 
-            if (disposed || parent == null || activeView != null || !atLinchaoAfternoon() ||
-                HasAnyPersistedFacts())
+            if (!CanOpenView() || !atLinchaoAfternoon() || !CanOpenView() ||
+                HasAnyPersistedFacts() || !CanOpenView())
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !CanOpenView())
                 return false;
 
             bool shenWilling = shenLiWillingToMeet();
+            if (!CanOpenView())
+                return false;
             M16RespectAgencyTone closingTone = resolveClosingTone();
-            if (!M16EpilogueSession.TryCreateFromSavedFacts(
+            if (!CanOpenView() ||
+                !M16EpilogueSession.TryCreateFromSavedFacts(
                     getInt, shenWilling, closingTone,
-                    out M16EpilogueSession created))
+                    out M16EpilogueSession created) ||
+                !CanOpenView() ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                !CanOpenView())
                 return false;
 
             session = created;
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             openedShenLiWillingToMeet = shenWilling;
             openedClosingTone = closingTone;
             activeView = new M16EpilogueView(
@@ -96,20 +106,43 @@ namespace Rpg.Soundwell
 
         private void HandleStandingSpotSubmitted(M16StandingSpot spot)
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
+            var submittingView = activeView;
+            var submittingSession = session;
+            if (!IsCurrentView(submittingView, submittingSession) ||
                 !atLinchaoAfternoon() ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
+                !IsCurrentView(submittingView, submittingSession) ||
                 shenLiWillingToMeet() != openedShenLiWillingToMeet ||
-                resolveClosingTone() != openedClosingTone)
+                !IsCurrentView(submittingView, submittingSession) ||
+                resolveClosingTone() != openedClosingTone ||
+                !IsCurrentView(submittingView, submittingSession))
                 return;
 
-            if (!session.TryChooseStandingSpotAndCommit(spot, getInt, setInt))
+            if (!submittingSession.TryChooseStandingSpotAndCommit(spot, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            if (activeView == submittingView)
+            {
+                submittingView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+        }
+
+        private bool CanOpenView() =>
+            !disposed && parent != null && activeView == null;
+
+        private bool IsOpenView(M16EpilogueView view, M16EpilogueSession expectedSession) =>
+            !disposed && parent != null && view != null && expectedSession != null &&
+            activeView == view && session == expectedSession && !view.IsDisposed;
+
+        private bool IsCurrentView(M16EpilogueView view, M16EpilogueSession expectedSession)
+        {
+            int? arrival = openedArrivalSequence;
+            if (!IsOpenView(view, expectedSession) || !arrival.HasValue)
+                return false;
+            int currentArrival = getInt(M05LandingFacts.ArrivalSequenceKey);
+            return IsOpenView(view, expectedSession) &&
+                openedArrivalSequence == arrival && currentArrival == arrival.Value;
         }
 
         public void Dispose()
