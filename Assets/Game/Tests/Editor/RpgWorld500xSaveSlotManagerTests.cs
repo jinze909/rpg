@@ -8,6 +8,78 @@ namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xSaveSlotManagerTests
     {
+
+        private sealed class RejectableStorage : IRpgWorld500xSaveSlotStorage
+        {
+            private readonly RpgWorld500xInMemorySaveSlotStorage _inner =
+                new RpgWorld500xInMemorySaveSlotStorage();
+            public bool RejectMutations;
+            public bool ThrowOnMutation;
+
+            public bool TryRead(string storageKey, out string payload) =>
+                _inner.TryRead(storageKey, out payload);
+
+            public void Write(string storageKey, string payload)
+            {
+                if (ThrowOnMutation) throw new InvalidOperationException("Storage unavailable");
+                if (!RejectMutations) _inner.Write(storageKey, payload);
+            }
+
+            public void Delete(string storageKey)
+            {
+                if (ThrowOnMutation) throw new InvalidOperationException("Storage unavailable");
+                if (!RejectMutations) _inner.Delete(storageKey);
+            }
+        }
+
+        [Test]
+        public void SaveCopyAndDelete_RequireStorageConfirmationAndPreserveOldCheckpointOnRejectedWrites()
+        {
+            var storage = new RejectableStorage();
+            var manager = new RpgWorld500xSaveSlotManager(storage);
+            const RpgWorld500xSaveSlotId oldSlot = RpgWorld500xSaveSlotId.Slot1;
+            const RpgWorld500xSaveSlotId newSlot = RpgWorld500xSaveSlotId.Slot2;
+            string oldKey = RpgWorld500xSaveSlotManager.GetStorageKey(oldSlot);
+
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(40);
+                Assert.IsTrue(manager.TrySaveSlot(boot, oldSlot, out _, out string error), error);
+                Assert.IsTrue(storage.TryRead(oldKey, out string original));
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(20);
+
+                storage.RejectMutations = true;
+                Assert.IsFalse(manager.TrySaveSlot(boot, oldSlot, out _, out error));
+                StringAssert.Contains("写入未确认", error);
+                Assert.IsFalse(manager.TryAutoSave(boot, out _, out error));
+                Assert.IsFalse(manager.TryCopySlot(oldSlot, newSlot, out error));
+                Assert.IsFalse(manager.DeleteSlot(oldSlot));
+                Assert.IsFalse(manager.InspectSlot(newSlot).IsOccupied);
+                Assert.IsTrue(storage.TryRead(oldKey, out string retained));
+                Assert.AreEqual(original, retained);
+                Assert.AreEqual(40, manager.InspectSlot(oldSlot).SaltSilverBalance);
+
+                storage.ThrowOnMutation = true;
+                Assert.IsFalse(manager.TrySaveSlot(boot, oldSlot, out _, out error));
+                StringAssert.Contains("失败", error);
+                Assert.IsFalse(manager.TryCopySlot(oldSlot, newSlot, out error));
+                Assert.IsFalse(manager.DeleteSlot(oldSlot));
+                Assert.AreEqual(40, manager.InspectSlot(oldSlot).SaltSilverBalance);
+
+                storage.ThrowOnMutation = false;
+                storage.RejectMutations = false;
+                Assert.IsTrue(manager.TrySaveSlot(boot, oldSlot, out var saved, out error), error);
+                Assert.AreEqual(60, saved.SaltSilverBalance);
+                Assert.IsTrue(manager.TryCopySlot(oldSlot, newSlot, out error), error);
+                Assert.AreEqual(60, manager.InspectSlot(newSlot).SaltSilverBalance);
+                Assert.IsTrue(manager.DeleteSlot(oldSlot));
+                Assert.IsFalse(manager.InspectSlot(oldSlot).IsOccupied);
+                Assert.AreEqual(60, manager.InspectSlot(newSlot).SaltSilverBalance);
+            }
+        }
+
         [Test]
         public void SaveSlots_RejectEncounterSnapshotsWithoutOverwritingCheckpoints()
         {
