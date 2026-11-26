@@ -114,10 +114,21 @@ namespace Rpg.Soundwell
 
         private bool IsCurrentView(M08DockTruthView expected)
         {
+            int? arrival = openedArrivalSequence;
+            if (!IsOpenView(expected) || !arrival.HasValue)
+                return false;
+
+            // Reading live voyage evidence can retire this host or its view.
+            // Compare against the snapshot, then recheck the same live view.
+            int currentArrival = getInt(M05LandingFacts.ArrivalSequenceKey);
+            return IsOpenView(expected) && openedArrivalSequence == arrival &&
+                currentArrival == arrival.Value;
+        }
+
+        private bool IsOpenView(M08DockTruthView expected)
+        {
             return !disposed && parent != null && expected != null &&
-                activeView == expected && !expected.IsDisposed &&
-                openedArrivalSequence.HasValue &&
-                getInt(M05LandingFacts.ArrivalSequenceKey) == openedArrivalSequence.Value;
+                activeView == expected && !expected.IsDisposed;
         }
 
         public void Dispose()

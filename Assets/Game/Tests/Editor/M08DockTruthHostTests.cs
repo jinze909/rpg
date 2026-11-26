@@ -416,6 +416,48 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ArrivalEvidenceCallbackClosingDockCannotPersistSelectedResponse()
+        {
+            var root = new GameObject("M08 arrival closes submission");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            M08DockTruthHost host = null;
+            bool closeOnArrivalRead = false;
+            int closedReads = 0;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () => true, key =>
+                {
+                    int value = read(key);
+                    if (closeOnArrivalRead && key == M05LandingFacts.ArrivalSequenceKey)
+                    {
+                        closedReads++;
+                        host.Dispose();
+                    }
+                    return value;
+                }, (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.HearButton.onClick.Invoke();
+                view.SecondResponseButton.onClick.Invoke();
+                closeOnArrivalRead = true;
+
+                Assert.DoesNotThrow(() => view.FinishButton.onClick.Invoke());
+                Assert.That(closedReads, Is.EqualTo(1));
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(read(M08DockTruthFacts.ShenRelationResponseKey), Is.Zero);
+                Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PartySplitBeforeSaveCannotWriteAndCorruptOrStaleFactsDoNotRead()
         {
             var root = new GameObject("M08 dock late party split");
