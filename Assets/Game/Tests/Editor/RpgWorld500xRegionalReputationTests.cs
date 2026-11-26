@@ -83,5 +83,32 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(0, sworn.PointsToNextRank);
             Assert.AreEqual(21, RpgWorld500xRegionalReputationService.ComputeDiscountedCost(30, sworn.Rank));
         }
+
+        [Test]
+        public void BuildWorldOverview_AggregatesFourRegionsBestDiscountAndPerMapCostHelper()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var service = new RpgWorld500xRegionalReputationService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => store[k] = v);
+
+            service.AddPoints(RpgWorldMapId.Soundwell, 160);          // Trusted (10%)
+            service.AddPoints(RpgWorldMapId.RedSaltHarbor, 760);      // Sworn (30%)
+
+            RpgWorld500xWorldReputationOverview overview = service.BuildWorldOverview();
+            Assert.AreEqual(4, overview.Snapshots.Count);
+            Assert.AreEqual(920, overview.TotalPoints);
+            Assert.AreEqual(1, overview.SwornRegionCount);
+            Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, overview.HighestStandingMapId);
+            Assert.AreEqual(30, overview.BestCampDiscountPercent);
+            Assert.IsTrue(overview.SummaryLineZh.Contains("【四境声望总览】"));
+            Assert.IsTrue(overview.SummaryLineZh.Contains("累计 920 点"));
+            Assert.IsTrue(overview.SummaryLineZh.Contains("生死托付 1/4 境"));
+            Assert.IsTrue(overview.SummaryLineZh.Contains("-30%"));
+
+            Assert.AreEqual(27, service.ComputeDiscountedCostForMap(RpgWorldMapId.Soundwell, 30));
+            Assert.AreEqual(21, service.ComputeDiscountedCostForMap(RpgWorldMapId.RedSaltHarbor, 30));
+            Assert.AreEqual(30, service.ComputeDiscountedCostForMap(RpgWorldMapId.MineCamp, 30));
+        }
     }
 }
