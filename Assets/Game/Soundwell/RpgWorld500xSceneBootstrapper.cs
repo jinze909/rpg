@@ -23,6 +23,15 @@ namespace Rpg.Soundwell
         public IReadOnlyDictionary<string, int> Store => _intStore;
         public bool IsDisposed => _disposed || _driver == null || !_driver.IsInitialized;
 
+        // Victory rewards use the same authoritative store as inventory and saves.
+        internal void WriteWorldRewardFact(string key, int value)
+        {
+            if (RpgWorld500xEnrichedContentAuditor.IsSafeWorldKey(key))
+            {
+                _intStore[key] = value;
+            }
+        }
+
         // Camp purchases and reputation must share the world wallet and save snapshot.
         internal RpgWorld500xCampHavenService CreateCampHavenService()
         {

@@ -234,6 +234,8 @@ namespace Rpg.Soundwell
         private readonly RpgWorldMapId _mapId;
         private readonly int _chunksWide;
         private readonly int _chunksHigh;
+        private readonly int _mapWidth;
+        private readonly int _mapHeight;
         private readonly Func<string, int> _getInt;
         private readonly Action<string, int> _setInt;
         private readonly Action<RpgWorld500xCartographyMilestone> _onMilestoneClaimed;
@@ -253,6 +255,8 @@ namespace Rpg.Soundwell
             Action<RpgWorld500xCartographyMilestone> onMilestoneClaimed = null)
         {
             _mapId = spec.MapId;
+            _mapWidth = spec.ExpandedWidth;
+            _mapHeight = spec.ExpandedHeight;
             _chunksWide = Math.Max(1, spec.ExpandedWidth / RpgLargeMapChunkRenderer.ChunkSizeTiles);
             _chunksHigh = Math.Max(1, spec.ExpandedHeight / RpgLargeMapChunkRenderer.ChunkSizeTiles);
             _getInt = getInt ?? (_ => 0);
@@ -265,7 +269,9 @@ namespace Rpg.Soundwell
         {
             enteredDistrict = default;
             if (float.IsNaN(playerTile.x) || float.IsInfinity(playerTile.x) ||
-                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y))
+                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y) ||
+                playerTile.x < 0f || playerTile.x >= _mapWidth ||
+                playerTile.y < 0f || playerTile.y >= _mapHeight)
             {
                 return false;
             }
@@ -273,24 +279,17 @@ namespace Rpg.Soundwell
             var tile = new Vector2Int(Mathf.FloorToInt(playerTile.x), Mathf.FloorToInt(playerTile.y));
             int centerCx = Mathf.Clamp(tile.x / RpgLargeMapChunkRenderer.ChunkSizeTiles, 0, _chunksWide - 1);
             int centerCy = Mathf.Clamp(tile.y / RpgLargeMapChunkRenderer.ChunkSizeTiles, 0, _chunksHigh - 1);
-            int radius = Math.Max(0, revealRadiusChunks);
+            // Bound work to the map, even for a malformed oversized reveal radius.
+            int radius = Mathf.Clamp(revealRadiusChunks, 0, Math.Max(_chunksWide, _chunksHigh));
+            int minCy = Math.Max(0, centerCy - radius);
+            int maxCy = Math.Min(_chunksHigh - 1, centerCy + radius);
+            int minCx = Math.Max(0, centerCx - radius);
+            int maxCx = Math.Min(_chunksWide - 1, centerCx + radius);
 
-            for (int dy = -radius; dy <= radius; dy++)
+            for (int cy = minCy; cy <= maxCy; cy++)
             {
-                int cy = centerCy + dy;
-                if (cy < 0 || cy >= _chunksHigh)
+                for (int cx = minCx; cx <= maxCx; cx++)
                 {
-                    continue;
-                }
-
-                for (int dx = -radius; dx <= radius; dx++)
-                {
-                    int cx = centerCx + dx;
-                    if (cx < 0 || cx >= _chunksWide)
-                    {
-                        continue;
-                    }
-
                     _visitedChunkIndices.Add((cy * _chunksWide) + cx);
                 }
             }

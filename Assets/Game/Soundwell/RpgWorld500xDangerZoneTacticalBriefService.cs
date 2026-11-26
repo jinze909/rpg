@@ -164,7 +164,7 @@ namespace Rpg.Soundwell
 
                 RpgWorld500xThreatProfileDef profile =
                     RpgWorld500xBestiaryCatalog.ResolveProfileForMarker(mapId, marker.Id);
-                bool isCleared = read(RpgWorld500xDangerVictoryRewardService.FirstClearKey(marker.Id)) == 1;
+                bool isCleared = RpgWorld500xDangerVictoryRewardService.IsFirstClearCompleted(marker.Id, read);
                 if (isCleared)
                 {
                     clearedCount++;

@@ -127,6 +127,57 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void UnreachableDestination_DoesNotQuoteOrSpendSupplies()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                var shop = facade.BountyAndSupply;
+                shop.AddSaltSilver(300);
+                int stock = shop.GetRemainingStock("gauze");
+                int owned = shop.GetOwnedSupplyCount("gauze");
+                var invalidMap = (RpgWorldMapId)255;
+
+                foreach (bool safest in new[] { false, true })
+                {
+                    var plan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                        boot, invalidMap, elapsedSeconds: 5f, preferSafestRoute: safest);
+                    Assert.IsFalse(plan.Itinerary.IsReachable);
+                    Assert.IsFalse(plan.CanAffordFullPlan);
+                    Assert.IsEmpty(plan.Lines);
+                    Assert.AreEqual(0, plan.TotalRequiredSaltSilver);
+                    StringAssert.Contains("不可达", plan.SummaryZh);
+                    StringAssert.Contains("不可达", RpgWorld500xCampProvisioningService.FormatPlanBreakdownZh(plan));
+
+                    foreach (bool partial in new[] { false, true })
+                    {
+                        var receipt = RpgWorld500xCampProvisioningService.ExecuteAutoProvisioning(
+                            boot, invalidMap, allowPartialIfUnderBudget: partial,
+                            elapsedSeconds: 5f, preferSafestRoute: safest);
+                        Assert.IsFalse(receipt.AlreadyPrepared);
+                        Assert.IsFalse(receipt.FullyProvisioned);
+                        Assert.AreEqual(0, receipt.TotalSpentSaltSilver);
+                        Assert.AreEqual(300, receipt.RemainingSaltSilver);
+                        Assert.AreEqual(receipt.BeforeScore, receipt.AfterScore);
+                        Assert.IsEmpty(receipt.PurchasedLines);
+                        StringAssert.Contains("不可达", receipt.SummaryZh);
+                    }
+                }
+
+                Assert.AreEqual(300, shop.SaltSilverBalance);
+                Assert.AreEqual(stock, shop.GetRemainingStock("gauze"));
+                Assert.AreEqual(owned, shop.GetOwnedSupplyCount("gauze"));
+                var valid = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
+                    boot, RpgWorldMapId.Soundwell, elapsedSeconds: 5f);
+                Assert.IsTrue(valid.Itinerary.IsReachable);
+                Assert.Greater(valid.TotalRequiredSaltSilver, 0);
+            }
+        }
+
+        [Test]
         public void BuildProvisioningPlan_WithPreferSafestRouteUsesSafestItineraryPlanner()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(

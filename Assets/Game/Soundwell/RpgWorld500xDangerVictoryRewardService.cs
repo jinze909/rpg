@@ -249,6 +249,8 @@ namespace Rpg.Soundwell
             Func<string, int> reader = getInt ??
                 (k => (bootstrapper.Store != null && bootstrapper.Store.TryGetValue(k, out int v)) ? v : 0);
 
+            Action<string, int> writer = setInt ?? bootstrapper.WriteWorldRewardFact;
+
             string clearKey = FirstClearKey(markerId);
             bool isFirstClear = !string.IsNullOrWhiteSpace(markerId) && reader(clearKey) == 0;
 
@@ -256,7 +258,7 @@ namespace Rpg.Soundwell
 
             if (isFirstClear && RpgWorld500xEnrichedContentAuditor.IsSafeWorldKey(clearKey))
             {
-                setInt?.Invoke(clearKey, 1);
+                writer(clearKey, 1);
             }
 
             RpgWorld500xFieldBountyAndSupplyService supplySvc = bootstrapper.Driver.Facade.BountyAndSupply;
@@ -268,7 +270,7 @@ namespace Rpg.Soundwell
                 if (owned < item.MaxStock)
                 {
                     int capped = Math.Min(item.MaxStock, owned + reward.BonusSupplyQuantity);
-                    setInt?.Invoke(item.OwnedCountKey, capped);
+                    writer(item.OwnedCountKey, capped);
                 }
             }
 
