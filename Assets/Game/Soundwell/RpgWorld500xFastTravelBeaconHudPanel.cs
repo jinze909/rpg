@@ -8,8 +8,9 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Interactive UGUI Intra-Map Fast-Travel Beacon Warp panel bound to
     /// RpgWorld500xSceneBootstrapper. Lists all fast-travel beacons on the active
-    /// 500x map with discovery status, direct-walk route &amp; DangerZone estimates
-    /// via RpgWorld500xFastTravelRoutePlanner, and one-click beacon warp.
+    /// 500x map with discovery status, beacon network coverage summary, nearest
+    /// discovered/undiscovered beacon readouts, direct-walk route &amp; DangerZone
+    /// estimates via RpgWorld500xFastTravelRoutePlanner, and one-click beacon warp.
     /// </summary>
     public sealed class RpgWorld500xFastTravelBeaconHudPanel : IDisposable
     {
@@ -23,14 +24,26 @@ namespace Rpg.Soundwell
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private readonly Dictionary<string, Button> _warpButtons =
             new Dictionary<string, Button>(StringComparer.Ordinal);
+        private RpgWorld500xBeaconNetworkSummary _lastNetworkSummary;
+        private string _nearestDiscoveredBeaconId = string.Empty;
+        private float _nearestDiscoveredBeaconDistanceTiles;
+        private string _nearestUndiscoveredBeaconId = string.Empty;
+        private float _nearestUndiscoveredBeaconDistanceTiles;
         private int _unlockedBeaconCount;
         private bool _visible;
         private bool _disposed;
 
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
+        public RpgWorld500xBeaconNetworkSummary LastNetworkSummary => _lastNetworkSummary;
+        public string NetworkSummaryText => _lastNetworkSummary.SummaryZh;
         public int DisplayedBeaconRowCount => _spawnedRows.Count;
         public int UnlockedBeaconCount => _unlockedBeaconCount;
+        public int TotalBeaconCount => _lastNetworkSummary.TotalBeaconCount;
+        public string NearestDiscoveredBeaconId => _nearestDiscoveredBeaconId;
+        public float NearestDiscoveredBeaconDistanceTiles => _nearestDiscoveredBeaconDistanceTiles;
+        public string NearestUndiscoveredBeaconId => _nearestUndiscoveredBeaconId;
+        public float NearestUndiscoveredBeaconDistanceTiles => _nearestUndiscoveredBeaconDistanceTiles;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string StatusText => _statusText != null ? _statusText.text : string.Empty;
 
@@ -145,7 +158,6 @@ namespace Rpg.Soundwell
             }
 
             ClearRows();
-            _unlockedBeaconCount = 0;
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
             RpgWorld500xExplorationHost host = facade.Session.Host;
@@ -162,6 +174,33 @@ namespace Rpg.Soundwell
                 _statusText.text = string.Empty;
             }
 
+            _lastNetworkSummary = RpgWorld500xFastTravelRoutePlanner.BuildBeaconNetworkSummary(mapId, tracker);
+            _unlockedBeaconCount = _lastNetworkSummary.DiscoveredBeaconCount;
+
+            if (RpgWorld500xFastTravelRoutePlanner.TryFindNearestDiscoveredBeacon(
+                mapId, playerPos, tracker, out RpgMapLandmarkMarker nearestDisc, out float discDist))
+            {
+                _nearestDiscoveredBeaconId = nearestDisc.Id;
+                _nearestDiscoveredBeaconDistanceTiles = discDist;
+            }
+            else
+            {
+                _nearestDiscoveredBeaconId = string.Empty;
+                _nearestDiscoveredBeaconDistanceTiles = 0f;
+            }
+
+            if (RpgWorld500xFastTravelRoutePlanner.TryFindNearestUndiscoveredBeacon(
+                mapId, playerPos, tracker, out RpgMapLandmarkMarker nearestUndisc, out float undiscDist))
+            {
+                _nearestUndiscoveredBeaconId = nearestUndisc.Id;
+                _nearestUndiscoveredBeaconDistanceTiles = undiscDist;
+            }
+            else
+            {
+                _nearestUndiscoveredBeaconId = string.Empty;
+                _nearestUndiscoveredBeaconDistanceTiles = 0f;
+            }
+
             IReadOnlyList<RpgMapLandmarkMarker> markers = RpgWorldLandmarkCatalog.GetMarkers(mapId);
             var beacons = new List<RpgMapLandmarkMarker>();
             for (int i = 0; i < markers.Count; i++)
@@ -169,15 +208,11 @@ namespace Rpg.Soundwell
                 if (markers[i].SupportsFastTravel)
                 {
                     beacons.Add(markers[i]);
-                    if (tracker.IsMarkerDiscovered(markers[i].Id))
-                    {
-                        _unlockedBeaconCount++;
-                    }
                 }
             }
 
             _headerText.text = host.Layout.Spec.DisplayNameZh + " · 区域信标快速传送（已点亮 " +
-                               _unlockedBeaconCount + "/" + beacons.Count + "）";
+                               _unlockedBeaconCount + "/" + _lastNetworkSummary.TotalBeaconCount + "）";
 
             const float rowHeight = 46f;
             const float spacing = 6f;
