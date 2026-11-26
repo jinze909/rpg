@@ -7,9 +7,10 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Interactive UGUI Campfire Journal &amp; Expedition Digest modal panel bound to
     /// RpgWorld500xSceneBootstrapper and RpgWorld500xCampfireJournalDigestService.
-    /// Displays live map/district context, weather risk severity banner, faction standing,
-    /// Salt-Silver &amp; supply summary, map/global completion, active supply buffs, and
-    /// prioritized next-objective guidance with zero-leak lifecycle.
+    /// Displays live map/district context, weather risk severity banner, 4-region
+    /// weather/reputation/milestone summary accessors, faction standing, Salt-Silver
+    /// &amp; supply summary, map/global completion, active supply buffs, and prioritized
+    /// next-objective guidance with zero-leak lifecycle.
     /// </summary>
     public sealed class RpgWorld500xExpeditionDigestHudPanel : IDisposable
     {
@@ -33,6 +34,10 @@ namespace Rpg.Soundwell
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xExpeditionDigest LastDigest => _lastDigest;
+        public int HazardousRegionCount => _lastDigest.HazardousRegionCount;
+        public string WorldWeatherBulletinText => _lastDigest.WorldWeatherBulletinZh ?? string.Empty;
+        public string WorldReputationSummaryText => _lastDigest.WorldReputationSummaryZh ?? string.Empty;
+        public string MilestoneSummaryText => _lastDigest.MilestoneSummaryZh ?? string.Empty;
         public float LastElapsedSeconds => _lastElapsedSeconds;
         public int RefreshCount => _refreshCount;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
@@ -58,36 +63,39 @@ namespace Rpg.Soundwell
             var canvas = _rootObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 72;
+            canvas.pixelPerfect = true;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280f, 720f);
+            // Use the native 960x540 acceptance frame as the design size; avoid
+            // rendering CJK text at fractional sub-12-pixel glyph sizes there.
+            scaler.referenceResolution = new Vector2(960f, 540f);
 
             GameObject modal = CreateBox(
                 _rootObject.transform,
                 "DigestModalBox",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(760f, 480f),
+                Vector2.zero, new Vector2(900f, 510f),
                 new Color(0.08f, 0.09f, 0.12f, 0.96f));
 
             _headerText = CreateText(
                 modal.transform,
                 "HeaderLabel",
-                new Vector2(0.04f, 0.88f), new Vector2(0.96f, 0.96f),
-                _font, 16, TextAnchor.MiddleLeft,
+                new Vector2(0.04f, 0.90f), new Vector2(0.96f, 0.97f),
+                _font, 20, TextAnchor.MiddleLeft,
                 new Color(0.97f, 0.89f, 0.62f, 1f));
 
             _statusRibbonText = CreateText(
                 modal.transform,
                 "StatusRibbonLabel",
-                new Vector2(0.04f, 0.80f), new Vector2(0.96f, 0.87f),
-                _font, 12, TextAnchor.MiddleLeft,
+                new Vector2(0.04f, 0.82f), new Vector2(0.96f, 0.89f),
+                _font, 16, TextAnchor.MiddleLeft,
                 new Color(0.84f, 0.92f, 0.96f, 1f));
 
             GameObject riskBox = CreateBox(
                 modal.transform,
                 "RiskBannerBox",
-                new Vector2(0.04f, 0.69f), new Vector2(0.96f, 0.78f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.04f, 0.72f), new Vector2(0.96f, 0.81f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, Vector2.zero,
                 new Color(0.14f, 0.28f, 0.20f, 0.92f));
             var riskRect = riskBox.GetComponent<RectTransform>();
@@ -99,13 +107,13 @@ namespace Rpg.Soundwell
                 riskBox.transform,
                 "RiskBannerLabel",
                 new Vector2(0.03f, 0.08f), new Vector2(0.97f, 0.92f),
-                _font, 13, TextAnchor.MiddleLeft,
+                _font, 16, TextAnchor.MiddleLeft,
                 Color.white);
 
             GameObject bodyBox = CreateBox(
                 modal.transform,
                 "DigestBodyBox",
-                new Vector2(0.04f, 0.18f), new Vector2(0.96f, 0.66f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.04f, 0.145f), new Vector2(0.96f, 0.71f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, Vector2.zero,
                 new Color(0.11f, 0.13f, 0.17f, 0.92f));
             var bodyRect = bodyBox.GetComponent<RectTransform>();
@@ -115,14 +123,14 @@ namespace Rpg.Soundwell
             _digestBodyText = CreateText(
                 bodyBox.transform,
                 "DigestBodyLabel",
-                new Vector2(0.03f, 0.05f), new Vector2(0.97f, 0.95f),
-                _font, 13, TextAnchor.UpperLeft,
+                new Vector2(0.025f, 0.035f), new Vector2(0.975f, 0.965f),
+                _font, 16, TextAnchor.UpperLeft,
                 new Color(0.94f, 0.95f, 0.97f, 1f));
 
             _refreshButton = CreateActionButton(
                 modal.transform,
                 "RefreshDigestButton",
-                new Vector2(0.04f, 0.05f), new Vector2(0.48f, 0.14f),
+                new Vector2(0.04f, 0.025f), new Vector2(0.48f, 0.125f),
                 "刷新营火手记",
                 _font,
                 () =>
@@ -138,7 +146,7 @@ namespace Rpg.Soundwell
             _closeButton = CreateActionButton(
                 modal.transform,
                 "CloseDigestButton",
-                new Vector2(0.52f, 0.05f), new Vector2(0.96f, 0.14f),
+                new Vector2(0.52f, 0.025f), new Vector2(0.96f, 0.125f),
                 "合上手记",
                 _font,
                 () =>
@@ -206,7 +214,8 @@ namespace Rpg.Soundwell
             _riskBannerText.text = ResolveRiskLabelZh(_lastDigest.TravelRiskLevel) +
                                    "｜本图堪舆 " + _lastDigest.ActiveMapCompletionPercent + "%" +
                                    "｜四境总进度 " + _lastDigest.GlobalWorldCompletionPercent + "%" +
-                                   "｜待领里程碑 " + _lastDigest.ClaimableMilestoneCount + " 项";
+                                   "｜待领里程碑 " + _lastDigest.ClaimableMilestoneCount + " 项" +
+                                   "｜高危区域 " + _lastDigest.HazardousRegionCount + " 境";
 
             _digestBodyText.text = _lastDigest.FormattedDigestZh;
         }
@@ -323,6 +332,7 @@ namespace Rpg.Soundwell
             text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = color;
+            text.raycastTarget = false;
             return text;
         }
 
@@ -355,7 +365,7 @@ namespace Rpg.Soundwell
                 go.transform,
                 "Text",
                 Vector2.zero, Vector2.one,
-                font, 13, TextAnchor.MiddleCenter,
+                font, 16, TextAnchor.MiddleCenter,
                 Color.white);
             txt.text = label;
             return btn;
@@ -363,10 +373,14 @@ namespace Rpg.Soundwell
 
         private static Font ResolveUiFont()
         {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
+            // This panel presents Chinese text regardless of the story UI language.
+            // Use the same pinned OFL font as Soundwell localization rather than
+            // the Latin-only builtin font (blank CJK glyphs in CI GameView).
+            Font font = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+            if (font == null || !font.HasCharacter('远') ||
+                !font.HasCharacter('险') || !font.HasCharacter('境'))
             {
-                font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                throw new InvalidOperationException("The pinned Chinese font is missing or lacks expedition digest glyphs.");
             }
 
             return font;
