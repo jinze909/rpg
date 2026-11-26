@@ -65,9 +65,6 @@ namespace Rpg.Soundwell
                 resolutionView = null;
                 approachConfirmed = false;
             }
-            if (listeningView == null && resolutionView == null)
-                openedArrivalSequence = null;
-
             if (disposed || parent == null || listeningView != null || resolutionView != null ||
                 getInt(RC04DingYueReefFacts.ConfirmedKey) != 0 ||
                 getInt(RC04DingYueReefFacts.PendingSignatureKey) != 0 ||
@@ -82,8 +79,15 @@ namespace Rpg.Soundwell
                 !available)
                 return false;
 
-            session = session ?? new RC04DingYueReefSession();
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            // Reopening a retired view may resume the same arrival, but
+            // its listening and preparation cannot prove a different voyage.
+            int arrival = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (session == null || openedArrivalSequence != arrival)
+            {
+                session = new RC04DingYueReefSession();
+                approachConfirmed = false;
+            }
+            openedArrivalSequence = arrival;
             listeningView = new RC04ReefListeningView(
                 parent, session, HandleApproachRequested);
             return true;
