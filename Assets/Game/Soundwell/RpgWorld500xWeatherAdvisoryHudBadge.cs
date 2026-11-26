@@ -107,11 +107,32 @@ namespace Rpg.Soundwell
             }
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
-            RpgWorld500xAtmosphereSnapshot snap = facade.Atmosphere.GetSnapshot(facade.CurrentMapId);
-            RpgWorld500xTravelAdvisoryReport report =
-                RpgWorld500xWeatherTravelAdvisoryService.BuildAdvisory(snap, elapsedSeconds);
             _lastWorldDigest =
                 RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(facade.Atmosphere, elapsedSeconds);
+
+            // Refresh runs every input frame. Reuse the current region's report
+            // rather than rebuilding its snapshot, advisory text and ambient windows.
+            RpgWorld500xTravelAdvisoryReport report = default;
+            bool foundCurrentRegion = false;
+            for (int i = 0; i < _lastWorldDigest.RegionReports.Count; i++)
+            {
+                RpgWorld500xTravelAdvisoryReport candidate = _lastWorldDigest.RegionReports[i];
+                if (candidate.MapId != facade.CurrentMapId)
+                {
+                    continue;
+                }
+
+                report = candidate;
+                foundCurrentRegion = true;
+                break;
+            }
+
+            // Preserve the original behavior if a future map is outside the digest.
+            if (!foundCurrentRegion)
+            {
+                report = RpgWorld500xWeatherTravelAdvisoryService.BuildAdvisory(
+                    facade.Atmosphere.GetSnapshot(facade.CurrentMapId), elapsedSeconds);
+            }
 
             _lastRiskLevel = report.RiskLevel;
             _lastRecommendCampfireRest = report.RecommendCampfireRest;
