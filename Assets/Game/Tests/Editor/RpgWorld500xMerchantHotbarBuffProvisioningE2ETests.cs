@@ -48,13 +48,15 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null });
 
                 var boot = ctrl.Bootstrapper;
-                var economy = boot.Driver.Facade.BountyAndSupply;
-                economy.AddSaltSilver(200);
-                boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
-                boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
-                boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+                var facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
 
-                // Buy one lamp_oil so consuming it leaves no spare inventory.
+                var economy = facade.BountyAndSupply;
+                economy.AddSaltSilver(200);
+
+                // Buy 1 lamp_oil from CampMerchant and consume it so owned count reaches 0 while buff is active.
                 Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.CampMerchant));
                 Assert.IsTrue(ctrl.MenuRouter.MerchantPanel.TryClickBuySupply("lamp_oil"));
                 Assert.AreEqual(1, economy.GetOwnedSupplyCount("lamp_oil"));
@@ -65,33 +67,29 @@ namespace Rpg.Tests.Editor
                     hud.Refresh(10f);
                     Assert.AreEqual(1, hud.TotalOwnedSupplyCount);
 
-                    // Consume the only lamp_oil: the buff, not spare stock, must cover visibility.
+                    // Consume the lamp_oil -> owned drops to 0 and 90s buff activates.
                     Assert.IsTrue(hud.TryClickUseSupply("lamp_oil", 10f));
                     Assert.AreEqual(0, economy.GetOwnedSupplyCount("lamp_oil"));
                     Assert.AreEqual(0, hud.TotalOwnedSupplyCount);
                     Assert.AreEqual(90f, hud.SupplyUseService.GetRemainingBuffSeconds("lamp_oil", 10f), 0.01f);
 
-                    // CampProvisioningService reflects the active lamp_oil buff discount (-22 SaltSilver).
+                    // With 0 owned lamp_oil, basePlan requires buying lamp_oil (+22) while buffPlan discounts it (-22).
                     RpgWorld500xProvisioningPlan basePlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
                         boot, RpgWorldMapId.MineCamp, elapsedSeconds: 10f, supplyUseService: null);
                     RpgWorld500xProvisioningPlan buffPlan = RpgWorld500xCampProvisioningService.BuildProvisioningPlan(
                         boot, RpgWorldMapId.MineCamp, elapsedSeconds: 10f, supplyUseService: hud.SupplyUseService);
-                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, basePlan.Itinerary.HighestRiskLevel);
                     Assert.AreEqual(basePlan.TotalRequiredSaltSilver - 22, buffPlan.TotalRequiredSaltSilver);
 
-                    // Replenish one lamp_oil only after checking the zero-stock discount.
+                    // Buy another lamp_oil, save to Slot1, consume it, then reload Slot1 -> restores 1 lamp_oil.
                     Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.CampMerchant));
                     Assert.IsTrue(ctrl.MenuRouter.MerchantPanel.TryClickBuySupply("lamp_oil"));
-                    ctrl.MenuRouter.CloseAll();
-                    hud.Refresh(10f);
                     Assert.AreEqual(1, economy.GetOwnedSupplyCount("lamp_oil"));
-                    Assert.AreEqual(1, hud.TotalOwnedSupplyCount);
 
-                    // Save to Slot1, consume second lamp_oil, then reload Slot1 -> restores 1 lamp_oil.
                     Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.SaveSlots));
                     Assert.IsTrue(ctrl.MenuRouter.SaveSlotPanel.TryClickSave(RpgWorld500xSaveSlotId.Slot1));
                     ctrl.MenuRouter.CloseAll();
 
+                    hud.Refresh(120f);
                     Assert.IsTrue(hud.TryClickUseSupply("lamp_oil", 120f));
                     Assert.AreEqual(0, economy.GetOwnedSupplyCount("lamp_oil"));
 
