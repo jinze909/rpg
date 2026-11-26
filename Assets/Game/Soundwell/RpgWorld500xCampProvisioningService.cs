@@ -361,6 +361,7 @@ namespace Rpg.Soundwell
             var purchased = new List<RpgWorld500xProvisioningLine>(plan.Lines.Count);
             var skipped = new List<string>();
             long spent = 0;
+            bool purchaseUnconfirmed = false;
 
             for (int i = 0; i < plan.Lines.Count; i++)
             {
@@ -370,16 +371,32 @@ namespace Rpg.Soundwell
                     ? Math.Min(line.Quantity, remainingBudget / line.UnitCostSaltSilver)
                     : 0;
 
-                if (affordableQty > 0 &&
-                    shop.TryPurchaseSupply(line.ItemId, affordableQty) == RpgCampSupplyPurchaseStatus.Succeeded)
+                int confirmedQty = 0;
+                if (affordableQty > 0)
                 {
-                    var bought = new RpgWorld500xProvisioningLine(
-                        line.ItemId, line.DisplayNameZh, affordableQty, line.UnitCostSaltSilver);
-                    purchased.Add(bought);
-                    spent += bought.SubtotalSaltSilver;
+                    int balanceBefore = shop.SaltSilverBalance;
+                    int ownedBefore = shop.GetOwnedSupplyCount(line.ItemId);
+                    RpgCampSupplyPurchaseStatus status = shop.TryPurchaseSupply(line.ItemId, affordableQty);
+                    int actualDebit = Math.Max(0, balanceBefore - shop.SaltSilverBalance);
+                    spent += actualDebit;
+
+                    // A requested quantity is not a receipt. Confirm both live values,
+                    // including when a persistence callback silently rejects a write.
+                    if (status == RpgCampSupplyPurchaseStatus.Succeeded &&
+                        (long)shop.GetOwnedSupplyCount(line.ItemId) - ownedBefore == affordableQty &&
+                        actualDebit == (long)line.UnitCostSaltSilver * affordableQty)
+                    {
+                        confirmedQty = affordableQty;
+                        purchased.Add(new RpgWorld500xProvisioningLine(
+                            line.ItemId, line.DisplayNameZh, confirmedQty, line.UnitCostSaltSilver));
+                    }
+                    else
+                    {
+                        purchaseUnconfirmed = true;
+                    }
                 }
 
-                if (affordableQty < line.Quantity)
+                if (confirmedQty < line.Quantity)
                 {
                     skipped.Add(line.ItemId);
                 }
@@ -392,7 +409,7 @@ namespace Rpg.Soundwell
             bool fullyProvisioned = skipped.Count == 0;
             int clampedSpent = (int)Math.Min(int.MaxValue, spent);
             string summary = "【一键整备】" +
-                (fullyProvisioned ? "全额备齐" : "按预算部分备齐") +
+                (fullyProvisioned ? "全额备齐" : purchaseUnconfirmed ? "采购未完整确认" : "按预算部分备齐") +
                 "｜支出 " + clampedSpent + " 盐银，结余 " + shop.SaltSilverBalance +
                 "｜整备评分 " + plan.ReadinessBefore.Score + " → " + readinessAfter.Score +
                 "（" + readinessAfter.GradeLabelZh + "）。";
