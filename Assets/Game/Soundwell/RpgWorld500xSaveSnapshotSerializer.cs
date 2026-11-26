@@ -170,6 +170,37 @@ namespace Rpg.Soundwell
                 return false;
             }
 
+            // Canonical captures contain at most one entry per key in each
+            // store. Reject ambiguous payloads instead of silently restoring
+            // the last duplicate value, even when the checksum is valid.
+            var seenInts = new HashSet<string>(StringComparer.Ordinal);
+            if (parsed.worldIntFlags != null)
+            {
+                foreach (RpgWorld500xIntKeyEntry entry in parsed.worldIntFlags)
+                {
+                    if (RpgWorld500xEnrichedContentAuditor.IsSafeWorldKey(entry.key) &&
+                        !seenInts.Add(entry.key))
+                    {
+                        error = "Duplicate world integer key: " + entry.key;
+                        return false;
+                    }
+                }
+            }
+
+            var seenAtmosphere = new HashSet<string>(StringComparer.Ordinal);
+            if (parsed.atmosphereState != null)
+            {
+                foreach (RpgWorld500xStringKeyEntry entry in parsed.atmosphereState)
+                {
+                    if (RpgWorld500xEnrichedContentAuditor.IsSafeWorldKey(entry.key) &&
+                        !seenAtmosphere.Add(entry.key))
+                    {
+                        error = "Duplicate atmosphere key: " + entry.key;
+                        return false;
+                    }
+                }
+            }
+
             snapshot = parsed;
             return true;
         }

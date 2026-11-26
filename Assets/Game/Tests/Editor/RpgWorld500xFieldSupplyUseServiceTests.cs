@@ -58,6 +58,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TryConsumeSupply_RequiresConfirmedDebitBeforeHealingOrTimedEffects()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            Action<string, int> write = (k, v) => store[k] = v;
+            var shop = new RpgWorld500xFieldBountyAndSupplyService(read, write);
+            shop.AddSaltSilver(300);
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("gauze", 1));
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 2));
+
+            int healed = 0;
+            var readOnly = new RpgWorld500xFieldSupplyUseService(
+                getInt: read, onPartyHealPercent: (_, pct) => healed += pct);
+            var rejected = readOnly.TryConsumeSupply("gauze", 10f);
+            Assert.AreEqual(RpgFieldSupplyUseStatus.InventoryWriteFailed, rejected.Status);
+            Assert.IsFalse(rejected.Succeeded);
+            Assert.AreEqual(1, rejected.RemainingOwnedCount);
+            Assert.AreEqual(0, rejected.PartyHealPercent);
+            Assert.AreEqual(0, healed);
+            Assert.AreEqual(1, shop.GetOwnedSupplyCount("gauze"));
+
+            bool allowWrites = true;
+            var service = new RpgWorld500xFieldSupplyUseService(read,
+                (k, v) => { if (allowWrites) write(k, v); });
+            Assert.IsTrue(service.TryConsumeSupply("lamp_oil", 10f).Succeeded);
+            allowWrites = false;
+            var rejectedBuff = service.TryConsumeSupply("lamp_oil", 20f);
+            Assert.AreEqual(RpgFieldSupplyUseStatus.InventoryWriteFailed, rejectedBuff.Status);
+            Assert.AreEqual(1, rejectedBuff.RemainingOwnedCount);
+            Assert.AreEqual(0f, rejectedBuff.BuffDurationSeconds);
+            Assert.AreEqual(80f, service.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
+            Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+
+            allowWrites = true;
+            Assert.IsTrue(service.TryConsumeSupply("lamp_oil", 20f).Succeeded);
+            Assert.AreEqual(0, shop.GetOwnedSupplyCount("lamp_oil"));
+            Assert.AreEqual(170f, service.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
+        }
+
+        [Test]
         public void BuildInventorySnapshotAndHasUsableSupply_AreReadOnlyAndTrackStockAndBuffs()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
