@@ -32,6 +32,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BuildSupplyRestockQuoteAndMaxAffordable_AreReadOnlyAndHandleReputationAndOverflow()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var haven = new RpgWorld500xCampHavenService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => store[k] = v);
+
+            haven.Reputation.AddPoints(RpgWorldMapId.RedSaltHarbor, 800);
+            store[RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey] = 50;
+
+            Assert.AreEqual(2, haven.GetMaxAffordableDiscountedQuantity(RpgWorldMapId.RedSaltHarbor, "flare"));
+            Assert.AreEqual(0, haven.GetMaxAffordableDiscountedQuantity(RpgWorldMapId.RedSaltHarbor, "unknown_item"));
+
+            RpgWorld500xCampSupplyQuote okQuote = haven.BuildSupplyRestockQuote(RpgWorldMapId.RedSaltHarbor, "flare", 2);
+            Assert.IsTrue(okQuote.IsValidItem);
+            Assert.AreEqual("flare", okQuote.ItemId);
+            Assert.AreEqual(30, okQuote.BaseUnitCost);
+            Assert.AreEqual(21, okQuote.DiscountedUnitCost);
+            Assert.AreEqual(9, okQuote.UnitSavings);
+            Assert.AreEqual(30, okQuote.DiscountPercent);
+            Assert.AreEqual(2, okQuote.MaxAffordableQuantity);
+            Assert.AreEqual(42, okQuote.TotalDiscountedCost);
+            Assert.IsTrue(okQuote.CanFulfillRequested);
+            Assert.That(okQuote.SummaryZh, Does.Contain("【营地补给报价】"));
+
+            RpgWorld500xCampSupplyQuote tooManyQuote = haven.BuildSupplyRestockQuote(RpgWorldMapId.RedSaltHarbor, "flare", 3);
+            Assert.IsTrue(tooManyQuote.IsValidItem);
+            Assert.AreEqual(63, tooManyQuote.TotalDiscountedCost);
+            Assert.IsFalse(tooManyQuote.CanFulfillRequested);
+
+            RpgWorld500xCampSupplyQuote overflowQuote = haven.BuildSupplyRestockQuote(RpgWorldMapId.RedSaltHarbor, "flare", int.MaxValue);
+            Assert.IsTrue(overflowQuote.IsValidItem);
+            Assert.AreEqual(int.MaxValue, overflowQuote.TotalDiscountedCost);
+            Assert.IsFalse(overflowQuote.CanFulfillRequested);
+
+            RpgWorld500xCampSupplyQuote invalidQuote = haven.BuildSupplyRestockQuote(RpgWorldMapId.RedSaltHarbor, "nonexistent", 1);
+            Assert.IsFalse(invalidQuote.IsValidItem);
+            Assert.IsFalse(invalidQuote.CanFulfillRequested);
+            Assert.That(invalidQuote.SummaryZh, Does.Contain("未知补给项"));
+
+            // Strictly read-only: wallet Salt-Silver remains untouched.
+            Assert.AreEqual(50, store[RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey]);
+        }
+
+        [Test]
         public void PlanRouteFromCurrentPosition_RespectsEncounterLockAndRestoresBeaconAfterVictory()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(
