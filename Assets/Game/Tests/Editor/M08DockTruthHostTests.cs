@@ -355,6 +355,109 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PresenceCallbackClosingHostCannotOpenDockDialogue()
+        {
+            var root = new GameObject("M08 presence closes opening");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            M08DockTruthHost host = null;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () =>
+                {
+                    host.Dispose();
+                    return true;
+                }, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.HasRecordedResponse, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void PresenceCallbackClosingDockCannotPersistSelectedResponse()
+        {
+            var root = new GameObject("M08 presence closes submission");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            M08DockTruthHost host = null;
+            bool closeOnRead = false;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () =>
+                {
+                    if (closeOnRead) host.Dispose();
+                    return true;
+                }, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.HearButton.onClick.Invoke();
+                view.SecondResponseButton.onClick.Invoke();
+                var finish = view.FinishButton;
+                closeOnRead = true;
+                Assert.DoesNotThrow(() => finish.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.HasRecordedResponse, Is.False);
+                Assert.That(Reader(values)(M08DockTruthFacts.ShenRelationResponseKey), Is.Zero);
+                Assert.That(Reader(values)(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ArrivalEvidenceCallbackClosingDockCannotPersistSelectedResponse()
+        {
+            var root = new GameObject("M08 arrival closes submission");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            M08DockTruthHost host = null;
+            bool closeOnArrivalRead = false;
+            int closedReads = 0;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () => true, key =>
+                {
+                    int value = read(key);
+                    if (closeOnArrivalRead && key == M05LandingFacts.ArrivalSequenceKey)
+                    {
+                        closedReads++;
+                        host.Dispose();
+                    }
+                    return value;
+                }, (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.HearButton.onClick.Invoke();
+                view.SecondResponseButton.onClick.Invoke();
+                closeOnArrivalRead = true;
+
+                Assert.DoesNotThrow(() => view.FinishButton.onClick.Invoke());
+                Assert.That(closedReads, Is.EqualTo(1));
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(read(M08DockTruthFacts.ShenRelationResponseKey), Is.Zero);
+                Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PartySplitBeforeSaveCannotWriteAndCorruptOrStaleFactsDoNotRead()
         {
             var root = new GameObject("M08 dock late party split");

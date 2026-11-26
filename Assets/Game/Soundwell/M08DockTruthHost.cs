@@ -49,7 +49,7 @@ namespace Rpg.Soundwell
             }
 
             if (disposed || parent == null || activeView != null ||
-                !shenLiPresent() ||
+                !shenLiPresent() || disposed || parent == null || activeView != null ||
                 // Refuse a damaged or torn record until the voyage is
                 // explicitly reset, rather than allowing contradictory edits.
                 getInt(M08DockTruthFacts.ConfirmedKey) != 0 ||
@@ -63,6 +63,8 @@ namespace Rpg.Soundwell
             int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
             if (arrivalSequence < 0)
                 return false;
+            if (disposed || parent == null || activeView != null)
+                return false;
             openedArrivalSequence = arrivalSequence;
             var session = new M08DockTruthSession(
                 shenLiPresent: true, firstWinchConfirmed: true);
@@ -74,12 +76,11 @@ namespace Rpg.Soundwell
         {
             // Presence and prior commission are checked again at commit time.
             // A party split mid-conversation never grants dialogue credit.
-            if (disposed || activeView == null || activeView.IsDisposed ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
-                !shenLiPresent() ||
+            var submittingView = activeView;
+            if (!IsCurrentView(submittingView) ||
+                !shenLiPresent() || !IsCurrentView(submittingView) ||
                 !M08WorkshopDepositFacts.TryRead(getInt, out bool completed) ||
-                !completed)
+                !completed || !IsCurrentView(submittingView))
                 return false;
 
             if (!M08DockTruthFacts.TryRead(getInt,
@@ -91,7 +92,7 @@ namespace Rpg.Soundwell
                 if (existing.Value != response)
                     return false;
             }
-            else if (!M08DockTruthFacts.TryRecord(
+            else if (!IsCurrentView(submittingView) || !M08DockTruthFacts.TryRecord(
                 response, shenLiPresent: true, getInt, setInt))
                 return false;
 
@@ -102,10 +103,32 @@ namespace Rpg.Soundwell
                 persisted != response)
                 return false;
 
-            activeView?.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            if (activeView == submittingView)
+            {
+                submittingView.Dispose();
+                activeView = null;
+                openedArrivalSequence = null;
+            }
             return true;
+        }
+
+        private bool IsCurrentView(M08DockTruthView expected)
+        {
+            int? arrival = openedArrivalSequence;
+            if (!IsOpenView(expected) || !arrival.HasValue)
+                return false;
+
+            // Reading live voyage evidence can retire this host or its view.
+            // Compare against the snapshot, then recheck the same live view.
+            int currentArrival = getInt(M05LandingFacts.ArrivalSequenceKey);
+            return IsOpenView(expected) && openedArrivalSequence == arrival &&
+                currentArrival == arrival.Value;
+        }
+
+        private bool IsOpenView(M08DockTruthView expected)
+        {
+            return !disposed && parent != null && expected != null &&
+                activeView == expected && !expected.IsDisposed;
         }
 
         public void Dispose()
