@@ -174,6 +174,51 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PartialPersistence_ReconcilesMissingAndInvalidRegionalWeatherBeforeFirstTick()
+        {
+            var restored = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 480f, initialDay: 1);
+            restored.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.AshHaze);
+            restored.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.RainDrizzle);
+            var state = new Dictionary<string, string>
+            {
+                [RpgWorld500xWeatherAndTimeOfDayService.DayCountKey] = "5",
+                [RpgWorld500xWeatherAndTimeOfDayService.TimeMinutesKey] = "1125",
+                [RpgWorld500xWeatherAndTimeOfDayService.GetWeatherKey(RpgWorldMapId.RedSaltHarbor)] = "999",
+                [RpgWorld500xWeatherAndTimeOfDayService.GetWeatherKey(RpgWorldMapId.WhitewaterCrossing)] = "not-weather",
+                [RpgWorld500xWeatherAndTimeOfDayService.GetWeatherKey(RpgWorldMapId.MineCamp)] = "RainDrizzle"
+            };
+
+            restored.ImportPersistenceState(state);
+            var expected = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 1125f, initialDay: 5);
+            foreach (var map in new[] { RpgWorldMapId.Soundwell, RpgWorldMapId.RedSaltHarbor, RpgWorldMapId.WhitewaterCrossing })
+            {
+                var snapshot = restored.GetSnapshot(map);
+                Assert.AreEqual(5, snapshot.DayCount);
+                Assert.AreEqual("18:45", snapshot.FormattedClock);
+                Assert.AreEqual(expected.GetWeather(map), snapshot.Weather, map.ToString());
+            }
+
+            // An explicitly saved, valid weather value is authoritative, even
+            // when it is not part of the region's automatic weather cycle.
+            Assert.AreEqual(RpgWorld500xWeatherKind.RainDrizzle, restored.GetWeather(RpgWorldMapId.MineCamp));
+            restored.AdvanceRealSeconds(1f, RpgWorldMapId.Soundwell);
+            Assert.AreEqual(RpgWorld500xWeatherKind.RainDrizzle, restored.GetWeather(RpgWorldMapId.MineCamp));
+        }
+
+        [Test]
+        public void PartialPersistence_SameSlotRetainsUnspecifiedWeatherOverride()
+        {
+            var restored = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f, initialDay: 2);
+            restored.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+            restored.ImportPersistenceState(new Dictionary<string, string>
+            {
+                [RpgWorld500xWeatherAndTimeOfDayService.TimeMinutesKey] = "610"
+            });
+
+            Assert.AreEqual(RpgWorld500xWeatherKind.GaleStorm, restored.GetSnapshot(RpgWorldMapId.Soundwell).Weather);
+        }
+
+        [Test]
         public void PersistenceRoundTrip_UsesWorldNamespaceKeysAndRestoresExactState()
         {
             var source = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 1125f, initialDay: 5);
