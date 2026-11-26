@@ -10,7 +10,8 @@ namespace Rpg.Soundwell
         Succeeded = 0,
         UnknownItem = 1,
         NotOwned = 2,
-        InvalidTimestamp = 3
+        InvalidTimestamp = 3,
+        InventoryWriteFailed = 4
     }
 
     public readonly struct RpgWorld500xFieldSupplySlotReadout
@@ -249,6 +250,15 @@ namespace Rpg.Soundwell
 
             int remaining = owned - 1;
             _setInt(item.OwnedCountKey, remaining);
+            // Only award effects after the authoritative inventory confirms
+            // the debit. Read-only or disconnected adapters must fail closed.
+            int confirmedRemaining = GetOwnedCount(itemId);
+            if (confirmedRemaining != remaining)
+            {
+                return new RpgWorld500xFieldSupplyUseResult(
+                    RpgFieldSupplyUseStatus.InventoryWriteFailed, item.Id, item.DisplayNameZh,
+                    confirmedRemaining, 0f, 0, "补给库存扣减未确认，未生效");
+            }
 
             ResolveEffect(item.Id, out float durationSeconds, out int healPercent, out string effectCaptionZh);
             if (healPercent > 0)
