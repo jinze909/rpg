@@ -458,6 +458,53 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PendingReplyReadClosingDockCannotWriteRelationshipResponse()
+        {
+            var root = new GameObject("M08 pending reply closes settlement");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            M08DockTruthHost host = null;
+            bool closeOnPendingRead = false;
+            int writes = 0;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () => true, key =>
+                {
+                    int value = read(key);
+                    if (closeOnPendingRead && key == M08DockTruthFacts.ShenRelationResponseKey)
+                    {
+                        closeOnPendingRead = false;
+                        host.Dispose();
+                    }
+                    return value;
+                }, (key, value) =>
+                {
+                    writes++;
+                    values[key] = value;
+                });
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.HearButton.onClick.Invoke();
+                view.SecondResponseButton.onClick.Invoke();
+                closeOnPendingRead = true;
+
+                Assert.DoesNotThrow(() => view.FinishButton.onClick.Invoke());
+                Assert.That(closeOnPendingRead, Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(writes, Is.Zero);
+                Assert.That(read(M08DockTruthFacts.ShenRelationResponseKey), Is.Zero);
+                Assert.That(read(M08DockTruthFacts.ConfirmedKey), Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PartySplitBeforeSaveCannotWriteAndCorruptOrStaleFactsDoNotRead()
         {
             var root = new GameObject("M08 dock late party split");
