@@ -5,9 +5,19 @@ namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xFastTravelItineraryTests
     {
-        [TestCase(false)]
-        [TestCase(true)]
-        public void PlanItinerary_RejectsUnknownRegionsEvenForSameMap(bool safest)
+        [Test]
+        public void PlanShortestItinerary_RejectsUnknownRegionsEvenForSameMap()
+        {
+            AssertRejectsUnknownRegionsEvenForSameMap(false);
+        }
+
+        [Test]
+        public void PlanSafestItinerary_RejectsUnknownRegionsEvenForSameMap()
+        {
+            AssertRejectsUnknownRegionsEvenForSameMap(true);
+        }
+
+        private static void AssertRejectsUnknownRegionsEvenForSameMap(bool safest)
         {
             var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f);
             var unknown = (RpgWorldMapId)255;
