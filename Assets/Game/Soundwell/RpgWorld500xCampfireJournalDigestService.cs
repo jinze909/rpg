@@ -244,25 +244,79 @@ namespace Rpg.Soundwell
             // Ambient zones are repeatable scenery/events, not completion-tracked POIs.
             // Keep the scanner's distance/ID order, but do not let an ambient ping
             // hide the nearest actionable target or block the adjacent-region hint.
-            if (scanner.TryPulseScan(mapId, playerPos, 0f, out List<RpgWorld500xReconPing> pings, out _,
-                baseRadiusTiles: 900f, visibilityMultiplier: 1f, maxResults: int.MaxValue))
+            if (TryFindActionablePing(scanner, mapId, playerPos, 900f, out var nearby))
             {
-                for (int i = 0; i < pings.Count; i++)
+                return "优先前往近处未探索目标：" + nearby.FormattedPingZh;
+            }
+
+            // Finish the current region's tracked objectives before sending the player away.
+            RpgExpandedMapSpec currentSpec = RpgExpandedWorldScale.GetSpec(mapId);
+            if (TryFindActionablePing(scanner, mapId, playerPos,
+                currentSpec.ExpandedWidth + currentSpec.ExpandedHeight, out var distant))
+            {
+                return "附近暂无未探索目标，本境仍有较远目标：" + distant.FormattedPingZh;
+            }
+
+            // Choose the shortest existing itinerary to a region that actually has
+            // unfinished field objectives. Completed regions may be transit stops,
+            // but must not be presented as the final exploration destination.
+            bool found = false;
+            RpgWorld500xTravelItinerary best = default;
+            string destinationName = string.Empty;
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                if (spec.MapId == mapId || !TryFindActionablePing(scanner, spec.MapId, Vector2.zero,
+                    spec.ExpandedWidth + spec.ExpandedHeight, out _))
                 {
-                    if (pings[i].Kind != RpgWorld500xReconPingKind.AmbientEventZone)
-                    {
-                        return "优先前往近处未探索目标：" + pings[i].FormattedPingZh;
-                    }
+                    continue;
+                }
+
+                RpgWorld500xTravelItinerary itinerary =
+                    RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(mapId, spec.MapId);
+                if (itinerary.IsReachable && itinerary.Legs.Count > 0 &&
+                    (!found || itinerary.TotalTravelMinutesInGame < best.TotalTravelMinutesInGame))
+                {
+                    found = true;
+                    best = itinerary;
+                    destinationName = spec.DisplayNameZh;
                 }
             }
 
-            List<RpgWorld500xRegionRouteDef> routes = RpgWorld500xWorldAtlasPortalService.GetConnectedRegions(mapId);
-            if (routes.Count > 0)
+            if (found)
             {
-                return "附近暂无未探索目标，可沿【" + routes[0].RouteNameZh + "】前往相邻区域继续远征。";
+                string routeName = best.Legs[0].Route.RouteNameZh;
+                return best.HopCount == 1
+                    ? "本境暂无未探索野外目标，可沿【" + routeName + "】前往相邻区域" + destinationName + "继续远征。"
+                    : "本境暂无未探索野外目标，可先沿【" + routeName + "】中转，前往" + destinationName + "继续远征。";
             }
 
-            return "继续沿主线推进当前区域探索。";
+            return "四境暂无未探索野外目标，继续沿主线、悬赏与堪舆目标推进。";
+        }
+
+        private static bool TryFindActionablePing(
+            RpgWorld500xFieldReconScannerService scanner,
+            RpgWorldMapId mapId,
+            Vector2 playerPos,
+            float radius,
+            out RpgWorld500xReconPing ping)
+        {
+            ping = default;
+            if (!scanner.TryPulseScan(mapId, playerPos, 0f, out var pings, out _,
+                baseRadiusTiles: radius, visibilityMultiplier: 1f, maxResults: int.MaxValue))
+            {
+                return false;
+            }
+
+            foreach (var candidate in pings)
+            {
+                if (candidate.Kind != RpgWorld500xReconPingKind.AmbientEventZone)
+                {
+                    ping = candidate;
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
