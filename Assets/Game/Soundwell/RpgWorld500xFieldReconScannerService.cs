@@ -46,7 +46,8 @@ namespace Rpg.Soundwell
     /// Field Recon Pulse / Tactical Scanner for 500x-area RPG maps. Scans within a
     /// weather-modulated radius around the player and returns distance-sorted,
     /// 8-direction Chinese compass pings for unlooted caches, locked shortcuts,
-    /// unheard rumor NPCs, uninspected story spots, and nearby ambient zones.
+    /// unheard rumor NPCs, uninspected story spots, and nearby ambient zones,
+    /// with optional kind filtering and cooldown-free nearest-by-kind lookup.
     /// </summary>
     public sealed class RpgWorld500xFieldReconScannerService
     {
@@ -98,7 +99,8 @@ namespace Rpg.Soundwell
             out string summaryBannerZh,
             float baseRadiusTiles = DefaultBaseScanRadiusTiles,
             float visibilityMultiplier = 1f,
-            int maxResults = 8)
+            int maxResults = 8,
+            RpgWorld500xReconPingKind? filterKind = null)
         {
             pings = new List<RpgWorld500xReconPing>();
             summaryBannerZh = string.Empty;
@@ -112,7 +114,7 @@ namespace Rpg.Soundwell
             float remaining = GetRemainingCooldown(nowSeconds);
             if (remaining > 0.0001f)
             {
-                summaryBannerZh = "勘测脉冲突冷却中（剩余 " + Mathf.CeilToInt(remaining) + " 秒）";
+                summaryBannerZh = "勘测脉冲冷却中（剩余 " + Mathf.CeilToInt(remaining) + " 秒）";
                 return false;
             }
 
@@ -127,11 +129,7 @@ namespace Rpg.Soundwell
             float effectiveRadius = safeRadius * safeVis;
             int cap = Math.Max(1, maxResults);
 
-            CollectUnlootedCaches(mapId, playerTile, effectiveRadius, pings);
-            CollectLockedShortcuts(mapId, playerTile, effectiveRadius, pings);
-            CollectUnheardRumors(mapId, playerTile, effectiveRadius, pings);
-            CollectUninspectedStorySpots(mapId, playerTile, effectiveRadius, pings);
-            CollectAmbientZones(mapId, playerTile, effectiveRadius, pings);
+            CollectByFilter(mapId, playerTile, effectiveRadius, filterKind, pings);
 
             pings.Sort((a, b) =>
             {
@@ -153,6 +151,38 @@ namespace Rpg.Soundwell
                 summaryBannerZh = "勘测发现 " + pings.Count + " 处近处目标 · 最近：" + pings[0].FormattedPingZh;
             }
 
+            return true;
+        }
+
+        public bool TryFindNearestByKind(
+            RpgWorldMapId mapId,
+            Vector2 playerTile,
+            RpgWorld500xReconPingKind kind,
+            out RpgWorld500xReconPing nearest,
+            float maxRadiusTiles = 2000f)
+        {
+            nearest = default;
+            if (!IsFinite(playerTile))
+            {
+                return false;
+            }
+
+            float safeRadius = (IsFinite(maxRadiusTiles) && maxRadiusTiles > 0f)
+                ? maxRadiusTiles
+                : 2000f;
+            var candidates = new List<RpgWorld500xReconPing>();
+            CollectByFilter(mapId, playerTile, safeRadius, kind, candidates);
+            if (candidates.Count == 0)
+            {
+                return false;
+            }
+
+            candidates.Sort((a, b) =>
+            {
+                int cmp = a.DistanceTiles.CompareTo(b.DistanceTiles);
+                return cmp != 0 ? cmp : string.Compare(a.EntityId, b.EntityId, StringComparison.Ordinal);
+            });
+            nearest = candidates[0];
             return true;
         }
 
@@ -183,6 +213,39 @@ namespace Rpg.Soundwell
                 case 6: return "正南";
                 case 7: return "东南";
                 default: return "正东";
+            }
+        }
+
+        private void CollectByFilter(
+            RpgWorldMapId mapId,
+            Vector2 playerTile,
+            float radius,
+            RpgWorld500xReconPingKind? filterKind,
+            List<RpgWorld500xReconPing> output)
+        {
+            if (!filterKind.HasValue || filterKind.Value == RpgWorld500xReconPingKind.HiddenCache)
+            {
+                CollectUnlootedCaches(mapId, playerTile, radius, output);
+            }
+
+            if (!filterKind.HasValue || filterKind.Value == RpgWorld500xReconPingKind.LockedShortcut)
+            {
+                CollectLockedShortcuts(mapId, playerTile, radius, output);
+            }
+
+            if (!filterKind.HasValue || filterKind.Value == RpgWorld500xReconPingKind.UnheardRumorNpc)
+            {
+                CollectUnheardRumors(mapId, playerTile, radius, output);
+            }
+
+            if (!filterKind.HasValue || filterKind.Value == RpgWorld500xReconPingKind.UninspectedStorySpot)
+            {
+                CollectUninspectedStorySpots(mapId, playerTile, radius, output);
+            }
+
+            if (!filterKind.HasValue || filterKind.Value == RpgWorld500xReconPingKind.AmbientEventZone)
+            {
+                CollectAmbientZones(mapId, playerTile, radius, output);
             }
         }
 

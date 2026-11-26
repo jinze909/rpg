@@ -77,6 +77,40 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TryPulseScanWithFilterAndTryFindNearestByKind_ReturnOnlyRequestedCategoryWithoutTriggeringCooldown()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var scanner = new RpgWorld500xFieldReconScannerService(
+                getInt: k => store.TryGetValue(k, out int v) ? v : 0,
+                cooldownSeconds: 4f);
+
+            // Cooldown-free nearest lookup finds an unlooted HiddenCache and leaves pulse cooldown at 0.
+            Assert.IsTrue(scanner.TryFindNearestByKind(
+                RpgWorldMapId.Soundwell,
+                new Vector2(260f, 720f),
+                RpgWorld500xReconPingKind.HiddenCache,
+                out RpgWorld500xReconPing nearestCache));
+            Assert.AreEqual(RpgWorld500xReconPingKind.HiddenCache, nearestCache.Kind);
+            Assert.AreEqual(0f, scanner.GetRemainingCooldown(10f), 0.001f);
+
+            // Filtered pulse scan returns only LockedShortcut pings.
+            Assert.IsTrue(scanner.TryPulseScan(
+                RpgWorldMapId.Soundwell,
+                new Vector2(260f, 720f),
+                nowSeconds: 10f,
+                out List<RpgWorld500xReconPing> shortcutsOnly,
+                out _,
+                baseRadiusTiles: 1600f,
+                maxResults: 10,
+                filterKind: RpgWorld500xReconPingKind.LockedShortcut));
+            Assert.Greater(shortcutsOnly.Count, 0);
+            for (int i = 0; i < shortcutsOnly.Count; i++)
+            {
+                Assert.AreEqual(RpgWorld500xReconPingKind.LockedShortcut, shortcutsOnly[i].Kind);
+            }
+        }
+
+        [Test]
         public void ResolveDirection8Zh_CoversAllEightCompassSectorsAndUnderfoot()
         {
             var origin = new Vector2(100.5f, 100.5f);
