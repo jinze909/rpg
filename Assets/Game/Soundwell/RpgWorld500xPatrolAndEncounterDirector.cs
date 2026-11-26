@@ -130,8 +130,10 @@ namespace Rpg.Soundwell
 
                 float distToPlayer = Vector2.Distance(unit.Position, playerTile);
                 float distToAnchor = Vector2.Distance(unit.Position, unit.Anchor);
+                bool playerOutsideLeash = Vector2.Distance(playerTile, unit.Anchor) > LeashRadiusTiles;
+                bool canPursue = distToAnchor < LeashRadiusTiles - 0.01f || !playerOutsideLeash;
 
-                if (distToPlayer <= ContactEncounterRadiusTiles)
+                if (distToPlayer <= ContactEncounterRadiusTiles && !playerOutsideLeash)
                 {
                     unit.State = RpgWorldPatrolState.AlertChasing;
                     if (bridge.TryTriggerDangerZoneEncounter(unit.MarkerId, playerTile))
@@ -139,15 +141,15 @@ namespace Rpg.Soundwell
                     continue;
                 }
 
-                if (distToPlayer <= detectRadius && distToAnchor <= LeashRadiusTiles)
+                if (distToPlayer <= detectRadius && canPursue)
                 {
                     unit.State = RpgWorldPatrolState.AlertChasing;
-                    MoveToward(unit, playerTile, ChaseSpeedTilesPerSec * deltaSeconds);
+                    MoveToward(unit, ClampToLeash(unit, playerTile), ChaseSpeedTilesPerSec * deltaSeconds);
                 }
-                else if (distToPlayer <= suspiciousRadius && distToAnchor <= LeashRadiusTiles)
+                else if (distToPlayer <= suspiciousRadius && canPursue)
                 {
                     unit.State = RpgWorldPatrolState.Suspicious;
-                    MoveToward(unit, playerTile, PatrolSpeedTilesPerSec * 0.7f * deltaSeconds);
+                    MoveToward(unit, ClampToLeash(unit, playerTile), PatrolSpeedTilesPerSec * 0.7f * deltaSeconds);
                 }
                 else
                 {
@@ -192,6 +194,12 @@ namespace Rpg.Soundwell
                 }
             }
             return found;
+        }
+
+        private static Vector2 ClampToLeash(PatrolUnit unit, Vector2 target)
+        {
+            // A long frame must not carry a pursuing patrol outside its home radius.
+            return unit.Anchor + Vector2.ClampMagnitude(target - unit.Anchor, LeashRadiusTiles);
         }
 
         private void MoveToward(PatrolUnit unit, Vector2 target, float maxStep)
