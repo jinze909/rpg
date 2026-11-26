@@ -56,6 +56,42 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ChecksummedDuplicateWorldOrAtmosphereKeysAreRejected()
+        {
+            var store = new Dictionary<string, int>
+            {
+                ["rpg.return.world.supply.salt_silver_balance"] = 50
+            };
+            var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService();
+            var snap = RpgWorld500xSaveSnapshotSerializer.Capture(
+                RpgWorldMapId.Soundwell, new Vector2(100f, 200f), store, atmosphere);
+            string canonical = RpgWorld500xSaveSnapshotSerializer.Serialize(snap);
+            Assert.IsTrue(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(canonical, out _, out string error), error);
+
+            var duplicate = snap.worldIntFlags[0];
+            duplicate.value = 999;
+            snap.worldIntFlags.Add(duplicate);
+            string ambiguousInts = RpgWorld500xSaveSnapshotSerializer.Serialize(snap);
+            Assert.IsFalse(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(
+                ambiguousInts, out var rejectedInts, out string intError));
+            Assert.IsNull(rejectedInts);
+            StringAssert.Contains("Duplicate world integer key", intError);
+
+            snap.worldIntFlags.RemoveAt(snap.worldIntFlags.Count - 1);
+            Assert.Greater(snap.atmosphereState.Count, 0);
+            var duplicateAtmosphere = snap.atmosphereState[0];
+            snap.atmosphereState.Add(duplicateAtmosphere);
+            string ambiguousWeather = RpgWorld500xSaveSnapshotSerializer.Serialize(snap);
+            Assert.IsFalse(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(
+                ambiguousWeather, out var rejectedWeather, out string weatherError));
+            Assert.IsNull(rejectedWeather);
+            StringAssert.Contains("Duplicate atmosphere key", weatherError);
+
+            // The unchanged schema and checksum still accept the original save.
+            Assert.IsTrue(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(canonical, out _, out error), error);
+        }
+
+        [Test]
         public void TryDeserialize_RejectsTamperedOrMalformedSnapshotsCleanly()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal)
