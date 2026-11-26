@@ -137,6 +137,38 @@ namespace Rpg.Soundwell
         public bool IsSatisfied => CurrentCount >= Definition.TargetCount;
     }
 
+    public readonly struct RpgWorld500xMilestoneSummary
+    {
+        public RpgWorld500xMilestoneSummary(
+            RpgWorld500xCrossMapProgressSnapshot progress,
+            int totalMilestones,
+            int claimedCount,
+            int claimableCount,
+            int unclaimedSaltSilverReward,
+            bool hasNextMilestone,
+            RpgWorld500xMilestoneStatus nextMilestone,
+            string summaryLineZh)
+        {
+            Progress = progress;
+            TotalMilestones = totalMilestones;
+            ClaimedCount = claimedCount;
+            ClaimableCount = claimableCount;
+            UnclaimedSaltSilverReward = unclaimedSaltSilverReward;
+            HasNextMilestone = hasNextMilestone;
+            NextMilestone = nextMilestone;
+            SummaryLineZh = summaryLineZh ?? string.Empty;
+        }
+
+        public RpgWorld500xCrossMapProgressSnapshot Progress { get; }
+        public int TotalMilestones { get; }
+        public int ClaimedCount { get; }
+        public int ClaimableCount { get; }
+        public int UnclaimedSaltSilverReward { get; }
+        public bool HasNextMilestone { get; }
+        public RpgWorld500xMilestoneStatus NextMilestone { get; }
+        public string SummaryLineZh { get; }
+    }
+
     /// <summary>
     /// Aggregates cross-map exploration completion across all four 500x-area maps
     /// (42 caches, 16 shortcuts, 24 field NPC rumors, 16 story spots, 12 bounties,
@@ -328,6 +360,78 @@ namespace Rpg.Soundwell
             }
 
             return list;
+        }
+
+        public RpgWorld500xMilestoneSummary BuildMilestoneSummary()
+        {
+            List<RpgWorld500xMilestoneStatus> statuses = BuildStatusList(out RpgWorld500xCrossMapProgressSnapshot progress);
+            int claimedCount = 0;
+            int claimableCount = 0;
+            int unclaimedSilver = 0;
+            bool hasNext = false;
+            RpgWorld500xMilestoneStatus bestNext = default;
+            float bestRatio = -1f;
+
+            for (int i = 0; i < statuses.Count; i++)
+            {
+                RpgWorld500xMilestoneStatus st = statuses[i];
+                if (st.IsClaimed)
+                {
+                    claimedCount++;
+                    continue;
+                }
+
+                if (st.IsSatisfied)
+                {
+                    claimableCount++;
+                    unclaimedSilver += st.Definition.SaltSilverReward;
+                    if (!hasNext || bestRatio < 1f)
+                    {
+                        hasNext = true;
+                        bestNext = st;
+                        bestRatio = 1f;
+                    }
+
+                    continue;
+                }
+
+                float ratio = st.Definition.TargetCount > 0
+                    ? (float)st.CurrentCount / st.Definition.TargetCount
+                    : 0f;
+                if (!hasNext || ratio > bestRatio)
+                {
+                    hasNext = true;
+                    bestNext = st;
+                    bestRatio = ratio;
+                }
+            }
+
+            string summary;
+            if (claimableCount > 0)
+            {
+                summary = "【远征里程碑】已领 " + claimedCount + "/" + statuses.Count +
+                          "｜待领 " + claimableCount + " 项（+" + unclaimedSilver + " 盐银）";
+            }
+            else if (hasNext)
+            {
+                summary = "【远征里程碑】已领 " + claimedCount + "/" + statuses.Count +
+                          "｜最近目标「" + bestNext.Definition.TitleZh + "」" +
+                          bestNext.CurrentCount + "/" + bestNext.Definition.TargetCount;
+            }
+            else
+            {
+                summary = "【远征里程碑】已全数达成（" + claimedCount + "/" + statuses.Count + "）";
+            }
+
+            return new RpgWorld500xMilestoneSummary(
+                progress,
+                statuses.Count,
+                claimedCount,
+                claimableCount,
+                unclaimedSilver,
+                hasNext,
+                bestNext,
+                summary);
         }
     }
 }

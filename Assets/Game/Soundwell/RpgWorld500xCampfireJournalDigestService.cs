@@ -29,7 +29,8 @@ namespace Rpg.Soundwell
             string readinessGradeLabelZh = "",
             int hazardousRegionCount = 0,
             string worldWeatherBulletinZh = "",
-            string worldReputationSummaryZh = "")
+            string worldReputationSummaryZh = "",
+            string milestoneSummaryZh = "")
         {
             MapId = mapId;
             MapDisplayNameZh = mapDisplayNameZh ?? string.Empty;
@@ -53,6 +54,7 @@ namespace Rpg.Soundwell
             HazardousRegionCount = hazardousRegionCount;
             WorldWeatherBulletinZh = worldWeatherBulletinZh ?? string.Empty;
             WorldReputationSummaryZh = worldReputationSummaryZh ?? string.Empty;
+            MilestoneSummaryZh = milestoneSummaryZh ?? string.Empty;
         }
 
         public RpgWorldMapId MapId { get; }
@@ -77,6 +79,7 @@ namespace Rpg.Soundwell
         public int HazardousRegionCount { get; }
         public string WorldWeatherBulletinZh { get; }
         public string WorldReputationSummaryZh { get; }
+        public string MilestoneSummaryZh { get; }
     }
 
     /// <summary>
@@ -84,7 +87,7 @@ namespace Rpg.Soundwell
     /// digest across all 500x world subsystems (active map &amp; district, weather risk,
     /// cross-region weather bulletin, faction standing &amp; world reputation overview,
     /// Salt-Silver &amp; supply stock, expedition readiness &amp; camp provisioning cost,
-    /// map/global completion, claimable milestones, and prioritized next objective hint).
+    /// map/global completion, milestone summary, and prioritized next objective hint).
     /// </summary>
     public static class RpgWorld500xCampfireJournalDigestService
     {
@@ -135,16 +138,9 @@ namespace Rpg.Soundwell
             RpgWorld500xMapCompletionSummary mapComp = facade.GetCompletionSummary();
 
             var milestoneService = new RpgWorld500xExpeditionMilestoneService(read);
-            List<RpgWorld500xMilestoneStatus> milestoneStatuses =
-                milestoneService.BuildStatusList(out RpgWorld500xCrossMapProgressSnapshot globalComp);
-            int claimableMilestones = 0;
-            for (int i = 0; i < milestoneStatuses.Count; i++)
-            {
-                if (!milestoneStatuses[i].IsClaimed && milestoneStatuses[i].IsSatisfied)
-                {
-                    claimableMilestones++;
-                }
-            }
+            RpgWorld500xMilestoneSummary milestoneSummary = milestoneService.BuildMilestoneSummary();
+            RpgWorld500xCrossMapProgressSnapshot globalComp = milestoneSummary.Progress;
+            int claimableMilestones = milestoneSummary.ClaimableCount;
 
             RpgWorld500xExpeditionReadinessReport readiness =
                 RpgWorld500xExpeditionReadinessService.EvaluateReadiness(
@@ -170,7 +166,7 @@ namespace Rpg.Soundwell
                 advisory,
                 claimableMilestones);
 
-            var sb = new StringBuilder(576);
+            var sb = new StringBuilder(640);
             sb.AppendLine("【远征营火纪要】" + mapNameZh + " · " + districtNameZh);
             sb.AppendLine("天时：第 " + atmo.DayCount + " 日 " + atmo.FormattedClock + " " +
                           atmo.PhaseDisplayName + " · " + atmo.WeatherDisplayName +
@@ -193,6 +189,7 @@ namespace Rpg.Soundwell
                           globalComp.OverallWorldCompletionPercent + "%（待领里程碑 " + claimableMilestones + " 项）");
             sb.AppendLine(worldWeather.WorldBulletinZh);
             sb.AppendLine(worldRep.SummaryLineZh);
+            sb.AppendLine(milestoneSummary.SummaryLineZh);
             if (!string.IsNullOrEmpty(activeBuffCaption))
             {
                 sb.AppendLine("当前增益：" + activeBuffCaption);
@@ -222,7 +219,8 @@ namespace Rpg.Soundwell
                 readiness.GradeLabelZh,
                 worldWeather.HazardousRegionCount,
                 worldWeather.WorldBulletinZh,
-                worldRep.SummaryLineZh);
+                worldRep.SummaryLineZh,
+                milestoneSummary.SummaryLineZh);
         }
 
         private static string ResolveNextObjectiveHintZh(
