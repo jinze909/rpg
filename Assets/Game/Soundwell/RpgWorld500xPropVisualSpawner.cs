@@ -62,6 +62,9 @@ namespace Rpg.Soundwell
         }
 
         private readonly RpgWorldMapId _mapId;
+        private readonly int _mapWidth;
+        private readonly int _mapHeight;
+        private readonly int _maxUsefulRadius;
         private readonly Transform _parent;
         private readonly RpgWorld500xCachesAndShortcutsController _cachesAndShortcuts;
         private readonly RpgWorld500xProceduralPropAtlas _atlas;
@@ -72,6 +75,8 @@ namespace Rpg.Soundwell
             new Dictionary<string, ActiveVisual>(StringComparer.Ordinal);
         private readonly List<string> _removalBuffer = new List<string>();
         private bool _disposed;
+        private Vector2Int _lastFocusChunk;
+        private int _lastRadius = -1;
 
         public int TotalIndexedPropCount { get; }
 
@@ -91,6 +96,11 @@ namespace Rpg.Soundwell
             }
 
             _mapId = layout.MapId;
+            _mapWidth = layout.Spec.ExpandedWidth;
+            _mapHeight = layout.Spec.ExpandedHeight;
+            _maxUsefulRadius = Math.Max(3, Math.Max(
+                1 + (_mapWidth - 1) / RpgLargeMapChunkRenderer.ChunkSizeTiles,
+                1 + (_mapHeight - 1) / RpgLargeMapChunkRenderer.ChunkSizeTiles));
             _parent = parent;
             _cachesAndShortcuts = cachesAndShortcuts;
             _ownsAtlas = sharedAtlas == null;
@@ -161,7 +171,10 @@ namespace Rpg.Soundwell
         {
             if (_disposed ||
                 float.IsNaN(playerTile.x) || float.IsInfinity(playerTile.x) ||
-                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y))
+                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y) ||
+                playerTile.x < 0f || playerTile.x >= _mapWidth ||
+                playerTile.y < 0f || playerTile.y >= _mapHeight ||
+                streamingRadiusChunks > _maxUsefulRadius)
             {
                 return false;
             }
@@ -171,6 +184,16 @@ namespace Rpg.Soundwell
                 Mathf.FloorToInt(playerTile.x),
                 Mathf.FloorToInt(playerTile.y)));
 
+            // Most frames remain in the same streaming chunk. Still refresh
+            // completed prop sprites so external store updates remain visible.
+            if (_lastRadius == radius && _lastFocusChunk == centerChunk)
+            {
+                RefreshActiveSprites();
+                return true;
+            }
+
+            _lastRadius = radius;
+            _lastFocusChunk = centerChunk;
             _removalBuffer.Clear();
             foreach (KeyValuePair<string, ActiveVisual> kvp in _activeVisuals)
             {
@@ -191,36 +214,35 @@ namespace Rpg.Soundwell
                 }
             }
 
-            for (int dy = -radius; dy <= radius; dy++)
+            // Iterate only occupied chunks, not the potentially enormous
+            // square window of empty map tiles.
+            foreach (KeyValuePair<Vector2Int, List<PropEntry>> pair in _entriesByChunk)
             {
-                for (int dx = -radius; dx <= radius; dx++)
+                Vector2Int coord = pair.Key;
+                if (Math.Abs(coord.x - centerChunk.x) > radius ||
+                    Math.Abs(coord.y - centerChunk.y) > radius)
+                    continue;
+
+                List<PropEntry> bucket = pair.Value;
+                for (int i = 0; i < bucket.Count; i++)
                 {
-                    Vector2Int chunkCoord = new Vector2Int(centerChunk.x + dx, centerChunk.y + dy);
-                    if (!_entriesByChunk.TryGetValue(chunkCoord, out List<PropEntry> bucket))
+                    PropEntry entry = bucket[i];
+                    if (_activeVisuals.ContainsKey(entry.Id))
                     {
                         continue;
                     }
 
-                    for (int i = 0; i < bucket.Count; i++)
+                    var go = new GameObject("World500xProp_" + entry.Id);
+                    if (_parent != null)
                     {
-                        PropEntry entry = bucket[i];
-                        if (_activeVisuals.ContainsKey(entry.Id))
-                        {
-                            continue;
-                        }
-
-                        var go = new GameObject("World500xProp_" + entry.Id);
-                        if (_parent != null)
-                        {
-                            go.transform.SetParent(_parent, false);
-                        }
-
-                        go.transform.localPosition = new Vector3(entry.Tile.x + 0.5f, entry.Tile.y + 0.5f, 0f);
-                        var sr = go.AddComponent<SpriteRenderer>();
-                        sr.sortingOrder = entry.Category == PropCategory.AmbientZone ? 8 : 14;
-                        sr.sprite = _atlas.GetSprite(ResolveCurrentKind(entry), _mapId);
-                        _activeVisuals[entry.Id] = new ActiveVisual(entry, go, sr);
+                        go.transform.SetParent(_parent, false);
                     }
+
+                    go.transform.localPosition = new Vector3(entry.Tile.x + 0.5f, entry.Tile.y + 0.5f, 0f);
+                    var sr = go.AddComponent<SpriteRenderer>();
+                    sr.sortingOrder = entry.Category == PropCategory.AmbientZone ? 8 : 14;
+                    sr.sprite = _atlas.GetSprite(ResolveCurrentKind(entry), _mapId);
+                    _activeVisuals[entry.Id] = new ActiveVisual(entry, go, sr);
                 }
             }
 
