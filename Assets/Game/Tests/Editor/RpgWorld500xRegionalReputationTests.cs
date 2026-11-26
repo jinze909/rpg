@@ -46,6 +46,25 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DiscountedCost_RoundsUpExactlyAcrossAllRanksAndIntegerRange()
+        {
+            foreach (RpgRegionalReputationRank rank in Enum.GetValues(typeof(RpgRegionalReputationRank)))
+            {
+                int percent = RpgWorld500xRegionalReputationService.GetCampSupplyDiscountPercent(rank);
+                foreach (int price in new[] { 1, 9, 10, 15, 22, 30, 50, 100, 16777217, int.MaxValue })
+                {
+                    int expected = (int)(((long)price * (100 - percent) + 99) / 100);
+                    int actual = RpgWorld500xRegionalReputationService.ComputeDiscountedCost(price, rank);
+                    Assert.AreEqual(expected, actual, rank + " price " + price);
+                    Assert.GreaterOrEqual(actual, 1);
+                    Assert.LessOrEqual(actual, price);
+                }
+                Assert.AreEqual(0, RpgWorld500xRegionalReputationService.ComputeDiscountedCost(0, rank));
+                Assert.AreEqual(0, RpgWorld500xRegionalReputationService.ComputeDiscountedCost(-1, rank));
+            }
+        }
+
+        [Test]
         public void ReputationRanksDiscountsAndCompletionSync_WorkMonotonicallyWithinBounds()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);

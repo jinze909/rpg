@@ -168,8 +168,10 @@ namespace Rpg.Soundwell
             }
 
             int discountPct = GetCampSupplyDiscountPercent(rank);
-            int discounted = Mathf.CeilToInt(baseSaltSilverCost * ((100 - discountPct) / 100f));
-            return Math.Max(1, discounted);
+            // Currency is integral: round up exactly without float precision loss
+            // or overflowing an int when the undiscounted cost is large.
+            long scaled = (long)baseSaltSilverCost * (100 - discountPct);
+            return (int)((scaled + 99L) / 100L);
         }
 
         public int ComputeDiscountedCostForMap(RpgWorldMapId mapId, int baseSaltSilverCost)

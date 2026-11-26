@@ -38,6 +38,38 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InvalidArrivalThresholds_NeverMarkDistantWaypointsAsArrived()
+        {
+            RpgWorld500xMapLayout layout = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            RpgMapLandmarkMarker target = layout.Markers[0];
+            Vector2 player = new Vector2(target.Tile.x + 0.5f, target.Tile.y + 0.5f);
+            Vector2 distantPlayer = player + new Vector2(20f, 0f);
+
+            foreach (float threshold in new[] { float.PositiveInfinity, float.NegativeInfinity, float.NaN })
+            {
+                var direct = RpgWorld500xWaypointNavigator.BuildGuidance(
+                    layout.MapId, distantPlayer, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                    target.Id, target.TitleZh, target.Tile, threshold);
+                Assert.IsFalse(direct.IsArrived);
+                Assert.AreEqual(20f, direct.DistanceTiles, 0.01f);
+                StringAssert.Contains("20 格", direct.HudReadoutZh);
+
+                Assert.IsTrue(RpgWorld500xWaypointNavigator.TryFindNearestTarget(
+                    layout, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                    out var nearest, arrivalThresholdTiles: threshold));
+                Assert.IsFalse(nearest.IsArrived);
+                var nearby = RpgWorld500xWaypointNavigator.FindTopNearbyPointsOfInterest(
+                    layout, distantPlayer, 5, arrivalThresholdTiles: threshold);
+                Assert.IsNotEmpty(nearby);
+                Assert.IsTrue(nearby.TrueForAll(g => !g.IsArrived));
+            }
+
+            Assert.IsTrue(RpgWorld500xWaypointNavigator.BuildGuidance(
+                layout.MapId, player, RpgWorld500xWaypointCategory.UndiscoveredLandmark,
+                target.Id, target.TitleZh, target.Tile, 8f).IsArrived);
+        }
+
+        [Test]
         public void LandmarkGuidanceUsesPlayerFacingTitlesAndPreservesEntityIds()
         {
             foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
