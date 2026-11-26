@@ -188,7 +188,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || delivered || IsDestroyedExternally() ||
                 index < 0 || index >= choices.Length ||
-                !choices[index].gameObject.activeSelf || !choices[index].interactable)
+                !choices[index].IsActive() || !choices[index].IsInteractable())
                 return;
             switch (session.Stage)
             {
@@ -213,7 +213,7 @@ namespace Rpg.Soundwell
         private void Finish()
         {
             if (disposed || delivered || IsDestroyedExternally() ||
-                !session.IsCompleted || !finishButton.interactable)
+                !session.IsCompleted || !finishButton.IsActive() || !finishButton.IsInteractable())
                 return;
             // Guard against reentrant submits while keeping failed host writes retryable.
             delivered = true;
