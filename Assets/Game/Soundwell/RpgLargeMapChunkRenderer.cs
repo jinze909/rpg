@@ -161,7 +161,9 @@ namespace Rpg.Soundwell
             if (tileIndexAt == null) throw new ArgumentNullException(nameof(tileIndexAt));
             if (mapWidth <= 0) throw new ArgumentOutOfRangeException(nameof(mapWidth));
             if (mapHeight <= 0) throw new ArgumentOutOfRangeException(nameof(mapHeight));
-            if (streamingRadiusChunks < 0) throw new ArgumentOutOfRangeException(nameof(streamingRadiusChunks));
+            if (streamingRadiusChunks < 0 ||
+                streamingRadiusChunks > MaxUsefulStreamingRadius(mapWidth, mapHeight))
+                throw new ArgumentOutOfRangeException(nameof(streamingRadiusChunks));
 
             RpgPixelArtManifest manifest = tileSlices == null ? RpgPixelArtManifest.LoadDefault() : null;
             Sprite[] resolvedSlices = tileSlices ??
@@ -190,8 +192,8 @@ namespace Rpg.Soundwell
         {
             this.mapWidth = mapWidth;
             this.mapHeight = mapHeight;
-            chunkGridWidth = (mapWidth + ChunkSizeTiles - 1) / ChunkSizeTiles;
-            chunkGridHeight = (mapHeight + ChunkSizeTiles - 1) / ChunkSizeTiles;
+            chunkGridWidth = 1 + (mapWidth - 1) / ChunkSizeTiles;
+            chunkGridHeight = 1 + (mapHeight - 1) / ChunkSizeTiles;
             this.tileIndexAt = tileIndexAt;
             this.fallbackPalette = fallbackPalette;
             isStreaming = streaming;
@@ -234,11 +236,17 @@ namespace Rpg.Soundwell
 
         public bool UpdateStreamingFocus(Vector2 focusTile, int radiusChunks)
         {
-            if (IsDisposed || !isStreaming || radiusChunks < 0 || !IsFiniteVector(focusTile))
+            if (IsDisposed || !isStreaming || radiusChunks < 0 ||
+                radiusChunks > MaxUsefulStreamingRadius(mapWidth, mapHeight) ||
+                !IsFiniteVector(focusTile))
                 return false;
 
-            int centerCx = Mathf.Clamp(Mathf.FloorToInt(focusTile.x / ChunkSizeTiles), 0, chunkGridWidth - 1);
-            int centerCy = Mathf.Clamp(Mathf.FloorToInt(focusTile.y / ChunkSizeTiles), 0, chunkGridHeight - 1);
+            // Clamp in floating point before conversion; even finite coordinates
+            // can exceed the integer range and otherwise select the wrong edge.
+            int centerCx = Mathf.FloorToInt(Mathf.Clamp(
+                focusTile.x / ChunkSizeTiles, 0f, chunkGridWidth - 1));
+            int centerCy = Mathf.FloorToInt(Mathf.Clamp(
+                focusTile.y / ChunkSizeTiles, 0f, chunkGridHeight - 1));
             var centerChunk = new Vector2Int(centerCx, centerCy);
 
             if (centerChunk == lastFocusChunk && radiusChunks == streamingRadiusChunks && activeChunks.Count > 0)
@@ -276,6 +284,15 @@ namespace Rpg.Soundwell
             UpdateLightHaloVisibility(minCx * ChunkSizeTiles, (maxCx + 1) * ChunkSizeTiles,
                 minCy * ChunkSizeTiles, (maxCy + 1) * ChunkSizeTiles);
             return true;
+        }
+
+        private static int MaxUsefulStreamingRadius(int width, int height)
+        {
+            // No radius larger than the entire map is useful. Keep the
+            // documented default of three valid even on tiny preview maps.
+            return Math.Max(3, Math.Max(
+                1 + (width - 1) / ChunkSizeTiles,
+                1 + (height - 1) / ChunkSizeTiles));
         }
 
         private void LoadChunk(Vector2Int chunkCoord)

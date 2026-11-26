@@ -243,6 +243,13 @@ namespace Rpg.Soundwell
 
         public void SetWeather(RpgWorldMapId mapId, RpgWorld500xWeatherKind weather)
         {
+            // Invalid overrides must not replace a valid forecast or change its auto-weather slot.
+            if (!Enum.IsDefined(typeof(RpgWorldMapId), mapId) ||
+                !Enum.IsDefined(typeof(RpgWorld500xWeatherKind), weather))
+            {
+                return;
+            }
+
             _mapWeathers[mapId] = weather;
             _lastAutoWeatherSlot[mapId] = ComputeWeatherSlot(_dayCount, _timeOfDayMinutes);
         }

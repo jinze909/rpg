@@ -283,7 +283,11 @@ namespace Rpg.Soundwell
                 }
             }
 
-            RpgRegionalReputationSnapshot rep = _reputation.SyncMinimumFromCompletion(
+            // Rest, bounty claims and the exported save all belong to this live
+            // bootstrapper. A standalone or read-only haven must not sync a
+            // separate reputation store while reporting the session's save.
+            RpgRegionalReputationSnapshot rep = bootstrapper.CreateCampHavenService()
+                .Reputation.SyncMinimumFromCompletion(
                 completion,
                 claimedBounties,
                 studiedDossiers);
