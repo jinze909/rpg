@@ -245,7 +245,12 @@ namespace Rpg.Soundwell
                     for (int i = 0; i < caches.Count; i++)
                     {
                         RpgSupplyCacheDef c = caches[i];
-                        if ((cachesCtrl != null && cachesCtrl.IsCacheLooted(c.Id)) || read(c.MakinomKey) == 1)
+                        // A mounted controller owns live cache state; the persisted
+                        // reader is only a fallback for standalone guidance.
+                        bool looted = cachesCtrl != null
+                            ? cachesCtrl.IsCacheLooted(c.Id)
+                            : read(c.MakinomKey) == 1;
+                        if (looted)
                         {
                             continue;
                         }
@@ -259,7 +264,10 @@ namespace Rpg.Soundwell
                     for (int i = 0; i < shortcuts.Count; i++)
                     {
                         RpgWorldShortcutDef sc = shortcuts[i];
-                        if ((cachesCtrl != null && cachesCtrl.IsShortcutUnlocked(sc.Id)) || read(sc.MakinomKey) == 1)
+                        bool unlocked = cachesCtrl != null
+                            ? cachesCtrl.IsShortcutUnlocked(sc.Id)
+                            : read(sc.MakinomKey) == 1;
+                        if (unlocked)
                         {
                             continue;
                         }
