@@ -7,6 +7,48 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xReconPulseHudBarTests
     {
         [Test]
+        public void ReconPulseHudBar_ChangingRegionOrFilterClearsOldPingsWithoutResettingCooldown()
+        {
+            var root = new GameObject("ReconContextChangeRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var bar = new RpgWorld500xReconPulseHudBar(root.transform, boot, cooldownSeconds: 4f))
+                {
+                    Assert.IsTrue(bar.TryClickPulseScan(10f));
+                    Assert.Greater(bar.LastPingCount, 0);
+                    var kind = bar.LastPings[0].Kind;
+                    Assert.IsTrue(bar.TrySetFilterKind(kind));
+                    Assert.AreEqual(0, bar.LastPingCount);
+                    Assert.IsEmpty(bar.PingsText);
+                    StringAssert.Contains("重新勘测", bar.BannerText);
+                    Assert.IsFalse(bar.TryClickPulseScan(11f));
+                    Assert.IsTrue(bar.TryClickPulseScan(14f));
+                    Assert.Greater(bar.LastPingCount, 0);
+                    Assert.IsTrue(bar.TrySetFilterKind(kind));
+                    Assert.Greater(bar.LastPingCount, 0, "Selecting the same filter must preserve valid pings.");
+
+                    Assert.IsTrue(boot.Driver.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                    bar.UpdateCooldownDisplay(15f);
+                    Assert.AreEqual(0, bar.LastPingCount);
+                    Assert.IsEmpty(bar.PingsText);
+                    StringAssert.Contains("重新勘测", bar.BannerText);
+                    Assert.AreEqual("冷却中 (3s)", bar.ButtonLabelText);
+                    Assert.IsFalse(bar.TryClickPulseScan(15f));
+                    Assert.IsTrue(bar.TryClickPulseScan(18f));
+                    foreach (var ping in bar.LastPings)
+                        Assert.AreEqual(kind, ping.Kind);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReconPulseHudBar_DisabledButtonCannotScanOrConsumeCooldown()
         {
             var root = new GameObject("ReconDisabledButtonRoot");

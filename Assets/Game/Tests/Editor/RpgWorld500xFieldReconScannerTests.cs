@@ -111,6 +111,33 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void InvalidRegionAndNegativeClock_DoNotConsumeOrResetPulseCooldown()
+        {
+            var scanner = new RpgWorld500xFieldReconScannerService(cooldownSeconds: 4f);
+            var invalidMap = (RpgWorldMapId)255;
+            var player = new Vector2(260f, 720f);
+
+            Assert.IsFalse(scanner.TryPulseScan(invalidMap, player, 10f, out var invalidPings, out string invalidBanner));
+            Assert.IsEmpty(invalidPings);
+            StringAssert.Contains("区域无效", invalidBanner);
+            Assert.IsFalse(scanner.TryFindNearestByKind(invalidMap, player,
+                RpgWorld500xReconPingKind.HiddenCache, out _));
+            Assert.AreEqual(0f, scanner.GetRemainingCooldown(10f));
+
+            Assert.IsFalse(scanner.TryPulseScan(RpgWorldMapId.Soundwell, player, -1f, out var negativePings, out _));
+            Assert.IsEmpty(negativePings);
+            Assert.AreEqual(0f, scanner.GetRemainingCooldown(10f));
+
+            Assert.IsTrue(scanner.TryPulseScan(RpgWorldMapId.Soundwell, player, 10f, out _, out _));
+            Assert.IsFalse(scanner.TryPulseScan(RpgWorldMapId.Soundwell, player, -1f, out _, out _));
+            Assert.IsFalse(scanner.TryPulseScan(invalidMap, player, 11f, out _, out _));
+            Assert.AreEqual(4f, scanner.GetRemainingCooldown(-1f));
+            Assert.AreEqual(2f, scanner.GetRemainingCooldown(12f), 0.001f);
+            Assert.IsFalse(scanner.TryPulseScan(RpgWorldMapId.Soundwell, player, 12f, out _, out _));
+            Assert.IsTrue(scanner.TryPulseScan(RpgWorldMapId.Soundwell, player, 14f, out _, out _));
+        }
+
+        [Test]
         public void ResolveDirection8Zh_CoversAllEightCompassSectorsAndUnderfoot()
         {
             var origin = new Vector2(100.5f, 100.5f);
