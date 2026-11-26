@@ -224,6 +224,12 @@ namespace Rpg.Soundwell
             RpgWorld500xFieldBountyDef bounty,
             RpgWorld500xMapCompletionSummary summary)
         {
+            // Regional bounties cannot borrow exploration progress from another map.
+            if (bounty.MapId != summary.MapId)
+            {
+                return 0;
+            }
+
             switch (bounty.GoalKind)
             {
                 case RpgWorld500xBountyGoalKind.DiscoverLandmarks:
