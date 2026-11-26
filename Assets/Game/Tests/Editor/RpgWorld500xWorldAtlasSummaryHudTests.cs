@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -29,8 +30,7 @@ namespace Rpg.Tests.Editor
                     initialMapId: RpgWorldMapId.Soundwell,
                     overrideTileSlices: new Sprite[] { null }))
                 {
-                    var campHaven = boot.CreateCampHavenService();
-                    using (var panel = new RpgWorld500xWorldAtlasHudPanel(root.transform, boot, campHaven))
+                    using (var panel = new RpgWorld500xWorldAtlasHudPanel(root.transform, boot))
                     {
                         Assert.IsTrue(panel.Show());
                         Assert.AreEqual(4, panel.DisplayedRegionRowCount);
@@ -40,8 +40,19 @@ namespace Rpg.Tests.Editor
                         Assert.AreEqual(0, panel.TotalReputationPoints);
                         StringAssert.Contains("【四境总览】", panel.AtlasSummaryText);
 
-                        // Updating reputation reflects cleanly in LastAtlasSummary after Refresh.
-                        campHaven.Reputation.AddPoints(RpgWorldMapId.RedSaltHarbor, 420);
+                        // Restore reputation through the public save boundary.
+                        // Editor tests cannot call the internal runtime factory.
+                        var facts = new Dictionary<string, int>();
+                        foreach (var entry in boot.Store)
+                            facts[entry.Key] = entry.Value;
+                        facts[RpgWorld500xRegionalReputationService.ReputationKey(
+                            RpgWorldMapId.RedSaltHarbor)] = 420;
+                        var facade = boot.Driver.Facade;
+                        var snapshot = RpgWorld500xSaveSnapshotSerializer.Capture(
+                            facade.CurrentMapId, facade.Session.Host.PlayerPosition,
+                            facts, facade.Atmosphere);
+                        Assert.IsTrue(boot.TryImportSaveJson(
+                            RpgWorld500xSaveSnapshotSerializer.Serialize(snapshot), out string error), error);
                         panel.Refresh();
                         Assert.AreEqual(420, panel.TotalReputationPoints);
                         Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, panel.HighestReputationMap);
