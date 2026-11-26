@@ -239,7 +239,12 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> _getInt;
         private readonly Action<string, int> _setInt;
         private readonly Action<RpgWorld500xCartographyMilestone> _onMilestoneClaimed;
+        // Thirty bits per existing integer save fact: compact, non-negative
+        // and compatible with the current world snapshot schema.
+        private const int FogBitsPerBlock = 30;
         private readonly HashSet<int> _visitedChunkIndices = new HashSet<int>();
+        private readonly int[] _fogMasks;
+        private readonly string[] _fogKeys;
         private readonly RpgWorld500xCartographyMilestone[] _milestones;
         private string _currentDistrictId = string.Empty;
 
@@ -263,6 +268,37 @@ namespace Rpg.Soundwell
             _setInt = setInt ?? ((_, __) => { });
             _onMilestoneClaimed = onMilestoneClaimed;
             _milestones = RpgWorld500xDistrictCatalog.GetMilestones(_mapId);
+            int blockCount = (TotalChunks + FogBitsPerBlock - 1) / FogBitsPerBlock;
+            _fogMasks = new int[blockCount];
+            _fogKeys = new string[blockCount];
+            for (int block = 0; block < blockCount; block++)
+            {
+                _fogKeys[block] = "rpg.return.world.cartography.fog." +
+                    _mapId.ToString().ToLowerInvariant() + ".block." +
+                    block.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+            ReloadVisitedChunks();
+        }
+
+        // A same-map save import retains the tracker instance, so it must
+        // replace its cached coverage rather than union it with the old save.
+        internal void ReloadVisitedChunks()
+        {
+            _visitedChunkIndices.Clear();
+            _currentDistrictId = string.Empty;
+            for (int block = 0; block < _fogMasks.Length; block++)
+            {
+                int mask = Math.Max(0, _getInt(_fogKeys[block])) & ((1 << FogBitsPerBlock) - 1);
+                int start = block * FogBitsPerBlock;
+                int count = Math.Min(FogBitsPerBlock, TotalChunks - start);
+                mask &= (1 << count) - 1;
+                _fogMasks[block] = mask;
+                for (int bit = 0; bit < count; bit++)
+                {
+                    if ((mask & (1 << bit)) != 0)
+                        _visitedChunkIndices.Add(start + bit);
+                }
+            }
         }
 
         public bool RecordPlayerTile(Vector2 playerTile, int revealRadiusChunks, out RpgWorld500xDistrictDef enteredDistrict)
@@ -290,7 +326,13 @@ namespace Rpg.Soundwell
             {
                 for (int cx = minCx; cx <= maxCx; cx++)
                 {
-                    _visitedChunkIndices.Add((cy * _chunksWide) + cx);
+                    int index = (cy * _chunksWide) + cx;
+                    if (_visitedChunkIndices.Add(index))
+                    {
+                        int block = index / FogBitsPerBlock;
+                        _fogMasks[block] |= 1 << (index % FogBitsPerBlock);
+                        _setInt(_fogKeys[block], _fogMasks[block]);
+                    }
                 }
             }
 

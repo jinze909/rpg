@@ -52,6 +52,43 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FogCoverageSurvivesRegionTravelAndSaveLoadRollsBackLaterExploration()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                var facade = boot.Driver.Facade;
+                Assert.IsTrue(facade.Session.Host.TryPlaceAtWalkableTile(new Vector2Int(680, 640)));
+                boot.StepFrame(Vector2.zero, 0.1f);
+                int visited = facade.DistrictTracker.VisitedChunkCount;
+                Assert.IsTrue(facade.DistrictTracker.IsChunkVisited(21, 20));
+                string saved = boot.ExportSaveJson();
+
+                Assert.IsTrue(facade.Session.Host.TryPlaceAtWalkableTile(new Vector2Int(1180, 1120)));
+                boot.StepFrame(Vector2.zero, 0.1f);
+                Assert.Greater(facade.DistrictTracker.VisitedChunkCount, visited);
+                Assert.IsTrue(facade.DistrictTracker.IsChunkVisited(36, 35));
+
+                Assert.IsTrue(boot.TryImportSaveJson(saved, out string error), error);
+                Assert.AreEqual(visited, facade.DistrictTracker.VisitedChunkCount);
+                Assert.IsFalse(facade.DistrictTracker.IsChunkVisited(36, 35));
+                Assert.IsTrue(facade.DistrictTracker.IsChunkVisited(21, 20));
+
+                Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.Soundwell));
+                Assert.AreEqual(visited, facade.DistrictTracker.VisitedChunkCount);
+                Assert.IsTrue(facade.DistrictTracker.IsChunkVisited(21, 20));
+
+                Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                Assert.IsTrue(boot.TryImportSaveJson(saved, out error), error);
+                Assert.AreEqual(visited, facade.DistrictTracker.VisitedChunkCount);
+                Assert.IsFalse(facade.DistrictTracker.IsChunkVisited(36, 35));
+                Assert.IsTrue(facade.DistrictTracker.IsChunkVisited(21, 20));
+            }
+        }
+
+        [Test]
         public void LoadRestoresExactPlayerPositionAcrossMapsAndWithinCurrentMap()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(
