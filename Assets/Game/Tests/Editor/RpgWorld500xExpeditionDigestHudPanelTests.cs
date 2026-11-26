@@ -1,14 +1,60 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.TestTools;
 
 namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xExpeditionDigestHudPanelTests
     {
+        [UnityTest]
+        public IEnumerator ExpeditionDigestRiskBannerCapturesSafeAndHazardousGameView()
+        {
+            yield return new EnterPlayMode(expectDomainReload: true);
+            yield return null;
+            var root = new GameObject("World500xExpeditionDigestVisualEvidenceRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xExpeditionDigestHudPanel(root.transform, boot))
+                {
+                    var atmosphere = boot.Driver.Facade.Atmosphere;
+                    foreach (RpgWorldMapId map in Enum.GetValues(typeof(RpgWorldMapId)))
+                        atmosphere.SetWeather(map, RpgWorld500xWeatherKind.Clear);
+
+                    Assert.IsTrue(panel.Show(0f));
+                    yield return null;
+                    var canvas = root.transform.Find("World500xExpeditionDigestHudPanel").GetComponent<Canvas>();
+                    var banner = canvas.transform.Find("DigestModalBox/RiskBannerBox/RiskBannerLabel").GetComponent<Text>();
+                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, panel.LastDigest.TravelRiskLevel);
+                    StringAssert.Contains("高危区域 " + panel.HazardousRegionCount + " 境", banner.text);
+                    SoundwellSmokeHost.CaptureStoryCanvas(canvas, "world500x-expedition-digest-risk-safe");
+
+                    atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                    atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.GaleStorm);
+                    Assert.IsTrue(panel.TryClickRefresh(1f));
+                    yield return null;
+                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, panel.LastDigest.TravelRiskLevel);
+                    Assert.GreaterOrEqual(panel.HazardousRegionCount, 2);
+                    StringAssert.Contains("高危区域 " + panel.HazardousRegionCount + " 境", banner.text);
+                    SoundwellSmokeHost.CaptureStoryCanvas(canvas, "world500x-expedition-digest-risk-hazardous");
+                    Assert.IsTrue(panel.TryClickClose());
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(root);
+            }
+            yield return null;
+            yield return new ExitPlayMode();
+        }
+
         [Test]
         public void ExpeditionDigestHudPanel_RendersLiveDigestRespectsCanvasGroupLockAndZeroLeak()
         {
