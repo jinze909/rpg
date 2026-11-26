@@ -40,6 +40,7 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(panel.TrySelectTab(RpgWorld500xGazetteerHudTab.SearchResults));
                     Assert.IsFalse(panel.TrySearch("港区航标巡查"));
                     Assert.IsFalse(panel.TryClickToggleScope());
+                    Assert.IsFalse(panel.TryToggleSafestRoute());
                     Assert.IsFalse(panel.TryClickClose());
                     Button searchTabBtn = root.transform
                         .Find("World500xWorldGazetteerHudPanel/GazetteerModalBox/Tab_SearchResults")
@@ -56,9 +57,16 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(RpgWorld500xGazetteerHudTab.RegionOverview, panel.ActiveTab);
                     Assert.AreEqual(4, panel.DisplayedRowCount);
                     Assert.AreEqual(4, panel.LastCards.Count);
+                    Assert.IsFalse(panel.PreferSafestRoute);
+                    Assert.IsTrue(panel.StatusText.Contains("路径：最短耗时"));
                     Assert.IsTrue(panel.HeaderText.Contains("补给箱 42"));
                     Assert.IsTrue(panel.HeaderText.Contains("捷径 16"));
                     Assert.IsTrue(panel.HeaderText.Contains("悬赏 12"));
+
+                    // Toggling safest-route mode updates live status label cleanly.
+                    Assert.IsTrue(panel.TryToggleSafestRoute());
+                    Assert.IsTrue(panel.PreferSafestRoute);
+                    Assert.IsTrue(panel.StatusText.Contains("路径：避险优先"));
 
                     // Live route-risk & provisioning badges render on MineCamp row and update after auto-provisioning.
                     Text mineRowBefore = root.transform
@@ -90,12 +98,13 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(0, panel.LastSearchHitCount);
                     Assert.AreEqual(0, panel.DisplayedRowCount);
 
-                    // Parent CanvasGroup lock blocks tab switch, search, scope toggle, clear, close, AND direct stale callbacks.
+                    // Parent CanvasGroup lock blocks tab switch, search, scope toggle, route-mode toggle, clear, close, AND direct stale callbacks.
                     CanvasGroup group = root.AddComponent<CanvasGroup>();
                     group.interactable = false;
                     Assert.IsFalse(panel.TrySelectTab(RpgWorld500xGazetteerHudTab.RegionOverview));
                     Assert.IsFalse(panel.TrySearch("声井测绘初录"));
                     Assert.IsFalse(panel.TryClickToggleScope());
+                    Assert.IsFalse(panel.TryToggleSafestRoute());
                     Assert.IsFalse(panel.TryClickClearSearch());
                     Assert.IsFalse(panel.TryClickClose());
                     toggleScopeBtn.onClick.Invoke();
