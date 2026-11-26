@@ -9,7 +9,8 @@ namespace Rpg.Soundwell
     /// Compact non-modal UGUI Field Supply Hotbar bound to RpgWorld500xSceneBootstrapper
     /// and RpgWorld500xFieldSupplyUseService. Renders all 6 camp supplies with live
     /// stock counts, one-click field consumption, active timed buff countdown strip,
-    /// parent CanvasGroup interactability guards, and zero-leak IDisposable cleanup.
+    /// read-only inventory snapshot readouts, parent CanvasGroup interactability guards,
+    /// and zero-leak IDisposable cleanup.
     /// </summary>
     public sealed class RpgWorld500xFieldSupplyHotbarHud : IDisposable
     {
@@ -26,10 +27,16 @@ namespace Rpg.Soundwell
             new Dictionary<string, Text>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _shortNameById =
             new Dictionary<string, string>(StringComparer.Ordinal);
+        private RpgWorld500xFieldSupplyInventorySummary _lastInventorySnapshot;
         private bool _disposed;
 
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xFieldSupplyUseService SupplyUseService => _supplyUseService;
+        public RpgWorld500xFieldSupplyInventorySummary LastInventorySnapshot => _lastInventorySnapshot;
+        public int TotalOwnedSupplyCount => _lastInventorySnapshot.TotalOwnedItems;
+        public int DistinctOwnedSupplyKinds => _lastInventorySnapshot.DistinctOwnedKinds;
+        public int ActiveBuffCount => _lastInventorySnapshot.ActiveBuffCount;
+        public string InventorySummaryText => _lastInventorySnapshot.SummaryZh;
         public int DisplayedSlotCount => _slotButtons.Count;
         public string FeedbackText => _feedbackText != null ? _feedbackText.text : string.Empty;
         public string ActiveBuffsText => _activeBuffsText != null ? _activeBuffsText.text : string.Empty;
@@ -86,6 +93,11 @@ namespace Rpg.Soundwell
             Refresh(0f);
         }
 
+        public bool HasUsableSupply(string itemId)
+        {
+            return !IsDisposed && _supplyUseService.HasUsableSupply(itemId);
+        }
+
         public bool TryClickUseSupply(string itemId, float nowSeconds)
         {
             if (IsDisposed || _bootstrapper.IsDisposed || string.IsNullOrEmpty(itemId))
@@ -103,6 +115,8 @@ namespace Rpg.Soundwell
             {
                 return;
             }
+
+            _lastInventorySnapshot = _supplyUseService.BuildInventorySnapshot(nowSeconds);
 
             IReadOnlyList<RpgWorld500xCampSupplyItemDef> supplies =
                 RpgWorld500xBountyAndSupplyCatalog.GetCampSupplies();
@@ -133,9 +147,8 @@ namespace Rpg.Soundwell
                 }
             }
 
-            RpgWorld500xActiveSupplyBuffModifiers mods = _supplyUseService.EvaluateActiveModifiers(nowSeconds);
-            _activeBuffsText.text = mods.ActiveBuffCount > 0
-                ? "生效增益：" + mods.ActiveBuffSummaryZh
+            _activeBuffsText.text = _lastInventorySnapshot.ActiveBuffCount > 0
+                ? "生效增益：" + _lastInventorySnapshot.ActiveBuffSummaryZh
                 : "生效增益：无";
         }
 

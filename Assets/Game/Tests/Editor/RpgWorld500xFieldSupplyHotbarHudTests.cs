@@ -104,6 +104,13 @@ namespace Rpg.Tests.Editor
                 using (var hud = new RpgWorld500xFieldSupplyHotbarHud(root.transform, boot, useSvc))
                 {
                     Assert.AreEqual(6, hud.DisplayedSlotCount);
+                    Assert.AreEqual(6, hud.LastInventorySnapshot.Slots.Count);
+                    Assert.AreEqual(2, hud.TotalOwnedSupplyCount);
+                    Assert.AreEqual(1, hud.DistinctOwnedSupplyKinds);
+                    Assert.AreEqual(0, hud.ActiveBuffCount);
+                    Assert.IsTrue(hud.HasUsableSupply("lamp_oil"));
+                    Assert.IsFalse(hud.HasUsableSupply("flare"));
+                    StringAssert.Contains("【随身补给】", hud.InventorySummaryText);
                     Assert.IsFalse(hud.TryClickUseSupply("flare", 10f));
 
                     // Parent CanvasGroup lock blocks clicks cleanly.
@@ -116,11 +123,14 @@ namespace Rpg.Tests.Editor
                     // Clicking owned lamp_oil consumes 1 and displays active buff.
                     Assert.IsTrue(hud.TryClickUseSupply("lamp_oil", 10f));
                     Assert.AreEqual(1, useSvc.GetOwnedCount("lamp_oil"));
+                    Assert.AreEqual(1, hud.TotalOwnedSupplyCount);
+                    Assert.AreEqual(1, hud.ActiveBuffCount);
                     Assert.IsTrue(hud.FeedbackText.Contains("矿灯灯油"));
                     Assert.IsTrue(hud.ActiveBuffsText.Contains("灯油照明"));
 
                     // After buff expires, active buffs readout clears.
                     hud.Refresh(120f);
+                    Assert.AreEqual(0, hud.ActiveBuffCount);
                     Assert.IsTrue(hud.ActiveBuffsText.Contains("无"));
                 }
 
