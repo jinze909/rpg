@@ -32,6 +32,12 @@ namespace Rpg.Tests.Editor
                     yield return null;
                     var canvas = root.transform.Find("World500xExpeditionDigestHudPanel").GetComponent<Canvas>();
                     var banner = canvas.transform.Find("DigestModalBox/RiskBannerBox/RiskBannerLabel").GetComponent<Text>();
+                    Font expectedFont = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+                    Assert.IsNotNull(expectedFont);
+                    foreach (Text label in canvas.GetComponentsInChildren<Text>(true))
+                        Assert.AreSame(expectedFont, label.font, label.name + " must render Chinese glyphs.");
+                    foreach (char glyph in "远征营火手记行旅风险高危区域刷新合上")
+                        Assert.IsTrue(expectedFont.HasCharacter(glyph), "Missing glyph: " + glyph);
                     Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, panel.LastDigest.TravelRiskLevel);
                     StringAssert.Contains("高危区域 " + panel.HazardousRegionCount + " 境", banner.text);
                     SoundwellSmokeHost.CaptureStoryCanvas(canvas, "world500x-expedition-digest-risk-safe");

@@ -369,10 +369,14 @@ namespace Rpg.Soundwell
 
         private static Font ResolveUiFont()
         {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
+            // This panel presents Chinese text regardless of the story UI language.
+            // Use the same pinned OFL font as Soundwell localization rather than
+            // the Latin-only builtin font (blank CJK glyphs in CI GameView).
+            Font font = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+            if (font == null || !font.HasCharacter('远') ||
+                !font.HasCharacter('险') || !font.HasCharacter('境'))
             {
-                font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                throw new InvalidOperationException("The pinned Chinese font is missing or lacks expedition digest glyphs.");
             }
 
             return font;
