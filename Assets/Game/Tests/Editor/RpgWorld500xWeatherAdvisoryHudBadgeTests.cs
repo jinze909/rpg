@@ -29,10 +29,16 @@ namespace Rpg.Tests.Editor
                     overrideTileSlices: new Sprite[] { null }))
                 using (var badge = new RpgWorld500xWeatherAdvisoryHudBadge(root.transform, boot))
                 {
+                    boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
                     boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                    boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.WhitewaterCrossing, RpgWorld500xWeatherKind.Clear);
+                    boot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.Clear);
                     badge.Refresh(5f);
                     Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, badge.LastRiskLevel);
                     Assert.IsFalse(badge.LastRecommendCampfireRest);
+                    Assert.AreEqual(0, badge.HazardousRegionCount);
+                    Assert.AreEqual(4, badge.LastWorldDigest.RegionReports.Count);
+                    StringAssert.Contains("【四境气象速报】", badge.WorldBulletinText);
                     Assert.IsTrue(badge.RiskLabelText.Contains("行路平稳"));
                     Assert.IsTrue(badge.AmbientForecastText.Contains("异象激活中"));
 
@@ -40,6 +46,9 @@ namespace Rpg.Tests.Editor
                     badge.Refresh(25f);
                     Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, badge.LastRiskLevel);
                     Assert.IsTrue(badge.LastRecommendCampfireRest);
+                    Assert.AreEqual(1, badge.HazardousRegionCount);
+                    Assert.AreNotEqual(RpgWorldMapId.RedSaltHarbor, badge.SafestRegionMapId);
+                    StringAssert.Contains("高危预警", badge.WorldBulletinText);
                     Assert.IsTrue(badge.RiskLabelText.Contains("高危预警"));
                     Assert.IsTrue(badge.AdvisoryText.Contains("营火休整"));
                     Assert.IsTrue(badge.AmbientForecastText.Contains("下次异象"));

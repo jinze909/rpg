@@ -8,7 +8,8 @@ namespace Rpg.Soundwell
     /// Compact non-modal UGUI Weather &amp; Ambient Window Advisory badge bound to
     /// RpgWorld500xSceneBootstrapper and RpgWorld500xWeatherTravelAdvisoryService.
     /// Renders color-coded travel risk status, tactical advisory text, next phase
-    /// countdown, and nearest ambient micro-event window under a zero-leak lifecycle.
+    /// countdown, 4-region weather digest readout, and nearest ambient micro-event
+    /// window under a zero-leak lifecycle.
     /// </summary>
     public sealed class RpgWorld500xWeatherAdvisoryHudBadge : IDisposable
     {
@@ -21,11 +22,16 @@ namespace Rpg.Soundwell
         private readonly Font _font;
         private RpgWorld500xTravelRiskLevel _lastRiskLevel;
         private bool _lastRecommendCampfireRest;
+        private RpgWorld500xWorldWeatherDigest _lastWorldDigest;
         private bool _disposed;
 
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xTravelRiskLevel LastRiskLevel => _lastRiskLevel;
         public bool LastRecommendCampfireRest => _lastRecommendCampfireRest;
+        public RpgWorld500xWorldWeatherDigest LastWorldDigest => _lastWorldDigest;
+        public int HazardousRegionCount => _lastWorldDigest.HazardousRegionCount;
+        public RpgWorldMapId SafestRegionMapId => _lastWorldDigest.SafestMapId;
+        public string WorldBulletinText => _lastWorldDigest.WorldBulletinZh ?? string.Empty;
         public string RiskLabelText => _riskPillText != null ? _riskPillText.text : string.Empty;
         public string AdvisoryText => _advisoryText != null ? _advisoryText.text : string.Empty;
         public string AmbientForecastText => _ambientForecastText != null ? _ambientForecastText.text : string.Empty;
@@ -104,6 +110,8 @@ namespace Rpg.Soundwell
             RpgWorld500xAtmosphereSnapshot snap = facade.Atmosphere.GetSnapshot(facade.CurrentMapId);
             RpgWorld500xTravelAdvisoryReport report =
                 RpgWorld500xWeatherTravelAdvisoryService.BuildAdvisory(snap, elapsedSeconds);
+            _lastWorldDigest =
+                RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(facade.Atmosphere, elapsedSeconds);
 
             _lastRiskLevel = report.RiskLevel;
             _lastRecommendCampfireRest = report.RecommendCampfireRest;
