@@ -112,9 +112,23 @@ namespace Rpg.Soundwell
             }
 
             // Invalid map requests must not consume a valid session's pulse cooldown.
-            if (!IsPlayableMap(mapId))
+            if (!TryGetPlayableMapSpec(mapId, out RpgExpandedMapSpec spec))
             {
                 summaryBannerZh = "勘测区域无效";
+                return false;
+            }
+
+            // Invalid positions and categories are not real scans and must
+            // never start or reset a valid player's pulse cooldown.
+            if (!IsInsideMap(playerTile, spec))
+            {
+                summaryBannerZh = "勘测坐标超出区域";
+                return false;
+            }
+
+            if (filterKind.HasValue && !Enum.IsDefined(typeof(RpgWorld500xReconPingKind), filterKind.Value))
+            {
+                summaryBannerZh = "勘测分类无效";
                 return false;
             }
 
@@ -169,7 +183,10 @@ namespace Rpg.Soundwell
             float maxRadiusTiles = 2000f)
         {
             nearest = default;
-            if (!IsFinite(playerTile) || !IsPlayableMap(mapId))
+            if (!IsFinite(playerTile) ||
+                !TryGetPlayableMapSpec(mapId, out RpgExpandedMapSpec spec) ||
+                !IsInsideMap(playerTile, spec) ||
+                !Enum.IsDefined(typeof(RpgWorld500xReconPingKind), kind))
             {
                 return false;
             }
@@ -367,17 +384,25 @@ namespace Rpg.Soundwell
             output.Add(new RpgWorld500xReconPing(kind, id, titleZh, tile, dist, dir, formatted));
         }
 
-        private static bool IsPlayableMap(RpgWorldMapId mapId)
+        private static bool TryGetPlayableMapSpec(RpgWorldMapId mapId, out RpgExpandedMapSpec spec)
         {
             IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
             for (int i = 0; i < specs.Count; i++)
             {
                 if (specs[i].MapId == mapId)
+                {
+                    spec = specs[i];
                     return true;
+                }
             }
 
+            spec = default;
             return false;
         }
+
+        private static bool IsInsideMap(Vector2 tile, RpgExpandedMapSpec spec) =>
+            tile.x >= 0f && tile.x < spec.ExpandedWidth &&
+            tile.y >= 0f && tile.y < spec.ExpandedHeight;
 
         private static bool IsFinite(float v) => !float.IsNaN(v) && !float.IsInfinity(v);
         private static bool IsFinite(Vector2 v) => IsFinite(v.x) && IsFinite(v.y);
