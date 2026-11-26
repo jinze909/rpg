@@ -419,17 +419,17 @@ namespace Rpg.Soundwell
             int totalRep = 0;
             RpgWorldMapId highestMap = entries.Count > 0 ? entries[0].MapId : RpgWorldMapId.Soundwell;
             string highestNameZh = entries.Count > 0 ? entries[0].DisplayNameZh : string.Empty;
-            int highestScore = entries.Count > 0 ? entries[0].Reputation.Score : int.MinValue;
+            int highestScore = entries.Count > 0 ? entries[0].Reputation.Points : int.MinValue;
 
             for (int i = 0; i < entries.Count; i++)
             {
                 RpgWorld500xRegionAtlasEntry e = entries[i];
                 totalClaimed += e.ClaimedBounties;
                 totalBounties += e.TotalBounties;
-                totalRep += e.Reputation.Score;
-                if (e.Reputation.Score > highestScore)
+                totalRep += e.Reputation.Points;
+                if (e.Reputation.Points > highestScore)
                 {
-                    highestScore = e.Reputation.Score;
+                    highestScore = e.Reputation.Points;
                     highestMap = e.MapId;
                     highestNameZh = e.DisplayNameZh;
                 }
