@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Rpg.Soundwell
@@ -41,6 +42,32 @@ namespace Rpg.Soundwell
         public string HonorTitleZh { get; }
         public int CampSupplyDiscountPercent { get; }
         public int PointsToNextRank { get; }
+    }
+
+    public readonly struct RpgWorld500xWorldReputationOverview
+    {
+        public RpgWorld500xWorldReputationOverview(
+            IReadOnlyList<RpgRegionalReputationSnapshot> snapshots,
+            int totalPoints,
+            int swornRegionCount,
+            RpgWorldMapId highestStandingMapId,
+            int bestCampDiscountPercent,
+            string summaryLineZh)
+        {
+            Snapshots = snapshots ?? Array.Empty<RpgRegionalReputationSnapshot>();
+            TotalPoints = totalPoints;
+            SwornRegionCount = swornRegionCount;
+            HighestStandingMapId = highestStandingMapId;
+            BestCampDiscountPercent = bestCampDiscountPercent;
+            SummaryLineZh = summaryLineZh ?? string.Empty;
+        }
+
+        public IReadOnlyList<RpgRegionalReputationSnapshot> Snapshots { get; }
+        public int TotalPoints { get; }
+        public int SwornRegionCount { get; }
+        public RpgWorldMapId HighestStandingMapId { get; }
+        public int BestCampDiscountPercent { get; }
+        public string SummaryLineZh { get; }
     }
 
     /// <summary>
@@ -145,6 +172,11 @@ namespace Rpg.Soundwell
             return Math.Max(1, discounted);
         }
 
+        public int ComputeDiscountedCostForMap(RpgWorldMapId mapId, int baseSaltSilverCost)
+        {
+            return ComputeDiscountedCost(baseSaltSilverCost, ResolveRank(GetPoints(mapId)));
+        }
+
         public int GetPoints(RpgWorldMapId mapId)
         {
             return Mathf.Clamp(_getInt(ReputationKey(mapId)), 0, MaxReputationPoints);
@@ -209,6 +241,53 @@ namespace Rpg.Soundwell
                 honor,
                 GetCampSupplyDiscountPercent(rank),
                 toNext);
+        }
+
+        public RpgWorld500xWorldReputationOverview BuildWorldOverview()
+        {
+            IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
+            var snapshots = new List<RpgRegionalReputationSnapshot>(specs.Count);
+            int totalPoints = 0;
+            int swornCount = 0;
+            int bestPoints = -1;
+            int bestDiscount = 0;
+            RpgWorldMapId highestMapId = specs.Count > 0 ? specs[0].MapId : RpgWorldMapId.Soundwell;
+            string highestMapNameZh = specs.Count > 0 ? specs[0].DisplayNameZh : string.Empty;
+
+            for (int i = 0; i < specs.Count; i++)
+            {
+                RpgExpandedMapSpec spec = specs[i];
+                RpgRegionalReputationSnapshot snap = GetSnapshot(spec.MapId);
+                snapshots.Add(snap);
+                totalPoints += snap.Points;
+                if (snap.Rank == RpgRegionalReputationRank.Sworn)
+                {
+                    swornCount++;
+                }
+
+                if (snap.CampSupplyDiscountPercent > bestDiscount)
+                {
+                    bestDiscount = snap.CampSupplyDiscountPercent;
+                }
+
+                if (snap.Points > bestPoints)
+                {
+                    bestPoints = snap.Points;
+                    highestMapId = spec.MapId;
+                    highestMapNameZh = spec.DisplayNameZh;
+                }
+            }
+
+            string summary = "【四境声望总览】累计 " + totalPoints + " 点｜生死托付 " + swornCount + "/" + specs.Count +
+                             " 境｜最高折扣 -" + bestDiscount + "%（" + highestMapNameZh + "）";
+
+            return new RpgWorld500xWorldReputationOverview(
+                snapshots,
+                totalPoints,
+                swornCount,
+                highestMapId,
+                bestDiscount,
+                summary);
         }
     }
 }
