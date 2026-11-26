@@ -71,6 +71,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ChineseAssemblyUsesCanonicalJingwanAndYiLeiNames()
+        {
+            var root = new GameObject("M10 canonical names");
+            string savedLanguage = SoundwellUiLocalization.Language;
+            M10AssemblyView view = null;
+            try
+            {
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                var session = CreateVerifiedSession();
+                view = new M10AssemblyView(root.transform, session,
+                    () => true, () => true, () => false, () => false, () => { });
+
+                Assert.That(view.Body.text, Does.Contain("镜湾"));
+                Assert.That(view.ObserveNoticeButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Does.Contain("镜湾"));
+                view.ObserveNoticeButton.onClick.Invoke();
+                Assert.That(view.Body.text, Does.Contain("伊蕾"));
+                Assert.That(view.ReconcileRecordsButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Does.Contain("伊蕾"));
+                view.ReconcileRecordsButton.onClick.Invoke();
+                view.PresentM02CopyButton.onClick.Invoke();
+                view.PublishDraftButton.onClick.Invoke();
+                view.SignFullCoverageButton.onClick.Invoke();
+                view.HearBellTowerReportButton.onClick.Invoke();
+                Assert.That(view.Body.text, Does.Contain("镜湾"));
+                Assert.That(view.Body.text, Does.Not.Contain("靖湾"));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                Assert.That(view.Body.text, Does.Contain("Jingwan"));
+                Assert.That(session.Phase, Is.EqualTo(M10AssemblyPhase.BellTowerTurn));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(savedLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyingCoreChildControlDetachesLocaleAndBlocksClicks()
         {
             var root = new GameObject("M10 view partial teardown");

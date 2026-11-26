@@ -20,6 +20,99 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockProtectsPartsRecoverableFaultAndDepositDelivery()
+        {
+            var root = new GameObject("M08 winch effective input lock");
+            M08FirstWinchOrderView view = null;
+            try
+            {
+                var session = new M08FirstWinchOrderSession();
+                int deliveries = 0;
+                bool hostReady = false;
+                view = new M08FirstWinchOrderView(root.transform, session, completed =>
+                {
+                    deliveries++;
+                    Assert.That(completed, Is.SameAs(session));
+                    Assert.That(completed.WorkshopDepositEarned, Is.True);
+                    if (!hostReady)
+                        throw new InvalidOperationException("Host write interrupted");
+                });
+                var group = view.Panel.gameObject.AddComponent<CanvasGroup>();
+
+                void AssertBlockedClicks()
+                {
+                    var stage = session.Stage;
+                    bool gear = session.HasScrapGear, cable = session.HasDockCable;
+                    int tension = session.CableTension, attempts = session.TestAttempts;
+                    int faults = session.RecoverableFaults, before = deliveries;
+                    bool deposit = session.WorkshopDepositEarned;
+                    void InvokeAll()
+                    {
+                        view.PrimaryButton.onClick.Invoke();
+                        view.SecondaryButton.onClick.Invoke();
+                        view.ThirdButton.onClick.Invoke();
+                        view.FinishButton.onClick.Invoke();
+                    }
+
+                    group.interactable = false;
+                    InvokeAll();
+                    group.interactable = true;
+                    view.Panel.gameObject.SetActive(false);
+                    InvokeAll();
+                    view.Panel.gameObject.SetActive(true);
+
+                    Assert.That(session.Stage, Is.EqualTo(stage));
+                    Assert.That(session.HasScrapGear, Is.EqualTo(gear));
+                    Assert.That(session.HasDockCable, Is.EqualTo(cable));
+                    Assert.That(session.CableTension, Is.EqualTo(tension));
+                    Assert.That(session.TestAttempts, Is.EqualTo(attempts));
+                    Assert.That(session.RecoverableFaults, Is.EqualTo(faults));
+                    Assert.That(session.WorkshopDepositEarned, Is.EqualTo(deposit));
+                    Assert.That(deliveries, Is.EqualTo(before));
+                }
+
+                AssertBlockedClicks();
+                view.PrimaryButton.onClick.Invoke();
+                Assert.That(session.HasScrapGear, Is.True);
+                AssertBlockedClicks();
+                view.SecondaryButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M08WinchOrderStage.Assemble));
+                AssertBlockedClicks();
+                view.PrimaryButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M08WinchOrderStage.TestLift));
+                AssertBlockedClicks();
+                view.PrimaryButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M08WinchOrderStage.RepairLooseCable));
+                Assert.That(session.RecoverableFaults, Is.EqualTo(1));
+                Assert.That(session.WorkshopDepositEarned, Is.False);
+                AssertBlockedClicks();
+                view.PrimaryButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(M08WinchOrderStage.TestLift));
+                AssertBlockedClicks();
+                view.PrimaryButton.onClick.Invoke();
+                Assert.That(session.TestAttempts, Is.EqualTo(2));
+                Assert.That(session.WorkshopDepositEarned, Is.True);
+                Assert.That(deliveries, Is.Zero);
+                AssertBlockedClicks();
+                Assert.Throws<InvalidOperationException>(() => view.FinishButton.onClick.Invoke());
+                Assert.That(deliveries, Is.EqualTo(1));
+                Assert.That(view.FinishButton.interactable, Is.True);
+                hostReady = true;
+                AssertBlockedClicks();
+                view.FinishButton.onClick.Invoke();
+                Assert.That(deliveries, Is.EqualTo(2));
+                AssertBlockedClicks();
+                view.FinishButton.onClick.Invoke();
+                Assert.That(deliveries, Is.EqualTo(2));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyingCoreChildControlDetachesLocaleAndBlocksClicks()
         {
             var root = new GameObject("M08 winch partial teardown");

@@ -70,6 +70,116 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockProtectsDeliveryIdentityAndExplicitSettlement()
+        {
+            var root = new GameObject("RC05 effective input lock");
+            var group = root.AddComponent<CanvasGroup>();
+            var values = new Dictionary<string, int>();
+            RC05ThirdSquadView view = null;
+            try
+            {
+                RC05ThirdSquadSession session = CreateSession(values);
+                int boatCalls = 0, rosterCalls = 0, testimonyCalls = 0, talksCalls = 0, submits = 0;
+                bool boatMatched = false, rosterChecked = false, testimonyConfirmed = false;
+                view = new RC05ThirdSquadView(root.transform, session,
+                    () => { boatCalls++; return boatMatched; },
+                    () => { rosterCalls++; return rosterChecked; },
+                    () => { testimonyCalls++; return testimonyConfirmed; },
+                    () => { talksCalls++; return false; },
+                    resolution =>
+                    {
+                        submits++;
+                        Assert.That(session.TrySettleResolution(
+                            resolution, Reader(values), (key, value) => values[key] = value), Is.True);
+                    });
+
+                void AssertBlockedClicks()
+                {
+                    var stage = session.Stage;
+                    bool roll = session.RollCallObserved;
+                    bool delivery = session.TrialDeliveryVerified;
+                    bool stone = session.OldWomanStoneMentioned;
+                    bool identity = session.RealZhengYuanVerified;
+                    bool skirmish = session.SkirmishOccurred;
+                    int[] counts = { boatCalls, rosterCalls, testimonyCalls, talksCalls, submits };
+                    var before = new Dictionary<string, int>(values);
+                    void InvokeAll()
+                    {
+                        view.ObserveRollCallButton.onClick.Invoke();
+                        view.VerifyZhengYuanButton.onClick.Invoke();
+                        view.ProceedTalksButton.onClick.Invoke();
+                    }
+
+                    group.interactable = false;
+                    InvokeAll();
+                    group.interactable = true;
+                    view.Panel.gameObject.SetActive(false);
+                    InvokeAll();
+                    view.Panel.gameObject.SetActive(true);
+
+                    Assert.That(session.Stage, Is.EqualTo(stage));
+                    Assert.That(session.RollCallObserved, Is.EqualTo(roll));
+                    Assert.That(session.TrialDeliveryVerified, Is.EqualTo(delivery));
+                    Assert.That(session.OldWomanStoneMentioned, Is.EqualTo(stone));
+                    Assert.That(session.RealZhengYuanVerified, Is.EqualTo(identity));
+                    Assert.That(session.SkirmishOccurred, Is.EqualTo(skirmish));
+                    Assert.That(new[] { boatCalls, rosterCalls, testimonyCalls, talksCalls, submits },
+                        Is.EqualTo(counts));
+                    CollectionAssert.AreEquivalent(before, values);
+                }
+
+                AssertBlockedClicks();
+                view.ObserveRollCallButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC05Stage.SaltGrainBoatTrial));
+                AssertBlockedClicks();
+                view.DeliverSaltGrainButton.onClick.Invoke();
+                Assert.That(session.TrialDeliveryVerified, Is.False);
+                boatMatched = true;
+                AssertBlockedClicks();
+                view.DeliverSaltGrainButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC05Stage.MillMeeting));
+                Assert.That(session.TrialDeliveryVerified, Is.True);
+
+                AssertBlockedClicks();
+                view.MentionStoneButton.onClick.Invoke();
+                Assert.That(session.OldWomanStoneMentioned, Is.False);
+                rosterChecked = true;
+                view.VerifyZhengYuanButton.onClick.Invoke();
+                Assert.That(session.RealZhengYuanVerified, Is.False);
+                testimonyConfirmed = true;
+                AssertBlockedClicks();
+                view.VerifyZhengYuanButton.onClick.Invoke();
+                Assert.That(session.RealZhengYuanVerified, Is.True);
+                AssertBlockedClicks();
+                view.ProceedTalksButton.onClick.Invoke();
+                Assert.That(session.Stage, Is.EqualTo(RC05Stage.ThreePartyDecision));
+                Assert.That(talksCalls, Is.EqualTo(1));
+                Assert.That(session.SkirmishOccurred, Is.False);
+
+                AssertBlockedClicks();
+                Assert.That(values.ContainsKey(RC05ThirdSquadFacts.ConfirmedKey), Is.False);
+                view.CivilianPardonButton.onClick.Invoke();
+                Assert.That(submits, Is.EqualTo(1));
+                Assert.That(session.IsResolved, Is.True);
+                Assert.That(RC05ThirdSquadFacts.TryRead(Reader(values), out RC05ThirdSquadRecord? record), Is.True);
+                Assert.That(record.HasValue, Is.True);
+                Assert.That(record.Value.TrialDeliveryVerified, Is.True);
+                Assert.That(record.Value.RealZhengYuanVerified, Is.True);
+                Assert.That(record.Value.OldWomanStoneMentioned, Is.False);
+                Assert.That(record.Value.SkirmishOccurred, Is.False);
+                Assert.That(record.Value.NeedsM10SupplyContract, Is.True);
+                AssertBlockedClicks();
+                view.EnlistLuJunButton.onClick.Invoke();
+                Assert.That(submits, Is.EqualTo(1));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PartialChildTeardownDisposesViewAndBlocksClickLayoutAndLocaleRefresh()
         {
             var root = new GameObject("RC05 view partial teardown");
