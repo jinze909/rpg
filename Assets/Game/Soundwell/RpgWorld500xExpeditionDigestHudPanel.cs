@@ -63,36 +63,39 @@ namespace Rpg.Soundwell
             var canvas = _rootObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 72;
+            canvas.pixelPerfect = true;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280f, 720f);
+            // Use the native 960x540 acceptance frame as the design size; avoid
+            // rendering CJK text at fractional sub-12-pixel glyph sizes there.
+            scaler.referenceResolution = new Vector2(960f, 540f);
 
             GameObject modal = CreateBox(
                 _rootObject.transform,
                 "DigestModalBox",
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(760f, 480f),
+                Vector2.zero, new Vector2(900f, 510f),
                 new Color(0.08f, 0.09f, 0.12f, 0.96f));
 
             _headerText = CreateText(
                 modal.transform,
                 "HeaderLabel",
-                new Vector2(0.04f, 0.88f), new Vector2(0.96f, 0.96f),
-                _font, 16, TextAnchor.MiddleLeft,
+                new Vector2(0.04f, 0.90f), new Vector2(0.96f, 0.97f),
+                _font, 20, TextAnchor.MiddleLeft,
                 new Color(0.97f, 0.89f, 0.62f, 1f));
 
             _statusRibbonText = CreateText(
                 modal.transform,
                 "StatusRibbonLabel",
-                new Vector2(0.04f, 0.80f), new Vector2(0.96f, 0.87f),
-                _font, 12, TextAnchor.MiddleLeft,
+                new Vector2(0.04f, 0.82f), new Vector2(0.96f, 0.89f),
+                _font, 16, TextAnchor.MiddleLeft,
                 new Color(0.84f, 0.92f, 0.96f, 1f));
 
             GameObject riskBox = CreateBox(
                 modal.transform,
                 "RiskBannerBox",
-                new Vector2(0.04f, 0.69f), new Vector2(0.96f, 0.78f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.04f, 0.72f), new Vector2(0.96f, 0.81f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, Vector2.zero,
                 new Color(0.14f, 0.28f, 0.20f, 0.92f));
             var riskRect = riskBox.GetComponent<RectTransform>();
@@ -104,13 +107,13 @@ namespace Rpg.Soundwell
                 riskBox.transform,
                 "RiskBannerLabel",
                 new Vector2(0.03f, 0.08f), new Vector2(0.97f, 0.92f),
-                _font, 13, TextAnchor.MiddleLeft,
+                _font, 16, TextAnchor.MiddleLeft,
                 Color.white);
 
             GameObject bodyBox = CreateBox(
                 modal.transform,
                 "DigestBodyBox",
-                new Vector2(0.04f, 0.18f), new Vector2(0.96f, 0.66f), new Vector2(0.5f, 0.5f),
+                new Vector2(0.04f, 0.145f), new Vector2(0.96f, 0.71f), new Vector2(0.5f, 0.5f),
                 Vector2.zero, Vector2.zero,
                 new Color(0.11f, 0.13f, 0.17f, 0.92f));
             var bodyRect = bodyBox.GetComponent<RectTransform>();
@@ -120,14 +123,14 @@ namespace Rpg.Soundwell
             _digestBodyText = CreateText(
                 bodyBox.transform,
                 "DigestBodyLabel",
-                new Vector2(0.03f, 0.05f), new Vector2(0.97f, 0.95f),
-                _font, 13, TextAnchor.UpperLeft,
+                new Vector2(0.025f, 0.035f), new Vector2(0.975f, 0.965f),
+                _font, 16, TextAnchor.UpperLeft,
                 new Color(0.94f, 0.95f, 0.97f, 1f));
 
             _refreshButton = CreateActionButton(
                 modal.transform,
                 "RefreshDigestButton",
-                new Vector2(0.04f, 0.05f), new Vector2(0.48f, 0.14f),
+                new Vector2(0.04f, 0.025f), new Vector2(0.48f, 0.125f),
                 "刷新营火手记",
                 _font,
                 () =>
@@ -143,7 +146,7 @@ namespace Rpg.Soundwell
             _closeButton = CreateActionButton(
                 modal.transform,
                 "CloseDigestButton",
-                new Vector2(0.52f, 0.05f), new Vector2(0.96f, 0.14f),
+                new Vector2(0.52f, 0.025f), new Vector2(0.96f, 0.125f),
                 "合上手记",
                 _font,
                 () =>
@@ -329,6 +332,7 @@ namespace Rpg.Soundwell
             text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = color;
+            text.raycastTarget = false;
             return text;
         }
 
@@ -361,7 +365,7 @@ namespace Rpg.Soundwell
                 go.transform,
                 "Text",
                 Vector2.zero, Vector2.one,
-                font, 13, TextAnchor.MiddleCenter,
+                font, 16, TextAnchor.MiddleCenter,
                 Color.white);
             txt.text = label;
             return btn;

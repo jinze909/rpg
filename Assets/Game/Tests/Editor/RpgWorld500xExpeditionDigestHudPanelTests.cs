@@ -40,6 +40,7 @@ namespace Rpg.Tests.Editor
                         Assert.IsTrue(expectedFont.HasCharacter(glyph), "Missing glyph: " + glyph);
                     Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, panel.LastDigest.TravelRiskLevel);
                     StringAssert.Contains("高危区域 " + panel.HazardousRegionCount + " 境", banner.text);
+                    AssertReadableLayout(canvas);
                     SoundwellSmokeHost.CaptureStoryCanvas(canvas, "world500x-expedition-digest-risk-safe");
 
                     atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
@@ -49,6 +50,7 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, panel.LastDigest.TravelRiskLevel);
                     Assert.GreaterOrEqual(panel.HazardousRegionCount, 2);
                     StringAssert.Contains("高危区域 " + panel.HazardousRegionCount + " 境", banner.text);
+                    AssertReadableLayout(canvas);
                     SoundwellSmokeHost.CaptureStoryCanvas(canvas, "world500x-expedition-digest-risk-hazardous");
                     Assert.IsTrue(panel.TryClickClose());
                 }
@@ -59,6 +61,20 @@ namespace Rpg.Tests.Editor
             }
             yield return null;
             yield return new ExitPlayMode();
+        }
+
+        private static void AssertReadableLayout(Canvas canvas)
+        {
+            Canvas.ForceUpdateCanvases();
+            Assert.IsTrue(canvas.pixelPerfect);
+            Assert.AreEqual(new Vector2(960f, 540f), canvas.GetComponent<CanvasScaler>().referenceResolution);
+            foreach (Text label in canvas.GetComponentsInChildren<Text>(true))
+            {
+                Assert.GreaterOrEqual(label.fontSize, 16, label.name + " is too small at the native reference size.");
+                Assert.IsFalse(label.resizeTextForBestFit, label.name + " must not silently shrink text.");
+                Assert.LessOrEqual(label.preferredHeight, label.rectTransform.rect.height + 1f,
+                    label.name + " clips wrapped text.");
+            }
         }
 
         [Test]
