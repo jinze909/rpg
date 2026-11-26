@@ -52,13 +52,13 @@ def verify(project_root=None):
     for meta in sorted((project / "Assets").rglob("*.meta")):
         relative_meta = meta.relative_to(project)
         content = meta.read_text(encoding="utf-8", errors="replace")
-        # Unity's MonoImporter rejects an unterminated final empty mapping
-        # entry even when the GUID itself is correct. Catch the observed
+        # The failed imports had a bare colon at EOF in the final mapping
+        # entry. Existing verified assets can end with a separating space. Catch the observed
         # script metadata failure before launching the expensive editor run.
         if (relative_meta.parts[:2] == ("Assets", "Game")
                 and meta.name.endswith(".cs.meta")
-                and re.search(r"(?m)^[ \t]*assetBundleVariant:[ \t]*\Z", content)):
-            raise ValueError(f"Unterminated assetBundleVariant in script metadata: {relative_meta}; add a final newline")
+                and re.search(r"(?m)^[ \t]*assetBundleVariant:\Z", content)):
+            raise ValueError(f"Unterminated assetBundleVariant in script metadata: {relative_meta}; add a separating space and final newline")
         match = re.search(
             r"^guid: ([0-9a-f]{32})$",
             content,

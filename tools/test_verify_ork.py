@@ -121,6 +121,11 @@ class VerifyOrkTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Unterminated assetBundleVariant.*Example.cs.meta"):
                 verify_ork.verify(root)
 
+            # A verified legacy MonoImporter asset may end with a space
+            # but no newline. Do not reject that existing format.
+            (root / relative).write_text(content + " ", encoding="utf-8")
+            verify_ork.verify(root)
+
             # Preserve the GUID and verify the Unity-compatible terminator.
             (root / relative).write_text(content + " \n", encoding="utf-8")
             verify_ork.verify(root)
