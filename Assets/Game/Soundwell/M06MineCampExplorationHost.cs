@@ -432,9 +432,8 @@ namespace Rpg.Soundwell
             M06MineCampReconView openedView = null;
             openedView = new M06MineCampReconView(parent, lead, inspected =>
             {
-                if (disposed || activeReconView != openedView ||
-                    getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
-                    !HasVerifiedLanding())
+                if (!CanSubmitDialog(() => activeReconView == openedView &&
+                        openedView != null && !openedView.IsDisposed, arrivalSequence))
                     throw new InvalidOperationException(
                         "The M06 mine-camp recon belongs to a previous or invalid voyage.");
 
@@ -442,8 +441,11 @@ namespace Rpg.Soundwell
                     throw new InvalidOperationException(
                         "Unable to persist the inspected M06 mine-camp reconnaissance lead.");
 
-                activeReconView?.Dispose();
-                activeReconView = null;
+                if (activeReconView == openedView)
+                {
+                    openedView.Dispose();
+                    activeReconView = null;
+                }
                 RefreshHud();
             });
             activeReconView = openedView;
@@ -467,9 +469,8 @@ namespace Rpg.Soundwell
             M06PumpRoomReunionView openedView = null;
             openedView = new M06PumpRoomReunionView(parent, session, plan =>
             {
-                if (disposed || activeReunionView != openedView ||
-                    getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
-                    !HasVerifiedLanding())
+                if (!CanSubmitDialog(() => activeReunionView == openedView &&
+                        openedView != null && !openedView.IsDisposed, arrivalSequence))
                     throw new InvalidOperationException(
                         "The M06 pump-room reunion belongs to a previous or invalid voyage.");
 
@@ -477,13 +478,28 @@ namespace Rpg.Soundwell
                     throw new InvalidOperationException(
                         "Unable to persist the M06 rescue plan decision.");
 
-                activeReunionView?.Dispose();
-                activeReunionView = null;
+                if (activeReunionView == openedView)
+                {
+                    openedView.Dispose();
+                    activeReunionView = null;
+                }
                 RefreshHud();
             });
             activeReunionView = openedView;
             RefreshHud();
             return true;
+        }
+
+        // Fact readers may synchronously retire the scene or its dialogue.
+        // Recheck the captured view after each external read before settlement.
+        private bool CanSubmitDialog(Func<bool> isSameLiveView, int arrivalSequence)
+        {
+            bool IsLive() => !disposed && parent != null && isSameLiveView();
+            return IsLive() &&
+                getInt(M05LandingFacts.ArrivalSequenceKey) == arrivalSequence &&
+                IsLive() && HasVerifiedLanding() && IsLive() &&
+                getInt(M05LandingFacts.ArrivalSequenceKey) == arrivalSequence &&
+                IsLive();
         }
 
         private static bool TryMapReconTrigger(string triggerId, out M06MineCampLead lead)

@@ -298,6 +298,79 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ArrivalReadClosingDialogueCannotPersistRecon()
+        {
+            AssertArrivalReadClosingDialogueCannotPersistReconOrRescuePlan(false);
+        }
+
+        [Test]
+        public void ArrivalReadClosingDialogueCannotPersistRescuePlan()
+        {
+            AssertArrivalReadClosingDialogueCannotPersistReconOrRescuePlan(true);
+        }
+
+        private static void AssertArrivalReadClosingDialogueCannotPersistReconOrRescuePlan(bool reunion)
+        {
+            var root = new GameObject("M06 dialogue closes during fact read");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedM05Arrival(values, letterDecision: null);
+            var read = Reader(values);
+            M06MineCampExplorationHost host = null;
+            bool closeOnArrival = false;
+            int writes = 0;
+            try
+            {
+                host = new M06MineCampExplorationHost(root.transform, key =>
+                {
+                    int value = read(key);
+                    if (closeOnArrival && key == M05LandingFacts.ArrivalSequenceKey)
+                    {
+                        closeOnArrival = false;
+                        host.Dispose();
+                    }
+                    return value;
+                }, (key, value) =>
+                {
+                    writes++;
+                    values[key] = value;
+                });
+                Assert.That(host.TryPlaceAtWalkableTile(reunion
+                    ? new Vector2Int(54, 36) : new Vector2Int(42, 12)), Is.True);
+                Assert.That(host.TryInteractAtCurrentPosition(), Is.True);
+                Action submit;
+                if (reunion)
+                {
+                    var view = host.ActiveReunionView;
+                    view.GreetingBringBackButton.onClick.Invoke();
+                    view.AdvanceButton.onClick.Invoke();
+                    view.AdvanceButton.onClick.Invoke();
+                    view.ShenWaitButton.onClick.Invoke();
+                    Assert.That(view.Session.Stage, Is.EqualTo(M06ReunionStage.RescuePlanDecision));
+                    var button = view.OfficialHandoverButton;
+                    submit = () => button.onClick.Invoke();
+                }
+                else
+                {
+                    var button = host.ActiveReconView.ConfirmButton;
+                    submit = () => button.onClick.Invoke();
+                }
+                writes = 0;
+                closeOnArrival = true;
+                Assert.Throws<InvalidOperationException>(() => submit());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.IsDialogueOpen, Is.False);
+                Assert.That(writes, Is.Zero);
+                Assert.That(read(M06MineCampReconFacts.ObservedMaskKey), Is.Zero);
+                Assert.That(read(M06RescuePlanFacts.ConfirmedKey), Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PumpRoomViewRetriesCommittedPlanAfterLostAcknowledgement()
         {
             var root = new GameObject("M06 pump plan lost ack");
