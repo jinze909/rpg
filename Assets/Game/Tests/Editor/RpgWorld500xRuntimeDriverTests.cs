@@ -51,6 +51,24 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(playerPos.y, cam.transform.position.y, 0.01f);
                 Assert.AreEqual(-10f, cam.transform.position.z, 0.001f);
 
+                // Invalid reinitialization must leave the current runtime intact.
+                var liveFacade = driver.Facade;
+                var liveHost = liveFacade.Session.Host;
+                int liveChildren = hostGo.transform.childCount;
+                string liveCaption = driver.LastEnvironmentCaptionZh;
+                string liveWaypoint = driver.LastNearestWaypointReadoutZh;
+                Assert.Throws<System.ArgumentOutOfRangeException>(() =>
+                    driver.Initialize(overrideMap: (RpgWorldMapId)999,
+                        overrideTileSlices: new Sprite[] { null }));
+                Assert.IsTrue(driver.IsInitialized);
+                Assert.AreSame(liveFacade, driver.Facade);
+                Assert.AreSame(liveHost, driver.Facade.Session.Host);
+                Assert.AreEqual(playerPos, liveHost.PlayerPosition);
+                Assert.AreEqual(liveChildren, hostGo.transform.childCount);
+                Assert.AreEqual(liveCaption, driver.LastEnvironmentCaptionZh);
+                Assert.AreEqual(liveWaypoint, driver.LastNearestWaypointReadoutZh);
+                Assert.IsTrue(driver.Facade.Session.MinimapHud.IsOverviewMode);
+
                 // Switch maps cleanly
                 Assert.IsTrue(driver.SwitchMap(RpgWorldMapId.RedSaltHarbor));
                 Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, driver.Facade.CurrentMapId);

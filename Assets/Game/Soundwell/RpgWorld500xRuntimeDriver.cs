@@ -53,9 +53,15 @@ namespace Rpg.Soundwell
             Action<string, string> onRewardGranted = null,
             Sprite[] overrideTileSlices = null)
         {
-            Shutdown();
-
             RpgWorldMapId targetMap = overrideMap ?? initialMapId;
+            // Validate before tearing down the live session, just as map
+            // switching does. A stale serialized map cannot destroy play state.
+            if (!Enum.IsDefined(typeof(RpgWorldMapId), targetMap))
+            {
+                throw new ArgumentOutOfRangeException(nameof(overrideMap), targetMap, "Unknown map id.");
+            }
+
+            Shutdown();
             Func<string, int> read = getInt ?? (k => _fallbackStore.TryGetValue(k, out int v) ? v : 0);
             Action<string, int> write = setInt ?? ((k, v) => _fallbackStore[k] = v);
 
