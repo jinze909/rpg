@@ -51,17 +51,23 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(1, panel.CompletedQuestCount);
                     Assert.AreEqual(totalQuests - 1, panel.ActiveQuestCount);
                     Assert.AreEqual(totalQuests - 1, panel.DisplayedRowCount);
+                    // Advancing the main-pump quest also discovers its own fast-travel beacon.
+                    Assert.IsTrue(tracker.IsMarkerDiscovered("mc.main-pump-hall"));
+                    Assert.AreEqual(initialUnlockedBeacons + 1, panel.UnlockedBeaconCount);
+                    Assert.AreEqual(initialUnlockedBeacons + 1, panel.LastBeaconNetworkSummary.DiscoveredBeaconCount);
+                    Assert.AreEqual(initialDiscoveredMarkers + 1, panel.DiscoveredMarkerCount);
                     Assert.IsTrue(panel.SetTab(RpgQuestJournalTab.CompletedQuests));
                     Assert.AreEqual(1, panel.DisplayedRowCount);
 
                     // Discover a locked fast-travel beacon and verify summary counters update.
+                    Assert.IsFalse(tracker.IsMarkerDiscovered("mc.south-gate"));
                     Assert.IsTrue(tracker.TryDiscoverMarker("mc.south-gate"));
                     panel.Refresh();
-                    Assert.AreEqual(initialUnlockedBeacons + 1, panel.UnlockedBeaconCount);
-                    Assert.AreEqual(initialUnlockedBeacons + 1, panel.LastBeaconNetworkSummary.DiscoveredBeaconCount);
-                    Assert.AreEqual(initialDiscoveredMarkers + 1, panel.DiscoveredMarkerCount);
+                    Assert.AreEqual(initialUnlockedBeacons + 2, panel.UnlockedBeaconCount);
+                    Assert.AreEqual(initialUnlockedBeacons + 2, panel.LastBeaconNetworkSummary.DiscoveredBeaconCount);
+                    Assert.AreEqual(initialDiscoveredMarkers + 2, panel.DiscoveredMarkerCount);
                     StringAssert.Contains(
-                        "快速传送灯标 " + (initialUnlockedBeacons + 1) + "/" + totalBeacons,
+                        "快速传送灯标 " + (initialUnlockedBeacons + 2) + "/" + totalBeacons,
                         panel.BodySummaryText);
 
                     Assert.IsTrue(panel.Hide());
