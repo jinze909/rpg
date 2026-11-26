@@ -118,7 +118,7 @@ namespace Rpg.Soundwell
 
         public float GetRemainingBuffSeconds(string itemId, float nowSeconds)
         {
-            if (string.IsNullOrEmpty(itemId) || !IsFinite(nowSeconds) ||
+            if (string.IsNullOrEmpty(itemId) || !IsFinite(nowSeconds) || nowSeconds < 0f ||
                 !_buffExpiryByItemId.TryGetValue(itemId, out float expiry))
             {
                 return 0f;
@@ -181,7 +181,7 @@ namespace Rpg.Soundwell
 
         public RpgWorld500xActiveSupplyBuffModifiers EvaluateActiveModifiers(float nowSeconds)
         {
-            if (!IsFinite(nowSeconds))
+            if (!IsFinite(nowSeconds) || nowSeconds < 0f)
             {
                 return RpgWorld500xActiveSupplyBuffModifiers.Neutral;
             }
@@ -234,7 +234,7 @@ namespace Rpg.Soundwell
         public Dictionary<string, float> ExportRemainingBuffSeconds(float nowSeconds)
         {
             var snapshot = new Dictionary<string, float>(StringComparer.Ordinal);
-            if (!IsFinite(nowSeconds))
+            if (!IsFinite(nowSeconds) || nowSeconds < 0f)
             {
                 return snapshot;
             }
@@ -256,12 +256,18 @@ namespace Rpg.Soundwell
             float nowSeconds,
             bool clearExisting = true)
         {
+            // Reject an invalid session clock before changing live buff state.
+            if (!IsFinite(nowSeconds) || nowSeconds < 0f)
+            {
+                return 0;
+            }
+
             if (clearExisting)
             {
                 _buffExpiryByItemId.Clear();
             }
 
-            if (remainingByItemId == null || !IsFinite(nowSeconds) || nowSeconds < 0f)
+            if (remainingByItemId == null)
             {
                 return 0;
             }
@@ -275,6 +281,13 @@ namespace Rpg.Soundwell
                 }
 
                 if (!IsFinite(kv.Value) || kv.Value <= 0f)
+                {
+                    continue;
+                }
+
+                // Immediate healing supplies never have a timed field effect.
+                ResolveEffect(kv.Key, out float durationSeconds, out _, out _);
+                if (durationSeconds <= 0f)
                 {
                     continue;
                 }

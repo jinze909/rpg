@@ -58,6 +58,34 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RestoreRemainingBuffSeconds_InvalidClockPreservesLiveBuffsAndInstantSuppliesAreNotTimed()
+        {
+            var service = new RpgWorld500xFieldSupplyUseService();
+            var snapshot = new Dictionary<string, float>(StringComparer.Ordinal)
+            {
+                ["lamp_oil"] = 75f,
+                ["gauze"] = 30f,
+                ["rations"] = 40f
+            };
+
+            Assert.AreEqual(1, service.RestoreRemainingBuffSeconds(snapshot, 10f));
+            Assert.AreEqual(0f, service.GetRemainingBuffSeconds("gauze", 10f));
+            Assert.AreEqual(0f, service.GetRemainingBuffSeconds("rations", 10f));
+            Assert.AreEqual(1, service.ExportRemainingBuffSeconds(10f).Count);
+
+            Assert.AreEqual(0, service.RestoreRemainingBuffSeconds(null, float.NaN));
+            Assert.AreEqual(0, service.RestoreRemainingBuffSeconds(snapshot, -1f));
+            Assert.AreEqual(65f, service.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
+            Assert.AreEqual(0f, service.GetRemainingBuffSeconds("lamp_oil", -1f));
+            Assert.AreEqual(0, service.EvaluateActiveModifiers(-1f).ActiveBuffCount);
+            Assert.IsEmpty(service.ExportRemainingBuffSeconds(-1f));
+
+            // A valid empty restore still clears previous buffs, as before.
+            Assert.AreEqual(0, service.RestoreRemainingBuffSeconds(null, 20f));
+            Assert.AreEqual(0, service.EvaluateActiveModifiers(20f).ActiveBuffCount);
+        }
+
+        [Test]
         public void ExportAndRestoreRemainingBuffSeconds_PreservesActiveBuffsAcrossSessionClockAndFiltersInvalidEntries()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
