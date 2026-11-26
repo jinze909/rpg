@@ -17,6 +17,87 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void EffectiveInputLockProtectsVerifiedSceneConditionsAndExplicitResolution()
+        {
+            var root = new GameObject("RC04 resolution effective input lock");
+            var group = root.AddComponent<CanvasGroup>();
+            RC04ReefResolutionView view = null;
+            try
+            {
+                var session = AfterListening();
+                int checks = 0, submits = 0;
+                bool landingVerified = true, accepted = false;
+                RC04Resolution? requested = null;
+                view = new RC04ReefResolutionView(root.transform, session, choice =>
+                {
+                    checks++;
+                    return choice == RC04Resolution.BringDingYueBack && landingVerified;
+                }, choice =>
+                {
+                    submits++;
+                    requested = choice;
+                    return accepted;
+                });
+
+                void AssertBlockedClicks()
+                {
+                    int beforeChecks = checks, beforeSubmits = submits;
+                    var beforeChoice = requested;
+                    bool beforeDelivered = view.ResolutionDelivered;
+                    void InvokeAll()
+                    {
+                        view.SongKillButton.onClick.Invoke();
+                        view.DecoyKillButton.onClick.Invoke();
+                        view.BringDingYueButton.onClick.Invoke();
+                        view.BeaconButton.onClick.Invoke();
+                    }
+
+                    group.interactable = false;
+                    InvokeAll();
+                    group.interactable = true;
+                    view.Panel.gameObject.SetActive(false);
+                    InvokeAll();
+                    view.Panel.gameObject.SetActive(true);
+
+                    Assert.That(checks, Is.EqualTo(beforeChecks));
+                    Assert.That(submits, Is.EqualTo(beforeSubmits));
+                    Assert.That(requested, Is.EqualTo(beforeChoice));
+                    Assert.That(view.ResolutionDelivered, Is.EqualTo(beforeDelivered));
+                    Assert.That(session.IsResolved, Is.False);
+                }
+
+                Assert.That(view.BringDingYueButton.interactable, Is.True);
+                AssertBlockedClicks();
+                landingVerified = false;
+                view.BringDingYueButton.onClick.Invoke();
+                Assert.That(submits, Is.Zero);
+                Assert.That(view.ResolutionDelivered, Is.False);
+
+                landingVerified = true;
+                view.Refresh();
+                AssertBlockedClicks();
+                view.BringDingYueButton.onClick.Invoke();
+                Assert.That(submits, Is.EqualTo(1));
+                Assert.That(view.ResolutionDelivered, Is.False);
+
+                accepted = true;
+                AssertBlockedClicks();
+                view.BringDingYueButton.onClick.Invoke();
+                Assert.That(submits, Is.EqualTo(2));
+                Assert.That(requested, Is.EqualTo(RC04Resolution.BringDingYueBack));
+                Assert.That(view.ResolutionDelivered, Is.True);
+                AssertBlockedClicks();
+                view.BringDingYueButton.onClick.Invoke();
+                Assert.That(submits, Is.EqualTo(2));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PartialChildTeardownDisposesViewAndBlocksChoiceLayoutAndLocaleRefresh()
         {
             var root = new GameObject("RC04 resolution partial teardown");

@@ -8,6 +8,84 @@ namespace Rpg.Tests.Editor
     public sealed class RC04ReefListeningViewLifecycleTests
     {
         [Test]
+        public void EffectiveInputLockProtectsListeningRoundsAndExplicitApproach()
+        {
+            var root = new GameObject("RC04 listening effective input lock");
+            var group = root.AddComponent<CanvasGroup>();
+            RC04ReefListeningView view = null;
+            try
+            {
+                var session = new RC04DingYueReefSession();
+                int calls = 0;
+                bool passageReady = false;
+                view = new RC04ReefListeningView(root.transform, session, _ =>
+                {
+                    calls++;
+                    return passageReady;
+                });
+
+                void AssertBlockedClicks()
+                {
+                    int rounds = session.CompletedListeningRounds;
+                    bool window = session.TidalWindowLocated;
+                    bool delivered = view.ApproachDelivered;
+                    int before = calls;
+                    string prompt = view.Body.text;
+                    void InvokeAll()
+                    {
+                        view.SlowEchoButton.onClick.Invoke();
+                        view.FastEchoButton.onClick.Invoke();
+                        view.ApproachButton.onClick.Invoke();
+                    }
+
+                    group.interactable = false;
+                    InvokeAll();
+                    group.interactable = true;
+                    view.Panel.gameObject.SetActive(false);
+                    InvokeAll();
+                    view.Panel.gameObject.SetActive(true);
+
+                    Assert.That(session.CompletedListeningRounds, Is.EqualTo(rounds));
+                    Assert.That(session.TidalWindowLocated, Is.EqualTo(window));
+                    Assert.That(session.IsResolved, Is.False);
+                    Assert.That(view.ApproachDelivered, Is.EqualTo(delivered));
+                    Assert.That(calls, Is.EqualTo(before));
+                    Assert.That(view.Body.text, Is.EqualTo(prompt));
+                }
+
+                for (int i = 0; i < 3; i++)
+                {
+                    AssertBlockedClicks();
+                    view.FastEchoButton.onClick.Invoke();
+                    Assert.That(session.CompletedListeningRounds, Is.EqualTo(i));
+                    view.SlowEchoButton.onClick.Invoke();
+                    Assert.That(session.CompletedListeningRounds, Is.EqualTo(i + 1));
+                }
+
+                Assert.That(session.TidalWindowLocated, Is.True);
+                Assert.That(calls, Is.Zero);
+                AssertBlockedClicks();
+                view.ApproachButton.onClick.Invoke();
+                Assert.That(calls, Is.EqualTo(1));
+                Assert.That(view.ApproachDelivered, Is.False);
+
+                passageReady = true;
+                AssertBlockedClicks();
+                view.ApproachButton.onClick.Invoke();
+                Assert.That(calls, Is.EqualTo(2));
+                Assert.That(view.ApproachDelivered, Is.True);
+                AssertBlockedClicks();
+                view.ApproachButton.onClick.Invoke();
+                Assert.That(calls, Is.EqualTo(2));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PartialChildTeardownDisposesViewAndBlocksEchoClickLayoutAndLocaleRefresh()
         {
             var root = new GameObject("RC04 listening partial teardown echo");

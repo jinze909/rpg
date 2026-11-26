@@ -92,6 +92,58 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReopenedListeningPreservesOnlyTheSameArrivalProgress()
+        {
+            var root = new GameObject("RC04 listening arrival identity");
+            var values = new Dictionary<string, int>();
+            SeedM08RosterCasesAvailable(values);
+            Func<string, int> read = Reader(values);
+            Action<string, int> write = (k, v) => values[k] = v;
+            RC04DingYueReefHost host = null;
+            try
+            {
+                host = new RC04DingYueReefHost(root.transform, () => true, _ => true, read, write);
+                Assert.That(host.TryOpenListening(), Is.True);
+                var previous = host.Session;
+                int arrival = read(M05LandingFacts.ArrivalSequenceKey);
+                for (int i = 0; i < 3; i++)
+                    host.ActiveListeningView.SlowEchoButton.onClick.Invoke();
+                Assert.That(previous.TidalWindowLocated, Is.True);
+                Assert.That(previous.TryPlayAyuanVaryingSong(), Is.True);
+                host.ActiveListeningView.Dispose();
+
+                Assert.That(host.TryOpenListening(), Is.True);
+                Assert.That(host.Session, Is.SameAs(previous));
+                Assert.That(host.Session.TidalWindowLocated, Is.True);
+                host.ActiveListeningView.Dispose();
+
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+                SeedM08RosterCasesAvailable(values);
+                Assert.That(read(M05LandingFacts.ArrivalSequenceKey), Is.GreaterThan(arrival));
+
+                Assert.That(host.TryOpenListening(), Is.True);
+                Assert.That(host.Session, Is.Not.SameAs(previous));
+                Assert.That(host.Session.CompletedListeningRounds, Is.Zero);
+                Assert.That(host.Session.TidalWindowLocated, Is.False);
+                Assert.That(host.Session.AyuanSongPlayed, Is.False);
+                Assert.That(host.ApproachConfirmed, Is.False);
+                host.ActiveListeningView.ApproachButton.onClick.Invoke();
+                Assert.That(host.ActiveResolutionView, Is.Null);
+
+                for (int i = 0; i < 3; i++)
+                    host.ActiveListeningView.SlowEchoButton.onClick.Invoke();
+                host.ActiveListeningView.ApproachButton.onClick.Invoke();
+                Assert.That(host.ActiveResolutionView, Is.Not.Null);
+                Assert.That(host.ApproachConfirmed, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedResolutionCanvasMarksViewDisposedAndAllowsHostReopen()
         {
             var root = new GameObject("RC04 lifecycle destroyed resolution canvas");
