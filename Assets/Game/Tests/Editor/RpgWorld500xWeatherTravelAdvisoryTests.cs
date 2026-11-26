@@ -41,6 +41,35 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void NextPhaseCountdownMatchesLiveClockImmediatelyBeforeAndAtBoundaries()
+        {
+            float[] before = { 299.99997f, 479.99997f, 1019.99994f, 1199.9999f };
+            float[] at = { 300f, 480f, 1020f, 1200f };
+            RpgWorld500xTimePhase[] next =
+            {
+                RpgWorld500xTimePhase.Dawn, RpgWorld500xTimePhase.Day,
+                RpgWorld500xTimePhase.Dusk, RpgWorld500xTimePhase.Night
+            };
+            for (int i = 0; i < before.Length; i++)
+            {
+                var clock = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: before[i]);
+                var report = RpgWorld500xWeatherTravelAdvisoryService.BuildAdvisory(
+                    clock.GetSnapshot(RpgWorldMapId.Soundwell));
+                Assert.AreNotEqual(next[i], clock.CurrentPhase);
+                Assert.AreEqual(next[i], report.NextPhase);
+                Assert.AreEqual(1, report.MinutesUntilNextPhase);
+
+                RpgWorld500xWeatherTravelAdvisoryService.ResolveNextPhase(at[i], out var following, out int minutes);
+                Assert.AreEqual(next[(i + 1) % next.Length], following);
+                Assert.Greater(minutes, 1);
+            }
+
+            RpgWorld500xWeatherTravelAdvisoryService.ResolveNextPhase(-60f, out var wrapped, out int wrappedMinutes);
+            Assert.AreEqual(RpgWorld500xTimePhase.Dawn, wrapped);
+            Assert.AreEqual(360, wrappedMinutes);
+        }
+
+        [Test]
         public void ForecastAmbientWindows_TracksActiveAndCooldownSecondsDeterministically()
         {
             // Whitewater pontoon FogGust: cycle=38s, active=12s.

@@ -172,6 +172,45 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void PlayModeController_InvalidReinitializePreservesLiveSessionAndMenus()
+        {
+            var hostGo = new GameObject("World500xControllerInitGuardTest");
+            var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var boot = ctrl.Bootstrapper;
+                var menu = ctrl.MenuRouter;
+                var slots = ctrl.SaveSlotManager;
+                var liveHost = boot.Driver.Facade.Session.Host;
+                Assert.IsTrue(liveHost.TryPlaceAtWalkableTile(new Vector2Int(680, 640)));
+                Assert.IsTrue(liveHost.TryTriggerNearbyDangerEncounter(out string dangerId));
+                string saved = boot.ExportSaveJson();
+                int children = hostGo.transform.childCount;
+
+                Assert.Throws<System.ArgumentOutOfRangeException>(() =>
+                    ctrl.Initialize(overrideMap: (RpgWorldMapId)999,
+                        overrideTileSlices: new Sprite[] { null }));
+                Assert.IsTrue(ctrl.IsInitialized);
+                Assert.AreSame(boot, ctrl.Bootstrapper);
+                Assert.AreSame(menu, ctrl.MenuRouter);
+                Assert.AreSame(slots, ctrl.SaveSlotManager);
+                Assert.AreSame(liveHost, ctrl.Bootstrapper.Driver.Facade.Session.Host);
+                Assert.AreEqual(dangerId, liveHost.Bridge.ActiveEncounterMarkerId);
+                Assert.AreEqual(children, hostGo.transform.childCount);
+                Assert.AreEqual(saved, boot.ExportSaveJson());
+                Assert.IsTrue(ctrl.TryResolveActiveDangerVictory(true, out _, out _));
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(hostGo);
+            }
+        }
+
+        [Test]
         public void PlayModeController_ResolveActiveDangerVictory_CreditsSilverReputationAndBanner()
         {
             var hostGo = new GameObject("World500xDangerVictoryTestHost");
