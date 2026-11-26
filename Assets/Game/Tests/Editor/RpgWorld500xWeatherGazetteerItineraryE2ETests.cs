@@ -39,6 +39,11 @@ namespace Rpg.Tests.Editor
                 using (var itinerary = new RpgWorld500xTravelItineraryHudPanel(root.transform, boot))
                 {
                     RpgWorld500xGrandRuntimeFacade facade = boot.Driver.Facade;
+                    // Start at 09:00. The 120-minute first leg then arrives at
+                    // 11:00 in the same 180-minute weather slot. Otherwise the
+                    // automatic regional forecast legitimately changes at 09:00.
+                    facade.Atmosphere.AdvanceRealSeconds(30f, RpgWorldMapId.Soundwell);
+                    Assert.AreEqual(540f, facade.Atmosphere.TimeOfDayMinutes, 0.01f);
                     foreach (RpgWorldMapId map in Enum.GetValues(typeof(RpgWorldMapId)))
                     {
                         facade.Atmosphere.SetWeather(map, RpgWorld500xWeatherKind.Clear);
@@ -83,6 +88,7 @@ namespace Rpg.Tests.Editor
 
                     Assert.IsTrue(itinerary.TryClickDepartFirstLeg());
                     Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, facade.CurrentMapId);
+                    Assert.AreEqual(660f, facade.Atmosphere.TimeOfDayMinutes, 0.01f);
 
                     // Weather badge reflects new active map after regional arrival.
                     weatherBadge.Refresh(10f);
