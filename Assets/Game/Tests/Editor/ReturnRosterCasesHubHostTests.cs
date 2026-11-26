@@ -202,11 +202,31 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(false, false)]
-        [TestCase(false, true)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
-        public void SceneCallbackCancellingCaseOpenLeavesNoViewOrFact(
+        [Test]
+        public void FerryCallbackClosingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(false, false);
+        }
+
+        [Test]
+        public void FerryCallbackDisposingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(false, true);
+        }
+
+        [Test]
+        public void ReefCallbackClosingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(true, false);
+        }
+
+        [Test]
+        public void ReefCallbackDisposingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(true, true);
+        }
+
+        private static void AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(
             bool reef, bool disposeHub)
         {
             var root = new GameObject("Roster case cancelled during scene proof");
