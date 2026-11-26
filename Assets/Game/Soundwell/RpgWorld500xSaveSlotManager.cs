@@ -68,7 +68,8 @@ namespace Rpg.Soundwell
             }
 
             payload = PlayerPrefs.GetString(storageKey, string.Empty);
-            return !string.IsNullOrEmpty(payload);
+            // A present key with damaged/empty content is still an occupied slot.
+            return true;
         }
 
         public void Write(string storageKey, string payload)
@@ -465,14 +466,18 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            if (!_storage.TryRead(GetStorageKey(slotId), out string rawPayload) ||
-                string.IsNullOrWhiteSpace(rawPayload))
+            if (!_storage.TryRead(GetStorageKey(slotId), out string rawPayload))
             {
                 error = "Save slot is empty.";
                 return false;
             }
 
             occupied = true;
+            if (string.IsNullOrWhiteSpace(rawPayload))
+            {
+                error = "Save slot payload is missing or blank.";
+                return false;
+            }
             try
             {
                 envelope = JsonUtility.FromJson<SaveSlotEnvelope>(rawPayload);
