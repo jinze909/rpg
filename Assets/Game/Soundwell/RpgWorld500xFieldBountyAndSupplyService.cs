@@ -75,6 +75,35 @@ namespace Rpg.Soundwell
         InsufficientSaltSilver = 4
     }
 
+    public readonly struct RpgWorld500xBountyBoardSummary
+    {
+        public RpgWorld500xBountyBoardSummary(
+            RpgWorldMapId mapId,
+            int totalBounties,
+            int claimedCount,
+            int claimableCount,
+            int claimableSaltSilver,
+            int remainingSaltSilver,
+            string summaryZh)
+        {
+            MapId = mapId;
+            TotalBounties = totalBounties;
+            ClaimedCount = claimedCount;
+            ClaimableCount = claimableCount;
+            ClaimableSaltSilver = claimableSaltSilver;
+            RemainingSaltSilver = remainingSaltSilver;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int TotalBounties { get; }
+        public int ClaimedCount { get; }
+        public int ClaimableCount { get; }
+        public int ClaimableSaltSilver { get; }
+        public int RemainingSaltSilver { get; }
+        public string SummaryZh { get; }
+    }
+
     /// <summary>
     /// Curated catalog of 12 regional exploration bounties (3 per 500x map) and
     /// 6 camp merchant field supplies redeemable with Salt-Silver (盐银).
@@ -210,6 +239,62 @@ namespace Rpg.Soundwell
             }
         }
 
+        /// <summary>
+        /// Builds a read-only summary of regional bounty progress and claimable
+        /// Salt-Silver without mutating wallet balance or claimed flags.
+        /// </summary>
+        public RpgWorld500xBountyBoardSummary BuildBountyBoardSummary(RpgWorld500xMapCompletionSummary summary)
+        {
+            IReadOnlyList<RpgWorld500xFieldBountyDef> bounties =
+                RpgWorld500xBountyAndSupplyCatalog.GetBounties(summary.MapId);
+
+            int claimedCount = 0;
+            int claimableCount = 0;
+            int claimableSaltSilver = 0;
+            int remainingSaltSilver = 0;
+
+            for (int i = 0; i < bounties.Count; i++)
+            {
+                RpgWorld500xFieldBountyDef bounty = bounties[i];
+                if (IsBountyClaimed(bounty))
+                {
+                    claimedCount++;
+                    continue;
+                }
+
+                remainingSaltSilver += bounty.SaltSilverReward;
+                if (EvaluateProgressCount(bounty, summary) >= bounty.TargetCount)
+                {
+                    claimableCount++;
+                    claimableSaltSilver += bounty.SaltSilverReward;
+                }
+            }
+
+            string summaryZh;
+            if (claimedCount >= bounties.Count)
+            {
+                summaryZh = $"【悬赏进度】已领 {claimedCount}/{bounties.Count} · 本境悬赏已全部结清";
+            }
+            else if (claimableCount > 0)
+            {
+                summaryZh = $"【悬赏进度】已领 {claimedCount}/{bounties.Count} · 可领 {claimableCount} 项（+{claimableSaltSilver} 盐银）· 剩余总赏 {remainingSaltSilver} 盐银";
+            }
+            else
+            {
+                int pendingCount = bounties.Count - claimedCount;
+                summaryZh = $"【悬赏进度】已领 {claimedCount}/{bounties.Count} · 待完成 {pendingCount} 项 · 剩余总赏 {remainingSaltSilver} 盐银";
+            }
+
+            return new RpgWorld500xBountyBoardSummary(
+                summary.MapId,
+                bounties.Count,
+                claimedCount,
+                claimableCount,
+                claimableSaltSilver,
+                remainingSaltSilver,
+                summaryZh);
+        }
+
         public List<RpgWorld500xFieldBountyDef> ClaimCompletedBounties(RpgWorld500xMapCompletionSummary summary)
         {
             var claimed = new List<RpgWorld500xFieldBountyDef>();
@@ -256,6 +341,27 @@ namespace Rpg.Soundwell
             }
 
             return Math.Max(0, item.MaxStock - GetOwnedSupplyCount(itemId));
+        }
+
+        /// <summary>
+        /// Returns the maximum quantity of a camp supply item that the player can
+        /// currently purchase given both remaining merchant stock and Salt-Silver balance.
+        /// </summary>
+        public int GetMaxAffordableQuantity(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId) || !_itemsById.TryGetValue(itemId, out RpgWorld500xCampSupplyItemDef item))
+            {
+                return 0;
+            }
+
+            int remainingStock = GetRemainingStock(itemId);
+            if (remainingStock <= 0 || item.SaltSilverCost <= 0)
+            {
+                return 0;
+            }
+
+            int affordableByWallet = SaltSilverBalance / item.SaltSilverCost;
+            return Math.Min(remainingStock, affordableByWallet);
         }
 
         public RpgCampSupplyPurchaseStatus TryPurchaseSupply(string itemId, int quantity)

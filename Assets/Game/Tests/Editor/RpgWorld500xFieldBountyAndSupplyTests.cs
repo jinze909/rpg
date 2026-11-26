@@ -90,6 +90,7 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(RpgCampSupplyPurchaseStatus.UnknownItem, service.TryPurchaseSupply("unknown_item", 1));
             Assert.AreEqual(RpgCampSupplyPurchaseStatus.InvalidQuantity, service.TryPurchaseSupply("gauze", 0));
         }
+
         [Test]
         public void ExtremeQuantityAndWalletCreditNeverOverflowSavedCurrencyOrInventory()
         {
@@ -115,5 +116,98 @@ namespace Rpg.Tests.Editor
                 "A reward near the int limit must saturate, not wrap negative.");
         }
 
+        [Test]
+        public void BuildBountyBoardSummary_PreviewsClaimableAndRemainingRewardsWithoutMutatingState()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var service = new RpgWorld500xFieldBountyAndSupplyService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => store[k] = v);
+
+            var initialProgress = new RpgWorld500xMapCompletionSummary(
+                RpgWorldMapId.Soundwell,
+                visitedChunks: 10, totalChunks: 2814,
+                discoveredMarkers: 2, totalMarkers: 18,
+                lootedCaches: 1, totalCaches: 12,
+                unlockedShortcuts: 0, totalShortcuts: 4,
+                inspectedStorySpots: 0, totalStorySpots: 4);
+
+            RpgWorld500xBountyBoardSummary before = service.BuildBountyBoardSummary(initialProgress);
+            Assert.AreEqual(RpgWorldMapId.Soundwell, before.MapId);
+            Assert.AreEqual(3, before.TotalBounties);
+            Assert.AreEqual(0, before.ClaimedCount);
+            Assert.AreEqual(0, before.ClaimableCount);
+            Assert.AreEqual(0, before.ClaimableSaltSilver);
+            Assert.AreEqual(150, before.RemainingSaltSilver);
+            StringAssert.Contains("待完成 3 项", before.SummaryZh);
+
+            var readyProgress = new RpgWorld500xMapCompletionSummary(
+                RpgWorldMapId.Soundwell,
+                visitedChunks: 120, totalChunks: 2814,
+                discoveredMarkers: 6, totalMarkers: 18,
+                lootedCaches: 4, totalCaches: 12,
+                unlockedShortcuts: 1, totalShortcuts: 4,
+                inspectedStorySpots: 2, totalStorySpots: 4);
+
+            RpgWorld500xBountyBoardSummary claimable = service.BuildBountyBoardSummary(readyProgress);
+            Assert.AreEqual(0, claimable.ClaimedCount);
+            Assert.AreEqual(2, claimable.ClaimableCount);
+            Assert.AreEqual(90, claimable.ClaimableSaltSilver);
+            Assert.AreEqual(150, claimable.RemainingSaltSilver);
+            StringAssert.Contains("可领 2 项（+90 盐银）", claimable.SummaryZh);
+            // Strictly read-only: wallet and flags remain untouched.
+            Assert.AreEqual(0, service.SaltSilverBalance);
+            Assert.AreEqual(0, store.Count);
+
+            service.ClaimCompletedBounties(readyProgress);
+            RpgWorld500xBountyBoardSummary afterPartialClaim = service.BuildBountyBoardSummary(readyProgress);
+            Assert.AreEqual(2, afterPartialClaim.ClaimedCount);
+            Assert.AreEqual(0, afterPartialClaim.ClaimableCount);
+            Assert.AreEqual(0, afterPartialClaim.ClaimableSaltSilver);
+            Assert.AreEqual(60, afterPartialClaim.RemainingSaltSilver);
+            StringAssert.Contains("已领 2/3", afterPartialClaim.SummaryZh);
+            StringAssert.Contains("待完成 1 项", afterPartialClaim.SummaryZh);
+
+            var completedProgress = new RpgWorld500xMapCompletionSummary(
+                RpgWorldMapId.Soundwell,
+                visitedChunks: 200, totalChunks: 2814,
+                discoveredMarkers: 6, totalMarkers: 18,
+                lootedCaches: 4, totalCaches: 12,
+                unlockedShortcuts: 2, totalShortcuts: 4,
+                inspectedStorySpots: 2, totalStorySpots: 4);
+
+            service.ClaimCompletedBounties(completedProgress);
+            RpgWorld500xBountyBoardSummary cleared = service.BuildBountyBoardSummary(completedProgress);
+            Assert.AreEqual(3, cleared.ClaimedCount);
+            Assert.AreEqual(0, cleared.ClaimableCount);
+            Assert.AreEqual(0, cleared.RemainingSaltSilver);
+            StringAssert.Contains("本境悬赏已全部结清", cleared.SummaryZh);
+        }
+
+        [Test]
+        public void GetMaxAffordableQuantity_CapsByWalletBalanceAndRemainingStock()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var service = new RpgWorld500xFieldBountyAndSupplyService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => store[k] = v);
+
+            Assert.AreEqual(0, service.GetMaxAffordableQuantity(null));
+            Assert.AreEqual(0, service.GetMaxAffordableQuantity(""));
+            Assert.AreEqual(0, service.GetMaxAffordableQuantity("unknown_item"));
+            Assert.AreEqual(0, service.GetMaxAffordableQuantity("gauze"));
+
+            service.AddSaltSilver(40);
+            Assert.AreEqual(2, service.GetMaxAffordableQuantity("gauze"));       // 40 / 18 = 2 (< 10 stock)
+            Assert.AreEqual(2, service.GetMaxAffordableQuantity("rations"));     // 40 / 15 = 2 (< 12 stock)
+            Assert.AreEqual(1, service.GetMaxAffordableQuantity("iron_clamps")); // 40 / 35 = 1 (< 4 stock)
+
+            service.AddSaltSilver(int.MaxValue);
+            Assert.AreEqual(4, service.GetMaxAffordableQuantity("iron_clamps")); // capped at maxStock 4
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, service.TryPurchaseSupply("iron_clamps", 3));
+            Assert.AreEqual(1, service.GetMaxAffordableQuantity("iron_clamps"));
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, service.TryPurchaseSupply("iron_clamps", 1));
+            Assert.AreEqual(0, service.GetMaxAffordableQuantity("iron_clamps"));
+        }
     }
 }
