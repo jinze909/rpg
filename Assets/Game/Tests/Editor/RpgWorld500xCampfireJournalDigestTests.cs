@@ -41,11 +41,13 @@ namespace Rpg.Tests.Editor
                 Assert.IsFalse(string.IsNullOrWhiteSpace(clearDigest.ReadinessGradeLabelZh));
                 Assert.IsTrue(clearDigest.WorldWeatherBulletinZh.Contains("【四境气象速报】"));
                 Assert.IsTrue(clearDigest.WorldReputationSummaryZh.Contains("【四境声望总览】"));
+                Assert.IsTrue(clearDigest.MilestoneSummaryZh.Contains("【远征里程碑】"));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("远征营火纪要"));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("整备状态："));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("本境待补"));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("【四境气象速报】"));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("【四境声望总览】"));
+                Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("【远征里程碑】"));
                 Assert.IsTrue(clearDigest.FormattedDigestZh.Contains("灯油照明"));
                 Assert.IsTrue(clearDigest.NextObjectiveHintZh.Contains("未探索目标"));
 
