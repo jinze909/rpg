@@ -50,9 +50,18 @@ def verify(project_root=None):
     # Check GUID collisions across vendor and game assets, not just the package.
     guids = {}
     for meta in sorted((project / "Assets").rglob("*.meta")):
+        relative_meta = meta.relative_to(project)
+        content = meta.read_text(encoding="utf-8", errors="replace")
+        # Unity's MonoImporter rejects an unterminated final empty mapping
+        # entry even when the GUID itself is correct. Catch the observed
+        # script metadata failure before launching the expensive editor run.
+        if (relative_meta.parts[:2] == ("Assets", "Game")
+                and meta.name.endswith(".cs.meta")
+                and re.search(r"(?m)^[ \t]*assetBundleVariant:[ \t]*\Z", content)):
+            raise ValueError(f"Unterminated assetBundleVariant in script metadata: {relative_meta}; add a final newline")
         match = re.search(
             r"^guid: ([0-9a-f]{32})$",
-            meta.read_text(encoding="utf-8", errors="replace"),
+            content,
             re.MULTILINE,
         )
         if match is None:
