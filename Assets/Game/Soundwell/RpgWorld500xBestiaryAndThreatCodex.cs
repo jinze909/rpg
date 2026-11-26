@@ -63,6 +63,35 @@ namespace Rpg.Soundwell
         public string CodexMakinomKey => "rpg.return.world.codex.threat." + MarkerId;
     }
 
+    public readonly struct RpgWorld500xMapCodexSummary
+    {
+        public RpgWorld500xMapCodexSummary(
+            RpgWorldMapId mapId,
+            int totalDossiers,
+            int studiedCount,
+            int unstudiedCount,
+            int remainingStudySilverBonus,
+            IReadOnlyList<string> recommendedSupplyIds,
+            string summaryZh)
+        {
+            MapId = mapId;
+            TotalDossiers = totalDossiers;
+            StudiedCount = studiedCount;
+            UnstudiedCount = unstudiedCount;
+            RemainingStudySilverBonus = remainingStudySilverBonus;
+            RecommendedSupplyIds = recommendedSupplyIds ?? Array.Empty<string>();
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int TotalDossiers { get; }
+        public int StudiedCount { get; }
+        public int UnstudiedCount { get; }
+        public int RemainingStudySilverBonus { get; }
+        public IReadOnlyList<string> RecommendedSupplyIds { get; }
+        public string SummaryZh { get; }
+    }
+
     /// <summary>
     /// Curated regional bestiary and DangerZone tactical prep catalog across all
     /// four 500x-area maps (12 distinct regional threat archetypes).
@@ -223,6 +252,81 @@ namespace Rpg.Soundwell
             }
 
             return result;
+        }
+
+        public List<RpgWorld500xDangerZoneDossier> FilterDossiers(
+            RpgWorld500xMapLayout layout,
+            bool unstudiedOnly = false,
+            RpgWorld500xThreatTier? tierFilter = null)
+        {
+            List<RpgWorld500xDangerZoneDossier> all = BuildMapDossiers(layout);
+            var filtered = new List<RpgWorld500xDangerZoneDossier>(all.Count);
+            for (int i = 0; i < all.Count; i++)
+            {
+                RpgWorld500xDangerZoneDossier d = all[i];
+                if (unstudiedOnly && d.IsStudied)
+                {
+                    continue;
+                }
+
+                if (tierFilter.HasValue && d.Profile.Tier != tierFilter.Value)
+                {
+                    continue;
+                }
+
+                filtered.Add(d);
+            }
+
+            return filtered;
+        }
+
+        public RpgWorld500xMapCodexSummary BuildMapCodexSummary(RpgWorld500xMapLayout layout)
+        {
+            if (layout == null)
+            {
+                return new RpgWorld500xMapCodexSummary(
+                    RpgWorldMapId.Soundwell, 0, 0, 0, 0,
+                    Array.Empty<string>(),
+                    "【图鉴考据】暂无危险区图鉴");
+            }
+
+            List<RpgWorld500xDangerZoneDossier> dossiers = BuildMapDossiers(layout);
+            int studied = 0;
+            int remainingSilver = 0;
+            var seenSupplies = new HashSet<string>(StringComparer.Ordinal);
+            var recommendedSupplies = new List<string>();
+
+            for (int i = 0; i < dossiers.Count; i++)
+            {
+                RpgWorld500xDangerZoneDossier d = dossiers[i];
+                if (d.IsStudied)
+                {
+                    studied++;
+                    continue;
+                }
+
+                remainingSilver += Math.Max(0, d.Profile.CodexStudySilverBonus);
+                if (!string.IsNullOrEmpty(d.Profile.RecommendedSupplyId) &&
+                    seenSupplies.Add(d.Profile.RecommendedSupplyId))
+                {
+                    recommendedSupplies.Add(d.Profile.RecommendedSupplyId);
+                }
+            }
+
+            int total = dossiers.Count;
+            int unstudied = Math.Max(0, total - studied);
+            string summaryZh = unstudied > 0
+                ? "【图鉴考据】已考据 " + studied + "/" + total + "｜待考据 " + unstudied + " 项｜剩余盐银 +" + remainingSilver
+                : "【图鉴考据】已考据 " + studied + "/" + total + " · 本境异兽图鉴已全部收录";
+
+            return new RpgWorld500xMapCodexSummary(
+                layout.MapId,
+                total,
+                studied,
+                unstudied,
+                remainingSilver,
+                recommendedSupplies,
+                summaryZh);
         }
     }
 }

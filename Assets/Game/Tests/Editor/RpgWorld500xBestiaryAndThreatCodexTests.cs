@@ -74,5 +74,62 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(first.Profile.CodexStudySilverBonus, totalBonus);
             Assert.AreEqual(1, store[RpgWorld500xThreatCodexService.CodexKey(markerId)]);
         }
+
+        [Test]
+        public void BuildMapCodexSummaryAndFilterDossiers_AreReadOnlyAndTrackStudyProgress()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var codex = new RpgWorld500xThreatCodexService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) => store[k] = v);
+
+            RpgWorld500xMapCodexSummary nullSummary = codex.BuildMapCodexSummary(null);
+            Assert.AreEqual(0, nullSummary.TotalDossiers);
+            Assert.AreEqual(0, codex.FilterDossiers(null).Count);
+
+            RpgWorld500xMapLayout soundwell = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            List<RpgWorld500xDangerZoneDossier> all = codex.BuildMapDossiers(soundwell);
+            RpgWorld500xMapCodexSummary before = codex.BuildMapCodexSummary(soundwell);
+            Assert.AreEqual(RpgWorldMapId.Soundwell, before.MapId);
+            Assert.AreEqual(all.Count, before.TotalDossiers);
+            Assert.AreEqual(0, before.StudiedCount);
+            Assert.AreEqual(all.Count, before.UnstudiedCount);
+            Assert.Greater(before.RemainingStudySilverBonus, 0);
+            Assert.Greater(before.RecommendedSupplyIds.Count, 0);
+            StringAssert.Contains("【图鉴考据】", before.SummaryZh);
+            // Strictly read-only: no writes performed.
+            Assert.AreEqual(0, store.Count);
+
+            // Filter by tier matching first dossier.
+            RpgWorld500xThreatTier targetTier = all[0].Profile.Tier;
+            List<RpgWorld500xDangerZoneDossier> tierMatches = codex.FilterDossiers(soundwell, unstudiedOnly: true, tierFilter: targetTier);
+            Assert.Greater(tierMatches.Count, 0);
+            for (int i = 0; i < tierMatches.Count; i++)
+            {
+                Assert.AreEqual(targetTier, tierMatches[i].Profile.Tier);
+                Assert.IsFalse(tierMatches[i].IsStudied);
+            }
+
+            // Study first dossier -> unstudied count and remaining silver drop accurately.
+            Assert.IsTrue(codex.TryRecordDangerZoneStudied(RpgWorldMapId.Soundwell, all[0].MarkerId, out RpgWorld500xDangerZoneDossier studiedFirst));
+            RpgWorld500xMapCodexSummary afterOne = codex.BuildMapCodexSummary(soundwell);
+            Assert.AreEqual(1, afterOne.StudiedCount);
+            Assert.AreEqual(all.Count - 1, afterOne.UnstudiedCount);
+            Assert.AreEqual(before.RemainingStudySilverBonus - studiedFirst.Profile.CodexStudySilverBonus, afterOne.RemainingStudySilverBonus);
+            Assert.AreEqual(all.Count - 1, codex.FilterDossiers(soundwell, unstudiedOnly: true).Count);
+
+            // Study remaining dossiers -> complete summary banner, 0 remaining silver.
+            for (int i = 1; i < all.Count; i++)
+            {
+                codex.TryRecordDangerZoneStudied(RpgWorldMapId.Soundwell, all[i].MarkerId, out _);
+            }
+
+            RpgWorld500xMapCodexSummary completed = codex.BuildMapCodexSummary(soundwell);
+            Assert.AreEqual(all.Count, completed.StudiedCount);
+            Assert.AreEqual(0, completed.UnstudiedCount);
+            Assert.AreEqual(0, completed.RemainingStudySilverBonus);
+            Assert.AreEqual(0, completed.RecommendedSupplyIds.Count);
+            StringAssert.Contains("已全部收录", completed.SummaryZh);
+        }
     }
 }
