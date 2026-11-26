@@ -594,9 +594,18 @@ namespace Rpg.Soundwell
         public bool TryTalkToNearbyNpc(Vector2 playerTile, float interactRadius,
             out RpgFieldNpcDef npc, out string dialogueLineZh, out string revealedMarkerId)
         {
+            return TryTalkToNearbyNpc(playerTile, interactRadius, out npc, out dialogueLineZh,
+                out revealedMarkerId, out _);
+        }
+
+        public bool TryTalkToNearbyNpc(Vector2 playerTile, float interactRadius,
+            out RpgFieldNpcDef npc, out string dialogueLineZh, out string revealedMarkerId,
+            out bool firstHearing)
+        {
             npc = default;
             dialogueLineZh = string.Empty;
             revealedMarkerId = string.Empty;
+            firstHearing = false;
             if (!IsFinite(playerTile) || !IsFinite(interactRadius) || interactRadius <= 0f)
                 return false;
 
@@ -619,7 +628,10 @@ namespace Rpg.Soundwell
                 {
                     dialogueLineZh = n.RumorHintZh;
                     if (!heard)
+                    {
                         setInt(n.RumorMakinomKey, 1);
+                        firstHearing = true;
+                    }
                     // Do not replace the player's waypoint with an already visited landmark.
                     if (!alreadyKnown)
                     {
