@@ -135,5 +135,72 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void BestiaryHudPanel_SupportsUnstudiedFilterRemainingSilverAndBatchStudyRespectingCanvasGroupLock()
+        {
+            var root = new GameObject("BestiaryFilterBatchRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xBestiaryHudPanel(root.transform, boot))
+                {
+                    // Hidden panel rejects filter and batch-study actions cleanly.
+                    Assert.IsFalse(panel.TrySetUnstudiedOnly(true));
+                    Assert.IsFalse(panel.TryStudyAllUnstudied(out _, out _));
+
+                    Assert.IsTrue(panel.Show());
+                    int total = panel.TotalDossierCount;
+                    Assert.Greater(total, 1);
+                    Assert.AreEqual(0, panel.StudiedCount);
+                    int initialRemainingSilver = panel.RemainingStudySilver;
+                    Assert.Greater(initialRemainingSilver, 0);
+                    StringAssert.Contains("待研读盐银 +" + initialRemainingSilver, panel.HeaderText);
+
+                    // Study first dossier and enable UnstudiedOnly filter -> DisplayedDossierRowCount drops by 1.
+                    List<RpgWorld500xDangerZoneDossier> dossiers =
+                        boot.Driver.Facade.ThreatCodex.BuildMapDossiers(boot.Driver.Facade.Session.Host.Layout);
+                    int firstBonus = dossiers[0].Profile.CodexStudySilverBonus;
+                    Assert.IsTrue(panel.TryClickStudyDossier(dossiers[0].MarkerId));
+                    Assert.AreEqual(1, panel.StudiedCount);
+                    Assert.AreEqual(initialRemainingSilver - firstBonus, panel.RemainingStudySilver);
+
+                    Assert.IsTrue(panel.TrySetUnstudiedOnly(true));
+                    Assert.IsTrue(panel.UnstudiedOnly);
+                    Assert.AreEqual(total - 1, panel.DisplayedDossierRowCount);
+
+                    // Ancestor CanvasGroup lock blocks filter changes and batch study cleanly.
+                    CanvasGroup group = root.AddComponent<CanvasGroup>();
+                    group.interactable = false;
+                    Assert.IsFalse(panel.TrySetUnstudiedOnly(false));
+                    Assert.IsFalse(panel.TryStudyAllUnstudied(out _, out _));
+                    Assert.AreEqual(1, panel.StudiedCount);
+                    group.interactable = true;
+
+                    // Batch study finishes all remaining dossiers idempotently.
+                    Assert.IsTrue(panel.TryStudyAllUnstudied(out int batchCount, out int batchSilver));
+                    Assert.AreEqual(total - 1, batchCount);
+                    Assert.AreEqual(initialRemainingSilver - firstBonus, batchSilver);
+                    Assert.AreEqual(total, panel.StudiedCount);
+                    Assert.AreEqual(0, panel.RemainingStudySilver);
+                    Assert.AreEqual(0, panel.DisplayedDossierRowCount);
+                    StringAssert.Contains("已批量研读", panel.DetailText);
+                    Assert.AreEqual(initialRemainingSilver, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+
+                    // Second batch study is idempotent and returns false.
+                    Assert.IsFalse(panel.TryStudyAllUnstudied(out _, out _));
+
+                    // Clearing UnstudiedOnly restores all rows.
+                    Assert.IsTrue(panel.TrySetUnstudiedOnly(false));
+                    Assert.AreEqual(total, panel.DisplayedDossierRowCount);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
