@@ -99,6 +99,38 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RecordPlayerTile_RejectsOutOfBoundsAndBoundsOversizedRevealWork()
+        {
+            RpgExpandedMapSpec spec = RpgExpandedWorldScale.GetSpec(RpgWorldMapId.Soundwell);
+            var tracker = new RpgWorld500xDistrictProgressTracker(spec);
+            var invalid = new[]
+            {
+                new Vector2(-0.1f, 300f),
+                new Vector2(200f, -0.1f),
+                new Vector2(spec.ExpandedWidth, 300f),
+                new Vector2(200f, spec.ExpandedHeight),
+                new Vector2(float.MaxValue, 300f),
+                new Vector2(float.NaN, 300f)
+            };
+            foreach (Vector2 tile in invalid)
+            {
+                Assert.IsFalse(tracker.RecordPlayerTile(tile, 1, out _));
+                Assert.AreEqual(0, tracker.VisitedChunkCount);
+                Assert.IsEmpty(tracker.CurrentDistrictId);
+            }
+
+            Assert.IsTrue(tracker.RecordPlayerTile(new Vector2(200.5f, 300.5f), 0, out var entered));
+            Assert.AreEqual(1, tracker.VisitedChunkCount);
+            Assert.IsFalse(tracker.RecordPlayerTile(invalid[2], int.MaxValue, out _));
+            Assert.AreEqual(1, tracker.VisitedChunkCount);
+            Assert.AreEqual(entered.Id, tracker.CurrentDistrictId);
+
+            // Valid positions retain square reveal semantics, with work bounded to map size.
+            Assert.IsFalse(tracker.RecordPlayerTile(new Vector2(200.5f, 300.5f), int.MaxValue, out _));
+            Assert.AreEqual(tracker.TotalChunks, tracker.VisitedChunkCount);
+        }
+
+        [Test]
         public void BuildCartographyPreviewAndDistrictCoverage_AreReadOnlyAndTrackThresholdsAccurately()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);

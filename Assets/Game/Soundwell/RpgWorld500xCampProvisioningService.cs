@@ -112,6 +112,11 @@ namespace Rpg.Soundwell
     {
         public static string FormatPlanBreakdownZh(RpgWorld500xProvisioningPlan plan)
         {
+            if (!plan.Itinerary.IsReachable)
+            {
+                return "目的地不可达（无法制定整备方案）";
+            }
+
             if (plan.Lines == null || plan.Lines.Count == 0)
             {
                 return "行囊已齐备（无需补购）";
@@ -159,6 +164,15 @@ namespace Rpg.Soundwell
                     originMapId, destinationMapId, facade.Atmosphere)
                 : RpgWorld500xFastTravelItineraryService.PlanShortestItinerary(
                     originMapId, destinationMapId, facade.Atmosphere);
+
+            // Do not quote or purchase supplies for an unreachable destination.
+            if (!itinerary.IsReachable)
+            {
+                return new RpgWorld500xProvisioningPlan(
+                    originMapId, destinationMapId, itinerary, readiness,
+                    Array.Empty<RpgWorld500xProvisioningLine>(), 0, shop.SaltSilverBalance,
+                    false, "【营地整备方案】目的地不可达，无法制定整备方案。");
+            }
 
             IReadOnlyList<RpgWorld500xCampSupplyItemDef> catalog =
                 RpgWorld500xBountyAndSupplyCatalog.GetCampSupplies();
@@ -282,6 +296,22 @@ namespace Rpg.Soundwell
             RpgWorld500xProvisioningPlan plan = BuildProvisioningPlan(
                 bootstrapper, destinationMapId, elapsedSeconds, supplyUseService, preferSafestRoute);
             RpgWorld500xFieldBountyAndSupplyService shop = bootstrapper.Driver.Facade.BountyAndSupply;
+
+            if (!plan.Itinerary.IsReachable)
+            {
+                return new RpgWorld500xProvisioningReceipt(
+                    alreadyPrepared: false,
+                    fullyProvisioned: false,
+                    beforeScore: plan.ReadinessBefore.Score,
+                    afterScore: plan.ReadinessBefore.Score,
+                    beforeGrade: plan.ReadinessBefore.Grade,
+                    afterGrade: plan.ReadinessBefore.Grade,
+                    totalSpentSaltSilver: 0,
+                    remainingSaltSilver: shop.SaltSilverBalance,
+                    purchasedLines: Array.Empty<RpgWorld500xProvisioningLine>(),
+                    skippedItemIds: Array.Empty<string>(),
+                    summaryZh: "【一键整备】目的地不可达，已取消采购，未产生花费。");
+            }
 
             if (plan.Lines.Count == 0)
             {
