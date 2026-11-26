@@ -48,7 +48,12 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(12, panel.DisplayedRowCount);
                     Assert.AreEqual(0, panel.LootedCacheCount);
                     Assert.AreEqual(0, panel.UnlockedShortcutCount);
+                    Assert.AreEqual(12, panel.LastProgressSummary.TotalCacheCount);
+                    Assert.AreEqual(4, panel.LastProgressSummary.TotalShortcutCount);
+                    StringAssert.Contains("【秘藏与捷径】", panel.ProgressSummaryText);
                     Assert.Greater(panel.RemainingCacheSaltSilver, 0);
+                    Assert.IsNotEmpty(panel.NearestIncompleteId);
+                    Assert.GreaterOrEqual(panel.NearestIncompleteDistanceTiles, 0f);
                     Assert.IsFalse(string.IsNullOrEmpty(panel.NearestIncompleteLabelZh));
                     StringAssert.Contains("未领补给盐银", panel.SummaryText);
 
@@ -72,12 +77,15 @@ namespace Rpg.Tests.Editor
                         .TryUnlockNearbyShortcut(new Vector2(380.5f, 920.5f), 6f, out _));
                     panel.Refresh();
                     Assert.AreEqual(1, panel.UnlockedShortcutCount);
+                    Assert.AreEqual(1, panel.LastProgressSummary.UnlockedShortcutCount);
+                    Assert.AreEqual(3, panel.LastProgressSummary.LockedShortcutCount);
                     Assert.AreEqual(4, panel.DisplayedRowCount);
                     Assert.IsTrue(panel.HeaderText.Contains("捷径 1/4"));
 
                     Assert.IsTrue(panel.TrySetIncompleteOnly(true));
                     Assert.IsTrue(panel.IncompleteOnly);
                     Assert.AreEqual(3, panel.DisplayedRowCount);
+                    Assert.IsNotEmpty(panel.NearestIncompleteId);
                     Assert.IsFalse(string.IsNullOrEmpty(panel.NearestIncompleteLabelZh));
 
                     Assert.IsTrue(panel.TrySetIncompleteOnly(false));

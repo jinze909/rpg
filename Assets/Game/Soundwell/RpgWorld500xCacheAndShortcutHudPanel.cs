@@ -15,8 +15,8 @@ namespace Rpg.Soundwell
     /// Interactive UGUI Hidden Caches &amp; Unlockable Shortcuts tracker panel bound to
     /// RpgWorld500xSceneBootstrapper. Lists all or remaining incomplete hidden supply
     /// caches and unlockable shortcuts on the active 500x map with looted/unlocked state,
-    /// remaining Salt-Silver value, nearest incomplete target guidance, and live
-    /// 8-direction Chinese compass bearing and distance from the player.
+    /// controller-backed progress summary, remaining Salt-Silver value, nearest incomplete
+    /// target guidance, and live 8-direction Chinese compass bearing and distance from the player.
     /// </summary>
     public sealed class RpgWorld500xCacheAndShortcutHudPanel : IDisposable
     {
@@ -30,10 +30,13 @@ namespace Rpg.Soundwell
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorld500xCacheShortcutTab _activeTab = RpgWorld500xCacheShortcutTab.HiddenCaches;
+        private RpgWorld500xCacheShortcutProgressSummary _lastProgressSummary;
         private bool _incompleteOnly;
         private int _lootedCacheCount;
         private int _unlockedShortcutCount;
         private int _remainingCacheSaltSilver;
+        private string _nearestIncompleteId = string.Empty;
+        private float _nearestIncompleteDistanceTiles;
         private string _nearestIncompleteLabelZh = string.Empty;
         private bool _visible;
         private bool _disposed;
@@ -41,11 +44,15 @@ namespace Rpg.Soundwell
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xCacheShortcutTab ActiveTab => _activeTab;
+        public RpgWorld500xCacheShortcutProgressSummary LastProgressSummary => _lastProgressSummary;
+        public string ProgressSummaryText => _lastProgressSummary.SummaryZh;
         public bool IncompleteOnly => _incompleteOnly;
         public int DisplayedRowCount => _spawnedRows.Count;
         public int LootedCacheCount => _lootedCacheCount;
         public int UnlockedShortcutCount => _unlockedShortcutCount;
         public int RemainingCacheSaltSilver => _remainingCacheSaltSilver;
+        public string NearestIncompleteId => _nearestIncompleteId;
+        public float NearestIncompleteDistanceTiles => _nearestIncompleteDistanceTiles;
         public string NearestIncompleteLabelZh => _nearestIncompleteLabelZh;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string SummaryText => _summaryText != null ? _summaryText.text : string.Empty;
@@ -208,34 +215,15 @@ namespace Rpg.Soundwell
             RpgWorldMapId mapId = facade.CurrentMapId;
             string mapNameZh = facade.Session.Host.Layout.Spec.DisplayNameZh;
             Vector2 playerPos = facade.Session.Host.PlayerPosition;
-            IReadOnlyDictionary<string, int> store = _bootstrapper.Store;
-            Func<string, int> read = k => (store != null && store.TryGetValue(k, out int v)) ? v : 0;
+            RpgWorld500xCachesAndShortcutsController cacheCtrl = facade.ActivityDirector.CachesAndShortcuts;
 
             IReadOnlyList<RpgSupplyCacheDef> caches = RpgWorld500xContentCatalog.GetCaches(mapId);
             IReadOnlyList<RpgWorldShortcutDef> shortcuts = RpgWorld500xContentCatalog.GetShortcuts(mapId);
 
-            _lootedCacheCount = 0;
-            _remainingCacheSaltSilver = 0;
-            for (int i = 0; i < caches.Count; i++)
-            {
-                if (read(caches[i].MakinomKey) == 1)
-                {
-                    _lootedCacheCount++;
-                }
-                else
-                {
-                    _remainingCacheSaltSilver += Math.Max(0, caches[i].SaltSilverReward);
-                }
-            }
-
-            _unlockedShortcutCount = 0;
-            for (int i = 0; i < shortcuts.Count; i++)
-            {
-                if (read(shortcuts[i].MakinomKey) == 1)
-                {
-                    _unlockedShortcutCount++;
-                }
-            }
+            _lastProgressSummary = cacheCtrl.BuildProgressSummary();
+            _lootedCacheCount = _lastProgressSummary.LootedCacheCount;
+            _unlockedShortcutCount = _lastProgressSummary.UnlockedShortcutCount;
+            _remainingCacheSaltSilver = _lastProgressSummary.RemainingCacheSaltSilver;
 
             _headerText.text = mapNameZh + " · 秘藏补给与捷径图谱（补给 " +
                                _lootedCacheCount + "/" + caches.Count +
@@ -253,30 +241,33 @@ namespace Rpg.Soundwell
                 const float rowHeight = 24f;
                 const float spacing = 3f;
                 int rowIndex = 0;
-                int nearestDist = int.MaxValue;
-                string nearestId = null;
-                string nearestLabel = string.Empty;
+
+                if (cacheCtrl.TryFindNearestUnlootedCache(playerPos, out RpgSupplyCacheDef nearestCache, out float nearestDist))
+                {
+                    _nearestIncompleteId = nearestCache.Id;
+                    _nearestIncompleteDistanceTiles = nearestDist;
+                    string nearestDir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, nearestCache.Tile);
+                    _nearestIncompleteLabelZh = nearestCache.TitleZh + "（" + nearestDir + " " +
+                                                Mathf.CeilToInt(nearestDist) + " 格｜盐银 +" + nearestCache.SaltSilverReward + "）";
+                }
+                else
+                {
+                    _nearestIncompleteId = string.Empty;
+                    _nearestIncompleteDistanceTiles = 0f;
+                    _nearestIncompleteLabelZh = "本境补给箱已全部开启";
+                }
 
                 for (int i = 0; i < caches.Count; i++)
                 {
                     RpgSupplyCacheDef c = caches[i];
-                    bool looted = read(c.MakinomKey) == 1;
-                    string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, c.Tile);
-                    int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(c.Tile.x + 0.5f, c.Tile.y + 0.5f)));
-
-                    if (!looted && (dist < nearestDist ||
-                        (dist == nearestDist && StringComparer.Ordinal.Compare(c.Id, nearestId) < 0)))
-                    {
-                        nearestDist = dist;
-                        nearestId = c.Id;
-                        nearestLabel = c.TitleZh + "（" + dir + " " + dist + " 格｜盐银 +" + c.SaltSilverReward + "）";
-                    }
-
+                    bool looted = cacheCtrl.IsCacheLooted(c.Id);
                     if (_incompleteOnly && looted)
                     {
                         continue;
                     }
 
+                    string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, c.Tile);
+                    int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(c.Tile.x + 0.5f, c.Tile.y + 0.5f)));
                     string tag = looted ? "[已开启] " : "[未开启] ";
                     string line = tag + c.TitleZh + "｜盐银 +" + c.SaltSilverReward +
                                   "｜方位：" + dir + " " + dist + " 格（" + c.Tile.x + "," + c.Tile.y + "）";
@@ -289,40 +280,39 @@ namespace Rpg.Soundwell
                         line,
                         looted ? new Color(0.15f, 0.21f, 0.16f, 0.88f) : new Color(0.12f, 0.14f, 0.19f, 0.88f));
                 }
-
-                _nearestIncompleteLabelZh = string.IsNullOrEmpty(nearestLabel)
-                    ? "本境补给箱已全部开启"
-                    : nearestLabel;
             }
             else
             {
                 const float rowHeight = 52f;
                 const float spacing = 8f;
                 int rowIndex = 0;
-                int nearestDist = int.MaxValue;
-                string nearestId = null;
-                string nearestLabel = string.Empty;
+
+                if (cacheCtrl.TryFindNearestLockedShortcut(playerPos, out RpgWorldShortcutDef nearestSc, out float nearestDist))
+                {
+                    _nearestIncompleteId = nearestSc.Id;
+                    _nearestIncompleteDistanceTiles = nearestDist;
+                    string nearestDir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, nearestSc.TriggerTile);
+                    _nearestIncompleteLabelZh = nearestSc.TitleZh + "（" + nearestDir + " " +
+                                                Mathf.CeilToInt(nearestDist) + " 格）";
+                }
+                else
+                {
+                    _nearestIncompleteId = string.Empty;
+                    _nearestIncompleteDistanceTiles = 0f;
+                    _nearestIncompleteLabelZh = "本境捷径已全部打通";
+                }
 
                 for (int i = 0; i < shortcuts.Count; i++)
                 {
                     RpgWorldShortcutDef sc = shortcuts[i];
-                    bool unlocked = read(sc.MakinomKey) == 1;
-                    string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, sc.TriggerTile);
-                    int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(sc.TriggerTile.x + 0.5f, sc.TriggerTile.y + 0.5f)));
-
-                    if (!unlocked && (dist < nearestDist ||
-                        (dist == nearestDist && StringComparer.Ordinal.Compare(sc.Id, nearestId) < 0)))
-                    {
-                        nearestDist = dist;
-                        nearestId = sc.Id;
-                        nearestLabel = sc.TitleZh + "（" + dir + " " + dist + " 格）";
-                    }
-
+                    bool unlocked = cacheCtrl.IsShortcutUnlocked(sc.Id);
                     if (_incompleteOnly && unlocked)
                     {
                         continue;
                     }
 
+                    string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, sc.TriggerTile);
+                    int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(sc.TriggerTile.x + 0.5f, sc.TriggerTile.y + 0.5f)));
                     string tag = unlocked ? "[已打通] " : "[未解锁] ";
                     string line = tag + sc.TitleZh + "｜方位：" + dir + " " + dist +
                                   " 格（触发点 " + sc.TriggerTile.x + "," + sc.TriggerTile.y + "）\n" +
@@ -336,10 +326,6 @@ namespace Rpg.Soundwell
                         line,
                         unlocked ? new Color(0.16f, 0.24f, 0.18f, 0.90f) : new Color(0.13f, 0.15f, 0.21f, 0.88f));
                 }
-
-                _nearestIncompleteLabelZh = string.IsNullOrEmpty(nearestLabel)
-                    ? "本境捷径已全部打通"
-                    : nearestLabel;
             }
         }
 
