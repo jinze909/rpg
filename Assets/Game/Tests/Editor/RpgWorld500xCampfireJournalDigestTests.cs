@@ -9,6 +9,63 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xCampfireJournalDigestTests
     {
         [Test]
+        public void BuildDigest_IgnoresRepeatableAmbientZonesAndAdvancesToAdjacentRegionWhenDone()
+        {
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                const RpgWorldMapId map = RpgWorldMapId.Soundwell;
+                var facade = boot.Driver.Facade;
+                facade.Atmosphere.SetWeather(map, RpgWorld500xWeatherKind.Clear);
+                Vector2 player = facade.Session.Host.PlayerPosition;
+                var scanner = new RpgWorld500xFieldReconScannerService();
+                Assert.IsTrue(scanner.TryFindNearestByKind(map, player,
+                    RpgWorld500xReconPingKind.HiddenCache, out RpgWorld500xReconPing cachePing, 900f));
+                Assert.IsTrue(scanner.TryFindNearestByKind(map, player,
+                    RpgWorld500xReconPingKind.AmbientEventZone, out _, 900f));
+
+                // Restore a fixture with all completion-tracked local POIs done.
+                // Claim flags isolate the exploration guidance from milestone reminders.
+                var flags = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var entry in boot.Store)
+                    flags[entry.Key] = entry.Value;
+                string remainingCacheKey = null;
+                foreach (var cache in RpgWorld500xContentCatalog.GetCaches(map))
+                {
+                    flags[cache.MakinomKey] = 1;
+                    if (cache.Id == cachePing.EntityId)
+                        remainingCacheKey = cache.MakinomKey;
+                }
+                foreach (var shortcut in RpgWorld500xContentCatalog.GetShortcuts(map))
+                    flags[shortcut.MakinomKey] = 1;
+                foreach (var npc in RpgWorld500xLivingWorldCatalog.GetFieldNpcs(map))
+                    flags[npc.RumorMakinomKey] = 1;
+                foreach (var spot in RpgWorld500xLivingWorldCatalog.GetStorySpots(map))
+                    flags[spot.MakinomKey] = 1;
+                foreach (var milestone in RpgWorld500xExpeditionMilestoneService.AllMilestones)
+                    flags[milestone.MakinomKey] = 1;
+                Assert.IsNotNull(remainingCacheKey);
+
+                var snapshot = RpgWorld500xSaveSnapshotSerializer.Capture(map, player, flags, facade.Atmosphere);
+                Assert.IsTrue(boot.TryImportSaveJson(RpgWorld500xSaveSnapshotSerializer.Serialize(snapshot), out string error), error);
+                RpgWorld500xExpeditionDigest done = RpgWorld500xCampfireJournalDigestService.BuildDigest(boot);
+                Assert.AreEqual(0, done.ClaimableMilestoneCount);
+                StringAssert.Contains("相邻区域", done.NextObjectiveHintZh);
+                StringAssert.DoesNotContain("环境异象", done.NextObjectiveHintZh);
+
+                // Reopen one real objective; it must be recommended instead of an ambient event.
+                flags[remainingCacheKey] = 0;
+                snapshot = RpgWorld500xSaveSnapshotSerializer.Capture(map, player, flags, facade.Atmosphere);
+                Assert.IsTrue(boot.TryImportSaveJson(RpgWorld500xSaveSnapshotSerializer.Serialize(snapshot), out error), error);
+                RpgWorld500xExpeditionDigest pending = RpgWorld500xCampfireJournalDigestService.BuildDigest(boot);
+                StringAssert.Contains("优先前往近处未探索目标", pending.NextObjectiveHintZh);
+                StringAssert.Contains(cachePing.FormattedPingZh, pending.NextObjectiveHintZh);
+                StringAssert.DoesNotContain("环境异象", pending.NextObjectiveHintZh);
+            }
+        }
+
+        [Test]
         public void BuildDigest_SynthesizesLiveWorldStatePrioritizesHazardAndIncludesActiveSupplyBuffs()
         {
             using (var boot = new RpgWorld500xSceneBootstrapper(
