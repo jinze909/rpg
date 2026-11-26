@@ -334,10 +334,25 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(0)] // Outcome evidence in the host.
-        [TestCase(1)] // Fee evidence during the initial view refresh.
-        [TestCase(2)] // Fee evidence in the host after outcome read.
-        public void SettlementEvidenceCannotSaveAfterClosingHost(int closeAtFeeRead)
+        [Test]
+        public void SettlementOutcomeEvidenceCannotSaveAfterClosingHost()
+        {
+            SettlementEvidenceCannotSaveAfterClosingHost(0);
+        }
+
+        [Test]
+        public void SettlementInitialFeeEvidenceCannotSaveAfterClosingHost()
+        {
+            SettlementEvidenceCannotSaveAfterClosingHost(1);
+        }
+
+        [Test]
+        public void SettlementFinalFeeEvidenceCannotSaveAfterClosingHost()
+        {
+            SettlementEvidenceCannotSaveAfterClosingHost(2);
+        }
+
+        private void SettlementEvidenceCannotSaveAfterClosingHost(int closeAtFeeRead)
         {
             var root = new GameObject("M09 settlement evidence teardown");
             var values = new Dictionary<string, int>();
