@@ -106,6 +106,32 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void OversizedQuestAdvanceCompletesWithoutOverflowAndSurvivesReload()
+        {
+            var tracker = new RpgMapExplorationTracker(RpgWorldMapId.RedSaltHarbor);
+            const string id = "q.rsh.compare-salt-prices";
+            Assert.IsTrue(RpgWorldLandmarkCatalog.TryGetQuest(tracker.MapId, id, out var quest));
+            Assert.Greater(quest.RequiredSteps, 1);
+            Assert.IsTrue(tracker.TrySetTrackedQuest(id));
+            Assert.IsTrue(tracker.TryAdvanceQuest(id, 1));
+            Assert.IsFalse(tracker.TryAdvanceQuest(id, int.MinValue));
+            Assert.AreEqual(1, tracker.GetQuestProgress(id));
+
+            Assert.IsTrue(tracker.TryAdvanceQuest(id, int.MaxValue));
+            Assert.AreEqual(quest.RequiredSteps, tracker.GetQuestProgress(id));
+            Assert.AreEqual(RpgLandmarkQuestState.Completed, tracker.GetQuestState(id));
+            Assert.IsEmpty(tracker.TrackedQuestId);
+            Assert.IsFalse(tracker.TryAdvanceQuest(id, int.MaxValue));
+
+            var store = new Dictionary<string, int>();
+            Assert.IsTrue(tracker.TrySave((k, v) => store[k] = v));
+            var restored = new RpgMapExplorationTracker(tracker.MapId);
+            Assert.IsTrue(restored.TryLoad(k => store.TryGetValue(k, out int v) ? v : 0));
+            Assert.AreEqual(quest.RequiredSteps, restored.GetQuestProgress(id));
+            Assert.AreEqual(RpgLandmarkQuestState.Completed, restored.GetQuestState(id));
+        }
+
+        [Test]
         public void LoadingCompletedTrackedQuestReleasesOnlyFinishedObjective()
         {
             var tracker = new RpgMapExplorationTracker(RpgWorldMapId.RedSaltHarbor);
