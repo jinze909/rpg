@@ -133,6 +133,11 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(6, panel.TotalRumorCount);
                     Assert.AreEqual(0, panel.InspectedStorySpotCount);
                     Assert.AreEqual(4, panel.TotalStorySpotCount);
+                    Assert.AreEqual(6, panel.LastProgressSummary.TotalRumorCount);
+                    Assert.AreEqual(4, panel.LastProgressSummary.TotalStorySpotCount);
+                    StringAssert.Contains("【风土与传闻】", panel.ProgressSummaryText);
+                    Assert.IsNotEmpty(panel.NearestUndiscoveredId);
+                    Assert.GreaterOrEqual(panel.NearestUndiscoveredDistanceTiles, 0f);
                     Assert.IsFalse(string.IsNullOrEmpty(panel.NearestUndiscoveredLabelZh));
 
                     IReadOnlyList<RpgFieldNpcDef> npcs =
@@ -152,6 +157,8 @@ namespace Rpg.Tests.Editor
 
                     panel.Refresh();
                     Assert.AreEqual(1, panel.HeardRumorCount);
+                    Assert.AreEqual(1, panel.LastProgressSummary.HeardRumorCount);
+                    Assert.AreEqual(5, panel.LastProgressSummary.RemainingRumorCount);
                     Assert.IsTrue(panel.HeaderText.Contains("传闻 1/6"));
                     Assert.IsTrue(panel.TryClickTrackRumorTarget(firstNpc.Id));
                     Assert.AreEqual(firstNpc.RumorTargetMarkerId, boot.Driver.Facade.Session.Host.Tracker.TrackedMarkerId);
@@ -171,11 +178,36 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.TrySetUndiscoveredOnly(false));
                     Assert.AreEqual(6, panel.DisplayedRowCount);
 
-                    // Switch to StorySpots tab (4 spots per map).
+                    // Switch to StorySpots tab (4 spots per map) and verify nearest uninspected spot updates.
                     Assert.IsTrue(panel.TrySelectTab(RpgWorld500xRumorLoreTab.StorySpots));
                     Assert.AreEqual(RpgWorld500xRumorLoreTab.StorySpots, panel.ActiveTab);
                     Assert.AreEqual(4, panel.DisplayedRowCount);
+                    string nearestSpotId = panel.NearestUndiscoveredId;
+                    Assert.IsNotEmpty(nearestSpotId);
                     Assert.IsFalse(string.IsNullOrEmpty(panel.NearestUndiscoveredLabelZh));
+
+                    IReadOnlyList<RpgStorySpotDef> spots =
+                        RpgWorld500xLivingWorldCatalog.GetStorySpots(RpgWorldMapId.Soundwell);
+                    RpgStorySpotDef targetSpot = spots[0];
+                    for (int i = 0; i < spots.Count; i++)
+                    {
+                        if (spots[i].Id == nearestSpotId)
+                        {
+                            targetSpot = spots[i];
+                            break;
+                        }
+                    }
+
+                    Assert.IsTrue(boot.Driver.Facade.ActivityDirector.LivingWorld.TryInspectNearbyStorySpot(
+                        new Vector2(targetSpot.Tile.x + 0.5f, targetSpot.Tile.y + 0.5f),
+                        4f,
+                        out _,
+                        out _));
+                    panel.Refresh();
+                    Assert.AreEqual(1, panel.InspectedStorySpotCount);
+                    Assert.AreEqual(1, panel.LastProgressSummary.InspectedStorySpotCount);
+                    Assert.AreEqual(3, panel.LastProgressSummary.RemainingStorySpotCount);
+                    Assert.AreNotEqual(nearestSpotId, panel.NearestUndiscoveredId);
 
                     Assert.IsTrue(panel.Hide());
                     Assert.IsFalse(panel.IsVisible);
