@@ -326,11 +326,22 @@ namespace Rpg.Soundwell
             for (int i = 0; i < maps.Length; i++)
             {
                 RpgWorldMapId map = maps[i];
-                if (state.TryGetValue(GetWeatherKey(map), out string weatherStr) &&
-                    Enum.TryParse(weatherStr, true, out RpgWorld500xWeatherKind parsedWeather))
+                if (state.TryGetValue(GetWeatherKey(map), out string weatherStr))
                 {
-                    _mapWeathers[map] = parsedWeather;
+                    // Enum.TryParse accepts undefined numeric values. Do not expose
+                    // those as real weather or silently keep stale forecasts.
+                    _mapWeathers[map] =
+                        Enum.TryParse(weatherStr, true, out RpgWorld500xWeatherKind parsedWeather) &&
+                        Enum.IsDefined(typeof(RpgWorld500xWeatherKind), parsedWeather)
+                            ? parsedWeather
+                            : PickDeterministicWeather(map, _dayCount, slot);
                     _lastAutoWeatherSlot[map] = slot;
+                }
+                else
+                {
+                    // Legacy or partial saves may omit regional weather. Reconcile
+                    // the slot now, before any HUD snapshot or movement tick.
+                    RefreshAutomaticWeather(map, slot);
                 }
             }
         }
