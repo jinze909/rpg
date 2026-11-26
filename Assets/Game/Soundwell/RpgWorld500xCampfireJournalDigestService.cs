@@ -26,7 +26,10 @@ namespace Rpg.Soundwell
             string nextObjectiveHintZh,
             string formattedDigestZh,
             int readinessScore = 0,
-            string readinessGradeLabelZh = "")
+            string readinessGradeLabelZh = "",
+            int hazardousRegionCount = 0,
+            string worldWeatherBulletinZh = "",
+            string worldReputationSummaryZh = "")
         {
             MapId = mapId;
             MapDisplayNameZh = mapDisplayNameZh ?? string.Empty;
@@ -47,6 +50,9 @@ namespace Rpg.Soundwell
             FormattedDigestZh = formattedDigestZh ?? string.Empty;
             ReadinessScore = readinessScore;
             ReadinessGradeLabelZh = readinessGradeLabelZh ?? string.Empty;
+            HazardousRegionCount = hazardousRegionCount;
+            WorldWeatherBulletinZh = worldWeatherBulletinZh ?? string.Empty;
+            WorldReputationSummaryZh = worldReputationSummaryZh ?? string.Empty;
         }
 
         public RpgWorldMapId MapId { get; }
@@ -68,14 +74,17 @@ namespace Rpg.Soundwell
         public string FormattedDigestZh { get; }
         public int ReadinessScore { get; }
         public string ReadinessGradeLabelZh { get; }
+        public int HazardousRegionCount { get; }
+        public string WorldWeatherBulletinZh { get; }
+        public string WorldReputationSummaryZh { get; }
     }
 
     /// <summary>
     /// Synthesizes a concise, deterministic Chinese campfire &amp; expedition recap
     /// digest across all 500x world subsystems (active map &amp; district, weather risk,
-    /// faction standing, Salt-Silver &amp; supply stock, expedition readiness &amp; camp
-    /// provisioning cost, map/global completion, claimable milestones, and prioritized
-    /// next objective hint).
+    /// cross-region weather bulletin, faction standing &amp; world reputation overview,
+    /// Salt-Silver &amp; supply stock, expedition readiness &amp; camp provisioning cost,
+    /// map/global completion, claimable milestones, and prioritized next objective hint).
     /// </summary>
     public static class RpgWorld500xCampfireJournalDigestService
     {
@@ -104,12 +113,15 @@ namespace Rpg.Soundwell
             RpgWorld500xAtmosphereSnapshot atmo = facade.Atmosphere.GetSnapshot(mapId);
             RpgWorld500xTravelAdvisoryReport advisory =
                 RpgWorld500xWeatherTravelAdvisoryService.BuildAdvisory(atmo, elapsedSeconds);
+            RpgWorld500xWorldWeatherDigest worldWeather =
+                RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(facade.Atmosphere, elapsedSeconds);
 
             IReadOnlyDictionary<string, int> store = bootstrapper.Store;
             Func<string, int> read = k => (store != null && store.TryGetValue(k, out int v)) ? v : 0;
 
             var repService = new RpgWorld500xRegionalReputationService(read);
             RpgRegionalReputationSnapshot rep = repService.GetSnapshot(mapId);
+            RpgWorld500xWorldReputationOverview worldRep = repService.BuildWorldOverview();
 
             int saltSilver = facade.BountyAndSupply.SaltSilverBalance;
             int totalSupplies = 0;
@@ -158,7 +170,7 @@ namespace Rpg.Soundwell
                 advisory,
                 claimableMilestones);
 
-            var sb = new StringBuilder(448);
+            var sb = new StringBuilder(576);
             sb.AppendLine("【远征营火纪要】" + mapNameZh + " · " + districtNameZh);
             sb.AppendLine("天时：第 " + atmo.DayCount + " 日 " + atmo.FormattedClock + " " +
                           atmo.PhaseDisplayName + " · " + atmo.WeatherDisplayName +
@@ -179,6 +191,8 @@ namespace Rpg.Soundwell
 
             sb.AppendLine("堪舆进度：本图 " + mapComp.OverallCompletionPercent + "%｜四境总进度 " +
                           globalComp.OverallWorldCompletionPercent + "%（待领里程碑 " + claimableMilestones + " 项）");
+            sb.AppendLine(worldWeather.WorldBulletinZh);
+            sb.AppendLine(worldRep.SummaryLineZh);
             if (!string.IsNullOrEmpty(activeBuffCaption))
             {
                 sb.AppendLine("当前增益：" + activeBuffCaption);
@@ -205,7 +219,10 @@ namespace Rpg.Soundwell
                 nextHint,
                 sb.ToString(),
                 readiness.Score,
-                readiness.GradeLabelZh);
+                readiness.GradeLabelZh,
+                worldWeather.HazardousRegionCount,
+                worldWeather.WorldBulletinZh,
+                worldRep.SummaryLineZh);
         }
 
         private static string ResolveNextObjectiveHintZh(
