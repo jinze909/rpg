@@ -76,9 +76,29 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(150, beforeClaim.RemainingSaltSilver);
                 Assert.AreEqual(0, facade.BountyAndSupply.SaltSilverBalance);
 
-                List<RpgWorld500xFieldBountyDef> claimed =
-                    facade.BountyAndSupply.ClaimCompletedBounties(facade.GetCompletionSummary());
-                Assert.AreEqual(1, claimed.Count);
+                // Open through the same modal input-frame path as the player, then
+                // exercise the existing UGUI claim callback instead of claiming directly.
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    RequestedModalToggle = RpgWorld500xModalKind.BountyBoard
+                }, 0.1f);
+                Assert.AreEqual(RpgWorld500xModalKind.BountyBoard, ctrl.MenuRouter.ActiveModal);
+                RpgWorld500xBountyBoardHudPanel bountyPanel = ctrl.MenuRouter.BountyBoardPanel;
+                Assert.IsTrue(bountyPanel.IsVisible);
+                Assert.AreEqual(beforeClaim.ClaimableSaltSilver, bountyPanel.ClaimableSaltSilver);
+                Assert.AreEqual(beforeClaim.RemainingSaltSilver, bountyPanel.RemainingSaltSilver);
+                StringAssert.Contains("+60 盐银", bountyPanel.ClaimButtonLabelText);
+                Assert.IsTrue(bountyPanel.TryClickClaimEligible());
+                Assert.AreEqual(1, bountyPanel.ClaimedCount);
+                Assert.AreEqual(0, bountyPanel.ClaimableCount);
+                Assert.AreEqual(90, bountyPanel.RemainingSaltSilver);
+                Assert.IsFalse(bountyPanel.TryClickClaimEligible());
+                Assert.AreEqual(60, facade.BountyAndSupply.SaltSilverBalance);
+
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { CloseModalPressed = true }, 0.1f);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+                Assert.IsFalse(bountyPanel.IsVisible);
+                Assert.IsFalse(bountyPanel.TryClickClaimEligible());
                 Assert.AreEqual(60, facade.BountyAndSupply.SaltSilverBalance);
                 Assert.AreEqual(3, facade.BountyAndSupply.GetMaxAffordableQuantity("gauze"));       // 60 / 18 = 3
                 Assert.AreEqual(1, facade.BountyAndSupply.GetMaxAffordableQuantity("iron_clamps")); // 60 / 35 = 1

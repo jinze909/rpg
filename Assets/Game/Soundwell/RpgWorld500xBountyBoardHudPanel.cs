@@ -15,8 +15,9 @@ namespace Rpg.Soundwell
     /// Interactive UGUI Field Bounty Board &amp; Contract Tracker panel bound to
     /// RpgWorld500xSceneBootstrapper and RpgWorld500xFieldBountyAndSupplyService.
     /// Lists active-region (3) or cross-region (12) exploration bounties with live
-    /// progress counts, Salt-Silver rewards, idempotent claim action, parent
-    /// CanvasGroup interactability guards, and zero-leak IDisposable cleanup.
+    /// progress counts, Salt-Silver rewards, read-only active-map bounty summary,
+    /// idempotent claim action, parent CanvasGroup interactability guards, and
+    /// zero-leak IDisposable cleanup.
     /// </summary>
     public sealed class RpgWorld500xBountyBoardHudPanel : IDisposable
     {
@@ -28,10 +29,12 @@ namespace Rpg.Soundwell
         private readonly Button _activeMapTabButton;
         private readonly Button _allRegionsTabButton;
         private readonly Button _claimButton;
+        private readonly Text _claimButtonLabel;
         private readonly Button _closeButton;
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorld500xBountyBoardScope _activeScope = RpgWorld500xBountyBoardScope.ActiveMap;
+        private RpgWorld500xBountyBoardSummary _activeMapSummary;
         private int _claimedCount;
         private int _claimableCount;
         private int _totalBountyCount;
@@ -41,10 +44,15 @@ namespace Rpg.Soundwell
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xBountyBoardScope ActiveScope => _activeScope;
+        public RpgWorld500xBountyBoardSummary ActiveMapSummary => _activeMapSummary;
         public int DisplayedRowCount => _spawnedRows.Count;
         public int ClaimedCount => _claimedCount;
         public int ClaimableCount => _claimableCount;
+        public int ClaimableSaltSilver => _activeMapSummary.ClaimableSaltSilver;
+        public int RemainingSaltSilver => _activeMapSummary.RemainingSaltSilver;
         public int TotalBountyCount => _totalBountyCount;
+        public string ActiveMapSummaryZh => _activeMapSummary.SummaryZh;
+        public string ClaimButtonLabelText => _claimButtonLabel != null ? _claimButtonLabel.text : string.Empty;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string FeedbackText => _feedbackText != null ? _feedbackText.text : string.Empty;
 
@@ -135,6 +143,7 @@ namespace Rpg.Soundwell
                 new Vector2(0.04f, 0.05f), new Vector2(0.58f, 0.13f),
                 "领取本境已达标悬赏", _font,
                 HandleClaimClicked);
+            _claimButtonLabel = _claimButton.GetComponentInChildren<Text>();
 
             _closeButton = CreateActionButton(
                 modal.transform, "CloseBountyBoardButton",
@@ -236,9 +245,11 @@ namespace Rpg.Soundwell
             RpgWorld500xMapCompletionSummary activeSummary = facade.GetCompletionSummary();
             RpgWorld500xFieldBountyAndSupplyService bountySvc = facade.BountyAndSupply;
 
+            _activeMapSummary = bountySvc.BuildBountyBoardSummary(activeSummary);
+            _claimableCount = _activeMapSummary.ClaimableCount;
+
             IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
             _claimedCount = 0;
-            _claimableCount = 0;
             _totalBountyCount = 0;
 
             for (int s = 0; s < specs.Count; s++)
@@ -249,18 +260,9 @@ namespace Rpg.Soundwell
                 {
                     RpgWorld500xFieldBountyDef b = regionBounties[i];
                     _totalBountyCount++;
-                    bool claimed = bountySvc.IsBountyClaimed(b);
-                    if (claimed)
+                    if (bountySvc.IsBountyClaimed(b))
                     {
                         _claimedCount++;
-                    }
-                    else if (b.MapId == activeMapId)
-                    {
-                        int progress = RpgWorld500xFieldBountyAndSupplyService.EvaluateProgressCount(b, activeSummary);
-                        if (progress >= b.TargetCount)
-                        {
-                            _claimableCount++;
-                        }
                     }
                 }
             }
@@ -268,11 +270,18 @@ namespace Rpg.Soundwell
             _headerText.text = "【四境悬赏榜】" + activeMapNameZh +
                                "（总进度 " + _claimedCount + "/" + _totalBountyCount +
                                "｜本境可领 " + _claimableCount +
+                               "｜剩余总赏 " + _activeMapSummary.RemainingSaltSilver +
                                "｜盐银 " + bountySvc.SaltSilverBalance + "）";
 
             UpdateTabHighlight();
             _claimButton.interactable = _claimableCount > 0;
             SetButtonColor(_claimButton, _claimableCount > 0);
+            if (_claimButtonLabel != null)
+            {
+                _claimButtonLabel.text = _claimableCount > 0
+                    ? "领取本境已达标悬赏（+" + _activeMapSummary.ClaimableSaltSilver + " 盐银）"
+                    : "领取本境已达标悬赏";
+            }
 
             if (_activeScope == RpgWorld500xBountyBoardScope.ActiveMap)
             {

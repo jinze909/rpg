@@ -46,6 +46,10 @@ namespace Rpg.Tests.Editor
 
                     panel.Refresh();
                     Assert.AreEqual(1, panel.ClaimableCount);
+                    Assert.AreEqual(60, panel.ClaimableSaltSilver);
+                    Assert.AreEqual(150, panel.RemainingSaltSilver);
+                    StringAssert.Contains("+60 盐银", panel.ClaimButtonLabelText);
+                    StringAssert.Contains("可领 1 项（+60 盐银）", panel.ActiveMapSummaryZh);
 
                     // Hidden panel must reject Try* calls AND direct stale button callbacks without claiming rewards.
                     Assert.IsFalse(panel.TrySelectScope(RpgWorld500xBountyBoardScope.AllRegions));
@@ -85,6 +89,10 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(panel.TryClickClaimEligible());
                     Assert.AreEqual(1, panel.ClaimedCount);
                     Assert.AreEqual(0, panel.ClaimableCount);
+                    Assert.AreEqual(0, panel.ClaimableSaltSilver);
+                    Assert.AreEqual(90, panel.RemainingSaltSilver);
+                    Assert.AreEqual("领取本境已达标悬赏", panel.ClaimButtonLabelText);
+                    StringAssert.Contains("剩余总赏 90", panel.HeaderText);
                     Assert.GreaterOrEqual(boot.Driver.Facade.BountyAndSupply.SaltSilverBalance, 60);
                     Assert.IsTrue(panel.FeedbackText.Contains("盐银 +60"));
                     Assert.IsFalse(panel.TryClickClaimEligible());
