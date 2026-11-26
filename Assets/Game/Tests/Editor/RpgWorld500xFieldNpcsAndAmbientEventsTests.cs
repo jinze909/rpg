@@ -129,6 +129,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void LivingWorldProgressSummaryAndNearestQueries_AreReadOnlyAndTrackProgress()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            Action<string, int> write = (k, v) => store[k] = v;
+
+            var tracker = new RpgMapExplorationTracker(RpgWorldMapId.WhitewaterCrossing);
+            var service = new RpgWorld500xLivingWorldService(
+                RpgWorldMapId.WhitewaterCrossing, tracker, read, write);
+
+            RpgWorld500xLivingWorldProgressSummary before = service.BuildLivingWorldProgressSummary();
+            Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, before.MapId);
+            Assert.AreEqual(0, before.HeardRumorCount);
+            Assert.AreEqual(6, before.TotalRumorCount);
+            Assert.AreEqual(6, before.RemainingRumorCount);
+            Assert.AreEqual(0, before.InspectedStorySpotCount);
+            Assert.AreEqual(4, before.TotalStorySpotCount);
+            Assert.AreEqual(4, before.RemainingStorySpotCount);
+            Assert.AreEqual(3, before.AmbientZoneCount);
+            StringAssert.Contains("【风土与传闻】", before.SummaryZh);
+
+            Assert.IsFalse(service.TryFindNearestUnheardRumorNpc(new Vector2(float.NaN, 0f), out _, out _));
+            Assert.IsFalse(service.TryFindNearestUninspectedStorySpot(new Vector2(0f, float.NegativeInfinity), out _, out _));
+
+            Assert.IsTrue(service.TryFindNearestUnheardRumorNpc(new Vector2(280.5f, 520.5f), out RpgFieldNpcDef nearestNpc, out float npcDist));
+            Assert.AreEqual("ww_npc_01", nearestNpc.Id);
+            Assert.AreEqual(0f, npcDist, 0.01f);
+
+            Assert.IsTrue(service.TryFindNearestUninspectedStorySpot(new Vector2(1400.5f, 280.5f), out RpgStorySpotDef nearestSpot, out float spotDist));
+            Assert.AreEqual("ww_lore_03", nearestSpot.Id);
+            Assert.AreEqual(0f, spotDist, 0.01f);
+            Assert.AreEqual(0, store.Count);
+
+            Assert.IsTrue(service.TryTalkToNearbyNpc(new Vector2(280.5f, 520.5f), 6f, out _, out _, out _));
+            Assert.IsTrue(service.TryInspectNearbyStorySpot(new Vector2(1400.5f, 280.5f), 6f, out _, out _));
+
+            RpgWorld500xLivingWorldProgressSummary after = service.BuildLivingWorldProgressSummary();
+            Assert.AreEqual(1, after.HeardRumorCount);
+            Assert.AreEqual(5, after.RemainingRumorCount);
+            Assert.AreEqual(1, after.InspectedStorySpotCount);
+            Assert.AreEqual(3, after.RemainingStorySpotCount);
+
+            Assert.IsTrue(service.TryFindNearestUnheardRumorNpc(new Vector2(280.5f, 520.5f), out RpgFieldNpcDef nextNpc, out _));
+            Assert.AreNotEqual("ww_npc_01", nextNpc.Id);
+            Assert.IsTrue(service.TryFindNearestUninspectedStorySpot(new Vector2(1400.5f, 280.5f), out RpgStorySpotDef nextSpot, out _));
+            Assert.AreNotEqual("ww_lore_03", nextSpot.Id);
+        }
+
+        [Test]
         public void RumorBrokerTracksUndiscoveredLandmarkStorySpotsPersistAndAmbientCycleActivatesDeterministically()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
