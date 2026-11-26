@@ -13,9 +13,10 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Interactive UGUI Field Rumor &amp; Environmental Lore Codex panel bound to
-    /// RpgWorld500xSceneBootstrapper. Displays all 6 field NPC rumors (with one-click
-    /// landmark tracking once heard) and all 4 environmental story spots on the active
-    /// 500x map under a zero-leak IDisposable lifecycle.
+    /// RpgWorld500xSceneBootstrapper. Displays all or undiscovered field NPC rumors
+    /// (with one-click landmark tracking once heard) and environmental story spots on
+    /// the active 500x map with nearest undiscovered bearing guidance under a zero-leak
+    /// IDisposable lifecycle.
     /// </summary>
     public sealed class RpgWorld500xFieldRumorAndLoreHudPanel : IDisposable
     {
@@ -31,12 +32,24 @@ namespace Rpg.Soundwell
         private readonly Dictionary<string, Button> _trackButtons =
             new Dictionary<string, Button>(StringComparer.Ordinal);
         private RpgWorld500xRumorLoreTab _activeTab = RpgWorld500xRumorLoreTab.FieldRumors;
+        private bool _undiscoveredOnly;
+        private int _heardRumorCount;
+        private int _totalRumorCount;
+        private int _inspectedStorySpotCount;
+        private int _totalStorySpotCount;
+        private string _nearestUndiscoveredLabelZh = string.Empty;
         private bool _visible;
         private bool _disposed;
 
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xRumorLoreTab ActiveTab => _activeTab;
+        public bool UndiscoveredOnly => _undiscoveredOnly;
+        public int HeardRumorCount => _heardRumorCount;
+        public int TotalRumorCount => _totalRumorCount;
+        public int InspectedStorySpotCount => _inspectedStorySpotCount;
+        public int TotalStorySpotCount => _totalStorySpotCount;
+        public string NearestUndiscoveredLabelZh => _nearestUndiscoveredLabelZh;
         public int DisplayedRowCount => _spawnedRows.Count;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string StatusText => _statusText != null ? _statusText.text : string.Empty;
@@ -164,6 +177,21 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TrySetUndiscoveredOnly(bool undiscoveredOnly)
+        {
+            Button guardBtn = _activeTab == RpgWorld500xRumorLoreTab.FieldRumors
+                ? _rumorsTabButton
+                : _loreTabButton;
+            if (!CanInvoke(guardBtn))
+            {
+                return false;
+            }
+
+            _undiscoveredOnly = undiscoveredOnly;
+            Refresh();
+            return true;
+        }
+
         public bool TryClickTrackRumorTarget(string npcId)
         {
             if (string.IsNullOrEmpty(npcId) ||
@@ -189,32 +217,35 @@ namespace Rpg.Soundwell
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
             RpgWorldMapId mapId = facade.CurrentMapId;
             string mapNameZh = facade.Session.Host.Layout.Spec.DisplayNameZh;
+            Vector2 playerPos = facade.Session.Host.PlayerPosition;
             IReadOnlyDictionary<string, int> store = _bootstrapper.Store;
             Func<string, int> read = k => (store != null && store.TryGetValue(k, out int v)) ? v : 0;
 
             IReadOnlyList<RpgFieldNpcDef> npcs = RpgWorld500xLivingWorldCatalog.GetFieldNpcs(mapId);
             IReadOnlyList<RpgStorySpotDef> spots = RpgWorld500xLivingWorldCatalog.GetStorySpots(mapId);
 
-            int heardCount = 0;
+            _heardRumorCount = 0;
+            _totalRumorCount = npcs.Count;
             for (int i = 0; i < npcs.Count; i++)
             {
                 if (read(npcs[i].RumorMakinomKey) == 1)
                 {
-                    heardCount++;
+                    _heardRumorCount++;
                 }
             }
 
-            int inspectedCount = 0;
+            _inspectedStorySpotCount = 0;
+            _totalStorySpotCount = spots.Count;
             for (int i = 0; i < spots.Count; i++)
             {
                 if (read(spots[i].MakinomKey) == 1)
                 {
-                    inspectedCount++;
+                    _inspectedStorySpotCount++;
                 }
             }
 
-            _headerText.text = mapNameZh + " · 野外见闻与风物志（传闻 " + heardCount + "/" + npcs.Count +
-                               "｜轶事 " + inspectedCount + "/" + spots.Count + "）";
+            _headerText.text = mapNameZh + " · 野外见闻与风物志（传闻 " + _heardRumorCount + "/" + npcs.Count +
+                               "｜轶事 " + _inspectedStorySpotCount + "/" + spots.Count + "）";
 
             UpdateTabHighlight();
 
@@ -222,10 +253,33 @@ namespace Rpg.Soundwell
             {
                 const float rowHeight = 42f;
                 const float spacing = 5f;
+                int rowIndex = 0;
+                int nearestDist = int.MaxValue;
+                string nearestId = null;
+                string nearestLabel = string.Empty;
+
                 for (int i = 0; i < npcs.Count; i++)
                 {
                     RpgFieldNpcDef npc = npcs[i];
                     bool heard = read(npc.RumorMakinomKey) == 1;
+                    if (!heard)
+                    {
+                        int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(npc.Tile.x + 0.5f, npc.Tile.y + 0.5f)));
+                        if (dist < nearestDist ||
+                            (dist == nearestDist && StringComparer.Ordinal.Compare(npc.Id, nearestId) < 0))
+                        {
+                            nearestDist = dist;
+                            nearestId = npc.Id;
+                            string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, npc.Tile);
+                            nearestLabel = npc.DisplayNameZh + "（" + dir + " " + dist + " 格）";
+                        }
+                    }
+
+                    if (_undiscoveredOnly && heard)
+                    {
+                        continue;
+                    }
+
                     bool hasTarget = !string.IsNullOrEmpty(npc.RumorTargetMarkerId);
                     RpgMapLandmarkMarker targetMarker = default;
                     bool foundMarker = hasTarget &&
@@ -248,7 +302,7 @@ namespace Rpg.Soundwell
                     string capturedMarkerTitle = foundMarker ? targetMarker.TitleZh : string.Empty;
                     Button btn = SpawnActionRow(
                         "RumorRow_" + npc.Id,
-                        i,
+                        rowIndex++,
                         rowHeight,
                         spacing,
                         line,
@@ -258,27 +312,58 @@ namespace Rpg.Soundwell
 
                     _trackButtons[npc.Id] = btn;
                 }
+
+                _nearestUndiscoveredLabelZh = string.IsNullOrEmpty(nearestLabel)
+                    ? "本境野外传闻已全部打听"
+                    : nearestLabel;
             }
             else
             {
                 const float rowHeight = 58f;
                 const float spacing = 8f;
+                int rowIndex = 0;
+                int nearestDist = int.MaxValue;
+                string nearestId = null;
+                string nearestLabel = string.Empty;
+
                 for (int i = 0; i < spots.Count; i++)
                 {
                     RpgStorySpotDef spot = spots[i];
                     bool inspected = read(spot.MakinomKey) == 1;
+                    if (!inspected)
+                    {
+                        int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(spot.Tile.x + 0.5f, spot.Tile.y + 0.5f)));
+                        if (dist < nearestDist ||
+                            (dist == nearestDist && StringComparer.Ordinal.Compare(spot.Id, nearestId) < 0))
+                        {
+                            nearestDist = dist;
+                            nearestId = spot.Id;
+                            string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, spot.Tile);
+                            nearestLabel = "未知风物轶事点（" + dir + " " + dist + " 格）";
+                        }
+                    }
+
+                    if (_undiscoveredOnly && inspected)
+                    {
+                        continue;
+                    }
+
                     string line = inspected
                         ? "[已勘察] " + spot.TitleZh + "\n" + spot.DescriptionZh
                         : "[未勘察] 未知风物轶事点（坐标 " + spot.Tile.x + "," + spot.Tile.y + "）";
 
                     SpawnInfoRow(
                         "LoreRow_" + spot.Id,
-                        i,
+                        rowIndex++,
                         rowHeight,
                         spacing,
                         line,
                         inspected ? new Color(0.16f, 0.22f, 0.18f, 0.90f) : new Color(0.12f, 0.13f, 0.17f, 0.86f));
                 }
+
+                _nearestUndiscoveredLabelZh = string.IsNullOrEmpty(nearestLabel)
+                    ? "本境风物轶事已全部勘察"
+                    : nearestLabel;
             }
         }
 

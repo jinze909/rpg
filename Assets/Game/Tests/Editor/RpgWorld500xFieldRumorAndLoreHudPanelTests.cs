@@ -32,6 +32,7 @@ namespace Rpg.Tests.Editor
                     loreTab.Invoke();
                     TrackButton().onClick.Invoke();
                     Assert.IsFalse(panel.TrySelectTab(RpgWorld500xRumorLoreTab.StorySpots));
+                    Assert.IsFalse(panel.TrySetUndiscoveredOnly(true));
                     Assert.AreEqual(RpgWorld500xRumorLoreTab.FieldRumors, panel.ActiveTab);
                     Assert.IsTrue(panel.Show());
                     TrackButton().onClick.Invoke();
@@ -88,6 +89,7 @@ namespace Rpg.Tests.Editor
                     disposedTrack.Invoke();
                     Assert.IsFalse(panel.TryClickTrackRumorTarget(npc.Id));
                     Assert.IsFalse(panel.TrySelectTab(RpgWorld500xRumorLoreTab.StorySpots));
+                    Assert.IsFalse(panel.TrySetUndiscoveredOnly(true));
                     Assert.AreEqual(RpgWorld500xRumorLoreTab.FieldRumors, panel.ActiveTab);
                     Assert.AreEqual(npc.RumorTargetMarkerId, tracker.TrackedMarkerId);
                 }
@@ -125,7 +127,13 @@ namespace Rpg.Tests.Editor
                 {
                     Assert.IsTrue(panel.Show());
                     Assert.AreEqual(RpgWorld500xRumorLoreTab.FieldRumors, panel.ActiveTab);
+                    Assert.IsFalse(panel.UndiscoveredOnly);
                     Assert.AreEqual(6, panel.DisplayedRowCount);
+                    Assert.AreEqual(0, panel.HeardRumorCount);
+                    Assert.AreEqual(6, panel.TotalRumorCount);
+                    Assert.AreEqual(0, panel.InspectedStorySpotCount);
+                    Assert.AreEqual(4, panel.TotalStorySpotCount);
+                    Assert.IsFalse(string.IsNullOrEmpty(panel.NearestUndiscoveredLabelZh));
 
                     IReadOnlyList<RpgFieldNpcDef> npcs =
                         RpgWorld500xLivingWorldCatalog.GetFieldNpcs(RpgWorldMapId.Soundwell);
@@ -143,15 +151,31 @@ namespace Rpg.Tests.Editor
                         out _));
 
                     panel.Refresh();
+                    Assert.AreEqual(1, panel.HeardRumorCount);
                     Assert.IsTrue(panel.HeaderText.Contains("传闻 1/6"));
                     Assert.IsTrue(panel.TryClickTrackRumorTarget(firstNpc.Id));
                     Assert.AreEqual(firstNpc.RumorTargetMarkerId, boot.Driver.Facade.Session.Host.Tracker.TrackedMarkerId);
                     Assert.IsTrue(panel.StatusText.Contains("罗盘追踪"));
 
+                    // UndiscoveredOnly hides the heard rumor (6 -> 5 rows) and respects CanvasGroup locks.
+                    Assert.IsTrue(panel.TrySetUndiscoveredOnly(true));
+                    Assert.IsTrue(panel.UndiscoveredOnly);
+                    Assert.AreEqual(5, panel.DisplayedRowCount);
+
+                    CanvasGroup group = root.AddComponent<CanvasGroup>();
+                    group.interactable = false;
+                    Assert.IsFalse(panel.TrySetUndiscoveredOnly(false));
+                    Assert.IsTrue(panel.UndiscoveredOnly);
+                    group.interactable = true;
+
+                    Assert.IsTrue(panel.TrySetUndiscoveredOnly(false));
+                    Assert.AreEqual(6, panel.DisplayedRowCount);
+
                     // Switch to StorySpots tab (4 spots per map).
                     Assert.IsTrue(panel.TrySelectTab(RpgWorld500xRumorLoreTab.StorySpots));
                     Assert.AreEqual(RpgWorld500xRumorLoreTab.StorySpots, panel.ActiveTab);
                     Assert.AreEqual(4, panel.DisplayedRowCount);
+                    Assert.IsFalse(string.IsNullOrEmpty(panel.NearestUndiscoveredLabelZh));
 
                     Assert.IsTrue(panel.Hide());
                     Assert.IsFalse(panel.IsVisible);
