@@ -47,6 +47,30 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RemoteWeatherAdvancesWithGlobalClockAndCampfireRest()
+        {
+            var service = new RpgWorld500xWeatherAndTimeOfDayService(
+                initialMinutes: 600f, initialDay: 1, gameMinutesPerRealSecond: 1f);
+            service.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.AshHaze);
+            service.AdvanceRealSeconds(1f, RpgWorldMapId.Soundwell);
+            Assert.AreEqual(RpgWorld500xWeatherKind.AshHaze, service.GetWeather(RpgWorldMapId.RedSaltHarbor));
+
+            service.AdvanceRealSeconds(180f, RpgWorldMapId.Soundwell);
+            var expected = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 781f, initialDay: 1);
+            Assert.AreEqual(expected.GetWeather(RpgWorldMapId.RedSaltHarbor),
+                service.GetWeather(RpgWorldMapId.RedSaltHarbor));
+
+            service.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.AshHaze);
+            service.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+            service.RestAtCampfire(RpgWorldMapId.Soundwell);
+            expected = new RpgWorld500xWeatherAndTimeOfDayService(
+                initialMinutes: RpgWorld500xWeatherAndTimeOfDayService.DefaultDawnMinutes, initialDay: 2);
+            Assert.AreEqual(expected.GetWeather(RpgWorldMapId.RedSaltHarbor),
+                service.GetWeather(RpgWorldMapId.RedSaltHarbor));
+            Assert.AreEqual(RpgWorld500xWeatherKind.MistFog, service.GetWeather(RpgWorldMapId.Soundwell));
+        }
+
+        [Test]
         public void AllFourMaps_ProduceRegionSpecificWeatherFlavorAndValidModifiers()
         {
             var service = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f, initialDay: 1);

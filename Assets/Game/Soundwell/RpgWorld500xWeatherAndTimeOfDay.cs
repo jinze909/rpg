@@ -88,6 +88,9 @@ namespace Rpg.Soundwell
         private readonly Dictionary<RpgWorldMapId, int> _lastAutoWeatherSlot =
             new Dictionary<RpgWorldMapId, int>();
 
+        private static readonly RpgWorldMapId[] RegionalMaps =
+            (RpgWorldMapId[])Enum.GetValues(typeof(RpgWorldMapId));
+
         private float _timeOfDayMinutes;
         private int _dayCount;
         private readonly float _gameMinutesPerRealSecond;
@@ -206,11 +209,10 @@ namespace Rpg.Soundwell
             }
 
             int slot = ComputeWeatherSlot(_dayCount, _timeOfDayMinutes);
-            if (!_lastAutoWeatherSlot.TryGetValue(activeMap, out int prevSlot) || prevSlot != slot)
-            {
-                _mapWeathers[activeMap] = PickDeterministicWeather(activeMap, _dayCount, slot);
-                _lastAutoWeatherSlot[activeMap] = slot;
-            }
+            // All four regions share the same world clock. Keep remote forecasts
+            // current even when the player stays on a different map.
+            RefreshRegionalWeather(slot);
+            RefreshAutomaticWeather(activeMap, slot);
 
             return GetSnapshot(activeMap);
         }
@@ -231,7 +233,11 @@ namespace Rpg.Soundwell
                     : RpgWorld500xWeatherKind.Clear;
             }
 
-            _lastAutoWeatherSlot[activeMap] = ComputeWeatherSlot(_dayCount, _timeOfDayMinutes);
+            int slot = ComputeWeatherSlot(_dayCount, _timeOfDayMinutes);
+            _lastAutoWeatherSlot[activeMap] = slot;
+            // The resting region keeps its explicit campfire weather outcome.
+            // Other regions advance to the new global slot.
+            RefreshRegionalWeather(slot);
             return GetSnapshot(activeMap);
         }
 
@@ -515,6 +521,23 @@ namespace Rpg.Soundwell
             }
 
             return Mathf.Clamp(value, 0.60f, 1.60f);
+        }
+
+        private void RefreshRegionalWeather(int slot)
+        {
+            for (int i = 0; i < RegionalMaps.Length; i++)
+            {
+                RefreshAutomaticWeather(RegionalMaps[i], slot);
+            }
+        }
+
+        private void RefreshAutomaticWeather(RpgWorldMapId map, int slot)
+        {
+            if (!_lastAutoWeatherSlot.TryGetValue(map, out int previousSlot) || previousSlot != slot)
+            {
+                _mapWeathers[map] = PickDeterministicWeather(map, _dayCount, slot);
+                _lastAutoWeatherSlot[map] = slot;
+            }
         }
 
         private static int ComputeWeatherSlot(int dayCount, float minutes)
