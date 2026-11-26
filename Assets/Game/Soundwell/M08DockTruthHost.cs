@@ -92,15 +92,33 @@ namespace Rpg.Soundwell
                 if (existing.Value != response)
                     return false;
             }
-            else if (!IsCurrentView(submittingView) || !M08DockTruthFacts.TryRecord(
-                response, shenLiPresent: true, getInt, setInt))
-                return false;
+            else
+            {
+                // TryRecord reads upstream facts before writing. Those reads
+                // may synchronously retire the view, even after the checks
+                // above. Never write another field once the view is stale.
+                bool abandoned = false;
+                void WriteWhileCurrent(string key, int value)
+                {
+                    if (abandoned || !IsCurrentView(submittingView))
+                    {
+                        abandoned = true;
+                        return;
+                    }
+                    setInt(key, value);
+                }
+
+                if (!IsCurrentView(submittingView) || !M08DockTruthFacts.TryRecord(
+                        response, shenLiPresent: true, getInt, WriteWhileCurrent) ||
+                    abandoned || !IsCurrentView(submittingView))
+                    return false;
+            }
 
             // Handle a save that succeeded before its caller lost the
             // acknowledgement. Do not reissue the write on retry.
             if (!M08DockTruthFacts.TryRead(getInt,
                     out M08DockTruthResponse? persisted) ||
-                persisted != response)
+                persisted != response || !IsCurrentView(submittingView))
                 return false;
 
             if (activeView == submittingView)
