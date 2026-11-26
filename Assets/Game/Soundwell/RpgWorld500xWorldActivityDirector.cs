@@ -165,7 +165,8 @@ namespace Rpg.Soundwell
             }
 
             if (_livingWorld.TryTalkToNearbyNpc(playerTile, interactRadius,
-                out RpgFieldNpcDef npc, out string dialogueLineZh, out string revealedMarkerId))
+                out RpgFieldNpcDef npc, out string dialogueLineZh, out string revealedMarkerId,
+                out bool firstHearing))
             {
                 InteractionCount++;
                 result = new RpgWorld500xInteractionResult(
@@ -174,7 +175,7 @@ namespace Rpg.Soundwell
                     npc.DisplayNameZh,
                     dialogueLineZh,
                     revealedMarkerId: revealedMarkerId,
-                    firstTimeDiscovery: !string.IsNullOrEmpty(revealedMarkerId));
+                    firstTimeDiscovery: firstHearing);
                 _onToast?.Invoke(result.TitleZh, result.BodyZh);
                 return true;
             }
