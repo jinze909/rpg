@@ -192,7 +192,8 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || delivered || requesting ||
                 session.IsResolved || session.TidalWindowLocated ||
-                !slowEchoButton.interactable || !fastEchoButton.interactable)
+                !slowEchoButton.IsActive() || !slowEchoButton.IsInteractable() ||
+                !fastEchoButton.IsActive() || !fastEchoButton.IsInteractable())
                 return;
             lastPickedMimic = choice == RC04EchoChoice.FastMimicReply;
             session.SubmitEchoDiscrimination(choice);
@@ -203,7 +204,7 @@ namespace Rpg.Soundwell
         {
             if (disposed || IsDestroyedExternally() || delivered || requesting ||
                 session.IsResolved || !session.TidalWindowLocated ||
-                !approachButton.interactable)
+                !approachButton.IsActive() || !approachButton.IsInteractable())
                 return;
             requesting = true;
             approachButton.interactable = false;
