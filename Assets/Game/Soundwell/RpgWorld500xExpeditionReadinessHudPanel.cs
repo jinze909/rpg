@@ -12,8 +12,9 @@ namespace Rpg.Soundwell
     /// color-coded readiness grade banner, four readiness checks, prioritized missing
     /// camp supplies, one-click auto-restock, remote destination readiness preview,
     /// and cross-region destination auto-provisioning (with optional Salt-Silver
-    /// budget cap &amp; itemized breakdown) via RpgWorld500xCampProvisioningService with
-    /// parent CanvasGroup interactability guards and zero-leak IDisposable cleanup.
+    /// budget cap, safest-route planning &amp; itemized breakdown) via
+    /// RpgWorld500xCampProvisioningService with parent CanvasGroup interactability
+    /// guards and zero-leak IDisposable cleanup.
     /// </summary>
     public sealed class RpgWorld500xExpeditionReadinessHudPanel : IDisposable
     {
@@ -259,7 +260,9 @@ namespace Rpg.Soundwell
             return true;
         }
 
-        public string FormatProvisioningBreakdownForDestination(RpgWorldMapId destinationMapId)
+        public string FormatProvisioningBreakdownForDestination(
+            RpgWorldMapId destinationMapId,
+            bool preferSafestRoute = false)
         {
             if (IsDisposed || _bootstrapper.IsDisposed)
             {
@@ -270,14 +273,16 @@ namespace Rpg.Soundwell
                 _bootstrapper,
                 destinationMapId,
                 _lastElapsedSeconds,
-                _supplyUseService);
+                _supplyUseService,
+                preferSafestRoute);
             return RpgWorld500xCampProvisioningService.FormatPlanBreakdownZh(plan);
         }
 
         public bool TryAutoProvisionForDestination(
             RpgWorldMapId destinationMapId,
             bool allowPartialIfUnderBudget = true,
-            int? maxBudgetSaltSilver = null)
+            int? maxBudgetSaltSilver = null,
+            bool preferSafestRoute = false)
         {
             if (!CanClick(_refreshButton))
             {
@@ -290,7 +295,8 @@ namespace Rpg.Soundwell
                 allowPartialIfUnderBudget,
                 _lastElapsedSeconds,
                 _supplyUseService,
-                maxBudgetSaltSilver);
+                maxBudgetSaltSilver,
+                preferSafestRoute);
 
             _feedbackText.text = _lastProvisioningReceipt.SummaryZh;
             if (_lastProvisioningReceipt.TotalSpentSaltSilver > 0)
