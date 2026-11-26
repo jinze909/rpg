@@ -226,6 +226,59 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BlankStoredPayload_IsOccupiedCorruptAndCanBeExplicitlyDeleted()
+        {
+            var storage = new RpgWorld500xInMemorySaveSlotStorage();
+            var manager = new RpgWorld500xSaveSlotManager(storage);
+            var damaged = RpgWorld500xSaveSlotId.Slot1;
+            var untouched = RpgWorld500xSaveSlotId.Slot2;
+            string key = RpgWorld500xSaveSlotManager.GetStorageKey(damaged);
+
+            using (var boot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: RpgWorldMapId.Soundwell,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                boot.Driver.Facade.BountyAndSupply.AddSaltSilver(42);
+                Assert.IsTrue(manager.TrySaveSlot(boot, untouched, out _, out string error), error);
+                foreach (string payload in new[] { "", "   ", "\t\n" })
+                {
+                    storage.Write(key, payload);
+                    var summary = manager.InspectSlot(damaged);
+                    Assert.IsTrue(summary.IsOccupied);
+                    Assert.IsTrue(summary.IsCorrupted);
+                    Assert.IsFalse(manager.TryLoadSlot(boot, damaged, out var loaded, out _));
+                    Assert.IsTrue(loaded.IsOccupied && loaded.IsCorrupted);
+                    Assert.IsFalse(manager.TryCopySlot(damaged, untouched, out _));
+                    Assert.AreEqual(42, manager.InspectSlot(untouched).SaltSilverBalance);
+                    Assert.IsTrue(manager.TryFindMostRecentValidSlot(out var recent));
+                    Assert.AreEqual(untouched, recent.SlotId);
+                    Assert.IsTrue(manager.DeleteSlot(damaged));
+                    Assert.IsFalse(manager.InspectSlot(damaged).IsOccupied);
+                }
+            }
+        }
+
+        [Test]
+        public void PlayerPrefsStorage_PresentEmptyPayloadRemainsReadableAndDeletable()
+        {
+            var storage = new RpgWorld500xPlayerPrefsSaveSlotStorage();
+            string key = RpgWorld500xSaveSlotManager.StorageKeyPrefix + "test_" + Guid.NewGuid().ToString("N");
+            try
+            {
+                Assert.IsFalse(storage.TryRead(key, out _));
+                storage.Write(key, string.Empty);
+                Assert.IsTrue(storage.TryRead(key, out string payload));
+                Assert.AreEqual(string.Empty, payload);
+                storage.Delete(key);
+                Assert.IsFalse(storage.TryRead(key, out _));
+            }
+            finally
+            {
+                storage.Delete(key);
+            }
+        }
+
+        [Test]
         public void CorruptedOrTamperedSlot_IsIsolatedWithoutBreakingOtherSlots()
         {
             var storage = new RpgWorld500xInMemorySaveSlotStorage();
