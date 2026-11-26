@@ -4,6 +4,56 @@ using UnityEngine;
 
 namespace Rpg.Soundwell
 {
+    public readonly struct RpgWorld500xCampSupplyQuote
+    {
+        public RpgWorld500xCampSupplyQuote(
+            bool isValidItem,
+            string itemId,
+            int ownedCount,
+            int maxStock,
+            int remainingCapacity,
+            int baseUnitCost,
+            int discountedUnitCost,
+            int unitSavings,
+            int discountPercent,
+            int requestedQuantity,
+            int maxAffordableQuantity,
+            int totalDiscountedCost,
+            bool canFulfillRequested,
+            string summaryZh)
+        {
+            IsValidItem = isValidItem;
+            ItemId = itemId ?? string.Empty;
+            OwnedCount = ownedCount;
+            MaxStock = maxStock;
+            RemainingCapacity = remainingCapacity;
+            BaseUnitCost = baseUnitCost;
+            DiscountedUnitCost = discountedUnitCost;
+            UnitSavings = unitSavings;
+            DiscountPercent = discountPercent;
+            RequestedQuantity = requestedQuantity;
+            MaxAffordableQuantity = maxAffordableQuantity;
+            TotalDiscountedCost = totalDiscountedCost;
+            CanFulfillRequested = canFulfillRequested;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public bool IsValidItem { get; }
+        public string ItemId { get; }
+        public int OwnedCount { get; }
+        public int MaxStock { get; }
+        public int RemainingCapacity { get; }
+        public int BaseUnitCost { get; }
+        public int DiscountedUnitCost { get; }
+        public int UnitSavings { get; }
+        public int DiscountPercent { get; }
+        public int RequestedQuantity { get; }
+        public int MaxAffordableQuantity { get; }
+        public int TotalDiscountedCost { get; }
+        public bool CanFulfillRequested { get; }
+        public string SummaryZh { get; }
+    }
+
     public readonly struct RpgWorld500xCampHavenSummary
     {
         public RpgWorld500xCampHavenSummary(
@@ -72,6 +122,91 @@ namespace Rpg.Soundwell
 
             RpgRegionalReputationRank rank = _reputation.GetSnapshot(mapId).Rank;
             return RpgWorld500xRegionalReputationService.ComputeDiscountedCost(item.SaltSilverCost, rank);
+        }
+
+        public int GetMaxAffordableDiscountedQuantity(RpgWorldMapId mapId, string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId) || !_itemsById.TryGetValue(itemId, out RpgWorld500xCampSupplyItemDef item))
+            {
+                return 0;
+            }
+
+            int owned = Math.Max(0, _getInt(item.OwnedCountKey));
+            int remainingCapacity = Math.Max(0, item.MaxStock - owned);
+            if (remainingCapacity == 0)
+            {
+                return 0;
+            }
+
+            int unitCost = GetDiscountedUnitCost(mapId, itemId);
+            if (unitCost <= 0)
+            {
+                return remainingCapacity;
+            }
+
+            int balance = Math.Max(0, _getInt(RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey));
+            int affordableBySilver = balance / unitCost;
+            return Math.Min(remainingCapacity, affordableBySilver);
+        }
+
+        public RpgWorld500xCampSupplyQuote BuildSupplyRestockQuote(
+            RpgWorldMapId mapId,
+            string itemId,
+            int requestedQuantity)
+        {
+            RpgRegionalReputationSnapshot rep = _reputation.GetSnapshot(mapId);
+            if (string.IsNullOrEmpty(itemId) || !_itemsById.TryGetValue(itemId, out RpgWorld500xCampSupplyItemDef item))
+            {
+                return new RpgWorld500xCampSupplyQuote(
+                    isValidItem: false,
+                    itemId: itemId ?? string.Empty,
+                    ownedCount: 0,
+                    maxStock: 0,
+                    remainingCapacity: 0,
+                    baseUnitCost: 0,
+                    discountedUnitCost: 0,
+                    unitSavings: 0,
+                    discountPercent: rep.CampSupplyDiscountPercent,
+                    requestedQuantity: requestedQuantity,
+                    maxAffordableQuantity: 0,
+                    totalDiscountedCost: 0,
+                    canFulfillRequested: false,
+                    summaryZh: "【营地补给报价】未知补给项");
+            }
+
+            int owned = Math.Max(0, _getInt(item.OwnedCountKey));
+            int remainingCapacity = Math.Max(0, item.MaxStock - owned);
+            int baseUnitCost = Math.Max(0, item.SaltSilverCost);
+            int discountedUnitCost = RpgWorld500xRegionalReputationService.ComputeDiscountedCost(baseUnitCost, rep.Rank);
+            int unitSavings = Math.Max(0, baseUnitCost - discountedUnitCost);
+            int maxAffordable = GetMaxAffordableDiscountedQuantity(mapId, itemId);
+
+            int safeRequested = Math.Max(0, requestedQuantity);
+            long totalCostLong = (long)discountedUnitCost * safeRequested;
+            int totalDiscountedCost = totalCostLong > int.MaxValue ? int.MaxValue : (int)totalCostLong;
+            bool canFulfill = requestedQuantity > 0 && requestedQuantity <= maxAffordable;
+
+            string summaryZh = "【营地补给报价】" + item.Id +
+                               "｜声望折扣 " + rep.CampSupplyDiscountPercent + "%" +
+                               "（单价 " + discountedUnitCost + " 盐银，原价 " + baseUnitCost + "）" +
+                               "｜可购上限 " + maxAffordable +
+                               "（库存余量 " + remainingCapacity + "）";
+
+            return new RpgWorld500xCampSupplyQuote(
+                isValidItem: true,
+                itemId: item.Id,
+                ownedCount: owned,
+                maxStock: item.MaxStock,
+                remainingCapacity: remainingCapacity,
+                baseUnitCost: baseUnitCost,
+                discountedUnitCost: discountedUnitCost,
+                unitSavings: unitSavings,
+                discountPercent: rep.CampSupplyDiscountPercent,
+                requestedQuantity: requestedQuantity,
+                maxAffordableQuantity: maxAffordable,
+                totalDiscountedCost: totalDiscountedCost,
+                canFulfillRequested: canFulfill,
+                summaryZh: summaryZh);
         }
 
         public RpgCampSupplyPurchaseStatus TryPurchaseDiscountedSupply(
