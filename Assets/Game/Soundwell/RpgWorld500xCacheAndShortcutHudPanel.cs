@@ -13,9 +13,10 @@ namespace Rpg.Soundwell
 
     /// <summary>
     /// Interactive UGUI Hidden Caches &amp; Unlockable Shortcuts tracker panel bound to
-    /// RpgWorld500xSceneBootstrapper. Lists all hidden supply caches and unlockable
-    /// shortcuts on the active 500x map with looted/unlocked state, Salt-Silver value,
-    /// and live 8-direction Chinese compass bearing and distance from the player.
+    /// RpgWorld500xSceneBootstrapper. Lists all or remaining incomplete hidden supply
+    /// caches and unlockable shortcuts on the active 500x map with looted/unlocked state,
+    /// remaining Salt-Silver value, nearest incomplete target guidance, and live
+    /// 8-direction Chinese compass bearing and distance from the player.
     /// </summary>
     public sealed class RpgWorld500xCacheAndShortcutHudPanel : IDisposable
     {
@@ -29,17 +30,23 @@ namespace Rpg.Soundwell
         private readonly Font _font;
         private readonly List<GameObject> _spawnedRows = new List<GameObject>();
         private RpgWorld500xCacheShortcutTab _activeTab = RpgWorld500xCacheShortcutTab.HiddenCaches;
+        private bool _incompleteOnly;
         private int _lootedCacheCount;
         private int _unlockedShortcutCount;
+        private int _remainingCacheSaltSilver;
+        private string _nearestIncompleteLabelZh = string.Empty;
         private bool _visible;
         private bool _disposed;
 
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xCacheShortcutTab ActiveTab => _activeTab;
+        public bool IncompleteOnly => _incompleteOnly;
         public int DisplayedRowCount => _spawnedRows.Count;
         public int LootedCacheCount => _lootedCacheCount;
         public int UnlockedShortcutCount => _unlockedShortcutCount;
+        public int RemainingCacheSaltSilver => _remainingCacheSaltSilver;
+        public string NearestIncompleteLabelZh => _nearestIncompleteLabelZh;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
         public string SummaryText => _summaryText != null ? _summaryText.text : string.Empty;
 
@@ -173,6 +180,21 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TrySetIncompleteOnly(bool incompleteOnly)
+        {
+            Button guardBtn = _activeTab == RpgWorld500xCacheShortcutTab.HiddenCaches
+                ? _cachesTabButton
+                : _shortcutsTabButton;
+            if (!CanClick(guardBtn))
+            {
+                return false;
+            }
+
+            _incompleteOnly = incompleteOnly;
+            Refresh();
+            return true;
+        }
+
         public void Refresh()
         {
             if (IsDisposed || _bootstrapper.IsDisposed)
@@ -193,11 +215,16 @@ namespace Rpg.Soundwell
             IReadOnlyList<RpgWorldShortcutDef> shortcuts = RpgWorld500xContentCatalog.GetShortcuts(mapId);
 
             _lootedCacheCount = 0;
+            _remainingCacheSaltSilver = 0;
             for (int i = 0; i < caches.Count; i++)
             {
                 if (read(caches[i].MakinomKey) == 1)
                 {
                     _lootedCacheCount++;
+                }
+                else
+                {
+                    _remainingCacheSaltSilver += Math.Max(0, caches[i].SaltSilverReward);
                 }
             }
 
@@ -216,7 +243,8 @@ namespace Rpg.Soundwell
 
             int clampsOwned = facade.BountyAndSupply.GetOwnedSupplyCount("iron_clamps");
             _summaryText.text = "当前坐标：" + Mathf.FloorToInt(playerPos.x) + "," + Mathf.FloorToInt(playerPos.y) +
-                                "｜随身便携修桥铁件：" + clampsOwned + "（使用可加速捷径检修）";
+                                "｜随身便携修桥铁件：" + clampsOwned +
+                                "｜未领补给盐银：" + _remainingCacheSaltSilver;
 
             UpdateTabHighlight();
 
@@ -224,35 +252,77 @@ namespace Rpg.Soundwell
             {
                 const float rowHeight = 24f;
                 const float spacing = 3f;
+                int rowIndex = 0;
+                int nearestDist = int.MaxValue;
+                string nearestId = null;
+                string nearestLabel = string.Empty;
+
                 for (int i = 0; i < caches.Count; i++)
                 {
                     RpgSupplyCacheDef c = caches[i];
                     bool looted = read(c.MakinomKey) == 1;
                     string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, c.Tile);
                     int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(c.Tile.x + 0.5f, c.Tile.y + 0.5f)));
+
+                    if (!looted && (dist < nearestDist ||
+                        (dist == nearestDist && StringComparer.Ordinal.Compare(c.Id, nearestId) < 0)))
+                    {
+                        nearestDist = dist;
+                        nearestId = c.Id;
+                        nearestLabel = c.TitleZh + "（" + dir + " " + dist + " 格｜盐银 +" + c.SaltSilverReward + "）";
+                    }
+
+                    if (_incompleteOnly && looted)
+                    {
+                        continue;
+                    }
+
                     string tag = looted ? "[已开启] " : "[未开启] ";
                     string line = tag + c.TitleZh + "｜盐银 +" + c.SaltSilverReward +
                                   "｜方位：" + dir + " " + dist + " 格（" + c.Tile.x + "," + c.Tile.y + "）";
 
                     SpawnInfoRow(
                         "CacheRow_" + c.Id,
-                        i,
+                        rowIndex++,
                         rowHeight,
                         spacing,
                         line,
                         looted ? new Color(0.15f, 0.21f, 0.16f, 0.88f) : new Color(0.12f, 0.14f, 0.19f, 0.88f));
                 }
+
+                _nearestIncompleteLabelZh = string.IsNullOrEmpty(nearestLabel)
+                    ? "本境补给箱已全部开启"
+                    : nearestLabel;
             }
             else
             {
                 const float rowHeight = 52f;
                 const float spacing = 8f;
+                int rowIndex = 0;
+                int nearestDist = int.MaxValue;
+                string nearestId = null;
+                string nearestLabel = string.Empty;
+
                 for (int i = 0; i < shortcuts.Count; i++)
                 {
                     RpgWorldShortcutDef sc = shortcuts[i];
                     bool unlocked = read(sc.MakinomKey) == 1;
                     string dir = RpgWorld500xFieldReconScannerService.ResolveDirection8Zh(playerPos, sc.TriggerTile);
                     int dist = Mathf.CeilToInt(Vector2.Distance(playerPos, new Vector2(sc.TriggerTile.x + 0.5f, sc.TriggerTile.y + 0.5f)));
+
+                    if (!unlocked && (dist < nearestDist ||
+                        (dist == nearestDist && StringComparer.Ordinal.Compare(sc.Id, nearestId) < 0)))
+                    {
+                        nearestDist = dist;
+                        nearestId = sc.Id;
+                        nearestLabel = sc.TitleZh + "（" + dir + " " + dist + " 格）";
+                    }
+
+                    if (_incompleteOnly && unlocked)
+                    {
+                        continue;
+                    }
+
                     string tag = unlocked ? "[已打通] " : "[未解锁] ";
                     string line = tag + sc.TitleZh + "｜方位：" + dir + " " + dist +
                                   " 格（触发点 " + sc.TriggerTile.x + "," + sc.TriggerTile.y + "）\n" +
@@ -260,12 +330,16 @@ namespace Rpg.Soundwell
 
                     SpawnInfoRow(
                         "ShortcutRow_" + sc.Id,
-                        i,
+                        rowIndex++,
                         rowHeight,
                         spacing,
                         line,
                         unlocked ? new Color(0.16f, 0.24f, 0.18f, 0.90f) : new Color(0.13f, 0.15f, 0.21f, 0.88f));
                 }
+
+                _nearestIncompleteLabelZh = string.IsNullOrEmpty(nearestLabel)
+                    ? "本境捷径已全部打通"
+                    : nearestLabel;
             }
         }
 
