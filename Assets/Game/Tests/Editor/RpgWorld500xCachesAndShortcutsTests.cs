@@ -96,5 +96,58 @@ namespace Rpg.Tests.Editor
             Assert.That(reloadedMap.IsWalkable(368, 860, gateOpen: false), Is.True);
             Assert.That(rewardCalls, Is.EqualTo(1));
         }
+
+        [Test]
+        public void ProgressSummaryAndNearestQueries_AreReadOnlyAndTrackLootAndUnlocks()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            Action<string, int> write = (k, v) => store[k] = v;
+
+            RpgWorld500xMapLayout soundwell = RpgWorld500xMapLayout.Build(RpgWorldMapId.Soundwell);
+            var ctrl = new RpgWorld500xCachesAndShortcutsController(soundwell, read, write);
+
+            RpgWorld500xCacheShortcutProgressSummary before = ctrl.BuildProgressSummary();
+            Assert.AreEqual(RpgWorldMapId.Soundwell, before.MapId);
+            Assert.AreEqual(0, before.LootedCacheCount);
+            Assert.AreEqual(12, before.TotalCacheCount);
+            Assert.AreEqual(12, before.RemainingCacheCount);
+            Assert.Greater(before.RemainingCacheSaltSilver, 0);
+            Assert.AreEqual(0, before.UnlockedShortcutCount);
+            Assert.AreEqual(4, before.TotalShortcutCount);
+            Assert.AreEqual(4, before.LockedShortcutCount);
+            StringAssert.Contains("【秘藏与捷径】", before.SummaryZh);
+
+            // Reject non-finite player coordinates safely without mutating state.
+            Assert.IsFalse(ctrl.TryFindNearestUnlootedCache(new Vector2(float.NaN, 0f), out _, out _));
+            Assert.IsFalse(ctrl.TryFindNearestLockedShortcut(new Vector2(0f, float.PositiveInfinity), out _, out _));
+
+            // Nearest unlooted cache to (290.5, 780.5) is sw_c03 (saltSilver = 30).
+            Assert.IsTrue(ctrl.TryFindNearestUnlootedCache(new Vector2(290.5f, 780.5f), out RpgSupplyCacheDef nearestCache, out float cacheDist));
+            Assert.AreEqual("sw_c03", nearestCache.Id);
+            Assert.AreEqual(0f, cacheDist, 0.01f);
+
+            // Nearest locked shortcut to (380.5, 920.5) is sw_sc_entry_north.
+            Assert.IsTrue(ctrl.TryFindNearestLockedShortcut(new Vector2(380.5f, 920.5f), out RpgWorldShortcutDef nearestSc, out float scDist));
+            Assert.AreEqual("sw_sc_entry_north", nearestSc.Id);
+            Assert.AreEqual(0f, scDist, 0.01f);
+            Assert.AreEqual(0, store.Count);
+
+            // Loot sw_c03 and unlock sw_sc_entry_north -> summary and nearest targets advance.
+            Assert.IsTrue(ctrl.TryLootNearbyCache(new Vector2(290.5f, 780.5f), 6f, out _));
+            Assert.IsTrue(ctrl.TryUnlockNearbyShortcut(new Vector2(380.5f, 920.5f), 6f, out _));
+
+            RpgWorld500xCacheShortcutProgressSummary after = ctrl.BuildProgressSummary();
+            Assert.AreEqual(1, after.LootedCacheCount);
+            Assert.AreEqual(11, after.RemainingCacheCount);
+            Assert.AreEqual(before.RemainingCacheSaltSilver - 30, after.RemainingCacheSaltSilver);
+            Assert.AreEqual(1, after.UnlockedShortcutCount);
+            Assert.AreEqual(3, after.LockedShortcutCount);
+
+            Assert.IsTrue(ctrl.TryFindNearestUnlootedCache(new Vector2(290.5f, 780.5f), out RpgSupplyCacheDef nextCache, out _));
+            Assert.AreNotEqual("sw_c03", nextCache.Id);
+            Assert.IsTrue(ctrl.TryFindNearestLockedShortcut(new Vector2(380.5f, 920.5f), out RpgWorldShortcutDef nextSc, out _));
+            Assert.AreNotEqual("sw_sc_entry_north", nextSc.Id);
+        }
     }
 }
