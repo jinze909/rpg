@@ -87,6 +87,41 @@ namespace Rpg.Soundwell
         public string MakinomKey => "rpg.return.world.shortcut." + Id;
     }
 
+    public readonly struct RpgWorld500xCacheShortcutProgressSummary
+    {
+        public RpgWorld500xCacheShortcutProgressSummary(
+            RpgWorldMapId mapId,
+            int lootedCacheCount,
+            int totalCacheCount,
+            int remainingCacheCount,
+            int remainingCacheSaltSilver,
+            int unlockedShortcutCount,
+            int totalShortcutCount,
+            int lockedShortcutCount,
+            string summaryZh)
+        {
+            MapId = mapId;
+            LootedCacheCount = lootedCacheCount;
+            TotalCacheCount = totalCacheCount;
+            RemainingCacheCount = remainingCacheCount;
+            RemainingCacheSaltSilver = remainingCacheSaltSilver;
+            UnlockedShortcutCount = unlockedShortcutCount;
+            TotalShortcutCount = totalShortcutCount;
+            LockedShortcutCount = lockedShortcutCount;
+            SummaryZh = summaryZh ?? string.Empty;
+        }
+
+        public RpgWorldMapId MapId { get; }
+        public int LootedCacheCount { get; }
+        public int TotalCacheCount { get; }
+        public int RemainingCacheCount { get; }
+        public int RemainingCacheSaltSilver { get; }
+        public int UnlockedShortcutCount { get; }
+        public int TotalShortcutCount { get; }
+        public int LockedShortcutCount { get; }
+        public string SummaryZh { get; }
+    }
+
     /// <summary>
     /// Curated Wave-1 500x world enrichment catalog: 44 hidden supply caches &
     /// 《归来》 field relics plus 16 unlockable world shortcuts distributed across
@@ -376,6 +411,121 @@ namespace Rpg.Soundwell
 
         public bool IsShortcutUnlocked(string shortcutId) =>
             !string.IsNullOrEmpty(shortcutId) && unlockedShortcuts.Contains(shortcutId);
+
+        public RpgWorld500xCacheShortcutProgressSummary BuildProgressSummary()
+        {
+            int remainingSilver = 0;
+            foreach (KeyValuePair<string, RpgSupplyCacheDef> kvp in cachesById)
+            {
+                if (!lootedCaches.Contains(kvp.Key))
+                {
+                    remainingSilver += Math.Max(0, kvp.Value.SaltSilverReward);
+                }
+            }
+
+            int remainingCaches = Math.Max(0, TotalCacheCount - LootedCacheCount);
+            int lockedShortcuts = Math.Max(0, TotalShortcutCount - UnlockedShortcutCount);
+            string summaryZh = "【秘藏与捷径】补给箱 " + LootedCacheCount + "/" + TotalCacheCount +
+                               "（余盐银 +" + remainingSilver + "）｜捷径 " +
+                               UnlockedShortcutCount + "/" + TotalShortcutCount;
+
+            return new RpgWorld500xCacheShortcutProgressSummary(
+                layout.MapId,
+                LootedCacheCount,
+                TotalCacheCount,
+                remainingCaches,
+                remainingSilver,
+                UnlockedShortcutCount,
+                TotalShortcutCount,
+                lockedShortcuts,
+                summaryZh);
+        }
+
+        public bool TryFindNearestUnlootedCache(
+            Vector2 playerTile,
+            out RpgSupplyCacheDef nearest,
+            out float distanceTiles)
+        {
+            nearest = default;
+            distanceTiles = 0f;
+            if (float.IsNaN(playerTile.x) || float.IsInfinity(playerTile.x) ||
+                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y))
+            {
+                return false;
+            }
+
+            bool found = false;
+            float bestDistSq = float.MaxValue;
+            foreach (KeyValuePair<string, RpgSupplyCacheDef> kvp in cachesById)
+            {
+                if (lootedCaches.Contains(kvp.Key))
+                {
+                    continue;
+                }
+
+                RpgSupplyCacheDef c = kvp.Value;
+                float dx = playerTile.x - (c.Tile.x + 0.5f);
+                float dy = playerTile.y - (c.Tile.y + 0.5f);
+                float distSq = (dx * dx) + (dy * dy);
+                if (!found || distSq < bestDistSq ||
+                    (Mathf.Approximately(distSq, bestDistSq) && StringComparer.Ordinal.Compare(c.Id, nearest.Id) < 0))
+                {
+                    found = true;
+                    bestDistSq = distSq;
+                    nearest = c;
+                }
+            }
+
+            if (found)
+            {
+                distanceTiles = Mathf.Sqrt(bestDistSq);
+            }
+
+            return found;
+        }
+
+        public bool TryFindNearestLockedShortcut(
+            Vector2 playerTile,
+            out RpgWorldShortcutDef nearest,
+            out float distanceTiles)
+        {
+            nearest = default;
+            distanceTiles = 0f;
+            if (float.IsNaN(playerTile.x) || float.IsInfinity(playerTile.x) ||
+                float.IsNaN(playerTile.y) || float.IsInfinity(playerTile.y))
+            {
+                return false;
+            }
+
+            bool found = false;
+            float bestDistSq = float.MaxValue;
+            foreach (KeyValuePair<string, RpgWorldShortcutDef> kvp in shortcutsById)
+            {
+                if (unlockedShortcuts.Contains(kvp.Key))
+                {
+                    continue;
+                }
+
+                RpgWorldShortcutDef sc = kvp.Value;
+                float dx = playerTile.x - (sc.TriggerTile.x + 0.5f);
+                float dy = playerTile.y - (sc.TriggerTile.y + 0.5f);
+                float distSq = (dx * dx) + (dy * dy);
+                if (!found || distSq < bestDistSq ||
+                    (Mathf.Approximately(distSq, bestDistSq) && StringComparer.Ordinal.Compare(sc.Id, nearest.Id) < 0))
+                {
+                    found = true;
+                    bestDistSq = distSq;
+                    nearest = sc;
+                }
+            }
+
+            if (found)
+            {
+                distanceTiles = Mathf.Sqrt(bestDistSq);
+            }
+
+            return found;
+        }
 
         public bool TryLootNearbyCache(Vector2 playerTile, float interactRadius, out RpgSupplyCacheDef looted)
         {
