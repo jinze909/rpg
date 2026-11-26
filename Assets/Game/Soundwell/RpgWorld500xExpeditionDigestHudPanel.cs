@@ -7,9 +7,10 @@ namespace Rpg.Soundwell
     /// <summary>
     /// Interactive UGUI Campfire Journal &amp; Expedition Digest modal panel bound to
     /// RpgWorld500xSceneBootstrapper and RpgWorld500xCampfireJournalDigestService.
-    /// Displays live map/district context, weather risk severity banner, faction standing,
-    /// Salt-Silver &amp; supply summary, map/global completion, active supply buffs, and
-    /// prioritized next-objective guidance with zero-leak lifecycle.
+    /// Displays live map/district context, weather risk severity banner, 4-region
+    /// weather/reputation/milestone summary accessors, faction standing, Salt-Silver
+    /// &amp; supply summary, map/global completion, active supply buffs, and prioritized
+    /// next-objective guidance with zero-leak lifecycle.
     /// </summary>
     public sealed class RpgWorld500xExpeditionDigestHudPanel : IDisposable
     {
@@ -33,6 +34,10 @@ namespace Rpg.Soundwell
         public bool IsVisible => !IsDisposed && _visible;
         public bool IsDisposed => _disposed || _rootObject == null;
         public RpgWorld500xExpeditionDigest LastDigest => _lastDigest;
+        public int HazardousRegionCount => _lastDigest.HazardousRegionCount;
+        public string WorldWeatherBulletinText => _lastDigest.WorldWeatherBulletinZh ?? string.Empty;
+        public string WorldReputationSummaryText => _lastDigest.WorldReputationSummaryZh ?? string.Empty;
+        public string MilestoneSummaryText => _lastDigest.MilestoneSummaryZh ?? string.Empty;
         public float LastElapsedSeconds => _lastElapsedSeconds;
         public int RefreshCount => _refreshCount;
         public string HeaderText => _headerText != null ? _headerText.text : string.Empty;
@@ -206,7 +211,8 @@ namespace Rpg.Soundwell
             _riskBannerText.text = ResolveRiskLabelZh(_lastDigest.TravelRiskLevel) +
                                    "｜本图堪舆 " + _lastDigest.ActiveMapCompletionPercent + "%" +
                                    "｜四境总进度 " + _lastDigest.GlobalWorldCompletionPercent + "%" +
-                                   "｜待领里程碑 " + _lastDigest.ClaimableMilestoneCount + " 项";
+                                   "｜待领里程碑 " + _lastDigest.ClaimableMilestoneCount + " 项" +
+                                   "｜高危区域 " + _lastDigest.HazardousRegionCount + " 境";
 
             _digestBodyText.text = _lastDigest.FormattedDigestZh;
         }
@@ -363,10 +369,14 @@ namespace Rpg.Soundwell
 
         private static Font ResolveUiFont()
         {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
+            // This panel presents Chinese text regardless of the story UI language.
+            // Use the same pinned OFL font as Soundwell localization rather than
+            // the Latin-only builtin font (blank CJK glyphs in CI GameView).
+            Font font = Resources.Load<Font>("Soundwell/Fonts/SoundwellChinese");
+            if (font == null || !font.HasCharacter('远') ||
+                !font.HasCharacter('险') || !font.HasCharacter('境'))
             {
-                font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                throw new InvalidOperationException("The pinned Chinese font is missing or lacks expedition digest glyphs.");
             }
 
             return font;
