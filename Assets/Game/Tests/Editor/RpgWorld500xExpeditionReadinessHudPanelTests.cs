@@ -168,6 +168,29 @@ namespace Rpg.Tests.Editor
                         panel.FormatProvisioningBreakdownForDestination(RpgWorldMapId.MineCamp));
                 }
 
+                // Safest-route forwarding stocks direct clear WhitewaterCrossing -> MineCamp cleanly.
+                using (var safeBoot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.WhitewaterCrossing,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var safePanel = new RpgWorld500xExpeditionReadinessHudPanel(root.transform, safeBoot))
+                {
+                    safeBoot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.WhitewaterCrossing, RpgWorld500xWeatherKind.Clear);
+                    safeBoot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.Clear);
+                    safeBoot.Driver.Facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.GaleStorm);
+                    safeBoot.Driver.Facade.BountyAndSupply.AddSaltSilver(300);
+
+                    Assert.IsTrue(safePanel.Show(5f));
+                    Assert.IsTrue(safePanel.FormatProvisioningBreakdownForDestination(
+                        RpgWorldMapId.MineCamp, preferSafestRoute: true).Contains("合计"));
+                    Assert.IsTrue(safePanel.TryAutoProvisionForDestination(
+                        RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false, preferSafestRoute: true));
+                    Assert.IsTrue(safePanel.LastProvisioningReceipt.FullyProvisioned);
+                    Assert.AreEqual(
+                        "行囊已齐备（无需补购）",
+                        safePanel.FormatProvisioningBreakdownForDestination(
+                            RpgWorldMapId.MineCamp, preferSafestRoute: true));
+                }
+
                 Assert.AreEqual(0, root.transform.childCount);
             }
             finally

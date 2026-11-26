@@ -16,8 +16,9 @@ namespace Rpg.Soundwell
     /// bound to RpgWorld500xSceneBootstrapper and RpgWorld500xWorldGazetteerService.
     /// Displays all 4 500x region cards (Soundwell, RedSaltHarbor, WhitewaterCrossing,
     /// MineCamp) with faction standing, live cache/shortcut/bounty completion, live route
-    /// risk &amp; camp-provisioning status, plus cross-region or active-map keyword search
-    /// with parent CanvasGroup interactability guards and zero-leak IDisposable cleanup.
+    /// risk &amp; camp-provisioning status (with shortest-time vs. safest-route toggle),
+    /// plus cross-region or active-map keyword search with parent CanvasGroup
+    /// interactability guards and zero-leak IDisposable cleanup.
     /// </summary>
     public sealed class RpgWorld500xWorldGazetteerHudPanel : IDisposable
     {
@@ -39,6 +40,7 @@ namespace Rpg.Soundwell
         private RpgWorld500xGazetteerHudTab _activeTab = RpgWorld500xGazetteerHudTab.RegionOverview;
         private string _searchQuery = string.Empty;
         private bool _filterActiveMapOnly;
+        private bool _preferSafestRoute;
         private int _lastSearchHitCount;
         private int _averageCompletionPercent;
         private bool _visible;
@@ -49,6 +51,7 @@ namespace Rpg.Soundwell
         public RpgWorld500xGazetteerHudTab ActiveTab => _activeTab;
         public string SearchQuery => _searchQuery;
         public bool FilterActiveMapOnly => _filterActiveMapOnly;
+        public bool PreferSafestRoute => _preferSafestRoute;
         public int DisplayedRowCount => _spawnedRows.Count;
         public int LastSearchHitCount => _lastSearchHitCount;
         public int AverageCompletionPercent => _averageCompletionPercent;
@@ -230,6 +233,23 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        public bool TrySetPreferSafestRoute(bool preferSafestRoute)
+        {
+            if (!CanClick(_overviewTabButton))
+            {
+                return false;
+            }
+
+            _preferSafestRoute = preferSafestRoute;
+            Refresh();
+            return true;
+        }
+
+        public bool TryToggleSafestRoute()
+        {
+            return TrySetPreferSafestRoute(!_preferSafestRoute);
+        }
+
         public bool TrySearch(string keywordZh, bool? filterActiveMapOnly = null)
         {
             if (!CanClick(_searchTabButton))
@@ -296,7 +316,8 @@ namespace Rpg.Soundwell
             Func<string, int> read = k => (store != null && store.TryGetValue(k, out int v)) ? v : 0;
 
             List<RpgWorld500xRegionGazetteerCard> cards =
-                RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(_bootstrapper, read);
+                RpgWorld500xWorldGazetteerService.BuildLiveWorldCards(
+                    _bootstrapper, read, preferSafestRoute: _preferSafestRoute);
             _lastCards = cards;
             int sumPct = 0;
             int totalCaches = 0;
@@ -321,7 +342,8 @@ namespace Rpg.Soundwell
             if (_activeTab == RpgWorld500xGazetteerHudTab.RegionOverview)
             {
                 _statusText.text = "当前所在：" + facade.Session.Host.Layout.Spec.DisplayNameZh +
-                                   "｜共收录 4 处 500x 巨幅区域与连通路径";
+                                   "｜共收录 4 处 500x 巨幅区域" +
+                                   (_preferSafestRoute ? "｜路径：避险优先" : "｜路径：最短耗时");
                 const float rowHeight = 56f;
                 const float spacing = 8f;
 
