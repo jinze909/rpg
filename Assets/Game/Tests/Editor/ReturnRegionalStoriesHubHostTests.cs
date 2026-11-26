@@ -325,9 +325,19 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void SceneCallbackCancellingOpenDoesNotPublishOrphanedStory(bool disposeHub)
+        [Test]
+        public void SceneCallbackClosingOpenDoesNotPublishOrphanedStory()
+        {
+            AssertSceneCallbackCancellingOpenDoesNotPublishOrphanedStory(false);
+        }
+
+        [Test]
+        public void SceneCallbackDisposingOpenDoesNotPublishOrphanedStory()
+        {
+            AssertSceneCallbackCancellingOpenDoesNotPublishOrphanedStory(true);
+        }
+
+        private static void AssertSceneCallbackCancellingOpenDoesNotPublishOrphanedStory(bool disposeHub)
         {
             var root = new GameObject("Regional hub cancelled during dock entry");
             var values = new Dictionary<string, int>();
