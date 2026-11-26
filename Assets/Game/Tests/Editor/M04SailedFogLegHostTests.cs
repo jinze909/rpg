@@ -174,6 +174,54 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SailingSequenceReadClosingFogHostCannotCommitOrNavigate()
+        {
+            var scene = new GameObject("M04 fog closes during voyage read");
+            var values = new Dictionary<string, int>();
+            M04SailedFogLegHost host = null;
+            try
+            {
+                SeedReady(values);
+                var read = Reader(values);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, Writer(values)), Is.True);
+                bool closeOnRead = false;
+                int writes = 0;
+                int navigations = 0;
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(), key =>
+                {
+                    int value = read(key);
+                    if (closeOnRead && key == M04DepartureFacts.SailingSequenceKey)
+                    {
+                        closeOnRead = false;
+                        host.Dispose();
+                    }
+                    return value;
+                }, (key, value) =>
+                {
+                    writes++;
+                    values[key] = value;
+                }, _ => navigations++, out host), Is.True);
+                var originalView = host.View;
+                originalView.HoldButton.onClick.Invoke();
+                Assert.That(host.Leg.IsComplete, Is.True);
+                var continueButton = originalView.ContinueButton;
+                closeOnRead = true;
+                Assert.Throws<InvalidOperationException>(() => continueButton.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.HasLiveView, Is.False);
+                Assert.That(writes, Is.Zero);
+                Assert.That(navigations, Is.Zero);
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero);
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(scene);
+            }
+        }
+
+        [Test]
         public void NavigatedFogLegPersistsOnlyAfterContinueAndNotAsArrival()
         {
             var scene = new GameObject("M04 real fog passage");

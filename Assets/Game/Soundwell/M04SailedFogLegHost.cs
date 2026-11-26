@@ -137,7 +137,8 @@ namespace Rpg.Soundwell
 
         private void OnFogFinished(FogListeningSession completedLeg)
         {
-            if (disposed || delivered || !ReferenceEquals(completedLeg, leg) ||
+            FogListeningView submittingView = view;
+            if (!IsCurrentView(submittingView) || !ReferenceEquals(completedLeg, leg) ||
                 !leg.IsComplete)
                 return;
 
@@ -163,6 +164,9 @@ namespace Rpg.Soundwell
                 // The current leg is uncommitted, not malformed. A torn write
                 // leaves Completed=0 and can be retried from this same UI.
                 if (read(FogListeningFacts.CompletedKey) != 0 ||
+                    !IsCurrentView(submittingView) ||
+                    read(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
+                    !IsCurrentView(submittingView) ||
                     !FogListeningFacts.TryRecord(leg, read, write) ||
                     !FogListeningFacts.TryRead(read, out saved) ||
                     !saved.HasValue)
@@ -176,12 +180,23 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException(
                     "The saved fog leg differs from the completed live passage.");
 
+            // A scene reader can synchronously tear down the view. Never
+            // dispatch navigation from a retired dialogue or replaced voyage.
+            if (!IsCurrentView(submittingView) ||
+                read(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
+                !IsCurrentView(submittingView))
+                throw new InvalidOperationException("The fog view is no longer active.");
+
             onCompleted?.Invoke(saved.Value);
             delivered = true;
             onCompleted = null;
             view?.Dispose();
             view = null;
         }
+
+        private bool IsCurrentView(FogListeningView expectedView) =>
+            !disposed && !delivered && parent != null && expectedView != null &&
+            view == expectedView && !expectedView.IsDisposed;
 
         private static bool SameDeparture(
             M04DepartureRecord a, M04DepartureRecord b)
