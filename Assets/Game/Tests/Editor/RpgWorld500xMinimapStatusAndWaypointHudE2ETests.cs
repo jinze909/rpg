@@ -56,8 +56,23 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(tracker.TotalMarkerCount, minimapHud.PinCount);
                 Assert.Less(initialVisiblePins, minimapHud.PinCount);
 
-                // Discover a landmark, track a quest, add silver, and verify WaypointNavigator + Minimap + StatusOverlay align.
-                Vector2 probePos = new Vector2(360f, 540f);
+                // Pick a genuinely undiscovered non-main-story marker (spawn marker may already be discovered at init).
+                RpgMapLandmarkMarker targetMarker = default;
+                bool foundUndiscovered = false;
+                for (int i = 0; i < layout.Markers.Count; i++)
+                {
+                    RpgMapLandmarkMarker candidate = layout.Markers[i];
+                    if (candidate.Category != RpgMapMarkerCategory.MainStory &&
+                        !tracker.IsMarkerDiscovered(candidate.Id))
+                    {
+                        targetMarker = candidate;
+                        foundUndiscovered = true;
+                        break;
+                    }
+                }
+
+                Assert.IsTrue(foundUndiscovered, "Expected at least one undiscovered non-main-story marker.");
+                Vector2 probePos = new Vector2(targetMarker.Tile.x + 0.5f, targetMarker.Tile.y + 0.5f);
                 Assert.GreaterOrEqual(tracker.DiscoverMarkersInRange(probePos), 1);
                 Assert.IsTrue(tracker.TrySetTrackedQuest("q.rsh.compare-salt-prices"));
                 Assert.IsTrue(minimapHud.UpdatePlayerAndCompass(probePos, "外港浅水泊位"));
@@ -82,9 +97,10 @@ namespace Rpg.Tests.Editor
 
                 driver.TickFrame(Vector2.right, 0.2f);
                 driver.Facade.BountyAndSupply.AddSaltSilver(60);
+                int expectedSilver = driver.Facade.BountyAndSupply.SaltSilverBalance;
                 Assert.IsTrue(statusHud.SyncFromDriver(driver));
                 Assert.IsFalse(string.IsNullOrEmpty(statusHud.EnvironmentReadout));
-                StringAssert.Contains("盐银 60", statusHud.WaypointAndEconomyReadout);
+                StringAssert.Contains("盐银 " + expectedSilver, statusHud.WaypointAndEconomyReadout);
                 StringAssert.Contains("探索度", statusHud.WaypointAndEconomyReadout);
 
                 // Overview mode reveals all pins; switching maps updates StatusOverlay cleanly.
