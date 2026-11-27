@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         private M09BerthTableSession session;
         private M09BerthTableView view;
         private bool disposed;
+        private bool opening;
 
         public M09BerthTableSession Session => session;
         public M09BerthTableView ActiveView =>
@@ -65,6 +66,24 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            // Scene/fact readers may synchronously dispatch another open.
+            // Reserve the slot until the original caller publishes its view.
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (view != null && view.IsDisposed)
             {
                 view.Dispose();
@@ -72,13 +91,17 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
 
-            if (disposed || parent == null || view != null || !atSecondBatchTable() ||
+            if (disposed || parent == null || view != null)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !atSecondBatchTable() ||
                 // A corrupt or already-confirmed M09 record must not be rewritten.
                 getInt(M09BerthTableFacts.ConfirmedKey) != 0 ||
                 HasUnconfirmedBerthPayload() ||
                 M09BerthTableFacts.HasOrphanedDownstreamFacts(getInt) ||
                 !M07ExtractionFacts.TryRead(getInt, out M07ExtractionRecord? m07) ||
-                !m07.HasValue || getInt(M05LandingFacts.ArrivalSequenceKey) < 0)
+                !m07.HasValue)
                 return false;
 
             int available = baseBerths();
@@ -86,9 +109,18 @@ namespace Rpg.Soundwell
             if (available <= 0 || waiting <= 0)
                 return false;
 
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            bool shenPresent = shenLiPresent();
+            bool debtKnown = qiDebtAlreadyKnown();
+            // A live reader can retire the host or replace the voyage before
+            // the view exists. Never publish that stale negotiation.
+            if (disposed || parent == null ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                disposed || parent == null)
+                return false;
+
+            openedArrivalSequence = arrivalSequence;
             session = new M09BerthTableSession(
-                available, waiting, shenLiPresent(), qiDebtAlreadyKnown());
+                available, waiting, shenPresent, debtKnown);
             view = new M09BerthTableView(parent, session, ConfirmTable,
                 shipwrightFeePaidInWorld: shipwrightFeePaidInWorld);
             return true;

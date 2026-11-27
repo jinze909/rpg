@@ -114,6 +114,139 @@ namespace Rpg.Tests.Editor
             }
         }
 
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReentrantOpenPreservesOriginalBerthTableAndSettlement(bool duringPartyRead)
+        {
+            var root = new GameObject("M09 reentrant berth table");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            bool attempted = false, nestedOpened = true;
+            Func<bool> callback = () =>
+            {
+                if (!attempted)
+                {
+                    attempted = true;
+                    nestedOpened = host.TryOpen();
+                }
+                return true;
+            };
+            try
+            {
+                host = NewHost(root.transform, values,
+                    inScene: duringPartyRead ? null : callback,
+                    shenPresent: duringPartyRead ? callback : null);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(host.TryOpen(), Is.False);
+
+                host.ActiveView.HanQiaoButton.onClick.Invoke();
+                host.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void OpeningExceptionReleasesReservationForRetry()
+        {
+            var root = new GameObject("M09 opening retry");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            bool fail = true;
+            try
+            {
+                host = NewHost(root.transform, values, shenPresent: () =>
+                {
+                    if (fail) throw new InvalidOperationException("Party read interrupted");
+                    return true;
+                });
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                fail = false;
+                Assert.That(host.TryOpen(), Is.True);
+                host.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringPartyReadDoesNotPublishBerthTable()
+        {
+            var root = new GameObject("M09 retired during opening");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            try
+            {
+                host = NewHost(root.transform, values, shenPresent: () =>
+                {
+                    host.Dispose();
+                    return true;
+                });
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.Session, Is.Null);
+                Assert.That(host.HasRecordedTable, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ReplayedArrivalDuringPartyReadRequiresFreshOpen()
+        {
+            var root = new GameObject("M09 arrival replaced during opening");
+            var values = new Dictionary<string, int>();
+            SeedVerifiedExtraction(values);
+            M09BerthTableHost host = null;
+            bool replay = true;
+            try
+            {
+                host = NewHost(root.transform, values, shenPresent: () =>
+                {
+                    if (replay)
+                    {
+                        replay = false;
+                        Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(
+                            (key, value) => values[key] = value), Is.True);
+                        SeedVerifiedExtraction(values);
+                    }
+                    return true;
+                });
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.HasRecordedTable, Is.False);
+                Assert.That(host.TryOpen(), Is.True);
+                host.ActiveView.SettleButton.onClick.Invoke();
+                Assert.That(host.HasRecordedTable, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void OnlyVerifiedExtractionAndUnconfirmedM09OpenTheTable()
         {
