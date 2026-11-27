@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
         private bool openedShenLiAccompanying;
         private bool openedOulinParticipating;
         private bool disposed;
+        private bool opening;
 
         public M11ReverseRescueSession Session => session;
         public M11ReverseRescueView ActiveView =>
@@ -54,25 +55,47 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
                 activeView = null;
                 openedArrivalSequence = null;
             }
-            if (disposed || parent == null || activeView != null || !atHuilanPass() ||
-                HasAnyPersistedFacts())
+            if (disposed || parent == null || activeView != null)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !atHuilanPass() || HasAnyPersistedFacts())
                 return false;
 
             bool shenLi = shenLiAccompanying();
             bool oulin = oulinParticipating();
             if (!M11ReverseRescueSession.TryCreateFromSavedFacts(
                     getInt, shenLi, oulin,
-                    out M11ReverseRescueSession created))
+                    out M11ReverseRescueSession created) ||
+                disposed || parent == null ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                disposed || parent == null)
                 return false;
 
             session = created;
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             openedShenLiAccompanying = shenLi;
             openedOulinParticipating = oulin;
             activeView = new M11ReverseRescueView(
@@ -97,18 +120,24 @@ namespace Rpg.Soundwell
 
         private void HandleCommitRequested()
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !atHuilanPass() ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
-                shenLiAccompanying() != openedShenLiAccompanying ||
-                oulinParticipating() != openedOulinParticipating)
+            // Capture the owner before reading live evidence: these callbacks
+            // may retire the original dialogue or synchronously open a replacement.
+            var committingView = activeView;
+            var committingSession = session;
+            int? arrival = openedArrivalSequence;
+            bool shenLi = openedShenLiAccompanying;
+            bool oulin = openedOulinParticipating;
+            if (disposed || committingSession == null || committingView == null ||
+                committingView.IsDisposed || !arrival.HasValue ||
+                !atHuilanPass() || shenLiAccompanying() != shenLi ||
+                oulinParticipating() != oulin ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrival.Value ||
+                disposed || !ReferenceEquals(activeView, committingView) ||
+                !ReferenceEquals(session, committingSession) || committingView.IsDisposed)
                 return;
 
             // Persistence callbacks can synchronously close the host or its view.
             // Only retire the view that requested this commit, never a replacement.
-            var committingView = activeView;
-            var committingSession = session;
             if (!committingSession.TryCommit(getInt, setInt))
                 return;
 
