@@ -43,6 +43,8 @@ namespace Rpg.Soundwell
         private readonly Func<M14CivilianCounts> readCivilianCounts;
         private Action<M14AyuanOutcome> onAyuanSubmitted;
         private bool submitting;
+        private bool handlingChoice;
+        private bool refreshing;
         private bool disposed;
 
         public M14FinalPassageSession Session => session;
@@ -142,8 +144,17 @@ namespace Rpg.Soundwell
 
             LayoutForViewportAspect((float)Mathf.Max(1, Screen.width) /
                 Mathf.Max(1, Screen.height));
-            Refresh();
-            SoundwellUiLocalization.Changed += Refresh;
+            try
+            {
+                Refresh();
+                if (!IsDisposed)
+                    SoundwellUiLocalization.Changed += Refresh;
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
         }
 
         public void LayoutForViewportAspect(float aspect)
@@ -156,8 +167,20 @@ namespace Rpg.Soundwell
 
         public void Refresh()
         {
-            if (disposed || IsDestroyedExternally()) return;
+            if (disposed || refreshing || IsDestroyedExternally()) return;
+            refreshing = true;
+            try
+            {
+                RefreshCore();
+            }
+            finally
+            {
+                refreshing = false;
+            }
+        }
 
+        private void RefreshCore()
+        {
             bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             Font font = SoundwellUiLocalization.PresentationFont(latinFont);
             heading.font = body.font = font;
@@ -195,7 +218,9 @@ namespace Rpg.Soundwell
                     else
                     {
                         heading.text = zh ? "M14 · 路线 C 旧运渠大雾绕行" : "M14 · ROUTE C OLD CANAL NIGHT RUN";
-                        string bonusNote = fogMasteryBonusAvailable()
+                        bool bonusAvailable = fogMasteryBonusAvailable();
+                        if (disposed || IsDestroyedExternally()) return;
+                        string bonusNote = bonusAvailable
                             ? (zh ? "（RC-04 听雾加成生效，雾中接应更稳。）" : " (RC-04 fog mastery bonus active.)")
                             : string.Empty;
                         body.text = (zh
@@ -209,6 +234,7 @@ namespace Rpg.Soundwell
                 case M14Phase.CivilianExitVerification:
                     heading.text = zh ? "M14 · 核实平民自愿进退人数" : "M14 · VERIFY VOLUNTARY CIVILIAN EXIT";
                     M14CivilianCounts counts = readCivilianCounts();
+                    if (disposed || IsDestroyedExternally()) return;
                     body.text = zh
                         ? "开门或挂旗不等于全员解放。当前核点：自愿登船 " + counts.Departing +
                           " 人，自愿留驻 " + counts.Staying + " 人，留票待定 " + counts.Undecided + " 人。"
@@ -269,19 +295,43 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
+            if (disposed || handlingChoice || refreshing || IsDestroyedExternally() ||
+                index < 0 || index >= choiceButtons.Length)
                 return;
             if (!choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
 
+            handlingChoice = true;
+            try
+            {
+                HandleChoiceCore(index);
+            }
+            finally
+            {
+                handlingChoice = false;
+            }
+        }
+
+        private bool CanApplyChoice(int index, M14Phase expectedPhase)
+        {
+            return !disposed && !IsDestroyedExternally() &&
+                session.Phase == expectedPhase &&
+                choiceButtons[index].IsActive() && choiceButtons[index].IsInteractable();
+        }
+
+        private void HandleChoiceCore(int index)
+        {
             switch (session.Phase)
             {
                 case M14Phase.RouteExecution:
                     if (session.Departure.Route == M13ApproachRoute.RouteASupervisedCivilian)
                     {
                         var disp = (M14LuJunDisposition)(index + 1);
-                        if (session.TryResolveRouteASupervisedSquare(
-                            validSupervisionCredentials(), validPortGuarantee(), disp))
+                        bool credentials = validSupervisionCredentials();
+                        if (!CanApplyChoice(index, M14Phase.RouteExecution)) return;
+                        bool guarantee = validPortGuarantee();
+                        if (CanApplyChoice(index, M14Phase.RouteExecution) &&
+                            session.TryResolveRouteASupervisedSquare(credentials, guarantee, disp))
                             Refresh();
                     }
                     else if (session.Departure.Route == M13ApproachRoute.RouteBBellTowerAssault)
@@ -289,14 +339,19 @@ namespace Rpg.Soundwell
                         var action = index == 0
                             ? M14BorderForceAction.StopAtEscort
                             : M14BorderForceAction.PursueAndSeizeWarehouses;
-                        if (session.TryResolveRouteBBellTowerAssault(
-                            threeOpenDoorBellsRung(), action))
+                        bool bells = threeOpenDoorBellsRung();
+                        if (CanApplyChoice(index, M14Phase.RouteExecution) &&
+                            session.TryResolveRouteBBellTowerAssault(bells, action))
                             Refresh();
                     }
-                    else if (index == 0 && session.TryResolveRouteCOldCanalRun(
-                        fogRelayCompleted(), fogMasteryBonusAvailable()))
+                    else if (index == 0)
                     {
-                        Refresh();
+                        bool relay = fogRelayCompleted();
+                        if (!CanApplyChoice(index, M14Phase.RouteExecution)) return;
+                        bool bonus = fogMasteryBonusAvailable();
+                        if (CanApplyChoice(index, M14Phase.RouteExecution) &&
+                            session.TryResolveRouteCOldCanalRun(relay, bonus))
+                            Refresh();
                     }
                     break;
 
@@ -304,8 +359,9 @@ namespace Rpg.Soundwell
                     if (index == 0)
                     {
                         M14CivilianCounts counts = readCivilianCounts();
-                        if (session.TryVerifyCivilianExit(
-                            counts.Departing, counts.Staying, counts.Undecided))
+                        if (CanApplyChoice(index, M14Phase.CivilianExitVerification) &&
+                            session.TryVerifyCivilianExit(
+                                counts.Departing, counts.Staying, counts.Undecided))
                             Refresh();
                     }
                     break;
@@ -314,9 +370,10 @@ namespace Rpg.Soundwell
                     if (submitting) return;
                     var outcome = (M14AyuanOutcome)(index + 1);
                     submitting = true;
-                    Refresh();
                     try
                     {
+                        Refresh();
+                        if (disposed || IsDestroyedExternally()) return;
                         onAyuanSubmitted?.Invoke(outcome);
                         if (session.IsCompleted)
                             onAyuanSubmitted = null;
