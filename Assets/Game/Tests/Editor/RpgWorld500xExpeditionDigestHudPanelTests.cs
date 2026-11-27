@@ -78,6 +78,55 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ExpeditionDigestHudPanel_DisabledCanvasRejectsInvisibleRefreshAndCloseUntilRestored()
+        {
+            var root = new GameObject("World500xDigestDisabledCanvas");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xExpeditionDigestHudPanel(root.transform, boot))
+                {
+                    boot.Driver.Facade.Atmosphere.SetWeather(
+                        RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                    Assert.IsTrue(panel.Show(2f));
+                    var canvas = root.transform.Find("World500xExpeditionDigestHudPanel").GetComponent<Canvas>();
+                    var refresh = canvas.transform.Find("DigestModalBox/RefreshDigestButton").GetComponent<Button>();
+                    var close = canvas.transform.Find("DigestModalBox/CloseDigestButton").GetComponent<Button>();
+                    int before = panel.RefreshCount;
+                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, panel.LastDigest.TravelRiskLevel);
+                    Assert.IsTrue(refresh.IsInteractable());
+                    Assert.IsTrue(close.IsInteractable());
+
+                    canvas.enabled = false;
+                    boot.Driver.Facade.Atmosphere.SetWeather(
+                        RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.GaleStorm);
+                    refresh.onClick.Invoke();
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickRefresh(9f));
+                    Assert.IsFalse(panel.TryClickClose());
+                    Assert.IsTrue(panel.IsVisible);
+                    Assert.AreEqual(before, panel.RefreshCount);
+                    Assert.AreEqual(2f, panel.LastElapsedSeconds);
+                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, panel.LastDigest.TravelRiskLevel);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(panel.TryClickRefresh(12f));
+                    Assert.AreEqual(before + 1, panel.RefreshCount);
+                    Assert.AreEqual(12f, panel.LastElapsedSeconds);
+                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, panel.LastDigest.TravelRiskLevel);
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.IsVisible);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ExpeditionDigestHudPanel_RendersLiveDigestRespectsCanvasGroupLockAndZeroLeak()
         {
             var root = new GameObject("World500xExpeditionDigestHudPanelTestRoot");
