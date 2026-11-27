@@ -355,6 +355,108 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void NestedOpenDuringPresenceCannotReplaceOuterDialogue()
+        {
+            AssertNestedOpenCannotReplaceOuterDialogue(true);
+        }
+
+        [Test]
+        public void NestedOpenDuringFactReadCannotReplaceOuterDialogue()
+        {
+            AssertNestedOpenCannotReplaceOuterDialogue(false);
+        }
+
+        private static void AssertNestedOpenCannotReplaceOuterDialogue(bool fromPresence)
+        {
+            var root = new GameObject("M08 reentrant dock opening");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            Func<string, int> read = Reader(values);
+            M08DockTruthHost host = null;
+            int nestedAttempts = 0;
+            int writes = 0;
+            bool armed = true;
+            void AttemptNestedOpen()
+            {
+                if (!armed) return;
+                armed = false;
+                nestedAttempts++;
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () =>
+                {
+                    if (fromPresence) AttemptNestedOpen();
+                    return true;
+                }, key =>
+                {
+                    if (!fromPresence) AttemptNestedOpen();
+                    return read(key);
+                }, (key, value) =>
+                {
+                    writes++;
+                    values[key] = value;
+                });
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(nestedAttempts, Is.EqualTo(1));
+                Assert.That(writes, Is.Zero);
+                var view = host.ActiveView;
+                Assert.That(view, Is.Not.Null);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.SameAs(view));
+
+                view.HearButton.onClick.Invoke();
+                view.SecondResponseButton.onClick.Invoke();
+                view.FinishButton.onClick.Invoke();
+                Assert.That(host.HasRecordedResponse, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(M08DockTruthFacts.TryRead(read,
+                    out M08DockTruthResponse? persisted), Is.True);
+                Assert.That(persisted, Is.EqualTo(M08DockTruthResponse.StaySilent));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ThrowingEligibilityCallbackReleasesOpeningReservation()
+        {
+            var root = new GameObject("M08 interrupted opening");
+            var values = new Dictionary<string, int>();
+            SeedConfirmedWorkshop(values);
+            M08DockTruthHost host = null;
+            bool throwOnce = true;
+            try
+            {
+                host = new M08DockTruthHost(root.transform, () =>
+                {
+                    if (throwOnce)
+                    {
+                        throwOnce = false;
+                        throw new InvalidOperationException("Interrupted eligibility read");
+                    }
+                    return true;
+                }, Reader(values), (key, value) => values[key] = value);
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(host.HasRecordedResponse, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PresenceCallbackClosingHostCannotOpenDockDialogue()
         {
             var root = new GameObject("M08 presence closes opening");
