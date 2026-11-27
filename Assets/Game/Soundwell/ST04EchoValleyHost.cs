@@ -44,6 +44,7 @@ namespace Rpg.Soundwell
         private ST04EchoValleySession session;
         private ST04RoadResolution? pendingResolution;
         private bool disposed;
+        private bool opening;
 
         public ST04EchoValleyHost(Transform parent,
             IST04EchoValleyWorldEvidence world,
@@ -66,8 +67,27 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
                 activeView = null;
+            }
             if (disposed || parent == null || activeView != null ||
                 !world.AtValley || !world.SangJingAndMengHuiPresent ||
                 read(ST04EchoValleyFacts.ConfirmedKey) != 0)
@@ -75,14 +95,29 @@ namespace Rpg.Soundwell
 
             // Do not open a corrupt empty record. An interrupted story
             // intent must replay through the identical recorded choice.
-            if (read(ST04EchoValleyFacts.IntentKey) == 0 &&
-                !ST04EchoValleyFacts.TryRead(read, out _))
+            if (disposed || parent == null ||
+                (read(ST04EchoValleyFacts.IntentKey) == 0 &&
+                 !ST04EchoValleyFacts.TryRead(read, out _)))
                 return false;
-            if (!ST04EchoValleySession.TryCreate(read, out session))
+            if (disposed || parent == null ||
+                !ST04EchoValleySession.TryCreate(read, out ST04EchoValleySession created) ||
+                disposed || parent == null || activeView != null)
                 return false;
 
-            activeView = new ST04EchoValleyView(
-                parent, session, world, CanChooseRoad, HandleRoadChoice);
+            // Fact access may retire this host synchronously. Publish the
+            // session only once the original opening still owns a live view.
+            var createdView = new ST04EchoValleyView(
+                parent, created, world, CanChooseRoad, HandleRoadChoice);
+            if (disposed || parent == null || createdView.IsDisposed)
+            {
+                createdView.Dispose();
+                return false;
+            }
+            session = created;
+            // The persisted intent, not a retired session's transient choice,
+            // governs replay after a close and reopen.
+            pendingResolution = null;
+            activeView = createdView;
             return true;
         }
 
@@ -99,27 +134,49 @@ namespace Rpg.Soundwell
                        (choice == ST04RoadResolution.PreserveRainWallAndCloseRoad);
         }
 
+        private bool IsCurrentSubmission(ST04EchoValleyView view,
+            ST04EchoValleySession expectedSession) =>
+            !disposed && parent != null && view != null && !view.IsDisposed &&
+            expectedSession != null && ReferenceEquals(activeView, view) &&
+            ReferenceEquals(session, expectedSession);
+
         private void HandleRoadChoice(ST04RoadResolution choice)
         {
-            if (disposed || session == null || activeView == null ||
-                activeView.IsDisposed || !CanChooseRoad(choice))
+            var expectedView = activeView;
+            var expectedSession = session;
+            if (!IsCurrentSubmission(expectedView, expectedSession) ||
+                !CanChooseRoad(choice) ||
+                !IsCurrentSubmission(expectedView, expectedSession))
                 return;
 
             if (!pendingResolution.HasValue)
             {
-                if (!session.TryChooseResolution(choice,
-                        world.LongRoadActuallyFunded,
-                        world.AlternativeWorksiteActuallyArranged))
+                bool funded = world.LongRoadActuallyFunded;
+                bool alternative = world.AlternativeWorksiteActuallyArranged;
+                if (!IsCurrentSubmission(expectedView, expectedSession) ||
+                    !expectedSession.TryChooseResolution(choice, funded, alternative))
                     return;
                 pendingResolution = choice;
             }
 
-            // May throw if a real Makinom write was interrupted. The
-            // surviving view only offers a retry of the same choice.
-            if (!session.TryCommit(read, write))
+            bool abandoned = false;
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (!IsCurrentSubmission(expectedView, expectedSession))
+                {
+                    abandoned = true;
+                    return;
+                }
+                write(key, value);
+            }
+
+            // Preserve interrupted-write retry semantics while preventing a
+            // retired submission from writing or closing a replacement view.
+            if (!expectedSession.TryCommit(read, WriteWhileCurrent) || abandoned ||
+                !IsCurrentSubmission(expectedView, expectedSession))
                 return;
 
-            activeView?.Dispose();
+            expectedView.Dispose();
             activeView = null;
         }
 
