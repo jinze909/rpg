@@ -22,19 +22,14 @@ namespace Rpg.Tests.Editor
             "rpg.return.rc03.mine_resolved"
         };
 
-        private static readonly RpgWorld500xWeatherKind[] RegionWeathers =
-        {
-            RpgWorld500xWeatherKind.Clear,
-            RpgWorld500xWeatherKind.GaleStorm,
-            RpgWorld500xWeatherKind.HeavyFog,
-            RpgWorld500xWeatherKind.Rain
-        };
-
         [Test]
         public void AllFourRegions_CaptureSerializeDeserializeAndApply_RoundTripsRegionStateAndStripsNarrativeKeys()
         {
             IReadOnlyList<RpgExpandedMapSpec> specs = RpgExpandedWorldScale.AllSpecs;
             Assert.AreEqual(4, specs.Count);
+
+            var allWeathers = (RpgWorld500xWeatherKind[])Enum.GetValues(typeof(RpgWorld500xWeatherKind));
+            Assert.Greater(allWeathers.Length, 0);
 
             for (int r = 0; r < specs.Count; r++)
             {
@@ -56,7 +51,7 @@ namespace Rpg.Tests.Editor
 
                 int expectedDay = 2 + r;
                 float expectedMinutes = 360f + (r * 210f);
-                RpgWorld500xWeatherKind expectedWeather = RegionWeathers[r % RegionWeathers.Length];
+                RpgWorld500xWeatherKind expectedWeather = allWeathers[r % allWeathers.Length];
 
                 var sourceAtmo = new RpgWorld500xWeatherAndTimeOfDayService(
                     initialMinutes: expectedMinutes,
