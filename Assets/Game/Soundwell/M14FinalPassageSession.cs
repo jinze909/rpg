@@ -112,8 +112,8 @@ namespace Rpg.Soundwell
         {
             if (Phase != M14Phase.CivilianExitVerification ||
                 !RouteExecutionCleared ||
-                departingCount < 0 || stayingCount < 0 || undecidedHoldingTicketCount < 0 ||
-                (departingCount + stayingCount + undecidedHoldingTicketCount) <= 0)
+                !M14FinalPassageFacts.HasValidCivilianCounts(Departure.Route,
+                    departingCount, stayingCount, undecidedHoldingTicketCount))
                 return false;
 
             VerifiedDepartingCount = departingCount;
