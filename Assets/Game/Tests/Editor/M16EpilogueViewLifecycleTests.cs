@@ -208,6 +208,74 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DisabledCanvasRejectsInvisibleWalkDeskAndStandingActionsUntilRestored()
+        {
+            var root = new GameObject("M16 disabled canvas input");
+            var values = new Dictionary<string, int>();
+            M16EpilogueView view = null;
+            try
+            {
+                M16EpilogueLettersViewTests.SeedM15WithCompletedRC01AndST02(values);
+                Func<string, int> read = Reader(values);
+                Assert.That(M16EpilogueSession.TryCreateFromSavedFacts(
+                    read, true, M16RespectAgencyTone.RespectedOthersChoices,
+                    out M16EpilogueSession session), Is.True);
+                int saves = 0;
+                view = new M16EpilogueView(root.transform, session, spot =>
+                {
+                    saves++;
+                    Assert.That(session.TryChooseStandingSpotAndCommit(
+                        spot, read, (k, v) => values[k] = v), Is.True);
+                });
+                var canvas = view.Panel.GetComponentInParent<Canvas>();
+                Assert.That(canvas, Is.Not.Null);
+
+                canvas.enabled = false;
+                view.VisitWorkshopButton.onClick.Invoke();
+                view.ProceedToDeskButton.onClick.Invoke();
+                Assert.That(session.StopsVisited, Is.EqualTo(M16WalkStops.None));
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.AfternoonWalk));
+                canvas.enabled = true;
+                view.VisitWorkshopButton.onClick.Invoke();
+                view.ProceedToDeskButton.onClick.Invoke();
+                Assert.That(session.StopsVisited, Is.EqualTo(M16WalkStops.WorkshopStop));
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.DeskLettersAndRegister));
+
+                canvas.enabled = false;
+                view.ReadNextLetterButton.onClick.Invoke();
+                view.ReviewRegisterButton.onClick.Invoke();
+                view.StepOutsideButton.onClick.Invoke();
+                Assert.That(session.LettersRead, Is.EqualTo(M16DeliveredLettersFlags.None));
+                Assert.That(session.DeskRegisterReviewed, Is.False);
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.DeskLettersAndRegister));
+                canvas.enabled = true;
+                view.ReadNextLetterButton.onClick.Invoke();
+                view.ReviewRegisterButton.onClick.Invoke();
+                view.StepOutsideButton.onClick.Invoke();
+                Assert.That(session.LettersRead, Is.EqualTo(M16DeliveredLettersFlags.RC01ChenYan));
+                Assert.That(session.DeskRegisterReviewed, Is.True);
+                Assert.That(session.Phase, Is.EqualTo(M16Phase.FinalStandingAndFadeOut));
+
+                canvas.enabled = false;
+                view.PierButton.onClick.Invoke();
+                Assert.That(saves, Is.Zero);
+                Assert.That(read(M16EpilogueFacts.ConfirmedKey), Is.Zero);
+                Assert.That(session.IsCompleted, Is.False);
+                canvas.enabled = true;
+                view.SteleButton.onClick.Invoke();
+                Assert.That(saves, Is.EqualTo(1));
+                Assert.That(session.IsCompleted, Is.True);
+                Assert.That(M16EpilogueFacts.TryRead(read, out M16EpilogueRecord? saved), Is.True);
+                Assert.That(saved.Value.StandingSpot, Is.EqualTo(M16StandingSpot.MemorialSteleSunset));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReentrantStandingSpotClickAndDisposeInsideThrowingCallbackAreGuarded()
         {
             var root = new GameObject("M16 view reentrant and dispose");

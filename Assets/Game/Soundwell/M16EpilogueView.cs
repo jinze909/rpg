@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
         };
 
         private readonly GameObject canvasObject;
+        private readonly Canvas canvas;
         private readonly RectTransform panel;
         private readonly Font latinFont;
         private readonly Text heading;
@@ -67,7 +68,7 @@ namespace Rpg.Soundwell
             canvasObject = new GameObject("M16 epilogue canvas",
                 typeof(RectTransform), typeof(Canvas));
             canvasObject.transform.SetParent(parent, false);
-            var canvas = canvasObject.GetComponent<Canvas>();
+            canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 162;
             var scaler = canvasObject.AddComponent<CanvasScaler>();
@@ -332,7 +333,7 @@ namespace Rpg.Soundwell
 
         private void HandleAdvanceClick()
         {
-            if (disposed || IsDestroyedExternally() || !advanceButton.IsActive() ||
+            if (disposed || IsDestroyedExternally() || !canvas.isActiveAndEnabled || !advanceButton.IsActive() ||
                 !advanceButton.IsInteractable())
                 return;
 
@@ -344,7 +345,8 @@ namespace Rpg.Soundwell
 
         private void HandleChoiceClick(int index)
         {
-            if (disposed || IsDestroyedExternally() || index < 0 || index >= choiceButtons.Length)
+            if (disposed || IsDestroyedExternally() || !canvas.isActiveAndEnabled ||
+                index < 0 || index >= choiceButtons.Length)
                 return;
             if (!choiceButtons[index].IsActive() || !choiceButtons[index].IsInteractable())
                 return;
@@ -410,7 +412,7 @@ namespace Rpg.Soundwell
 
         private bool CanvasDestroyed()
         {
-            if (canvasObject == null || panel == null || heading == null || body == null ||
+            if (canvasObject == null || canvas == null || panel == null || heading == null || body == null ||
                 advanceButton == null || advanceLabel == null)
                 return true;
             for (int i = 0; i < choiceButtons.Length; i++)
