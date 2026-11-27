@@ -116,6 +116,90 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void WoodshopCallbackDisposesHostWithoutPublishingSessionOrCanvas()
+        {
+            AssertOpeningCallbackDisposesHostWithoutPublishingSessionOrCanvas(false);
+        }
+
+        [Test]
+        public void FactReadCallbackDisposesHostWithoutPublishingSessionOrCanvas()
+        {
+            AssertOpeningCallbackDisposesHostWithoutPublishingSessionOrCanvas(true);
+        }
+
+        private static void AssertOpeningCallbackDisposesHostWithoutPublishingSessionOrCanvas(bool duringFactRead)
+        {
+            var root = new GameObject("ST06 retired during opening");
+            var values = new Dictionary<string, int>();
+            SeedM07TaoJiRescued(values);
+            Func<string, int> read = Reader(values);
+            ST06TaoJiHomecomingHost host = null;
+            try
+            {
+                host = new ST06TaoJiHomecomingHost(root.transform, () =>
+                {
+                    if (!duringFactRead) host.Dispose();
+                    return true;
+                }, key =>
+                {
+                    if (duringFactRead && key == M05LandingFacts.ArrivalSequenceKey)
+                        host.Dispose();
+                    return read(key);
+                }, (_, __) => Assert.Fail("Opening must not write facts"));
+
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.Session, Is.Null);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NestedOpenFromWoodshopCallbackCannotPublishSecondCanvas()
+        {
+            var root = new GameObject("ST06 nested opening");
+            var values = new Dictionary<string, int>();
+            SeedM07TaoJiRescued(values);
+            ST06TaoJiHomecomingHost host = null;
+            bool nestedAttempted = false;
+            bool nestedOpened = false;
+            try
+            {
+                host = new ST06TaoJiHomecomingHost(root.transform, () =>
+                {
+                    if (!nestedAttempted)
+                    {
+                        nestedAttempted = true;
+                        nestedOpened = host.TryOpen();
+                    }
+                    return true;
+                }, Reader(values), (_, __) => Assert.Fail("Opening must not write facts"));
+
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(nestedAttempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                host.ActiveView.Dispose();
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedParentFailsClosedWithoutThrowingOnTryOpen()
         {
             var root = new GameObject("ST06 lifecycle destroyed parent");

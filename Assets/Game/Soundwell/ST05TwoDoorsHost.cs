@@ -25,6 +25,7 @@ namespace Rpg.Soundwell
         private ST05TwoDoorsSession session;
         private ST05TwoDoorsView activeView;
         private bool disposed;
+        private bool opening;
 
         public ST05TwoDoorsSession Session => session;
         public ST05TwoDoorsView ActiveView =>
@@ -67,6 +68,22 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -77,13 +94,16 @@ namespace Rpg.Soundwell
                 existing.HasValue)
                 return false;
 
-            if (!ST05TwoDoorsSession.TryCreate(getInt, out ST05TwoDoorsSession created))
+            if (disposed || parent == null ||
+                !ST05TwoDoorsSession.TryCreate(getInt, out ST05TwoDoorsSession created) ||
+                disposed || parent == null || activeView != null)
                 return false;
 
-            session = created;
-            activeView = new ST05TwoDoorsView(
+            // A live scene or save callback may retire this opening.
+            // Keep the new session private until its view can be published.
+            var createdView = new ST05TwoDoorsView(
                 parent,
-                session,
+                created,
                 returnHaulageFeePaid,
                 marketGiftsTested,
                 courtyardResolved,
@@ -92,28 +112,65 @@ namespace Rpg.Soundwell
                 chengJobTermsReady,
                 HandleHomeCommitRequested,
                 HandleAssignmentCommitRequested);
+            if (disposed || parent == null || createdView.IsDisposed)
+            {
+                createdView.Dispose();
+                return false;
+            }
+
+            session = created;
+            activeView = createdView;
             return true;
         }
 
+        private bool IsCurrentSubmission(ST05TwoDoorsView expectedView,
+            ST05TwoDoorsSession expectedSession) =>
+            !disposed && parent != null && expectedView != null &&
+            !expectedView.IsDisposed && expectedSession != null &&
+            ReferenceEquals(activeView, expectedView) &&
+            ReferenceEquals(session, expectedSession);
+
         private void HandleHomeCommitRequested()
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !atJingwanCourtyard() ||
-                !marketGiftsTested() || !courtyardResolved() || !partnersHeard())
+            var view = activeView;
+            var expectedSession = session;
+            if (!IsCurrentSubmission(view, expectedSession) ||
+                !atJingwanCourtyard() || !marketGiftsTested() ||
+                !courtyardResolved() || !partnersHeard() ||
+                !IsCurrentSubmission(view, expectedSession))
                 return;
-            session.TryCommitLivingAgreement(getInt, setInt);
+
+            expectedSession.TryCommitLivingAgreement(getInt, (key, value) =>
+            {
+                if (IsCurrentSubmission(view, expectedSession))
+                    setInt(key, value);
+            });
         }
 
         private void HandleAssignmentCommitRequested()
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !atJingwanCourtyard() ||
-                !chengJobTermsReady())
-                return;
-            if (!session.TryCommitChengAssignment(getInt, setInt))
+            var view = activeView;
+            var expectedSession = session;
+            if (!IsCurrentSubmission(view, expectedSession) ||
+                !atJingwanCourtyard() || !chengJobTermsReady() ||
+                !IsCurrentSubmission(view, expectedSession))
                 return;
 
-            activeView.Dispose();
+            // Fact callbacks may retire the UI during either commit. Keep
+            // the original session and stop writing when it loses ownership.
+            bool abandoned = false;
+            if (!expectedSession.TryCommitChengAssignment(getInt, (key, value) =>
+                {
+                    if (!IsCurrentSubmission(view, expectedSession))
+                    {
+                        abandoned = true;
+                        return;
+                    }
+                    setInt(key, value);
+                }) || abandoned || !IsCurrentSubmission(view, expectedSession))
+                return;
+
+            view.Dispose();
             activeView = null;
         }
 

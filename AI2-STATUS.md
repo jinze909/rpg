@@ -1,6 +1,8 @@
 # AI2 当前状态
 
-> 截至 2026-11-19 的交付核对；实时分支、PR 和 CI 以 GitHub 为准，旧候选 SHA 不代表当前活动工作。
+> 开场历史记录截至 2026-11-19；下方地区故事交付核对更新至 2026-11-26。实时分支、PR 和 CI 以 GitHub 为准，旧候选 SHA 不代表当前活动工作。
+
+- **地区故事已交付的生命周期与结算增量（2026-11-26）**：ST03 澡堂失效抉择不得写入或关闭替代界面（#1005）；ST05 居住协议与程午工作决定的退场保护（#1014）；ST06 陶霁返乡防重入与失效打开（#1003）。`cb711e3b4f3517bdf8e5de1d802603f5ecd8e6d6`，[候选 CI 45937757774](https://github.com/jinze909/rpg/actions/runs/45937757774) 1816/1816、零失败、零跳过、`passed-clean-candidate`；[dev CI 45939703770](https://github.com/jinze909/rpg/actions/runs/45939703770) 通过，[清理 45939703758](https://github.com/jinze909/rpg/actions/runs/45939703758) 确认三个支线候选分支已删除。 仅证明上述实现与工程回归，不代表三条支线全流程或主观体验已验收。
 
 - **唯一剧情写作基线**：《归来》v1.2，39 份 Markdown（含 29 份单章场景稿）已由 [PR #66](https://github.com/jinze909/rpg/pull/66) 入库，交付 SHA `b2f6f7dc560d366bd7801c43a560db9aae84fe1c`。v1.1 不再是并行剧情权威；v1.2 内标为待确认的创作提案仍须与已确定事实区分。**这是写作交付，不是新版剧情的 Unity 实现或验收。**
 - **已实现的独立玩法**：故事 003 的移动版声井救援代表环与固定阵位救援闭环均有同 SHA 工程回归；固定阵位下三名 ORK 队员通过真实 New Input System Gamepad Submit 分别开闸／防御／攻击，随后完成物理护送与 ORK 救援奖励。dev SHA `80174a557cd27b0ba2570db0bfdab1e7a8037e13` 的 [Run 44141955284](https://github.com/jinze909/rpg/actions/runs/44141955284) 通过 111/111、零跳过、独立 Batch 与 `passed-clean-candidate`。测试中的护送移动由脚本控制，不代表端到端输入或真人体验验收；公平策略体验、后续成长／持久化及主观乐趣尚未验收。见[故事卡](production/stories/003-soundwell-turn-rescue.md)。
