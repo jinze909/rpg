@@ -292,6 +292,68 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void WorldAtlasHudPanel_DisabledCanvasRejectsTravelAndAutosaveUntilRestored()
+        {
+            var root = new GameObject("AtlasDisabledCanvasRoot");
+            try
+            {
+                var manager = new RpgWorld500xSaveSlotManager(new RpgWorld500xInMemorySaveSlotStorage());
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xWorldAtlasHudPanel(root.transform, boot, saveSlotManager: manager))
+                {
+                    Assert.IsTrue(panel.Show());
+                    var canvas = root.transform.Find("World500xAtlasHudPanel").GetComponent<Canvas>();
+                    var modal = canvas.transform.Find("AtlasModalBox");
+                    var travel = modal.Find("RegionRows/RegionRow_RedSaltHarbor/TravelButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    var rest = modal.Find("CampRestButton").GetComponent<UnityEngine.UI.Button>();
+                    var facade = boot.Driver.Facade;
+                    float minutes = facade.Atmosphere.TimeOfDayMinutes;
+                    int day = facade.Atmosphere.DayCount;
+                    Vector2 position = facade.Session.Host.PlayerPosition;
+                    string header = panel.HeaderText;
+                    string status = panel.StatusBannerText;
+                    string saved = panel.LastCampSaveJson;
+                    Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied);
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(travel.IsInteractable());
+                    Assert.IsTrue(rest.IsInteractable());
+                    travel.onClick.Invoke();
+                    rest.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickTravelTo(RpgWorldMapId.RedSaltHarbor));
+                    Assert.IsFalse(panel.TryClickCampRest());
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, facade.CurrentMapId);
+                    Assert.AreEqual(position, facade.Session.Host.PlayerPosition);
+                    Assert.AreEqual(minutes, facade.Atmosphere.TimeOfDayMinutes);
+                    Assert.AreEqual(day, facade.Atmosphere.DayCount);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(status, panel.StatusBannerText);
+                    Assert.AreEqual(saved, panel.LastCampSaveJson);
+                    Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied);
+                    Assert.AreEqual(4, panel.DisplayedRegionRowCount);
+                    Assert.IsTrue(panel.IsVisible);
+                    Assert.IsTrue(panel.TryPreviewShortestRouteTo(RpgWorldMapId.RedSaltHarbor, out _));
+
+                    canvas.enabled = true;
+                    travel.onClick.Invoke();
+                    Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, facade.CurrentMapId);
+                    Assert.That(panel.StatusBannerText, Does.Contain("已沿"));
+                    Assert.IsTrue(panel.TryClickCampRest());
+                    Assert.IsTrue(manager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied);
+                    Assert.IsTrue(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(panel.LastCampSaveJson, out _, out _));
+                    Assert.That(panel.StatusBannerText, Does.Contain("已存档"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WorldAtlasHudPanel_RejectsHiddenDisabledRetiredAndDisposedActions()
         {
             var root = new GameObject("WorldAtlasActionLifetimeRoot");

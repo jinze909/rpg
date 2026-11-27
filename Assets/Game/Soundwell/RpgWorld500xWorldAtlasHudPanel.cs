@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xCampHavenService _campHaven;
         private readonly RpgWorld500xSaveSlotManager _saveSlotManager;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Transform _rowContainer;
         private readonly Text _headerText;
         private readonly Text _statusBannerText;
@@ -60,9 +61,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 60;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 60;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -153,7 +154,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickTravelTo(RpgWorldMapId targetMap)
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || RejectEncounterAction() ||
+            if (!CanReceiveInput() || RejectEncounterAction() ||
                 RejectStaleTravelOrigin(_displayedMapId))
             {
                 return false;
@@ -171,7 +172,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickCampRest()
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || RejectEncounterAction() ||
+            if (!CanReceiveInput() || RejectEncounterAction() ||
                 !CanInvoke(_campRestButton))
             {
                 return false;
@@ -341,9 +342,14 @@ namespace Rpg.Soundwell
             return btn;
         }
 
+        private bool CanReceiveInput()
+        {
+            return IsVisible && _canvas != null && _canvas.isActiveAndEnabled && !_bootstrapper.IsDisposed;
+        }
+
         private bool CanInvoke(Button btn)
         {
-            return IsVisible && !_bootstrapper.IsDisposed && btn != null &&
+            return CanReceiveInput() && btn != null &&
                 btn.isActiveAndEnabled && btn.gameObject.activeInHierarchy && btn.IsInteractable();
         }
 
