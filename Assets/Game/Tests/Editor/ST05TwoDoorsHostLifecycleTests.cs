@@ -31,6 +31,115 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RetiredHomeAgreementCannotWriteOrReplaceNewSession()
+        {
+            var root = new GameObject("ST05 retired household settlement");
+            var values = new Dictionary<string, int>();
+            ST05TwoDoorsHost host = null;
+            ST05TwoDoorsView replacement = null;
+            bool armed = false;
+            int writes = 0;
+            try
+            {
+                host = new ST05TwoDoorsHost(root.transform,
+                    () => true, () => true, () => true, () => true, () => true, () => false, () => true,
+                    key =>
+                    {
+                        if (armed)
+                        {
+                            armed = false;
+                            host.ActiveView.Dispose();
+                            Assert.That(host.TryOpen(), Is.True);
+                            replacement = host.ActiveView;
+                        }
+                        return values.TryGetValue(key, out int value) ? value : 0;
+                    }, (key, value) => { writes++; values[key] = value; });
+
+                Assert.That(host.TryOpen(), Is.True);
+                var original = host.ActiveView;
+                AdvanceToHomeAgreement(original);
+                armed = true;
+                original.KeepTwoDoorsButton.onClick.Invoke();
+
+                Assert.That(replacement, Is.Not.Null);
+                Assert.That(host.ActiveView, Is.SameAs(replacement));
+                Assert.That(host.Session.Phase, Is.EqualTo(ST05TwoDoorsPhase.UnblockStaircase));
+                Assert.That(writes, Is.Zero);
+                Assert.That(values, Is.Empty);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                AdvanceToHomeAgreement(replacement);
+                replacement.KeepTwoDoorsButton.onClick.Invoke();
+                Assert.That(host.Session.Phase, Is.EqualTo(ST05TwoDoorsPhase.AwaitChengOwnJobDecision));
+                replacement.ChengStayLocalButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetiredAssignmentCannotWriteAfterHouseholdConfirmation()
+        {
+            var root = new GameObject("ST05 retired job settlement");
+            var values = new Dictionary<string, int>();
+            ST05TwoDoorsHost host = null;
+            bool armed = false;
+            int writes = 0;
+            try
+            {
+                host = new ST05TwoDoorsHost(root.transform,
+                    () => true, () => true, () => true, () => true, () => true, () => false, () => true,
+                    key =>
+                    {
+                        if (armed)
+                        {
+                            armed = false;
+                            host.Dispose();
+                        }
+                        return values.TryGetValue(key, out int value) ? value : 0;
+                    }, (key, value) => { writes++; values[key] = value; });
+
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                AdvanceToHomeAgreement(view);
+                view.KeepTwoDoorsButton.onClick.Invoke();
+                Assert.That(host.Session.Phase, Is.EqualTo(ST05TwoDoorsPhase.AwaitChengOwnJobDecision));
+                int householdWrites = writes;
+                Assert.That(householdWrites, Is.GreaterThan(0));
+                armed = true;
+                view.ChengStayLocalButton.onClick.Invoke();
+
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(writes, Is.EqualTo(householdWrites));
+                Assert.That(ST05TwoDoorsFacts.TryRead(Reader(values),
+                    out ST05TwoDoorsOutcome? saved), Is.True);
+                Assert.That(saved.HasValue, Is.True);
+                Assert.That(saved.Value.Assignment.HasValue, Is.False);
+                Assert.That(root.transform.childCount, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void AdvanceToHomeAgreement(ST05TwoDoorsView view)
+        {
+            view.RemoveDoorFrameButton.onClick.Invoke();
+            view.TestMarketGiftsButton.onClick.Invoke();
+            view.ResolveCourtyardButton.onClick.Invoke();
+            view.HearBothPartnersButton.onClick.Invoke();
+            Assert.That(view.Session.Phase, Is.EqualTo(ST05TwoDoorsPhase.AgreeHomeAndKeys));
+        }
+
+        [Test]
         public void ExternalViewDisposalClearsActiveViewAndAllowsCleanReopen()
         {
             var root = new GameObject("ST05 lifecycle external dispose");
