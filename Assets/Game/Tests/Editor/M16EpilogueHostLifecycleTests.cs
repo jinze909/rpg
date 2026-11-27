@@ -288,5 +288,81 @@ namespace Rpg.Tests.Editor
                 if (root != null) UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void ReentrantAfternoonCallbackCannotOpenSecondEpilogueAndExceptionAllowsRetry()
+        {
+            var root = new GameObject("M16 reentrant opening");
+            var values = new Dictionary<string, int>();
+            SeedM15(values);
+            M16EpilogueHost host = null;
+            bool throwOnce = true;
+            bool nestedOpened = true;
+            try
+            {
+                host = new M16EpilogueHost(root.transform, () =>
+                {
+                    if (throwOnce)
+                    {
+                        throwOnce = false;
+                        throw new InvalidOperationException("afternoon proof interrupted");
+                    }
+                    nestedOpened = host.TryOpen();
+                    return true;
+                }, () => true, () => M16RespectAgencyTone.RespectedOthersChoices,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ArrivalChangedDuringAfternoonProofRejectsStaleEpilogueAndAllowsRetry()
+        {
+            var root = new GameObject("M16 stale afternoon arrival");
+            var values = new Dictionary<string, int>();
+            SeedM15(values);
+            bool changeArrival = true;
+            int willingnessReads = 0;
+            try
+            {
+                using (var host = new M16EpilogueHost(root.transform, () =>
+                {
+                    if (changeArrival)
+                    {
+                        changeArrival = false;
+                        values[M05LandingFacts.ArrivalSequenceKey] = 1;
+                    }
+                    return true;
+                }, () => { willingnessReads++; return true; },
+                    () => M16RespectAgencyTone.RespectedOthersChoices,
+                    Reader(values), (k, v) => values[k] = v))
+                {
+                    Assert.That(host.TryOpen(), Is.False);
+                    Assert.That(host.ActiveView, Is.Null);
+                    Assert.That(willingnessReads, Is.Zero);
+                    Assert.That(root.transform.childCount, Is.Zero);
+                    Assert.That(host.TryOpen(), Is.True);
+                    Assert.That(willingnessReads, Is.EqualTo(1));
+                    var view = host.ActiveView;
+                    view.ProceedToDeskButton.onClick.Invoke();
+                    view.StepOutsideButton.onClick.Invoke();
+                    view.PierButton.onClick.Invoke();
+                    Assert.That(host.IsCompleted, Is.True);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
