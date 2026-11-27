@@ -189,9 +189,19 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void SceneCallbackClosingCommandHubCannotLeaveLatePanel(bool disposeHub)
+        [Test]
+        public void SceneCallbackClosingCommandHubCannotLeaveLatePanel()
+        {
+            AssertSceneCallbackCancellingCommandHubCannotLeaveLatePanel(false);
+        }
+
+        [Test]
+        public void SceneCallbackDisposingCommandHubCannotLeaveLatePanel()
+        {
+            AssertSceneCallbackCancellingCommandHubCannotLeaveLatePanel(true);
+        }
+
+        private static void AssertSceneCallbackCancellingCommandHubCannotLeaveLatePanel(bool disposeHub)
         {
             var root = new GameObject("Command hub cancelled opening");
             var values = new Dictionary<string, int>();
