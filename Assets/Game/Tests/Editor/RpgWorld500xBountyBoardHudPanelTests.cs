@@ -9,6 +9,65 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xBountyBoardHudPanelTests
     {
         [Test]
+        public void BountyBoardHudPanel_DisabledCanvasRejectsClaimScopeAndCloseUntilRestored()
+        {
+            var root = new GameObject("World500xBountyBoardDisabledCanvas");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xBountyBoardHudPanel(root.transform, boot))
+                {
+                    UnlockRegionShortcuts(boot, RpgWorldMapId.Soundwell);
+                    Assert.IsTrue(panel.Show());
+                    var supply = boot.Driver.Facade.BountyAndSupply;
+                    int before = supply.SaltSilverBalance;
+                    int eligible = panel.ClaimableCount;
+                    int reward = panel.ClaimableSaltSilver;
+                    Assert.Greater(eligible, 0);
+                    Assert.Greater(reward, 0);
+                    string feedback = panel.FeedbackText;
+                    var canvas = root.transform.Find("World500xBountyBoardHudPanel").GetComponent<Canvas>();
+                    var modal = canvas.transform.Find("BountyBoardModalBox");
+                    var claim = modal.Find("ClaimEligibleBountiesButton").GetComponent<Button>();
+                    var all = modal.Find("Tab_AllRegions").GetComponent<Button>();
+                    var close = modal.Find("CloseBountyBoardButton").GetComponent<Button>();
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(claim.IsInteractable());
+                    all.onClick.Invoke();
+                    claim.onClick.Invoke();
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.TrySelectScope(RpgWorld500xBountyBoardScope.AllRegions));
+                    Assert.IsFalse(panel.TryClickClaimEligible());
+                    Assert.IsFalse(panel.TryClickClose());
+                    Assert.IsTrue(panel.IsVisible);
+                    Assert.AreEqual(RpgWorld500xBountyBoardScope.ActiveMap, panel.ActiveScope);
+                    Assert.AreEqual(3, panel.DisplayedRowCount);
+                    Assert.AreEqual(0, panel.ClaimedCount);
+                    Assert.AreEqual(eligible, panel.ClaimableCount);
+                    Assert.AreEqual(before, supply.SaltSilverBalance);
+                    Assert.AreEqual(feedback, panel.FeedbackText);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(panel.TrySelectScope(RpgWorld500xBountyBoardScope.AllRegions));
+                    Assert.AreEqual(12, panel.DisplayedRowCount);
+                    claim.onClick.Invoke();
+                    Assert.AreEqual(eligible, panel.ClaimedCount);
+                    Assert.AreEqual(before + reward, supply.SaltSilverBalance);
+                    Assert.IsFalse(panel.TryClickClaimEligible());
+                    Assert.IsTrue(panel.TryClickClose());
+                    Assert.IsFalse(panel.IsVisible);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BountyBoardHudPanel_RejectsStaleRegionClaimUntilBoardRefreshIsConfirmed()
         {
             var root = new GameObject("World500xBountyBoardStaleRegion");
