@@ -36,8 +36,16 @@ namespace Rpg.Tests.Editor
                         specs[j].MapId == targetMap ? RpgWorld500xWeatherKind.GaleStorm : RpgWorld500xWeatherKind.Clear);
                 }
 
+                Vector2 walkableSpawn;
+                using (var sourceBoot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: targetMap,
+                    overrideTileSlices: new Sprite[] { null }))
+                {
+                    walkableSpawn = sourceBoot.Driver.Facade.Session.Host.PlayerPosition;
+                }
+
                 var snap = RpgWorld500xSaveSnapshotSerializer.Capture(
-                    targetMap, new Vector2(100f + i * 10f, 120f + i * 10f), store, atmosphere);
+                    targetMap, walkableSpawn, store, atmosphere);
                 string json = RpgWorld500xSaveSnapshotSerializer.Serialize(snap);
                 Assert.IsTrue(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(json, out var parsed, out string parseError), parseError);
                 Assert.That(parsed, Is.Not.Null);
@@ -92,7 +100,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsNull(rejectedAtmo);
                 StringAssert.Contains("Duplicate atmosphere key", atmoErr);
 
-                string tampered = canonical.Replace("120", "999");
+                string tampered = canonical.Replace(":120", ":999");
                 Assert.IsFalse(RpgWorld500xSaveSnapshotSerializer.TryDeserialize(tampered, out var rejectedTamper, out _));
                 Assert.IsNull(rejectedTamper);
 
