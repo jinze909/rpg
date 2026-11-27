@@ -61,6 +61,8 @@ namespace Rpg.Soundwell
         private IDisposable activeHost;
         private ReturnRosterCaseId activeCase = ReturnRosterCaseId.None;
         private bool disposed;
+        private bool openingCase;
+        private bool openingCancelled;
 
         public ReturnRosterCaseId ActiveCase => activeCase;
         public bool HasActiveCase => IsActiveHostOpen();
@@ -233,7 +235,28 @@ namespace Rpg.Soundwell
 
         public bool TryOpenCase(ReturnRosterCaseId caseId)
         {
-            if (disposed || uiParent == null || !IsCaseAvailable(caseId) ||
+            if (disposed || uiParent == null || openingCase)
+                return false;
+
+            openingCase = true;
+            openingCancelled = false;
+            try
+            {
+                return TryOpenCaseCore(caseId);
+            }
+            finally
+            {
+                openingCase = false;
+                openingCancelled = false;
+            }
+        }
+
+        private bool CanContinueOpen() =>
+            !disposed && uiParent != null && !openingCancelled;
+
+        private bool TryOpenCaseCore(ReturnRosterCaseId caseId)
+        {
+            if (!IsCaseAvailable(caseId) || !CanContinueOpen() ||
                 !HasRequiredDelegates(caseId))
                 return false;
 
@@ -243,12 +266,20 @@ namespace Rpg.Soundwell
                 !context.AtReefListeningPoint())
                 return false;
 
+            if (!CanContinueOpen())
+                return false;
+
             if (activeHost != null)
             {
                 if (IsActiveHostOpen() && !IsActiveCaseSettled())
                     return false;
-                CloseActiveCase();
+                if (!CanContinueOpen())
+                    return false;
+                CloseActiveCaseCore();
             }
+
+            if (!CanContinueOpen())
+                return false;
 
             switch (caseId)
             {
@@ -312,6 +343,13 @@ namespace Rpg.Soundwell
 
         public void CloseActiveCase()
         {
+            if (openingCase)
+                openingCancelled = true;
+            CloseActiveCaseCore();
+        }
+
+        private void CloseActiveCaseCore()
+        {
             if (activeHost == null)
                 return;
             var current = activeHost;
@@ -327,7 +365,9 @@ namespace Rpg.Soundwell
 
         private bool Activate(ReturnRosterCaseId caseId, IDisposable host, bool opened)
         {
-            if (!opened)
+            // A live scene callback can cancel the opening before the child
+            // is published. Dispose it rather than leaving an orphaned view.
+            if (!opened || !CanContinueOpen())
             {
                 host.Dispose();
                 return false;

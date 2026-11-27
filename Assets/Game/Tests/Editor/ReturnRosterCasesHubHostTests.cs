@@ -203,6 +203,107 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FerryCallbackClosingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(false, false);
+        }
+
+        [Test]
+        public void FerryCallbackDisposingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(false, true);
+        }
+
+        [Test]
+        public void ReefCallbackClosingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(true, false);
+        }
+
+        [Test]
+        public void ReefCallbackDisposingCaseOpenLeavesNoViewOrFact()
+        {
+            AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(true, true);
+        }
+
+        private static void AssertSceneCallbackCancellingCaseOpenLeavesNoViewOrFact(
+            bool reef, bool disposeHub)
+        {
+            var root = new GameObject("Roster case cancelled during scene proof");
+            var values = new Dictionary<string, int>();
+            SeedThroughM08Notice(values);
+            var context = ObservedCaseScenes();
+            ReturnRosterCasesHubHost hub = null;
+            int writes = 0;
+            try
+            {
+                Func<bool> cancel = () =>
+                {
+                    if (disposeHub) hub.Dispose();
+                    else hub.CloseActiveCase();
+                    return true;
+                };
+                if (reef) context.AtReefListeningPoint = cancel;
+                else context.AtWhiteReedFerry = cancel;
+
+                hub = new ReturnRosterCasesHubHost(root.transform, context,
+                    Reader(values), (k, v) => { writes++; values[k] = v; });
+                var id = reef ? ReturnRosterCaseId.RC04DingYueReef :
+                    ReturnRosterCaseId.RC01ChenYan;
+
+                Assert.That(hub.TryOpenCase(id), Is.False);
+                Assert.That(hub.ActiveCase, Is.EqualTo(ReturnRosterCaseId.None));
+                Assert.That(hub.HasActiveCase, Is.False);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(writes, Is.Zero);
+
+                context.AtReefListeningPoint = () => true;
+                context.AtWhiteReedFerry = () => true;
+                Assert.That(hub.TryOpenCase(id), Is.EqualTo(!disposeHub));
+            }
+            finally
+            {
+                hub?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NestedCaseOpenDuringReefProofCannotReplaceListeningView()
+        {
+            var root = new GameObject("Roster hub nested opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM08Notice(values);
+            var context = ObservedCaseScenes();
+            ReturnRosterCasesHubHost hub = null;
+            bool attempted = false;
+            try
+            {
+                context.AtReefListeningPoint = () =>
+                {
+                    attempted = true;
+                    Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC01ChenYan), Is.False);
+                    return true;
+                };
+                hub = new ReturnRosterCasesHubHost(root.transform, context,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC04DingYueReef), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(hub.ActiveCase, Is.EqualTo(ReturnRosterCaseId.RC04DingYueReef));
+                Assert.That(hub.ActiveRC01Host, Is.Null);
+                Assert.That(hub.ActiveRC04Host.ActiveListeningView, Is.Not.Null);
+                hub.CloseActiveCase();
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(hub.TryOpenCase(ReturnRosterCaseId.RC01ChenYan), Is.True);
+            }
+            finally
+            {
+                hub?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DisposalDisposesActiveCaseHostAndBlocksFurtherDispatches()
         {
             var root = new GameObject("RosterHubDisposeRoot");

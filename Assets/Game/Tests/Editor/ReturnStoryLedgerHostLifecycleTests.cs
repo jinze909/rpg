@@ -45,6 +45,92 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ClosingDuringInitialSnapshotDoesNotCreateLateLedger()
+        {
+            AssertSnapshotCancellationDoesNotReopen(false, false);
+        }
+
+        [Test]
+        public void DisposingDuringInitialSnapshotDoesNotCreateLateLedger()
+        {
+            AssertSnapshotCancellationDoesNotReopen(false, true);
+        }
+
+        [Test]
+        public void ClosingDuringRefreshDoesNotReplaceClosedLedger()
+        {
+            AssertSnapshotCancellationDoesNotReopen(true, false);
+        }
+
+        private static void AssertSnapshotCancellationDoesNotReopen(bool refresh, bool disposeHost)
+        {
+            var root = new GameObject("Ledger cancelled during live snapshot");
+            ReturnStoryLedgerHost host = null;
+            bool cancel = !refresh;
+            try
+            {
+                host = new ReturnStoryLedgerHost(root.transform, key =>
+                {
+                    if (cancel)
+                    {
+                        cancel = false;
+                        if (disposeHost) host.Dispose();
+                        else host.Close();
+                    }
+                    return 0;
+                });
+                if (refresh)
+                {
+                    Assert.That(host.TryOpenOrRefresh(), Is.True);
+                    cancel = true;
+                }
+
+                Assert.That(host.TryOpenOrRefresh(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(host.TryOpenOrRefresh(), Is.EqualTo(!disposeHost));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NestedSnapshotOpenCannotCreateOrReplaceLedger()
+        {
+            var root = new GameObject("Ledger nested snapshot");
+            ReturnStoryLedgerHost host = null;
+            bool attempted = false;
+            try
+            {
+                host = new ReturnStoryLedgerHost(root.transform, key =>
+                {
+                    if (!attempted)
+                    {
+                        attempted = true;
+                        Assert.That(host.TryOpenOrRefresh(), Is.False);
+                    }
+                    return 0;
+                });
+                Assert.That(host.TryOpenOrRefresh(), Is.True);
+                Assert.That(attempted, Is.True);
+                var firstView = host.ActiveView;
+                Assert.That(firstView, Is.Not.Null);
+                Assert.That(host.TryOpenOrRefresh(), Is.True);
+                Assert.That(host.ActiveView, Is.SameAs(firstView));
+                host.Close();
+                Assert.That(root.transform.childCount, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyingParentClearsHostOpenStateAndBlocksReopenWithoutThrowing()
         {
             var root = new GameObject("LedgerLifecycleDestroyedParentRoot");
