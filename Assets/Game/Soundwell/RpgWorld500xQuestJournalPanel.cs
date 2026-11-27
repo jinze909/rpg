@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, Vector2Int> onFastTravelRequested;
         private readonly Action<string> onTrackedQuestChanged;
         private readonly GameObject rootObject;
+        private readonly Canvas canvas;
         private readonly Text headerText;
         private readonly Text bodySummaryText;
         private readonly Transform rowContainer;
@@ -77,7 +78,7 @@ namespace Rpg.Soundwell
             rootObject.transform.SetParent(parent, false);
             try
             {
-                var canvas = rootObject.GetComponent<Canvas>();
+                canvas = rootObject.GetComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 canvas.sortingOrder = 55;
 
@@ -406,7 +407,8 @@ namespace Rpg.Soundwell
 
         private bool CanInvoke(Button btn)
         {
-            return IsVisible && btn != null && btn.isActiveAndEnabled &&
+            return IsVisible && canvas != null && canvas.isActiveAndEnabled &&
+                btn != null && btn.isActiveAndEnabled &&
                 btn.gameObject.activeInHierarchy && btn.IsInteractable();
         }
 
