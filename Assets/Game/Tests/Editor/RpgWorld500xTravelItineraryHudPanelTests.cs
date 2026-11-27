@@ -10,6 +10,81 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xTravelItineraryHudPanelTests
     {
         [Test]
+        public void TravelItineraryHudPanel_DisabledCanvasRejectsProvisioningAndTravelUntilRestored()
+        {
+            var root = new GameObject("ItineraryDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xTravelItineraryHudPanel(root.transform, boot))
+                {
+                    var facade = boot.Driver.Facade;
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+                    facade.BountyAndSupply.AddSaltSilver(300);
+                    Assert.IsTrue(panel.Show(RpgWorldMapId.MineCamp));
+                    var canvas = root.transform.Find("World500xTravelItineraryHudPanel").GetComponent<Canvas>();
+                    var modal = canvas.transform.Find("ItineraryModalBox");
+                    var provision = modal.Find("AutoProvisionItineraryButton").GetComponent<Button>();
+                    var depart = modal.Find("DepartFirstLegButton").GetComponent<Button>();
+                    var destination = modal.Find("Dest_RedSaltHarbor").GetComponent<Button>();
+                    var close = modal.Find("CloseItineraryButton").GetComponent<Button>();
+                    string feedback = panel.FeedbackText;
+                    string summary = panel.SummaryBannerText;
+                    int lines = panel.LastProvisioningPlan.Lines.Count;
+                    int cost = panel.LastProvisioningPlan.TotalRequiredSaltSilver;
+                    Assert.Greater(lines, 0);
+                    Assert.Greater(cost, 0);
+                    Assert.IsTrue(provision.IsInteractable());
+                    Assert.IsTrue(depart.IsInteractable());
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(provision.IsInteractable());
+                    provision.onClick.Invoke();
+                    depart.onClick.Invoke();
+                    destination.onClick.Invoke();
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickAutoProvision());
+                    Assert.IsFalse(panel.TryClickDepartFirstLeg());
+                    Assert.IsFalse(panel.TrySelectDestination(RpgWorldMapId.RedSaltHarbor));
+                    Assert.IsFalse(panel.TryClickClose());
+                    Assert.IsTrue(panel.IsVisible);
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, facade.CurrentMapId);
+                    Assert.AreEqual(RpgWorldMapId.MineCamp, panel.SelectedDestination);
+                    Assert.AreEqual(2, panel.DisplayedLegRowCount);
+                    Assert.AreEqual(lines, panel.LastProvisioningPlan.Lines.Count);
+                    Assert.AreEqual(cost, panel.LastProvisioningPlan.TotalRequiredSaltSilver);
+                    Assert.AreEqual(300, facade.BountyAndSupply.SaltSilverBalance);
+                    Assert.AreEqual(0, facade.BountyAndSupply.GetOwnedSupplyCount("rations"));
+                    Assert.AreEqual(0, facade.BountyAndSupply.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(0, facade.BountyAndSupply.GetOwnedSupplyCount("flare"));
+                    Assert.AreEqual(feedback, panel.FeedbackText);
+                    Assert.AreEqual(summary, panel.SummaryBannerText);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(panel.TryClickAutoProvision());
+                    Assert.IsTrue(panel.LastProvisioningReceipt.FullyProvisioned);
+                    Assert.AreEqual(300 - panel.LastProvisioningReceipt.TotalSpentSaltSilver,
+                        facade.BountyAndSupply.SaltSilverBalance);
+                    Assert.AreEqual(0, panel.LastProvisioningPlan.Lines.Count);
+                    Assert.IsFalse(panel.TryClickAutoProvision());
+                    depart.onClick.Invoke();
+                    Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, facade.CurrentMapId);
+                    Assert.AreEqual(1, panel.DisplayedLegRowCount);
+                    Assert.IsTrue(panel.TryClickClose());
+                    Assert.IsFalse(panel.IsVisible);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void TravelItineraryHudPanel_PlansMultiHopDepartsFirstLegRespectsLockAndZeroLeak()
         {
             var root = new GameObject("World500xTravelItineraryHudPanelTestRoot");
