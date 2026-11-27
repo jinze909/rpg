@@ -117,7 +117,23 @@ namespace Rpg.Soundwell
                 !IsCurrentView(submittingView, submittingSession))
                 return;
 
-            if (!submittingSession.TryChooseStandingSpotAndCommit(spot, getInt, setInt))
+            // Fact validation and each persisted field can synchronously retire
+            // this scene or advance the voyage. Never let a stale submission
+            // continue writing, particularly the final confirmation marker.
+            bool abandoned = false;
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (abandoned || !IsCurrentView(submittingView, submittingSession))
+                {
+                    abandoned = true;
+                    return;
+                }
+                setInt(key, value);
+            }
+
+            if (!submittingSession.TryChooseStandingSpotAndCommit(
+                    spot, getInt, WriteWhileCurrent) ||
+                abandoned || !IsCurrentView(submittingView, submittingSession))
                 return;
 
             if (activeView == submittingView)
