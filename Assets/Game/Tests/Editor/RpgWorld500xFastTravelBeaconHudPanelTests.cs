@@ -7,6 +7,47 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xFastTravelBeaconHudPanelTests
     {
         [Test]
+        public void FastTravelBeaconHudPanel_DisabledCanvasRejectsWarpUntilRestored()
+        {
+            var root = new GameObject("BeaconDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.RedSaltHarbor,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                {
+                    var host = boot.Driver.Facade.Session.Host;
+                    const string marker = "rsh.salt-market";
+                    Assert.IsTrue(host.Tracker.TryDiscoverMarker(marker));
+                    Assert.IsTrue(panel.Show());
+                    var canvas = root.transform.Find("World500xFastTravelBeaconHudPanel").GetComponent<Canvas>();
+                    var button = canvas.transform.Find("BeaconWarpModalBox/BeaconRows/BeaconRow_rsh.salt-market/WarpButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    Vector2 start = host.PlayerPosition;
+                    string status = panel.StatusText;
+                    Assert.IsTrue(button.IsInteractable());
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(button.IsInteractable());
+                    button.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickWarp(marker));
+                    Assert.AreEqual(start, host.PlayerPosition);
+                    Assert.AreEqual(status, panel.StatusText);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(panel.TryClickWarp(marker));
+                    Assert.AreEqual(new Vector2Int(1700, 1260), host.CurrentTile);
+                    Assert.That(panel.StatusText, Does.Contain("已传送至"));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_SyncsCameraAndWaypointWithoutAdvancingWorldFrame()
         {
             var root = new GameObject("BeaconImmediatePositionSyncRoot");
