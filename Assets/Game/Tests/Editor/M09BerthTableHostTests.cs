@@ -115,9 +115,19 @@ namespace Rpg.Tests.Editor
         }
 
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void ReentrantOpenPreservesOriginalBerthTableAndSettlement(bool duringPartyRead)
+        [Test]
+        public void ReentrantSceneOpenPreservesOriginalBerthTableAndSettlement()
+        {
+            ReentrantOpenPreservesOriginalBerthTableAndSettlement(false);
+        }
+
+        [Test]
+        public void ReentrantPartyOpenPreservesOriginalBerthTableAndSettlement()
+        {
+            ReentrantOpenPreservesOriginalBerthTableAndSettlement(true);
+        }
+
+        private void ReentrantOpenPreservesOriginalBerthTableAndSettlement(bool duringPartyRead)
         {
             var root = new GameObject("M09 reentrant berth table");
             var values = new Dictionary<string, int>();
