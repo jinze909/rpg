@@ -384,6 +384,15 @@ namespace Rpg.Soundwell
             }
 
             RpgWorld500xGrandRuntimeFacade facade = _bootstrapper.Driver.Facade;
+            // The visible claim belongs to the region displayed when the board
+            // was refreshed. Do not settle a different region on a stale click.
+            if (facade.CurrentMapId != _activeMapSummary.MapId)
+            {
+                _feedbackText.text = "本境悬赏已更新，请确认后重试";
+                Refresh();
+                return;
+            }
+
             RpgWorld500xMapCompletionSummary summary = facade.GetCompletionSummary();
             List<RpgWorld500xFieldBountyDef> claimed = facade.BountyAndSupply.ClaimCompletedBounties(summary);
 
