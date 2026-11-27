@@ -56,6 +56,130 @@ namespace Rpg.Tests.Editor
                 shenReconciled: false), read, write), Is.True);
         }
 
+
+        [Test]
+        public void ReentrantFerryOpeningPublishesOnlyOriginalNotice()
+        {
+            var root = new GameObject("M10 reentrant ferry");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            M10AssemblyHost host = null;
+            bool attempted = false, nestedOpened = true;
+            try
+            {
+                host = new M10AssemblyHost(root.transform, () => true,
+                    () => true, () => false, Reader(values), (k, v) => values[k] = v,
+                    atLinchaoFerry: () =>
+                    {
+                        if (!attempted)
+                        {
+                            attempted = true;
+                            nestedOpened = host.TryOpen();
+                        }
+                        return true;
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(host.ActiveWorldNoticeView, Is.Not.Null);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ReentrantAssemblyOpeningPublishesOnlyOriginalTable()
+        {
+            var root = new GameObject("M10 reentrant assembly");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            M10AssemblyHost host = null;
+            bool attempted = false, nestedOpened = true;
+            try
+            {
+                host = new M10AssemblyHost(root.transform, () =>
+                    {
+                        if (!attempted)
+                        {
+                            attempted = true;
+                            nestedOpened = host.TryOpen();
+                        }
+                        return true;
+                    },
+                    () => true, () => false, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(host.ActiveWorldNoticeView, Is.Null);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void AssemblyOpeningExceptionReleasesReservation()
+        {
+            var root = new GameObject("M10 opening exception");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            M10AssemblyHost host = null;
+            bool fail = true;
+            try
+            {
+                host = new M10AssemblyHost(root.transform, () =>
+                    {
+                        if (fail) throw new InvalidOperationException("Scene evidence interrupted");
+                        return true;
+                    },
+                    () => true, () => false, Reader(values), (k, v) => values[k] = v);
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                fail = false;
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(host.ActiveView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringAssemblyReadCannotPublishView()
+        {
+            var root = new GameObject("M10 retired opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            M10AssemblyHost host = null;
+            try
+            {
+                host = new M10AssemblyHost(root.transform, () =>
+                    { host.Dispose(); return true; },
+                    () => true, () => false, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.ActiveWorldNoticeView, Is.Null);
+                Assert.That(host.Session, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ExternalViewDisposalClearsActiveViewAndAllowsCleanReopen()
         {
