@@ -147,9 +147,19 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void RetiredPermanentChoiceCannotWriteOrCloseReplacement(bool retireDuringFactRead)
+        [Test]
+        public void SceneProofRetiredPermanentChoiceCannotWriteOrCloseReplacement()
+        {
+            AssertRetiredPermanentChoiceCannotWriteOrCloseReplacement(false);
+        }
+
+        [Test]
+        public void FactReadRetiredPermanentChoiceCannotWriteOrCloseReplacement()
+        {
+            AssertRetiredPermanentChoiceCannotWriteOrCloseReplacement(true);
+        }
+
+        private static void AssertRetiredPermanentChoiceCannotWriteOrCloseReplacement(bool retireDuringFactRead)
         {
             var root = new GameObject("ST03 retired permanent choice");
             var values = new Dictionary<string, int>();
