@@ -239,5 +239,162 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void ReentrantRouteChoiceCannotReplaceOriginalDecision()
+        {
+            var root = new GameObject("M14 reentrant route choice");
+            M14FinalPassageView view = null;
+            bool nested = false;
+            try
+            {
+                var session = CreateVerifiedSession();
+                view = new M14FinalPassageView(root.transform, session, () =>
+                {
+                    if (!nested)
+                    {
+                        nested = true;
+                        view.WithdrawLuJunButton.onClick.Invoke();
+                    }
+                    return true;
+                }, () => true, () => false, () => false, () => false,
+                    () => new M14CivilianCounts(16, 4, 2), _ => { });
+                view.DetainLuJunButton.onClick.Invoke();
+                Assert.That(nested, Is.True);
+                Assert.That(session.LuJunDisposition, Is.EqualTo(M14LuJunDisposition.Detained));
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetiredRouteViewCannotApplyProofOrReadNextCredential()
+        {
+            var root = new GameObject("M14 retired route choice");
+            M14FinalPassageView view = null;
+            int guaranteeReads = 0;
+            try
+            {
+                var session = CreateVerifiedSession();
+                view = new M14FinalPassageView(root.transform, session, () =>
+                {
+                    view.Dispose();
+                    return true;
+                }, () => { guaranteeReads++; return true; }, () => false,
+                    () => false, () => false, () => new M14CivilianCounts(16, 4, 2), _ => { });
+                Assert.DoesNotThrow(() => view.DetainLuJunButton.onClick.Invoke());
+                Assert.That(view.IsDisposed, Is.True);
+                Assert.That(guaranteeReads, Is.Zero);
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.RouteExecution));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ReentrantCountsCannotReplaceOriginalCensusAndExceptionAllowsRetry()
+        {
+            var root = new GameObject("M14 reentrant counts");
+            M14FinalPassageView view = null;
+            bool throwOnce = false;
+            bool nested = false;
+            try
+            {
+                var session = CreateVerifiedSession();
+                view = new M14FinalPassageView(root.transform, session, () => true,
+                    () => true, () => false, () => false, () => false, () =>
+                    {
+                        if (throwOnce)
+                        {
+                            throwOnce = false;
+                            throw new InvalidOperationException("census read failed");
+                        }
+                        if (nested)
+                            return new M14CivilianCounts(99, 0, 0);
+                        if (session.Phase == M14Phase.CivilianExitVerification &&
+                            view.VerifyCivilianExitButton.gameObject.activeSelf)
+                        {
+                            nested = true;
+                            view.VerifyCivilianExitButton.onClick.Invoke();
+                        }
+                        return new M14CivilianCounts(16, 4, 2);
+                    }, _ => { });
+                view.DetainLuJunButton.onClick.Invoke();
+                throwOnce = true;
+                Assert.Throws<InvalidOperationException>(() => view.VerifyCivilianExitButton.onClick.Invoke());
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+                view.VerifyCivilianExitButton.onClick.Invoke();
+                Assert.That(nested, Is.True);
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.AyuanPositionResolution));
+                Assert.That(session.VerifiedDepartingCount, Is.EqualTo(16));
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedControlDuringCensusReadCannotAdvanceOldSession()
+        {
+            var root = new GameObject("M14 destroyed census choice");
+            M14FinalPassageView view = null;
+            bool destroy = false;
+            try
+            {
+                var session = CreateVerifiedSession();
+                view = new M14FinalPassageView(root.transform, session, () => true,
+                    () => true, () => false, () => false, () => false, () =>
+                    {
+                        if (destroy)
+                            UnityEngine.Object.DestroyImmediate(view.VerifyCivilianExitButton.gameObject);
+                        return new M14CivilianCounts(16, 4, 2);
+                    }, _ => { });
+                view.DetainLuJunButton.onClick.Invoke();
+                destroy = true;
+                Assert.DoesNotThrow(() => view.VerifyCivilianExitButton.onClick.Invoke());
+                Assert.That(view.IsDisposed, Is.True);
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+                Assert.That(session.CivilianExitVerified, Is.False);
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DisposedDuringCensusRefreshDoesNotAccessDestroyedControls()
+        {
+            var root = new GameObject("M14 disposed census refresh");
+            M14FinalPassageView view = null;
+            try
+            {
+                var session = CreateVerifiedSession();
+                view = new M14FinalPassageView(root.transform, session, () => true,
+                    () => true, () => false, () => false, () => false, () =>
+                    {
+                        view.Dispose();
+                        return new M14CivilianCounts(16, 4, 2);
+                    }, _ => { });
+                Assert.DoesNotThrow(() => view.DetainLuJunButton.onClick.Invoke());
+                Assert.That(view.IsDisposed, Is.True);
+                Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+                Assert.DoesNotThrow(() => view.Refresh());
+            }
+            finally
+            {
+                view?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
