@@ -65,6 +65,140 @@ namespace Rpg.Tests.Editor
                 bellTowerSeizureHeard: true), read, write), Is.True);
         }
 
+
+        [Test]
+        public void NestedPartyOpeningKeepsOriginalRescueAndCommitsOnce()
+        {
+            var root = new GameObject("M11 nested party opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM10(values);
+            M11ReverseRescueHost host = null;
+            bool attempted = false, nestedOpened = true;
+            int confirms = 0;
+            try
+            {
+                host = new M11ReverseRescueHost(root.transform, () => true,
+                    () =>
+                    {
+                        if (!attempted)
+                        {
+                            attempted = true;
+                            nestedOpened = host.TryOpen();
+                        }
+                        return false;
+                    }, () => false, Reader(values), (k, v) =>
+                    {
+                        values[k] = v;
+                        if (k == M11ReverseRescueFacts.ConfirmedKey && v == 1)
+                            confirms++;
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                var view = host.ActiveView;
+                Assert.That(view, Is.Not.Null);
+                view.ReliefPassButton.onClick.Invoke();
+                view.CoverReturneesButton.onClick.Invoke();
+                view.FallbackArtisansButton.onClick.Invoke();
+                view.ConfirmRescueButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(confirms, Is.EqualTo(1));
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void OpeningExceptionReleasesRescueReservation()
+        {
+            var root = new GameObject("M11 opening retry");
+            var values = new Dictionary<string, int>();
+            SeedThroughM10(values);
+            M11ReverseRescueHost host = null;
+            bool fail = true;
+            try
+            {
+                host = new M11ReverseRescueHost(root.transform, () => true,
+                    () =>
+                    {
+                        if (fail) throw new InvalidOperationException("Party read interrupted");
+                        return false;
+                    }, () => false, Reader(values), (k, v) => values[k] = v);
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                fail = false;
+                Assert.That(host.TryOpen(), Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringPartyReadCannotPublishRescue()
+        {
+            var root = new GameObject("M11 retired opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM10(values);
+            M11ReverseRescueHost host = null;
+            try
+            {
+                host = new M11ReverseRescueHost(root.transform, () => true,
+                    () => { host.Dispose(); return false; }, () => false,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.Session, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringFinalPartyProofCannotWriteRescueFacts()
+        {
+            var root = new GameObject("M11 retired during final proof");
+            var values = new Dictionary<string, int>();
+            SeedThroughM10(values);
+            M11ReverseRescueHost host = null;
+            bool retire = false;
+            int writes = 0;
+            try
+            {
+                host = new M11ReverseRescueHost(root.transform, () => true,
+                    () => false, () =>
+                    {
+                        if (retire) host.Dispose();
+                        return false;
+                    }, Reader(values), (k, v) => { writes++; values[k] = v; });
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.ReliefPassButton.onClick.Invoke();
+                view.CoverReturneesButton.onClick.Invoke();
+                view.FallbackArtisansButton.onClick.Invoke();
+                retire = true;
+                Assert.DoesNotThrow(() => view.ConfirmRescueButton.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(writes, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ExternalViewDisposalClearsActiveViewAndAllowsCleanReopen()
         {
