@@ -164,7 +164,32 @@ namespace Rpg.Soundwell
                 !IsCurrentOwner(settlingView, settlingSession))
                 return;
 
-            if (!settlingSession.TrySettleAyuanAndCommit(outcome, getInt, setInt))
+            // A storage callback can retire this view or change voyages between
+            // fields. Stop the old submission before writing any further keys.
+            bool abandoned = false;
+            bool StillOwnsSettlement()
+            {
+                if (!IsCurrentOwner(settlingView, settlingSession) ||
+                    openedArrivalSequence != arrivalSequence)
+                    return false;
+                int currentArrival = getInt(M05LandingFacts.ArrivalSequenceKey);
+                return IsCurrentOwner(settlingView, settlingSession) &&
+                    openedArrivalSequence == arrivalSequence &&
+                    currentArrival == arrivalSequence.Value;
+            }
+
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (abandoned || !StillOwnsSettlement())
+                {
+                    abandoned = true;
+                    return;
+                }
+                setInt(key, value);
+            }
+
+            if (!settlingSession.TrySettleAyuanAndCommit(outcome, getInt, WriteWhileCurrent) ||
+                abandoned || !StillOwnsSettlement())
                 return;
 
             // Persistence can synchronously retire the old view. Never close
