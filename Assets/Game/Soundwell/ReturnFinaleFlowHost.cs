@@ -78,6 +78,8 @@ namespace Rpg.Soundwell
         private IDisposable activeHost;
         private ReturnFinaleStage currentStage = ReturnFinaleStage.None;
         private bool disposed;
+        private bool openingStage;
+        private bool openingCancelled;
 
         public ReturnFinaleStage CurrentStage => currentStage;
         public bool IsDisposed => disposed;
@@ -214,20 +216,43 @@ namespace Rpg.Soundwell
 
         public bool TryOpenNextStage()
         {
-            if (disposed || uiParent == null)
+            if (disposed || uiParent == null || openingStage)
                 return false;
 
+            openingStage = true;
+            openingCancelled = false;
+            try
+            {
+                return TryOpenNextStageCore();
+            }
+            finally
+            {
+                openingStage = false;
+                openingCancelled = false;
+            }
+        }
+
+        private bool CanContinueOpen() =>
+            !disposed && uiParent != null && !openingCancelled;
+
+        private bool TryOpenNextStageCore()
+        {
             ReturnFinaleStage next = EvaluateNextStage();
+            if (!CanContinueOpen())
+                return false;
+
             if (next == ReturnFinaleStage.None)
             {
-                CloseActiveHost();
-                currentStage = ReturnFinaleStage.None;
+                CloseActiveHostCore();
+                if (CanContinueOpen())
+                    currentStage = ReturnFinaleStage.None;
                 return false;
             }
             if (next == ReturnFinaleStage.Completed)
             {
-                CloseActiveHost();
-                currentStage = ReturnFinaleStage.Completed;
+                CloseActiveHostCore();
+                if (CanContinueOpen())
+                    currentStage = ReturnFinaleStage.Completed;
                 return false;
             }
 
@@ -236,7 +261,9 @@ namespace Rpg.Soundwell
             if (!HasRequiredDelegates(next))
                 return false;
 
-            CloseActiveHost();
+            CloseActiveHostCore();
+            if (!CanContinueOpen())
+                return false;
 
             switch (next)
             {
@@ -329,7 +356,9 @@ namespace Rpg.Soundwell
 
         private bool ActivateStage(ReturnFinaleStage stage, IDisposable host, bool opened)
         {
-            if (!opened)
+            // A live scene callback may close or dispose this flow before
+            // the next chapter host is ready to be published.
+            if (!opened || !CanContinueOpen())
             {
                 host.Dispose();
                 return false;
@@ -340,6 +369,13 @@ namespace Rpg.Soundwell
         }
 
         public void CloseActiveHost()
+        {
+            if (openingStage)
+                openingCancelled = true;
+            CloseActiveHostCore();
+        }
+
+        private void CloseActiveHostCore()
         {
             if (activeHost == null)
                 return;
