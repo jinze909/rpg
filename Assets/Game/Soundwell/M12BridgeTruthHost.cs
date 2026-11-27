@@ -28,6 +28,7 @@ namespace Rpg.Soundwell
         private bool openedShenLiParticipating;
         private bool openedLinSuPresent;
         private bool disposed;
+        private bool opening;
 
         public M12BridgeTruthSession Session => session;
         public M12BridgeTruthView ActiveView =>
@@ -64,14 +65,32 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
                 activeView = null;
                 openedArrivalSequence = null;
             }
-            if (disposed || parent == null || activeView != null || !atBellTowerCamp() ||
-                HasAnyPersistedFacts())
+            if (disposed || parent == null || activeView != null)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !atBellTowerCamp() || HasAnyPersistedFacts())
                 return false;
 
             bool priorConfession = m03PriorConfession();
@@ -87,8 +106,14 @@ namespace Rpg.Soundwell
                     out M12BridgeTruthSession created))
                 return false;
 
+            // Readers can retire the host or begin another voyage synchronously.
+            if (disposed || parent == null ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                disposed || parent == null)
+                return false;
+
             session = created;
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             openedPriorConfession = priorConfession;
             openedSecrecyPromised = secrecyPromised;
             openedShenLiParticipating = shenLi;
@@ -116,20 +141,27 @@ namespace Rpg.Soundwell
 
         private void HandleDisclosureSubmitted(M12TruthDisclosure disclosure)
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !atBellTowerCamp() ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
-                m03PriorConfession() != openedPriorConfession ||
-                m03SecrecyPromised() != openedSecrecyPromised ||
-                shenLiParticipating() != openedShenLiParticipating ||
-                linSuPresent() != openedLinSuPresent)
+            // Capture the submitting owner before invoking live evidence readers.
+            // A callback may close it or reopen a replacement panel.
+            var committingView = activeView;
+            var committingSession = session;
+            int? arrivalSequence = openedArrivalSequence;
+            bool priorConfession = openedPriorConfession;
+            bool secrecyPromised = openedSecrecyPromised;
+            bool shenLi = openedShenLiParticipating;
+            bool linSu = openedLinSuPresent;
+            if (!IsCurrentDisclosure(committingView, committingSession) ||
+                !arrivalSequence.HasValue || !atBellTowerCamp() ||
+                m03PriorConfession() != priorConfession ||
+                m03SecrecyPromised() != secrecyPromised ||
+                shenLiParticipating() != shenLi ||
+                linSuPresent() != linSu ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence.Value ||
+                !IsCurrentDisclosure(committingView, committingSession))
                 return;
 
             // Persistence may synchronously close this host or destroy its view.
             // Retire only the view that submitted the successful decision.
-            var committingView = activeView;
-            var committingSession = session;
             if (!committingSession.TryDecideTruthAndCommit(disclosure, getInt, setInt))
                 return;
 
@@ -139,6 +171,14 @@ namespace Rpg.Soundwell
                 activeView = null;
                 openedArrivalSequence = null;
             }
+        }
+
+        private bool IsCurrentDisclosure(M12BridgeTruthView expectedView,
+            M12BridgeTruthSession expectedSession)
+        {
+            return !disposed && parent != null && expectedView != null &&
+                !expectedView.IsDisposed && ReferenceEquals(activeView, expectedView) &&
+                expectedSession != null && ReferenceEquals(session, expectedSession);
         }
 
         public void Dispose()

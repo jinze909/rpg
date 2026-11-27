@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
         private M10WorldNoticeThreeView activeWorldNoticeView;
         private int? openedArrivalSequence;
         private bool disposed;
+        private bool opening;
 
         public M10AssemblySession Session => session;
         public M10AssemblyView ActiveView =>
@@ -68,6 +69,24 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            // The ferry notice and assembly share one opening slot, even
+            // when scene or fact readers synchronously dispatch another open.
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -81,7 +100,11 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
             if (disposed || parent == null || activeView != null ||
-                activeWorldNoticeView != null || HasAnyPersistedFacts())
+                activeWorldNoticeView != null)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || HasAnyPersistedFacts())
                 return false;
 
             if (atLinchaoFerry())
@@ -95,8 +118,7 @@ namespace Rpg.Soundwell
                     noticeObserved)
                     return false;
 
-                int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
-                if (arrivalSequence < 0)
+                if (!CanPublishOpening(arrivalSequence))
                     return false;
 
                 openedArrivalSequence = arrivalSequence;
@@ -106,11 +128,12 @@ namespace Rpg.Soundwell
             }
 
             if (!atJingwanAssembly() ||
-                !M10AssemblySession.TryCreateFromSavedFacts(getInt, out M10AssemblySession created))
+                !M10AssemblySession.TryCreateFromSavedFacts(getInt, out M10AssemblySession created) ||
+                !CanPublishOpening(arrivalSequence))
                 return false;
 
             session = created;
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             activeView = new M10AssemblyView(
                 parent,
                 session,
@@ -120,6 +143,13 @@ namespace Rpg.Soundwell
                 () => M10AssemblyFacts.EvaluateRC05SupplyNeed(getInt),
                 HandleCommitRequested);
             return true;
+        }
+
+        private bool CanPublishOpening(int arrivalSequence)
+        {
+            return !disposed && parent != null &&
+                getInt(M05LandingFacts.ArrivalSequenceKey) == arrivalSequence &&
+                !disposed && parent != null;
         }
 
         private bool HandleNoticeAcknowledge()
