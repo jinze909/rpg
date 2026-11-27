@@ -138,6 +138,59 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CampMerchantPanel_DisabledCanvasRejectsInvisiblePurchaseAndTabEvents()
+        {
+            var root = new GameObject("World500xMerchantDisabledCanvas");
+            var ctrl = root.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(
+                    overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var supply = ctrl.Bootstrapper.Driver.Facade.BountyAndSupply;
+                supply.AddSaltSilver(100);
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.CampMerchant));
+                var panel = ctrl.MenuRouter.MerchantPanel;
+                var modal = root.transform.Find(
+                    "World500xPlayModeUiRoot/World500xCampMerchantHudPanel/MerchantModalBox");
+                var canvas = modal.GetComponentInParent<Canvas>();
+                var buy = modal.Find("MerchantRows/SupplyRow_flare/ActionButton")
+                    .GetComponent<UnityEngine.UI.Button>();
+                var bounties = modal.Find("BountiesTabButton")
+                    .GetComponent<UnityEngine.UI.Button>();
+                Assert.IsTrue(buy.IsInteractable());
+
+                canvas.enabled = false;
+                buy.onClick.Invoke();
+                bounties.onClick.Invoke();
+                Assert.IsFalse(panel.TryClickBuySupply("flare"));
+                Assert.AreEqual(RpgCampMerchantTab.Supplies, panel.CurrentTab);
+                Assert.AreEqual(100, supply.SaltSilverBalance);
+                Assert.AreEqual(0, supply.GetOwnedSupplyCount("flare"));
+
+                canvas.enabled = true;
+                Assert.IsTrue(panel.TryClickBuySupply("flare"));
+                Assert.AreEqual(70, supply.SaltSilverBalance);
+                Assert.AreEqual(1, supply.GetOwnedSupplyCount("flare"));
+                bounties.onClick.Invoke();
+                Assert.AreEqual(RpgCampMerchantTab.Bounties, panel.CurrentTab);
+                var claim = modal.Find("MerchantRows/ClaimAllBountiesRow/ActionButton")
+                    .GetComponent<UnityEngine.UI.Button>();
+                claim.interactable = true;
+                canvas.enabled = false;
+                Assert.IsFalse(panel.TryClickClaimBounties());
+                claim.onClick.Invoke();
+                Assert.AreEqual(70, supply.SaltSilverBalance);
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CampMerchantPanel_BuysDiscountedSuppliesSwitchesTabsAndDisposesWithZeroLeak()
         {
             var root = new GameObject("World500xCampMerchantHudPanelTestRoot");
