@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
         private M15FinalRollCallView activeView;
         private int? openedArrivalSequence;
         private bool disposed;
+        private bool opening;
 
         public M15FinalRollCallSession Session => session;
         public M15FinalRollCallView ActiveView =>
@@ -58,6 +59,21 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -65,7 +81,11 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
 
-            if (disposed || parent == null || activeView != null || !ceremonyReady() ||
+            if (disposed || parent == null || activeView != null)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !ceremonyReady() ||
                 HasAnyPersistedFacts() ||
                 M15FinalRollCallFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
@@ -74,13 +94,17 @@ namespace Rpg.Soundwell
             if (consentedCount < 0)
                 return false;
 
-            session = new M15FinalRollCallSession(
-                bridgeTruthSealed(),
-                consentedCount,
-                xiaoqiCustomName?.Invoke());
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            bool sealedTruth = bridgeTruthSealed();
+            string customName = xiaoqiCustomName?.Invoke();
+            bool showStone = ShowZhonglingStoneOnMonument;
+            if (getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                disposed || parent == null)
+                return false;
+
+            session = new M15FinalRollCallSession(sealedTruth, consentedCount, customName);
+            openedArrivalSequence = arrivalSequence;
             activeView = new M15FinalRollCallView(
-                parent, session, HandleRollCallSubmitted, ShowZhonglingStoneOnMonument);
+                parent, session, HandleRollCallSubmitted, showStone);
             return true;
         }
 
@@ -95,11 +119,11 @@ namespace Rpg.Soundwell
                 getInt(M15FinalRollCallFacts.XiaoqiByNumberKey) != 0;
         }
 
-        private bool LiveCeremonyEvidenceMatchesSession()
+        private bool LiveCeremonyEvidenceMatchesSession(M15FinalRollCallSession expectedSession)
         {
-            if (session == null ||
-                bridgeTruthSealed() != session.BridgeTruthSealed ||
-                consentedVerifiedNamesCount() != session.ConsentedVerifiedNamesCount)
+            if (expectedSession == null ||
+                bridgeTruthSealed() != expectedSession.BridgeTruthSealed ||
+                consentedVerifiedNamesCount() != expectedSession.ConsentedVerifiedNamesCount)
                 return false;
 
             // The name may change after the page opened. Compare the same
@@ -107,7 +131,7 @@ namespace Rpg.Soundwell
             string currentName = xiaoqiCustomName?.Invoke();
             currentName = string.IsNullOrWhiteSpace(currentName)
                 ? null : currentName.Trim();
-            return string.Equals(currentName, session.XiaoqiCustomName,
+            return string.Equals(currentName, expectedSession.XiaoqiCustomName,
                 StringComparison.Ordinal);
         }
 
@@ -135,17 +159,22 @@ namespace Rpg.Soundwell
             M15FinalIdentityResponse identityResponse,
             M15SteleInscription steleInscription)
         {
-            // A ceremony can remain open while consent, sealed bridge truth,
-            // or Xiaoqi's chosen name changes. Do not settle stale choices.
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !ceremonyReady() ||
-                !LiveCeremonyEvidenceMatchesSession() ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+            // Live ceremony callbacks can retire or replace the submitting view.
+            var submittingView = activeView;
+            var submittingSession = session;
+            int? arrivalSequence = openedArrivalSequence;
+            if (!IsCurrentOwner(submittingView, submittingSession) ||
+                !arrivalSequence.HasValue || !ceremonyReady() ||
+                !IsCurrentOwner(submittingView, submittingSession) ||
+                !LiveCeremonyEvidenceMatchesSession(submittingSession) ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence.Value ||
+                !IsCurrentOwner(submittingView, submittingSession))
                 return;
 
             if (!M15FinalRollCallFacts.TryRead(
-                    getInt, out M15FinalRollCallRecord? existing))
+                    getInt, out M15FinalRollCallRecord? existing) ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence.Value ||
+                !IsCurrentOwner(submittingView, submittingSession))
                 return;
 
             // Handle a write that succeeded before a lost acknowledgement
@@ -155,10 +184,10 @@ namespace Rpg.Soundwell
                 // A commit-then-throw retry must acknowledge the *entire*
                 // previously saved outcome, not just the three UI buttons.
                 if (!MatchesPersistedRollCall(
-                        existing.Value, session, reader, identityResponse, steleInscription))
+                        existing.Value, submittingSession, reader, identityResponse, steleInscription))
                     return;
             }
-            else if (!session.TryCompleteRollCall(
+            else if (!submittingSession.TryCompleteRollCall(
                 reader, identityResponse, steleInscription, getInt, setInt))
             {
                 return;
@@ -168,12 +197,23 @@ namespace Rpg.Soundwell
                     getInt, out M15FinalRollCallRecord? persisted) ||
                 !persisted.HasValue ||
                 !MatchesPersistedRollCall(
-                    persisted.Value, session, reader, identityResponse, steleInscription))
+                    persisted.Value, submittingSession, reader, identityResponse, steleInscription))
                 return;
 
-            activeView?.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            submittingView.Dispose();
+            if (ReferenceEquals(activeView, submittingView))
+            {
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+        }
+
+        private bool IsCurrentOwner(M15FinalRollCallView expectedView,
+            M15FinalRollCallSession expectedSession)
+        {
+            return !disposed && parent != null && expectedView != null &&
+                !expectedView.IsDisposed && ReferenceEquals(activeView, expectedView) &&
+                expectedSession != null && ReferenceEquals(session, expectedSession);
         }
 
         public void Dispose()

@@ -113,5 +113,138 @@ namespace Rpg.Tests.Editor
                 if (root != null) UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void OpeningReservesSlotAndExceptionAllowsRetry()
+        {
+            var root = new GameObject("M15 reentrant opening");
+            var values = new Dictionary<string, int>();
+            M15FinalRollCallHost host = null;
+            bool throwOnce = true;
+            bool nestedOpened = true;
+            try
+            {
+                host = new M15FinalRollCallHost(root.transform, () =>
+                {
+                    if (throwOnce)
+                    {
+                        throwOnce = false;
+                        throw new InvalidOperationException("ceremony proof failed");
+                    }
+                    nestedOpened = host.TryOpen();
+                    return true;
+                }, () => false, () => 4, null, Reader(values), (k, v) => values[k] = v);
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringOpeningDoesNotPublishView()
+        {
+            var root = new GameObject("M15 retired opening");
+            var values = new Dictionary<string, int>();
+            M15FinalRollCallHost host = null;
+            try
+            {
+                host = new M15FinalRollCallHost(root.transform, () => true,
+                    () => false, () => 4, () =>
+                    {
+                        host.Dispose();
+                        return "Chen";
+                    }, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ChangedArrivalDuringOpeningCannotPublishStaleCeremony()
+        {
+            var root = new GameObject("M15 changed arrival during opening");
+            var values = new Dictionary<string, int>();
+            bool changeArrival = true;
+            try
+            {
+                using (var host = new M15FinalRollCallHost(root.transform,
+                    () => true, () => false, () =>
+                    {
+                        if (changeArrival)
+                        {
+                            changeArrival = false;
+                            values[M05LandingFacts.ArrivalSequenceKey] = 1;
+                        }
+                        return 4;
+                    }, null, Reader(values), (k, v) => values[k] = v))
+                {
+                    Assert.That(host.TryOpen(), Is.False);
+                    Assert.That(host.ActiveView, Is.Null);
+                    Assert.That(host.TryOpen(), Is.True);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ReplacedCeremonyDuringLiveConsentCannotWriteOrCloseReplacement()
+        {
+            var root = new GameObject("M15 replaced ceremony");
+            var values = new Dictionary<string, int>();
+            M15FinalRollCallHost host = null;
+            bool replaceOnConsent = false;
+            int writes = 0;
+            try
+            {
+                host = new M15FinalRollCallHost(root.transform, () => true,
+                    () => false, () =>
+                    {
+                        if (replaceOnConsent)
+                        {
+                            replaceOnConsent = false;
+                            host.ActiveView.Dispose();
+                            Assert.That(host.TryOpen(), Is.True);
+                        }
+                        return 4;
+                    }, null, Reader(values), (k, v) => { writes++; values[k] = v; });
+                Assert.That(host.TryOpen(), Is.True);
+                var oldView = host.ActiveView;
+                oldView.HanQiaoReaderButton.onClick.Invoke();
+                oldView.PublicTrueNameButton.onClick.Invoke();
+                replaceOnConsent = true;
+                oldView.CarveNamesSteleButton.onClick.Invoke();
+
+                Assert.That(writes, Is.Zero);
+                Assert.That(host.IsCompleted, Is.False);
+                var replacement = host.ActiveView;
+                Assert.That(replacement, Is.Not.Null);
+                Assert.That(replacement, Is.Not.SameAs(oldView));
+                replacement.ProtagonistReaderButton.onClick.Invoke();
+                replacement.PrivateCustodianButton.onClick.Invoke();
+                replacement.KeepOriginalSteleButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }
