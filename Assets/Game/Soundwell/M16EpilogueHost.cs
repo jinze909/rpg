@@ -24,6 +24,7 @@ namespace Rpg.Soundwell
         private bool openedShenLiWillingToMeet;
         private M16RespectAgencyTone openedClosingTone;
         private bool disposed;
+        private bool opening;
 
         public M16EpilogueSession Session => session;
         public M16EpilogueView ActiveView =>
@@ -54,6 +55,22 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -61,12 +78,17 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
 
-            if (!CanOpenView() || !atLinchaoAfternoon() || !CanOpenView() ||
-                HasAnyPersistedFacts() || !CanOpenView())
+            if (!CanOpenView())
                 return false;
 
+            // Capture the arrival before scene callbacks, not after they may
+            // have moved the player into a different voyage.
             int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
-            if (arrivalSequence < 0 || !CanOpenView())
+            if (arrivalSequence < 0 || !CanOpenView() ||
+                !atLinchaoAfternoon() || !CanOpenView() ||
+                HasAnyPersistedFacts() || !CanOpenView() ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                !CanOpenView())
                 return false;
 
             bool shenWilling = shenLiWillingToMeet();
