@@ -132,6 +132,70 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RetiredRoadSettlementCannotWriteOrCloseReplacement()
+        {
+            var root = new GameObject("ST04 retired road settlement");
+            var values = new Dictionary<string, int>();
+            var world = new FakeEvidence { AllowFundedRidgeOutcome = true };
+            ST04EchoValleyHost host = null;
+            ST04EchoValleyView replacement = null;
+            bool armed = false;
+            int writes = 0;
+            try
+            {
+                host = new ST04EchoValleyHost(root.transform, world, key =>
+                {
+                    if (armed)
+                    {
+                        armed = false;
+                        host.ActiveView.Dispose();
+                        Assert.That(host.TryOpen(), Is.True);
+                        replacement = host.ActiveView;
+                    }
+                    return values.TryGetValue(key, out int value) ? value : 0;
+                }, (key, value) => { writes++; values[key] = value; });
+
+                Assert.That(host.TryOpen(), Is.True);
+                var original = host.ActiveView;
+                AdvanceToFundedRoadChoice(original);
+                armed = true;
+                original.SecondOption.onClick.Invoke();
+
+                Assert.That(replacement, Is.Not.Null);
+                Assert.That(host.ActiveView, Is.SameAs(replacement));
+                Assert.That(host.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.InspectEmptyMuleCart));
+                Assert.That(writes, Is.Zero);
+                Assert.That(values, Is.Empty);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                AdvanceToFundedRoadChoice(replacement);
+                replacement.SecondOption.onClick.Invoke();
+                Assert.That(host.IsCommitted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(writes, Is.GreaterThan(0));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void AdvanceToFundedRoadChoice(ST04EchoValleyView view)
+        {
+            view.FirstOption.onClick.Invoke();
+            view.SecondOption.onClick.Invoke();
+            view.ThirdOption.onClick.Invoke();
+            view.SecondOption.onClick.Invoke();
+            view.FirstOption.onClick.Invoke();
+            view.FirstOption.onClick.Invoke();
+            view.ThirdOption.onClick.Invoke();
+            view.FirstOption.onClick.Invoke();
+            view.SecondOption.onClick.Invoke();
+            Assert.That(view.Session.Phase, Is.EqualTo(ST04EchoValleyPhase.DecideRoadAndRainWall));
+        }
+
+        [Test]
         public void ExternalViewDisposalClearsActiveViewAndAllowsCleanReopen()
         {
             var root = new GameObject("ST04 external view dispose");
