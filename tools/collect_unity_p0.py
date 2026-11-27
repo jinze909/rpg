@@ -92,6 +92,8 @@ ADDITIONAL_SOUNDWELL_TESTS = {
     "Assets/Game/Tests/Editor/PlayableRoleBattleTests.cs": {
         "VisibleEntryPlaysRealInterruptAndPunishExchange":
             "Rpg.Tests.Editor.PlayableRoleBattleTests.VisibleEntryPlaysRealInterruptAndPunishExchange",
+        "VisibleEntryShowsAndResolvesUninterruptedLunge":
+            "Rpg.Tests.Editor.PlayableRoleBattleTests.VisibleEntryShowsAndResolvesUninterruptedLunge",
     },
     "Assets/Game/Tests/Editor/M04PreflightCastOffHandoffTests.cs": {
         "LivePreflightOffersCastOffOnlyWithSavedPhysicalReadiness":
