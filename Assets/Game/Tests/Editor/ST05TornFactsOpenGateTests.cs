@@ -75,7 +75,7 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void HostRefusesReopeningAfterConfirmedHomeEvenBeforeAssignment()
+        public void HostResumesConfirmedHomeWithoutReplayingHouseholdDecision()
         {
             var root = new GameObject("ST05 confirmed home open gate");
             var values = new Dictionary<string, int>();
@@ -89,14 +89,35 @@ namespace Rpg.Tests.Editor
                     ST05HomeArrangement.KeepTwoDoorsAndCourtyardTable,
                     mutualTrialConsent: false);
                 Assert.That(ST05TwoDoorsFacts.TryRecordHome(home, read, write), Is.True);
-
+                var before = new Dictionary<string, int>(values);
+                bool atYard = false;
+                bool termsReady = false;
+                int writes = 0;
                 using (var host = new ST05TwoDoorsHost(
-                    root.transform, () => true, () => true, () => true,
-                    () => true, () => true, () => true, () => true, read, write))
+                    root.transform, () => atYard, () => false, () => false,
+                    () => false, () => false, () => false, () => termsReady,
+                    read, (k, value) => { writes++; write(k, value); }))
                 {
                     Assert.That(host.TryOpen(), Is.False);
+                    atYard = true;
+                    Assert.That(host.TryOpen(), Is.True);
+                    Assert.That(host.Session.Phase, Is.EqualTo(ST05TwoDoorsPhase.AwaitChengOwnJobDecision));
+                    Assert.That(host.Session.CompletedHome.Value.Bed, Is.EqualTo(home.Bed));
+                    Assert.That(host.Session.CompletedHome.Value.Arrangement, Is.EqualTo(home.Arrangement));
+                    Assert.That(writes, Is.Zero);
+                    Assert.That(host.ActiveView.ChengStayLocalButton.gameObject.activeSelf, Is.True);
+                    host.ActiveView.ChengStayLocalButton.onClick.Invoke();
+                    Assert.That(host.IsCompleted, Is.False);
+                    Assert.That(writes, Is.Zero);
+
+                    termsReady = true;
+                    host.ActiveView.ChengStayLocalButton.onClick.Invoke();
+                    Assert.That(host.IsCompleted, Is.True);
                     Assert.That(host.ActiveView, Is.Null);
-                    Assert.That(host.Session, Is.Null);
+                    Assert.That(writes, Is.EqualTo(2));
+                    foreach (var pair in before)
+                        Assert.That(values[pair.Key], Is.EqualTo(pair.Value), pair.Key);
+                    Assert.That(host.TryOpen(), Is.False);
                 }
             }
             finally

@@ -186,10 +186,10 @@ namespace Rpg.Soundwell
                         (getInt(ST04EchoValleyFacts.IntentKey) == 0 &&
                          !ST04EchoValleyFacts.TryRead(getInt, out _));
                 case ReturnRegionalStoryId.ST05TwoDoors:
-                    // The ST-05 host refuses to reopen once the household record exists.
-                    // Hide both torn facts and a valid-but-incomplete home commit from the hub.
+                    // A confirmed household with no assignment is a valid
+                    // resumable checkpoint. Torn records still fail closed.
                     return !ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsOutcome? st05) ||
-                        st05.HasValue;
+                        (st05.HasValue && st05.Value.Assignment.HasValue);
                 case ReturnRegionalStoryId.ST06TaoJiHomecoming:
                     return getInt(ST06TaoJiHomecomingFacts.ConfirmedKey) != 0 ||
                         getInt(ST06TaoJiHomecomingFacts.ChairResolutionKey) != 0 ||

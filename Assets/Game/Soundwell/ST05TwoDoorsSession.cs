@@ -34,9 +34,23 @@ namespace Rpg.Soundwell
             out ST05TwoDoorsSession session)
         {
             session = null;
-            if (read == null || read(ST05TwoDoorsFacts.HomeConfirmedKey) != 0)
+            if (read == null || !ST05TwoDoorsFacts.TryRead(read,
+                    out ST05TwoDoorsOutcome? saved) ||
+                (saved.HasValue && saved.Value.Assignment.HasValue))
                 return false;
+
             session = new ST05TwoDoorsSession();
+            if (saved.HasValue)
+            {
+                // The household choice is already authoritative. Resume only
+                // Cheng Wu's outstanding decision, never replay the home vote.
+                var home = saved.Value.Home;
+                session.bed = home.Bed;
+                session.arrangement = home.Arrangement;
+                session.mutualTrialConsent = home.MutualTrialConsent;
+                session.CompletedHome = home;
+                session.Phase = ST05TwoDoorsPhase.AwaitChengOwnJobDecision;
+            }
             return true;
         }
 
