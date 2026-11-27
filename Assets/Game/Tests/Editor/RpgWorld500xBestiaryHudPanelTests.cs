@@ -8,6 +8,80 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xBestiaryHudPanelTests
     {
         [Test]
+        public void BestiaryHudPanel_DisabledCanvasRejectsStudyAndFiltersUntilRestored()
+        {
+            var root = new GameObject("BestiaryDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xBestiaryHudPanel(root.transform, boot))
+                {
+                    var facade = boot.Driver.Facade;
+                    var dossiers = facade.ThreatCodex.BuildMapDossiers(facade.Session.Host.Layout);
+                    Assert.Greater(dossiers.Count, 1);
+                    string markerId = dossiers[0].MarkerId;
+                    int bonus = dossiers[0].Profile.CodexStudySilverBonus;
+                    Assert.IsTrue(panel.Show());
+                    var canvas = root.transform.Find("World500xBestiaryHudPanel").GetComponent<Canvas>();
+                    var button = canvas.transform.Find("BestiaryModalBox/DossierRows/DossierRow_" +
+                        markerId + "/StudyButton").GetComponent<UnityEngine.UI.Button>();
+                    var action = button.onClick;
+                    int initialSilver = facade.BountyAndSupply.SaltSilverBalance;
+                    int remaining = panel.RemainingStudySilver;
+                    int total = panel.TotalDossierCount;
+                    string header = panel.HeaderText;
+                    string detail = panel.DetailText;
+                    Assert.Greater(remaining, 0);
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(button.IsInteractable());
+                    action.Invoke();
+                    Assert.IsFalse(panel.TryClickStudyDossier(markerId));
+                    Assert.IsFalse(panel.TryStudyAllUnstudied(out int blockedCount, out int blockedSilver));
+                    Assert.AreEqual(0, blockedCount);
+                    Assert.AreEqual(0, blockedSilver);
+                    Assert.IsFalse(panel.TrySetUnstudiedOnly(true));
+                    Assert.IsFalse(panel.TrySetTierFilter(dossiers[0].Profile.Tier));
+                    Assert.IsFalse(panel.UnstudiedOnly);
+                    Assert.IsNull(panel.TierFilter);
+                    Assert.AreEqual(0, panel.StudiedCount);
+                    Assert.AreEqual(total, panel.DisplayedDossierRowCount);
+                    Assert.AreEqual(remaining, panel.RemainingStudySilver);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(detail, panel.DetailText);
+                    Assert.AreEqual(initialSilver, facade.BountyAndSupply.SaltSilverBalance);
+                    foreach (var dossier in facade.ThreatCodex.BuildMapDossiers(facade.Session.Host.Layout))
+                        Assert.IsFalse(dossier.IsStudied);
+
+                    canvas.enabled = true;
+                    action.Invoke();
+                    Assert.AreEqual(1, panel.StudiedCount);
+                    Assert.AreEqual(initialSilver + bonus, facade.BountyAndSupply.SaltSilverBalance);
+                    Assert.IsTrue(panel.TrySetUnstudiedOnly(true));
+                    Assert.AreEqual(total - 1, panel.DisplayedDossierRowCount);
+                    Assert.IsTrue(panel.TrySetTierFilter(dossiers[1].Profile.Tier));
+                    Assert.IsTrue(panel.TrySetTierFilter(null));
+                    Assert.IsTrue(panel.TryStudyAllUnstudied(out int count, out int awarded));
+                    Assert.AreEqual(total - 1, count);
+                    Assert.AreEqual(remaining - bonus, awarded);
+                    Assert.AreEqual(total, panel.StudiedCount);
+                    Assert.AreEqual(0, panel.RemainingStudySilver);
+                    Assert.AreEqual(0, panel.DisplayedDossierRowCount);
+                    Assert.AreEqual(initialSilver + remaining, facade.BountyAndSupply.SaltSilverBalance);
+                    Assert.IsFalse(panel.TryStudyAllUnstudied(out _, out _));
+                    action.Invoke();
+                    Assert.AreEqual(initialSilver + remaining, facade.BountyAndSupply.SaltSilverBalance);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void BestiaryHudPanel_RejectsHiddenDisabledRetiredAndDisposedStudyActions()
         {
             var root = new GameObject("BestiaryStudyLifetimeRoot");
