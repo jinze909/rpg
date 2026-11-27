@@ -67,6 +67,8 @@ namespace Rpg.Soundwell
         private IDisposable activeHost;
         private ReturnRegionalStoryId activeStory = ReturnRegionalStoryId.None;
         private bool disposed;
+        private bool openingStory;
+        private bool openingCancelled;
 
         public ReturnRegionalStoryId ActiveStory => activeStory;
         public bool HasActiveStory => IsActiveHostOpen();
@@ -275,7 +277,28 @@ namespace Rpg.Soundwell
 
         public bool TryOpenStory(ReturnRegionalStoryId storyId)
         {
-            if (disposed || uiParent == null || !IsStoryAvailable(storyId) ||
+            if (disposed || uiParent == null || openingStory)
+                return false;
+
+            openingStory = true;
+            openingCancelled = false;
+            try
+            {
+                return TryOpenStoryCore(storyId);
+            }
+            finally
+            {
+                openingStory = false;
+                openingCancelled = false;
+            }
+        }
+
+        private bool CanContinueOpen() =>
+            !disposed && uiParent != null && !openingCancelled;
+
+        private bool TryOpenStoryCore(ReturnRegionalStoryId storyId)
+        {
+            if (!IsStoryAvailable(storyId) || !CanContinueOpen() ||
                 !HasRequiredDelegates(storyId))
                 return false;
 
@@ -283,8 +306,13 @@ namespace Rpg.Soundwell
             {
                 if (IsActiveHostOpen() && !IsStorySettled(activeStory))
                     return false;
-                CloseActiveStory();
+                if (!CanContinueOpen())
+                    return false;
+                CloseActiveStoryCore();
             }
+
+            if (!CanContinueOpen())
+                return false;
 
             switch (storyId)
             {
@@ -325,7 +353,7 @@ namespace Rpg.Soundwell
                 case ReturnRegionalStoryId.ST04EchoValley:
                 {
                     IST04EchoValleyWorldEvidence world = context.ST04EchoValleyWorld();
-                    if (world == null)
+                    if (world == null || !CanContinueOpen())
                         return false;
                     var host = new ST04EchoValleyHost(uiParent, world, getInt, setInt);
                     return Activate(storyId, host, host.TryOpen());
@@ -357,6 +385,13 @@ namespace Rpg.Soundwell
 
         public void CloseActiveStory()
         {
+            if (openingStory)
+                openingCancelled = true;
+            CloseActiveStoryCore();
+        }
+
+        private void CloseActiveStoryCore()
+        {
             if (activeHost == null)
                 return;
             var current = activeHost;
@@ -367,7 +402,9 @@ namespace Rpg.Soundwell
 
         private bool Activate(ReturnRegionalStoryId storyId, IDisposable host, bool opened)
         {
-            if (!opened)
+            // Live scene callbacks can close or dispose the hub while a
+            // child is opening. Do not publish that now-orphaned child.
+            if (!opened || !CanContinueOpen())
             {
                 host.Dispose();
                 return false;

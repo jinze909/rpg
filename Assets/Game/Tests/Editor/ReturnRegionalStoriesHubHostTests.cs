@@ -326,6 +326,88 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SceneCallbackClosingOpenDoesNotPublishOrphanedStory()
+        {
+            AssertSceneCallbackCancellingOpenDoesNotPublishOrphanedStory(false);
+        }
+
+        [Test]
+        public void SceneCallbackDisposingOpenDoesNotPublishOrphanedStory()
+        {
+            AssertSceneCallbackCancellingOpenDoesNotPublishOrphanedStory(true);
+        }
+
+        private static void AssertSceneCallbackCancellingOpenDoesNotPublishOrphanedStory(bool disposeHub)
+        {
+            var root = new GameObject("Regional hub cancelled during dock entry");
+            var values = new Dictionary<string, int>();
+            var context = ObservedTestLocations();
+            ReturnRegionalStoriesHubHost hub = null;
+            int writes = 0;
+            try
+            {
+                context.AtLutingDock = () =>
+                {
+                    if (disposeHub) hub.Dispose();
+                    else hub.CloseActiveStory();
+                    return true;
+                };
+                hub = new ReturnRegionalStoriesHubHost(root.transform, context,
+                    Reader(values), (k, v) => { writes++; values[k] = v; });
+
+                Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.False);
+                Assert.That(hub.ActiveStory, Is.EqualTo(ReturnRegionalStoryId.None));
+                Assert.That(hub.HasActiveStory, Is.False);
+                Assert.That(hub.ActiveST02Host, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(writes, Is.Zero);
+
+                context.AtLutingDock = () => true;
+                Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns),
+                    Is.EqualTo(!disposeHub));
+            }
+            finally
+            {
+                hub?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NestedOpenFromSceneCallbackCannotReplaceFirstStory()
+        {
+            var root = new GameObject("Regional hub nested opening");
+            var values = new Dictionary<string, int>();
+            var context = ObservedTestLocations();
+            ReturnRegionalStoriesHubHost hub = null;
+            bool nestedAttempted = false;
+            try
+            {
+                context.AtLutingDock = () =>
+                {
+                    nestedAttempted = true;
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST03Bathhouse), Is.False);
+                    return true;
+                };
+                hub = new ReturnRegionalStoriesHubHost(root.transform, context,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST02RiverLanterns), Is.True);
+                Assert.That(nestedAttempted, Is.True);
+                Assert.That(hub.ActiveStory, Is.EqualTo(ReturnRegionalStoryId.ST02RiverLanterns));
+                Assert.That(hub.ActiveST02Host.ActiveView, Is.Not.Null);
+                Assert.That(hub.ActiveST03Host, Is.Null);
+                hub.CloseActiveStory();
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST03Bathhouse), Is.True);
+            }
+            finally
+            {
+                hub?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DisposalDisposesActiveStoryHostAndRejectsFurtherOpens()
         {
             var root = new GameObject("RegionalHubDisposeRoot");
