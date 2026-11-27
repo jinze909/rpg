@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly RpgWorld500xFieldSupplyUseService _supplyUseService;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Text _headerText;
         private readonly Text _statusRibbonText;
         private readonly Image _riskBannerImage;
@@ -60,10 +61,10 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 72;
-            canvas.pixelPerfect = true;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 72;
+            _canvas.pixelPerfect = true;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -257,7 +258,8 @@ namespace Rpg.Soundwell
 
         private bool CanClick(Button button)
         {
-            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+            return IsVisible && _canvas != null && _canvas.isActiveAndEnabled &&
+                !_bootstrapper.IsDisposed && button != null &&
                 button.isActiveAndEnabled && button.IsInteractable();
         }
 
