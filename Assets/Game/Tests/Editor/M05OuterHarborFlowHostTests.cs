@@ -152,6 +152,87 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReplayedSailingDuringLandingValidationCannotWriteOldReport()
+        {
+            AssertReplayDuringLandingConfirmationStopsOldWrites(false);
+        }
+
+        [Test]
+        public void ReplayedSailingAfterLandingIntentCannotWriteOldReport()
+        {
+            AssertReplayDuringLandingConfirmationStopsOldWrites(true);
+        }
+
+        private static void AssertReplayDuringLandingConfirmationStopsOldWrites(bool afterIntent)
+        {
+            var root = new GameObject("M05 sailing changes during landing confirmation");
+            var values = new Dictionary<string, int>();
+            SeedCompletedCrossing(values);
+            var read = Reader(values);
+            Action<string, int> write = (key, value) => values[key] = value;
+            int firstSailing = read(M04DepartureFacts.SailingSequenceKey);
+            int writes = 0, completions = 0, replays = 0;
+            bool submitting = false;
+            M05OuterHarborFlowHost oldHost = null;
+            M05OuterHarborFlowHost newHost = null;
+            var report = new M05LandingReport(3, 8, true, true);
+
+            void Replay()
+            {
+                replays++;
+                Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+                SeedCompletedCrossing(values);
+                Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.GreaterThan(firstSailing));
+            }
+
+            try
+            {
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform, report, key =>
+                {
+                    int value = read(key);
+                    if (submitting && !afterIntent && replays == 0 &&
+                        key == M05LandingFacts.PendingArrivalSequenceKey)
+                        Replay();
+                    return value;
+                }, (key, value) =>
+                {
+                    writes++;
+                    write(key, value);
+                    if (submitting && afterIntent && replays == 0 &&
+                        key == M05LandingFacts.PendingSignatureKey)
+                        Replay();
+                }, _ => completions++, out oldHost), Is.True);
+
+                submitting = true;
+                Assert.Throws<InvalidOperationException>(() =>
+                    oldHost.LandingCheckView.ConfirmButton.onClick.Invoke());
+                Assert.That(replays, Is.EqualTo(1));
+                Assert.That(writes, Is.EqualTo(afterIntent ? 1 : 0));
+                Assert.That(completions, Is.Zero);
+                Assert.That(oldHost.ArrivalSession, Is.Null);
+                Assert.That(read(M05LandingFacts.PendingSignatureKey), Is.Zero);
+                Assert.That(read(M05LandingFacts.PendingArrivalSequenceKey), Is.Zero);
+                Assert.That(read(M05LandingFacts.CrewArrivedKey), Is.Zero);
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+                Assert.That(M05LandingFacts.CanRecord(report, read), Is.True);
+
+                oldHost.Dispose();
+                oldHost = null;
+                Assert.That(M05OuterHarborFlowHost.TryOpen(root.transform, report,
+                    read, write, _ => { }, out newHost), Is.True);
+                newHost.LandingCheckView.ConfirmButton.onClick.Invoke();
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.EqualTo(1));
+                Assert.That(newHost.ArrivalSession, Is.Not.Null);
+            }
+            finally
+            {
+                oldHost?.Dispose();
+                newHost?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CorruptSeranDecisionRejectsFreshAndSavedArrivalBeforeShowingUnfinishableUi()
         {
             foreach (bool landingSaved in new[] { false, true })
