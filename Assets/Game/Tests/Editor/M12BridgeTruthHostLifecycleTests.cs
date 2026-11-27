@@ -74,6 +74,166 @@ namespace Rpg.Tests.Editor
                 M11ShenDivisionPact.MutualConsultAndDivision), read, write), Is.True);
         }
 
+
+        [Test]
+        public void ReentrantSceneOpeningKeepsOneTruthPanel()
+        {
+            ReentrantOpeningKeepsOneTruthPanel(false);
+        }
+
+        [Test]
+        public void ReentrantParticipantOpeningKeepsOneTruthPanel()
+        {
+            ReentrantOpeningKeepsOneTruthPanel(true);
+        }
+
+        private static void ReentrantOpeningKeepsOneTruthPanel(bool duringParticipantRead)
+        {
+            var root = new GameObject("M12 nested opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM11(values);
+            M12BridgeTruthHost host = null;
+            bool attempted = false, nestedOpened = true;
+            Func<bool> callback = () =>
+            {
+                if (!attempted)
+                {
+                    attempted = true;
+                    nestedOpened = host.TryOpen();
+                }
+                return !duringParticipantRead;
+            };
+            try
+            {
+                host = new M12BridgeTruthHost(root.transform,
+                    duringParticipantRead ? (Func<bool>)(() => true) : callback,
+                    () => false, () => false,
+                    duringParticipantRead ? callback : (Func<bool>)(() => false),
+                    () => false, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(host.TryOpen(), Is.False);
+                FinishStatements(host.ActiveView);
+                host.ActiveView.PublishTruthButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void OpeningExceptionReleasesTruthReservation()
+        {
+            var root = new GameObject("M12 interrupted opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM11(values);
+            M12BridgeTruthHost host = null;
+            bool fail = true;
+            try
+            {
+                host = new M12BridgeTruthHost(root.transform,
+                    () => true, () =>
+                    {
+                        if (fail) throw new InvalidOperationException("Confession read interrupted");
+                        return false;
+                    }, () => false, () => false, () => false,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                fail = false;
+                Assert.That(host.TryOpen(), Is.True);
+                FinishStatements(host.ActiveView);
+                host.ActiveView.SealTruthButton.onClick.Invoke();
+                Assert.That(host.IsCompleted, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringParticipantReadCannotPublishTruthPanel()
+        {
+            var root = new GameObject("M12 retired opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM11(values);
+            M12BridgeTruthHost host = null;
+            try
+            {
+                host = new M12BridgeTruthHost(root.transform,
+                    () => true, () => false, () => false,
+                    () => { host.Dispose(); return false; }, () => false,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.Session, Is.Null);
+                Assert.That(host.IsCompleted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringFinalParticipantProofCannotSaveTruthDecision()
+        {
+            var root = new GameObject("M12 retired during final proof");
+            var values = new Dictionary<string, int>();
+            SeedThroughM11(values);
+            M12BridgeTruthHost host = null;
+            bool retire = false;
+            int confirmWrites = 0;
+            try
+            {
+                host = new M12BridgeTruthHost(root.transform,
+                    () => true, () => false, () => false, () => false,
+                    () =>
+                    {
+                        if (retire) host.Dispose();
+                        return false;
+                    }, Reader(values), (k, v) =>
+                    {
+                        values[k] = v;
+                        if (k == M12BridgeTruthFacts.ConfirmedKey && v == 1)
+                            confirmWrites++;
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                var oldView = host.ActiveView;
+                FinishStatements(oldView);
+                retire = true;
+                Assert.DoesNotThrow(() => oldView.PublishTruthButton.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(confirmWrites, Is.Zero);
+                Assert.That(host.Session.IsCompleted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void FinishStatements(M12BridgeTruthView view)
+        {
+            Assert.That(view, Is.Not.Null);
+            view.SomeWantNoMoreWarButton.onClick.Invoke();
+            view.HearJiangShenButton.onClick.Invoke();
+            view.HearHanAndYiLeiButton.onClick.Invoke();
+            Assert.That(view.Session.Phase, Is.EqualTo(M12Phase.TruthDisclosureChoice));
+        }
+
         [Test]
         public void ExternalViewDisposalClearsActiveViewAndAllowsCleanReopen()
         {
