@@ -352,6 +352,89 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AssemblyCallbackClosingFlowCannotPublishLateStage()
+        {
+            AssertAssemblyCallbackCancellingFlowCannotPublishLateStage(false);
+        }
+
+        [Test]
+        public void AssemblyCallbackDisposingFlowCannotPublishLateStage()
+        {
+            AssertAssemblyCallbackCancellingFlowCannotPublishLateStage(true);
+        }
+
+        private static void AssertAssemblyCallbackCancellingFlowCannotPublishLateStage(bool disposeFlow)
+        {
+            var root = new GameObject("Finale flow cancelled during assembly entry");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            var context = ObservedFinaleScenes();
+            ReturnFinaleFlowHost flow = null;
+            int writes = 0;
+            try
+            {
+                context.AtJingwanAssembly = () =>
+                {
+                    if (disposeFlow) flow.Dispose();
+                    else flow.CloseActiveHost();
+                    return true;
+                };
+                flow = new ReturnFinaleFlowHost(root.transform, context, Reader(values),
+                    (k, v) => { writes++; values[k] = v; });
+                Assert.That(flow.TryOpenNextStage(), Is.False);
+                Assert.That(flow.CurrentStage, Is.EqualTo(ReturnFinaleStage.None));
+                Assert.That(flow.HasActiveHost, Is.False);
+                Assert.That(flow.ActiveM10Host, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(writes, Is.Zero);
+                context.AtJingwanAssembly = () => true;
+                Assert.That(flow.TryOpenNextStage(), Is.EqualTo(!disposeFlow));
+            }
+            finally
+            {
+                flow?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void AssemblyCallbackCannotRecursivelyDispatchNextStage()
+        {
+            var root = new GameObject("Finale flow nested stage opening");
+            var values = new Dictionary<string, int>();
+            SeedThroughM09(values);
+            var context = ObservedFinaleScenes();
+            ReturnFinaleFlowHost flow = null;
+            bool attempted = false;
+            try
+            {
+                context.AtJingwanAssembly = () =>
+                {
+                    if (!attempted)
+                    {
+                        attempted = true;
+                        Assert.That(flow.TryOpenNextStage(), Is.False);
+                    }
+                    return true;
+                };
+                flow = new ReturnFinaleFlowHost(root.transform, context, Reader(values),
+                    (k, v) => values[k] = v);
+                Assert.That(flow.TryOpenNextStage(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(flow.CurrentStage, Is.EqualTo(ReturnFinaleStage.M10Assembly));
+                Assert.That(flow.ActiveM10Host.ActiveView, Is.Not.Null);
+                flow.CloseActiveHost();
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(flow.TryOpenNextStage(), Is.True);
+            }
+            finally
+            {
+                flow?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DisposalClosesActiveSubHostAndRejectsFurtherOpens()
         {
             var root = new GameObject("FinaleFlowDisposeRoot");
