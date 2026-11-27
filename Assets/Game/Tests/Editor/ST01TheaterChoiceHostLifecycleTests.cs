@@ -99,6 +99,98 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void SceneCallbackRetiringHostCannotPublishTheaterView()
+        {
+            var root = new GameObject("ST01 scene callback retirement");
+            ST01TheaterChoiceHost host = null;
+            try
+            {
+                host = new ST01TheaterChoiceHost(root.transform, () =>
+                {
+                    host.Dispose();
+                    return true;
+                }, () => true, () => true, () => true, () => true, () => true,
+                    () => false, () => false, () => true,
+                    _ => 0, (_, __) => Assert.Fail("Opening must not write facts"));
+
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DestroyedParentDuringFactReadCannotPublishTheaterView()
+        {
+            var root = new GameObject("ST01 fact callback retirement");
+            ST01TheaterChoiceHost host = null;
+            try
+            {
+                host = new ST01TheaterChoiceHost(root.transform,
+                    () => true, () => true, () => true, () => true, () => true, () => true,
+                    () => false, () => false, () => true, key =>
+                    {
+                        if (key == ST01RegionalStoryFacts.DepartureChoiceKey && root != null)
+                            UnityEngine.Object.DestroyImmediate(root);
+                        return 0;
+                    }, (_, __) => Assert.Fail("Opening must not write facts"));
+
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.TryOpen(), Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                if (root != null) UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NestedFactReadCannotPublishSecondTheaterCanvas()
+        {
+            var root = new GameObject("ST01 nested fact read");
+            ST01TheaterChoiceHost host = null;
+            bool attempted = false;
+            try
+            {
+                host = new ST01TheaterChoiceHost(root.transform,
+                    () => true, () => true, () => true, () => true, () => true, () => true,
+                    () => false, () => false, () => true, key =>
+                    {
+                        if (!attempted)
+                        {
+                            attempted = true;
+                            Assert.That(host.TryOpen(), Is.False);
+                        }
+                        return 0;
+                    }, (_, __) => Assert.Fail("Opening must not write facts"));
+
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+                var first = host.ActiveView;
+                first.Dispose();
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(host.ActiveView, Is.Not.SameAs(first));
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedParentFailsClosedWithoutThrowingOnTryOpen()
         {
             var root = new GameObject("ST01 lifecycle destroyed parent");

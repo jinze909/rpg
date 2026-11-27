@@ -25,6 +25,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private ST01TheaterChoiceView activeView;
         private bool disposed;
+        private bool opening;
 
         public ST01TheaterChoiceView ActiveView =>
             (activeView != null && !activeView.IsDisposed) ? activeView : null;
@@ -98,6 +99,22 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -130,8 +147,20 @@ namespace Rpg.Soundwell
             ST01TheaterChoice? pending = pendingRaw != 0
                 ? (ST01TheaterChoice?)pendingRaw : null;
 
-            activeView = new ST01TheaterChoiceView(
+            // Scene or save callbacks may retire the host while the
+            // opening is in progress. Never publish a late view.
+            if (disposed || parent == null || activeView != null)
+                return false;
+
+            var createdView = new ST01TheaterChoiceView(
                 parent, history, pending, CanCommit, HandleChoice);
+            if (disposed || parent == null || createdView.IsDisposed)
+            {
+                createdView.Dispose();
+                return false;
+            }
+
+            activeView = createdView;
             return true;
         }
 
