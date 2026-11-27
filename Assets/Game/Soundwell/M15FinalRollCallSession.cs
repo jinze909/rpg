@@ -69,7 +69,8 @@ namespace Rpg.Soundwell
             Func<string, int> getInt,
             Action<string, int> setInt)
         {
-            if (IsCompleted || !CanChooseSteleInscription(steleInscription))
+            if (IsCompleted || getInt == null || setInt == null ||
+                !CanChooseSteleInscription(steleInscription))
                 return false;
 
             M15PensionClosure pension = identityResponse == M15FinalIdentityResponse.PublicTrueName
@@ -84,12 +85,41 @@ namespace Rpg.Soundwell
                 ConsentedVerifiedNamesCount,
                 xiaoqiCalledByNumberSeventyTwo: !XiaoqiHasCustomName);
 
-            if (!M15FinalRollCallFacts.TryRecord(record, getInt, setInt))
+            if (!M15FinalRollCallFacts.IsValidRecord(record) ||
+                !M15FinalRollCallFacts.TryRead(getInt, out M15FinalRollCallRecord? existing))
                 return false;
 
-            CompletedRecord = record;
+            // A writer can commit the record before its acknowledgement is lost.
+            // A retry may acknowledge only that exact record, without new writes.
+            if (existing.HasValue)
+            {
+                if (!Matches(record, existing.Value))
+                    return false;
+            }
+            else if (!M15FinalRollCallFacts.TryRecord(record, getInt, setInt))
+            {
+                return false;
+            }
+
+            // Returning from a writer is not proof that the confirmed record
+            // actually landed. Do not move the UI to Completed until readback.
+            if (!M15FinalRollCallFacts.TryRead(getInt, out M15FinalRollCallRecord? persisted) ||
+                !persisted.HasValue || !Matches(record, persisted.Value))
+                return false;
+
+            CompletedRecord = persisted.Value;
             IsCompleted = true;
             return true;
+        }
+
+        private static bool Matches(M15FinalRollCallRecord expected, M15FinalRollCallRecord actual)
+        {
+            return expected.Reader == actual.Reader &&
+                expected.IdentityResponse == actual.IdentityResponse &&
+                expected.PensionClosure == actual.PensionClosure &&
+                expected.SteleInscription == actual.SteleInscription &&
+                expected.ConsentedVerifiedNamesCount == actual.ConsentedVerifiedNamesCount &&
+                expected.XiaoqiCalledByNumberSeventyTwo == actual.XiaoqiCalledByNumberSeventyTwo;
         }
     }
 }
