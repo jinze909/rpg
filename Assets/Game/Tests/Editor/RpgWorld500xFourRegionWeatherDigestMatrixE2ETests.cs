@@ -1,8 +1,8 @@
 using System;
-using Game.World;
 using NUnit.Framework;
+using Rpg.Soundwell;
 
-namespace Game.Tests.Editor
+namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xFourRegionWeatherDigestMatrixE2ETests
     {
@@ -14,7 +14,7 @@ namespace Game.Tests.Editor
 
             for (int i = 0; i < specs.Count; i++)
             {
-                var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService(12f * 60f, 1);
+                var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f, initialDay: 1);
                 var safestMap = specs[i].MapId;
                 var stealthMap = specs[(i + 1) % specs.Count].MapId;
 
@@ -35,15 +35,15 @@ namespace Game.Tests.Editor
                     }
                 }
 
-                var digest = RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(atmosphere, 0f);
-                Assert.That(digest, Is.Not.Null);
+                var digest = RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(atmosphere, elapsedSeconds: 5f);
                 Assert.That(digest.RegionReports.Count, Is.EqualTo(4));
                 Assert.That(digest.SafestMapId, Is.EqualTo(safestMap));
                 Assert.That(digest.HazardousRegionCount, Is.EqualTo(2));
-                Assert.That(digest.StealthWindowRegionCount, Is.GreaterThanOrEqualTo(1));
+                Assert.That(digest.StealthWindowRegionCount, Is.EqualTo(1));
                 Assert.That(digest.WorldBulletinZh, Does.Contain("【四境气象速报】"));
                 Assert.That(digest.WorldBulletinZh, Does.Contain("高危预警"));
                 Assert.That(digest.WorldBulletinZh, Does.Contain("潜行良机"));
+                Assert.That(digest.WorldBulletinZh, Does.Contain("行路平稳"));
 
                 for (int j = 0; j < specs.Count; j++)
                 {
@@ -59,17 +59,17 @@ namespace Game.Tests.Editor
                 RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(null));
 
             var specs = RpgExpandedWorldScale.AllSpecs;
-            var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService(12f * 60f, 1);
+            var atmosphere = new RpgWorld500xWeatherAndTimeOfDayService(initialMinutes: 600f, initialDay: 1);
 
             for (int i = 0; i < specs.Count; i++)
             {
                 atmosphere.SetWeather(specs[i].MapId, RpgWorld500xWeatherKind.Clear);
             }
 
-            var clearDigest = RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(atmosphere, 0f);
-            Assert.That(clearDigest, Is.Not.Null);
+            var clearDigest = RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(atmosphere, elapsedSeconds: 5f);
             Assert.That(clearDigest.RegionReports.Count, Is.EqualTo(4));
             Assert.That(clearDigest.HazardousRegionCount, Is.EqualTo(0));
+            Assert.That(clearDigest.StealthWindowRegionCount, Is.EqualTo(0));
             Assert.That(clearDigest.WorldBulletinZh, Does.Contain("【四境气象速报】"));
             Assert.That(clearDigest.WorldBulletinZh, Does.Contain("行路平稳"));
 
@@ -78,10 +78,10 @@ namespace Game.Tests.Editor
                 atmosphere.SetWeather(specs[i].MapId, RpgWorld500xWeatherKind.GaleStorm);
             }
 
-            var stormDigest = RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(atmosphere, 0f);
-            Assert.That(stormDigest, Is.Not.Null);
+            var stormDigest = RpgWorld500xWeatherTravelAdvisoryService.BuildWorldWeatherDigest(atmosphere, elapsedSeconds: 5f);
             Assert.That(stormDigest.RegionReports.Count, Is.EqualTo(4));
             Assert.That(stormDigest.HazardousRegionCount, Is.EqualTo(4));
+            Assert.That(stormDigest.StealthWindowRegionCount, Is.EqualTo(0));
             Assert.That(stormDigest.WorldBulletinZh, Does.Contain("【四境气象速报】"));
             Assert.That(stormDigest.WorldBulletinZh, Does.Contain("高危预警"));
         }
