@@ -13,6 +13,164 @@ namespace Rpg.Tests.Editor
             return key => values.TryGetValue(key, out int value) ? value : 0;
         }
 
+
+        [Test]
+        public void NestedBriefingOpenPreservesOriginalDeparturePanel()
+        {
+            var root = new GameObject("M13 nested briefing");
+            var values = new Dictionary<string, int>();
+            M13DepartureRiskHost host = null;
+            bool attempted = false, nestedOpened = true;
+            try
+            {
+                host = new M13DepartureRiskHost(root.transform, () =>
+                {
+                    if (!attempted)
+                    {
+                        attempted = true;
+                        nestedOpened = host.TryOpen();
+                    }
+                    return true;
+                }, () => true, () => true, Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Not.Null);
+                host.ActiveView.RouteAButton.onClick.Invoke();
+                Assert.That(host.IsDeparted, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void OpeningExceptionReleasesDepartureReservation()
+        {
+            var root = new GameObject("M13 interrupted briefing");
+            var values = new Dictionary<string, int>();
+            M13DepartureRiskHost host = null;
+            bool fail = true;
+            try
+            {
+                host = new M13DepartureRiskHost(root.transform, () => true, () =>
+                {
+                    if (fail) throw new InvalidOperationException("Safety prep unavailable");
+                    return true;
+                }, () => true, Reader(values), (k, v) => values[k] = v);
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                fail = false;
+                Assert.That(host.TryOpen(), Is.True);
+                host.ActiveView.RouteAButton.onClick.Invoke();
+                Assert.That(host.IsDeparted, Is.True);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringSafetyReadCannotPublishDeparturePanel()
+        {
+            var root = new GameObject("M13 retired opening");
+            var values = new Dictionary<string, int>();
+            M13DepartureRiskHost host = null;
+            try
+            {
+                host = new M13DepartureRiskHost(root.transform, () => true,
+                    () => { host.Dispose(); return true; }, () => true,
+                    Reader(values), (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.Session, Is.Null);
+                Assert.That(host.IsDeparted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringWarningProofCannotDeliverStaleWarning()
+        {
+            var root = new GameObject("M13 retired warning proof");
+            var values = new Dictionary<string, int>();
+            M13DepartureRiskHost host = null;
+            bool retire = false;
+            Func<string, int> read = key =>
+            {
+                if (retire && key == M05LandingFacts.ArrivalSequenceKey)
+                    host.Dispose();
+                return Reader(values)(key);
+            };
+            try
+            {
+                host = new M13DepartureRiskHost(root.transform,
+                    () => true, () => false, () => true, read, (k, v) => values[k] = v);
+                Assert.That(host.TryOpen(), Is.True);
+                retire = true;
+                bool delivered = true;
+                Assert.DoesNotThrow(() => delivered = host.TryDeliverQiQueWarning());
+                Assert.That(delivered, Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.Session.QiQueWarningGiven, Is.False);
+                Assert.That(host.IsDeparted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringFinalDepartureProofCannotPersistRoute()
+        {
+            var root = new GameObject("M13 retired final proof");
+            var values = new Dictionary<string, int>();
+            M13DepartureRiskHost host = null;
+            int confirmWrites = 0;
+            bool retire = false;
+            try
+            {
+                host = new M13DepartureRiskHost(root.transform, () => true,
+                    () => true, () =>
+                    {
+                        if (retire) host.Dispose();
+                        return true;
+                    }, Reader(values), (k, v) =>
+                    {
+                        values[k] = v;
+                        if (k == M13DepartureRiskFacts.DepartureConfirmedKey && v == 1)
+                            confirmWrites++;
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                retire = true;
+                Assert.DoesNotThrow(() => view.RouteAButton.onClick.Invoke());
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.IsDeparted, Is.False);
+                Assert.That(confirmWrites, Is.Zero);
+                Assert.That(host.Session.IsDeparted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ExternalViewDisposalAllowsCleanReopenAndBlocksStaleQiQueWarning()
         {

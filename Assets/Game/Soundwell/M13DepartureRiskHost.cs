@@ -23,6 +23,7 @@ namespace Rpg.Soundwell
         private int? openedArrivalSequence;
         private bool openedSafetyPrepComplete;
         private bool disposed;
+        private bool opening;
 
         public M13DepartureRiskSession Session => session;
         public M13DepartureRiskView ActiveView =>
@@ -53,6 +54,21 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -60,14 +76,23 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
 
-            if (disposed || parent == null || activeView != null || !fleetBriefingReady() ||
+            if (disposed || parent == null || activeView != null)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !fleetBriefingReady() ||
                 HasAnyPersistedFacts() ||
                 M13DepartureRiskFacts.HasOrphanedDownstreamFacts(getInt))
                 return false;
 
             bool safetyPrep = initialSafetyPrepComplete();
+            if (disposed || parent == null ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                disposed || parent == null)
+                return false;
+
             session = new M13DepartureRiskSession(safetyPrep);
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             openedSafetyPrepComplete = safetyPrep;
             activeView = new M13DepartureRiskView(
                 parent, session, HandleDepartureRequested);
@@ -94,28 +119,38 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
 
-            if (disposed || session == null || activeView == null ||
-                session.IsDeparted || session.QiQueWarningGiven ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value)
+            var warningView = activeView;
+            var warningSession = session;
+            int? arrivalSequence = openedArrivalSequence;
+            if (!IsCurrentOwner(warningView, warningSession) ||
+                warningSession.IsDeparted || warningSession.QiQueWarningGiven ||
+                !arrivalSequence.HasValue ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence.Value ||
+                !IsCurrentOwner(warningView, warningSession) ||
+                warningSession.IsDeparted || warningSession.QiQueWarningGiven)
                 return false;
 
-            session.DeliverQiQueWarning();
-            activeView.Refresh();
+            warningSession.DeliverQiQueWarning();
+            warningView.Refresh();
             return true;
         }
 
         private void HandleDepartureRequested(M13ApproachRoute route)
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !fleetBriefingReady() || !canDepartNow() ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
-                initialSafetyPrepComplete() != openedSafetyPrepComplete)
+            var departingView = activeView;
+            var departingSession = session;
+            int? arrivalSequence = openedArrivalSequence;
+            bool safetyPrep = openedSafetyPrepComplete;
+            if (!IsCurrentOwner(departingView, departingSession) ||
+                !arrivalSequence.HasValue || !fleetBriefingReady() || !canDepartNow() ||
+                initialSafetyPrepComplete() != safetyPrep ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence.Value ||
+                !IsCurrentOwner(departingView, departingSession))
                 return;
 
             if (!M13DepartureRiskFacts.TryReadDeparture(
-                    getInt, out M13DepartureRecord? existing))
+                    getInt, out M13DepartureRecord? existing) ||
+                !IsCurrentOwner(departingView, departingSession))
                 return;
 
             // Handle a write that succeeded before a lost acknowledgement
@@ -125,7 +160,7 @@ namespace Rpg.Soundwell
                 if (existing.Value.Route != route)
                     return;
             }
-            else if (!session.TryConfirmDeparture(route, getInt, setInt))
+            else if (!departingSession.TryConfirmDeparture(route, getInt, setInt))
             {
                 return;
             }
@@ -136,9 +171,22 @@ namespace Rpg.Soundwell
                 persisted.Value.Route != route)
                 return;
 
-            activeView?.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            // A successful write may retire this panel synchronously.
+            // Never close a replacement or dereference a retired owner.
+            departingView.Dispose();
+            if (ReferenceEquals(activeView, departingView))
+            {
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+        }
+
+        private bool IsCurrentOwner(M13DepartureRiskView expectedView,
+            M13DepartureRiskSession expectedSession)
+        {
+            return !disposed && parent != null && expectedView != null &&
+                !expectedView.IsDisposed && ReferenceEquals(activeView, expectedView) &&
+                expectedSession != null && ReferenceEquals(session, expectedSession);
         }
 
         public void Dispose()
