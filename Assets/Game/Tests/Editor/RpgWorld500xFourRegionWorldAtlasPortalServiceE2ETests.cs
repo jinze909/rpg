@@ -90,7 +90,7 @@ namespace Rpg.Tests.Editor
                 Assert.That(summary.TotalClaimedBounties, Is.EqualTo(2));
                 Assert.That(summary.TotalBounties, Is.EqualTo(12));
                 Assert.That(summary.RemainingBounties, Is.EqualTo(10));
-                Assert.That(summary.TotalReputationScore, Is.EqualTo(650));
+                Assert.That(summary.TotalReputationPoints, Is.EqualTo(650));
                 Assert.That(summary.HighestReputationMap, Is.EqualTo(leaderMap));
                 StringAssert.Contains("【四境总览】", summary.SummaryZh);
                 StringAssert.Contains(specs[i].DisplayNameZh, summary.SummaryZh);
