@@ -8,6 +8,88 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xExpeditionReadinessHudPanelTests
     {
         [Test]
+        public void ExpeditionReadinessHudPanel_DisabledCanvasRejectsPurchasesAndPreviewUntilRestored()
+        {
+            var root = new GameObject("ReadinessDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xExpeditionReadinessHudPanel(root.transform, boot))
+                {
+                    var facade = boot.Driver.Facade;
+                    var shop = facade.BountyAndSupply;
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.Soundwell, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.RedSaltHarbor, RpgWorld500xWeatherKind.Clear);
+                    facade.Atmosphere.SetWeather(RpgWorldMapId.MineCamp, RpgWorld500xWeatherKind.GaleStorm);
+                    shop.AddSaltSilver(300);
+                    Assert.IsTrue(panel.Show(5f));
+                    Assert.Greater(panel.LastReport.RecommendedSupplyIds.Count, 0);
+                    var canvas = root.transform.Find("World500xExpeditionReadinessHudPanel").GetComponent<Canvas>();
+                    var modal = canvas.transform.Find("ReadinessModalBox");
+                    var buy = modal.Find("BuyRecommendedSuppliesButton").GetComponent<Button>();
+                    var refresh = modal.Find("RefreshReadinessButton").GetComponent<Button>();
+                    var close = modal.Find("CloseReadinessButton").GetComponent<Button>();
+                    int score = panel.LastReport.Score;
+                    string header = panel.HeaderText;
+                    string banner = panel.GradeBannerText;
+                    string feedback = panel.FeedbackText;
+                    string breakdown = panel.FormatProvisioningBreakdownForDestination(RpgWorldMapId.MineCamp);
+                    var receipt = panel.LastProvisioningReceipt;
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(buy.IsInteractable());
+                    buy.onClick.Invoke();
+                    refresh.onClick.Invoke();
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickBuyRecommended());
+                    Assert.IsFalse(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                    Assert.IsFalse(panel.TryPreviewTargetMap(RpgWorldMapId.MineCamp));
+                    Assert.IsFalse(panel.TryClickRefresh(10f));
+                    Assert.IsFalse(panel.TryClickClose());
+                    Assert.IsTrue(panel.IsVisible);
+                    Assert.IsFalse(panel.IsPreviewingRemoteMap);
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, panel.EvaluatedMapId);
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, facade.CurrentMapId);
+                    Assert.AreEqual(300, shop.SaltSilverBalance);
+                    foreach (string id in panel.LastReport.RecommendedSupplyIds)
+                        Assert.AreEqual(0, shop.GetOwnedSupplyCount(id));
+                    Assert.AreEqual(receipt, panel.LastProvisioningReceipt);
+                    Assert.AreEqual(score, panel.LastReport.Score);
+                    Assert.AreEqual(4, panel.DisplayedRowCount);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(banner, panel.GradeBannerText);
+                    Assert.AreEqual(feedback, panel.FeedbackText);
+                    Assert.AreEqual(breakdown, panel.FormatProvisioningBreakdownForDestination(RpgWorldMapId.MineCamp));
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(panel.TryPreviewTargetMap(RpgWorldMapId.MineCamp));
+                    Assert.IsTrue(panel.IsPreviewingRemoteMap);
+                    Assert.AreEqual(RpgWorldMapId.MineCamp, panel.EvaluatedMapId);
+                    Assert.IsTrue(panel.TryPreviewTargetMap(null));
+                    Assert.IsTrue(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp, allowPartialIfUnderBudget: false));
+                    Assert.IsTrue(panel.LastProvisioningReceipt.FullyProvisioned);
+                    Assert.Greater(panel.LastProvisioningReceipt.TotalSpentSaltSilver, 0);
+                    Assert.AreEqual(300 - panel.LastProvisioningReceipt.TotalSpentSaltSilver, shop.SaltSilverBalance);
+                    Assert.AreEqual(2, shop.GetOwnedSupplyCount("rations"));
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("flare"));
+                    int balance = shop.SaltSilverBalance;
+                    buy.onClick.Invoke();
+                    Assert.AreEqual(balance, shop.SaltSilverBalance);
+                    Assert.IsTrue(panel.TryClickRefresh(10f));
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.IsVisible);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ExpeditionReadinessHudPanel_AutoRestocksRecommendedSuppliesRespectsCanvasGroupLockAndZeroLeak()
         {
             var root = new GameObject("World500xExpeditionReadinessHudPanelTestRoot");
