@@ -11,7 +11,8 @@ namespace Rpg.Soundwell
         UnknownItem = 1,
         NotOwned = 2,
         InvalidTimestamp = 3,
-        InventoryWriteFailed = 4
+        InventoryWriteFailed = 4,
+        ConsumptionInProgress = 5
     }
 
     public readonly struct RpgWorld500xFieldSupplySlotReadout
@@ -132,6 +133,7 @@ namespace Rpg.Soundwell
     public sealed class RpgWorld500xFieldSupplyUseService
     {
         private const float MaxRestoredBuffSeconds = 3600f;
+        private bool _consumeInProgress;
 
         private readonly Func<string, int> _getInt;
         private readonly Action<string, int> _setInt;
@@ -240,51 +242,68 @@ namespace Rpg.Soundwell
                     RpgFieldSupplyUseStatus.UnknownItem, itemId, string.Empty, 0, 0f, 0, "未知补给品");
             }
 
-            int owned = GetOwnedCount(itemId);
-            if (owned <= 0)
+            // A synchronous storage or effect callback must not start another
+            // consumption while this transaction owns the inventory debit.
+            if (_consumeInProgress)
             {
                 return new RpgWorld500xFieldSupplyUseResult(
-                    RpgFieldSupplyUseStatus.NotOwned, item.Id, item.DisplayNameZh, 0, 0f, 0,
-                    "未持有【" + item.DisplayNameZh + "】");
+                    RpgFieldSupplyUseStatus.ConsumptionInProgress, item.Id, item.DisplayNameZh,
+                    0, 0f, 0, "补给结算中，请稍后重试");
             }
 
-            int remaining = owned - 1;
-            _setInt(item.OwnedCountKey, remaining);
-            // Only award effects after the authoritative inventory confirms
-            // the debit. Read-only or disconnected adapters must fail closed.
-            int confirmedRemaining = GetOwnedCount(itemId);
-            if (confirmedRemaining != remaining)
+            _consumeInProgress = true;
+            try
             {
+                int owned = GetOwnedCount(itemId);
+                if (owned <= 0)
+                {
+                    return new RpgWorld500xFieldSupplyUseResult(
+                        RpgFieldSupplyUseStatus.NotOwned, item.Id, item.DisplayNameZh, 0, 0f, 0,
+                        "未持有【" + item.DisplayNameZh + "】");
+                }
+
+                int remaining = owned - 1;
+                _setInt(item.OwnedCountKey, remaining);
+                // Only award effects after the authoritative inventory confirms
+                // the debit. Read-only or disconnected adapters must fail closed.
+                int confirmedRemaining = GetOwnedCount(itemId);
+                if (confirmedRemaining != remaining)
+                {
+                    return new RpgWorld500xFieldSupplyUseResult(
+                        RpgFieldSupplyUseStatus.InventoryWriteFailed, item.Id, item.DisplayNameZh,
+                        confirmedRemaining, 0f, 0, "补给库存扣减未确认，未生效");
+                }
+
+                ResolveEffect(item.Id, out float durationSeconds, out int healPercent, out string effectCaptionZh);
+                if (healPercent > 0)
+                {
+                    _onPartyHealPercent?.Invoke(item.Id, healPercent);
+                }
+
+                if (durationSeconds > 0f)
+                {
+                    float baseStart = _buffExpiryByItemId.TryGetValue(item.Id, out float prevExpiry) && prevExpiry > nowSeconds
+                        ? prevExpiry
+                        : nowSeconds;
+                    _buffExpiryByItemId[item.Id] = baseStart + durationSeconds;
+                }
+
+                string banner = "已使用【" + item.DisplayNameZh + "】：" + effectCaptionZh +
+                                "（剩余 " + remaining + "）";
+
                 return new RpgWorld500xFieldSupplyUseResult(
-                    RpgFieldSupplyUseStatus.InventoryWriteFailed, item.Id, item.DisplayNameZh,
-                    confirmedRemaining, 0f, 0, "补给库存扣减未确认，未生效");
+                    RpgFieldSupplyUseStatus.Succeeded,
+                    item.Id,
+                    item.DisplayNameZh,
+                    remaining,
+                    durationSeconds,
+                    healPercent,
+                    banner);
             }
-
-            ResolveEffect(item.Id, out float durationSeconds, out int healPercent, out string effectCaptionZh);
-            if (healPercent > 0)
+            finally
             {
-                _onPartyHealPercent?.Invoke(item.Id, healPercent);
+                _consumeInProgress = false;
             }
-
-            if (durationSeconds > 0f)
-            {
-                float baseStart = _buffExpiryByItemId.TryGetValue(item.Id, out float prevExpiry) && prevExpiry > nowSeconds
-                    ? prevExpiry
-                    : nowSeconds;
-                _buffExpiryByItemId[item.Id] = baseStart + durationSeconds;
-            }
-
-            string banner = "已使用【" + item.DisplayNameZh + "】：" + effectCaptionZh +
-                            "（剩余 " + remaining + "）";
-
-            return new RpgWorld500xFieldSupplyUseResult(
-                RpgFieldSupplyUseStatus.Succeeded,
-                item.Id,
-                item.DisplayNameZh,
-                remaining,
-                durationSeconds,
-                healPercent,
-                banner);
         }
 
         public RpgWorld500xActiveSupplyBuffModifiers EvaluateActiveModifiers(float nowSeconds)

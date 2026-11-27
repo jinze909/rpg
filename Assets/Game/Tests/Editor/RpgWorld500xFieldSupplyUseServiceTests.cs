@@ -98,6 +98,85 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TryConsumeSupply_RejectsNestedReadAndWriteCallbacksWithoutDoubleHealing()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            Action<string, int> write = (k, v) => store[k] = v;
+            var shop = new RpgWorld500xFieldBountyAndSupplyService(read, write);
+            shop.AddSaltSilver(300);
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("gauze", 2));
+
+            RpgWorld500xFieldSupplyUseService service = null;
+            RpgWorld500xFieldSupplyUseResult nestedRead = default;
+            RpgWorld500xFieldSupplyUseResult nestedWrite = default;
+            bool attemptRead = true;
+            bool attemptWrite = true;
+            int debits = 0;
+            int healed = 0;
+            service = new RpgWorld500xFieldSupplyUseService(
+                k =>
+                {
+                    int value = read(k);
+                    if (attemptRead)
+                    {
+                        attemptRead = false;
+                        nestedRead = service.TryConsumeSupply("gauze", 10f);
+                    }
+                    return value;
+                },
+                (k, v) =>
+                {
+                    if (attemptWrite)
+                    {
+                        attemptWrite = false;
+                        nestedWrite = service.TryConsumeSupply("gauze", 10f);
+                    }
+                    debits++;
+                    write(k, v);
+                },
+                (_, pct) => healed += pct);
+
+            Assert.IsTrue(service.TryConsumeSupply("gauze", 10f).Succeeded);
+            Assert.AreEqual(RpgFieldSupplyUseStatus.ConsumptionInProgress, nestedRead.Status);
+            Assert.AreEqual(RpgFieldSupplyUseStatus.ConsumptionInProgress, nestedWrite.Status);
+            Assert.AreEqual(1, debits);
+            Assert.AreEqual(25, healed);
+            Assert.AreEqual(1, shop.GetOwnedSupplyCount("gauze"));
+            Assert.IsTrue(service.TryConsumeSupply("gauze", 11f).Succeeded);
+            Assert.AreEqual(2, debits);
+            Assert.AreEqual(50, healed);
+            Assert.AreEqual(0, shop.GetOwnedSupplyCount("gauze"));
+        }
+
+        [Test]
+        public void TryConsumeSupply_ReleasesReservationAfterStorageException()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            Action<string, int> write = (k, v) => store[k] = v;
+            var shop = new RpgWorld500xFieldBountyAndSupplyService(read, write);
+            shop.AddSaltSilver(300);
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 1));
+
+            bool fail = true;
+            var service = new RpgWorld500xFieldSupplyUseService(read,
+                (k, v) =>
+                {
+                    if (fail) throw new InvalidOperationException("storage unavailable");
+                    write(k, v);
+                });
+
+            Assert.Throws<InvalidOperationException>(() => service.TryConsumeSupply("lamp_oil", 10f));
+            Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+            Assert.AreEqual(0f, service.GetRemainingBuffSeconds("lamp_oil", 10f));
+            fail = false;
+            Assert.IsTrue(service.TryConsumeSupply("lamp_oil", 11f).Succeeded);
+            Assert.AreEqual(0, shop.GetOwnedSupplyCount("lamp_oil"));
+            Assert.AreEqual(90f, service.GetRemainingBuffSeconds("lamp_oil", 11f), 0.01f);
+        }
+
+        [Test]
         public void BuildInventorySnapshotAndHasUsableSupply_AreReadOnlyAndTrackStockAndBuffs()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
