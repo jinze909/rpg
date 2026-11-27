@@ -22,6 +22,7 @@ namespace Rpg.Soundwell
         private ST03BathhouseSession session;
         private ST03BathhouseView activeView;
         private bool disposed;
+        private bool opening;
 
         public ST03BathhouseSession Session => session;
         public ST03BathhouseView ActiveView =>
@@ -58,6 +59,22 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (opening || disposed || parent == null)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -66,35 +83,67 @@ namespace Rpg.Soundwell
             if (disposed || parent == null || activeView != null || !atZhonglingBathhouse())
                 return false;
 
-            if (!ST03BathhouseSession.TryCreate(getInt, out ST03BathhouseSession created))
+            if (!ST03BathhouseSession.TryCreate(getInt, out ST03BathhouseSession created) ||
+                disposed || parent == null || activeView != null)
                 return false;
 
-            session = created;
-            activeView = new ST03BathhouseView(
+            var createdView = new ST03BathhouseView(
                 parent,
-                session,
+                created,
                 careHomeInterviewReady,
                 safeRouteReady,
                 trialNightReady,
                 transportBudgetReady,
                 HandleCommitRequested);
+            if (disposed || parent == null || createdView.IsDisposed)
+            {
+                createdView.Dispose();
+                return false;
+            }
+            session = created;
+            activeView = createdView;
             return true;
+        }
+
+        private bool IsCurrentSubmission(
+            ST03BathhouseView expectedView, ST03BathhouseSession expectedSession)
+        {
+            return !disposed && parent != null && expectedView != null &&
+                expectedSession != null && activeView == expectedView &&
+                session == expectedSession && !expectedView.IsDisposed;
         }
 
         private void HandleCommitRequested()
         {
-            // A panel may remain open after a replay or scene evidence reset.
-            // Recheck every live proof before writing permanent regional facts.
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !atZhonglingBathhouse() ||
-                !careHomeInterviewReady() || !safeRouteReady() ||
-                !trialNightReady() || !transportBudgetReady())
+            var submittingView = activeView;
+            var submittingSession = session;
+
+            // Live scene proofs may synchronously close the dialog or replace
+            // it. A retired choice must not commit or close the new dialog.
+            if (!IsCurrentSubmission(submittingView, submittingSession) ||
+                !atZhonglingBathhouse() || !IsCurrentSubmission(submittingView, submittingSession) ||
+                !careHomeInterviewReady() || !IsCurrentSubmission(submittingView, submittingSession) ||
+                !safeRouteReady() || !IsCurrentSubmission(submittingView, submittingSession) ||
+                !trialNightReady() || !IsCurrentSubmission(submittingView, submittingSession) ||
+                !transportBudgetReady() || !IsCurrentSubmission(submittingView, submittingSession))
                 return;
 
-            if (!session.TryCommit(getInt, setInt))
+            bool abandoned = false;
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (abandoned || !IsCurrentSubmission(submittingView, submittingSession))
+                {
+                    abandoned = true;
+                    return;
+                }
+                setInt(key, value);
+            }
+
+            if (!submittingSession.TryCommit(getInt, WriteWhileCurrent) ||
+                abandoned || !IsCurrentSubmission(submittingView, submittingSession))
                 return;
 
-            activeView.Dispose();
+            submittingView.Dispose();
             activeView = null;
         }
 
