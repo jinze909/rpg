@@ -8,6 +8,65 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xSaveSlotHudPanelTests
     {
         [Test]
+        public void SaveSlotHudPanel_DisabledCanvasRejectsSaveLoadAndDeleteUntilRestored()
+        {
+            var root = new GameObject("SaveSlotDisabledCanvasRoot");
+            try
+            {
+                var storage = new RpgWorld500xInMemorySaveSlotStorage();
+                var manager = new RpgWorld500xSaveSlotManager(storage);
+                const RpgWorld500xSaveSlotId slot = RpgWorld500xSaveSlotId.Slot1;
+                string key = RpgWorld500xSaveSlotManager.GetStorageKey(slot);
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xSaveSlotHudPanel(root.transform, boot, manager))
+                {
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(40);
+                    Assert.IsTrue(panel.Show());
+                    Assert.IsTrue(panel.TryClickSave(slot));
+                    Assert.IsTrue(storage.TryRead(key, out string original));
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(60);
+                    var canvas = root.transform.Find("World500xSaveSlotHudPanel").GetComponent<Canvas>();
+                    var row = canvas.transform.Find("SaveSlotModalBox/SaveSlotRows/SaveSlotRow_Slot1");
+                    var save = row.Find("SaveButton").GetComponent<UnityEngine.UI.Button>();
+                    var load = row.Find("LoadButton").GetComponent<UnityEngine.UI.Button>();
+                    var delete = row.Find("DeleteButton").GetComponent<UnityEngine.UI.Button>();
+                    string status = panel.StatusText;
+                    canvas.enabled = false;
+                    Assert.IsTrue(save.IsInteractable());
+                    Assert.IsTrue(load.IsInteractable());
+                    Assert.IsTrue(delete.IsInteractable());
+                    Assert.IsFalse(panel.TryClickSave(slot));
+                    Assert.IsFalse(panel.TryClickLoad(slot));
+                    Assert.IsFalse(panel.TryClickDelete(slot));
+                    save.onClick.Invoke();
+                    load.onClick.Invoke();
+                    delete.onClick.Invoke();
+                    Assert.IsTrue(storage.TryRead(key, out string unchanged));
+                    Assert.AreEqual(original, unchanged);
+                    Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, boot.Driver.Facade.CurrentMapId);
+                    Assert.AreEqual(100, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                    Assert.AreEqual(status, panel.StatusText);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(panel.TryClickLoad(slot));
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, boot.Driver.Facade.CurrentMapId);
+                    Assert.AreEqual(40, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                    Assert.IsTrue(panel.TryClickDelete(slot));
+                    Assert.IsFalse(storage.TryRead(key, out _));
+                    Assert.IsTrue(panel.TryClickSave(slot));
+                    Assert.IsTrue(storage.TryRead(key, out _));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void SaveSlotHudPanel_RejectsHiddenDisabledRetiredAndDisposedEvents()
         {
             var root = new GameObject("SaveSlotEventLifetimeRoot");
