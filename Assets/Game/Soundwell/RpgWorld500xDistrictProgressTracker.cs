@@ -538,6 +538,12 @@ namespace Rpg.Soundwell
                 }
 
                 _setInt(m.MakinomKey, 1);
+                // A rejected or read-only write must not pay a repeatable reward.
+                if (_getInt(m.MakinomKey) != 1)
+                {
+                    continue;
+                }
+
                 _onMilestoneClaimed?.Invoke(m);
                 claimed.Add(m);
             }
