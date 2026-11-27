@@ -8,6 +8,81 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xWorldGazetteerHudPanelTests
     {
         [Test]
+        public void WorldGazetteerHudPanel_DisabledCanvasRejectsSearchScopeAndRouteChangesUntilRestored()
+        {
+            var root = new GameObject("GazetteerDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xWorldGazetteerHudPanel(root.transform, boot))
+                {
+                    Assert.IsTrue(panel.Show());
+                    Assert.IsTrue(panel.TrySearch("港区航标巡查", filterActiveMapOnly: false));
+                    Assert.GreaterOrEqual(panel.LastSearchHitCount, 1);
+                    var canvas = root.transform.Find("World500xWorldGazetteerHudPanel").GetComponent<Canvas>();
+                    var modal = canvas.transform.Find("GazetteerModalBox");
+                    var overview = modal.Find("Tab_RegionOverview").GetComponent<Button>();
+                    var search = modal.Find("Tab_SearchResults").GetComponent<Button>();
+                    var scope = modal.Find("ToggleSearchScopeButton").GetComponent<Button>();
+                    var clear = modal.Find("ClearSearchButton").GetComponent<Button>();
+                    var close = modal.Find("CloseGazetteerButton").GetComponent<Button>();
+                    string query = panel.SearchQuery;
+                    string header = panel.HeaderText;
+                    string status = panel.StatusText;
+                    int rows = panel.DisplayedRowCount;
+                    int hits = panel.LastSearchHitCount;
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(scope.IsInteractable());
+                    overview.onClick.Invoke();
+                    search.onClick.Invoke();
+                    scope.onClick.Invoke();
+                    clear.onClick.Invoke();
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.TrySelectTab(RpgWorld500xGazetteerHudTab.RegionOverview));
+                    Assert.IsFalse(panel.TrySearch("声井测绘初录", filterActiveMapOnly: true));
+                    Assert.IsFalse(panel.TryClickToggleScope());
+                    Assert.IsFalse(panel.TrySetPreferSafestRoute(true));
+                    Assert.IsFalse(panel.TryToggleSafestRoute());
+                    Assert.IsFalse(panel.TryClickClearSearch());
+                    Assert.IsFalse(panel.TryClickClose());
+                    Assert.IsTrue(panel.IsVisible);
+                    Assert.AreEqual(RpgWorld500xGazetteerHudTab.SearchResults, panel.ActiveTab);
+                    Assert.IsFalse(panel.FilterActiveMapOnly);
+                    Assert.IsFalse(panel.PreferSafestRoute);
+                    Assert.AreEqual(query, panel.SearchQuery);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(status, panel.StatusText);
+                    Assert.AreEqual(rows, panel.DisplayedRowCount);
+                    Assert.AreEqual(hits, panel.LastSearchHitCount);
+
+                    canvas.enabled = true;
+                    scope.onClick.Invoke();
+                    Assert.IsTrue(panel.FilterActiveMapOnly);
+                    Assert.AreEqual(0, panel.LastSearchHitCount);
+                    Assert.AreEqual(0, panel.DisplayedRowCount);
+                    overview.onClick.Invoke();
+                    Assert.AreEqual(RpgWorld500xGazetteerHudTab.RegionOverview, panel.ActiveTab);
+                    Assert.AreEqual(4, panel.DisplayedRowCount);
+                    Assert.IsTrue(panel.TryToggleSafestRoute());
+                    Assert.IsTrue(panel.PreferSafestRoute);
+                    Assert.IsTrue(panel.StatusText.Contains("路径：避险优先"));
+                    search.onClick.Invoke();
+                    clear.onClick.Invoke();
+                    Assert.AreEqual(string.Empty, panel.SearchQuery);
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.IsVisible);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void WorldGazetteerHudPanel_ListsAllFourRegionsSearchesWithScopeToggleRespectsLockAndZeroLeak()
         {
             var root = new GameObject("World500xWorldGazetteerHudPanelTestRoot");
