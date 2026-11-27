@@ -20,6 +20,146 @@ namespace Rpg.Tests.Editor
             view.ListenOrProceedButton.onClick.Invoke();
         }
 
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NestedOpeningDoesNotReplaceOriginalNightCrossing(bool duringCountRead)
+        {
+            var root = new GameObject("M09 nested night crossing");
+            var values = new Dictionary<string, int>();
+            int commits = 0, boardingChecks = 0;
+            bool attempted = false, nestedOpened = true;
+            M09EastShoreNightCrossingHost host = null;
+            void TryNested()
+            {
+                if (attempted) return;
+                attempted = true;
+                nestedOpened = host.TryOpen();
+            }
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform,
+                    () => { if (!duringCountRead) TryNested(); return true; },
+                    () => { if (duringCountRead) TryNested(); return 3; },
+                    () => 2,
+                    count => { boardingChecks++; return count == 2; },
+                    completed => { commits++; return completed.Outcome == M09RuiyaOutcome.Rescued; },
+                    Reader(values));
+
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(attempted, Is.True);
+                Assert.That(nestedOpened, Is.False);
+                var opened = host.ActiveView;
+                Assert.That(opened, Is.Not.Null);
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.SameAs(opened));
+                ReachJetty(opened);
+                opened.ListenOrProceedButton.onClick.Invoke();
+                opened.ListenOrProceedButton.onClick.Invoke();
+                opened.FinishButton.onClick.Invoke();
+                Assert.That(boardingChecks, Is.EqualTo(1));
+                Assert.That(commits, Is.EqualTo(1));
+                Assert.That(host.CommittedOutcome, Is.EqualTo(M09RuiyaOutcome.Rescued));
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void OpeningExceptionReleasesNightCrossingReservation()
+        {
+            var root = new GameObject("M09 opening exception");
+            var values = new Dictionary<string, int>();
+            bool fail = true;
+            M09EastShoreNightCrossingHost host = null;
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true,
+                    () =>
+                    {
+                        if (fail) throw new InvalidOperationException("Berth count unavailable");
+                        return 3;
+                    },
+                    () => 2, _ => true, _ => true, Reader(values));
+                Assert.Throws<InvalidOperationException>(() => host.TryOpen());
+                Assert.That(host.ActiveView, Is.Null);
+                fail = false;
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(host.ActiveView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RetirementDuringCountReadDoesNotPublishNightCrossing()
+        {
+            var root = new GameObject("M09 retired during count read");
+            var values = new Dictionary<string, int>();
+            M09EastShoreNightCrossingHost host = null;
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => 3,
+                    () => { host.Dispose(); return 2; },
+                    _ => true, _ => true, Reader(values));
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.Session, Is.Null);
+                Assert.That(host.IsCommitted, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ArrivalChangeDuringCountReadRequiresFreshNightCrossing()
+        {
+            var root = new GameObject("M09 arrival changed during count read");
+            var values = new Dictionary<string, int>();
+            bool changeArrival = true;
+            M09EastShoreNightCrossingHost host = null;
+            try
+            {
+                host = new M09EastShoreNightCrossingHost(
+                    root.transform, () => true, () => 3,
+                    () =>
+                    {
+                        if (changeArrival)
+                        {
+                            changeArrival = false;
+                            values[M05LandingFacts.ArrivalSequenceKey] = 1;
+                        }
+                        return 2;
+                    },
+                    _ => true, _ => true, Reader(values));
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(host.Session, Is.Null);
+                Assert.That(host.IsCommitted, Is.False);
+                Assert.That(host.TryOpen(), Is.True);
+                Assert.That(host.ActiveView, Is.Not.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void ExternalViewDisposalAllowsCleanReopenAndOutcomeCommit()
         {
