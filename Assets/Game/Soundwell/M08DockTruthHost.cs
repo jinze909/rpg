@@ -20,6 +20,7 @@ namespace Rpg.Soundwell
         private int? openedArrivalSequence;
         private M08DockTruthView activeView;
         private bool disposed;
+        private bool opening;
 
         public M08DockTruthView ActiveView =>
             activeView != null && !activeView.IsDisposed ? activeView : null;
@@ -40,6 +41,24 @@ namespace Rpg.Soundwell
         }
 
         public bool TryOpen()
+        {
+            if (disposed || parent == null || opening)
+                return false;
+
+            // Live party and Makinom readers may synchronously dispatch
+            // another open before the first view has been published.
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
         {
             if (activeView != null && activeView.IsDisposed)
             {

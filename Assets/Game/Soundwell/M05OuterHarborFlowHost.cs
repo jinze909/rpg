@@ -195,11 +195,20 @@ namespace Rpg.Soundwell
                 return value;
             }
 
+            void RequireSameSailing()
+            {
+                if (ReadLive(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence)
+                    throw new InvalidOperationException(
+                        "The M05 landing check belongs to a previous sailing.");
+            }
+
             void WriteLive(string key, int value)
             {
-                RequireLiveLanding();
+                // Scene callbacks may reset the voyage without destroying
+                // this canvas. Never publish the remaining old report.
+                RequireSameSailing();
                 setInt(key, value);
-                RequireLiveLanding();
+                RequireSameSailing();
             }
 
             // A fact reader can synchronously close the scene. Check the
@@ -225,8 +234,8 @@ namespace Rpg.Soundwell
                 throw new InvalidOperationException(
                     "Unable to persist verified M05 landing report.");
 
-            RequireLiveLanding();
-            OpenArrivalSession(RequireLiveLanding);
+            RequireSameSailing();
+            OpenArrivalSession(RequireSameSailing);
             landingCheckView?.Dispose();
             landingCheckView = null;
         }
