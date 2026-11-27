@@ -9,6 +9,76 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xBountyBoardHudPanelTests
     {
         [Test]
+        public void BountyBoardHudPanel_RejectsStaleRegionClaimUntilBoardRefreshIsConfirmed()
+        {
+            var root = new GameObject("World500xBountyBoardStaleRegion");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xBountyBoardHudPanel(root.transform, boot))
+                {
+                    UnlockRegionShortcuts(boot, RpgWorldMapId.Soundwell);
+                    Assert.IsTrue(panel.Show());
+                    Assert.Greater(panel.ClaimableCount, 0);
+                    var claim = root.transform.Find(
+                        "World500xBountyBoardHudPanel/BountyBoardModalBox/ClaimEligibleBountiesButton")
+                        .GetComponent<Button>();
+                    Assert.IsTrue(claim.IsInteractable());
+                    Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
+                    // Red Salt Harbor has a landmark survey bounty, not a shortcut bounty.
+                    var facade = boot.Driver.Facade;
+                    var host = facade.Session.Host;
+                    var markers = host.Layout.Markers;
+                    Assert.GreaterOrEqual(markers.Count, 8);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        if (!host.Tracker.IsMarkerDiscovered(markers[i].Id))
+                            Assert.IsTrue(host.Tracker.TryDiscoverMarker(markers[i].Id));
+                    }
+                    Assert.GreaterOrEqual(facade.GetCompletionSummary().DiscoveredMarkers, 8);
+                    var supply = facade.BountyAndSupply;
+                    var current = supply.BuildBountyBoardSummary(facade.GetCompletionSummary());
+                    Assert.Greater(current.ClaimableCount, 0);
+                    Assert.GreaterOrEqual(current.ClaimableSaltSilver, 45);
+                    int before = supply.SaltSilverBalance;
+
+                    claim.onClick.Invoke();
+                    Assert.AreEqual(before, supply.SaltSilverBalance);
+                    Assert.AreEqual(0, panel.ClaimedCount);
+                    Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, panel.ActiveMapSummary.MapId);
+                    Assert.AreEqual(current.ClaimableCount, panel.ClaimableCount);
+                    StringAssert.Contains("本境悬赏已更新", panel.FeedbackText);
+
+                    Assert.IsTrue(panel.TryClickClaimEligible());
+                    Assert.AreEqual(current.ClaimableCount, panel.ClaimedCount);
+                    Assert.AreEqual(0, panel.ClaimableCount);
+                    Assert.AreEqual(before + current.ClaimableSaltSilver, supply.SaltSilverBalance);
+                    Assert.IsFalse(panel.TryClickClaimEligible());
+                    Assert.AreEqual(before + current.ClaimableSaltSilver, supply.SaltSilverBalance);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void UnlockRegionShortcuts(RpgWorld500xSceneBootstrapper boot, RpgWorldMapId map)
+        {
+            var shortcuts = RpgWorld500xContentCatalog.GetShortcuts(map);
+            Assert.GreaterOrEqual(shortcuts.Count, 2);
+            for (int i = 0; i < shortcuts.Count; i++)
+            {
+                var pos = new Vector2(shortcuts[i].TriggerTile.x + 0.5f,
+                    shortcuts[i].TriggerTile.y + 0.5f);
+                Assert.IsTrue(boot.Driver.Facade.ActivityDirector.CachesAndShortcuts
+                    .TryUnlockNearbyShortcut(pos, 6f, out _));
+            }
+        }
+
+        [Test]
         public void BountyBoardHudPanel_SwitchesScopesClaimsCompletedBountyIdempotentlyRespectsLockAndZeroLeak()
         {
             var root = new GameObject("World500xBountyBoardHudPanelTestRoot");
