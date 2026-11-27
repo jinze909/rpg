@@ -137,6 +137,53 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CommitRejectsNestedChoiceDuringReadAndWriteCallbacks()
+        {
+            var values = new Dictionary<string, int>();
+            SeedM15RollCall(values);
+            Func<string, int> read = Reader(values);
+            Assert.That(M16EpilogueSession.TryCreateFromSavedFacts(
+                read, true, M16RespectAgencyTone.RespectedOthersChoices, out var session), Is.True);
+            Assert.That(session.TryProceedToDesk(), Is.True);
+            Assert.That(session.TryStepOutsideForEvening(), Is.True);
+
+            int readsAttempted = 0;
+            int writesAttempted = 0;
+            int writes = 0;
+            Action<string, int> write = (k, v) =>
+            {
+                writes++;
+                values[k] = v;
+                if (k == M16EpilogueFacts.StandingSpotKey && writesAttempted++ == 0)
+                {
+                    Assert.That(session.TryChooseStandingSpotAndCommit(
+                        M16StandingSpot.WorkshopDoorway, read, (key, value) => values[key] = value), Is.False);
+                    Assert.That(session.IsCompleted, Is.False);
+                }
+            };
+            Func<string, int> callbackRead = k =>
+            {
+                if (k == M16EpilogueFacts.ConfirmedKey && readsAttempted++ == 0)
+                {
+                    Assert.That(session.TryChooseStandingSpotAndCommit(
+                        M16StandingSpot.MemorialSteleSunset, read, write), Is.False);
+                    Assert.That(session.IsCompleted, Is.False);
+                }
+                return read(k);
+            };
+
+            Assert.That(session.TryChooseStandingSpotAndCommit(
+                M16StandingSpot.WorkshopDoorway, callbackRead, write), Is.True);
+            Assert.That(readsAttempted, Is.GreaterThan(0));
+            Assert.That(writesAttempted, Is.EqualTo(1));
+            Assert.That(writes, Is.EqualTo(7));
+            Assert.That(session.IsCompleted, Is.True);
+            Assert.That(session.CompletedRecord.Value.StandingSpot, Is.EqualTo(M16StandingSpot.WorkshopDoorway));
+            Assert.That(M16EpilogueFacts.TryRead(read, out var saved), Is.True);
+            Assert.That(saved.Value.StandingSpot, Is.EqualTo(M16StandingSpot.WorkshopDoorway));
+        }
+
+        [Test]
         public void ForgedLettersCorruptDataAndUpstreamResetFailClosed()
         {
             var values = new Dictionary<string, int>();

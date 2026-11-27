@@ -29,6 +29,8 @@ namespace Rpg.Soundwell
         public M16EpilogueRecord? CompletedRecord { get; private set; }
         public bool IsCompleted => Phase == M16Phase.Completed;
 
+        private bool committing;
+
         private M16EpilogueSession(
             M16DeliveredLettersFlags eligibleLetters,
             bool shenLiWillingToMeet,
@@ -124,43 +126,53 @@ namespace Rpg.Soundwell
             Func<string, int> getInt,
             Action<string, int> setInt)
         {
-            if (Phase != M16Phase.FinalStandingAndFadeOut ||
+            if (committing || Phase != M16Phase.FinalStandingAndFadeOut ||
                 !Enum.IsDefined(typeof(M16StandingSpot), spot) ||
                 getInt == null || setInt == null)
                 return false;
 
-            var record = new M16EpilogueRecord(
-                StopsVisited,
-                LettersRead,
-                DeskRegisterReviewed,
-                spot,
-                ShenLiWillingToMeet,
-                ClosingTone);
-
-            if (!M16EpilogueFacts.TryRead(getInt, out M16EpilogueRecord? existing))
-                return false;
-
-            // Recover idempotently if a prior write committed ConfirmedKey = 1
-            // before its acknowledgement was lost.
-            if (existing.HasValue)
+            // Storage callbacks may synchronously try to submit another choice.
+            // The first submission owns the attempt, including its readback.
+            committing = true;
+            try
             {
-                if (!Matches(record, existing.Value))
+                var record = new M16EpilogueRecord(
+                    StopsVisited,
+                    LettersRead,
+                    DeskRegisterReviewed,
+                    spot,
+                    ShenLiWillingToMeet,
+                    ClosingTone);
+
+                if (!M16EpilogueFacts.TryRead(getInt, out M16EpilogueRecord? existing))
                     return false;
+
+                // Recover idempotently if a prior write committed ConfirmedKey = 1
+                // before its acknowledgement was lost.
+                if (existing.HasValue)
+                {
+                    if (!Matches(record, existing.Value))
+                        return false;
+                }
+                else if (getInt(M16EpilogueFacts.ConfirmedKey) != 0 ||
+                         !M16EpilogueFacts.TryRecord(record, getInt, setInt))
+                {
+                    return false;
+                }
+
+                if (!M16EpilogueFacts.TryRead(getInt, out M16EpilogueRecord? saved) ||
+                    !saved.HasValue || !Matches(record, saved.Value))
+                    return false;
+
+                StandingSpot = spot;
+                CompletedRecord = saved.Value;
+                Phase = M16Phase.Completed;
+                return true;
             }
-            else if (getInt(M16EpilogueFacts.ConfirmedKey) != 0 ||
-                     !M16EpilogueFacts.TryRecord(record, getInt, setInt))
+            finally
             {
-                return false;
+                committing = false;
             }
-
-            if (!M16EpilogueFacts.TryRead(getInt, out M16EpilogueRecord? saved) ||
-                !saved.HasValue || !Matches(record, saved.Value))
-                return false;
-
-            StandingSpot = spot;
-            CompletedRecord = saved.Value;
-            Phase = M16Phase.Completed;
-            return true;
         }
 
         private static bool Matches(M16EpilogueRecord expected, M16EpilogueRecord saved)
