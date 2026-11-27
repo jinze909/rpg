@@ -359,7 +359,11 @@ namespace Rpg.Soundwell
             Sprite pose = art.Actors[3];
             if (!ending)
             {
-                if (now < beastRecoilUntil)
+                // An accepted lunge travels during the same short window as recoil.
+                // Keep the outgoing pose readable if a previous hit is still fading.
+                if (performingBeastPose == art.BeastLunge)
+                    pose = performingBeastPose;
+                else if (now < beastRecoilUntil)
                     pose = art.BeastRecoil;
                 else if (performingBeastPose != null)
                     pose = performingBeastPose;
@@ -528,7 +532,7 @@ namespace Rpg.Soundwell
             }
             try
             {
-                Transform visual = FindVisual(actor);
+                Transform visual = enemy && beastRenderer != null ? beastRenderer.transform : FindVisual(actor);
                 Vector3 home = visual != null ? visual.localPosition : Vector3.zero;
                 if (visual != null) restingPositions[visual] = home;
                 float elapsed = 0f;
@@ -542,7 +546,10 @@ namespace Rpg.Soundwell
                         float distance = utility || interruptedAction ? 0.12f :
                             Mathf.Max(0.3f, Vector3.Distance(actor.GameObject.transform.position,
                                 target.GameObject.transform.position) - 0.8f);
-                        visual.localPosition = home + direction * Mathf.Sin(Mathf.Clamp01(elapsed / 0.32f) * Mathf.PI) * distance;
+                        Vector3 offset = direction * Mathf.Sin(Mathf.Clamp01(elapsed / 0.32f) * Mathf.PI) * distance;
+                        if (enemy && visual.parent != null)
+                            offset = visual.parent.InverseTransformVector(offset);
+                        visual.localPosition = home + offset;
                     }
                     yield return null;
                 }

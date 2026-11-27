@@ -25,7 +25,16 @@ namespace Rpg.Tests.Editor
             yield return new ExitPlayMode();
         }
 
-        private static IEnumerator RunVisibleEntryExchange()
+        [UnityTest, Timeout(240000)]
+        public IEnumerator VisibleEntryShowsAndResolvesUninterruptedLunge()
+        {
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Bootstrap.unity", OpenSceneMode.Single);
+            yield return new EnterPlayMode();
+            yield return RunUninterruptedLunge();
+            yield return new ExitPlayMode();
+        }
+
+        private static IEnumerator OpenVisibleRoleEncounter(Action<OrkRoleEncounter> receive)
         {
             yield return Wait(() => Maki.Initialized && ORK.Initialized, "framework startup");
             var entry = UnityEngine.Object.FindFirstObjectByType<SoundwellEntrance>();
@@ -47,6 +56,13 @@ namespace Rpg.Tests.Editor
             Assert.That(encounter.Party.Members.Count, Is.EqualTo(3));
             Assert.That(encounter.Party.Beast.Status[1].GetValue(), Is.EqualTo(36));
             Assert.That(encounter.Party.Members.All(member => member.Status[1].GetValue() == 16), Is.True);
+            receive(encounter);
+        }
+
+        private static IEnumerator RunVisibleEntryExchange()
+        {
+            OrkRoleEncounter encounter = null;
+            yield return OpenVisibleRoleEncounter(value => encounter = value);
             yield return Wait(() => !string.IsNullOrEmpty(encounter.View.ThreatLabel.text),
                 "initialize the role HUD before capturing the live arena");
             var art = Resources.Load<AdventureArt>("AdventureArt");
@@ -135,6 +151,63 @@ namespace Rpg.Tests.Editor
                 "rescue return");
             Assert.That(OrkPartyBridge.RescueSettled, Is.True);
             Assert.That(Maki.Game.Variables.GetInt(SoundwellSignalKeys.RescueKey), Is.EqualTo(1));
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        private static IEnumerator RunUninterruptedLunge()
+        {
+            OrkRoleEncounter encounter = null;
+            yield return OpenVisibleRoleEncounter(value => encounter = value);
+            var art = Resources.Load<AdventureArt>("AdventureArt");
+            Assert.That(art, Is.Not.Null);
+            AssertBeastFrame(art.BeastLunge, "sound_borrowing_beast_lunge");
+            var beastRenderer = encounter.Party.Beast.GameObject.GetComponentsInChildren<SpriteRenderer>()
+                .Single(renderer => renderer.gameObject.name == "Rescue actor visual 3");
+
+            yield return PlayUntil(encounter,
+                () => encounter.PendingThreat == OrkRoleEncounter.Threat.Lunge, interrupt: false);
+            yield return Wait(() => !encounter.IsPresenting && encounter.Party.ChoosingRescuerIndex >= 0,
+                "wait for the charged lunge response window");
+            Assert.That(beastRenderer.sprite, Is.SameAs(art.BeastWindup));
+
+            int target = encounter.TargetIndex;
+            var members = encounter.Party.Members;
+            int[] before = members.Select(member =>
+                member.Status[OrkPartyBridge.HealthStatusIndex].GetValue()).ToArray();
+            Transform targetActor = members[target].GameObject.transform;
+            Transform visual = beastRenderer.transform;
+            Vector3 restingOffset = visual.localPosition;
+            float Approach()
+            {
+                Vector3 home = visual.parent.TransformPoint(restingOffset);
+                Vector2 toward = (Vector2)(targetActor.position - home);
+                return Vector2.Dot((Vector2)(visual.position - home), toward.normalized);
+            }
+
+            // Use the normal commands and let this attack land at full strength.
+            // Refresh advances the queued threat to Howl while the lunge is still being drawn.
+            yield return PlayUntil(encounter,
+                () => encounter.PendingThreat == OrkRoleEncounter.Threat.Howl, interrupt: false);
+            yield return Wait(() => encounter.IsPresenting && !encounter.IsInterrupted &&
+                beastRenderer.sprite == art.BeastLunge && Approach() > 0.2f,
+                "the live beast must use the authored lunge frame while moving toward the original target",
+                () => $"pose={beastRenderer.sprite?.name}, towardTarget={Approach():F2}, " +
+                    $"presenting={encounter.IsPresenting}, threat={encounter.PendingThreat}, " +
+                    $"targetHP={members[target].Status[OrkPartyBridge.HealthStatusIndex].GetValue()}");
+            Capture(encounter, "role-beast-uninterrupted-lunge", beastRenderer);
+
+            for (int i = 0; i < members.Count; i++)
+            {
+                int expected = i == target ? before[i] - 8 : before[i];
+                Assert.That(members[i].Status[OrkPartyBridge.HealthStatusIndex].GetValue(),
+                    Is.EqualTo(expected), $"ORK health for rescuer {i} after the full lunge.");
+            }
+
+            yield return Wait(() => !encounter.IsPresenting && beastRenderer.sprite == art.BeastWindup &&
+                encounter.View.RetreatButton.interactable, "restore the queued pose and allow retreat");
+            encounter.View.RetreatButton.onClick.Invoke();
+            yield return Wait(() => SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
+                "return to Bootstrap after the real lunge");
             LogAssert.NoUnexpectedReceived();
         }
 
