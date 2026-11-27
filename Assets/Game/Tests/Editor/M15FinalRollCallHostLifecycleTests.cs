@@ -202,6 +202,44 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ChangedArrivalDuringFirstSettlementWriteStopsRemainingCeremonyFacts()
+        {
+            var root = new GameObject("M15 arrival changed during settlement");
+            var values = new Dictionary<string, int>();
+            var written = new List<string>();
+            M15FinalRollCallHost host = null;
+            try
+            {
+                host = new M15FinalRollCallHost(root.transform, () => true,
+                    () => false, () => 4, null, Reader(values), (k, v) =>
+                    {
+                        written.Add(k);
+                        values[k] = v;
+                        if (k == M15FinalRollCallFacts.IdentityResponseKey)
+                            values[M05LandingFacts.ArrivalSequenceKey] = 1;
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                var session = host.Session;
+                view.HanQiaoReaderButton.onClick.Invoke();
+                view.PublicTrueNameButton.onClick.Invoke();
+                Assert.DoesNotThrow(() => view.CarveNamesSteleButton.onClick.Invoke());
+
+                CollectionAssert.AreEqual(
+                    new[] { M15FinalRollCallFacts.IdentityResponseKey }, written);
+                Assert.That(Reader(values)(M15FinalRollCallFacts.ConfirmedKey), Is.Zero);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(session.IsCompleted, Is.False);
+                Assert.That(session.CompletedRecord.HasValue, Is.False);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReplacedCeremonyDuringLiveConsentCannotWriteOrCloseReplacement()
         {
             var root = new GameObject("M15 replaced ceremony");
