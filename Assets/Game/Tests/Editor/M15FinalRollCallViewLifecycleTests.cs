@@ -207,5 +207,42 @@ namespace Rpg.Tests.Editor
                 UnityEngine.Object.DestroyImmediate(root);
             }
         }
+        [Test]
+        public void BlankNewLineChoicePreservesOriginalInscriptionInBothLanguages()
+        {
+            var root = new GameObject("M15 blank new inscription line");
+            string previousLanguage = SoundwellUiLocalization.Language;
+            M15FinalRollCallView view = null;
+            try
+            {
+                var values = new Dictionary<string, int>();
+                var session = new M15FinalRollCallSession(true, 2);
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.English);
+                view = new M15FinalRollCallView(root.transform, session, (reader, identity, stele) =>
+                {
+                    Assert.That(session.TryCompleteRollCall(reader, identity, stele,
+                        Reader(values), (k, v) => values[k] = v), Is.True);
+                });
+                view.ProtagonistReaderButton.onClick.Invoke();
+                view.PrivateCustodianButton.onClick.Invoke();
+                Assert.That(view.Body.text, Does.Contain("The original inscription remains"));
+                Assert.That(view.LeaveBlankSteleButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("Reserve a blank new line"));
+
+                SoundwellUiLocalization.SetLanguage(SoundwellUiLocalization.Chinese);
+                Assert.That(view.Body.text, Does.Contain("旧碑原文保留"));
+                Assert.That(view.LeaveBlankSteleButton.GetComponentInChildren<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("预留新行，不刻字"));
+                view.LeaveBlankSteleButton.onClick.Invoke();
+                Assert.That(session.CompletedRecord.Value.SteleInscription,
+                    Is.EqualTo(M15SteleInscription.LeaveBlank));
+            }
+            finally
+            {
+                view?.Dispose();
+                SoundwellUiLocalization.SetLanguage(previousLanguage);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
     }
 }

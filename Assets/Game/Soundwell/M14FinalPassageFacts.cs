@@ -79,7 +79,9 @@ namespace Rpg.Soundwell
             VerifiedDepartingCount + VerifiedStayingCount + UndecidedHoldingTicketCount;
 
         public bool UnlocksMainEnding =>
-            PassageOutcome != M14PassageOutcome.PendingRemedy && CivilianExitVerified;
+            PassageOutcome != M14PassageOutcome.PendingRemedy && CivilianExitVerified &&
+            M14FinalPassageFacts.HasValidCivilianCounts(ExecutedRoute, VerifiedDepartingCount,
+                VerifiedStayingCount, UndecidedHoldingTicketCount);
     }
 
     public static class M14FinalPassageFacts
@@ -110,6 +112,27 @@ namespace Rpg.Soundwell
             }
         }
 
+        internal static bool HasValidCivilianCounts(M13ApproachRoute route,
+            int departing, int staying, int undecided)
+        {
+            if (departing < 0 || staying < 0 || undecided < 0)
+                return false;
+
+            // Keep the public int total representable. A wrapped positive total
+            // must not turn a corrupt census into an established passage.
+            long total = (long)departing + staying + undecided;
+            if (total <= 0 || total > int.MaxValue)
+                return false;
+
+            // B requires an actual safe exit batch and C requires actual
+            // neutral reception. A gate or tickets alone cannot establish them.
+            if (route == M13ApproachRoute.RouteBBellTowerAssault ||
+                route == M13ApproachRoute.RouteCOldCanalNightRun)
+                return departing > 0;
+
+            return route == M13ApproachRoute.RouteASupervisedCivilian;
+        }
+
         public static bool IsValidRecord(M14FinalPassageRecord record, Func<string, int> getInt)
         {
             if (getInt == null ||
@@ -120,9 +143,8 @@ namespace Rpg.Soundwell
                 !Enum.IsDefined(typeof(M14AyuanOutcome), record.AyuanOutcome))
                 return false;
 
-            if (record.VerifiedDepartingCount < 0 ||
-                record.VerifiedStayingCount < 0 ||
-                record.UndecidedHoldingTicketCount < 0)
+            if (!HasValidCivilianCounts(record.ExecutedRoute, record.VerifiedDepartingCount,
+                    record.VerifiedStayingCount, record.UndecidedHoldingTicketCount))
                 return false;
 
             if (!M13DepartureRiskFacts.TryReadDeparture(getInt, out M13DepartureRecord? departure) ||
@@ -136,7 +158,7 @@ namespace Rpg.Soundwell
             if (record.PassageOutcome != ExpectedEstablishedOutcome(record.ExecutedRoute))
                 return false;
 
-            if (!record.CivilianExitVerified || record.TotalAccountedCivilians <= 0)
+            if (!record.CivilianExitVerified)
                 return false;
 
             // Route B border_force_action isolation.
