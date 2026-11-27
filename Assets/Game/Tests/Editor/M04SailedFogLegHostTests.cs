@@ -222,6 +222,89 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FogRetiredDuringPendingValidationCannotWriteAnyOutcome()
+        {
+            AssertFogCommitRetirementStopsWrites(0);
+        }
+
+        [Test]
+        public void FogRetiredAfterIntentCannotPublishRemainingOutcome()
+        {
+            AssertFogCommitRetirementStopsWrites(1);
+        }
+
+        [Test]
+        public void VoyageReplacedAfterFogIntentCannotPublishOldOutcome()
+        {
+            AssertFogCommitRetirementStopsWrites(2);
+        }
+
+        private static void AssertFogCommitRetirementStopsWrites(int interruption)
+        {
+            var scene = new GameObject("M04 stale fog outcome persistence");
+            var values = new Dictionary<string, int>();
+            M04SailedFogLegHost host = null;
+            try
+            {
+                SeedReady(values);
+                var read = Reader(values);
+                var write = Writer(values);
+                Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                int originalSequence = read(M04DepartureFacts.SailingSequenceKey);
+                int writes = 0, navigations = 0, interruptions = 0;
+                bool submitting = false;
+                Assert.That(M04SailedFogLegHost.TryOpen(scene.transform, ClearLeg(), key =>
+                {
+                    int value = read(key);
+                    if (submitting && interruption == 0 && interruptions == 0 &&
+                        key == FogListeningFacts.PendingSignatureKey)
+                    {
+                        interruptions++;
+                        host.Dispose();
+                    }
+                    return value;
+                }, (key, value) =>
+                {
+                    writes++;
+                    write(key, value);
+                    if (submitting && interruption != 0 && interruptions == 0 &&
+                        key == FogListeningFacts.PendingSignatureKey)
+                    {
+                        interruptions++;
+                        if (interruption == 1)
+                            host.Dispose();
+                        else
+                        {
+                            Assert.That(ReturnOpeningContinuation.TryResetPreviousOutboundFacts(write), Is.True);
+                            SeedReady(values);
+                            Assert.That(M04DepartureFacts.TryMarkSailed(read, write), Is.True);
+                            Assert.That(read(M04DepartureFacts.SailingSequenceKey), Is.GreaterThan(originalSequence));
+                        }
+                    }
+                }, _ => navigations++, out host), Is.True);
+                var view = host.View;
+                view.HoldButton.onClick.Invoke();
+                Assert.That(host.Leg.IsComplete, Is.True);
+                submitting = true;
+                Assert.Throws<InvalidOperationException>(() => view.ContinueButton.onClick.Invoke());
+                Assert.That(interruptions, Is.EqualTo(1));
+                Assert.That(writes, Is.EqualTo(interruption == 0 ? 0 : 1));
+                Assert.That(navigations, Is.Zero);
+                Assert.That(read(FogListeningFacts.CompletedKey), Is.Zero);
+                Assert.That(read(FogListeningFacts.HullIntegrityKey), Is.Zero);
+                Assert.That(read(M05LandingFacts.ConfirmedKey), Is.Zero);
+                if (interruption == 2)
+                    Assert.That(FogListeningFacts.HasUnconfirmedPayload(read), Is.False,
+                        "Old callbacks must not contaminate the fresh voyage.");
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(scene);
+            }
+        }
+
+        [Test]
         public void NavigatedFogLegPersistsOnlyAfterContinueAndNotAsArrival()
         {
             var scene = new GameObject("M04 real fog passage");
