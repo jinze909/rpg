@@ -61,7 +61,10 @@ namespace Rpg.Tests.Editor
                     Assert.IsTrue(shortestStorm.IsReachable);
                     Assert.GreaterOrEqual(safestClear.TotalTravelMinutesInGame, shortestClear.TotalTravelMinutesInGame);
 
-                    Assert.IsFalse(shortestClear.RecommendCampfireStop);
+                    // Campfire stop is recommended on Hazardous risk or long journeys (>= 240 in-game minutes).
+                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Safe, shortestClear.HighestRiskLevel);
+                    Assert.AreEqual(shortestClear.TotalTravelMinutesInGame >= 240, shortestClear.RecommendCampfireStop);
+                    Assert.AreEqual(RpgWorld500xTravelRiskLevel.Hazardous, shortestStorm.HighestRiskLevel);
                     Assert.IsTrue(shortestStorm.RecommendCampfireStop);
 
                     if (from == to)
