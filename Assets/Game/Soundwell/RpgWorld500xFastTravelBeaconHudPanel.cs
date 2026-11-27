@@ -17,6 +17,7 @@ namespace Rpg.Soundwell
         private const string EncounterBlockedStatus = "遭遇战进行中，结束后可传送";
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Transform _rowContainer;
         private readonly Text _headerText;
         private readonly Text _statusText;
@@ -60,9 +61,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 66;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 66;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -130,7 +131,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickWarp(string markerId)
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || string.IsNullOrEmpty(markerId))
+            if (!CanReceiveInput() || string.IsNullOrEmpty(markerId))
             {
                 return false;
             }
@@ -249,15 +250,20 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool CanReceiveInput()
+        {
+            return IsVisible && _canvas != null && _canvas.isActiveAndEnabled && !_bootstrapper.IsDisposed;
+        }
+
         private bool CanInvoke(Button button)
         {
-            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+            return CanReceiveInput() && button != null &&
                    button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
         }
 
         private bool HandleWarpClicked(string markerId)
         {
-            if (!IsVisible || _bootstrapper.IsDisposed)
+            if (!CanReceiveInput())
             {
                 return false;
             }
