@@ -8,6 +8,72 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xFieldRumorAndLoreHudPanelTests
     {
         [Test]
+        public void RumorAndLoreHudPanel_DisabledCanvasRejectsTrackingTabAndFilterUntilRestored()
+        {
+            var root = new GameObject("RumorDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xFieldRumorAndLoreHudPanel(root.transform, boot))
+                {
+                    var facade = boot.Driver.Facade;
+                    var tracker = facade.Session.Host.Tracker;
+                    var npc = RpgWorld500xLivingWorldCatalog.GetFieldNpcs(RpgWorldMapId.Soundwell)[0];
+                    Assert.IsTrue(facade.ActivityDirector.LivingWorld.TryTalkToNearbyNpc(
+                        new Vector2(npc.Tile.x + 0.5f, npc.Tile.y + 0.5f), 4f,
+                        out _, out _, out _));
+                    Assert.IsTrue(panel.Show());
+                    var canvas = root.transform.Find("World500xFieldRumorAndLoreHudPanel").GetComponent<Canvas>();
+                    var modal = canvas.transform.Find("RumorLoreModalBox");
+                    var track = modal.Find("RumorLoreRows/RumorRow_" + npc.Id + "/TrackButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    var lore = modal.Find("Tab_StorySpots").GetComponent<UnityEngine.UI.Button>();
+                    string marker = tracker.TrackedMarkerId;
+                    string status = panel.StatusText;
+                    string header = panel.HeaderText;
+                    string nearest = panel.NearestUndiscoveredId;
+                    float distance = panel.NearestUndiscoveredDistanceTiles;
+                    Assert.AreEqual(1, panel.HeardRumorCount);
+                    Assert.AreEqual(6, panel.DisplayedRowCount);
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(track.IsInteractable());
+                    track.onClick.Invoke();
+                    lore.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickTrackRumorTarget(npc.Id));
+                    Assert.IsFalse(panel.TrySelectTab(RpgWorld500xRumorLoreTab.StorySpots));
+                    Assert.IsFalse(panel.TrySetUndiscoveredOnly(true));
+                    Assert.AreEqual(marker, tracker.TrackedMarkerId);
+                    Assert.AreEqual(status, panel.StatusText);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(nearest, panel.NearestUndiscoveredId);
+                    Assert.AreEqual(distance, panel.NearestUndiscoveredDistanceTiles);
+                    Assert.AreEqual(RpgWorld500xRumorLoreTab.FieldRumors, panel.ActiveTab);
+                    Assert.IsFalse(panel.UndiscoveredOnly);
+                    Assert.AreEqual(6, panel.DisplayedRowCount);
+
+                    canvas.enabled = true;
+                    track.onClick.Invoke();
+                    Assert.AreEqual(npc.RumorTargetMarkerId, tracker.TrackedMarkerId);
+                    StringAssert.Contains("罗盘追踪", panel.StatusText);
+                    Assert.IsTrue(panel.TrySetUndiscoveredOnly(true));
+                    Assert.AreEqual(5, panel.DisplayedRowCount);
+                    lore.onClick.Invoke();
+                    Assert.AreEqual(RpgWorld500xRumorLoreTab.StorySpots, panel.ActiveTab);
+                    Assert.AreEqual(4, panel.DisplayedRowCount);
+                    Assert.IsTrue(panel.TrySelectTab(RpgWorld500xRumorLoreTab.FieldRumors));
+                    Assert.AreEqual(5, panel.DisplayedRowCount);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void RumorAndLoreHudPanel_RejectsUnheardHiddenDisabledRetiredAndDisposedActions()
         {
             var root = new GameObject("RumorActionLifetimeRoot");
