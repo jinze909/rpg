@@ -10,6 +10,76 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xDangerTacticalBriefHudPanelTests
     {
         [Test]
+        public void DangerTacticalBriefHudPanel_DisabledCanvasRejectsRefreshFiltersAndCloseUntilRestored()
+        {
+            var root = new GameObject("DangerBriefDisabledCanvasRoot");
+            try
+            {
+                var clearFlags = new Dictionary<string, int>(StringComparer.Ordinal);
+                Func<string, int> read = k => clearFlags.TryGetValue(k, out int v) ? v : 0;
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xDangerTacticalBriefHudPanel(root.transform, boot, read))
+                {
+                    Assert.IsTrue(panel.Show());
+                    var canvas = root.transform.Find("World500xDangerTacticalBriefHudPanel").GetComponent<Canvas>();
+                    var modal = canvas.transform.Find("DangerBriefModalBox");
+                    var all = modal.Find("Tab_AllZones").GetComponent<Button>();
+                    var refresh = modal.Find("RefreshDangerBriefButton").GetComponent<Button>();
+                    var close = modal.Find("CloseDangerBriefButton").GetComponent<Button>();
+                    int total = panel.LastBrief.TotalDangerZones;
+                    int silver = panel.LastPayoutSummary.RemainingStandardSilver;
+                    int reputation = panel.RemainingFirstClearStandardReputation;
+                    string header = panel.HeaderText;
+                    string ribbon = panel.SummaryRibbonText;
+                    Assert.Greater(total, 0);
+                    string marker = panel.LastBrief.NearestUnclearedZone.MarkerId;
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(refresh.IsInteractable());
+                    clearFlags[RpgWorld500xDangerVictoryRewardService.FirstClearKey(marker)] = 1;
+                    refresh.onClick.Invoke();
+                    all.onClick.Invoke();
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.TryClickRefresh(5f));
+                    Assert.IsFalse(panel.TrySelectFilter(RpgWorld500xDangerBriefFilter.AllZones));
+                    Assert.IsFalse(panel.TrySetThreatCriteria(4, RpgWorld500xThreatTier.HazardBoss));
+                    Assert.IsFalse(panel.TryClickClose());
+                    Assert.IsTrue(panel.IsVisible);
+                    Assert.AreEqual(RpgWorld500xDangerBriefFilter.UnclearedOnly, panel.ActiveFilter);
+                    Assert.AreEqual(1, panel.MinEffectiveThreatLevel);
+                    Assert.IsNull(panel.TierFilter);
+                    Assert.AreEqual(total, panel.DisplayedRowCount);
+                    Assert.AreEqual(silver, panel.LastPayoutSummary.RemainingStandardSilver);
+                    Assert.AreEqual(reputation, panel.RemainingFirstClearStandardReputation);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(ribbon, panel.SummaryRibbonText);
+
+                    // Programmatic synchronization remains valid while input is disabled.
+                    panel.Refresh(5f);
+                    Assert.AreEqual(total - 1, panel.DisplayedRowCount);
+                    Assert.Less(panel.LastPayoutSummary.RemainingStandardSilver, silver);
+                    Assert.Less(panel.RemainingFirstClearStandardReputation, reputation);
+
+                    canvas.enabled = true;
+                    all.onClick.Invoke();
+                    Assert.AreEqual(RpgWorld500xDangerBriefFilter.AllZones, panel.ActiveFilter);
+                    Assert.AreEqual(total, panel.DisplayedRowCount);
+                    Assert.IsTrue(panel.TrySetThreatCriteria(1, panel.LastBrief.Entries[0].Tier));
+                    Assert.IsTrue(panel.TrySetThreatCriteria());
+                    Assert.IsTrue(panel.TryClickRefresh(6f));
+                    close.onClick.Invoke();
+                    Assert.IsFalse(panel.IsVisible);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DangerTacticalBriefHudPanel_FiltersClearedZonesRespectsCanvasGroupLockAndZeroLeak()
         {
             var root = new GameObject("World500xDangerTacticalBriefHudPanelTestRoot");
