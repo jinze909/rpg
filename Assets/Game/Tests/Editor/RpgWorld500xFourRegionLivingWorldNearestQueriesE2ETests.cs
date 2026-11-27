@@ -75,9 +75,10 @@ namespace Rpg.Tests.Editor
                         "Nearest-uninspected story spot query must be strictly read-only.");
 
                     Vector2 spotPos = new Vector2(spot.Tile.x + 0.5f, spot.Tile.y + 0.5f);
-                    Assert.IsTrue(service.TryInspectNearbyStorySpot(spotPos, 6f, out RpgStorySpotDef inspected, out string loreZh));
+                    Assert.IsTrue(service.TryInspectNearbyStorySpot(spotPos, 6f, out RpgStorySpotDef inspected, out bool firstInspection));
                     Assert.AreEqual(spot.Id, inspected.Id);
-                    Assert.IsFalse(string.IsNullOrEmpty(loreZh));
+                    Assert.IsTrue(firstInspection);
+                    Assert.IsFalse(string.IsNullOrEmpty(inspected.DescriptionZh));
                     Assert.IsTrue(inspectedSpotIds.Add(spot.Id), $"Duplicate story spot ID {spot.Id}.");
 
                     cursor = spotPos;
