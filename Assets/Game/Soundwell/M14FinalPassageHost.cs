@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         private M14FinalPassageView activeView;
         private int? openedArrivalSequence;
         private bool disposed;
+        private bool opening;
 
         public M14FinalPassageSession Session => session;
         public M14FinalPassageView ActiveView =>
@@ -68,6 +69,21 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -75,16 +91,22 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
 
-            if (disposed || parent == null || activeView != null || !atStraitAction() ||
-                HasAnyPersistedFacts())
+            if (disposed || parent == null || activeView != null)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !atStraitAction() || HasAnyPersistedFacts())
                 return false;
 
             if (!M14FinalPassageSession.TryCreateFromSavedFacts(
-                    getInt, out M14FinalPassageSession created))
+                    getInt, out M14FinalPassageSession created) ||
+                disposed || parent == null ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                disposed || parent == null)
                 return false;
 
             session = created;
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             activeView = new M14FinalPassageView(
                 parent,
                 session,
@@ -112,9 +134,9 @@ namespace Rpg.Soundwell
                 getInt(M14FinalPassageFacts.FogMasteryBonusKey) != 0;
         }
 
-        private bool HasLiveRouteProofs()
+        private bool HasLiveRouteProofs(M14FinalPassageSession expectedSession)
         {
-            switch (session.Departure.Route)
+            switch (expectedSession.Departure.Route)
             {
                 case M13ApproachRoute.RouteASupervisedCivilian:
                     return validSupervisionCredentials() && validPortGuarantee();
@@ -122,7 +144,7 @@ namespace Rpg.Soundwell
                     return threeOpenDoorBellsRung();
                 case M13ApproachRoute.RouteCOldCanalNightRun:
                     return fogRelayCompleted() &&
-                        (!session.FogMasteryBonusApplied || fogMasteryBonusAvailable());
+                        (!expectedSession.FogMasteryBonusApplied || fogMasteryBonusAvailable());
                 default:
                     return false;
             }
@@ -130,19 +152,37 @@ namespace Rpg.Soundwell
 
         private void HandleAyuanSubmitted(M14AyuanOutcome outcome)
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed ||
-                !atStraitAction() ||
-                !openedArrivalSequence.HasValue ||
-                getInt(M05LandingFacts.ArrivalSequenceKey) != openedArrivalSequence.Value ||
-                !HasLiveRouteProofs())
+            var settlingView = activeView;
+            var settlingSession = session;
+            int? arrivalSequence = openedArrivalSequence;
+            if (!IsCurrentOwner(settlingView, settlingSession) ||
+                !arrivalSequence.HasValue || !atStraitAction() ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence.Value ||
+                !IsCurrentOwner(settlingView, settlingSession) ||
+                !HasLiveRouteProofs(settlingSession) ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence.Value ||
+                !IsCurrentOwner(settlingView, settlingSession))
                 return;
 
-            if (!session.TrySettleAyuanAndCommit(outcome, getInt, setInt))
+            if (!settlingSession.TrySettleAyuanAndCommit(outcome, getInt, setInt))
                 return;
 
-            activeView?.Dispose();
-            activeView = null;
-            openedArrivalSequence = null;
+            // Persistence can synchronously retire the old view. Never close
+            // a replacement opened by another callback.
+            settlingView.Dispose();
+            if (ReferenceEquals(activeView, settlingView))
+            {
+                activeView = null;
+                openedArrivalSequence = null;
+            }
+        }
+
+        private bool IsCurrentOwner(M14FinalPassageView expectedView,
+            M14FinalPassageSession expectedSession)
+        {
+            return !disposed && parent != null && expectedView != null &&
+                !expectedView.IsDisposed && ReferenceEquals(activeView, expectedView) &&
+                expectedSession != null && ReferenceEquals(session, expectedSession);
         }
 
         public void Dispose()
