@@ -8,6 +8,67 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xCacheAndShortcutHudPanelTests
     {
         [Test]
+        public void CacheAndShortcutHudPanel_DisabledCanvasRejectsTabAndFilterUntilRestored()
+        {
+            var root = new GameObject("CacheShortcutDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xCacheAndShortcutHudPanel(root.transform, boot))
+                {
+                    Assert.IsTrue(panel.Show());
+                    var canvas = root.transform.Find("World500xCacheAndShortcutHudPanel").GetComponent<Canvas>();
+                    var button = canvas.transform.Find("CacheShortcutModalBox/Tab_Shortcuts").GetComponent<Button>();
+                    var action = button.onClick;
+                    string header = panel.HeaderText;
+                    string summary = panel.SummaryText;
+                    string nearest = panel.NearestIncompleteId;
+                    string label = panel.NearestIncompleteLabelZh;
+                    float distance = panel.NearestIncompleteDistanceTiles;
+                    int remaining = panel.RemainingCacheSaltSilver;
+                    Assert.AreEqual(12, panel.DisplayedRowCount);
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(button.IsInteractable());
+                    action.Invoke();
+                    Assert.IsFalse(panel.TrySelectTab(RpgWorld500xCacheShortcutTab.Shortcuts));
+                    Assert.IsFalse(panel.TrySetIncompleteOnly(true));
+                    Assert.AreEqual(RpgWorld500xCacheShortcutTab.HiddenCaches, panel.ActiveTab);
+                    Assert.IsFalse(panel.IncompleteOnly);
+                    Assert.AreEqual(12, panel.DisplayedRowCount);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(summary, panel.SummaryText);
+                    Assert.AreEqual(nearest, panel.NearestIncompleteId);
+                    Assert.AreEqual(label, panel.NearestIncompleteLabelZh);
+                    Assert.AreEqual(distance, panel.NearestIncompleteDistanceTiles);
+                    Assert.AreEqual(remaining, panel.RemainingCacheSaltSilver);
+
+                    // World progress can still update independently of hidden input.
+                    Assert.IsTrue(boot.Driver.Facade.ActivityDirector.CachesAndShortcuts
+                        .TryUnlockNearbyShortcut(new Vector2(380.5f, 920.5f), 6f, out _));
+                    panel.Refresh();
+                    Assert.AreEqual(1, panel.UnlockedShortcutCount);
+                    Assert.AreEqual(RpgWorld500xCacheShortcutTab.HiddenCaches, panel.ActiveTab);
+
+                    canvas.enabled = true;
+                    action.Invoke();
+                    Assert.AreEqual(RpgWorld500xCacheShortcutTab.Shortcuts, panel.ActiveTab);
+                    Assert.AreEqual(4, panel.DisplayedRowCount);
+                    Assert.IsTrue(panel.TrySetIncompleteOnly(true));
+                    Assert.AreEqual(3, panel.DisplayedRowCount);
+                    Assert.IsTrue(panel.TrySelectTab(RpgWorld500xCacheShortcutTab.HiddenCaches));
+                    Assert.AreEqual(12, panel.DisplayedRowCount);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CacheAndShortcutHudPanel_ListsAllCachesAndShortcutsTracksProgressAndZeroLeak()
         {
             var root = new GameObject("World500xCacheAndShortcutHudPanelTestRoot");
