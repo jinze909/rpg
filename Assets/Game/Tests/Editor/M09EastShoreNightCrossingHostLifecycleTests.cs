@@ -21,9 +21,19 @@ namespace Rpg.Tests.Editor
         }
 
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void NestedOpeningDoesNotReplaceOriginalNightCrossing(bool duringCountRead)
+        [Test]
+        public void NestedReadinessOpeningDoesNotReplaceOriginalNightCrossing()
+        {
+            NestedOpeningDoesNotReplaceOriginalNightCrossing(false);
+        }
+
+        [Test]
+        public void NestedCountOpeningDoesNotReplaceOriginalNightCrossing()
+        {
+            NestedOpeningDoesNotReplaceOriginalNightCrossing(true);
+        }
+
+        private void NestedOpeningDoesNotReplaceOriginalNightCrossing(bool duringCountRead)
         {
             var root = new GameObject("M09 nested night crossing");
             var values = new Dictionary<string, int>();
