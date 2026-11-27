@@ -177,6 +177,28 @@ namespace Rpg.Soundwell
                 !IsCurrentOwner(submittingView, submittingSession))
                 return;
 
+            bool StillOwnsSettlement()
+            {
+                if (!IsCurrentOwner(submittingView, submittingSession) ||
+                    openedArrivalSequence != arrivalSequence)
+                    return false;
+                int currentArrival = getInt(M05LandingFacts.ArrivalSequenceKey);
+                return IsCurrentOwner(submittingView, submittingSession) &&
+                    openedArrivalSequence == arrivalSequence &&
+                    currentArrival == arrivalSequence.Value;
+            }
+
+            // Abort the session's synchronous commit, not merely its later
+            // writes, so an interrupted ceremony cannot mark itself completed.
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (!StillOwnsSettlement())
+                    throw new SettlementRetiredException();
+                setInt(key, value);
+                if (!StillOwnsSettlement())
+                    throw new SettlementRetiredException();
+            }
+
             // Handle a write that succeeded before a lost acknowledgement
             // without issuing duplicate writes.
             if (existing.HasValue)
@@ -187,17 +209,26 @@ namespace Rpg.Soundwell
                         existing.Value, submittingSession, reader, identityResponse, steleInscription))
                     return;
             }
-            else if (!submittingSession.TryCompleteRollCall(
-                reader, identityResponse, steleInscription, getInt, setInt))
+            else
             {
-                return;
+                try
+                {
+                    if (!submittingSession.TryCompleteRollCall(
+                            reader, identityResponse, steleInscription, getInt, WriteWhileCurrent))
+                        return;
+                }
+                catch (SettlementRetiredException)
+                {
+                    return;
+                }
             }
 
             if (!M15FinalRollCallFacts.TryRead(
                     getInt, out M15FinalRollCallRecord? persisted) ||
                 !persisted.HasValue ||
                 !MatchesPersistedRollCall(
-                    persisted.Value, submittingSession, reader, identityResponse, steleInscription))
+                    persisted.Value, submittingSession, reader, identityResponse, steleInscription) ||
+                !StillOwnsSettlement())
                 return;
 
             submittingView.Dispose();
@@ -207,6 +238,8 @@ namespace Rpg.Soundwell
                 openedArrivalSequence = null;
             }
         }
+
+        private sealed class SettlementRetiredException : Exception { }
 
         private bool IsCurrentOwner(M15FinalRollCallView expectedView,
             M15FinalRollCallSession expectedSession)
