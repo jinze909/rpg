@@ -32,6 +32,45 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void TryPurchaseDiscountedSupply_RejectsUnconfirmedWalletDebitBeforeGrantingStock()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            const string wallet = RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey;
+            store[wallet] = 50;
+            bool allowDebit = false;
+            int stockWrites = 0;
+            Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+            var haven = new RpgWorld500xCampHavenService(read, (k, v) =>
+            {
+                if (k == wallet)
+                {
+                    if (allowDebit) store[k] = v;
+                    return;
+                }
+                stockWrites++;
+                store[k] = v;
+            });
+            haven.Reputation.AddPoints(RpgWorldMapId.RedSaltHarbor, 800);
+            stockWrites = 0;
+            Assert.AreEqual(21, haven.GetDiscountedUnitCost(RpgWorldMapId.RedSaltHarbor, "flare"));
+
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.WalletWriteFailed,
+                haven.TryPurchaseDiscountedSupply(RpgWorldMapId.RedSaltHarbor, "flare", 1, out int rejectedCharge));
+            Assert.AreEqual(0, rejectedCharge);
+            Assert.AreEqual(50, store[wallet]);
+            Assert.AreEqual(0, stockWrites);
+            Assert.AreEqual(0, haven.BuildSupplyRestockQuote(RpgWorldMapId.RedSaltHarbor, "flare", 1).OwnedCount);
+
+            allowDebit = true;
+            Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded,
+                haven.TryPurchaseDiscountedSupply(RpgWorldMapId.RedSaltHarbor, "flare", 1, out int charged));
+            Assert.AreEqual(21, charged);
+            Assert.AreEqual(29, store[wallet]);
+            Assert.AreEqual(1, stockWrites);
+            Assert.AreEqual(1, haven.BuildSupplyRestockQuote(RpgWorldMapId.RedSaltHarbor, "flare", 1).OwnedCount);
+        }
+
+        [Test]
         public void BuildSupplyRestockQuoteAndMaxAffordable_AreReadOnlyAndHandleReputationAndOverflow()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
