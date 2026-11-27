@@ -7,6 +7,58 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xCartographyReputationHudPanelTests
     {
         [Test]
+        public void CartographyReputationHudPanel_DisabledCanvasRejectsRegionSelectionUntilRestored()
+        {
+            var root = new GameObject("CartographyDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xCartographyReputationHudPanel(root.transform, boot))
+                {
+                    Assert.IsTrue(panel.Show());
+                    var canvas = root.transform.Find("World500xCartographyReputationHudPanel").GetComponent<Canvas>();
+                    var button = canvas.transform.Find("CartographyReputationModalBox/RegionTabs/Tab_RedSaltHarbor")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    var action = button.onClick;
+                    string header = panel.HeaderText;
+                    string summary = panel.SummaryText;
+                    int rows = panel.DisplayedRowCount;
+                    float coverage = panel.ActiveDistrictCoverageRatio;
+                    Assert.IsTrue(panel.HasCurrentMapCartographyPreview);
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(button.IsInteractable());
+                    action.Invoke();
+                    Assert.IsFalse(panel.TrySelectRegion(RpgWorldMapId.WhitewaterCrossing));
+                    Assert.IsFalse(panel.TrySelectHighestStandingRegion());
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, panel.SelectedMapId);
+                    Assert.AreEqual(header, panel.HeaderText);
+                    Assert.AreEqual(summary, panel.SummaryText);
+                    Assert.AreEqual(rows, panel.DisplayedRowCount);
+                    Assert.AreEqual(coverage, panel.ActiveDistrictCoverageRatio);
+                    Assert.IsTrue(panel.HasCurrentMapCartographyPreview);
+                    Assert.AreEqual(RpgWorldMapId.Soundwell, panel.LastCartographyPreview.MapId);
+
+                    canvas.enabled = true;
+                    action.Invoke();
+                    Assert.AreEqual(RpgWorldMapId.RedSaltHarbor, panel.SelectedMapId);
+                    Assert.IsFalse(panel.HasCurrentMapCartographyPreview);
+                    Assert.IsTrue(panel.TrySelectRegion(RpgWorldMapId.WhitewaterCrossing));
+                    Assert.AreEqual(RpgWorldMapId.WhitewaterCrossing, panel.SelectedMapId);
+                    Assert.AreEqual(6, panel.DisplayedRowCount);
+                    Assert.IsTrue(panel.TrySelectHighestStandingRegion());
+                    Assert.AreEqual(panel.LastWorldReputationOverview.HighestStandingMapId, panel.SelectedMapId);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CartographyReputationHudPanel_RejectsHiddenDisabledAndDisposedRegionActions()
         {
             var root = new GameObject("CartographyTabLifetimeRoot");

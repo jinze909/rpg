@@ -16,6 +16,7 @@ namespace Rpg.Soundwell
     {
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Transform _tabContainer;
         private readonly Transform _rowContainer;
         private readonly Text _headerText;
@@ -67,9 +68,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 65;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 65;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -300,7 +301,8 @@ namespace Rpg.Soundwell
 
         private bool CanSelectRegion(Button button)
         {
-            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+            return IsVisible && _canvas != null && _canvas.isActiveAndEnabled &&
+                !_bootstrapper.IsDisposed && button != null &&
                 button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
         }
 
