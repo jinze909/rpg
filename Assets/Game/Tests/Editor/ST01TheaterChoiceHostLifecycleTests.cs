@@ -33,6 +33,65 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RetiredTheaterSettlementCannotWriteOrCloseReplacement()
+        {
+            var root = new GameObject("ST01 retired theater settlement");
+            var values = new Dictionary<string, int>();
+            ST01TheaterChoiceHost host = null;
+            ST01TheaterChoiceView replacement = null;
+            bool armOnBoycottProof = false;
+            bool retireOnRead = false;
+            int writes = 0;
+            try
+            {
+                host = new ST01TheaterChoiceHost(root.transform,
+                    () => true, () => true, () => true, () => true, () => true, () => true,
+                    () => false, () => false, () =>
+                    {
+                        if (armOnBoycottProof)
+                        {
+                            armOnBoycottProof = false;
+                            retireOnRead = true;
+                        }
+                        return true;
+                    }, key =>
+                    {
+                        if (retireOnRead)
+                        {
+                            retireOnRead = false;
+                            host.ActiveView.Dispose();
+                            Assert.That(host.TryOpen(), Is.True);
+                            replacement = host.ActiveView;
+                        }
+                        return values.TryGetValue(key, out int value) ? value : 0;
+                    }, (key, value) => { writes++; values[key] = value; });
+
+                Assert.That(host.TryOpen(), Is.True);
+                var original = host.ActiveView;
+                armOnBoycottProof = true;
+                original.BoycottButton.onClick.Invoke();
+
+                Assert.That(replacement, Is.Not.Null);
+                Assert.That(host.ActiveView, Is.SameAs(replacement));
+                Assert.That(writes, Is.Zero);
+                Assert.That(values, Is.Empty);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+
+                replacement.BoycottButton.onClick.Invoke();
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(ST01RegionalStoryFacts.TryRead(Read(values),
+                    out ST01RegionalOutcome saved), Is.True);
+                Assert.That(saved.Theater, Is.EqualTo(ST01TheaterChoice.PublicBoycott));
+                Assert.That(writes, Is.EqualTo(2));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ExternalViewDisposalClearsActiveViewAndAllowsCleanReopen()
         {
             var root = new GameObject("ST01 lifecycle external dispose");

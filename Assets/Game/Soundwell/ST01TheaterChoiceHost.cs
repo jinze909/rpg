@@ -164,19 +164,39 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private bool IsCurrentSubmission(ST01TheaterChoiceView expectedView) =>
+            !disposed && parent != null && expectedView != null &&
+            !expectedView.IsDisposed && ReferenceEquals(activeView, expectedView);
+
         private void HandleChoice(ST01TheaterChoice choice)
         {
-            if (disposed || activeView == null || activeView.IsDisposed || !CanCommit(choice))
+            var expectedView = activeView;
+            if (!IsCurrentSubmission(expectedView) || !CanCommit(choice) ||
+                !IsCurrentSubmission(expectedView))
                 return;
 
+            bool abandoned = false;
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (!IsCurrentSubmission(expectedView))
+                {
+                    abandoned = true;
+                    return;
+                }
+                setInt(key, value);
+            }
+
+            // A synchronous fact callback can close this view and open a
+            // replacement. Do not let the retired submission write or close it.
             if (!ST01RegionalStoryFacts.TryRecordTheater(
-                choice, getInt, setInt))
+                choice, getInt, WriteWhileCurrent) || abandoned ||
+                !IsCurrentSubmission(expectedView))
                 return;
             if (!ST01RegionalStoryFacts.TryRead(getInt, out ST01RegionalOutcome saved) ||
-                saved.Theater != choice)
+                saved.Theater != choice || !IsCurrentSubmission(expectedView))
                 return;
 
-            activeView.Dispose();
+            expectedView.Dispose();
             activeView = null;
         }
 
