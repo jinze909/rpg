@@ -44,6 +44,7 @@ namespace Rpg.Soundwell
         private ST04EchoValleySession session;
         private ST04RoadResolution? pendingResolution;
         private bool disposed;
+        private bool opening;
 
         public ST04EchoValleyHost(Transform parent,
             IST04EchoValleyWorldEvidence world,
@@ -66,8 +67,27 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
+            {
+                activeView.Dispose();
                 activeView = null;
+            }
             if (disposed || parent == null || activeView != null ||
                 !world.AtValley || !world.SangJingAndMengHuiPresent ||
                 read(ST04EchoValleyFacts.ConfirmedKey) != 0)
@@ -75,14 +95,26 @@ namespace Rpg.Soundwell
 
             // Do not open a corrupt empty record. An interrupted story
             // intent must replay through the identical recorded choice.
-            if (read(ST04EchoValleyFacts.IntentKey) == 0 &&
-                !ST04EchoValleyFacts.TryRead(read, out _))
+            if (disposed || parent == null ||
+                (read(ST04EchoValleyFacts.IntentKey) == 0 &&
+                 !ST04EchoValleyFacts.TryRead(read, out _)))
                 return false;
-            if (!ST04EchoValleySession.TryCreate(read, out session))
+            if (disposed || parent == null ||
+                !ST04EchoValleySession.TryCreate(read, out ST04EchoValleySession created) ||
+                disposed || parent == null || activeView != null)
                 return false;
 
-            activeView = new ST04EchoValleyView(
-                parent, session, world, CanChooseRoad, HandleRoadChoice);
+            // Fact access may retire this host synchronously. Publish the
+            // session only once the original opening still owns a live view.
+            var createdView = new ST04EchoValleyView(
+                parent, created, world, CanChooseRoad, HandleRoadChoice);
+            if (disposed || parent == null || createdView.IsDisposed)
+            {
+                createdView.Dispose();
+                return false;
+            }
+            session = created;
+            activeView = createdView;
             return true;
         }
 
