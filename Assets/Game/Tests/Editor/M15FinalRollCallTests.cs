@@ -116,5 +116,95 @@ namespace Rpg.Tests.Editor
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 Assert.That(M15FinalRollCallFacts.TryRead(out _), Is.False);
         }
+        [Test]
+        public void MissingConfirmationReadbackLeavesCeremonyRetryable()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            var session = new M15FinalRollCallSession(false, 3, "Chen");
+            bool dropConfirmation = true;
+            Action<string, int> write = (k, v) =>
+            {
+                if (dropConfirmation && k == M15FinalRollCallFacts.ConfirmedKey)
+                    return;
+                values[k] = v;
+            };
+            Assert.That(session.TryCompleteRollCall(M15RollCallReader.Protagonist,
+                M15FinalIdentityResponse.PrivateCustodianResponse,
+                M15SteleInscription.CarveConsentedVerifiedNames, read, write), Is.False);
+            Assert.That(session.IsCompleted, Is.False);
+            Assert.That(session.CompletedRecord, Is.Null);
+
+            dropConfirmation = false;
+            Assert.That(session.TryCompleteRollCall(M15RollCallReader.Protagonist,
+                M15FinalIdentityResponse.PrivateCustodianResponse,
+                M15SteleInscription.CarveConsentedVerifiedNames, read, write), Is.True);
+            Assert.That(session.IsCompleted, Is.True);
+            Assert.That(session.CompletedRecord.Value.ConsentedVerifiedNamesCount, Is.EqualTo(3));
+            Assert.That(session.CompletedRecord.Value.XiaoqiCalledByNumberSeventyTwo, Is.False);
+        }
+
+        [Test]
+        public void LostAcknowledgementRequiresExactRecordAndDoesNotRewrite()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            var session = new M15FinalRollCallSession(false, 2);
+            int writes = 0;
+            Action<string, int> write = (k, v) =>
+            {
+                writes++;
+                values[k] = v;
+                if (k == M15FinalRollCallFacts.ConfirmedKey)
+                    throw new InvalidOperationException("confirmation acknowledgement lost");
+            };
+            Assert.Throws<InvalidOperationException>(() => session.TryCompleteRollCall(
+                M15RollCallReader.HanQiao, M15FinalIdentityResponse.PublicTrueName,
+                M15SteleInscription.KeepOriginal, read, write));
+            Assert.That(session.IsCompleted, Is.False);
+            int originalWrites = writes;
+
+            Assert.That(session.TryCompleteRollCall(M15RollCallReader.HanQiao,
+                M15FinalIdentityResponse.PrivateCustodianResponse,
+                M15SteleInscription.KeepOriginal, read, write), Is.False);
+            Assert.That(session.TryCompleteRollCall(M15RollCallReader.HanQiao,
+                M15FinalIdentityResponse.PublicTrueName,
+                M15SteleInscription.LeaveBlank, read, write), Is.False);
+            Assert.That(writes, Is.EqualTo(originalWrites));
+            Assert.That(session.IsCompleted, Is.False);
+
+            Assert.That(session.TryCompleteRollCall(M15RollCallReader.HanQiao,
+                M15FinalIdentityResponse.PublicTrueName,
+                M15SteleInscription.KeepOriginal, read, write), Is.True);
+            Assert.That(writes, Is.EqualTo(originalWrites));
+            Assert.That(session.CompletedRecord.Value.SteleInscription,
+                Is.EqualTo(M15SteleInscription.KeepOriginal));
+        }
+
+        [Test]
+        public void ConfirmedButAlteredConsentCannotBeAcknowledgedAsRequestedRecord()
+        {
+            var values = new Dictionary<string, int>();
+            Func<string, int> read = Reader(values);
+            var session = new M15FinalRollCallSession(false, 3);
+            int writes = 0;
+            Action<string, int> write = (k, v) =>
+            {
+                writes++;
+                values[k] = k == M15FinalRollCallFacts.ConsentedNamesCountKey ? 1 : v;
+            };
+            Assert.That(session.TryCompleteRollCall(M15RollCallReader.AuntJiang,
+                M15FinalIdentityResponse.PrivateCustodianResponse,
+                M15SteleInscription.CarveConsentedVerifiedNames, read, write), Is.False);
+            Assert.That(session.IsCompleted, Is.False);
+            Assert.That(session.CompletedRecord, Is.Null);
+            Assert.That(M15FinalRollCallFacts.TryRead(read, out var saved), Is.True);
+            Assert.That(saved.Value.ConsentedVerifiedNamesCount, Is.EqualTo(1));
+            int originalWrites = writes;
+            Assert.That(session.TryCompleteRollCall(M15RollCallReader.AuntJiang,
+                M15FinalIdentityResponse.PrivateCustodianResponse,
+                M15SteleInscription.CarveConsentedVerifiedNames, read, write), Is.False);
+            Assert.That(writes, Is.EqualTo(originalWrites));
+        }
     }
 }
