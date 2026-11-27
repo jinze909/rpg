@@ -167,5 +167,117 @@ namespace Rpg.Tests.Editor
             if (!Maki.Initialized || Maki.Game?.Variables == null)
                 Assert.That(M14FinalPassageFacts.TryRead(out _), Is.False);
         }
+        [TestCase(M13ApproachRoute.RouteASupervisedCivilian)]
+        [TestCase(M13ApproachRoute.RouteBBellTowerAssault)]
+        [TestCase(M13ApproachRoute.RouteCOldCanalNightRun)]
+        public void OverflowingCensusCannotAdvanceOrPersistAndCorrectedCountsCanRetry(
+            M13ApproachRoute route)
+        {
+            var values = new Dictionary<string, int>();
+            SeedM13Departure(values, route, safetyPrepComplete: true,
+                threeBellSignal: route == M13ApproachRoute.RouteBBellTowerAssault);
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (k, v) => { writes++; values[k] = v; };
+            Assert.That(M14FinalPassageSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+            ResolveRoute(session, route);
+
+            // Three large positive counts wrap to a positive int in unchecked arithmetic.
+            Assert.That(session.TryVerifyCivilianExit(int.MaxValue, int.MaxValue, 3), Is.False);
+            Assert.That(session.TryVerifyCivilianExit(int.MaxValue, 1, 0), Is.False);
+            Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+            Assert.That(session.CivilianExitVerified, Is.False);
+            var invalid = RecordForRoute(route, int.MaxValue, int.MaxValue, 3);
+            Assert.That(invalid.UnlocksMainEnding, Is.False);
+            Assert.That(M14FinalPassageFacts.TryRecord(invalid, read, write), Is.False);
+            Assert.That(writes, Is.Zero);
+
+            Assert.That(session.TryVerifyCivilianExit(12, 2, 1), Is.True);
+            Assert.That(session.TrySettleAyuanAndCommit(M14AyuanOutcome.Safe, read, write), Is.True);
+            Assert.That(session.CompletedRecord.Value.TotalAccountedCivilians, Is.EqualTo(15));
+
+            // An otherwise confirmed save with a wrapped total must not unlock M15.
+            values[M14FinalPassageFacts.DepartingCountKey] = int.MaxValue;
+            values[M14FinalPassageFacts.StayingCountKey] = int.MaxValue;
+            values[M14FinalPassageFacts.UndecidedCountKey] = 3;
+            Assert.That(M14FinalPassageFacts.TryRead(read, out var corrupt), Is.True);
+            Assert.That(corrupt, Is.Null);
+        }
+
+        [TestCase(M13ApproachRoute.RouteBBellTowerAssault)]
+        [TestCase(M13ApproachRoute.RouteCOldCanalNightRun)]
+        public void ArmedAndNeutralPassagesRequireActualDepartingCivilians(
+            M13ApproachRoute route)
+        {
+            var values = new Dictionary<string, int>();
+            SeedM13Departure(values, route, safetyPrepComplete: true,
+                threeBellSignal: route == M13ApproachRoute.RouteBBellTowerAssault);
+            Func<string, int> read = Reader(values);
+            int writes = 0;
+            Action<string, int> write = (k, v) => { writes++; values[k] = v; };
+            Assert.That(M14FinalPassageSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+            ResolveRoute(session, route);
+            Assert.That(session.TryVerifyCivilianExit(0, 7, 2), Is.False);
+            Assert.That(session.Phase, Is.EqualTo(M14Phase.CivilianExitVerification));
+            var invalid = RecordForRoute(route, 0, 7, 2);
+            Assert.That(invalid.UnlocksMainEnding, Is.False);
+            Assert.That(M14FinalPassageFacts.TryRecord(invalid, read, write), Is.False);
+            Assert.That(writes, Is.Zero);
+
+            Assert.That(session.TryVerifyCivilianExit(1, 7, 2), Is.True);
+            Assert.That(session.TrySettleAyuanAndCommit(M14AyuanOutcome.Safe, read, write), Is.True);
+            Assert.That(session.CompletedRecord.Value.UnlocksMainEnding, Is.True);
+            values[M14FinalPassageFacts.DepartingCountKey] = 0;
+            Assert.That(M14FinalPassageFacts.TryRead(read, out var corrupt), Is.True);
+            Assert.That(corrupt, Is.Null);
+        }
+
+        [Test]
+        public void SupervisedCivilianRouteRetainsVoluntaryStayAndTicketCounts()
+        {
+            var values = new Dictionary<string, int>();
+            var route = M13ApproachRoute.RouteASupervisedCivilian;
+            SeedM13Departure(values, route, safetyPrepComplete: true);
+            Func<string, int> read = Reader(values);
+            Assert.That(M14FinalPassageSession.TryCreateFromSavedFacts(read, out var session), Is.True);
+            ResolveRoute(session, route);
+            Assert.That(session.TryVerifyCivilianExit(0, 7, 2), Is.True);
+            Assert.That(session.TrySettleAyuanAndCommit(M14AyuanOutcome.Safe, read,
+                (k, v) => values[k] = v), Is.True);
+            Assert.That(session.CompletedRecord.Value.TotalAccountedCivilians, Is.EqualTo(9));
+        }
+
+        private static void ResolveRoute(M14FinalPassageSession session, M13ApproachRoute route)
+        {
+            bool resolved;
+            switch (route)
+            {
+                case M13ApproachRoute.RouteASupervisedCivilian:
+                    resolved = session.TryResolveRouteASupervisedSquare(true, true,
+                        M14LuJunDisposition.Detained);
+                    break;
+                case M13ApproachRoute.RouteBBellTowerAssault:
+                    resolved = session.TryResolveRouteBBellTowerAssault(true,
+                        M14BorderForceAction.StopAtEscort);
+                    break;
+                default:
+                    resolved = session.TryResolveRouteCOldCanalRun(true, false);
+                    break;
+            }
+            Assert.That(resolved, Is.True);
+        }
+
+        private static M14FinalPassageRecord RecordForRoute(M13ApproachRoute route,
+            int departing, int staying, int undecided)
+        {
+            return new M14FinalPassageRecord(route,
+                M14FinalPassageFacts.ExpectedEstablishedOutcome(route), true,
+                departing, staying, undecided,
+                route == M13ApproachRoute.RouteBBellTowerAssault
+                    ? M14BorderForceAction.StopAtEscort : M14BorderForceAction.NotRouteB,
+                route == M13ApproachRoute.RouteASupervisedCivilian
+                    ? M14LuJunDisposition.Detained : M14LuJunDisposition.NotSettledInRouteA,
+                M14AyuanOutcome.Safe, false);
+        }
     }
 }
