@@ -22,7 +22,7 @@ namespace Rpg.Tests.Editor
 
                 service.SetWeather(region, RpgWorld500xWeatherKind.GaleStorm);
                 RpgWorld500xAtmosphereSnapshot before = service.GetSnapshot(region);
-                Dictionary<string, int> saved = service.ExportPersistenceState();
+                Dictionary<string, string> saved = service.ExportPersistenceState();
 
                 // Undefined weather and map IDs must not mutate live forecast or persistence state.
                 service.SetWeather(region, (RpgWorld500xWeatherKind)999);
@@ -72,7 +72,7 @@ namespace Rpg.Tests.Editor
                 Assert.IsFalse(string.IsNullOrEmpty(afterRest.PhaseDisplayName));
                 Assert.IsFalse(string.IsNullOrEmpty(afterRest.WeatherDisplayName));
 
-                Dictionary<string, int> persisted = service.ExportPersistenceState();
+                Dictionary<string, string> persisted = service.ExportPersistenceState();
                 var reloaded = new RpgWorld500xWeatherAndTimeOfDayService(gameMinutesPerRealSecond: 1f);
                 reloaded.ImportPersistenceState(persisted);
                 RpgWorld500xAtmosphereSnapshot reloadedSnap = reloaded.GetSnapshot(region);
