@@ -182,13 +182,13 @@ namespace Rpg.Soundwell
                             : " The delivered Zhongling quarry stone stands ready at the memorial.")
                         : string.Empty;
                     body.text = zh
-                        ? $"已同意公开且核验的归来者人名：{session.ConsentedVerifiedNamesCount} 人。{stoneNote}请选择石碑刻字方案："
-                        : $"Consented verified returnee names available to carve: {session.ConsentedVerifiedNamesCount}.{stoneNote} Choose the stele inscription:";
+                        ? $"旧碑原文保留。已同意公开且核验的归来者人名：{session.ConsentedVerifiedNamesCount} 人。{stoneNote}请选择石碑刻字方案："
+                        : $"The original inscription remains. Consented verified returnee names: {session.ConsentedVerifiedNamesCount}.{stoneNote} Choose the inscription:";
                     bool canCarve = session.CanChooseSteleInscription(M15SteleInscription.CarveConsentedVerifiedNames);
                     ShowChoice(0, zh ? "保留石碑原文" : "Keep original inscription", !submitting);
                     ShowChoice(1, zh ? "加刻一行「他们活着回来了」" : "Add \"They returned alive\"", !submitting);
                     ShowChoice(2, zh ? "刻上已同意且核验的归来者名字" : "Carve consented verified names", !submitting && canCarve);
-                    ShowChoice(3, zh ? "石碑留空" : "Leave blank", !submitting);
+                    ShowChoice(3, zh ? "预留新行，不刻字" : "Reserve a blank new line", !submitting);
                     if (!submitting)
                         SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform, choiceButtons[0]);
                     break;
