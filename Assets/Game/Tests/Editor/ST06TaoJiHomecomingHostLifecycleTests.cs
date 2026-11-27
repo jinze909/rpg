@@ -115,9 +115,19 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void OpeningCallbackDisposesHostWithoutPublishingSessionOrCanvas(bool duringFactRead)
+        [Test]
+        public void WoodshopCallbackDisposesHostWithoutPublishingSessionOrCanvas()
+        {
+            AssertOpeningCallbackDisposesHostWithoutPublishingSessionOrCanvas(false);
+        }
+
+        [Test]
+        public void FactReadCallbackDisposesHostWithoutPublishingSessionOrCanvas()
+        {
+            AssertOpeningCallbackDisposesHostWithoutPublishingSessionOrCanvas(true);
+        }
+
+        private static void AssertOpeningCallbackDisposesHostWithoutPublishingSessionOrCanvas(bool duringFactRead)
         {
             var root = new GameObject("ST06 retired during opening");
             var values = new Dictionary<string, int>();
