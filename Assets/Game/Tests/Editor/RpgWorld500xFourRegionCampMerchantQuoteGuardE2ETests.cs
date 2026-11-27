@@ -33,72 +33,77 @@ namespace Rpg.Tests.Editor
                     RpgWorldMapId nextMap = specs[(r + 1) % specs.Count].MapId;
                     var regionRoot = new GameObject("RegionMerchant_" + spec.MapId);
                     regionRoot.transform.SetParent(root.transform, false);
+                    var hostGo = new GameObject("RegionMerchantHost_" + spec.MapId);
+                    var ctrl = hostGo.AddComponent<RpgWorld500xPlayModeController>();
 
                     try
                     {
-                        using (var boot = new RpgWorld500xSceneBootstrapper(
-                            initialMapId: spec.MapId,
-                            overrideTileSlices: new Sprite[] { null }))
+                        ctrl.Initialize(
+                            overrideMap: spec.MapId,
+                            saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                            overrideTileSlices: new Sprite[] { null });
+
+                        RpgWorld500xSceneBootstrapper boot = ctrl.Bootstrapper;
+                        RpgWorld500xCampHavenService haven = ctrl.CampHaven;
+                        boot.Driver.Facade.BountyAndSupply.AddSaltSilver(100);
+
+                        using (var panel = new RpgWorld500xCampMerchantHudPanel(regionRoot.transform, boot, haven))
                         {
-                            RpgWorld500xCampHavenService haven = boot.CreateCampHavenService();
-                            boot.Driver.Facade.BountyAndSupply.AddSaltSilver(100);
+                            Assert.IsTrue(panel.Show(RpgCampMerchantTab.Supplies),
+                                $"CampMerchantHudPanel failed to show on {spec.MapId}.");
+                            int baseCost = haven.GetDiscountedUnitCost(spec.MapId, "flare");
+                            Assert.Greater(baseCost, 0);
 
-                            using (var panel = new RpgWorld500xCampMerchantHudPanel(regionRoot.transform, boot, haven))
-                            {
-                                Assert.IsTrue(panel.Show(RpgCampMerchantTab.Supplies),
-                                    $"CampMerchantHudPanel failed to show on {spec.MapId}.");
-                                int baseCost = haven.GetDiscountedUnitCost(spec.MapId, "flare");
-                                Assert.Greater(baseCost, 0);
+                            // 1. Reputation changes while modal is open -> stale quote must reject charge.
+                            Button.ButtonClickedEvent staleRepClick =
+                                regionRoot.transform.Find(FlareButtonPath).GetComponent<Button>().onClick;
+                            haven.Reputation.AddPoints(spec.MapId, 800);
+                            int discountedCost = haven.GetDiscountedUnitCost(spec.MapId, "flare");
+                            Assert.Less(discountedCost, baseCost,
+                                $"Expected reputation discount on {spec.MapId}.");
 
-                                // 1. Reputation changes while modal is open -> stale quote must reject charge.
-                                Button.ButtonClickedEvent staleRepClick =
-                                    regionRoot.transform.Find(FlareButtonPath).GetComponent<Button>().onClick;
-                                haven.Reputation.AddPoints(spec.MapId, 800);
-                                int discountedCost = haven.GetDiscountedUnitCost(spec.MapId, "flare");
-                                Assert.Less(discountedCost, baseCost,
-                                    $"Expected reputation discount on {spec.MapId}.");
+                            staleRepClick.Invoke();
+                            Assert.AreEqual(100, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance,
+                                $"Stale reputation quote charged silver on {spec.MapId}.");
+                            Assert.IsFalse(boot.Store.ContainsKey(FlareOwnedKey));
+                            StringAssert.Contains("报价已更新", panel.FeedbackText);
+                            StringAssert.Contains("折扣 30%", panel.HeaderText);
 
-                                staleRepClick.Invoke();
-                                Assert.AreEqual(100, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance,
-                                    $"Stale reputation quote charged silver on {spec.MapId}.");
-                                Assert.IsFalse(boot.Store.ContainsKey(FlareOwnedKey));
-                                StringAssert.Contains("报价已更新", panel.FeedbackText);
-                                StringAssert.Contains("折扣 30%", panel.HeaderText);
+                            // Renewed purchase succeeds at discounted price.
+                            Assert.IsTrue(panel.TryClickBuySupply("flare"),
+                                $"Renewed discounted purchase failed on {spec.MapId}.");
+                            int balanceAfterFirst = 100 - discountedCost;
+                            Assert.AreEqual(balanceAfterFirst, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                            Assert.AreEqual(1, boot.Store[FlareOwnedKey]);
 
-                                // Renewed purchase succeeds at discounted price.
-                                Assert.IsTrue(panel.TryClickBuySupply("flare"),
-                                    $"Renewed discounted purchase failed on {spec.MapId}.");
-                                int balanceAfterFirst = 100 - discountedCost;
-                                Assert.AreEqual(balanceAfterFirst, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
-                                Assert.AreEqual(1, boot.Store[FlareOwnedKey]);
+                            // 2. Region switches while modal is open -> stale regional quote must reject charge.
+                            Button.ButtonClickedEvent staleRegionClick =
+                                regionRoot.transform.Find(FlareButtonPath).GetComponent<Button>().onClick;
+                            Assert.IsTrue(boot.SwitchMap(nextMap));
+                            int nextRegionCost = haven.GetDiscountedUnitCost(nextMap, "flare");
+                            Assert.AreEqual(baseCost, nextRegionCost);
 
-                                // 2. Region switches while modal is open -> stale regional quote must reject charge.
-                                Button.ButtonClickedEvent staleRegionClick =
-                                    regionRoot.transform.Find(FlareButtonPath).GetComponent<Button>().onClick;
-                                Assert.IsTrue(boot.SwitchMap(nextMap));
-                                int nextRegionCost = haven.GetDiscountedUnitCost(nextMap, "flare");
-                                Assert.AreEqual(baseCost, nextRegionCost);
+                            staleRegionClick.Invoke();
+                            Assert.AreEqual(balanceAfterFirst, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance,
+                                $"Stale regional quote charged silver after {spec.MapId}->{nextMap}.");
+                            Assert.AreEqual(1, boot.Store[FlareOwnedKey]);
+                            StringAssert.Contains("报价已更新", panel.FeedbackText);
 
-                                staleRegionClick.Invoke();
-                                Assert.AreEqual(balanceAfterFirst, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance,
-                                    $"Stale regional quote charged silver after {spec.MapId}->{nextMap}.");
-                                Assert.AreEqual(1, boot.Store[FlareOwnedKey]);
-                                StringAssert.Contains("报价已更新", panel.FeedbackText);
+                            // Renewed purchase on new region succeeds at full price.
+                            Assert.IsTrue(panel.TryClickBuySupply("flare"),
+                                $"Renewed purchase failed on {nextMap}.");
+                            Assert.AreEqual(balanceAfterFirst - nextRegionCost,
+                                boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
+                            Assert.AreEqual(2, boot.Store[FlareOwnedKey]);
 
-                                // Renewed purchase on new region succeeds at full price.
-                                Assert.IsTrue(panel.TryClickBuySupply("flare"),
-                                    $"Renewed purchase failed on {nextMap}.");
-                                Assert.AreEqual(balanceAfterFirst - nextRegionCost,
-                                    boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
-                                Assert.AreEqual(2, boot.Store[FlareOwnedKey]);
-
-                                Assert.IsTrue(panel.Hide());
-                                Assert.IsFalse(panel.IsVisible);
-                            }
+                            Assert.IsTrue(panel.Hide());
+                            Assert.IsFalse(panel.IsVisible);
                         }
                     }
                     finally
                     {
+                        ctrl.Shutdown();
+                        UnityEngine.Object.DestroyImmediate(hostGo);
                         UnityEngine.Object.DestroyImmediate(regionRoot);
                     }
                 }
