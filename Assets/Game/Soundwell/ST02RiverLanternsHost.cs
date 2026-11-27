@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
         private ST02RiverLanternsSession session;
         private ST02RiverLanternsView activeView;
         private bool disposed;
+        private bool opening;
 
         public ST02RiverLanternsSession Session => session;
         public ST02RiverLanternsView ActiveView =>
@@ -42,6 +43,21 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (opening || disposed || parent == null)
+                return false;
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -50,7 +66,8 @@ namespace Rpg.Soundwell
             if (disposed || parent == null || activeView != null || !atLutingDock() ||
                 getInt(ST02RiverLanternsFacts.ConfirmedKey) != 0 ||
                 getInt(ST02RiverLanternsFacts.PendingSignatureKey) != 0 ||
-                !ST02RiverLanternsFacts.TryRead(getInt, out _))
+                !ST02RiverLanternsFacts.TryRead(getInt, out _) ||
+                disposed || parent == null || activeView != null)
                 return false;
 
             session = new ST02RiverLanternsSession();
@@ -63,14 +80,42 @@ namespace Rpg.Soundwell
 
         private void HandleRescueSubmitted(ST02LockRescueMethod rescueMethod)
         {
-            if (disposed || session == null || activeView == null || activeView.IsDisposed || !atLutingDock())
+            var submittingView = activeView;
+            var submittingSession = session;
+            if (!IsCurrentSubmission(submittingView, submittingSession) ||
+                !atLutingDock() ||
+                !IsCurrentSubmission(submittingView, submittingSession))
                 return;
 
-            if (!session.TryResolveOldLockAndCommit(rescueMethod, getInt, setInt))
+            // Fact reads and writes can synchronously retire this dialog.
+            // Never write additional fields for a retired encounter or close
+            // a replacement view. Preserve the existing immutable intent retry.
+            bool abandoned = false;
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (abandoned || !IsCurrentSubmission(submittingView, submittingSession))
+                {
+                    abandoned = true;
+                    return;
+                }
+                setInt(key, value);
+            }
+
+            if (!submittingSession.TryResolveOldLockAndCommit(
+                    rescueMethod, getInt, WriteWhileCurrent) ||
+                abandoned || !IsCurrentSubmission(submittingView, submittingSession))
                 return;
 
-            activeView.Dispose();
+            submittingView.Dispose();
             activeView = null;
+        }
+
+        private bool IsCurrentSubmission(
+            ST02RiverLanternsView expectedView, ST02RiverLanternsSession expectedSession)
+        {
+            return !disposed && parent != null && expectedView != null &&
+                expectedSession != null && activeView == expectedView &&
+                session == expectedSession && !expectedView.IsDisposed;
         }
 
         public void Dispose()

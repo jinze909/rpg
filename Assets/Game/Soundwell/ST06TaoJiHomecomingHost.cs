@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private ST06TaoJiHomecomingView activeView;
         private int? openedArrivalSequence;
         private bool disposed;
+        private bool opening;
 
         public ST06TaoJiHomecomingSession Session => session;
         public ST06TaoJiHomecomingView ActiveView =>
@@ -43,6 +44,22 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (opening || disposed || parent == null)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -57,8 +74,14 @@ namespace Rpg.Soundwell
                     getInt, out ST06TaoJiHomecomingSession created))
                 return false;
 
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            // The live presence and saved-fact callbacks may retire this host.
+            // Do not publish a session or canvas after that retirement.
+            if (disposed || parent == null || activeView != null)
+                return false;
+
             session = created;
-            openedArrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            openedArrivalSequence = arrivalSequence;
             activeView = new ST06TaoJiHomecomingView(
                 parent, session, HandleSettleRequested);
             return true;

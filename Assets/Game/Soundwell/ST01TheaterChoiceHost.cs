@@ -25,6 +25,7 @@ namespace Rpg.Soundwell
         private readonly Action<string, int> setInt;
         private ST01TheaterChoiceView activeView;
         private bool disposed;
+        private bool opening;
 
         public ST01TheaterChoiceView ActiveView =>
             (activeView != null && !activeView.IsDisposed) ? activeView : null;
@@ -98,6 +99,22 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -130,24 +147,56 @@ namespace Rpg.Soundwell
             ST01TheaterChoice? pending = pendingRaw != 0
                 ? (ST01TheaterChoice?)pendingRaw : null;
 
-            activeView = new ST01TheaterChoiceView(
+            // Scene or save callbacks may retire the host while the
+            // opening is in progress. Never publish a late view.
+            if (disposed || parent == null || activeView != null)
+                return false;
+
+            var createdView = new ST01TheaterChoiceView(
                 parent, history, pending, CanCommit, HandleChoice);
+            if (disposed || parent == null || createdView.IsDisposed)
+            {
+                createdView.Dispose();
+                return false;
+            }
+
+            activeView = createdView;
             return true;
         }
 
+        private bool IsCurrentSubmission(ST01TheaterChoiceView expectedView) =>
+            !disposed && parent != null && expectedView != null &&
+            !expectedView.IsDisposed && ReferenceEquals(activeView, expectedView);
+
         private void HandleChoice(ST01TheaterChoice choice)
         {
-            if (disposed || activeView == null || activeView.IsDisposed || !CanCommit(choice))
+            var expectedView = activeView;
+            if (!IsCurrentSubmission(expectedView) || !CanCommit(choice) ||
+                !IsCurrentSubmission(expectedView))
                 return;
 
+            bool abandoned = false;
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (!IsCurrentSubmission(expectedView))
+                {
+                    abandoned = true;
+                    return;
+                }
+                setInt(key, value);
+            }
+
+            // A synchronous fact callback can close this view and open a
+            // replacement. Do not let the retired submission write or close it.
             if (!ST01RegionalStoryFacts.TryRecordTheater(
-                choice, getInt, setInt))
+                choice, getInt, WriteWhileCurrent) || abandoned ||
+                !IsCurrentSubmission(expectedView))
                 return;
             if (!ST01RegionalStoryFacts.TryRead(getInt, out ST01RegionalOutcome saved) ||
-                saved.Theater != choice)
+                saved.Theater != choice || !IsCurrentSubmission(expectedView))
                 return;
 
-            activeView.Dispose();
+            expectedView.Dispose();
             activeView = null;
         }
 
