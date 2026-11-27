@@ -159,6 +159,18 @@ namespace Rpg.Soundwell
             if (!FogListeningFacts.TryRead(read, out FogListeningRecord? saved))
                 throw new InvalidOperationException("Fog outcome store is unavailable.");
 
+            // The fact store may invoke callbacks during validation or writing.
+            // Stop before any further field (including the completion marker)
+            // if the originating view or sailing has been retired.
+            void WriteWhileCurrent(string key, int value)
+            {
+                if (!IsCurrentView(submittingView) ||
+                    read(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
+                    !IsCurrentView(submittingView))
+                    throw new InvalidOperationException("The fog outcome no longer belongs to the active voyage.");
+                write(key, value);
+            }
+
             if (!saved.HasValue)
             {
                 // The current leg is uncommitted, not malformed. A torn write
@@ -167,7 +179,7 @@ namespace Rpg.Soundwell
                     !IsCurrentView(submittingView) ||
                     read(M04DepartureFacts.SailingSequenceKey) != openedSailingSequence ||
                     !IsCurrentView(submittingView) ||
-                    !FogListeningFacts.TryRecord(leg, read, write) ||
+                    !FogListeningFacts.TryRecord(leg, read, WriteWhileCurrent) ||
                     !FogListeningFacts.TryRead(read, out saved) ||
                     !saved.HasValue)
                     throw new InvalidOperationException("Unable to persist fog leg outcome.");
