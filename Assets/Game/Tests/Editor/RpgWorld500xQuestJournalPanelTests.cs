@@ -71,6 +71,79 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void JournalDisabledCanvasRejectsTrackingTabsAndTravelUntilRestored()
+        {
+            var tracker = new RpgMapExplorationTracker(RpgWorldMapId.MineCamp);
+            int tracked = 0;
+            int travelled = 0;
+            string destination = null;
+            Vector2Int destinationTile = default;
+            panel = new RpgWorld500xQuestJournalPanel(root.transform, tracker,
+                onFastTravelRequested: (id, tile) =>
+                {
+                    travelled++;
+                    destination = id;
+                    destinationTile = tile;
+                },
+                onTrackedQuestChanged: id => tracked++);
+
+            const string questId = "q.mc.inspect-main-pump";
+            const string markerId = "mc.main-pump-hall";
+            Button RowButton(string name) => panel.RootObject.transform
+                .Find("JournalPanel/Rows/Content/" + name + "/ActionButton").GetComponent<Button>();
+
+            Assert.IsTrue(panel.Show());
+            var canvas = panel.RootObject.GetComponent<Canvas>();
+            var track = RowButton("QuestRow_" + questId);
+            var beaconTab = panel.RootObject.transform.Find("JournalPanel/TabBar/Tab_FastTravelBeacons")
+                .GetComponent<Button>();
+            var activeTab = panel.RootObject.transform.Find("JournalPanel/TabBar/Tab_ActiveQuests")
+                .GetComponent<Button>();
+            string initialTracked = tracker.TrackedQuestId;
+            string summary = panel.BodySummaryText;
+            int rows = panel.DisplayedRowCount;
+
+            canvas.enabled = false;
+            Assert.IsTrue(track.IsInteractable());
+            track.onClick.Invoke();
+            beaconTab.onClick.Invoke();
+            Assert.IsFalse(panel.TryClickTrackQuest(questId));
+            Assert.AreEqual(0, tracked);
+            Assert.AreEqual(initialTracked, tracker.TrackedQuestId);
+            Assert.AreEqual(RpgQuestJournalTab.ActiveQuests, panel.CurrentTab);
+            Assert.AreEqual(rows, panel.DisplayedRowCount);
+            Assert.AreEqual(summary, panel.BodySummaryText);
+
+            canvas.enabled = true;
+            track.onClick.Invoke();
+            Assert.AreEqual(1, tracked);
+            Assert.AreEqual(questId, tracker.TrackedQuestId);
+            Assert.IsTrue(tracker.TryAdvanceQuest(questId, 2));
+
+            // Programmatic tab selection and refresh are not player input.
+            canvas.enabled = false;
+            Assert.IsTrue(panel.SetTab(RpgQuestJournalTab.FastTravelBeacons));
+            var travel = RowButton("BeaconRow_" + markerId);
+            Assert.IsTrue(travel.IsInteractable());
+            travel.onClick.Invoke();
+            activeTab.onClick.Invoke();
+            Assert.IsFalse(panel.TryClickFastTravel(markerId));
+            Assert.AreEqual(0, travelled);
+            Assert.IsNull(destination);
+            Assert.AreEqual(RpgQuestJournalTab.FastTravelBeacons, panel.CurrentTab);
+            Assert.AreEqual(5, panel.DisplayedRowCount);
+
+            canvas.enabled = true;
+            travel.onClick.Invoke();
+            Assert.AreEqual(1, travelled);
+            Assert.AreEqual(markerId, destination);
+            Assert.AreEqual(new Vector2Int(1720, 1080), destinationTile);
+            activeTab.onClick.Invoke();
+            Assert.AreEqual(RpgQuestJournalTab.ActiveQuests, panel.CurrentTab);
+            Assert.AreEqual(tracker.TotalQuestCount - 1, panel.DisplayedRowCount);
+        }
+
+        [Test]
         public void JournalRejectsHiddenDisabledRetiredAndDisposedButtonEvents()
         {
             var tracker = new RpgMapExplorationTracker(RpgWorldMapId.MineCamp);
