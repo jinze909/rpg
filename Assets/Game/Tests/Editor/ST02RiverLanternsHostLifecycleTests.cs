@@ -77,6 +77,94 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void DockCallbackDisposingHostPreventsLateOpening()
+        {
+            var root = new GameObject("ST02 dock callback disposes opening host");
+            ST02RiverLanternsHost host = null;
+            try
+            {
+                host = new ST02RiverLanternsHost(root.transform, () =>
+                {
+                    host.Dispose();
+                    return true;
+                }, _ => 0, (_, __) => Assert.Fail("Unexpected fact write"));
+                Assert.That(host.TryOpen(), Is.False);
+                Assert.That(host.ActiveView, Is.Null);
+                Assert.That(root.transform.childCount, Is.Zero);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DockCallbackReplacingDialogCannotSettleReplacement()
+        {
+            AssertRetiredRescueDoesNotSettle(false);
+        }
+
+        [Test]
+        public void FactReaderReplacingDialogCannotWriteRetiredRescue()
+        {
+            AssertRetiredRescueDoesNotSettle(true);
+        }
+
+        private static void AssertRetiredRescueDoesNotSettle(bool retireDuringRead)
+        {
+            var root = new GameObject("ST02 stale rescue callback");
+            var values = new Dictionary<string, int>();
+            ST02RiverLanternsHost host = null;
+            ST02RiverLanternsView replacement = null;
+            bool armed = false;
+            int writes = 0;
+            try
+            {
+                void RetireAndReopen()
+                {
+                    armed = false;
+                    host.ActiveView.Dispose();
+                    Assert.That(host.TryOpen(), Is.True);
+                    replacement = host.ActiveView;
+                }
+
+                host = new ST02RiverLanternsHost(root.transform, () =>
+                {
+                    if (armed && !retireDuringRead) RetireAndReopen();
+                    return true;
+                }, key =>
+                {
+                    if (armed && retireDuringRead) RetireAndReopen();
+                    return values.TryGetValue(key, out int value) ? value : 0;
+                }, (key, value) => { writes++; values[key] = value; });
+
+                Assert.That(host.TryOpen(), Is.True);
+                var original = host.ActiveView;
+                original.InspectXieZhiBoatButton.onClick.Invoke();
+                original.InspectWenShengBoatButton.onClick.Invoke();
+                original.GatherDockFeedbackButton.onClick.Invoke();
+                original.PublishToBothButton.onClick.Invoke();
+                original.JointBidButton.onClick.Invoke();
+                Assert.That(host.Session.Stage, Is.EqualTo(ST02Stage.OldLockRescue));
+                armed = true;
+                original.BraceHullStressButton.onClick.Invoke();
+
+                Assert.That(replacement, Is.Not.Null);
+                Assert.That(host.ActiveView, Is.SameAs(replacement));
+                Assert.That(host.Session.Stage, Is.EqualTo(ST02Stage.WorkshopInspection));
+                Assert.That(writes, Is.Zero);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(root.transform.childCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedParentFailsClosedWithoutThrowingOnTryOpen()
         {
             var root = new GameObject("ST02 lifecycle destroyed parent");
