@@ -29,6 +29,7 @@ namespace Rpg.Soundwell
         private M09RuiyaOutcome? committedOutcome;
         private int committedBoardedCount;
         private bool verifyingBoarding;
+        private bool opening;
         private bool disposed;
 
         public M09EastShoreNightCrossingSession Session => session;
@@ -64,6 +65,24 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            // Readiness and transfer-count callbacks may synchronously try
+            // opening this same dialogue. Only the original caller owns it.
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -73,14 +92,22 @@ namespace Rpg.Soundwell
                 openedHouseholdSize = null;
             }
 
-            if (disposed || parent == null || activeView != null || IsCommitted || !nightFerryReady() ||
-                !HasUnsettledCleanM09State())
+            if (disposed || parent == null || activeView != null || IsCommitted)
+                return false;
+
+            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
+            if (arrivalSequence < 0 || !nightFerryReady() || !HasUnsettledCleanM09State())
                 return false;
 
             int berths = availableBerths();
             int household = observedHouseholdSize();
-            int arrivalSequence = getInt(M05LandingFacts.ArrivalSequenceKey);
-            if (berths < 0 || household <= 0 || arrivalSequence < 0)
+            // A count reader may retire the host or advance the arrival.
+            // Recheck persisted state before creating the UI, and check
+            // lifetime again after the final potentially reentrant read.
+            if (berths < 0 || household <= 0 || disposed || parent == null ||
+                !HasUnsettledCleanM09State() ||
+                getInt(M05LandingFacts.ArrivalSequenceKey) != arrivalSequence ||
+                disposed || parent == null)
                 return false;
 
             openedArrivalSequence = arrivalSequence;
