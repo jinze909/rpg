@@ -23,6 +23,8 @@
 
 - **ST03 / ST05 / ST06 生命周期与结算保护已合入**：#1005、#1014、#1003；`cb711e3b4f3517bdf8e5de1d802603f5ecd8e6d6`，[候选 CI 45937757774](https://github.com/jinze909/rpg/actions/runs/45937757774) 1816/1816、零失败、零跳过、`passed-clean-candidate`；[dev CI 45939703770](https://github.com/jinze909/rpg/actions/runs/45939703770) 通过，[清理 45939703758](https://github.com/jinze909/rpg/actions/runs/45939703758) 确认三个支线候选分支已删除。 其余地区故事和港口界面按对应活动候选最终 SHA 核验，完整剧情连续性、场景实作及玩家体验仍按场景稿逐项验收。
 
+- **ST01 / ST02 / ST04 生命周期与结算保护已合入**：#1012、#994、#1009；`6fc08cf12ded021a8a932276e88d31daa9fd3e4e`，[候选 CI 45940520614](https://github.com/jinze909/rpg/actions/runs/45940520614) 1827/1827、零失败、零跳过、`passed-clean-candidate`；[dev CI 45942547257](https://github.com/jinze909/rpg/actions/runs/45942547257) 通过，[清理 45942547108](https://github.com/jinze909/rpg/actions/runs/45942547108) 确认三个支线候选分支已删除。 ST05 合法中间存档续接仍以活动候选 #1019 的最终验证为准。
+
 ## M1–M11 现代化（工程增量已落地；8 个阶段仍待完整验收）
 
 **跨轮现代化任务仍已立项，但不构成强制实施队列：** [总追踪 Issue #2](https://github.com/jinze909/rpg/issues/2) 及子票 [#3—#16](https://github.com/jinze909/rpg/issues/3) 留作独立任务与证据来源。只有技术依赖确实存在时才按依赖排序，并允许故事/玩法增量穿插；不得因为换聊天而丢弃正在接力的候选。原 M1–M11 空预留头只是历史记录，不再永久保留；每个候选只负责一次独立可验收增量，合入后安全关闭，后续内容从最新 dev 新建不同名称候选。开票/建分支不代表阶段完成，也不得混装多项技术或让 ORK 与新系统并行控制同一操作。
