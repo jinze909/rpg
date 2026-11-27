@@ -67,27 +67,50 @@ namespace Rpg.Tests.Editor
                             Assert.AreEqual(RpgWorld500xBountyBoardScope.AllRegions, panel.ActiveScope);
                             Assert.AreEqual(12, panel.DisplayedRowCount);
 
-                            // Unlock all shortcuts in this region to satisfy its shortcut bounty.
-                            IReadOnlyList<RpgWorldShortcutDef> shortcuts =
-                                RpgWorld500xContentCatalog.GetShortcuts(spec.MapId);
-                            Assert.GreaterOrEqual(shortcuts.Count, 2,
-                                $"Expected shortcuts on {spec.MapId}.");
-                            for (int i = 0; i < shortcuts.Count; i++)
+                            // Red Salt Harbor has no shortcut bounty: its survey requires eight
+                            // actual discovered landmarks. Other regions have a two-shortcut bounty.
+                            var facade = boot.Driver.Facade;
+                            if (spec.MapId == RpgWorldMapId.RedSaltHarbor)
                             {
-                                var pos = new Vector2(
-                                    shortcuts[i].TriggerTile.x + 0.5f,
-                                    shortcuts[i].TriggerTile.y + 0.5f);
-                                Assert.IsTrue(boot.Driver.Facade.ActivityDirector.CachesAndShortcuts
-                                    .TryUnlockNearbyShortcut(pos, 6f, out _));
+                                var host = facade.Session.Host;
+                                var markers = host.Layout.Markers;
+                                Assert.GreaterOrEqual(markers.Count, 8);
+                                for (int i = 0; i < 8; i++)
+                                {
+                                    if (!host.Tracker.IsMarkerDiscovered(markers[i].Id))
+                                        Assert.IsTrue(host.Tracker.TryDiscoverMarker(markers[i].Id));
+                                }
+                                Assert.GreaterOrEqual(facade.GetCompletionSummary().DiscoveredMarkers, 8);
+                            }
+                            else
+                            {
+                                IReadOnlyList<RpgWorldShortcutDef> shortcuts =
+                                    RpgWorld500xContentCatalog.GetShortcuts(spec.MapId);
+                                Assert.GreaterOrEqual(shortcuts.Count, 2,
+                                    $"Expected shortcuts on {spec.MapId}.");
+                                for (int i = 0; i < 2; i++)
+                                {
+                                    var pos = new Vector2(
+                                        shortcuts[i].TriggerTile.x + 0.5f,
+                                        shortcuts[i].TriggerTile.y + 0.5f);
+                                    Assert.IsTrue(facade.ActivityDirector.CachesAndShortcuts
+                                        .TryUnlockNearbyShortcut(pos, 6f, out _));
+                                }
+                                Assert.GreaterOrEqual(facade.GetCompletionSummary().UnlockedShortcuts, 2);
                             }
 
                             panel.Refresh();
                             int claimableCount = panel.ClaimableCount;
                             int claimableSilver = panel.ClaimableSaltSilver;
-                            Assert.GreaterOrEqual(claimableCount, 1,
-                                $"Expected at least 1 claimable bounty on {spec.MapId}.");
-                            Assert.Greater(claimableSilver, 0);
+                            Assert.AreEqual(1, claimableCount,
+                                $"Expected exactly one regional bounty on {spec.MapId}.");
+                            int expectedSilver = spec.MapId == RpgWorldMapId.Soundwell ? 60
+                                : spec.MapId == RpgWorldMapId.RedSaltHarbor ? 45
+                                : spec.MapId == RpgWorldMapId.WhitewaterCrossing ? 65 : 70;
+                            Assert.AreEqual(expectedSilver, claimableSilver);
                             StringAssert.Contains("+" + claimableSilver + " 盐银", panel.ClaimButtonLabelText);
+
+                            int walletBefore = facade.BountyAndSupply.SaltSilverBalance;
 
                             // Ancestor CanvasGroup lock blocks scope switch, claim, and close cleanly.
                             CanvasGroup group = regionRoot.AddComponent<CanvasGroup>();
@@ -96,6 +119,7 @@ namespace Rpg.Tests.Editor
                             Assert.IsFalse(panel.TryClickClaimEligible());
                             Assert.IsFalse(panel.TryClickClose());
                             Assert.AreEqual(0, panel.ClaimedCount);
+                            Assert.AreEqual(walletBefore, facade.BountyAndSupply.SaltSilverBalance);
                             group.interactable = true;
 
                             // Claim eligible bounties idempotently.
@@ -105,9 +129,10 @@ namespace Rpg.Tests.Editor
                             Assert.AreEqual(0, panel.ClaimableSaltSilver);
                             Assert.AreEqual(initialRemainingSilver - claimableSilver, panel.RemainingSaltSilver);
                             Assert.AreEqual("领取本境已达标悬赏", panel.ClaimButtonLabelText);
-                            Assert.GreaterOrEqual(boot.Driver.Facade.BountyAndSupply.SaltSilverBalance, claimableSilver);
+                            Assert.AreEqual(walletBefore + claimableSilver, facade.BountyAndSupply.SaltSilverBalance);
                             StringAssert.Contains("盐银 +" + claimableSilver, panel.FeedbackText);
                             Assert.IsFalse(panel.TryClickClaimEligible());
+                            Assert.AreEqual(walletBefore + claimableSilver, facade.BountyAndSupply.SaltSilverBalance);
 
                             Assert.IsTrue(panel.TryClickClose());
                             Assert.IsFalse(panel.IsVisible);
