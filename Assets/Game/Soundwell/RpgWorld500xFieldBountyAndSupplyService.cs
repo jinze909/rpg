@@ -72,7 +72,8 @@ namespace Rpg.Soundwell
         UnknownItem = 1,
         InvalidQuantity = 2,
         OutOfStock = 3,
-        InsufficientSaltSilver = 4
+        InsufficientSaltSilver = 4,
+        WalletWriteFailed = 5
     }
 
     public readonly struct RpgWorld500xBountyBoardSummary

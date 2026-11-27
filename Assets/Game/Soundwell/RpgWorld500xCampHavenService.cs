@@ -241,7 +241,15 @@ namespace Rpg.Soundwell
             }
 
             int totalCost = (int)totalCostLong;
-            _setInt(RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey, balance - totalCost);
+            int remainingBalance = balance - totalCost;
+            _setInt(RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey, remainingBalance);
+            // Do not grant supplies until the authoritative wallet confirms
+            // the exact debit. A disconnected or read-only wallet must fail closed.
+            if (_getInt(RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey) != remainingBalance)
+            {
+                return RpgCampSupplyPurchaseStatus.WalletWriteFailed;
+            }
+
             _setInt(item.OwnedCountKey, owned + quantity);
             totalCostCharged = totalCost;
             return RpgCampSupplyPurchaseStatus.Succeeded;
