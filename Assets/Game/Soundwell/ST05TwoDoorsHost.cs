@@ -25,6 +25,7 @@ namespace Rpg.Soundwell
         private ST05TwoDoorsSession session;
         private ST05TwoDoorsView activeView;
         private bool disposed;
+        private bool opening;
 
         public ST05TwoDoorsSession Session => session;
         public ST05TwoDoorsView ActiveView =>
@@ -67,6 +68,22 @@ namespace Rpg.Soundwell
 
         public bool TryOpen()
         {
+            if (disposed || parent == null || opening)
+                return false;
+
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
+        {
             if (activeView != null && activeView.IsDisposed)
             {
                 activeView.Dispose();
@@ -77,13 +94,16 @@ namespace Rpg.Soundwell
                 existing.HasValue)
                 return false;
 
-            if (!ST05TwoDoorsSession.TryCreate(getInt, out ST05TwoDoorsSession created))
+            if (disposed || parent == null ||
+                !ST05TwoDoorsSession.TryCreate(getInt, out ST05TwoDoorsSession created) ||
+                disposed || parent == null || activeView != null)
                 return false;
 
-            session = created;
-            activeView = new ST05TwoDoorsView(
+            // A live scene or save callback may retire this opening.
+            // Keep the new session private until its view can be published.
+            var createdView = new ST05TwoDoorsView(
                 parent,
-                session,
+                created,
                 returnHaulageFeePaid,
                 marketGiftsTested,
                 courtyardResolved,
@@ -92,6 +112,14 @@ namespace Rpg.Soundwell
                 chengJobTermsReady,
                 HandleHomeCommitRequested,
                 HandleAssignmentCommitRequested);
+            if (disposed || parent == null || createdView.IsDisposed)
+            {
+                createdView.Dispose();
+                return false;
+            }
+
+            session = created;
+            activeView = createdView;
             return true;
         }
 
