@@ -16,6 +16,7 @@ namespace Rpg.Soundwell
     {
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Transform _rowContainer;
         private readonly Text _headerText;
         private readonly Text _detailText;
@@ -65,9 +66,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 64;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 64;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -340,9 +341,14 @@ namespace Rpg.Soundwell
             return btn;
         }
 
+        private bool CanReceiveInput()
+        {
+            return IsVisible && _canvas != null && _canvas.isActiveAndEnabled && !_bootstrapper.IsDisposed;
+        }
+
         private bool IsPanelInteractable()
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || !_rootObject.activeInHierarchy)
+            if (!CanReceiveInput() || !_rootObject.activeInHierarchy)
             {
                 return false;
             }
@@ -366,7 +372,7 @@ namespace Rpg.Soundwell
 
         private bool CanInvoke(Button button)
         {
-            return IsVisible && !_bootstrapper.IsDisposed && button != null &&
+            return CanReceiveInput() && button != null &&
                 button.isActiveAndEnabled && button.gameObject.activeInHierarchy && button.IsInteractable();
         }
 
