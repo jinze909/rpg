@@ -320,5 +320,48 @@ namespace Rpg.Tests.Editor
             }
         }
 
+        [Test]
+        public void ArrivalChangedDuringSettlementWriteBlocksRemainingFieldsAndConfirmation()
+        {
+            var root = new GameObject("M14 arrival changed during settlement write");
+            var values = new Dictionary<string, int>();
+            SeedM13Departure(values, M13ApproachRoute.RouteASupervisedCivilian);
+            Func<string, int> read = Reader(values);
+            var writtenKeys = new List<string>();
+            try
+            {
+                using (var host = new M14FinalPassageHost(root.transform,
+                    () => true, () => true, () => true, () => false, () => false,
+                    () => false, () => new M14CivilianCounts(16, 4, 2), read,
+                    (k, v) =>
+                    {
+                        writtenKeys.Add(k);
+                        values[k] = v;
+                        if (k == M14FinalPassageFacts.ExecutedRouteKey)
+                            values[M05LandingFacts.ArrivalSequenceKey] = 1;
+                    }))
+                {
+                    Assert.That(host.TryOpen(), Is.True);
+                    var view = host.ActiveView;
+                    view.DetainLuJunButton.onClick.Invoke();
+                    view.VerifyCivilianExitButton.onClick.Invoke();
+                    view.SettleAyuanSafeButton.onClick.Invoke();
+
+                    Assert.That(writtenKeys, Does.Contain(M14FinalPassageFacts.ExecutedRouteKey));
+                    Assert.That(writtenKeys[writtenKeys.Count - 1],
+                        Is.EqualTo(M14FinalPassageFacts.ExecutedRouteKey));
+                    Assert.That(read(M14FinalPassageFacts.ConfirmedKey), Is.Zero);
+                    Assert.That(read(M14FinalPassageFacts.PassageOutcomeKey), Is.Zero);
+                    Assert.That(host.Session.IsCompleted, Is.False);
+                    Assert.That(host.IsCompleted, Is.False);
+                    Assert.That(host.ActiveView, Is.SameAs(view));
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
     }
 }
