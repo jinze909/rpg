@@ -9,6 +9,82 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xExpeditionMilestonesHudPanelTests
     {
         [Test]
+        public void ExpeditionMilestonesHudPanel_DisabledCanvasRejectsClaimAndFilterUntilRestored()
+        {
+            var root = new GameObject("ExpeditionDisabledCanvasRoot");
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            const string claimKey = "rpg.return.world.milestone.four_regions_sworn";
+            try
+            {
+                foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+                {
+                    store[RpgWorld500xRegionalReputationService.ReputationKey(spec.MapId)] =
+                        RpgWorld500xRegionalReputationService.SwornThreshold;
+                }
+
+                int writes = 0;
+                int Read(string key) => store.TryGetValue(key, out int value) ? value : 0;
+                void Write(string key, int value)
+                {
+                    writes++;
+                    store[key] = value;
+                }
+
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var panel = new RpgWorld500xExpeditionMilestonesHudPanel(root.transform, boot, Read, Write))
+                {
+                    Assert.IsTrue(panel.Show());
+                    var supply = boot.Driver.Facade.BountyAndSupply;
+                    int initialSilver = supply.SaltSilverBalance;
+                    var canvas = root.transform.Find("World500xExpeditionMilestonesHudPanel").GetComponent<Canvas>();
+                    var button = canvas.transform.Find("MilestonesModalBox/ClaimAllButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    var action = button.onClick;
+                    Assert.AreEqual(1, panel.ClaimableCount);
+                    Assert.AreEqual(300, panel.ClaimableSaltSilver);
+                    Assert.AreEqual(8, panel.DisplayedMilestoneRowCount);
+                    string status = panel.StatusText;
+                    string summary = panel.SummaryText;
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(button.IsInteractable());
+                    action.Invoke();
+                    Assert.IsFalse(panel.TryClickClaimAllEligible());
+                    Assert.IsFalse(panel.TrySetUnclaimedOnly(true));
+                    Assert.IsFalse(panel.UnclaimedOnly);
+                    Assert.AreEqual(8, panel.DisplayedMilestoneRowCount);
+                    Assert.AreEqual(1, panel.ClaimableCount);
+                    Assert.AreEqual(0, panel.ClaimedCount);
+                    Assert.AreEqual(0, Read(claimKey));
+                    Assert.AreEqual(0, writes);
+                    Assert.AreEqual(initialSilver, supply.SaltSilverBalance);
+                    Assert.AreEqual(status, panel.StatusText);
+                    Assert.AreEqual(summary, panel.SummaryText);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(panel.TrySetUnclaimedOnly(true));
+                    action.Invoke();
+                    Assert.AreEqual(1, panel.ClaimedCount);
+                    Assert.AreEqual(0, panel.ClaimableCount);
+                    Assert.AreEqual(7, panel.DisplayedMilestoneRowCount);
+                    Assert.AreEqual(1, Read(claimKey));
+                    Assert.AreEqual(initialSilver + 300, supply.SaltSilverBalance);
+                    int writesAfterClaim = writes;
+                    action.Invoke();
+                    Assert.IsFalse(panel.TryClickClaimAllEligible());
+                    Assert.AreEqual(writesAfterClaim, writes);
+                    Assert.AreEqual(initialSilver + 300, supply.SaltSilverBalance);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ExpeditionMilestonesHudPanel_ClaimFlagsAndWalletFollowRestoredSave()
         {
             var root = new GameObject("ExpeditionClaimSaveRoot");

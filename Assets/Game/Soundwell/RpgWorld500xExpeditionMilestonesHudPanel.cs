@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
             new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly RpgWorld500xExpeditionMilestoneService _milestoneService;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Transform _rowContainer;
         private readonly Text _headerText;
         private readonly Text _summaryText;
@@ -108,9 +109,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 69;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 69;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -294,9 +295,14 @@ namespace Rpg.Soundwell
             DestroySafe(_rootObject);
         }
 
+        private bool CanReceiveInput()
+        {
+            return IsVisible && _canvas != null && _canvas.isActiveAndEnabled && !_bootstrapper.IsDisposed;
+        }
+
         private bool IsPanelInteractable()
         {
-            if (!IsVisible || _bootstrapper.IsDisposed || !_rootObject.activeInHierarchy)
+            if (!CanReceiveInput() || !_rootObject.activeInHierarchy)
             {
                 return false;
             }
@@ -320,7 +326,7 @@ namespace Rpg.Soundwell
 
         private bool CanClaimFromButton()
         {
-            return IsVisible && !_bootstrapper.IsDisposed && _claimAllButton != null &&
+            return CanReceiveInput() && _claimAllButton != null &&
                 _claimAllButton.isActiveAndEnabled && _claimAllButton.gameObject.activeInHierarchy &&
                 _claimAllButton.IsInteractable();
         }
