@@ -71,6 +71,54 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void FieldSupplyHotbarHud_DisabledCanvasRejectsConsumptionUntilRestored()
+        {
+            var root = new GameObject("SupplyHotbarDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var hud = new RpgWorld500xFieldSupplyHotbarHud(root.transform, boot, clockSecondsProvider: () => 20f))
+                {
+                    var shop = boot.Driver.Facade.BountyAndSupply;
+                    shop.AddSaltSilver(200);
+                    Assert.AreEqual(RpgCampSupplyPurchaseStatus.Succeeded, shop.TryPurchaseSupply("lamp_oil", 2));
+                    hud.Refresh(10f);
+                    var canvas = root.transform.Find("World500xFieldSupplyHotbarHud").GetComponent<Canvas>();
+                    var button = canvas.transform.Find("SupplyHotbarPanel/SupplySlot_lamp_oil")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    Assert.IsTrue(button.IsInteractable());
+                    string feedback = hud.FeedbackText;
+                    string buffs = hud.ActiveBuffsText;
+
+                    canvas.enabled = false;
+                    Assert.IsTrue(button.IsInteractable());
+                    button.onClick.Invoke();
+                    Assert.IsFalse(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(2, shop.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(2, hud.TotalOwnedSupplyCount);
+                    Assert.AreEqual(0, hud.ActiveBuffCount);
+                    Assert.AreEqual(0f, hud.SupplyUseService.GetRemainingBuffSeconds("lamp_oil", 20f));
+                    Assert.AreEqual(feedback, hud.FeedbackText);
+                    Assert.AreEqual(buffs, hud.ActiveBuffsText);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(hud.TryClickUseSupply("lamp_oil", 10f));
+                    Assert.AreEqual(1, shop.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(90f, hud.SupplyUseService.GetRemainingBuffSeconds("lamp_oil", 10f), 0.01f);
+                    button.onClick.Invoke();
+                    Assert.AreEqual(0, shop.GetOwnedSupplyCount("lamp_oil"));
+                    Assert.AreEqual(170f, hud.SupplyUseService.GetRemainingBuffSeconds("lamp_oil", 20f), 0.01f);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DefaultHotbarConsumesLiveInventoryAndPersistsAcrossSaveReload()
         {
             var root = new GameObject("SupplyHotbarLiveInventoryRoot");

@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xFieldSupplyUseService _supplyUseService;
         private readonly Func<float> _clockSecondsProvider;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Text _feedbackText;
         private readonly Text _activeBuffsText;
         private readonly Font _font;
@@ -60,9 +61,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 59;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 59;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -101,7 +102,7 @@ namespace Rpg.Soundwell
 
         public bool TryClickUseSupply(string itemId, float nowSeconds)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed || string.IsNullOrEmpty(itemId))
+            if (!CanReceiveInput() || string.IsNullOrEmpty(itemId))
             {
                 return false;
             }
@@ -204,9 +205,14 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool CanReceiveInput()
+        {
+            return !IsDisposed && !_bootstrapper.IsDisposed && _canvas != null && _canvas.isActiveAndEnabled;
+        }
+
         private bool TryUseSupply(string itemId, float now)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed ||
+            if (!CanReceiveInput() ||
                 !_slotButtons.TryGetValue(itemId, out Button btn) || btn == null ||
                 !btn.isActiveAndEnabled || !btn.gameObject.activeInHierarchy || !btn.IsInteractable())
             {
