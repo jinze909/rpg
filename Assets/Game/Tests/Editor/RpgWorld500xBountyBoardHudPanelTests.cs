@@ -27,11 +27,21 @@ namespace Rpg.Tests.Editor
                         .GetComponent<Button>();
                     Assert.IsTrue(claim.IsInteractable());
                     Assert.IsTrue(boot.SwitchMap(RpgWorldMapId.RedSaltHarbor));
-                    UnlockRegionShortcuts(boot, RpgWorldMapId.RedSaltHarbor);
+                    // Red Salt Harbor has a landmark survey bounty, not a shortcut bounty.
                     var facade = boot.Driver.Facade;
+                    var host = facade.Session.Host;
+                    var markers = host.Layout.Markers;
+                    Assert.GreaterOrEqual(markers.Count, 8);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        if (!host.Tracker.IsMarkerDiscovered(markers[i].Id))
+                            Assert.IsTrue(host.Tracker.TryDiscoverMarker(markers[i].Id));
+                    }
+                    Assert.GreaterOrEqual(facade.GetCompletionSummary().DiscoveredMarkers, 8);
                     var supply = facade.BountyAndSupply;
                     var current = supply.BuildBountyBoardSummary(facade.GetCompletionSummary());
                     Assert.Greater(current.ClaimableCount, 0);
+                    Assert.GreaterOrEqual(current.ClaimableSaltSilver, 45);
                     int before = supply.SaltSilverBalance;
 
                     claim.onClick.Invoke();
@@ -46,6 +56,7 @@ namespace Rpg.Tests.Editor
                     Assert.AreEqual(0, panel.ClaimableCount);
                     Assert.AreEqual(before + current.ClaimableSaltSilver, supply.SaltSilverBalance);
                     Assert.IsFalse(panel.TryClickClaimEligible());
+                    Assert.AreEqual(before + current.ClaimableSaltSilver, supply.SaltSilverBalance);
                 }
             }
             finally
