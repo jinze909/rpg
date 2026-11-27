@@ -197,6 +197,71 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RetiredEpilogueDuringFactReadCannotWriteOrConfirm()
+        {
+            AssertRetiredEpilogueCannotWriteRemainingFactsOrConfirm(false);
+        }
+
+        [Test]
+        public void RetiredEpilogueAfterFirstWriteCannotWriteRemainingFactsOrConfirm()
+        {
+            AssertRetiredEpilogueCannotWriteRemainingFactsOrConfirm(true);
+        }
+
+        private static void AssertRetiredEpilogueCannotWriteRemainingFactsOrConfirm(bool retireAfterFirstWrite)
+        {
+            var root = new GameObject("M16 retirement during fact commit");
+            var values = new Dictionary<string, int>();
+            SeedM15(values);
+            Func<string, int> read = Reader(values);
+            M16EpilogueHost host = null;
+            bool submitting = false;
+            int writes = 0;
+            int retirements = 0;
+            try
+            {
+                host = new M16EpilogueHost(root.transform, () => true, () => true,
+                    () => M16RespectAgencyTone.RespectedOthersChoices, key =>
+                    {
+                        if (submitting && !retireAfterFirstWrite &&
+                            retirements == 0 && key == M16EpilogueFacts.ConfirmedKey)
+                        {
+                            retirements++;
+                            host.Dispose();
+                        }
+                        return read(key);
+                    }, (key, value) =>
+                    {
+                        writes++;
+                        values[key] = value;
+                        if (submitting && retireAfterFirstWrite && writes == 1)
+                        {
+                            retirements++;
+                            host.Dispose();
+                        }
+                    });
+                Assert.That(host.TryOpen(), Is.True);
+                var view = host.ActiveView;
+                view.ProceedToDeskButton.onClick.Invoke();
+                view.StepOutsideButton.onClick.Invoke();
+                submitting = true;
+                Assert.DoesNotThrow(() => view.PierButton.onClick.Invoke());
+                Assert.That(retirements, Is.EqualTo(1));
+                Assert.That(writes, Is.EqualTo(retireAfterFirstWrite ? 1 : 0));
+                Assert.That(read(M16EpilogueFacts.ConfirmedKey), Is.Zero);
+                Assert.That(read(M16EpilogueFacts.ClosingToneKey), Is.Zero);
+                Assert.That(host.IsCompleted, Is.False);
+                Assert.That(host.IsDisposed, Is.True);
+                Assert.That(host.ActiveView, Is.Null);
+            }
+            finally
+            {
+                host?.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void DestroyedParentFailsClosedOnTryOpenWithoutThrowing()
         {
             var root = new GameObject("M16 host parent destroy");

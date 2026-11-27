@@ -136,25 +136,28 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void RegionalHubHidesST05WhenFactsAreTornOrTheConfirmedHomeCannotBeReopened()
+        public void RegionalHubRejectsTornST05ButResumesConfirmedHome()
         {
             var root = new GameObject("RegionalHubST05AvailabilityRoot");
             var values = new Dictionary<string, int>();
             Func<string, int> read = Reader(values);
             Action<string, int> write = (k, v) => values[k] = v;
+            var context = ObservedLocations();
+            bool termsReady = false;
+            context.ChengJobTermsReady = () => termsReady;
 
             try
             {
                 using (var hub = new ReturnRegionalStoriesHubHost(
-                    root.transform, ObservedLocations(), read, write))
+                    root.transform, context, read, write))
                 {
                     // An interrupted home write must not appear available in the regional hub.
                     values[ST05TwoDoorsFacts.HomeIntentKey] = 1210;
                     Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
 
-                    // A clean save is available; once the permanent home record is confirmed,
-                    // the existing ST-05 host intentionally refuses to reopen it before assignment.
+                    // A clean save is available; a confirmed home is a resumable
+                    // checkpoint, not a completed story.
                     Assert.That(ST05TwoDoorsFacts.TryResetForNewGame(write), Is.True);
                     Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST05TwoDoors), Is.True);
 
@@ -163,6 +166,21 @@ namespace Rpg.Tests.Editor
                         ST05HomeArrangement.KeepTwoDoorsAndCourtyardTable,
                         mutualTrialConsent: false);
                     Assert.That(ST05TwoDoorsFacts.TryRecordHome(home, read, write), Is.True);
+                    Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST05TwoDoors), Is.True);
+                    Assert.That(hub.IsStorySettled(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.True);
+                    Assert.That(hub.ActiveST05Host.Session.Phase,
+                        Is.EqualTo(ST05TwoDoorsPhase.AwaitChengOwnJobDecision));
+                    hub.CloseActiveStory();
+                    Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.True);
+                    hub.ActiveST05Host.ActiveView.ChengStayLocalButton.onClick.Invoke();
+                    Assert.That(hub.IsStorySettled(ReturnRegionalStoryId.ST05TwoDoors), Is.False,
+                        "The resumed checkpoint must still require live job terms.");
+                    Assert.That(hub.ActiveST05Host.Session.Phase,
+                        Is.EqualTo(ST05TwoDoorsPhase.AwaitChengOwnJobDecision));
+                    termsReady = true;
+                    hub.ActiveST05Host.ActiveView.ChengStayLocalButton.onClick.Invoke();
+                    Assert.That(hub.IsStorySettled(ReturnRegionalStoryId.ST05TwoDoors), Is.True);
                     Assert.That(hub.IsStoryAvailable(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
                     Assert.That(hub.TryOpenStory(ReturnRegionalStoryId.ST05TwoDoors), Is.False);
                 }

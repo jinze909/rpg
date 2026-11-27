@@ -25,6 +25,7 @@ namespace Rpg.Soundwell
         private M07ExtractionNightSession session;
         private M07ExtractionNightView activeView;
         private bool disposed;
+        private bool opening;
 
         public M07ExtractionNightSession Session => session;
         public M07ExtractionNightView ActiveView
@@ -96,6 +97,24 @@ namespace Rpg.Soundwell
         }
 
         public bool TryOpen()
+        {
+            if (opening)
+                return false;
+
+            // A readiness or persisted-fact reader can synchronously dispatch
+            // another open before the outer call publishes its view.
+            opening = true;
+            try
+            {
+                return TryOpenCore();
+            }
+            finally
+            {
+                opening = false;
+            }
+        }
+
+        private bool TryOpenCore()
         {
             PruneDisposedView();
 

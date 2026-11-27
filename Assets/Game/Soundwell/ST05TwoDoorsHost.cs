@@ -89,9 +89,7 @@ namespace Rpg.Soundwell
                 activeView.Dispose();
                 activeView = null;
             }
-            if (disposed || parent == null || activeView != null || !atJingwanCourtyard() ||
-                !ST05TwoDoorsFacts.TryRead(getInt, out ST05TwoDoorsOutcome? existing) ||
-                existing.HasValue)
+            if (disposed || parent == null || activeView != null || !atJingwanCourtyard())
                 return false;
 
             if (disposed || parent == null ||
