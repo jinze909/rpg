@@ -99,7 +99,8 @@ namespace Rpg.Tests.Editor
                                 Assert.AreEqual(49, boot.Driver.Facade.BountyAndSupply.SaltSilverBalance);
                                 Assert.AreEqual(2, boot.Store[FlareOwnedKey]);
 
-                                Assert.IsTrue(panel.Hide());
+                                panel.Hide();
+                                Assert.IsFalse(panel.IsVisible);
                             }
                         }
                     }
