@@ -38,6 +38,7 @@ namespace Rpg.Tests.Editor
                     onRewardGranted: (_, __) => rewardCalls++);
 
                 IReadOnlyList<RpgMapLandmarkMarker> markers = RpgWorldLandmarkCatalog.GetMarkers(spec.MapId);
+                var probe = new RpgMapExplorationTracker(spec.MapId);
                 RpgMapLandmarkMarker camp = default;
                 bool hasCamp = false;
                 RpgMapLandmarkMarker dangerWithQuest = default;
@@ -63,16 +64,20 @@ namespace Rpg.Tests.Editor
                         hasDangerWithQuest = true;
                     }
 
-                    if (!hasFastTravelMarker && m.IsFastTravelAnchor)
+                    if (!hasFastTravelMarker)
                     {
-                        fastTravelMarker = m;
-                        hasFastTravelMarker = true;
+                        probe.TryDiscoverMarker(m.Id);
+                        if (probe.TryGetFastTravelDestination(m.Id, out _))
+                        {
+                            fastTravelMarker = m;
+                            hasFastTravelMarker = true;
+                        }
                     }
                 }
 
                 Assert.IsTrue(hasCamp, $"Region {spec.MapId} must have a CampAndSupply marker.");
                 Assert.IsTrue(hasDangerWithQuest, $"Region {spec.MapId} must have a DangerZone with LinkedQuestId.");
-                Assert.IsTrue(hasFastTravelMarker, $"Region {spec.MapId} must have a fast-travel anchor marker.");
+                Assert.IsTrue(hasFastTravelMarker, $"Region {spec.MapId} must have a fast-travel destination marker.");
 
                 // Fast travel requires prior discovery and walkable destination.
                 Assert.IsFalse(bridge.TryFastTravel(fastTravelMarker.Id, (x, y) => true, out _),
