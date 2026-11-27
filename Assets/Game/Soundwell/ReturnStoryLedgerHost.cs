@@ -13,6 +13,8 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> customGetInt;
         private ReturnStoryLedgerView view;
         private bool disposed;
+        private bool readingSnapshot;
+        private bool snapshotCancelled;
 
         public ReturnStoryLedgerView ActiveView => (view != null && !view.IsDisposed) ? view : null;
         public bool IsOpen => ActiveView != null;
@@ -25,9 +27,24 @@ namespace Rpg.Soundwell
 
         public bool TryOpenOrRefresh(Action onClosed = null)
         {
-            if (disposed || uiParent == null)
+            if (disposed || uiParent == null || readingSnapshot)
                 return false;
 
+            readingSnapshot = true;
+            snapshotCancelled = false;
+            try
+            {
+                return TryOpenOrRefreshCore(onClosed);
+            }
+            finally
+            {
+                readingSnapshot = false;
+                snapshotCancelled = false;
+            }
+        }
+
+        private bool TryOpenOrRefreshCore(Action onClosed)
+        {
             if (view != null && view.IsDisposed)
             {
                 var stale = view;
@@ -35,10 +52,14 @@ namespace Rpg.Soundwell
                 stale.Dispose();
             }
 
+            var originalView = view;
             bool ok = customGetInt != null
                 ? ReturnStoryLedger.TryBuildSnapshot(customGetInt, out ReturnStoryProgressSnapshot snap)
                 : ReturnStoryLedger.TryBuildSnapshot(out snap);
-            if (!ok)
+            // Reading live Makinom facts can synchronously close this panel
+            // or destroy its scene. Do not recreate or refresh a stale view.
+            if (!ok || disposed || uiParent == null || snapshotCancelled ||
+                view != originalView || (originalView != null && originalView.IsDisposed))
                 return false;
 
             if (view == null)
@@ -58,6 +79,8 @@ namespace Rpg.Soundwell
 
         public void Close()
         {
+            if (readingSnapshot)
+                snapshotCancelled = true;
             if (view == null)
                 return;
             var current = view;
