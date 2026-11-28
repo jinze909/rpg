@@ -69,15 +69,32 @@ namespace Rpg.Tests.Editor
                 {
                     boot.StepFrame(Vector2.zero, 0.1f);
                     boot.Driver.Facade.BountyAndSupply.AddSaltSilver(55);
-                    var hostBefore = boot.Driver.Facade.Session.Host;
-                    var trackerBefore = boot.Driver.Facade.DistrictTracker;
+                    var facade = boot.Driver.Facade;
+                    facade.Atmosphere.SetWeather(origin, RpgWorld500xWeatherKind.MistFog);
+                    var hostBefore = facade.Session.Host;
+                    var trackerBefore = facade.DistrictTracker;
+                    var activityBefore = facade.ActivityDirector;
+                    var propsBefore = facade.PropSpawner;
+                    Vector2 positionBefore = hostBefore.PlayerPosition;
+                    int visitedBefore = trackerBefore.VisitedChunkCount;
+                    Assert.That(visitedBefore, Is.GreaterThan(0));
 
-                    Assert.IsTrue(boot.SwitchMap(origin));
-                    Assert.IsFalse(boot.SwitchMap((RpgWorldMapId)255));
-                    Assert.AreSame(hostBefore, boot.Driver.Facade.Session.Host);
-                    Assert.AreSame(trackerBefore, boot.Driver.Facade.DistrictTracker);
-                    Assert.That(boot.Driver.Facade.CurrentMapId, Is.EqualTo(origin));
-                    Assert.That(boot.Driver.Facade.BountyAndSupply.SaltSilverBalance, Is.EqualTo(55));
+                    // Re-selecting the current map is a successful no-op.
+                    // An invalid map is rejected without remounting any subsystem.
+                    foreach (var target in new[] { origin, (RpgWorldMapId)255 })
+                    {
+                        Assert.That(boot.SwitchMap(target), Is.EqualTo(target == origin));
+                        Assert.AreSame(facade, boot.Driver.Facade);
+                        Assert.AreSame(hostBefore, facade.Session.Host);
+                        Assert.AreSame(trackerBefore, facade.DistrictTracker);
+                        Assert.AreSame(activityBefore, facade.ActivityDirector);
+                        Assert.AreSame(propsBefore, facade.PropSpawner);
+                        Assert.That(facade.CurrentMapId, Is.EqualTo(origin));
+                        Assert.That(hostBefore.PlayerPosition, Is.EqualTo(positionBefore));
+                        Assert.That(trackerBefore.VisitedChunkCount, Is.EqualTo(visitedBefore));
+                        Assert.That(facade.Atmosphere.GetWeather(origin), Is.EqualTo(RpgWorld500xWeatherKind.MistFog));
+                        Assert.That(facade.BountyAndSupply.SaltSilverBalance, Is.EqualTo(55));
+                    }
                 }
             }
         }
