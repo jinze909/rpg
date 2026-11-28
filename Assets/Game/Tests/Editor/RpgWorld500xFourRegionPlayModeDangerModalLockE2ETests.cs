@@ -58,7 +58,7 @@ namespace Rpg.Tests.Editor
                         ctrl.SaveSlotManager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied,
                         spec.MapId.ToString());
 
-                    // 2. Resolving the danger victory clears encounter state and restores camp rest + travel.
+                    // 2. Resolving the danger victory clears encounter state; reopening WorldAtlas refreshes buttons.
                     Assert.IsTrue(
                         ctrl.TryResolveActiveDangerVictory(false, out var encounter, out var reward),
                         spec.MapId.ToString());
@@ -66,6 +66,11 @@ namespace Rpg.Tests.Editor
                     Assert.Greater(reward.SaltSilverReward, 0, spec.MapId.ToString());
                     Assert.IsFalse(facade.Session.Host.Bridge.IsInDangerEncounter, spec.MapId.ToString());
 
+                    ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { CloseModalPressed = true }, 0.05f);
+                    Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.WorldAtlas), spec.MapId.ToString());
+
+                    restBtn = modal.Find("CampRestButton").GetComponent<Button>();
+                    Assert.IsTrue(restBtn.IsInteractable(), spec.MapId.ToString());
                     restBtn.onClick.Invoke();
                     Assert.IsTrue(
                         ctrl.SaveSlotManager.InspectSlot(RpgWorld500xSaveSlotId.AutoSave).IsOccupied,
@@ -73,6 +78,7 @@ namespace Rpg.Tests.Editor
 
                     travelBtn = modal.Find("RegionRows/RegionRow_" + targetMap + "/TravelButton")
                         .GetComponent<Button>();
+                    Assert.IsTrue(travelBtn.IsInteractable(), spec.MapId.ToString());
                     travelBtn.onClick.Invoke();
                     Assert.AreEqual(targetMap, facade.CurrentMapId, spec.MapId.ToString());
 
