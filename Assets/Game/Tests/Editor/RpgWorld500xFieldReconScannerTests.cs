@@ -184,6 +184,32 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BackwardClockCannotBypassOrMoveReconCooldownAcrossRegions()
+        {
+            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var scanner = new RpgWorld500xFieldReconScannerService(cooldownSeconds: 4f);
+                var player = new Vector2(260f, 720f);
+
+                Assert.IsTrue(scanner.TryPulseScan(spec.MapId, player, 10f, out _, out _));
+                Assert.AreEqual(4f, scanner.GetRemainingCooldown(9f), 0.001f);
+                Assert.IsFalse(scanner.TryPulseScan(spec.MapId, player, 9f,
+                    out var stalePings, out string staleBanner));
+                Assert.IsEmpty(stalePings);
+                StringAssert.Contains("时钟无效", staleBanner);
+                Assert.AreEqual(2f, scanner.GetRemainingCooldown(12f), 0.001f);
+                Assert.IsFalse(scanner.TryPulseScan(spec.MapId, player, 13f, out _, out _));
+                Assert.IsTrue(scanner.TryPulseScan(spec.MapId, player, 14f, out _, out _));
+
+                // With zero configured cooldown, stale timestamps are still invalid.
+                var immediate = new RpgWorld500xFieldReconScannerService(cooldownSeconds: 0f);
+                Assert.IsTrue(immediate.TryPulseScan(spec.MapId, player, 10f, out _, out _));
+                Assert.IsFalse(immediate.TryPulseScan(spec.MapId, player, 9f, out _, out _));
+                Assert.IsTrue(immediate.TryPulseScan(spec.MapId, player, 10f, out _, out _));
+            }
+        }
+
+        [Test]
         public void ResolveDirection8Zh_CoversAllEightCompassSectorsAndUnderfoot()
         {
             var origin = new Vector2(100.5f, 100.5f);
