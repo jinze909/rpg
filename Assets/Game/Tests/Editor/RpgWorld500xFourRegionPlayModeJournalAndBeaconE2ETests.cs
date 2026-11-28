@@ -25,7 +25,27 @@ namespace Rpg.Tests.Editor
                         saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
                         overrideTileSlices: new Sprite[] { null });
 
-                    var tracker = ctrl.Bootstrapper.Driver.Facade.Session.Host.Tracker;
+                    var session = ctrl.Bootstrapper.Driver.Facade.Session;
+                    var worldHost = session.Host;
+                    var tracker = worldHost.Tracker;
+                    var journal = session.JournalPanel;
+                    Assert.IsNotNull(journal, spec.MapId.ToString());
+
+                    // Discover one walkable beacon explicitly; a new region need not start with one unlocked.
+                    string beaconId = null;
+                    Vector2Int beaconTile = default;
+                    foreach (var marker in RpgWorldLandmarkCatalog.GetMarkers(spec.MapId))
+                    {
+                        if (!marker.SupportsFastTravel ||
+                            !worldHost.Layout.IsWalkable(marker.Tile.x, marker.Tile.y, worldHost.IronGateOpen))
+                            continue;
+                        beaconId = marker.Id;
+                        beaconTile = marker.Tile;
+                        break;
+                    }
+                    Assert.IsNotNull(beaconId, spec.MapId.ToString());
+                    if (!tracker.IsMarkerDiscovered(beaconId))
+                        Assert.IsTrue(tracker.TryDiscoverMarker(beaconId), spec.MapId.ToString());
 
                     // 1. Open QuestJournal via hotkey and locate the active JournalPanel opened by MenuRouter.
                     ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
@@ -34,7 +54,9 @@ namespace Rpg.Tests.Editor
                     }, 0.05f);
                     Assert.AreEqual(RpgWorld500xModalKind.QuestJournal, ctrl.MenuRouter.ActiveModal, spec.MapId.ToString());
 
-                    Transform journalPanel = FindActiveChildByName(host.transform, "JournalPanel");
+                    // The bootstrapper owns a separate world root; the journal is not
+                    // a descendant of the controller's own menu UI root.
+                    Transform journalPanel = journal.RootObject.transform.Find("JournalPanel");
                     Assert.IsNotNull(journalPanel, spec.MapId.ToString());
                     Assert.IsTrue(journalPanel.gameObject.activeInHierarchy, spec.MapId.ToString());
 
@@ -51,10 +73,23 @@ namespace Rpg.Tests.Editor
                     Assert.IsNotNull(beaconTabBtn, spec.MapId.ToString());
                     beaconTabBtn.onClick.Invoke();
 
-                    FindInteractableRow(rowsContent, "BeaconRow_", out string markerId, out Button travelBtn);
+                    Transform travelAction = rowsContent.Find("BeaconRow_" + beaconId + "/ActionButton");
+                    Assert.IsNotNull(travelAction, spec.MapId.ToString());
+                    Button travelBtn = travelAction.GetComponent<Button>();
                     Assert.IsNotNull(travelBtn, spec.MapId.ToString());
-                    Assert.IsFalse(string.IsNullOrEmpty(markerId), spec.MapId.ToString());
+                    Assert.IsTrue(travelBtn.IsInteractable(), spec.MapId.ToString());
                     travelBtn.onClick.Invoke();
+                    Assert.AreEqual(beaconTile, worldHost.CurrentTile, spec.MapId.ToString());
+                    Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal, spec.MapId.ToString());
+                    Assert.IsFalse(journal.IsVisible, spec.MapId.ToString());
+
+                    // A successful warp closes the journal. Reopen it to actually
+                    // exercise mutual exclusion rather than switching from None.
+                    ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                    {
+                        RequestedModalToggle = RpgWorld500xModalKind.QuestJournal
+                    }, 0.05f);
+                    Assert.AreEqual(RpgWorld500xModalKind.QuestJournal, ctrl.MenuRouter.ActiveModal, spec.MapId.ToString());
 
                     // 3. Switch to FastTravelBeacons modal via hotkey, verify QuestJournal hides, then close.
                     ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
@@ -78,17 +113,6 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        private static Transform FindActiveChildByName(Transform root, string targetName)
-        {
-            Transform[] all = root.GetComponentsInChildren<Transform>(true);
-            for (int i = 0; i < all.Length; i++)
-            {
-                if (all[i].name == targetName && all[i].gameObject.activeInHierarchy)
-                    return all[i];
-            }
-            return null;
-        }
-
         private static void FindInteractableRow(
             Transform content,
             string prefix,
@@ -100,7 +124,7 @@ namespace Rpg.Tests.Editor
             for (int i = 0; i < content.childCount; i++)
             {
                 var child = content.GetChild(i);
-                if (!child.name.StartsWith(prefix))
+                if (!child.gameObject.activeInHierarchy || !child.name.StartsWith(prefix))
                     continue;
                 var btnTransform = child.Find("ActionButton");
                 if (btnTransform == null)
