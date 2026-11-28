@@ -146,7 +146,7 @@ namespace Rpg.Soundwell
 
         public bool Show(RpgWorld500xCacheShortcutTab? tab = null)
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed || (tab.HasValue && !IsKnownTab(tab.Value)))
             {
                 return false;
             }
@@ -174,8 +174,19 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool IsKnownTab(RpgWorld500xCacheShortcutTab tab)
+        {
+            return tab == RpgWorld500xCacheShortcutTab.HiddenCaches ||
+                tab == RpgWorld500xCacheShortcutTab.Shortcuts;
+        }
+
         public bool TrySelectTab(RpgWorld500xCacheShortcutTab tab)
         {
+            if (!IsKnownTab(tab))
+            {
+                return false;
+            }
+
             Button btn = tab == RpgWorld500xCacheShortcutTab.HiddenCaches
                 ? _cachesTabButton
                 : _shortcutsTabButton;
