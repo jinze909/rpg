@@ -99,6 +99,65 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void CartographyClaimRequiresPersistedFlagAndRetriesRejectedWritesWithoutDuplicateReward()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+                var milestones = RpgWorld500xDistrictCatalog.GetMilestones(spec.MapId);
+                int silver = 0;
+                int callbacks = 0;
+                Action<RpgWorld500xCartographyMilestone> reward = m =>
+                {
+                    silver += m.SaltSilverReward;
+                    callbacks++;
+                };
+
+                var readOnly = new RpgWorld500xDistrictProgressTracker(spec, read, onMilestoneClaimed: reward);
+                Assert.IsEmpty(readOnly.ClaimEligibleMilestones(100));
+                Assert.AreEqual(0, store.Count);
+                Assert.AreEqual(0, silver);
+                Assert.AreEqual(0, callbacks);
+
+                bool rejectFirst = true;
+                var tracker = new RpgWorld500xDistrictProgressTracker(spec, read,
+                    (k, v) =>
+                    {
+                        if (!rejectFirst || k != milestones[0].MakinomKey)
+                            store[k] = v;
+                    }, reward);
+
+                var first = tracker.ClaimEligibleMilestones(55);
+                Assert.AreEqual(1, first.Count);
+                Assert.AreEqual(milestones[1].MakinomKey, first[0].MakinomKey);
+                Assert.AreEqual(90, silver);
+                Assert.AreEqual(1, callbacks);
+                Assert.IsFalse(store.ContainsKey(milestones[0].MakinomKey));
+                Assert.AreEqual(1, tracker.BuildCartographyPreview(55).ClaimableCount);
+                Assert.IsEmpty(tracker.ClaimEligibleMilestones(55));
+                Assert.AreEqual(90, silver);
+
+                rejectFirst = false;
+                var retry = tracker.ClaimEligibleMilestones(55);
+                Assert.AreEqual(1, retry.Count);
+                Assert.AreEqual(milestones[0].MakinomKey, retry[0].MakinomKey);
+                Assert.AreEqual(1, store[milestones[0].MakinomKey]);
+                Assert.AreEqual(135, silver);
+                Assert.AreEqual(2, callbacks);
+                Assert.IsEmpty(tracker.ClaimEligibleMilestones(55));
+
+                var restored = new RpgWorld500xDistrictProgressTracker(spec, read, (k, v) => store[k] = v, reward);
+                Assert.IsEmpty(restored.ClaimEligibleMilestones(55));
+                Assert.AreEqual(1, restored.ClaimEligibleMilestones(100).Count);
+                Assert.AreEqual(315, silver);
+                Assert.AreEqual(3, callbacks);
+                Assert.IsEmpty(restored.ClaimEligibleMilestones(100));
+                Assert.AreEqual(0, restored.BuildCartographyPreview(100).ClaimableCount);
+            }
+        }
+
+        [Test]
         public void FogCoveragePersistsInCompactRegionalBlocksWithoutRepeatWrites()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
