@@ -7,6 +7,74 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xFastTravelBeaconHudPanelTests
     {
         [Test]
+        public void FastTravelBeaconHudPanel_AllFourRegions_RejectsReopenAfterOwnerDisposal()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var root = new GameObject("BeaconDisposedOwner_" + spec.MapId);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xFastTravelBeaconHudPanel(root.transform, boot))
+                    {
+                        var host = boot.Driver.Facade.Session.Host;
+                        string markerId = null;
+                        foreach (var marker in host.Layout.Markers)
+                        {
+                            if (marker.SupportsFastTravel)
+                            {
+                                markerId = marker.Id;
+                                break;
+                            }
+                        }
+
+                        Assert.IsNotNull(markerId, spec.MapId.ToString());
+                        if (!host.Tracker.IsMarkerDiscovered(markerId))
+                            Assert.IsTrue(host.Tracker.TryDiscoverMarker(markerId));
+                        Assert.IsTrue(panel.Show());
+                        var canvas = root.transform.Find("World500xFastTravelBeaconHudPanel");
+                        var button = canvas.Find("BeaconWarpModalBox/BeaconRows/BeaconRow_" +
+                            markerId + "/WarpButton").GetComponent<UnityEngine.UI.Button>();
+                        Assert.IsTrue(button.IsInteractable());
+                        var warp = button.onClick;
+                        var summary = panel.LastNetworkSummary;
+                        int rows = panel.DisplayedBeaconRowCount;
+                        int unlocked = panel.UnlockedBeaconCount;
+                        string nearest = panel.NearestDiscoveredBeaconId;
+                        float distance = panel.NearestDiscoveredBeaconDistanceTiles;
+                        string header = panel.HeaderText;
+                        string status = panel.StatusText;
+
+                        boot.Dispose();
+                        warp.Invoke();
+                        Assert.IsFalse(panel.TryClickWarp(markerId));
+                        Assert.IsTrue(panel.Hide());
+                        Assert.IsFalse(panel.Show(), spec.MapId.ToString());
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        warp.Invoke();
+                        panel.Refresh();
+                        Assert.IsFalse(panel.TryClickWarp(markerId));
+                        Assert.AreEqual(summary, panel.LastNetworkSummary);
+                        Assert.AreEqual(rows, panel.DisplayedBeaconRowCount);
+                        Assert.AreEqual(unlocked, panel.UnlockedBeaconCount);
+                        Assert.AreEqual(nearest, panel.NearestDiscoveredBeaconId);
+                        Assert.AreEqual(distance, panel.NearestDiscoveredBeaconDistanceTiles);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(status, panel.StatusText);
+                    }
+
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void FastTravelBeaconHudPanel_DisabledCanvasRejectsWarpUntilRestored()
         {
             var root = new GameObject("BeaconDisabledCanvasRoot");
