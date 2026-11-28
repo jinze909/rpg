@@ -9,6 +9,66 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xExpeditionMilestonesHudPanelTests
     {
         [Test]
+        public void ExpeditionMilestonesHudPanel_AllFourRegions_RejectsReopenAfterOwnerDisposal()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var root = new GameObject("ExpeditionDisposedOwner_" + spec.MapId);
+                try
+                {
+                    var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                    foreach (var region in RpgExpandedWorldScale.AllSpecs)
+                    {
+                        store[RpgWorld500xRegionalReputationService.ReputationKey(region.MapId)] =
+                            RpgWorld500xRegionalReputationService.SwornThreshold;
+                    }
+
+                    int writes = 0;
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xExpeditionMilestonesHudPanel(root.transform, boot,
+                        k => store.TryGetValue(k, out int value) ? value : 0,
+                        (k, v) => { writes++; store[k] = v; }))
+                    {
+                        Assert.IsTrue(panel.Show());
+                        Assert.AreEqual(1, panel.ClaimableCount);
+                        Assert.AreEqual(300, panel.ClaimableSaltSilver);
+                        Assert.IsTrue(panel.TrySetUnclaimedOnly(true));
+                        var action = root.transform
+                            .Find("World500xExpeditionMilestonesHudPanel/MilestonesModalBox/ClaimAllButton")
+                            .GetComponent<UnityEngine.UI.Button>().onClick;
+                        Assert.IsTrue(panel.Hide());
+                        string header = panel.HeaderText;
+                        string summary = panel.SummaryText;
+                        string status = panel.StatusText;
+                        int rows = panel.DisplayedMilestoneRowCount;
+                        boot.Dispose();
+
+                        Assert.IsFalse(panel.Show());
+                        Assert.IsFalse(panel.IsVisible);
+                        action.Invoke();
+                        Assert.IsFalse(panel.TryClickClaimAllEligible());
+                        Assert.IsFalse(panel.TrySetUnclaimedOnly(false));
+                        Assert.IsTrue(panel.UnclaimedOnly);
+                        Assert.AreEqual(1, panel.ClaimableCount);
+                        Assert.AreEqual(0, panel.ClaimedCount);
+                        Assert.AreEqual(300, panel.ClaimableSaltSilver);
+                        Assert.AreEqual(rows, panel.DisplayedMilestoneRowCount);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(summary, panel.SummaryText);
+                        Assert.AreEqual(status, panel.StatusText);
+                        Assert.AreEqual(0, writes);
+                    }
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void ExpeditionMilestonesHudPanel_DisabledCanvasRejectsClaimAndFilterUntilRestored()
         {
             var root = new GameObject("ExpeditionDisabledCanvasRoot");
