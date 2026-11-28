@@ -18,6 +18,7 @@ namespace Rpg.Soundwell
     {
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly RpgWorld500xFieldReconScannerService _scanner;
+        private readonly Func<bool> _canReceiveWorldInput;
         private readonly GameObject _rootObject;
         private readonly Canvas _canvas;
         private readonly Button _scanButton;
@@ -47,9 +48,11 @@ namespace Rpg.Soundwell
         public RpgWorld500xReconPulseHudBar(
             Transform parent,
             RpgWorld500xSceneBootstrapper bootstrapper,
-            float cooldownSeconds = RpgWorld500xFieldReconScannerService.DefaultCooldownSeconds)
+            float cooldownSeconds = RpgWorld500xFieldReconScannerService.DefaultCooldownSeconds,
+            Func<bool> canReceiveWorldInput = null)
         {
             _bootstrapper = bootstrapper ?? throw new ArgumentNullException(nameof(bootstrapper));
+            _canReceiveWorldInput = canReceiveWorldInput;
             _font = ResolveUiFont();
             _scanner = new RpgWorld500xFieldReconScannerService(
                 getInt: k => (_bootstrapper.Store != null && _bootstrapper.Store.TryGetValue(k, out int v)) ? v : 0,
@@ -179,7 +182,7 @@ namespace Rpg.Soundwell
             }
             float remaining = _scanner.GetRemainingCooldown(nowSeconds);
             bool ready = remaining <= 0.0001f;
-            _scanButton.interactable = ready;
+            _scanButton.interactable = ready && (_canReceiveWorldInput == null || _canReceiveWorldInput());
             _scanButtonLabel.text = ready
                 ? "野外勘测 [就绪]"
                 : "冷却中 (" + Mathf.CeilToInt(remaining) + "s)";
@@ -195,7 +198,8 @@ namespace Rpg.Soundwell
 
         private bool CanReceiveInput()
         {
-            return !IsDisposed && !_bootstrapper.IsDisposed && _canvas != null && _canvas.isActiveAndEnabled;
+            return !IsDisposed && !_bootstrapper.IsDisposed && _canvas != null && _canvas.isActiveAndEnabled &&
+                (_canReceiveWorldInput == null || _canReceiveWorldInput());
         }
 
         public bool TryClickPulseScan(float nowSeconds)

@@ -69,6 +69,7 @@ namespace Rpg.Soundwell
         private CanvasGroup _supplyHotbarInputGroup;
         private float _elapsedPlaySeconds;
         private bool _initialized;
+        private bool _allowReconWorldInput;
         private string _lastAutoSaveStatusZh = string.Empty;
         private string _lastDangerVictoryBannerZh = string.Empty;
 
@@ -167,7 +168,8 @@ namespace Rpg.Soundwell
             _saveSlotManager = new RpgWorld500xSaveSlotManager(resolvedStorage, utcNowProvider);
             _menuRouter = new RpgWorld500xMenuRouter(_uiRoot.transform, _bootstrapper, _campHaven, _saveSlotManager);
             _quickMenuDockHud = new RpgWorld500xQuickMenuDockHud(_uiRoot.transform, _menuRouter);
-            _reconPulseHud = new RpgWorld500xReconPulseHudBar(_uiRoot.transform, _bootstrapper);
+            _reconPulseHud = new RpgWorld500xReconPulseHudBar(_uiRoot.transform, _bootstrapper,
+                canReceiveWorldInput: () => IsInitialized && _allowReconWorldInput && !_menuRouter.HasAnyModalOpen);
             _weatherAdvisoryHud = new RpgWorld500xWeatherAdvisoryHudBadge(_uiRoot.transform, _bootstrapper);
             _supplyHotbarHud = new RpgWorld500xFieldSupplyHotbarHud(
                 _uiRoot.transform,
@@ -214,6 +216,7 @@ namespace Rpg.Soundwell
 
             _lastAutoSaveStatusZh = string.Empty;
             _lastDangerVictoryBannerZh = string.Empty;
+            _allowReconWorldInput = true;
             _initialized = true;
         }
 
@@ -298,6 +301,8 @@ namespace Rpg.Soundwell
             }
 
             bool allowOpenWorldActions = !wasModalOpen && !_menuRouter.HasAnyModalOpen;
+            // Raw UGUI callbacks must obey the same live modal and closing-frame guard as R.
+            _allowReconWorldInput = allowOpenWorldActions;
             // Mouse and keyboard must share the modal guard, including the closing frame.
             if (_supplyHotbarInputGroup != null)
             {
@@ -342,6 +347,7 @@ namespace Rpg.Soundwell
         public void Shutdown()
         {
             _initialized = false;
+            _allowReconWorldInput = false;
             _supplyHotbarHud?.Dispose();
             _supplyHotbarHud = null;
             _supplyHotbarInputGroup = null;
