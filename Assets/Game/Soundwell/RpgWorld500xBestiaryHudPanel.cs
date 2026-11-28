@@ -111,7 +111,7 @@ namespace Rpg.Soundwell
 
         public bool Show()
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed)
             {
                 return false;
             }
