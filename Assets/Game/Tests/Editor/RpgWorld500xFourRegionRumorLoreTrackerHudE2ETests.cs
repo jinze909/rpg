@@ -7,6 +7,75 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xFourRegionRumorLoreTrackerHudE2ETests
     {
         [Test]
+        public void RumorAndLoreHudPanel_AcrossAllFourRegions_InvalidShowPreservesSelectionAndTracking()
+        {
+            var specs = RpgExpandedWorldScale.AllSpecs;
+            Assert.AreEqual(4, specs.Count);
+            foreach (var spec in specs)
+            {
+                var root = new GameObject("RumorLoreInvalidTab_" + spec.MapId);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId,
+                        overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xFieldRumorAndLoreHudPanel(root.transform, boot))
+                    {
+                        var invalid = (RpgWorld500xRumorLoreTab)255;
+                        var facade = boot.Driver.Facade;
+                        var tracker = facade.Session.Host.Tracker;
+                        var npc = RpgWorld500xLivingWorldCatalog.GetFieldNpcs(spec.MapId)[0];
+                        Assert.IsFalse(panel.Show(invalid));
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.AreEqual(RpgWorld500xRumorLoreTab.FieldRumors, panel.ActiveTab);
+
+                        Assert.IsTrue(facade.ActivityDirector.LivingWorld.TryTalkToNearbyNpc(
+                            new Vector2(npc.Tile.x + 0.5f, npc.Tile.y + 0.5f),
+                            4f, out _, out _, out _));
+                        Assert.IsTrue(panel.Show(RpgWorld500xRumorLoreTab.FieldRumors));
+                        Assert.IsTrue(panel.TryClickTrackRumorTarget(npc.Id));
+                        Assert.IsTrue(panel.TrySetUndiscoveredOnly(true));
+                        string marker = tracker.TrackedMarkerId;
+                        string nearest = panel.NearestUndiscoveredId;
+                        float distance = panel.NearestUndiscoveredDistanceTiles;
+                        string header = panel.HeaderText;
+                        string status = panel.StatusText;
+                        int rows = panel.DisplayedRowCount;
+
+                        Assert.IsFalse(panel.Show(invalid));
+                        Assert.IsFalse(panel.TrySelectTab(invalid));
+                        Assert.IsTrue(panel.IsVisible);
+                        Assert.AreEqual(RpgWorld500xRumorLoreTab.FieldRumors, panel.ActiveTab);
+                        Assert.IsTrue(panel.UndiscoveredOnly);
+                        Assert.AreEqual(rows, panel.DisplayedRowCount);
+                        Assert.AreEqual(nearest, panel.NearestUndiscoveredId);
+                        Assert.AreEqual(distance, panel.NearestUndiscoveredDistanceTiles);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(status, panel.StatusText);
+                        Assert.AreEqual(marker, tracker.TrackedMarkerId);
+
+                        Assert.IsTrue(panel.TrySelectTab(RpgWorld500xRumorLoreTab.StorySpots));
+                        Assert.IsTrue(panel.Hide());
+                        Assert.IsFalse(panel.Show(invalid));
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.AreEqual(RpgWorld500xRumorLoreTab.StorySpots, panel.ActiveTab);
+                        Assert.IsTrue(panel.Show());
+                        Assert.AreEqual(RpgWorld500xRumorLoreTab.StorySpots, panel.ActiveTab);
+                        Assert.IsTrue(panel.Hide());
+                        boot.Dispose();
+                        Assert.IsFalse(panel.Show());
+                        Assert.IsFalse(panel.IsVisible);
+                    }
+                    Assert.AreEqual(0, root.transform.childCount, spec.MapId.ToString());
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void RumorAndLoreHudPanel_AcrossAllFourRegions_TracksHeardRumorSwitchesTabsAndFiltersUndiscovered()
         {
             var specs = RpgExpandedWorldScale.AllSpecs;

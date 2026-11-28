@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
@@ -23,6 +24,7 @@ namespace Rpg.Tests.Editor
                     int tracked = 0;
                     int travelled = 0;
                     string destination = null;
+                    Vector2Int destinationTile = default;
 
                     using (var panel = new RpgWorld500xQuestJournalPanel(
                         root.transform,
@@ -31,6 +33,7 @@ namespace Rpg.Tests.Editor
                         {
                             travelled++;
                             destination = id;
+                            destinationTile = tile;
                         },
                         onTrackedQuestChanged: id => tracked++))
                     {
@@ -59,20 +62,20 @@ namespace Rpg.Tests.Editor
                         canvas.enabled = false;
                         Assert.IsTrue(trackBtn.IsInteractable(), spec.MapId.ToString());
                         AssertQuestTabBlocked(panel, tracker, trackBtn, beaconTab, questId,
-                            true, initialTracked, rows, summary, tracked);
+                            true, initialTracked, rows, summary, () => tracked);
                         canvas.enabled = true;
 
                         // 2. Ancestor CanvasGroup lock rejects raw callbacks and public track API.
                         var group = root.AddComponent<CanvasGroup>();
                         group.interactable = false;
                         AssertQuestTabBlocked(panel, tracker, trackBtn, beaconTab, questId,
-                            true, initialTracked, rows, summary, tracked);
+                            true, initialTracked, rows, summary, () => tracked);
                         group.interactable = true;
 
                         // 3. Hidden panel rejects raw callbacks and public track API.
                         Assert.IsTrue(panel.Hide(), spec.MapId.ToString());
                         AssertQuestTabBlocked(panel, tracker, trackBtn, beaconTab, questId,
-                            false, initialTracked, rows, summary, tracked);
+                            false, initialTracked, rows, summary, () => tracked);
                         Assert.IsTrue(panel.Show(), spec.MapId.ToString());
 
                         // 4. Restored panel accepts track button click.
@@ -81,11 +84,20 @@ namespace Rpg.Tests.Editor
                         Assert.AreEqual(1, tracked, spec.MapId.ToString());
                         Assert.AreEqual(questId, tracker.TrackedQuestId, spec.MapId.ToString());
 
+                        // A fresh tracker has no discovered beacons; discover one real regional beacon.
+                        var beacon = RpgWorldLandmarkCatalog.GetMarkers(spec.MapId)
+                            .First(m => m.SupportsFastTravel);
+                        Assert.IsFalse(tracker.IsMarkerDiscovered(beacon.Id));
+                        Assert.IsTrue(tracker.TryDiscoverMarker(beacon.Id));
+                        Assert.IsTrue(tracker.TryGetFastTravelDestination(beacon.Id, out Vector2Int expectedTile));
+                        Assert.AreEqual(beacon.Tile, expectedTile);
+
                         // 5. Programmatic SetTab works while disabled, but fast-travel and tab clicks stay blocked.
                         canvas.enabled = false;
                         Assert.IsTrue(panel.SetTab(RpgQuestJournalTab.FastTravelBeacons), spec.MapId.ToString());
                         FindInteractableRow(panel, "BeaconRow_", out string markerId, out Button travelBtn);
                         Assert.IsNotNull(travelBtn, spec.MapId.ToString());
+                        Assert.AreEqual(beacon.Id, markerId, spec.MapId.ToString());
                         Assert.IsTrue(travelBtn.IsInteractable(), spec.MapId.ToString());
                         int beaconRows = panel.DisplayedRowCount;
                         Assert.Greater(beaconRows, 0, spec.MapId.ToString());
@@ -103,6 +115,7 @@ namespace Rpg.Tests.Editor
                         travelBtn.onClick.Invoke();
                         Assert.AreEqual(1, travelled, spec.MapId.ToString());
                         Assert.AreEqual(markerId, destination, spec.MapId.ToString());
+                        Assert.AreEqual(expectedTile, destinationTile, spec.MapId.ToString());
                         activeTab.onClick.Invoke();
                         Assert.AreEqual(RpgQuestJournalTab.ActiveQuests, panel.CurrentTab, spec.MapId.ToString());
                     }
@@ -154,13 +167,13 @@ namespace Rpg.Tests.Editor
             string expectedTracked,
             int expectedRows,
             string expectedSummary,
-            int expectedTrackedCalls)
+            System.Func<int> trackedCalls)
         {
             trackBtn.onClick.Invoke();
             beaconTab.onClick.Invoke();
             Assert.IsFalse(panel.TryClickTrackQuest(questId));
             Assert.AreEqual(expectedVisible, panel.IsVisible);
-            Assert.AreEqual(expectedTrackedCalls, 0);
+            Assert.AreEqual(0, trackedCalls());
             Assert.AreEqual(expectedTracked, tracker.TrackedQuestId);
             Assert.AreEqual(RpgQuestJournalTab.ActiveQuests, panel.CurrentTab);
             Assert.AreEqual(expectedRows, panel.DisplayedRowCount);
