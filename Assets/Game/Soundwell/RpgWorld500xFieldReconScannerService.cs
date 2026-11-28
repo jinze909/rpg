@@ -85,7 +85,8 @@ namespace Rpg.Soundwell
             float elapsed = nowSeconds - _lastScanTimeSeconds;
             if (elapsed < 0f)
             {
-                return 0f;
+                // A stale timestamp cannot make a previously used pulse ready.
+                return _cooldownSeconds;
             }
 
             return Mathf.Max(0f, _cooldownSeconds - elapsed);
@@ -129,6 +130,14 @@ namespace Rpg.Soundwell
             if (filterKind.HasValue && !Enum.IsDefined(typeof(RpgWorld500xReconPingKind), filterKind.Value))
             {
                 summaryBannerZh = "勘测分类无效";
+                return false;
+            }
+
+            // Reject clock regression even when cooldown is configured to zero.
+            // Keep the previous successful scan timestamp as the authority.
+            if (nowSeconds < _lastScanTimeSeconds)
+            {
+                summaryBannerZh = "勘测时钟无效";
                 return false;
             }
 
