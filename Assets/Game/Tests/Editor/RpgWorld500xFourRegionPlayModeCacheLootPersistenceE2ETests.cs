@@ -65,20 +65,26 @@ namespace Rpg.Tests.Editor
                     Assert.IsFalse(cachesSvc.TryLootNearbyCache(cachePos, 0.5f, out _), spec.MapId.ToString());
                     Assert.AreEqual(afterLootSilver, shop.SaltSilverBalance, spec.MapId.ToString());
 
-                    // 3. Export save snapshot and reload into a fresh bootstrapper; cache stays looted.
+                    // 3. Export save snapshot and reload into a fresh bootstrapper initialized on another map
+                    // so TryImportSaveJson rebuilds the target region facade from the imported save store.
                     string saved = ctrl.Bootstrapper.ExportSaveJson();
+                    RpgWorldMapId otherMap = spec.MapId == RpgWorldMapId.Soundwell
+                        ? RpgWorldMapId.RedSaltHarbor
+                        : RpgWorldMapId.Soundwell;
                     using (var restored = new RpgWorld500xSceneBootstrapper(
-                        initialMapId: spec.MapId,
+                        initialMapId: otherMap,
                         overrideTileSlices: new Sprite[] { null }))
                     {
                         Assert.IsTrue(restored.TryImportSaveJson(saved, out string error), error);
+                        Assert.AreEqual(spec.MapId, restored.Driver.Facade.CurrentMapId, spec.MapId.ToString());
+                        Assert.AreEqual(1, restored.Store[cache.MakinomKey], spec.MapId.ToString());
                         var restoredCaches = restored.Driver.Facade.ActivityDirector.CachesAndShortcuts;
                         Assert.IsTrue(restoredCaches.IsCacheLooted(cache.Id), spec.MapId.ToString());
                         Assert.AreEqual(
                             afterLootSilver,
                             restored.Driver.Facade.BountyAndSupply.SaltSilverBalance,
                             spec.MapId.ToString());
-                        Assert.IsTrue(restored.Driver.Facade.Session.Host.TryPlaceAtWalkablePosition(cachePos));
+                        Assert.IsTrue(restored.Driver.Facade.Session.Host.TryPlaceAtWalkableTile(cache.Tile));
                         restored.Driver.Facade.TryInteractUnified(0.5f, out var repeatedAfterLoad, out _);
                         Assert.AreNotEqual(RpgWorld500xInteractionKind.CacheLooted, repeatedAfterLoad.Kind, spec.MapId.ToString());
                         Assert.IsFalse(restoredCaches.TryLootNearbyCache(cachePos, 0.5f, out _), spec.MapId.ToString());
