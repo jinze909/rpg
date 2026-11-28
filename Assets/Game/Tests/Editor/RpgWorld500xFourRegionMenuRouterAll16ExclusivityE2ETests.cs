@@ -24,7 +24,9 @@ namespace Rpg.Tests.Editor
                     using (var boot = new RpgWorld500xSceneBootstrapper(
                         initialMapId: spec.MapId,
                         overrideTileSlices: new Sprite[] { null }))
-                    using (var router = new RpgWorld500xMenuRouter(uiRoot.transform, boot))
+                    using (var router = new RpgWorld500xMenuRouter(uiRoot.transform, boot,
+                            new RpgWorld500xCampHavenService(),
+                            new RpgWorld500xSaveSlotManager(new RpgWorld500xInMemorySaveSlotStorage())))
                     {
                         Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
                         Assert.IsFalse(router.HasAnyModalOpen);
@@ -77,7 +79,9 @@ namespace Rpg.Tests.Editor
                         overrideTileSlices: new Sprite[] { null }))
                     {
                         bool initialAuto = boot.Driver.AutomaticFrameUpdates;
-                        using (var router = new RpgWorld500xMenuRouter(uiRoot.transform, boot))
+                        using (var router = new RpgWorld500xMenuRouter(uiRoot.transform, boot,
+                            new RpgWorld500xCampHavenService(),
+                            new RpgWorld500xSaveSlotManager(new RpgWorld500xInMemorySaveSlotStorage())))
                         {
                             Assert.IsFalse(boot.Driver.AutomaticFrameUpdates, $"MenuRouter should pause driver auto-updates in {spec.MapId}.");
 
