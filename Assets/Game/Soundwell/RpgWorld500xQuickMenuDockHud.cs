@@ -50,6 +50,7 @@ namespace Rpg.Soundwell
 
         private readonly RpgWorld500xMenuRouter _menuRouter;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Dictionary<RpgWorld500xModalKind, Button> _buttons =
             new Dictionary<RpgWorld500xModalKind, Button>();
         private readonly Font _font;
@@ -73,9 +74,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 58;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 58;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -169,7 +170,8 @@ namespace Rpg.Soundwell
 
         private bool CanClick(Button button)
         {
-            return !IsDisposed && !_menuRouter.IsDisposed && button != null &&
+            return !IsDisposed && !_menuRouter.IsDisposed &&
+                _canvas != null && _canvas.isActiveAndEnabled && button != null &&
                 button.isActiveAndEnabled && button.IsInteractable();
         }
 
