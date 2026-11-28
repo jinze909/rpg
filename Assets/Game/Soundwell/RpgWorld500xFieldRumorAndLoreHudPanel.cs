@@ -140,7 +140,9 @@ namespace Rpg.Soundwell
 
         public bool Show(RpgWorld500xRumorLoreTab? tab = null)
         {
-            if (IsDisposed)
+            // Reject unknown serialized tab IDs before changing visibility or selection.
+            if (IsDisposed || _bootstrapper.IsDisposed ||
+                (tab.HasValue && !Enum.IsDefined(typeof(RpgWorld500xRumorLoreTab), tab.Value)))
             {
                 return false;
             }
