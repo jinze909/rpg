@@ -190,7 +190,7 @@ namespace Rpg.Soundwell
 
         public bool Show(RpgWorld500xDangerBriefFilter? filter = null, float elapsedSeconds = 0f)
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed)
             {
                 return false;
             }
