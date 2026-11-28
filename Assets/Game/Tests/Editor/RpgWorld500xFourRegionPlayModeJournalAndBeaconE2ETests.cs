@@ -27,14 +27,14 @@ namespace Rpg.Tests.Editor
 
                     var tracker = ctrl.Bootstrapper.Driver.Facade.Session.Host.Tracker;
 
-                    // 1. Open QuestJournal via hotkey and click an interactable QuestRow ActionButton.
+                    // 1. Open QuestJournal via hotkey and locate the active JournalPanel opened by MenuRouter.
                     ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
                     {
                         RequestedModalToggle = RpgWorld500xModalKind.QuestJournal
                     }, 0.05f);
                     Assert.AreEqual(RpgWorld500xModalKind.QuestJournal, ctrl.MenuRouter.ActiveModal, spec.MapId.ToString());
 
-                    Transform journalPanel = FindChildByName(host.transform, "JournalPanel");
+                    Transform journalPanel = FindActiveChildByName(host.transform, "JournalPanel");
                     Assert.IsNotNull(journalPanel, spec.MapId.ToString());
                     Assert.IsTrue(journalPanel.gameObject.activeInHierarchy, spec.MapId.ToString());
 
@@ -78,12 +78,12 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        private static Transform FindChildByName(Transform root, string targetName)
+        private static Transform FindActiveChildByName(Transform root, string targetName)
         {
             Transform[] all = root.GetComponentsInChildren<Transform>(true);
             for (int i = 0; i < all.Length; i++)
             {
-                if (all[i].name == targetName)
+                if (all[i].name == targetName && all[i].gameObject.activeInHierarchy)
                     return all[i];
             }
             return null;
