@@ -63,6 +63,7 @@ namespace Rpg.Tests.Editor
         {
             OrkRoleEncounter encounter = null;
             yield return OpenVisibleRoleEncounter(value => encounter = value);
+            bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
             yield return Wait(() => !string.IsNullOrEmpty(encounter.View.ThreatLabel.text),
                 "initialize the role HUD before capturing the live arena");
             var art = Resources.Load<AdventureArt>("AdventureArt");
@@ -80,11 +81,17 @@ namespace Rpg.Tests.Editor
             yield return PlayUntil(encounter,
                 () => encounter.PendingThreat == OrkRoleEncounter.Threat.Lunge,
                 interrupt: true);
+            Assert.That(encounter.IsPresenting, Is.True);
+            Assert.That(encounter.View.ThreatLabel.text, Is.EqualTo(
+                zh ? "借声兽正在蓄力" : "ECHO BEAST GATHERING STRENGTH"));
+            Assert.That(encounter.View.ExchangeLabel.text, Is.EqualTo(
+                zh ? "借声兽压低身体，蓄势待发。" : "The beast crouches and gathers strength."));
             Assert.That(encounter.Party.Members.Select(member => member.Status[1].GetValue()),
                 Is.EqualTo(hpBeforeGather),
                 "The completed ORK gather action must not damage the party.");
             int[] beforeLunge = encounter.Party.Members.Select(member => member.Status[1].GetValue()).ToArray();
-            yield return Wait(() => encounter.Party.ChoosingRescuerIndex >= 0 && !encounter.IsPresenting,
+            yield return Wait(() => encounter.Party.ChoosingRescuerIndex >= 0 && !encounter.IsPresenting &&
+                encounter.View.RetreatButton.interactable,
                 "player response window", () =>
                     "Actor=" + encounter.Party.ChoosingRescuerIndex +
                     ", threat=" + encounter.PendingThreat +
@@ -101,6 +108,9 @@ namespace Rpg.Tests.Editor
                     ", animations=" + encounter.ActivePresentationCount);
             AssertBeastFrame(art.BeastWindup, "sound_borrowing_beast_windup");
             Assert.That(beastRenderer.sprite, Is.SameAs(art.BeastWindup));
+            string lungeTarget = ExpectedRoleName(encounter.TargetIndex, zh);
+            Assert.That(encounter.View.ThreatLabel.text, Is.EqualTo(
+                (zh ? "蓄力猛扑 → " : "CHARGED LUNGE → ") + lungeTarget));
             Capture(encounter, "role-beast-windup", beastRenderer);
 
             bool capturedInterruption = false;
@@ -118,10 +128,20 @@ namespace Rpg.Tests.Editor
                 });
             Assert.That(capturedInterruption, Is.True,
                 "The accepted decoy must show its own pose while the actual lunge is interrupted.");
+            Assert.That(encounter.IsPresenting, Is.True);
+            Assert.That(encounter.IsInterrupted, Is.False, "The queued howl is a fresh threat.");
+            Assert.That(encounter.View.ThreatLabel.text, Is.EqualTo(
+                (zh ? "猛扑已打断 → " : "LUNGE INTERRUPTED → ") + lungeTarget));
+            Assert.That(encounter.View.ExchangeLabel.text, Is.EqualTo(
+                zh ? "袭击已被打断，小队毫发无伤。" : "Interrupted. The party takes no damage."));
+            Capture(encounter, "role-beast-interrupted-lunge-resolution", beastRenderer);
             Assert.That(encounter.Party.Members.Select(member => member.Status[1].GetValue()),
                 Is.EqualTo(beforeLunge), "The cancelled ORK lunge must deal no damage.");
             Assert.That(encounter.IsExposed, Is.True, "A real interrupted action leaves a punish window.");
 
+            yield return Wait(() => !encounter.IsPresenting && encounter.View.RetreatButton.interactable,
+                "restore controls after the interrupted lunge");
+            Assert.That(encounter.View.ThreatLabel.text, Is.EqualTo(ExpectedQueuedHowl(zh)));
             int enemyBefore = encounter.Party.Beast.Status[1].GetValue();
             AssertBeastFrame(art.BeastRecoil, "sound_borrowing_beast_recoil");
             bool capturedRecoil = false;
@@ -142,6 +162,11 @@ namespace Rpg.Tests.Editor
                 "An actual nonlethal ORK hit must reach the living beast renderer.");
             Assert.That(enemyBefore - encounter.Party.Beast.Status[1].GetValue(), Is.GreaterThanOrEqualTo(10),
                 "The breaker must exploit the persisted ORK combatant opening through a real ability.");
+            Assert.That(encounter.IsPresenting, Is.True);
+            Assert.That(encounter.View.ThreatLabel.text, Is.EqualTo(
+                zh ? "回声嚎叫已打断 → 全队" : "ECHO HOWL INTERRUPTED → Whole party"));
+            Assert.That(encounter.View.ExchangeLabel.text, Is.EqualTo(
+                zh ? "袭击已被打断，小队毫发无伤。" : "Interrupted. The party takes no damage."));
 
             yield return PlayUntil(encounter, () => encounter.Party.Beast.Status.IsDead, interrupt: true);
             yield return Wait(() => !encounter.Party.BattleInProgress && !encounter.IsPresenting, "ORK victory");
@@ -171,6 +196,8 @@ namespace Rpg.Tests.Editor
             Assert.That(beastRenderer.sprite, Is.SameAs(art.BeastWindup));
 
             int target = encounter.TargetIndex;
+            bool zh = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese;
+            string lungeTarget = ExpectedRoleName(target, zh);
             var members = encounter.Party.Members;
             int[] before = members.Select(member =>
                 member.Status[OrkPartyBridge.HealthStatusIndex].GetValue()).ToArray();
@@ -194,6 +221,15 @@ namespace Rpg.Tests.Editor
                 () => $"pose={beastRenderer.sprite?.name}, towardTarget={Approach():F2}, " +
                     $"presenting={encounter.IsPresenting}, threat={encounter.PendingThreat}, " +
                     $"targetHP={members[target].Status[OrkPartyBridge.HealthStatusIndex].GetValue()}");
+            Assert.That(encounter.PendingThreat, Is.EqualTo(OrkRoleEncounter.Threat.Howl));
+            Assert.That(encounter.TargetIndex, Is.Not.EqualTo(target), "The queue has already rotated the target.");
+            Assert.That(encounter.View.ThreatLabel.text, Is.EqualTo(
+                (zh ? "猛扑中 → " : "LUNGE IN PROGRESS → ") + lungeTarget));
+            Assert.That(encounter.View.ExchangeLabel.text, Is.EqualTo(
+                zh ? "借声兽猛扑向" + lungeTarget + "。" : "The beast lunges at the " + lungeTarget + "."));
+            Assert.That(encounter.View.PrimaryButton.interactable, Is.False);
+            Assert.That(encounter.View.SecondaryButton.interactable, Is.False);
+            Assert.That(encounter.View.RetreatButton.interactable, Is.False);
             Capture(encounter, "role-beast-uninterrupted-lunge", beastRenderer);
 
             for (int i = 0; i < members.Count; i++)
@@ -205,11 +241,23 @@ namespace Rpg.Tests.Editor
 
             yield return Wait(() => !encounter.IsPresenting && beastRenderer.sprite == art.BeastWindup &&
                 encounter.View.RetreatButton.interactable, "restore the queued pose and allow retreat");
+            Assert.That(encounter.View.ThreatLabel.text, Is.EqualTo(ExpectedQueuedHowl(zh)));
             encounter.View.RetreatButton.onClick.Invoke();
             yield return Wait(() => SceneManager.GetActiveScene().name == SoundwellEntrance.BootstrapSceneName,
                 "return to Bootstrap after the real lunge");
             LogAssert.NoUnexpectedReceived();
         }
+
+        private static string ExpectedRoleName(int index, bool zh)
+        {
+            string[] roles = zh ? new[] { "前卫", "破阵手", "支援手" }
+                : new[] { "Vanguard", "Breaker", "Support" };
+            return roles[index];
+        }
+
+        private static string ExpectedQueuedHowl(bool zh) => zh
+            ? "回声嚎叫 → 全队 · 湿布可以封住声口"
+            : "ECHO HOWL → Whole party · Muffle the echo";
 
         private static IEnumerator PlayUntil(OrkRoleEncounter encounter, Func<bool> completed,
             bool interrupt, Action observe = null)
