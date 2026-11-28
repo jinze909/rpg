@@ -87,7 +87,7 @@ namespace Rpg.Tests.Editor
 
         private static void AssertBlockedOnSuppliesTab(
             RpgWorld500xCampMerchantHudPanel panel,
-            RpgWorld500xBountyAndSupplyService supply,
+            RpgWorld500xFieldBountyAndSupplyService supply,
             Button buyFlareBtn,
             Button bountiesTabBtn,
             int expectedSilver,
