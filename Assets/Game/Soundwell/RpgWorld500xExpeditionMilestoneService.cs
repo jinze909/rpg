@@ -208,6 +208,8 @@ namespace Rpg.Soundwell
         private readonly Func<string, int> _getInt;
         private readonly Action<string, int> _setInt;
         private readonly Action<RpgWorld500xExpeditionMilestoneDef> _onMilestoneUnlocked;
+        private bool _claimInProgress;
+        private RpgWorld500xCrossMapProgressSnapshot _claimProgress;
 
         public RpgWorld500xExpeditionMilestoneService(
             Func<string, int> getInt = null,
@@ -323,40 +325,58 @@ namespace Rpg.Soundwell
         public List<RpgWorld500xExpeditionMilestoneDef> EvaluateAndClaimAll(
             out RpgWorld500xCrossMapProgressSnapshot progress)
         {
-            progress = ComputeCrossMapProgress();
-            var newlyClaimed = new List<RpgWorld500xExpeditionMilestoneDef>();
-
-            // A read-only progress view cannot persist a claim. Never emit a
-            // reward callback for a claim that would remain claimable next time.
-            if (_setInt == null)
+            // Reserve before any external read, write or reward callback. A nested
+            // evaluation must not run another settlement on the same service.
+            if (_claimInProgress)
             {
-                return newlyClaimed;
+                progress = _claimProgress;
+                return new List<RpgWorld500xExpeditionMilestoneDef>();
             }
 
-            for (int i = 0; i < MilestoneDefs.Length; i++)
+            _claimInProgress = true;
+            try
             {
-                RpgWorld500xExpeditionMilestoneDef def = MilestoneDefs[i];
-                if (_getInt(def.MakinomKey) == 1)
+                progress = ComputeCrossMapProgress();
+                _claimProgress = progress;
+                var newlyClaimed = new List<RpgWorld500xExpeditionMilestoneDef>();
+
+                // A read-only progress view cannot persist a claim. Never emit a
+                // reward callback for a claim that would remain claimable next time.
+                if (_setInt == null)
                 {
-                    continue;
+                    return newlyClaimed;
                 }
 
-                if (progress.GetMetricValue(def.Metric) >= def.TargetCount)
+                for (int i = 0; i < MilestoneDefs.Length; i++)
                 {
-                    _setInt(def.MakinomKey, 1);
-                    // A writable delegate alone does not prove the claim was
-                    // recorded. Do not grant a repeatable reward on rejected writes.
-                    if (_getInt(def.MakinomKey) != 1)
+                    RpgWorld500xExpeditionMilestoneDef def = MilestoneDefs[i];
+                    if (_getInt(def.MakinomKey) == 1)
                     {
                         continue;
                     }
 
-                    _onMilestoneUnlocked?.Invoke(def);
-                    newlyClaimed.Add(def);
-                }
-            }
+                    if (progress.GetMetricValue(def.Metric) >= def.TargetCount)
+                    {
+                        _setInt(def.MakinomKey, 1);
+                        // A writable delegate alone does not prove the claim was
+                        // recorded. Do not grant a repeatable reward on rejected writes.
+                        if (_getInt(def.MakinomKey) != 1)
+                        {
+                            continue;
+                        }
 
-            return newlyClaimed;
+                        _onMilestoneUnlocked?.Invoke(def);
+                        newlyClaimed.Add(def);
+                    }
+                }
+
+                return newlyClaimed;
+            }
+            finally
+            {
+                _claimProgress = default;
+                _claimInProgress = false;
+            }
         }
 
         public List<RpgWorld500xMilestoneStatus> BuildStatusList(
