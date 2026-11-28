@@ -8,6 +8,59 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xCacheAndShortcutHudPanelTests
     {
         [Test]
+        public void CacheAndShortcutHudPanel_RejectsUnknownTabWithoutChangingTrackingOrVisibility()
+        {
+            var root = new GameObject("CacheShortcutUnknownTabRoot");
+            try
+            {
+                foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xCacheAndShortcutHudPanel(root.transform, boot))
+                    {
+                        var invalid = (RpgWorld500xCacheShortcutTab)255;
+                        Assert.IsFalse(panel.Show(invalid));
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.AreEqual(RpgWorld500xCacheShortcutTab.HiddenCaches, panel.ActiveTab);
+
+                        Assert.IsTrue(panel.Show(RpgWorld500xCacheShortcutTab.HiddenCaches));
+                        Assert.IsTrue(panel.TrySetIncompleteOnly(true));
+                        int rows = panel.DisplayedRowCount;
+                        string header = panel.HeaderText;
+                        string summary = panel.SummaryText;
+                        string nearest = panel.NearestIncompleteId;
+                        float distance = panel.NearestIncompleteDistanceTiles;
+                        Assert.IsFalse(panel.TrySelectTab(invalid));
+                        Assert.IsFalse(panel.Show(invalid));
+                        Assert.IsTrue(panel.IsVisible);
+                        Assert.AreEqual(RpgWorld500xCacheShortcutTab.HiddenCaches, panel.ActiveTab);
+                        Assert.IsTrue(panel.IncompleteOnly);
+                        Assert.AreEqual(rows, panel.DisplayedRowCount);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(summary, panel.SummaryText);
+                        Assert.AreEqual(nearest, panel.NearestIncompleteId);
+                        Assert.AreEqual(distance, panel.NearestIncompleteDistanceTiles);
+                        Assert.IsTrue(panel.TrySelectTab(RpgWorld500xCacheShortcutTab.Shortcuts));
+                        Assert.AreEqual(RpgWorld500xCacheShortcutTab.Shortcuts, panel.ActiveTab);
+
+                        Assert.IsTrue(panel.Hide());
+                        Assert.IsFalse(panel.Show(invalid));
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.AreEqual(RpgWorld500xCacheShortcutTab.Shortcuts, panel.ActiveTab);
+                        Assert.IsTrue(panel.Show());
+                        Assert.AreEqual(RpgWorld500xCacheShortcutTab.Shortcuts, panel.ActiveTab);
+                    }
+                    Assert.AreEqual(0, root.transform.childCount, spec.MapId.ToString());
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CacheAndShortcutHudPanel_DisabledCanvasRejectsTabAndFilterUntilRestored()
         {
             var root = new GameObject("CacheShortcutDisabledCanvasRoot");
