@@ -28,23 +28,41 @@ namespace Rpg.Tests.Editor
                     var cachesSvc = facade.ActivityDirector.CachesAndShortcuts;
                     var shop = facade.BountyAndSupply;
 
-                    IReadOnlyList<RpgWorldCacheDef> caches = RpgWorld500xContentCatalog.GetCaches(spec.MapId);
+                    IReadOnlyList<RpgSupplyCacheDef> caches = RpgWorld500xContentCatalog.GetCaches(spec.MapId);
                     Assert.Greater(caches.Count, 0, spec.MapId.ToString());
-                    RpgWorldCacheDef cache = caches[0];
-                    Vector2 cachePos = new Vector2(cache.Tile.x + 0.5f, cache.Tile.y + 0.5f);
+                    // Use a reachable cache tile and the actual facade interaction path:
+                    // the low-level cache controller records loot, but the facade credits the wallet.
+                    RpgSupplyCacheDef cache = default;
+                    bool placed = false;
+                    foreach (var candidate in caches)
+                    {
+                        if (facade.Session.Host.TryPlaceAtWalkableTile(candidate.Tile))
+                        {
+                            cache = candidate;
+                            placed = true;
+                            break;
+                        }
+                    }
+
+                    Assert.IsTrue(placed, "Expected a walkable cache tile in " + spec.MapId);
+                    Vector2 cachePos = facade.Session.Host.PlayerPosition;
 
                     int beforeSilver = shop.SaltSilverBalance;
                     Assert.IsFalse(cachesSvc.IsCacheLooted(cache.Id), spec.MapId.ToString());
 
                     // 1. Loot the regional cache once and verify silver credit + looted state.
-                    Assert.IsTrue(cachesSvc.TryLootNearbyCache(cachePos, 6f, out var looted), spec.MapId.ToString());
-                    Assert.AreEqual(cache.Id, looted.Id, spec.MapId.ToString());
+                    Assert.IsTrue(facade.TryInteractUnified(0.5f, out var looted, out _), spec.MapId.ToString());
+                    Assert.AreEqual(RpgWorld500xInteractionKind.CacheLooted, looted.Kind, spec.MapId.ToString());
+                    Assert.AreEqual(cache.Id, looted.EntityId, spec.MapId.ToString());
+                    Assert.AreEqual(cache.SaltSilverReward, looted.SaltSilverGranted, spec.MapId.ToString());
                     Assert.IsTrue(cachesSvc.IsCacheLooted(cache.Id), spec.MapId.ToString());
                     int afterLootSilver = shop.SaltSilverBalance;
-                    Assert.Greater(afterLootSilver, beforeSilver, spec.MapId.ToString());
+                    Assert.GreaterOrEqual(afterLootSilver, beforeSilver + cache.SaltSilverReward, spec.MapId.ToString());
 
                     // 2. Duplicate loot attempt must fail cleanly without double-crediting.
-                    Assert.IsFalse(cachesSvc.TryLootNearbyCache(cachePos, 6f, out _), spec.MapId.ToString());
+                    facade.TryInteractUnified(0.5f, out var repeated, out _);
+                    Assert.AreNotEqual(RpgWorld500xInteractionKind.CacheLooted, repeated.Kind, spec.MapId.ToString());
+                    Assert.IsFalse(cachesSvc.TryLootNearbyCache(cachePos, 0.5f, out _), spec.MapId.ToString());
                     Assert.AreEqual(afterLootSilver, shop.SaltSilverBalance, spec.MapId.ToString());
 
                     // 3. Export save snapshot and reload into a fresh bootstrapper; cache stays looted.
@@ -60,7 +78,11 @@ namespace Rpg.Tests.Editor
                             afterLootSilver,
                             restored.Driver.Facade.BountyAndSupply.SaltSilverBalance,
                             spec.MapId.ToString());
-                        Assert.IsFalse(restoredCaches.TryLootNearbyCache(cachePos, 6f, out _), spec.MapId.ToString());
+                        Assert.IsTrue(restored.Driver.Facade.Session.Host.TryPlaceAtWalkablePosition(cachePos));
+                        restored.Driver.Facade.TryInteractUnified(0.5f, out var repeatedAfterLoad, out _);
+                        Assert.AreNotEqual(RpgWorld500xInteractionKind.CacheLooted, repeatedAfterLoad.Kind, spec.MapId.ToString());
+                        Assert.IsFalse(restoredCaches.TryLootNearbyCache(cachePos, 0.5f, out _), spec.MapId.ToString());
+                        Assert.AreEqual(afterLootSilver, restored.Driver.Facade.BountyAndSupply.SaltSilverBalance, spec.MapId.ToString());
                     }
 
                     ctrl.Shutdown();
