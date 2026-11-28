@@ -40,7 +40,7 @@ namespace Rpg.Tests.Editor
                         if (!reentered)
                         {
                             reentered = true;
-                            Assert.IsEmpty(service.ClaimCompletedBounties(completed),
+                            Assert.AreEqual(0, service.ClaimCompletedBounties(completed).Count,
                                 $"Synchronous reentry during bounty write must return empty in {spec.MapId}.");
                         }
 
@@ -64,7 +64,7 @@ namespace Rpg.Tests.Editor
                 Assert.AreEqual(1, retryPass.Count);
                 Assert.AreEqual(blocked.Id, retryPass[0].Id);
                 Assert.AreEqual(fullSilver, service.SaltSilverBalance);
-                Assert.IsEmpty(service.ClaimCompletedBounties(completed));
+                Assert.AreEqual(0, service.ClaimCompletedBounties(completed).Count);
             }
         }
 
@@ -103,7 +103,7 @@ namespace Rpg.Tests.Editor
                     if (!reenteredCallback)
                     {
                         reenteredCallback = true;
-                        Assert.IsEmpty(service.EvaluateAndClaimAll(out _));
+                        Assert.AreEqual(0, service.EvaluateAndClaimAll(out _).Count);
                     }
                 });
 
@@ -116,7 +116,7 @@ namespace Rpg.Tests.Editor
             Assert.GreaterOrEqual(claimed.Count, 1);
             Assert.IsTrue(reenteredCallback);
             Assert.AreEqual(claimed.Count, unlockedCallbacks);
-            Assert.IsEmpty(service.EvaluateAndClaimAll(out _));
+            Assert.AreEqual(0, service.EvaluateAndClaimAll(out _).Count);
             Assert.AreEqual(claimed.Count, unlockedCallbacks);
         }
     }
