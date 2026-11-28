@@ -55,7 +55,7 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void SceneBootstrapper_RejectsInvalidAndSameMapSwitchWithoutMutatingActiveSessionAcrossAllFourRegions()
+        public void SceneBootstrapper_HandlesSameMapNoOpAndRejectsInvalidMapSwitchWithoutMutatingActiveSessionAcrossAllFourRegions()
         {
             var specs = RpgExpandedWorldScale.AllSpecs;
             Assert.That(specs.Count, Is.EqualTo(4));
@@ -69,9 +69,13 @@ namespace Rpg.Tests.Editor
                 {
                     boot.StepFrame(Vector2.zero, 0.1f);
                     boot.Driver.Facade.BountyAndSupply.AddSaltSilver(55);
+                    var hostBefore = boot.Driver.Facade.Session.Host;
+                    var trackerBefore = boot.Driver.Facade.DistrictTracker;
 
-                    Assert.IsFalse(boot.SwitchMap(origin));
+                    Assert.IsTrue(boot.SwitchMap(origin));
                     Assert.IsFalse(boot.SwitchMap((RpgWorldMapId)255));
+                    Assert.AreSame(hostBefore, boot.Driver.Facade.Session.Host);
+                    Assert.AreSame(trackerBefore, boot.Driver.Facade.DistrictTracker);
                     Assert.That(boot.Driver.Facade.CurrentMapId, Is.EqualTo(origin));
                     Assert.That(boot.Driver.Facade.BountyAndSupply.SaltSilverBalance, Is.EqualTo(55));
                 }
