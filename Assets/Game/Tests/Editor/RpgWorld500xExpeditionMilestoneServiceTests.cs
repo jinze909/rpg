@@ -171,6 +171,89 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReentrantMilestoneClaimDuringStorageAndRewardCallbacksSettlesOnlyOnce()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var caches = RpgWorld500xContentCatalog.GetCaches(RpgWorldMapId.Soundwell);
+            for (int i = 0; i < 10; i++)
+                store[caches[i].MakinomKey] = 1;
+
+            RpgWorld500xExpeditionMilestoneService service = null;
+            bool readReentered = false;
+            bool writeReentered = false;
+            int rewards = 0;
+            int paidSilver = 0;
+            int claimWrites = 0;
+            service = new RpgWorld500xExpeditionMilestoneService(
+                k =>
+                {
+                    if (!readReentered)
+                    {
+                        readReentered = true;
+                        Assert.IsEmpty(service.EvaluateAndClaimAll(out _));
+                    }
+                    return store.TryGetValue(k, out int v) ? v : 0;
+                },
+                (k, v) =>
+                {
+                    claimWrites++;
+                    if (!writeReentered)
+                    {
+                        writeReentered = true;
+                        Assert.IsEmpty(service.EvaluateAndClaimAll(out var nestedProgress));
+                        Assert.AreEqual(10, nestedProgress.LootedCaches);
+                    }
+                    store[k] = v;
+                },
+                d =>
+                {
+                    rewards++;
+                    paidSilver += d.SaltSilverReward;
+                    Assert.IsEmpty(service.EvaluateAndClaimAll(out _));
+                });
+
+            var claimed = service.EvaluateAndClaimAll(out var progress);
+            Assert.IsTrue(readReentered);
+            Assert.IsTrue(writeReentered);
+            Assert.AreEqual(10, progress.LootedCaches);
+            Assert.AreEqual(1, claimed.Count);
+            Assert.AreEqual("first_cache_sweep", claimed[0].Id);
+            Assert.AreEqual(1, claimWrites);
+            Assert.AreEqual(1, rewards);
+            Assert.AreEqual(60, paidSilver);
+            Assert.AreEqual(1, store[claimed[0].MakinomKey]);
+            Assert.IsEmpty(service.EvaluateAndClaimAll(out _));
+            Assert.AreEqual(1, rewards);
+        }
+
+        [Test]
+        public void MilestoneClaimReservationReleasesAfterStorageException()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var caches = RpgWorld500xContentCatalog.GetCaches(RpgWorldMapId.Soundwell);
+            for (int i = 0; i < 10; i++)
+                store[caches[i].MakinomKey] = 1;
+            bool failWrite = true;
+            int rewards = 0;
+            var service = new RpgWorld500xExpeditionMilestoneService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) =>
+                {
+                    if (failWrite)
+                        throw new InvalidOperationException("Storage unavailable");
+                    store[k] = v;
+                },
+                _ => rewards++);
+
+            Assert.Throws<InvalidOperationException>(() => service.EvaluateAndClaimAll(out _));
+            Assert.AreEqual(0, rewards);
+            failWrite = false;
+            Assert.AreEqual(1, service.EvaluateAndClaimAll(out _).Count);
+            Assert.AreEqual(1, rewards);
+            Assert.IsEmpty(service.EvaluateAndClaimAll(out _));
+        }
+
+        [Test]
         public void BuildMilestoneSummary_PreviewsUnclaimedSilverAndClosestNextTargetWithoutMutatingState()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
