@@ -11,6 +11,66 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xPlayModeControllerTests
     {
         [Test]
+        public void PlayModeController_ReconMouseAndPublicClickRespectModalAndClosingFrame()
+        {
+            var host = new GameObject("ReconModalInputGuard");
+            var ctrl = host.AddComponent<RpgWorld500xPlayModeController>();
+            try
+            {
+                ctrl.Initialize(overrideMap: RpgWorldMapId.Soundwell,
+                    saveStorage: new RpgWorld500xInMemorySaveSlotStorage(),
+                    overrideTileSlices: new Sprite[] { null });
+                var hud = ctrl.ReconPulseHud;
+                var button = host.transform.Find(
+                    "World500xPlayModeUiRoot/World500xReconPulseHudBar/ReconPulsePanel/PulseScanButton")
+                    .GetComponent<UnityEngine.UI.Button>();
+                string banner = hud.BannerText;
+                Assert.IsTrue(hud.IsScanButtonInteractable);
+
+                // Opening via a menu button can happen before the next controller frame.
+                Assert.IsTrue(ctrl.MenuRouter.OpenModal(RpgWorld500xModalKind.WorldAtlas));
+                Assert.IsFalse(hud.IsScanButtonInteractable);
+                button.onClick.Invoke();
+                Assert.IsFalse(hud.TryClickPulseScan(0f));
+                Assert.AreEqual(banner, hud.BannerText);
+                Assert.AreEqual(0, hud.LastPingCount);
+
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame { ReconPulsePressed = true }, 0.1f);
+                Assert.IsFalse(button.interactable);
+                button.onClick.Invoke();
+                Assert.AreEqual(banner, hud.BannerText);
+
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame
+                {
+                    CloseModalPressed = true,
+                    ReconPulsePressed = true
+                }, 0.1f);
+                Assert.AreEqual(RpgWorld500xModalKind.None, ctrl.MenuRouter.ActiveModal);
+                Assert.IsFalse(hud.IsScanButtonInteractable);
+                button.onClick.Invoke();
+                Assert.IsFalse(hud.TryClickPulseScan(0.2f));
+                Assert.AreEqual(0, hud.LastPingCount);
+                Assert.AreEqual(banner, hud.BannerText);
+
+                ctrl.ProcessInputFrame(new RpgWorld500xInputFrame(), 0.1f);
+                Assert.IsTrue(hud.IsScanButtonInteractable);
+                Assert.IsTrue(button.interactable);
+                button.onClick.Invoke();
+                Assert.Greater(hud.LastPingCount, 0);
+                Assert.IsFalse(hud.IsScanButtonInteractable);
+                Assert.AreNotEqual(banner, hud.BannerText);
+
+                ctrl.Shutdown();
+                Assert.AreEqual(0, host.transform.childCount);
+            }
+            finally
+            {
+                ctrl.Shutdown();
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
         public void PlayModeController_MapsAll16ModalsToUniqueNonCollidingHotkeysAndDrivesNewPanels()
         {
             KeyCode[] keys =
