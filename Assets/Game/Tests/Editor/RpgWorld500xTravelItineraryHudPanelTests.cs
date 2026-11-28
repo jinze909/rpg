@@ -10,6 +10,72 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xTravelItineraryHudPanelTests
     {
         [Test]
+        public void TravelItineraryHudPanel_AllFourRegions_RejectsReopenAfterOwnerDisposal()
+        {
+            var specs = RpgExpandedWorldScale.AllSpecs;
+            for (int i = 0; i < specs.Count; i++)
+            {
+                var origin = specs[i].MapId;
+                var destination = specs[(i + 1) % specs.Count].MapId;
+                var otherDestination = specs[(i + 2) % specs.Count].MapId;
+                var root = new GameObject("ItineraryDisposedOwner_" + origin);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: origin, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xTravelItineraryHudPanel(root.transform, boot))
+                    {
+                        Assert.IsTrue(panel.Show(destination, 5f), origin.ToString());
+                        var canvas = root.transform.Find("World500xTravelItineraryHudPanel");
+                        var modal = canvas.Find("ItineraryModalBox");
+                        var provision = modal.Find("AutoProvisionItineraryButton").GetComponent<Button>().onClick;
+                        var depart = modal.Find("DepartFirstLegButton").GetComponent<Button>().onClick;
+                        var select = modal.Find("Dest_" + otherDestination).GetComponent<Button>().onClick;
+                        var close = modal.Find("CloseItineraryButton").GetComponent<Button>().onClick;
+                        var itinerary = panel.LastItinerary;
+                        var plan = panel.LastProvisioningPlan;
+                        var receipt = panel.LastProvisioningReceipt;
+                        int rows = panel.DisplayedLegRowCount;
+                        string header = panel.HeaderText;
+                        string summary = panel.SummaryBannerText;
+                        string feedback = panel.FeedbackText;
+
+                        boot.Dispose();
+                        provision.Invoke();
+                        depart.Invoke();
+                        select.Invoke();
+                        close.Invoke();
+                        Assert.IsTrue(panel.IsVisible);
+                        Assert.IsFalse(panel.TryClickAutoProvision());
+                        Assert.IsFalse(panel.TryClickDepartFirstLeg());
+                        Assert.IsFalse(panel.TrySelectDestination(otherDestination));
+                        Assert.IsFalse(panel.TryClickClose());
+                        Assert.IsTrue(panel.Hide());
+
+                        Assert.IsFalse(panel.Show(otherDestination, 12f), origin.ToString());
+                        Assert.IsFalse(panel.Show());
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        Assert.AreEqual(destination, panel.SelectedDestination);
+                        Assert.AreEqual(itinerary, panel.LastItinerary);
+                        Assert.AreEqual(plan, panel.LastProvisioningPlan);
+                        Assert.AreEqual(receipt, panel.LastProvisioningReceipt);
+                        Assert.AreEqual(rows, panel.DisplayedLegRowCount);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(summary, panel.SummaryBannerText);
+                        Assert.AreEqual(feedback, panel.FeedbackText);
+                    }
+
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void TravelItineraryHudPanel_DisabledCanvasRejectsProvisioningAndTravelUntilRestored()
         {
             var root = new GameObject("ItineraryDisabledCanvasRoot");

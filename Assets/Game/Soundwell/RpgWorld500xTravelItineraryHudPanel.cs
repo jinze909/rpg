@@ -163,7 +163,7 @@ namespace Rpg.Soundwell
 
         public bool Show(RpgWorldMapId? destination = null, float elapsedSeconds = 0f)
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed)
             {
                 return false;
             }
