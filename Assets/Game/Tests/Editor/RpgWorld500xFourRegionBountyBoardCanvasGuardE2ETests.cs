@@ -116,7 +116,7 @@ namespace Rpg.Tests.Editor
 
         private static void AssertBlocked(
             RpgWorld500xBountyBoardHudPanel panel,
-            RpgWorld500xBountyAndSupplyService supply,
+            RpgWorld500xFieldBountyAndSupplyService supply,
             Button claimBtn,
             Button allBtn,
             Button closeBtn,
