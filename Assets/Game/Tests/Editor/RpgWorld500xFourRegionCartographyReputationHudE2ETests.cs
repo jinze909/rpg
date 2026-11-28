@@ -15,6 +15,71 @@ namespace Rpg.Tests.Editor
         };
 
         [Test]
+        public void FourRegion_CartographyReputationHudPanel_RejectsInvisibleAndDisposedOwnerInput()
+        {
+            for (int i = 0; i < FourRegions.Length; i++)
+            {
+                var current = FourRegions[i];
+                var remote = FourRegions[(i + 1) % FourRegions.Length];
+                var root = new GameObject("CartographyOwnerGuard_" + current);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: current, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xCartographyReputationHudPanel(root.transform, boot))
+                    {
+                        Assert.IsTrue(panel.Show());
+                        var canvas = root.transform.Find("World500xCartographyReputationHudPanel")
+                            .GetComponent<Canvas>();
+                        var tab = canvas.transform.Find("CartographyReputationModalBox/RegionTabs/Tab_" + remote)
+                            .GetComponent<UnityEngine.UI.Button>();
+                        Assert.IsTrue(tab.IsInteractable());
+                        string header = panel.HeaderText;
+                        string summary = panel.SummaryText;
+                        int rows = panel.DisplayedRowCount;
+                        int silver = panel.RemainingMilestoneSaltSilver;
+
+                        canvas.enabled = false;
+                        Assert.IsTrue(tab.IsInteractable());
+                        tab.onClick.Invoke();
+                        Assert.IsFalse(panel.TrySelectRegion(remote));
+                        Assert.IsFalse(panel.TrySelectHighestStandingRegion());
+                        Assert.AreEqual(current, panel.SelectedMapId);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(summary, panel.SummaryText);
+                        Assert.AreEqual(rows, panel.DisplayedRowCount);
+                        Assert.AreEqual(silver, panel.RemainingMilestoneSaltSilver);
+                        canvas.enabled = true;
+
+                        Assert.IsTrue(panel.TrySelectRegion(remote));
+                        Assert.AreEqual(remote, panel.SelectedMapId);
+                        Assert.IsFalse(panel.HasCurrentMapCartographyPreview);
+                        Assert.IsTrue(panel.Hide());
+                        string remoteHeader = panel.HeaderText;
+                        string remoteSummary = panel.SummaryText;
+                        int remoteRows = panel.DisplayedRowCount;
+                        boot.Dispose();
+
+                        Assert.IsFalse(panel.Show());
+                        Assert.IsFalse(panel.IsVisible);
+                        tab.onClick.Invoke();
+                        Assert.IsFalse(panel.TrySelectRegion(current));
+                        Assert.IsFalse(panel.TrySelectHighestStandingRegion());
+                        Assert.AreEqual(remote, panel.SelectedMapId);
+                        Assert.AreEqual(remoteHeader, panel.HeaderText);
+                        Assert.AreEqual(remoteSummary, panel.SummaryText);
+                        Assert.AreEqual(remoteRows, panel.DisplayedRowCount);
+                    }
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void FourRegion_CartographyReputationHudPanel_LivePreviewAndRemoteTabsAcrossAllFourRegionsWithZeroSpriteLeak()
         {
             // Warm up one-time UGUI/font and per-region caches before steady-state leak baseline.
