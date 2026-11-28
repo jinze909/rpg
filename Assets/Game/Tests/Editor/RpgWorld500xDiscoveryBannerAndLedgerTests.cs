@@ -3,11 +3,51 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Rpg.Soundwell;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xDiscoveryBannerAndLedgerTests
     {
+        [Test]
+        public void DiscoveryBanner_UsesSeparatePaddedTextRowsAndDoesNotInterceptInput()
+        {
+            var root = new GameObject("DiscoveryBannerLayoutRoot");
+            try
+            {
+                using (var banner = new RpgWorld500xDiscoveryBannerHud(root.transform))
+                {
+                    Assert.IsTrue(banner.Enqueue("发现新地标", "已解锁快速传送灯标"));
+                    Transform panel = banner.RootObject.transform.Find("BannerPanel");
+                    Text headline = panel.Find("Headline").GetComponent<Text>();
+                    Text subtitle = panel.Find("Subtitle").GetComponent<Text>();
+                    Assert.AreEqual(new Vector2(0f, 0.5f), headline.rectTransform.anchorMin);
+                    Assert.AreEqual(new Vector2(1f, 1f), headline.rectTransform.anchorMax);
+                    Assert.AreEqual(new Vector2(0f, 0f), subtitle.rectTransform.anchorMin);
+                    Assert.AreEqual(new Vector2(1f, 0.5f), subtitle.rectTransform.anchorMax);
+                    foreach (Text row in new[] { headline, subtitle })
+                    {
+                        Assert.AreEqual(new Vector2(12f, 2f), row.rectTransform.offsetMin);
+                        Assert.AreEqual(new Vector2(-12f, -2f), row.rectTransform.offsetMax);
+                        Assert.IsFalse(row.raycastTarget);
+                    }
+                    Assert.IsFalse(panel.GetComponent<Image>().raycastTarget);
+                    Assert.AreEqual("发现新地标", headline.text);
+                    Assert.AreEqual("已解锁快速传送灯标", subtitle.text);
+                    Assert.IsTrue(banner.Enqueue("任务完成", "奖励已结算"));
+                    banner.Step(4f);
+                    Assert.AreEqual("任务完成", headline.text);
+                    Assert.AreEqual("奖励已结算", subtitle.text);
+                    banner.Step(4f);
+                    Assert.IsFalse(banner.IsShowing);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         [Test]
         public void LedgerSummaryAggregatesAllFour500xMapsAndBannerQueuesAndExpiresToastsCleanly()
         {
