@@ -9,6 +9,77 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xBountyBoardHudPanelTests
     {
         [Test]
+        public void BountyBoardHudPanel_AllFourRegions_RejectsInvalidScopeAndDisposedOwner()
+        {
+            var invalidScope = (RpgWorld500xBountyBoardScope)255;
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var root = new GameObject("BountyDisposedOwner_" + spec.MapId);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xBountyBoardHudPanel(root.transform, boot))
+                    {
+                        var canvas = root.transform.Find("World500xBountyBoardHudPanel");
+                        var modal = canvas.Find("BountyBoardModalBox");
+                        var claim = modal.Find("ClaimEligibleBountiesButton").GetComponent<Button>().onClick;
+                        var active = modal.Find("Tab_ActiveMap").GetComponent<Button>().onClick;
+                        var all = modal.Find("Tab_AllRegions").GetComponent<Button>().onClick;
+                        var close = modal.Find("CloseBountyBoardButton").GetComponent<Button>().onClick;
+
+                        Assert.IsFalse(panel.Show(invalidScope));
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        Assert.IsTrue(panel.Show(RpgWorld500xBountyBoardScope.ActiveMap));
+                        Assert.IsFalse(panel.TrySelectScope(invalidScope));
+                        Assert.IsFalse(panel.Show(invalidScope));
+                        Assert.AreEqual(RpgWorld500xBountyBoardScope.ActiveMap, panel.ActiveScope);
+                        Assert.AreEqual(3, panel.DisplayedRowCount);
+                        Assert.IsTrue(panel.TrySelectScope(RpgWorld500xBountyBoardScope.AllRegions));
+                        Assert.AreEqual(12, panel.DisplayedRowCount);
+                        var summary = panel.ActiveMapSummary;
+                        int claimed = panel.ClaimedCount;
+                        int claimable = panel.ClaimableCount;
+                        int rows = panel.DisplayedRowCount;
+                        string header = panel.HeaderText;
+                        string feedback = panel.FeedbackText;
+                        string label = panel.ClaimButtonLabelText;
+
+                        boot.Dispose();
+                        claim.Invoke();
+                        active.Invoke();
+                        all.Invoke();
+                        close.Invoke();
+                        Assert.IsTrue(panel.IsVisible);
+                        Assert.IsFalse(panel.TrySelectScope(RpgWorld500xBountyBoardScope.ActiveMap));
+                        Assert.IsFalse(panel.TryClickClaimEligible());
+                        Assert.IsFalse(panel.TryClickClose());
+                        Assert.IsTrue(panel.Hide());
+                        Assert.IsFalse(panel.Show(RpgWorld500xBountyBoardScope.ActiveMap));
+                        Assert.IsFalse(panel.Show());
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        Assert.AreEqual(RpgWorld500xBountyBoardScope.AllRegions, panel.ActiveScope);
+                        Assert.AreEqual(summary, panel.ActiveMapSummary);
+                        Assert.AreEqual(claimed, panel.ClaimedCount);
+                        Assert.AreEqual(claimable, panel.ClaimableCount);
+                        Assert.AreEqual(rows, panel.DisplayedRowCount);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(feedback, panel.FeedbackText);
+                        Assert.AreEqual(label, panel.ClaimButtonLabelText);
+                    }
+
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void BountyBoardHudPanel_DisabledCanvasRejectsClaimScopeAndCloseUntilRestored()
         {
             var root = new GameObject("World500xBountyBoardDisabledCanvas");
