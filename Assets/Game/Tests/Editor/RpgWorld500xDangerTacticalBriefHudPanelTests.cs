@@ -10,6 +10,58 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xDangerTacticalBriefHudPanelTests
     {
         [Test]
+        public void DangerTacticalBriefHudPanel_AllFourRegions_RejectsReopenAfterOwnerDisposal()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var root = new GameObject("DangerBriefDisposedOwner_" + spec.MapId);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xDangerTacticalBriefHudPanel(root.transform, boot))
+                    {
+                        Assert.IsTrue(panel.Show(), spec.MapId.ToString());
+                        var modal = root.transform.Find("World500xDangerTacticalBriefHudPanel/DangerBriefModalBox");
+                        var all = modal.Find("Tab_AllZones").GetComponent<Button>().onClick;
+                        var refresh = modal.Find("RefreshDangerBriefButton").GetComponent<Button>().onClick;
+                        var close = modal.Find("CloseDangerBriefButton").GetComponent<Button>().onClick;
+                        Assert.IsTrue(panel.Hide());
+                        string header = panel.HeaderText;
+                        string ribbon = panel.SummaryRibbonText;
+                        int rows = panel.DisplayedRowCount;
+                        int silver = panel.LastPayoutSummary.RemainingStandardSilver;
+                        boot.Dispose();
+
+                        Assert.IsFalse(panel.Show(RpgWorld500xDangerBriefFilter.AllZones, 12f), spec.MapId.ToString());
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(modal.parent.gameObject.activeSelf);
+                        all.Invoke();
+                        refresh.Invoke();
+                        close.Invoke();
+                        Assert.IsFalse(panel.TrySelectFilter(RpgWorld500xDangerBriefFilter.AllZones));
+                        Assert.IsFalse(panel.TrySetThreatCriteria(4, RpgWorld500xThreatTier.HazardBoss));
+                        Assert.IsFalse(panel.TryClickRefresh(12f));
+                        Assert.IsFalse(panel.TryClickClose());
+                        Assert.AreEqual(RpgWorld500xDangerBriefFilter.UnclearedOnly, panel.ActiveFilter);
+                        Assert.AreEqual(1, panel.MinEffectiveThreatLevel);
+                        Assert.IsNull(panel.TierFilter);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(ribbon, panel.SummaryRibbonText);
+                        Assert.AreEqual(rows, panel.DisplayedRowCount);
+                        Assert.AreEqual(silver, panel.LastPayoutSummary.RemainingStandardSilver);
+                    }
+
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void DangerTacticalBriefHudPanel_DisabledCanvasRejectsRefreshFiltersAndCloseUntilRestored()
         {
             var root = new GameObject("DangerBriefDisabledCanvasRoot");
