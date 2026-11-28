@@ -124,15 +124,12 @@ namespace Rpg.Soundwell
 
         public bool Show()
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed)
             {
                 return false;
             }
 
-            if (!_bootstrapper.IsDisposed)
-            {
-                _selectedMapId = _bootstrapper.Driver.Facade.CurrentMapId;
-            }
+            _selectedMapId = _bootstrapper.Driver.Facade.CurrentMapId;
 
             _visible = true;
             _rootObject.SetActive(true);
