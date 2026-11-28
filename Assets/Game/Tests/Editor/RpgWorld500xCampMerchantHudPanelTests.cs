@@ -9,6 +9,83 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xCampMerchantHudPanelTests
     {
         [Test]
+        public void CampMerchantPanel_AllFourRegions_RejectsInvalidTabAndDisposedOwner()
+        {
+            var invalidTab = (RpgCampMerchantTab)255;
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var root = new GameObject("MerchantDisposedOwner_" + spec.MapId);
+                try
+                {
+                    var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                    var haven = new RpgWorld500xCampHavenService(
+                        k => store.TryGetValue(k, out int v) ? v : 0,
+                        (k, v) => store[k] = v);
+                    string wallet = RpgWorld500xFieldBountyAndSupplyService.WalletSaltSilverKey;
+                    store[wallet] = 100;
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xCampMerchantHudPanel(root.transform, boot, haven))
+                    {
+                        boot.Driver.Facade.BountyAndSupply.AddSaltSilver(100);
+                        var canvas = root.transform.Find("World500xCampMerchantHudPanel");
+                        var modal = canvas.Find("MerchantModalBox");
+                        var bounties = modal.Find("BountiesTabButton").GetComponent<UnityEngine.UI.Button>().onClick;
+
+                        Assert.IsFalse(panel.Show(invalidTab));
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        Assert.IsTrue(panel.SetTab(RpgCampMerchantTab.Bounties));
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsTrue(panel.Show(RpgCampMerchantTab.Supplies));
+                        Assert.IsFalse(panel.Show(invalidTab));
+                        Assert.IsFalse(panel.SetTab(invalidTab));
+                        Assert.AreEqual(RpgCampMerchantTab.Supplies, panel.CurrentTab);
+                        Assert.AreEqual(6, panel.DisplayedRowCount);
+                        bounties.Invoke();
+                        Assert.AreEqual(RpgCampMerchantTab.Bounties, panel.CurrentTab);
+                        Assert.AreEqual(4, panel.DisplayedRowCount);
+                        var claim = modal.Find("MerchantRows/ClaimAllBountiesRow/ActionButton")
+                            .GetComponent<UnityEngine.UI.Button>().onClick;
+                        Assert.IsTrue(panel.SetTab(RpgCampMerchantTab.Supplies));
+                        var buy = modal.Find("MerchantRows/SupplyRow_flare/ActionButton")
+                            .GetComponent<UnityEngine.UI.Button>();
+                        Assert.IsTrue(buy.IsInteractable());
+                        var purchase = buy.onClick;
+                        string header = panel.HeaderText;
+                        string feedback = panel.FeedbackText;
+                        int rows = panel.DisplayedRowCount;
+
+                        boot.Dispose();
+                        purchase.Invoke();
+                        claim.Invoke();
+                        bounties.Invoke();
+                        Assert.IsFalse(panel.TryClickBuySupply("flare"));
+                        Assert.IsFalse(panel.TryClickClaimBounties());
+                        Assert.IsFalse(panel.SetTab(RpgCampMerchantTab.Bounties));
+                        Assert.IsTrue(panel.Hide());
+                        Assert.IsFalse(panel.Show(RpgCampMerchantTab.Bounties));
+                        Assert.IsFalse(panel.Show());
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        Assert.AreEqual(RpgCampMerchantTab.Supplies, panel.CurrentTab);
+                        Assert.AreEqual(rows, panel.DisplayedRowCount);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(feedback, panel.FeedbackText);
+                        Assert.AreEqual(100, store[wallet]);
+                        Assert.IsFalse(store.ContainsKey("rpg.return.world.supply.item.flare"));
+                    }
+
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void CampMerchantPanel_RejectsStaleRegionalAndReputationQuotesBeforeCharging()
         {
             var root = new GameObject("World500xMerchantQuoteRoot");
