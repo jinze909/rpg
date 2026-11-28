@@ -121,7 +121,8 @@ namespace Rpg.Soundwell
 
         public bool Show(RpgCampMerchantTab? tab = null)
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed ||
+                (tab.HasValue && !Enum.IsDefined(typeof(RpgCampMerchantTab), tab.Value)))
             {
                 return false;
             }
@@ -151,7 +152,7 @@ namespace Rpg.Soundwell
 
         public bool SetTab(RpgCampMerchantTab tab)
         {
-            if (IsDisposed || !Enum.IsDefined(typeof(RpgCampMerchantTab), tab))
+            if (IsDisposed || _bootstrapper.IsDisposed || !Enum.IsDefined(typeof(RpgCampMerchantTab), tab))
             {
                 return false;
             }
