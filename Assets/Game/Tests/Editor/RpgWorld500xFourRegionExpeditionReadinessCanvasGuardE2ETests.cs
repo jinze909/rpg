@@ -54,7 +54,7 @@ namespace Rpg.Tests.Editor
                         string header = panel.HeaderText;
                         string banner = panel.GradeBannerText;
                         string feedback = panel.FeedbackText;
-                        var receipt = panel.LastProvisioningReceipt;
+                        object receipt = panel.LastProvisioningReceipt;
 
                         // 1. Disabled owning Canvas rejects raw callbacks and public APIs.
                         canvas.enabled = false;
@@ -121,7 +121,7 @@ namespace Rpg.Tests.Editor
             string expectedHeader,
             string expectedBanner,
             string expectedFeedback,
-            RpgWorld500xCampProvisioningReceipt expectedReceipt)
+            object expectedReceipt)
         {
             buyBtn.onClick.Invoke();
             refreshBtn.onClick.Invoke();
