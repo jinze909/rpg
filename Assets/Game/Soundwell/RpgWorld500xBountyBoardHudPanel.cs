@@ -167,7 +167,8 @@ namespace Rpg.Soundwell
 
         public bool Show(RpgWorld500xBountyBoardScope? scope = null)
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed ||
+                (scope.HasValue && !IsKnownScope(scope.Value)))
             {
                 return false;
             }
@@ -195,8 +196,19 @@ namespace Rpg.Soundwell
             return true;
         }
 
+        private static bool IsKnownScope(RpgWorld500xBountyBoardScope scope)
+        {
+            return scope == RpgWorld500xBountyBoardScope.ActiveMap ||
+                scope == RpgWorld500xBountyBoardScope.AllRegions;
+        }
+
         public bool TrySelectScope(RpgWorld500xBountyBoardScope scope)
         {
+            if (!IsKnownScope(scope))
+            {
+                return false;
+            }
+
             Button btn = scope == RpgWorld500xBountyBoardScope.ActiveMap
                 ? _activeMapTabButton
                 : _allRegionsTabButton;

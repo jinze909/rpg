@@ -166,7 +166,7 @@ namespace Rpg.Soundwell
 
         public bool Show(float elapsedSeconds = 0f)
         {
-            if (IsDisposed)
+            if (IsDisposed || _bootstrapper.IsDisposed)
             {
                 return false;
             }

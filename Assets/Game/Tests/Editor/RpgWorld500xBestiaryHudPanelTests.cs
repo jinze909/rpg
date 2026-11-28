@@ -8,6 +8,65 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xBestiaryHudPanelTests
     {
         [Test]
+        public void BestiaryHudPanel_AllFourRegions_RejectsReopenAfterOwnerDisposal()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var root = new GameObject("BestiaryDisposedOwner_" + spec.MapId);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xBestiaryHudPanel(root.transform, boot))
+                    {
+                        var facade = boot.Driver.Facade;
+                        var dossiers = facade.ThreatCodex.BuildMapDossiers(facade.Session.Host.Layout);
+                        Assert.Greater(dossiers.Count, 0, spec.MapId.ToString());
+                        string markerId = dossiers[0].MarkerId;
+                        Assert.IsTrue(panel.Show(), spec.MapId.ToString());
+                        var canvas = root.transform.Find("World500xBestiaryHudPanel");
+                        var study = canvas.Find("BestiaryModalBox/DossierRows/DossierRow_" +
+                            markerId + "/StudyButton").GetComponent<UnityEngine.UI.Button>().onClick;
+                        int rows = panel.DisplayedDossierRowCount;
+                        int studied = panel.StudiedCount;
+                        int remaining = panel.RemainingStudySilver;
+                        string header = panel.HeaderText;
+                        string detail = panel.DetailText;
+
+                        boot.Dispose();
+                        // Reject retained input even before the stale panel is hidden.
+                        study.Invoke();
+                        Assert.IsFalse(panel.TryClickStudyDossier(markerId));
+                        Assert.IsFalse(panel.TryStudyAllUnstudied(out int count, out int silver));
+                        Assert.AreEqual(0, count);
+                        Assert.AreEqual(0, silver);
+                        Assert.IsFalse(panel.TrySetUnstudiedOnly(true));
+                        Assert.IsFalse(panel.TrySetTierFilter(RpgWorld500xThreatTier.HazardBoss));
+
+                        Assert.IsTrue(panel.Hide());
+                        Assert.IsFalse(panel.Show(), spec.MapId.ToString());
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        study.Invoke();
+                        Assert.IsFalse(panel.UnstudiedOnly);
+                        Assert.IsNull(panel.TierFilter);
+                        Assert.AreEqual(rows, panel.DisplayedDossierRowCount);
+                        Assert.AreEqual(studied, panel.StudiedCount);
+                        Assert.AreEqual(remaining, panel.RemainingStudySilver);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(detail, panel.DetailText);
+                    }
+
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void BestiaryHudPanel_DisabledCanvasRejectsStudyAndFiltersUntilRestored()
         {
             var root = new GameObject("BestiaryDisabledCanvasRoot");
