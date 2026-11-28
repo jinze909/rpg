@@ -25,12 +25,13 @@ namespace Rpg.Tests.Editor
                         overrideTileSlices: new Sprite[] { null });
 
                     var facade = ctrl.Bootstrapper.Driver.Facade;
-                    RpgMapLandmarkMarker dangerMarker = FindFirstDangerMarker(facade.Session.Host.Layout.Markers);
-                    Assert.IsNotNull(dangerMarker, spec.MapId.ToString());
+                    Assert.IsTrue(
+                        TryFindFirstDangerMarker(facade.Session.Host.Layout.Markers, out RpgMapLandmarkMarker dangerMarker),
+                        spec.MapId.ToString());
 
                     Vector2 pos = new Vector2(dangerMarker.Tile.x + 0.5f, dangerMarker.Tile.y + 0.5f);
                     Assert.IsTrue(
-                        facade.Session.OrkBridge.TryTriggerDangerZoneEncounter(dangerMarker.Id, pos),
+                        facade.Session.Host.Bridge.TryTriggerDangerZoneEncounter(dangerMarker.Id, pos),
                         spec.MapId.ToString());
 
                     Assert.IsTrue(
@@ -90,14 +91,21 @@ namespace Rpg.Tests.Editor
             }
         }
 
-        private static RpgMapLandmarkMarker FindFirstDangerMarker(IReadOnlyList<RpgMapLandmarkMarker> markers)
+        private static bool TryFindFirstDangerMarker(
+            IReadOnlyList<RpgMapLandmarkMarker> markers,
+            out RpgMapLandmarkMarker marker)
         {
             for (int i = 0; i < markers.Count; i++)
             {
                 if (markers[i].Category == RpgMapMarkerCategory.DangerZone)
-                    return markers[i];
+                {
+                    marker = markers[i];
+                    return true;
+                }
             }
-            return null;
+
+            marker = default;
+            return false;
         }
     }
 }
