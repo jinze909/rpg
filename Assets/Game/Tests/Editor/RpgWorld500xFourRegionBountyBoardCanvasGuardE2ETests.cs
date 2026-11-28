@@ -34,6 +34,7 @@ namespace Rpg.Tests.Editor
                         Assert.Greater(eligible, 0, spec.MapId.ToString());
                         Assert.Greater(reward, 0, spec.MapId.ToString());
                         string feedback = panel.FeedbackText;
+                        string claimLabel = panel.ClaimButtonLabelText;
 
                         var canvas = root.transform.Find("World500xBountyBoardHudPanel").GetComponent<Canvas>();
                         Assert.IsNotNull(canvas, spec.MapId.ToString());
@@ -47,21 +48,28 @@ namespace Rpg.Tests.Editor
                         Assert.IsNotNull(allBtn, spec.MapId.ToString());
                         Assert.IsNotNull(closeBtn, spec.MapId.ToString());
 
-                        // 1. Disabled owning Canvas must reject both raw button callbacks and public APIs.
+                        // 1. Disabled owning Canvas must reject both raw button callbacks and public APIs,
+                        //    even after an explicit programmatic Refresh().
                         canvas.enabled = false;
                         Assert.IsTrue(claimBtn.IsInteractable(), spec.MapId.ToString());
-                        AssertBlocked(panel, supply, claimBtn, allBtn, closeBtn, true, eligible, beforeSilver, feedback);
+                        AssertBlocked(panel, supply, claimBtn, allBtn, closeBtn,
+                            true, eligible, beforeSilver, feedback, claimLabel);
+                        panel.Refresh();
+                        AssertBlocked(panel, supply, claimBtn, allBtn, closeBtn,
+                            true, eligible, beforeSilver, feedback, claimLabel);
                         canvas.enabled = true;
 
                         // 2. Ancestor CanvasGroup lock must reject both raw button callbacks and public APIs.
                         var group = root.AddComponent<CanvasGroup>();
                         group.interactable = false;
-                        AssertBlocked(panel, supply, claimBtn, allBtn, closeBtn, true, eligible, beforeSilver, feedback);
+                        AssertBlocked(panel, supply, claimBtn, allBtn, closeBtn,
+                            true, eligible, beforeSilver, feedback, claimLabel);
                         group.interactable = true;
 
                         // 3. Hidden panel must reject both raw button callbacks and public APIs.
                         Assert.IsTrue(panel.Hide(), spec.MapId.ToString());
-                        AssertBlocked(panel, supply, claimBtn, allBtn, closeBtn, false, eligible, beforeSilver, feedback);
+                        AssertBlocked(panel, supply, claimBtn, allBtn, closeBtn,
+                            false, eligible, beforeSilver, feedback, claimLabel);
                         Assert.IsTrue(panel.Show(), spec.MapId.ToString());
 
                         // 4. Restored panel accepts scope switch, idempotent claim, and close.
@@ -123,7 +131,8 @@ namespace Rpg.Tests.Editor
             bool expectedVisible,
             int expectedEligible,
             int expectedSilver,
-            string expectedFeedback)
+            string expectedFeedback,
+            string expectedClaimLabel)
         {
             allBtn.onClick.Invoke();
             claimBtn.onClick.Invoke();
@@ -139,6 +148,7 @@ namespace Rpg.Tests.Editor
             Assert.AreEqual(expectedEligible, panel.ClaimableCount);
             Assert.AreEqual(expectedSilver, supply.SaltSilverBalance);
             Assert.AreEqual(expectedFeedback, panel.FeedbackText);
+            Assert.AreEqual(expectedClaimLabel, panel.ClaimButtonLabelText);
         }
     }
 }
