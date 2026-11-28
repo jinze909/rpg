@@ -98,6 +98,68 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void RejectedCacheAndShortcutWritesLeaveRewardsAndMapUnchangedUntilRetry()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                Func<string, int> read = k => store.TryGetValue(k, out int v) ? v : 0;
+                bool accept = false;
+                Action<string, int> write = (k, v) =>
+                {
+                    if (accept) store[k] = v;
+                };
+                var map = RpgWorld500xMapLayout.Build(spec.MapId);
+                var cache = RpgWorld500xContentCatalog.GetCaches(spec.MapId)[0];
+                var shortcut = RpgWorld500xContentCatalog.GetShortcuts(spec.MapId)[0];
+                var cacheTile = new Vector2(cache.Tile.x + 0.5f, cache.Tile.y + 0.5f);
+                var shortcutTile = new Vector2(shortcut.TriggerTile.x + 0.5f, shortcut.TriggerTile.y + 0.5f);
+                int rewards = 0;
+                int x = Mathf.Max(1, shortcut.UnlockSpan.xMin);
+                int y = Mathf.Max(1, shortcut.UnlockSpan.yMin);
+                var before = map.Tiles[x, y];
+                var ctrl = new RpgWorld500xCachesAndShortcutsController(map, read, write, _ => rewards++);
+
+                Assert.IsFalse(ctrl.TryLootNearbyCache(cacheTile, 0.5f, out _));
+                Assert.IsFalse(ctrl.TryUnlockNearbyShortcut(shortcutTile, 0.5f, out _));
+                Assert.AreEqual(0, rewards);
+                Assert.AreEqual(0, store.Count);
+                Assert.AreEqual(0, ctrl.LootedCacheCount);
+                Assert.AreEqual(0, ctrl.UnlockedShortcutCount);
+                Assert.AreEqual(before, map.Tiles[x, y]);
+                Assert.IsTrue(ctrl.TryFindNearestUnlootedCache(cacheTile, out var pendingCache, out _));
+                Assert.AreEqual(cache.Id, pendingCache.Id);
+                Assert.IsTrue(ctrl.TryFindNearestLockedShortcut(shortcutTile, out var pendingShortcut, out _));
+                Assert.AreEqual(shortcut.Id, pendingShortcut.Id);
+
+                var readOnly = new RpgWorld500xCachesAndShortcutsController(map, read, null, _ => rewards++);
+                Assert.IsFalse(readOnly.TryLootNearbyCache(cacheTile, 0.5f, out _));
+                Assert.IsFalse(readOnly.TryUnlockNearbyShortcut(shortcutTile, 0.5f, out _));
+                Assert.AreEqual(0, rewards);
+                Assert.AreEqual(before, map.Tiles[x, y]);
+
+                accept = true;
+                Assert.IsTrue(ctrl.TryLootNearbyCache(cacheTile, 0.5f, out var looted));
+                Assert.AreEqual(cache.Id, looted.Id);
+                Assert.IsTrue(ctrl.TryUnlockNearbyShortcut(shortcutTile, 0.5f, out var unlocked));
+                Assert.AreEqual(shortcut.Id, unlocked.Id);
+                Assert.AreEqual(1, store[cache.MakinomKey]);
+                Assert.AreEqual(1, store[shortcut.MakinomKey]);
+                Assert.AreEqual(1, rewards);
+                Assert.AreEqual(shortcut.UnlockedTileCode, map.Tiles[x, y]);
+
+                var restoredMap = RpgWorld500xMapLayout.Build(spec.MapId);
+                var restored = new RpgWorld500xCachesAndShortcutsController(restoredMap, read, write, _ => rewards++);
+                Assert.IsTrue(restored.IsCacheLooted(cache.Id));
+                Assert.IsTrue(restored.IsShortcutUnlocked(shortcut.Id));
+                Assert.AreEqual(shortcut.UnlockedTileCode, restoredMap.Tiles[x, y]);
+                Assert.IsFalse(restored.TryLootNearbyCache(cacheTile, 0.5f, out _));
+                Assert.IsFalse(restored.TryUnlockNearbyShortcut(shortcutTile, 0.5f, out _));
+                Assert.AreEqual(1, rewards);
+            }
+        }
+
+        [Test]
         public void InteractionUsesSameNearestTargetAsGuidanceAcrossChunkBoundaries()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
