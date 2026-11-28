@@ -110,6 +110,7 @@ namespace Rpg.Soundwell
         public Threat PendingThreat => pendingThreat;
         public int TargetIndex => targetIndex;
         public RoleCombatView View => view;
+        internal (Threat Kind, int TargetIndex, bool Interrupted)? ActiveEnemyAction { get; private set; }
 
         private IEnumerator Start()
         {
@@ -245,7 +246,7 @@ namespace Rpg.Soundwell
             }
 
             StartCoroutine(Present(party.Beast, party.Members[resolvedTarget],
-                resolved, resolved == Threat.Gather, wasInterrupted));
+                (resolved, resolvedTarget, wasInterrupted), resolved == Threat.Gather));
 
             pendingThreat = resolved == Threat.Lunge ? Threat.Howl : Threat.Lunge;
             targetIndex = resolved == Threat.Gather
@@ -434,7 +435,7 @@ namespace Rpg.Soundwell
                         false, false, false, true, false, null);
                 if (consumeExposed)
                     party.Beast.Variables.Set("rpg.role.exposed", 0);
-                StartCoroutine(Present(actor, party.Beast, null, false, false));
+                StartCoroutine(Present(actor, party.Beast, null, false));
                 return true;
             }
 
@@ -502,7 +503,7 @@ namespace Rpg.Soundwell
                 }
             }
 
-            StartCoroutine(Present(actor, actor, null, true, false));
+            StartCoroutine(Present(actor, actor, null, true));
             return true;
         }
 
@@ -518,17 +519,19 @@ namespace Rpg.Soundwell
         private void SetExchange(string zh, string en) =>
             lastExchange = SoundwellUiLocalization.Language == SoundwellUiLocalization.Chinese ? zh : en;
 
-        private IEnumerator Present(Combatant actor, Combatant target, Threat? enemyThreat,
-            bool utility, bool interruptedAction)
+        private IEnumerator Present(Combatant actor, Combatant target,
+            (Threat Kind, int TargetIndex, bool Interrupted)? enemyAction, bool utility)
         {
-            bool enemy = enemyThreat.HasValue;
+            bool enemy = enemyAction.HasValue;
+            bool interruptedAction = enemyAction?.Interrupted ?? false;
             presentationCount++;
-            if (enemy)
+            if (enemyAction is { } action)
             {
                 // The queued threat advances as soon as this action resolves.
-                // Hold the pose for the outgoing action during its presentation.
+                // Hold the outgoing action for its pose and HUD.
+                ActiveEnemyAction = action;
                 performingBeastPose = interruptedAction ? art.BeastStagger
-                    : enemyThreat == Threat.Lunge ? art.BeastLunge : art.BeastWindup;
+                    : action.Kind == Threat.Lunge ? art.BeastLunge : art.BeastWindup;
             }
             try
             {
@@ -567,7 +570,10 @@ namespace Rpg.Soundwell
             finally
             {
                 if (enemy)
+                {
+                    ActiveEnemyAction = null;
                     performingBeastPose = null;
+                }
                 else if (actor != null)
                     submittedActions.Remove(actor);
                 presentationCount = Mathf.Max(0, presentationCount - 1);
