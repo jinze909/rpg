@@ -119,6 +119,91 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void BountyClaimsAcrossAllRegionsPayOnlyConfirmedFlagsAndRetryRejectedClaims()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var store = new Dictionary<string, int>(StringComparer.Ordinal);
+                var bounties = RpgWorld500xBountyAndSupplyCatalog.GetBounties(spec.MapId);
+                var rejected = bounties[0];
+                bool reject = true;
+                var service = new RpgWorld500xFieldBountyAndSupplyService(
+                    k => store.TryGetValue(k, out int v) ? v : 0,
+                    (k, v) =>
+                    {
+                        if (!reject || k != rejected.MakinomKey)
+                            store[k] = v;
+                    });
+                var completed = new RpgWorld500xMapCompletionSummary(
+                    spec.MapId,
+                    visitedChunks: 200, totalChunks: 2814,
+                    discoveredMarkers: 12, totalMarkers: 18,
+                    lootedCaches: 8, totalCaches: 12,
+                    unlockedShortcuts: 4, totalShortcuts: 4,
+                    inspectedStorySpots: 4, totalStorySpots: 4);
+
+                int total = service.BuildBountyBoardSummary(completed).ClaimableSaltSilver;
+                Assert.AreEqual(2, service.ClaimCompletedBounties(completed).Count);
+                Assert.IsFalse(service.IsBountyClaimed(rejected));
+                Assert.AreEqual(total - rejected.SaltSilverReward, service.SaltSilverBalance);
+                Assert.AreEqual(1, service.BuildBountyBoardSummary(completed).ClaimableCount);
+                Assert.IsEmpty(service.ClaimCompletedBounties(completed));
+                Assert.AreEqual(total - rejected.SaltSilverReward, service.SaltSilverBalance);
+
+                reject = false;
+                var retried = service.ClaimCompletedBounties(completed);
+                Assert.AreEqual(1, retried.Count);
+                Assert.AreEqual(rejected.Id, retried[0].Id);
+                Assert.AreEqual(total, service.SaltSilverBalance);
+                Assert.AreEqual(0, service.BuildBountyBoardSummary(completed).ClaimableCount);
+                Assert.IsEmpty(service.ClaimCompletedBounties(completed));
+                Assert.AreEqual(total, service.SaltSilverBalance);
+
+                var readOnly = new RpgWorld500xFieldBountyAndSupplyService();
+                Assert.IsEmpty(readOnly.ClaimCompletedBounties(completed));
+                Assert.AreEqual(0, readOnly.SaltSilverBalance);
+            }
+        }
+
+        [Test]
+        public void BountyClaimReentryAndStorageExceptionDoNotDuplicateOrBlockRetry()
+        {
+            var store = new Dictionary<string, int>(StringComparer.Ordinal);
+            var completed = new RpgWorld500xMapCompletionSummary(
+                RpgWorldMapId.Soundwell,
+                visitedChunks: 120, totalChunks: 2814,
+                discoveredMarkers: 6, totalMarkers: 18,
+                lootedCaches: 0, totalCaches: 12,
+                unlockedShortcuts: 0, totalShortcuts: 4,
+                inspectedStorySpots: 0, totalStorySpots: 4);
+            bool fail = true;
+            bool reentered = false;
+            RpgWorld500xFieldBountyAndSupplyService service = null;
+            service = new RpgWorld500xFieldBountyAndSupplyService(
+                k => store.TryGetValue(k, out int v) ? v : 0,
+                (k, v) =>
+                {
+                    if (fail)
+                        throw new InvalidOperationException("Storage unavailable");
+                    if (!reentered)
+                    {
+                        reentered = true;
+                        Assert.IsEmpty(service.ClaimCompletedBounties(completed));
+                    }
+                    store[k] = v;
+                });
+
+            Assert.Throws<InvalidOperationException>(() => service.ClaimCompletedBounties(completed));
+            Assert.AreEqual(0, service.SaltSilverBalance);
+            fail = false;
+            Assert.AreEqual(1, service.ClaimCompletedBounties(completed).Count);
+            Assert.IsTrue(reentered);
+            Assert.AreEqual(40, service.SaltSilverBalance);
+            Assert.IsEmpty(service.ClaimCompletedBounties(completed));
+            Assert.AreEqual(40, service.SaltSilverBalance);
+        }
+
+        [Test]
         public void ExtremeQuantityAndWalletCreditNeverOverflowSavedCurrencyOrInventory()
         {
             var store = new Dictionary<string, int>(StringComparer.Ordinal);
