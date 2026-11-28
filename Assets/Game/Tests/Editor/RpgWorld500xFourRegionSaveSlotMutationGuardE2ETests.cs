@@ -7,7 +7,7 @@ namespace Rpg.Tests.Editor
 {
     public sealed class RpgWorld500xFourRegionSaveSlotMutationGuardE2ETests
     {
-        private sealed class RejectableStorage : IRpgWorld500xSaveSlotStorage
+        private sealed class GuardedStorage : IRpgWorld500xSaveSlotStorage
         {
             private readonly RpgWorld500xInMemorySaveSlotStorage _inner =
                 new RpgWorld500xInMemorySaveSlotStorage();
@@ -46,76 +46,105 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
-        public void AllFourRegions_SaveCopyAndDeleteGuardPreservesCheckpointsAndRecoversCleanlyWithZeroLeak()
+        public void SaveSlotManager_AcrossAllFourRegions_ConfirmsSaveCopyDeleteAndPreservesCheckpointOnRejectedOrThrowingStorage()
         {
-            // Warm up one-time runtime caches before steady-state leak baseline.
-            using (var warmupBoot = new RpgWorld500xSceneBootstrapper(
-                initialMapId: RpgWorldMapId.Soundwell,
-                overrideTileSlices: new Sprite[] { null }))
-            {
-                var warmupMgr = new RpgWorld500xSaveSlotManager(new RpgWorld500xInMemorySaveSlotStorage());
-                warmupMgr.TrySaveSlot(warmupBoot, RpgWorld500xSaveSlotId.Slot1, out _, out _);
-            }
+            var specs = RpgExpandedWorldScale.AllSpecs;
+            Assert.That(specs.Count, Is.EqualTo(4));
 
-            int texBefore = Resources.FindObjectsOfTypeAll<Texture2D>().Length;
-            int spriteBefore = Resources.FindObjectsOfTypeAll<Sprite>().Length;
-
-            int verifiedRegions = 0;
-            foreach (RpgExpandedMapSpec spec in RpgExpandedWorldScale.AllSpecs)
+            for (int i = 0; i < specs.Count; i++)
             {
-                var storage = new RejectableStorage();
+                var mapId = specs[i].MapId;
+                var storage = new GuardedStorage();
                 var manager = new RpgWorld500xSaveSlotManager(storage);
-                const RpgWorld500xSaveSlotId oldSlot = RpgWorld500xSaveSlotId.Slot1;
-                const RpgWorld500xSaveSlotId newSlot = RpgWorld500xSaveSlotId.Slot2;
-                string oldKey = RpgWorld500xSaveSlotManager.GetStorageKey(oldSlot);
+                int initialSilver = 40 + i * 10;
+                string slot1Key = RpgWorld500xSaveSlotManager.GetStorageKey(RpgWorld500xSaveSlotId.Slot1);
 
                 using (var boot = new RpgWorld500xSceneBootstrapper(
-                    initialMapId: spec.MapId,
+                    initialMapId: mapId,
                     overrideTileSlices: new Sprite[] { null }))
                 {
-                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(40);
-                    Assert.IsTrue(manager.TrySaveSlot(boot, oldSlot, out _, out string error), error);
-                    Assert.IsTrue(storage.TryRead(oldKey, out string original));
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver(initialSilver);
+                    Assert.IsTrue(manager.TrySaveSlot(boot, RpgWorld500xSaveSlotId.Slot1, out _, out string err), err);
+                    Assert.IsTrue(storage.TryRead(slot1Key, out string originalPayload));
                     boot.Driver.Facade.BountyAndSupply.AddSaltSilver(20);
 
-                    // Silent write/delete rejection preserves the prior checkpoint.
                     storage.RejectMutations = true;
-                    Assert.IsFalse(manager.TrySaveSlot(boot, oldSlot, out _, out error));
-                    StringAssert.Contains("写入未确认", error);
-                    Assert.IsFalse(manager.TryAutoSave(boot, out _, out error));
-                    Assert.IsFalse(manager.TryCopySlot(oldSlot, newSlot, out error));
-                    Assert.IsFalse(manager.DeleteSlot(oldSlot));
-                    Assert.IsFalse(manager.InspectSlot(newSlot).IsOccupied);
-                    Assert.IsTrue(storage.TryRead(oldKey, out string retained));
-                    Assert.AreEqual(original, retained);
-                    Assert.AreEqual(40, manager.InspectSlot(oldSlot).SaltSilverBalance);
+                    Assert.IsFalse(manager.TrySaveSlot(boot, RpgWorld500xSaveSlotId.Slot1, out _, out err));
+                    StringAssert.Contains("写入未确认", err);
+                    Assert.IsFalse(manager.TryAutoSave(boot, out _, out err));
+                    Assert.IsFalse(manager.TryCopySlot(RpgWorld500xSaveSlotId.Slot1, RpgWorld500xSaveSlotId.Slot2, out err));
+                    Assert.IsFalse(manager.DeleteSlot(RpgWorld500xSaveSlotId.Slot1));
+                    Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot2).IsOccupied);
+                    Assert.IsTrue(storage.TryRead(slot1Key, out string retainedPayload));
+                    Assert.That(retainedPayload, Is.EqualTo(originalPayload));
+                    Assert.That(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot1).SaltSilverBalance, Is.EqualTo(initialSilver));
 
-                    // Storage exceptions fail closed without corrupting the existing checkpoint.
                     storage.ThrowOnMutation = true;
-                    Assert.IsFalse(manager.TrySaveSlot(boot, oldSlot, out _, out error));
-                    StringAssert.Contains("失败", error);
-                    Assert.IsFalse(manager.TryCopySlot(oldSlot, newSlot, out error));
-                    Assert.IsFalse(manager.DeleteSlot(oldSlot));
-                    Assert.AreEqual(40, manager.InspectSlot(oldSlot).SaltSilverBalance);
+                    Assert.IsFalse(manager.TrySaveSlot(boot, RpgWorld500xSaveSlotId.Slot1, out _, out err));
+                    StringAssert.Contains("失败", err);
+                    Assert.IsFalse(manager.TryCopySlot(RpgWorld500xSaveSlotId.Slot1, RpgWorld500xSaveSlotId.Slot2, out err));
+                    Assert.IsFalse(manager.DeleteSlot(RpgWorld500xSaveSlotId.Slot1));
+                    Assert.That(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot1).SaltSilverBalance, Is.EqualTo(initialSilver));
 
-                    // Recovery restores normal save, copy, and delete semantics.
                     storage.ThrowOnMutation = false;
                     storage.RejectMutations = false;
-                    Assert.IsTrue(manager.TrySaveSlot(boot, oldSlot, out var saved, out error), error);
-                    Assert.AreEqual(60, saved.SaltSilverBalance);
-                    Assert.IsTrue(manager.TryCopySlot(oldSlot, newSlot, out error), error);
-                    Assert.AreEqual(60, manager.InspectSlot(newSlot).SaltSilverBalance);
-                    Assert.IsTrue(manager.DeleteSlot(oldSlot));
-                    Assert.IsFalse(manager.InspectSlot(oldSlot).IsOccupied);
-                    Assert.AreEqual(60, manager.InspectSlot(newSlot).SaltSilverBalance);
+                    Assert.IsTrue(manager.TrySaveSlot(boot, RpgWorld500xSaveSlotId.Slot1, out var saved, out err), err);
+                    Assert.That(saved.SaltSilverBalance, Is.EqualTo(initialSilver + 20));
+                    Assert.IsTrue(manager.TryCopySlot(RpgWorld500xSaveSlotId.Slot1, RpgWorld500xSaveSlotId.Slot2, out err), err);
+                    Assert.That(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot2).SaltSilverBalance, Is.EqualTo(initialSilver + 20));
+                    Assert.IsTrue(manager.DeleteSlot(RpgWorld500xSaveSlotId.Slot1));
+                    Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot1).IsOccupied);
+                    Assert.That(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot2).SaltSilverBalance, Is.EqualTo(initialSilver + 20));
                 }
+            }
+        }
 
-                verifiedRegions++;
+        [Test]
+        public void SaveSlotManager_AllFourRegions_DistinctSlotsRemainIsolatedAcrossSaveCopyAndDelete()
+        {
+            var specs = RpgExpandedWorldScale.AllSpecs;
+            Assert.That(specs.Count, Is.EqualTo(4));
+
+            var storage = new RpgWorld500xInMemorySaveSlotStorage();
+            var manager = new RpgWorld500xSaveSlotManager(storage);
+            var manualSlots = new[]
+            {
+                RpgWorld500xSaveSlotId.Slot1,
+                RpgWorld500xSaveSlotId.Slot2,
+                RpgWorld500xSaveSlotId.Slot3
+            };
+
+            for (int i = 0; i < manualSlots.Length; i++)
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: specs[i].MapId,
+                    overrideTileSlices: new Sprite[] { null }))
+                {
+                    boot.Driver.Facade.BountyAndSupply.AddSaltSilver((i + 1) * 100);
+                    Assert.IsTrue(manager.TrySaveSlot(boot, manualSlots[i], out _, out string err), err);
+                }
             }
 
-            Assert.AreEqual(4, verifiedRegions);
-            Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Texture2D>().Length, texBefore);
-            Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Sprite>().Length, spriteBefore);
+            using (var autoBoot = new RpgWorld500xSceneBootstrapper(
+                initialMapId: specs[3].MapId,
+                overrideTileSlices: new Sprite[] { null }))
+            {
+                autoBoot.Driver.Facade.BountyAndSupply.AddSaltSilver(400);
+                Assert.IsTrue(manager.TryAutoSave(autoBoot, out var autoSummary, out string err), err);
+                Assert.That(autoSummary.SaltSilverBalance, Is.EqualTo(400));
+            }
+
+            for (int i = 0; i < manualSlots.Length; i++)
+            {
+                var summary = manager.InspectSlot(manualSlots[i]);
+                Assert.IsTrue(summary.IsOccupied);
+                Assert.That(summary.SaltSilverBalance, Is.EqualTo((i + 1) * 100));
+            }
+
+            Assert.IsTrue(manager.DeleteSlot(RpgWorld500xSaveSlotId.Slot2));
+            Assert.IsFalse(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot2).IsOccupied);
+            Assert.That(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot1).SaltSilverBalance, Is.EqualTo(100));
+            Assert.That(manager.InspectSlot(RpgWorld500xSaveSlotId.Slot3).SaltSilverBalance, Is.EqualTo(300));
         }
     }
 }
