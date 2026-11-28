@@ -26,6 +26,7 @@ namespace Rpg.Soundwell
         public UnityEngine.UI.Button SecondaryButton => commands[1];
         public UnityEngine.UI.Button RetreatButton => commands[2];
         public UnityEngine.UI.Text ThreatLabel => threat;
+        public UnityEngine.UI.Text ExchangeLabel => exchange;
         public bool IsDisposed => disposed || CanvasDestroyed();
 
         public RoleCombatView(Transform parent, OrkRoleEncounter encounter)
@@ -226,12 +227,19 @@ namespace Rpg.Soundwell
             int active = encounter.Party.ChoosingRescuerIndex;
             Font font = SoundwellUiLocalization.PresentationFont(Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
             threat.font = exchange.font = font;
-            threat.text = ending ? (zh ? "交锋结束" : "ENCOUNTER ENDED") :
-                encounter.IsInterrupted ? (zh ? "打断成功 · 下次重击可追击破绽" : "INTERRUPTED · Exploit the opening with a heavy strike") :
-                encounter.PendingThreat == OrkRoleEncounter.Threat.Howl
-                    ? (zh ? "回声嚎叫 → 全队 · 湿布可以封住声口" : "ECHO HOWL → Whole party · Muffle the echo")
-                    : (zh ? "蓄力猛扑 → " : "CHARGED LUNGE → ") + RoleName(encounter.TargetIndex, zh);
-            exchange.text = lastExchange ?? string.Empty;
+            if (!ending && encounter.ActiveEnemyAction is { } action)
+            {
+                (threat.text, exchange.text) = EnemyActionCopy(action, zh);
+            }
+            else
+            {
+                threat.text = ending ? (zh ? "交锋结束" : "ENCOUNTER ENDED") :
+                    encounter.IsInterrupted ? (zh ? "打断成功 · 下次重击可追击破绽" : "INTERRUPTED · Exploit the opening with a heavy strike") :
+                    encounter.PendingThreat == OrkRoleEncounter.Threat.Howl
+                        ? (zh ? "回声嚎叫 → 全队 · 湿布可以封住声口" : "ECHO HOWL → Whole party · Muffle the echo")
+                        : (zh ? "蓄力猛扑 → " : "CHARGED LUNGE → ") + RoleName(encounter.TargetIndex, zh);
+                exchange.text = lastExchange ?? string.Empty;
+            }
             float width = bottom.sizeDelta.x;
             for (int i = 0; i < cards.Length; i++)
             {
@@ -265,6 +273,30 @@ namespace Rpg.Soundwell
                 SoundwellInputAdapter.KeepDialogFocus(canvasObject.transform,
                     commands[0].interactable ? commands[0] : commands[1]);
             }
+        }
+
+        private static (string Threat, string Exchange) EnemyActionCopy(
+            (OrkRoleEncounter.Threat Kind, int TargetIndex, bool Interrupted) action, bool zh)
+        {
+            if (action.Kind == OrkRoleEncounter.Threat.Gather)
+                return zh ? ("借声兽正在蓄力", "借声兽压低身体，蓄势待发。")
+                    : ("ECHO BEAST GATHERING STRENGTH", "The beast crouches and gathers strength.");
+
+            bool howl = action.Kind == OrkRoleEncounter.Threat.Howl;
+            string target = howl ? (zh ? "全队" : "Whole party") : RoleName(action.TargetIndex, zh);
+            if (action.Interrupted)
+            {
+                string cancelled = howl ? (zh ? "回声嚎叫已打断" : "ECHO HOWL INTERRUPTED")
+                    : (zh ? "猛扑已打断" : "LUNGE INTERRUPTED");
+                return (cancelled + " → " + target, zh ? "袭击已被打断，小队毫发无伤。"
+                    : "Interrupted. The party takes no damage.");
+            }
+
+            return howl
+                ? ((zh ? "回声嚎叫中" : "ECHO HOWL IN PROGRESS") + " → " + target,
+                    zh ? "回声冲向全队。" : "The echo sweeps over the party.")
+                : ((zh ? "猛扑中" : "LUNGE IN PROGRESS") + " → " + target,
+                    zh ? "借声兽猛扑向" + target + "。" : "The beast lunges at the " + target + ".");
         }
 
         private static string RoleName(int index, bool zh) => index == 0
