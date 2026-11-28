@@ -533,8 +533,14 @@ namespace Rpg.Soundwell
             // Use the same nearest-target authority as the read-only exploration HUD.
             // The small regional catalog is bounded; no fixed chunk window can hide
             // a target that is within the caller's supplied interaction radius.
-            lootedCaches.Add(nearest.Id);
             setInt(nearest.MakinomKey, 1);
+            // Do not grant loot or mark the cache consumed until its save fact is confirmed.
+            if (getInt(nearest.MakinomKey) != 1)
+            {
+                return false;
+            }
+
+            lootedCaches.Add(nearest.Id);
             onCacheLooted?.Invoke(nearest);
             looted = nearest;
             return true;
@@ -552,8 +558,14 @@ namespace Rpg.Soundwell
                 return false;
             }
 
-            unlockedShortcuts.Add(nearest.Id);
             setInt(nearest.MakinomKey, 1);
+            // Do not open a route that the next load would close again.
+            if (getInt(nearest.MakinomKey) != 1)
+            {
+                return false;
+            }
+
+            unlockedShortcuts.Add(nearest.Id);
             ApplyShortcutTiles(nearest);
             unlocked = nearest;
             return true;
