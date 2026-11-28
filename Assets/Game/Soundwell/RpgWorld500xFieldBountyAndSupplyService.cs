@@ -187,6 +187,7 @@ namespace Rpg.Soundwell
 
         private readonly Func<string, int> _getInt;
         private readonly Action<string, int> _setInt;
+        private bool _bountyClaimInProgress;
         private readonly Dictionary<string, RpgWorld500xCampSupplyItemDef> _itemsById =
             new Dictionary<string, RpgWorld500xCampSupplyItemDef>(StringComparer.Ordinal);
 
@@ -304,30 +305,50 @@ namespace Rpg.Soundwell
 
         public List<RpgWorld500xFieldBountyDef> ClaimCompletedBounties(RpgWorld500xMapCompletionSummary summary)
         {
-            var claimed = new List<RpgWorld500xFieldBountyDef>();
-            IReadOnlyList<RpgWorld500xFieldBountyDef> bounties =
-                RpgWorld500xBountyAndSupplyCatalog.GetBounties(summary.MapId);
-
-            for (int i = 0; i < bounties.Count; i++)
+            // Storage and reward delegates may synchronously reenter this service.
+            if (_bountyClaimInProgress)
             {
-                RpgWorld500xFieldBountyDef bounty = bounties[i];
-                if (IsBountyClaimed(bounty))
-                {
-                    continue;
-                }
-
-                int current = EvaluateProgressCount(bounty, summary);
-                if (current < bounty.TargetCount)
-                {
-                    continue;
-                }
-
-                _setInt(bounty.MakinomKey, 1);
-                AddSaltSilver(bounty.SaltSilverReward);
-                claimed.Add(bounty);
+                return new List<RpgWorld500xFieldBountyDef>();
             }
 
-            return claimed;
+            _bountyClaimInProgress = true;
+            try
+            {
+                var claimed = new List<RpgWorld500xFieldBountyDef>();
+                IReadOnlyList<RpgWorld500xFieldBountyDef> bounties =
+                    RpgWorld500xBountyAndSupplyCatalog.GetBounties(summary.MapId);
+
+                for (int i = 0; i < bounties.Count; i++)
+                {
+                    RpgWorld500xFieldBountyDef bounty = bounties[i];
+                    if (IsBountyClaimed(bounty))
+                    {
+                        continue;
+                    }
+
+                    int current = EvaluateProgressCount(bounty, summary);
+                    if (current < bounty.TargetCount)
+                    {
+                        continue;
+                    }
+
+                    _setInt(bounty.MakinomKey, 1);
+                    // A rejected claim remains available; never pay an unconfirmed flag.
+                    if (!IsBountyClaimed(bounty))
+                    {
+                        continue;
+                    }
+
+                    AddSaltSilver(bounty.SaltSilverReward);
+                    claimed.Add(bounty);
+                }
+
+                return claimed;
+            }
+            finally
+            {
+                _bountyClaimInProgress = false;
+            }
         }
 
         public int GetOwnedSupplyCount(string itemId)
