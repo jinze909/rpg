@@ -19,6 +19,7 @@ namespace Rpg.Soundwell
         private readonly RpgWorld500xSceneBootstrapper _bootstrapper;
         private readonly RpgWorld500xFieldReconScannerService _scanner;
         private readonly GameObject _rootObject;
+        private readonly Canvas _canvas;
         private readonly Button _scanButton;
         private readonly Text _scanButtonLabel;
         private readonly Text _bannerText;
@@ -33,7 +34,7 @@ namespace Rpg.Soundwell
         private bool _disposed;
 
         public bool IsDisposed => _disposed || _rootObject == null;
-        public bool IsScanButtonInteractable => !IsDisposed && _scanButton != null &&
+        public bool IsScanButtonInteractable => CanReceiveInput() && _scanButton != null &&
             _scanButton.isActiveAndEnabled && _scanButton.gameObject.activeInHierarchy && _scanButton.IsInteractable();
         public RpgWorld500xReconPingKind? ActiveFilterKind => _activeFilterKind;
         public string ActiveFilterLabelZh => ResolveFilterLabelZh(_activeFilterKind);
@@ -60,9 +61,9 @@ namespace Rpg.Soundwell
                 _rootObject.transform.SetParent(parent, false);
             }
 
-            var canvas = _rootObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 58;
+            _canvas = _rootObject.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.sortingOrder = 58;
 
             var scaler = _rootObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -192,9 +193,14 @@ namespace Rpg.Soundwell
             }
         }
 
+        private bool CanReceiveInput()
+        {
+            return !IsDisposed && !_bootstrapper.IsDisposed && _canvas != null && _canvas.isActiveAndEnabled;
+        }
+
         public bool TryClickPulseScan(float nowSeconds)
         {
-            if (IsDisposed || _bootstrapper.IsDisposed || float.IsNaN(nowSeconds) || float.IsInfinity(nowSeconds))
+            if (!CanReceiveInput() || float.IsNaN(nowSeconds) || float.IsInfinity(nowSeconds))
             {
                 return false;
             }
@@ -223,7 +229,7 @@ namespace Rpg.Soundwell
 
         private void HandleScanButtonClicked()
         {
-            if (_bootstrapper.IsDisposed || !IsScanButtonInteractable)
+            if (!IsScanButtonInteractable)
             {
                 return;
             }

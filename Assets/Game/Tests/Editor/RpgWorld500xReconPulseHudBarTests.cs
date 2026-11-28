@@ -81,6 +81,46 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void ReconPulseHudBar_DisabledCanvasRejectsMouseAndHotkeyWithoutConsumingCooldown()
+        {
+            var root = new GameObject("ReconDisabledCanvasRoot");
+            try
+            {
+                using (var boot = new RpgWorld500xSceneBootstrapper(
+                    initialMapId: RpgWorldMapId.Soundwell,
+                    overrideTileSlices: new Sprite[] { null }))
+                using (var bar = new RpgWorld500xReconPulseHudBar(root.transform, boot, cooldownSeconds: 4f))
+                {
+                    Transform hud = root.transform.Find("World500xReconPulseHudBar");
+                    var canvas = hud.GetComponent<Canvas>();
+                    var button = hud.Find("ReconPulsePanel/PulseScanButton")
+                        .GetComponent<UnityEngine.UI.Button>();
+                    bar.UpdateCooldownDisplay(10f);
+                    string originalBanner = bar.BannerText;
+                    canvas.enabled = false;
+                    Assert.IsFalse(bar.IsScanButtonInteractable);
+                    button.onClick.Invoke();
+                    Assert.IsFalse(bar.TryClickPulseScan(10f));
+                    Assert.AreEqual(0, bar.LastPingCount);
+                    Assert.AreEqual(originalBanner, bar.BannerText);
+                    Assert.IsEmpty(bar.PingsText);
+
+                    canvas.enabled = true;
+                    Assert.IsTrue(bar.IsScanButtonInteractable);
+                    Assert.IsTrue(bar.TryClickPulseScan(10f));
+                    Assert.Greater(bar.LastPingCount, 0);
+                    Assert.IsFalse(bar.IsScanButtonInteractable);
+                    bar.UpdateCooldownDisplay(14f);
+                    Assert.IsTrue(bar.IsScanButtonInteractable);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ReconPulseHudBar_MouseEventAndHotkeyShareSessionClock()
         {
             var root = new GameObject("ReconSharedClockRoot");

@@ -226,13 +226,16 @@ namespace Rpg.Soundwell
                 rect.pivot = new Vector2(0.5f, 1f);
                 rect.anchoredPosition = new Vector2(0f, -20f);
                 rect.sizeDelta = new Vector2(460f, 58f);
-                bannerPanel.GetComponent<Image>().color = new Color(0.08f, 0.10f, 0.14f, 0.92f);
+                var panelImage = bannerPanel.GetComponent<Image>();
+                panelImage.color = new Color(0.08f, 0.10f, 0.14f, 0.92f);
+                panelImage.raycastTarget = false;
 
                 Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
                 var hObj = new GameObject("Headline", typeof(RectTransform), typeof(Text));
                 hObj.transform.SetParent(bannerPanel.transform, false);
                 headlineText = hObj.GetComponent<Text>();
+                SetBannerTextRow(headlineText, 0.5f, 1f);
                 headlineText.font = font;
                 headlineText.fontSize = 15;
                 headlineText.alignment = TextAnchor.MiddleCenter;
@@ -241,6 +244,7 @@ namespace Rpg.Soundwell
                 var sObj = new GameObject("Subtitle", typeof(RectTransform), typeof(Text));
                 sObj.transform.SetParent(bannerPanel.transform, false);
                 subtitleText = sObj.GetComponent<Text>();
+                SetBannerTextRow(subtitleText, 0f, 0.5f);
                 subtitleText.font = font;
                 subtitleText.fontSize = 12;
                 subtitleText.alignment = TextAnchor.MiddleCenter;
@@ -305,6 +309,16 @@ namespace Rpg.Soundwell
                 remainingSeconds = 0f;
                 bannerPanel.SetActive(false);
             }
+        }
+
+        private static void SetBannerTextRow(Text text, float bottom, float top)
+        {
+            RectTransform rect = text.rectTransform;
+            rect.anchorMin = new Vector2(0f, bottom);
+            rect.anchorMax = new Vector2(1f, top);
+            rect.offsetMin = new Vector2(12f, 2f);
+            rect.offsetMax = new Vector2(-12f, -2f);
+            text.raycastTarget = false;
         }
 
         private void Present(BannerEntry entry)
