@@ -58,6 +58,62 @@ namespace Rpg.Tests.Editor
         }
 
         [Test]
+        public void AllFourRegions_QuickMenuDock_DisabledOwningCanvasRejectsOpenCloseAndSwitch()
+        {
+            var specs = RpgExpandedWorldScale.AllSpecs;
+            Assert.AreEqual(4, specs.Count);
+            foreach (RpgExpandedMapSpec spec in specs)
+            {
+                var root = new GameObject("QuickDockDisabledCanvas_" + spec.MapId);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var router = new RpgWorld500xMenuRouter(root.transform, boot, new RpgWorld500xCampHavenService()))
+                    using (var dock = new RpgWorld500xQuickMenuDockHud(root.transform, router))
+                    {
+                        var canvas = root.transform.Find("World500xQuickMenuDockHud").GetComponent<Canvas>();
+                        var panel = canvas.transform.Find("QuickMenuDockPanel");
+                        var atlas = panel.Find("DockBtn_WorldAtlas").GetComponent<Button>();
+                        var bestiary = panel.Find("DockBtn_Bestiary").GetComponent<Button>();
+                        Assert.IsTrue(atlas.IsInteractable());
+                        canvas.enabled = false;
+                        // The Button remains interactable in UGUI when only its Canvas is disabled.
+                        Assert.IsTrue(atlas.IsInteractable());
+                        atlas.onClick.Invoke();
+                        Assert.IsFalse(dock.TryClickModalButton(RpgWorld500xModalKind.WorldAtlas));
+                        Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
+                        Assert.AreEqual(RpgWorld500xModalKind.None, dock.ActiveHighlightedModal);
+
+                        canvas.enabled = true;
+                        Assert.IsTrue(dock.TryClickModalButton(RpgWorld500xModalKind.WorldAtlas));
+                        Assert.AreEqual(RpgWorld500xModalKind.WorldAtlas, router.ActiveModal);
+                        canvas.enabled = false;
+                        atlas.onClick.Invoke();
+                        bestiary.onClick.Invoke();
+                        Assert.IsFalse(dock.TryClickModalButton(RpgWorld500xModalKind.WorldAtlas));
+                        Assert.IsFalse(dock.TryClickModalButton(RpgWorld500xModalKind.Bestiary));
+                        Assert.AreEqual(RpgWorld500xModalKind.WorldAtlas, router.ActiveModal);
+                        Assert.AreEqual(RpgWorld500xModalKind.WorldAtlas, dock.ActiveHighlightedModal);
+
+                        canvas.enabled = true;
+                        bestiary.onClick.Invoke();
+                        Assert.AreEqual(RpgWorld500xModalKind.Bestiary, router.ActiveModal);
+                        Assert.AreEqual(RpgWorld500xModalKind.Bestiary, dock.ActiveHighlightedModal);
+                        Assert.IsTrue(dock.TryClickModalButton(RpgWorld500xModalKind.Bestiary));
+                        Assert.AreEqual(RpgWorld500xModalKind.None, router.ActiveModal);
+                        Assert.AreEqual(RpgWorld500xModalKind.None, dock.ActiveHighlightedModal);
+                    }
+                    Assert.AreEqual(0, root.transform.childCount, spec.MapId.ToString());
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void AllFourRegions_QuickMenuDock_BlocksCanvasGroupLockedClicksAndStaleCallbacks()
         {
             var specs = RpgExpandedWorldScale.AllSpecs;
