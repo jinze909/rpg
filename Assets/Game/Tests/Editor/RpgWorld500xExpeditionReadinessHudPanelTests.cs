@@ -8,6 +8,62 @@ namespace Rpg.Tests.Editor
     public sealed class RpgWorld500xExpeditionReadinessHudPanelTests
     {
         [Test]
+        public void ExpeditionReadinessHudPanel_AllFourRegions_RejectsReopenAfterOwnerDisposal()
+        {
+            foreach (var spec in RpgExpandedWorldScale.AllSpecs)
+            {
+                var root = new GameObject("ReadinessDisposedOwner_" + spec.MapId);
+                try
+                {
+                    using (var boot = new RpgWorld500xSceneBootstrapper(
+                        initialMapId: spec.MapId, overrideTileSlices: new Sprite[] { null }))
+                    using (var panel = new RpgWorld500xExpeditionReadinessHudPanel(root.transform, boot))
+                    {
+                        Assert.IsTrue(panel.Show(5f), spec.MapId.ToString());
+                        var canvas = root.transform.Find("World500xExpeditionReadinessHudPanel");
+                        var modal = canvas.Find("ReadinessModalBox");
+                        var buy = modal.Find("BuyRecommendedSuppliesButton").GetComponent<Button>().onClick;
+                        var refresh = modal.Find("RefreshReadinessButton").GetComponent<Button>().onClick;
+                        var close = modal.Find("CloseReadinessButton").GetComponent<Button>().onClick;
+                        Assert.IsTrue(panel.Hide());
+                        var report = panel.LastReport;
+                        var receipt = panel.LastProvisioningReceipt;
+                        string header = panel.HeaderText;
+                        string banner = panel.GradeBannerText;
+                        string feedback = panel.FeedbackText;
+                        int rows = panel.DisplayedRowCount;
+
+                        boot.Dispose();
+                        Assert.IsFalse(panel.Show(12f), spec.MapId.ToString());
+                        Assert.IsFalse(panel.IsVisible);
+                        Assert.IsFalse(canvas.gameObject.activeSelf);
+                        buy.Invoke();
+                        refresh.Invoke();
+                        close.Invoke();
+                        Assert.IsFalse(panel.TryClickBuyRecommended());
+                        Assert.IsFalse(panel.TryPreviewTargetMap(RpgWorldMapId.MineCamp));
+                        Assert.IsFalse(panel.TryAutoProvisionForDestination(RpgWorldMapId.MineCamp));
+                        Assert.IsFalse(panel.TryClickRefresh(12f));
+                        Assert.IsFalse(panel.TryClickClose());
+                        Assert.AreEqual(string.Empty, panel.FormatProvisioningBreakdownForDestination(RpgWorldMapId.MineCamp));
+                        Assert.AreEqual(report, panel.LastReport);
+                        Assert.AreEqual(receipt, panel.LastProvisioningReceipt);
+                        Assert.AreEqual(header, panel.HeaderText);
+                        Assert.AreEqual(banner, panel.GradeBannerText);
+                        Assert.AreEqual(feedback, panel.FeedbackText);
+                        Assert.AreEqual(rows, panel.DisplayedRowCount);
+                    }
+
+                    Assert.AreEqual(0, root.transform.childCount);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void ExpeditionReadinessHudPanel_DisabledCanvasRejectsPurchasesAndPreviewUntilRestored()
         {
             var root = new GameObject("ReadinessDisabledCanvasRoot");
